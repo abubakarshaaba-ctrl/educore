@@ -1,0 +1,50 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+error_log
+
+# Laravel
+educore/.env
+educore/.env.backup
+educore/.env.production
+educore/.env.bak*
+educore/.env_local
+educore/vendor/
+educore/node_modules/
+educore/public/build/
+educore/public/hot
+educore/public/storage
+educore/storage/*.key
+educore/storage/pail/
+educore/storage/framework/views/*.php
+educore/storage/framework/sessions/*
+educore/storage/framework/cache/data/*
+educore/storage/logs/*
+educore/.phpunit.result.cache
+educore/.phpunit.cache/
+educore/auth.json
+
+# IDE
+.fleet/
+.idea/
+.nova/
+.vscode/
+.zed/
+
+# Claude session files
+.claude/
+
+# Temp/diagnostic files
+diag*.php
+fix*.php
+check*.php
+audit*.php
+test-*.php
+nc_assets/
+
+# cPanel
+cgi-bin/
+parking-page.shtml

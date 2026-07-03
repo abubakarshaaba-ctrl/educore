@@ -1,0 +1,406 @@
+@extends('layouts.app')
+@section('title', isset($lessonPlan) ? 'Edit Lesson Plan' : 'New Lesson Plan')
+
+@push('styles')
+<style>
+.lp-card { background:white;border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px; }
+.lp-section-title { font-size:13px;font-weight:700;color:var(--midnight);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--brand-gold); }
+.lp-section-hint { font-size:12px;color:var(--slate-light);margin-bottom:8px;font-style:italic; }
+.lp-textarea { width:100%;min-height:120px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;color:var(--slate);transition:border-color .15s; }
+.lp-textarea:focus { outline:none;border-color:var(--brand-gold);box-shadow:0 0 0 3px rgba(215,154,33,.15); }
+.ai-btn { display:inline-flex;align-items:center;gap:8px;padding:9px 18px;background:linear-gradient(135deg,#7C3AED,#4F46E5);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s; }
+.ai-btn:hover { opacity:.9; }
+.ai-btn:disabled { opacity:.5;cursor:not-allowed; }
+.ai-spinner { display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.nerdc-only { display:block; }
+.british-only { display:none; }
+[data-curriculum="british"] .nerdc-only { display:none; }
+[data-curriculum="british"] .british-only { display:block; }
+/* Compact Plan Details grid inputs */
+.lp-card .fc { font-size:12px; padding:7px 10px; }
+</style>
+@endpush
+
+@section('content')
+<div class="page-content">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <a href="{{ route('lesson-planner.index') }}" style="color:var(--slate-light);text-decoration:none;font-size:13px">← Lesson Planner</a>
+        <span style="color:var(--border)">/</span>
+        <h1 style="font-size:20px;font-weight:800;color:var(--midnight)">
+            {{ isset($lessonPlan) ? 'Edit Lesson Plan' : 'New Lesson Plan' }}
+        </h1>
+    </div>
+
+    <form method="POST"
+          action="{{ isset($lessonPlan) ? route('lesson-planner.update', $lessonPlan) : route('lesson-planner.store') }}"
+          id="planForm">
+        @csrf
+        @if(isset($lessonPlan)) @method('PUT') @endif
+
+        {{-- Meta --}}
+        <div class="lp-card">
+            <div class="lp-section-title">Plan Details</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+                <div>
+                    <label class="fl">Subject <span style="color:var(--crimson)">*</span></label>
+                    <select name="subject_id" id="subjectSel" class="fc" required>
+                        <option value="">Select subject</option>
+                        @foreach($subjects as $s)
+                        <option value="{{ $s->id }}" data-name="{{ $s->name }}"
+                            {{ old('subject_id', $lessonPlan->subject_id ?? '') == $s->id ? 'selected' : '' }}>
+                            {{ $s->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                    @error('subject_id')<span style="color:var(--crimson);font-size:12px">{{ $message }}</span>@enderror
+                </div>
+                <div>
+                    <label class="fl">Class Level <span style="color:var(--crimson)">*</span></label>
+                    <select name="class_level_id" id="classLevelSel" class="fc" required>
+                        <option value="">Select class</option>
+                        @foreach($classLevels as $cl)
+                        <option value="{{ $cl->id }}" data-name="{{ $cl->name }}" data-section="{{ $cl->section }}"
+                            {{ old('class_level_id', $lessonPlan->class_level_id ?? '') == $cl->id ? 'selected' : '' }}>
+                            {{ $cl->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                    @error('class_level_id')<span style="color:var(--crimson);font-size:12px">{{ $message }}</span>@enderror
+                </div>
+                <div>
+                    <label class="fl">Class Arm</label>
+                    <select name="class_arm_id" class="fc">
+                        <option value="">All arms</option>
+                        @foreach($classArms as $ca)
+                        <option value="{{ $ca->id }}"
+                            {{ old('class_arm_id', $lessonPlan->class_arm_id ?? '') == $ca->id ? 'selected' : '' }}>
+                            {{ $ca->classLevel->name ?? '' }} {{ $ca->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="fl">Curriculum Type <span style="color:var(--crimson)">*</span></label>
+                    <select name="curriculum_type" id="curriculumSel" class="fc" required>
+                        <option value="nerdc" {{ old('curriculum_type', $lessonPlan->curriculum_type ?? 'nerdc') === 'nerdc' ? 'selected' : '' }}>NERDC (Nigerian)</option>
+                        <option value="british" {{ old('curriculum_type', $lessonPlan->curriculum_type ?? '') === 'british' ? 'selected' : '' }}>British Curriculum</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="fl">Topic <span style="color:var(--crimson)">*</span></label>
+                    <input type="text" name="topic" id="topicInp" class="fc" required
+                           value="{{ old('topic', $lessonPlan->topic ?? '') }}" placeholder="e.g. Photosynthesis">
+                    @error('topic')<span style="color:var(--crimson);font-size:12px">{{ $message }}</span>@enderror
+                </div>
+                <div>
+                    <label class="fl">Subtopic</label>
+                    <input type="text" name="subtopic" id="subtopicInp" class="fc"
+                           value="{{ old('subtopic', $lessonPlan->subtopic ?? '') }}" placeholder="e.g. Light reactions">
+                </div>
+                <div>
+                    <label class="fl">Term</label>
+                    <select name="term_id" class="fc">
+                        <option value="">Select term</option>
+                        @foreach($sessions as $session)
+                        <optgroup label="{{ $session->name }}{{ $session->is_current ? ' (Current)' : '' }}">
+                            @foreach($session->terms as $t)
+                            <option value="{{ $t->id }}"
+                                {{ old('term_id', $lessonPlan->term_id ?? '') == $t->id ? 'selected' : '' }}>
+                                {{ $t->name }}{{ $t->is_current ? ' ★' : '' }}
+                            </option>
+                            @endforeach
+                        </optgroup>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="fl">Week Number</label>
+                    <input type="number" name="week_number" class="fc" min="1" max="52"
+                           value="{{ old('week_number', $lessonPlan->week_number ?? '') }}" placeholder="e.g. 5" id="weekInp">
+                </div>
+                <div>
+                    <label class="fl">Date</label>
+                    <input type="date" name="plan_date" class="fc"
+                           value="{{ old('plan_date', isset($lessonPlan) ? $lessonPlan->plan_date?->format('Y-m-d') : '') }}">
+                </div>
+                <div>
+                    <label class="fl">Duration (minutes)</label>
+                    <input type="number" name="duration_minutes" id="durationInp" class="fc" min="10" max="300"
+                           value="{{ old('duration_minutes', $lessonPlan->duration_minutes ?? 40) }}" required>
+                </div>
+                <div>
+                    <label class="fl">Status</label>
+                    <select name="status" class="fc">
+                        <option value="draft" {{ old('status', $lessonPlan->status ?? 'draft') === 'draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="published" {{ old('status', $lessonPlan->status ?? '') === 'published' ? 'selected' : '' }}>Published</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {{-- AI Generator --}}
+        <div class="lp-card" style="background:linear-gradient(135deg,#F5F3FF,#EFF6FF);border-color:#C4B5FD">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:#4C1D95;display:flex;align-items:center;gap:8px">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;color:#7C3AED"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/></svg>
+                        AI-Powered Generation
+                    </div>
+                    <p style="font-size:12px;color:#5B21B6;margin-top:3px">Powered by Groq AI (free) with OpenRouter fallback — fills all sections automatically based on your topic and class.</p>
+                </div>
+                <button type="button" class="ai-btn" id="generateBtn" onclick="generateWithAI()">
+                    <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/></svg>
+                    <span id="generateLabel">Generate with AI</span>
+                    <span class="ai-spinner" id="aiSpinner"></span>
+                </button>
+            </div>
+            <div id="aiError" style="display:none;margin-top:10px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:13px;color:var(--crimson)"></div>
+            <div id="aiSuccess" style="display:none;margin-top:10px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:13px;color:#15803D">
+                ✓ AI generation complete — review and edit each section below before saving.
+            </div>
+        </div>
+
+        {{-- NERDC / TRCN Sections --}}
+        <div id="planSections" data-curriculum="{{ old('curriculum_type', $lessonPlan->curriculum_type ?? 'nerdc') }}">
+
+            {{-- NERDC sections --}}
+            <div class="nerdc-only">
+
+                <div class="lp-card">
+                    <div class="lp-section-title">1. Previous Knowledge</div>
+                    <div class="lp-section-hint">What students already know from previous lessons that directly relates to this topic.</div>
+                    <textarea name="previous_knowledge" id="f_previous_knowledge" class="lp-textarea" placeholder="e.g. Students have been taught the structure of the cell, plant and animal cells, and cell organelles...">{{ old('previous_knowledge', $lessonPlan->previous_knowledge ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">2. Entry Behaviour</div>
+                    <div class="lp-section-hint">Prior knowledge and skills a student must already have before this lesson.</div>
+                    <textarea name="entry_behaviour" id="f_entry_behaviour" class="lp-textarea" placeholder="e.g. Students should be able to identify parts of a plant cell and explain the concept of energy...">{{ old('entry_behaviour', $lessonPlan->entry_behaviour ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">3. Behavioural Objectives</div>
+                    <div class="lp-section-hint">By the end of this lesson, students should be able to… (Use Bloom's Taxonomy verbs: identify, describe, explain, demonstrate, compare, analyse)</div>
+                    <textarea name="behavioural_objectives" id="f_behavioural_objectives" class="lp-textarea" placeholder="By the end of this lesson, students should be able to:&#10;1. Define photosynthesis&#10;2. State the conditions necessary for photosynthesis&#10;3. Write the chemical equation for photosynthesis">{{ old('behavioural_objectives', $lessonPlan->behavioural_objectives ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">4. Instructional Materials</div>
+                    <div class="lp-section-hint">Teaching aids, charts, specimens, models, digital resources you will use.</div>
+                    <textarea name="instructional_materials" id="f_instructional_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. Chart showing process of photosynthesis, green leaves, test tubes, iodine solution, whiteboard, markers...">{{ old('instructional_materials', $lessonPlan->instructional_materials ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">5. Reference Materials</div>
+                    <div class="lp-section-hint">NERDC-approved textbooks, Ministry of Education guides, and curriculum documents.</div>
+                    <textarea name="reference_materials" id="f_reference_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. New General Biology for Senior Secondary Schools by Stone &amp; Cozen (Longman), NERDC Biology Curriculum SS2...">{{ old('reference_materials', $lessonPlan->reference_materials ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">6. Introduction / Set Induction</div>
+                    <div class="lp-section-hint">A 2–3 minute activity or question to capture students' interest and connect to prior knowledge.</div>
+                    <textarea name="set_induction" id="f_set_induction" class="lp-textarea" placeholder="e.g. Teacher asks: Why do plants placed in the dark lose their green colour? Students brainstorm responses...">{{ old('set_induction', $lessonPlan->set_induction ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">7. Presentation / Development</div>
+                    <div class="lp-section-hint">Divide into Stage I (Introduction), Stage II (Development), Stage III (Consolidation). List Teacher's Activity and Students' Activity for each stage.</div>
+                    <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:240px" placeholder="STAGE I — Introduction (5 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE II — Development (25 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE III — Consolidation (10 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...">{{ old('presentation', $lessonPlan->presentation ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">8. Class Activity / Students' Activity</div>
+                    <div class="lp-section-hint">Specific hands-on tasks, group work, experiments, or exercises students will carry out.</div>
+                    <textarea name="class_activity" id="f_class_activity" class="lp-textarea" placeholder="e.g. In groups of 4, students will carry out the starch test on leaves kept in light and dark conditions. Each group records observations in their notebooks...">{{ old('class_activity', $lessonPlan->class_activity ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">9. Evaluation</div>
+                    <div class="lp-section-hint">4–5 questions to assess student understanding at the end of the lesson.</div>
+                    <textarea name="evaluation" id="f_evaluation" class="lp-textarea" placeholder="1. Define photosynthesis.&#10;2. State three conditions necessary for photosynthesis.&#10;3. Write the word equation for photosynthesis.&#10;4. Why do plants kept in the dark turn yellow?&#10;5. What is the role of chlorophyll in photosynthesis?">{{ old('evaluation', $lessonPlan->evaluation ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">10. Assignment / Homework</div>
+                    <div class="lp-section-hint">Specific take-home task that reinforces the lesson.</div>
+                    <textarea name="assignment" id="f_assignment" class="lp-textarea" style="min-height:90px" placeholder="e.g. Draw and label a diagram showing the process of photosynthesis. List five importance of photosynthesis to plants and animals.">{{ old('assignment', $lessonPlan->assignment ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">11. Conclusion / Summary</div>
+                    <div class="lp-section-hint">How the teacher wraps up — key points recap, link to next lesson.</div>
+                    <textarea name="conclusion" id="f_conclusion" class="lp-textarea" style="min-height:90px" placeholder="e.g. Teacher summarises the main points: photosynthesis occurs in the chloroplast, requires sunlight, water, and CO₂, and produces glucose and oxygen. Preview: next lesson will cover factors affecting the rate of photosynthesis.">{{ old('conclusion', $lessonPlan->conclusion ?? '') }}</textarea>
+                </div>
+
+            </div>{{-- /nerdc-only --}}
+
+            {{-- British sections --}}
+            <div class="british-only">
+
+                <div class="lp-card">
+                    <div class="lp-section-title">1. Learning Objectives</div>
+                    <div class="lp-section-hint">Aligned to the National Curriculum programme of study. State the NC attainment target.</div>
+                    <textarea name="learning_objectives" id="f_learning_objectives" class="lp-textarea" placeholder="e.g. Students will understand the process of photosynthesis and its importance to life on Earth (NC KS4 Biology — B1)...">{{ old('learning_objectives', $lessonPlan->learning_objectives ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">2. Success Criteria (WALT / WILF)</div>
+                    <div class="lp-section-hint">We Are Learning To… / What I'm Looking For. Include emerging, developing, and securing levels.</div>
+                    <textarea name="success_criteria" id="f_success_criteria" class="lp-textarea" placeholder="WALT: Explain the process of photosynthesis&#10;&#10;Emerging: I can state what photosynthesis is.&#10;Developing: I can describe the inputs and outputs of photosynthesis.&#10;Securing: I can explain how light intensity affects the rate of photosynthesis.">{{ old('success_criteria', $lessonPlan->success_criteria ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">3. Starter Activity</div>
+                    <div class="lp-section-hint">5–10 minute engaging hook — retrieval practice, question, video cue, or thought experiment.</div>
+                    <textarea name="starter_activity" id="f_starter_activity" class="lp-textarea" style="min-height:90px" placeholder="e.g. Show a 2-minute video clip of time-lapse plant growth. Ask: 'Where does all that mass come from?' Pair-share for 1 minute then take 3 responses.">{{ old('starter_activity', $lessonPlan->starter_activity ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">4. Main Teaching Sequence</div>
+                    <div class="lp-section-hint">Direct instruction: key vocabulary, teacher modelling, worked examples, and questioning prompts.</div>
+                    <textarea name="presentation" id="f_presentation_british" class="lp-textarea" style="min-height:200px" placeholder="1. Introduce key vocabulary: chlorophyll, chloroplast, glucose, carbon dioxide, oxygen (5 min)&#10;2. Explain the word equation with visual diagram (10 min)&#10;3. Teacher models how to interpret a graph of photosynthesis rate vs light intensity (8 min)&#10;4. Guided questions: ...">{{ old('presentation', $lessonPlan->presentation ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">5. Student Activities</div>
+                    <div class="lp-section-hint">Independent or group tasks with clear instructions. Include extension tasks for higher-ability pupils.</div>
+                    <textarea name="class_activity" id="f_class_activity_british" class="lp-textarea" placeholder="Core task: Complete the diagram labelling activity (Worksheet A)&#10;Extension: Analyse the data table of photosynthesis rate at different CO₂ concentrations and write a conclusion.">{{ old('class_activity', $lessonPlan->class_activity ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">6. Differentiation</div>
+                    <div class="lp-section-hint">Strategies for SEN/EAL pupils and stretch tasks for G&amp;T pupils.</div>
+                    <textarea name="differentiation" id="f_differentiation" class="lp-textarea" placeholder="SEN/EAL: Provide word bank, sentence starters, pre-labelled diagram for support.&#10;G&T: Research the limiting factors of photosynthesis and present findings to class.">{{ old('differentiation', $lessonPlan->differentiation ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">7. Plenary</div>
+                    <div class="lp-section-hint">5–10 minute closing activity — exit ticket, think-pair-share, or mini-whiteboard quiz.</div>
+                    <textarea name="plenary" id="f_plenary" class="lp-textarea" style="min-height:90px" placeholder="e.g. Exit ticket — students answer 3 questions on sticky notes: (1) What is photosynthesis? (2) Where does it occur? (3) One thing they're still unsure about.">{{ old('plenary', $lessonPlan->plenary ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">8. Assessment for Learning</div>
+                    <div class="lp-section-hint">AfL strategies used during the lesson (hinge questions, traffic light self-assessment, peer marking, etc.).</div>
+                    <textarea name="assessment_for_learning" id="f_assessment_for_learning" class="lp-textarea" style="min-height:90px" placeholder="e.g. Hinge question at 20 min mark. Traffic light self-assessment at end. Peer marking of the labelling activity.">{{ old('assessment_for_learning', $lessonPlan->assessment_for_learning ?? '') }}</textarea>
+                </div>
+
+                <div class="lp-card">
+                    <div class="lp-section-title">9. Homework</div>
+                    <div class="lp-section-hint">Clear instructions, expected time, and link to next lesson.</div>
+                    <textarea name="assignment" id="f_assignment_british" class="lp-textarea" style="min-height:90px" placeholder="e.g. Complete the 'Factors Affecting Photosynthesis' worksheet (p.23–24). Expected time: 20 minutes. Bring findings for discussion next lesson.">{{ old('assignment', $lessonPlan->assignment ?? '') }}</textarea>
+                </div>
+
+            </div>{{-- /british-only --}}
+
+        </div>{{-- /planSections --}}
+
+        <input type="hidden" name="ai_generated" id="aiGeneratedFlag" value="{{ old('ai_generated', $lessonPlan->ai_generated ?? '0') ? '1' : '0' }}">
+
+        <div style="display:flex;gap:12px;margin-top:8px;padding-top:16px;border-top:1px solid var(--border)">
+            <button type="submit" name="status" value="draft" class="btn btn-secondary">Save as Draft</button>
+            <button type="submit" name="status" value="published" class="btn btn-primary">Publish Plan</button>
+            <a href="{{ route('lesson-planner.index') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const curriculumSel = document.getElementById('curriculumSel');
+const planSections  = document.getElementById('planSections');
+
+function updateCurriculum() {
+    planSections.dataset.curriculum = curriculumSel.value;
+}
+curriculumSel.addEventListener('change', updateCurriculum);
+updateCurriculum();
+
+async function generateWithAI() {
+    const btn   = document.getElementById('generateBtn');
+    const label = document.getElementById('generateLabel');
+    const spin  = document.getElementById('aiSpinner');
+    const err   = document.getElementById('aiError');
+    const ok    = document.getElementById('aiSuccess');
+
+    const subject    = document.getElementById('subjectSel').options[document.getElementById('subjectSel').selectedIndex]?.dataset.name ?? '';
+    const classLevel = document.getElementById('classLevelSel').options[document.getElementById('classLevelSel').selectedIndex]?.dataset.name ?? '';
+    const section    = document.getElementById('classLevelSel').options[document.getElementById('classLevelSel').selectedIndex]?.dataset.section ?? 'junior_secondary';
+    const topic      = document.getElementById('topicInp').value.trim();
+    const subtopic   = document.getElementById('subtopicInp').value.trim();
+    const curriculum = curriculumSel.value;
+    const duration   = document.getElementById('durationInp').value;
+    const week       = document.getElementById('weekInp')?.value ?? '';
+
+    if (!subject || !classLevel || !topic) {
+        err.textContent = 'Please fill in Subject, Class Level, and Topic before generating.';
+        err.style.display = 'block';
+        ok.style.display = 'none';
+        return;
+    }
+
+    btn.disabled = true;
+    label.textContent = 'Generating…';
+    spin.style.display = 'inline-block';
+    err.style.display = 'none';
+    ok.style.display = 'none';
+
+    try {
+        const res = await fetch('{{ route("lesson-planner.generate") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ subject, class_level: classLevel, topic, subtopic, curriculum_type: curriculum, section, duration_minutes: duration, week, term: '' }),
+        });
+
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message ?? 'Unknown error');
+
+        // Fill in the fields
+        Object.entries(json.data).forEach(([key, val]) => {
+            const el = document.getElementById('f_' + key) ?? document.getElementById('f_' + key + '_british');
+            if (el) el.value = val;
+        });
+
+        document.getElementById('aiGeneratedFlag').value = '1';
+        ok.style.display = 'block';
+        document.querySelector('.lp-card')?.scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {
+        const msg = e.message ?? '';
+        let friendly = '⚠ ' + msg;
+
+        if (msg.includes('daily') || msg.includes('Daily') || msg.includes('30 req') || msg.includes('requests per day')) {
+            friendly = '🚫 Groq daily limit reached (30 free requests/day). Wait until tomorrow or use a paid API key.';
+        } else if (msg.includes('cut off mid-generation') || msg.includes('token-per-minute')) {
+            friendly = '⏳ Groq hit its per-minute token limit. Wait 60 seconds, then try again.';
+        } else if (msg.includes('rate-limited') || msg.includes('rate limit')) {
+            friendly = '⏳ AI provider is rate-limited. Please wait 30–60 seconds and try again.';
+        } else if (msg.includes('All AI providers failed')) {
+            // Parse individual provider failures for a cleaner display
+            const parts = msg.replace('All AI providers failed — ', '').split(' | ');
+            friendly = '⚠ All AI providers failed:<ul style="margin:6px 0 0 16px;padding:0">'
+                + parts.map(p => {
+                    if (p.includes('daily') || p.includes('cut off')) return '<li>' + p.split(':')[0] + ': token limit reached</li>';
+                    if (p.includes('429') || p.includes('rate')) return '<li>' + p.split(':')[0] + ': rate limited — try later</li>';
+                    if (p.includes('connect') || p.includes('cURL')) return '<li>' + p.split(':')[0] + ': not available</li>';
+                    if (p.includes('not configured')) return '<li>' + p.split(':')[0] + ': API key not set</li>';
+                    return '<li>' + p.substring(0, 80) + '</li>';
+                }).join('') + '</ul>';
+            err.innerHTML = friendly;
+            err.style.display = 'block';
+            return;
+        }
+
+        err.textContent = friendly;
+        err.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        label.textContent = 'Generate with AI';
+        spin.style.display = 'none';
+    }
+}
+</script>
+@endsection

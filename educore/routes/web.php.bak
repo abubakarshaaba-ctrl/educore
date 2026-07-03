@@ -1,0 +1,481 @@
+<?php
+
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CbtController;
+use App\Http\Controllers\ClassController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FeeController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportCardController;
+use App\Http\Controllers\ScoreController;
+use App\Http\Controllers\SkillRatingController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StudentController;
+use App\Http\Controllers\SuperAdminController;
+use Illuminate\Support\Facades\Route;
+
+// ── Authentication ──────────────────────────────────────────────────────
+Route::middleware('guest')->group(function () {
+    Route::get('/login',  [LoginController::class, 'showLogin'])->name('login');
+    Route::post('/login', [LoginController::class, 'login']);
+});
+Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
+
+// ── Authenticated Tenant Routes ─────────────────────────────────────────
+Route::middleware(['auth', 'tenant'])->group(function () {
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+
+
+    // ── Staff Bulk Upload ──────────────────────────────────────────────
+    Route::prefix('staff/bulk')->name('staff.bulk-upload.')->group(function () {
+        Route::get('/',         [\App\Http\Controllers\StaffBulkUploadController::class, 'index'])->name('index');
+        Route::get('/template', [\App\Http\Controllers\StaffBulkUploadController::class, 'template'])->name('template');
+        Route::post('/import',  [\App\Http\Controllers\StaffBulkUploadController::class, 'import'])->name('import');
+    });
+
+    // ── Student Bulk Upload ────────────────────────────────────────────
+    Route::prefix('students/bulk')->name('students.bulk-upload.')->group(function () {
+        Route::get('/',          [\App\Http\Controllers\StudentBulkUploadController::class, 'index'])->name('index');
+        Route::get('/template',  [\App\Http\Controllers\StudentBulkUploadController::class, 'template'])->name('template');
+        Route::post('/import',   [\App\Http\Controllers\StudentBulkUploadController::class, 'import'])->name('import');
+    });
+
+    // ── Student Transfers (must be before students resource)
+    Route::prefix('students/transfers')->name('students.transfers.')->group(function () {
+        Route::get('/',                     [\App\Http\Controllers\StudentTransferController::class, 'index'])->name('index');
+        Route::post('request',              [\App\Http\Controllers\StudentTransferController::class, 'request'])->name('request');
+        Route::post('{transfer}/approve',   [\App\Http\Controllers\StudentTransferController::class, 'approve'])->name('approve');
+        Route::post('{transfer}/reject',    [\App\Http\Controllers\StudentTransferController::class, 'reject'])->name('reject');
+    });
+    // ── Students ──────────────────────────────────────────────────────
+    Route::resource('students', StudentController::class)
+         ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
+
+
+
+    // ── Staff Bulk Upload ──────────────────────────────────────────────
+    Route::prefix('staff/bulk')->name('staff.bulk-upload.')->group(function () {
+        Route::get('/',         [\App\Http\Controllers\StaffBulkUploadController::class, 'index'])->name('index');
+        Route::get('/template', [\App\Http\Controllers\StaffBulkUploadController::class, 'template'])->name('template');
+        Route::post('/import',  [\App\Http\Controllers\StaffBulkUploadController::class, 'import'])->name('import');
+    });
+
+    // ── Student Bulk Upload ────────────────────────────────────────────
+    Route::prefix('students/bulk')->name('students.bulk-upload.')->group(function () {
+        Route::get('/',          [\App\Http\Controllers\StudentBulkUploadController::class, 'index'])->name('index');
+        Route::get('/template',  [\App\Http\Controllers\StudentBulkUploadController::class, 'template'])->name('template');
+        Route::post('/import',   [\App\Http\Controllers\StudentBulkUploadController::class, 'import'])->name('import');
+    });
+
+    // ── Student Transfers ─────────────────────────────────────────────
+    // (defined before students resource — see top of file)
+
+    // ── Classes ───────────────────────────────────────────────────────
+    Route::prefix('classes')->name('classes.')->group(function () {
+        Route::get('levels',                     [ClassController::class, 'levels'])->name('levels');
+        Route::post('levels',                    [ClassController::class, 'storeLevel'])->name('levels.store');
+        Route::delete('levels/{level}',          [ClassController::class, 'destroyLevel'])->name('levels.destroy');
+        Route::get('arms',                       [ClassController::class, 'arms'])->name('arms');
+        Route::post('arms',                      [ClassController::class, 'storeArm'])->name('arms.store');
+        Route::patch('arms/{arm}',               [ClassController::class, 'updateArm'])->name('arms.update');
+        Route::delete('arms/{arm}',              [ClassController::class, 'destroyArm'])->name('arms.destroy');
+        Route::get('{classArm}',                 [ClassController::class, 'show'])->name('show');
+        Route::post('assign-subject',            [ClassController::class, 'assignSubject'])->name('assign-subject');
+        Route::get('{classArm}/subjects',        [ClassController::class, 'subjects'])->name('subjects');
+        Route::post('{classArm}/subjects',       [ClassController::class, 'storeSubject'])->name('subjects.store');
+        Route::patch('subjects/{cas}/toggle',    [ClassController::class, 'toggleSubject'])->name('subjects.toggle');
+        Route::get('grading',                    [ClassController::class, 'grading'])->name('grading');
+        Route::post('grading',                   [ClassController::class, 'storeGrade'])->name('grading.store');
+        Route::delete('grading/{grade}',         [ClassController::class, 'destroyGrade'])->name('grading.destroy');
+        Route::get('promotion',                  [ClassController::class, 'promotion'])->name('promotion');
+        Route::post('promotion',                 [ClassController::class, 'savePromotion'])->name('promotion.save');
+        Route::get('bulk-promote',               [ClassController::class, 'bulkPromotePage'])->name('bulk-promote.page');
+        Route::post('bulk-promote',              [ClassController::class, 'bulkPromote'])->name('bulk-promote');
+    });
+
+    // ── Subjects ──────────────────────────────────────────────────────
+    Route::resource('subjects', \App\Http\Controllers\SubjectController::class)
+         ->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+    Route::patch('subjects/{subject}/toggle', [\App\Http\Controllers\SubjectController::class, 'toggle'])
+         ->name('subjects.toggle');
+
+    // ── Staff ─────────────────────────────────────────────────────────
+    Route::prefix('staff')->name('staff.')->group(function () {
+        Route::get('/',             [StaffController::class, 'index'])->name('index');
+        Route::get('create',        [StaffController::class, 'create'])->name('create');
+        Route::post('/',            [StaffController::class, 'store'])->name('store');
+        Route::get('{staff}',       [StaffController::class, 'show'])->name('show');
+        Route::put('{staff}',       [StaffController::class, 'update'])->name('update');
+        Route::patch('{staff}/toggle',         [StaffController::class, 'toggle'])->name('toggle');
+        Route::post('{staff}/reset-password',  [StaffController::class, 'resetPassword'])->name('reset-password');
+    });
+
+    // ── Scores ────────────────────────────────────────────────────────
+    Route::prefix('scores')->name('scores.')->group(function () {
+        Route::get('assessment-types',  [ScoreController::class, 'assessmentTypes'])->name('assessment-types');
+        Route::post('assessment-types', [ScoreController::class, 'storeAssessmentType'])->name('assessment-types.store');
+        Route::delete('assessment-types/{at}', [ScoreController::class, 'destroyAssessmentType'])->name('assessment-types.destroy');
+        Route::get('/',                 [ScoreController::class, 'index'])->name('index');
+        Route::get('entry',             [ScoreController::class, 'entry'])->name('entry');
+        Route::post('save',             [ScoreController::class, 'save'])->name('save');
+        Route::get('broadsheet',        [ScoreController::class, 'broadsheet'])->name('broadsheet');
+    });
+
+    // ── Score Import ──────────────────────────────────────────────────
+    Route::prefix('scores/import')->name('scores.import.')->group(function () {
+        Route::get('/',          [\App\Http\Controllers\ScoreImportController::class, 'index'])->name('index');
+        Route::get('template',   [\App\Http\Controllers\ScoreImportController::class, 'download'])->name('template');
+        Route::post('upload',    [\App\Http\Controllers\ScoreImportController::class, 'upload'])->name('upload');
+    });
+
+    // ── Reports ───────────────────────────────────────────────────────
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/',                [ReportCardController::class, 'index'])->name('index');
+        Route::post('compute',         [ReportCardController::class, 'compute'])->name('compute');
+        Route::get('preview',          [ReportCardController::class, 'preview'])->name('preview');
+        Route::get('pdf',              [ReportCardController::class, 'pdf'])->name('pdf');
+        Route::get('pdf-class',        [ReportCardController::class, 'pdfClass'])->name('pdf-class');
+        Route::get('remarks',          [ReportCardController::class, 'remarks'])->name('remarks');
+        Route::get('remarks/page',     [ReportCardController::class, 'remarks'])->name('remarks.page.view');
+        Route::post('remarks/page',    [ReportCardController::class, 'saveRemark'])->name('remarks.page');
+        Route::post('remarks/bulk',    [ReportCardController::class, 'bulkRemarks'])->name('remarks.bulk');
+    });
+
+    // ── Skills ────────────────────────────────────────────────────────
+    Route::prefix('skills')->name('skills.')->group(function () {
+        Route::get('/',     [SkillRatingController::class, 'index'])->name('index');
+        Route::get('sheet', [SkillRatingController::class, 'sheet'])->name('sheet');
+        Route::post('save', [SkillRatingController::class, 'save'])->name('save');
+    });
+
+    // ── Attendance ────────────────────────────────────────────────────
+    Route::prefix('attendance')->name('attendance.')->group(function () {
+        Route::get('/',               [AttendanceController::class, 'index'])->name('index');
+        Route::get('sheet',           [AttendanceController::class, 'sheet'])->name('sheet');
+        Route::post('save',           [AttendanceController::class, 'save'])->name('save');
+        Route::get('report',          [AttendanceController::class, 'report'])->name('report');
+        Route::get('student/{student}',[AttendanceController::class, 'studentHistory'])->name('student');
+    });
+
+    // ── CBT ───────────────────────────────────────────────────────────
+    Route::prefix('cbt')->name('cbt.')->group(function () {
+        Route::get('banks',             [CbtController::class, 'banks'])->name('banks');
+        Route::post('banks',            [CbtController::class, 'storeBank'])->name('banks.store');
+        Route::get('questions',         [CbtController::class, 'questions'])->name('questions');
+        Route::post('questions',        [CbtController::class, 'storeQuestion'])->name('questions.store');
+        Route::delete('questions/{q}',  [CbtController::class, 'destroyQuestion'])->name('questions.destroy');
+        Route::get('exams',             [CbtController::class, 'exams'])->name('exams');
+        Route::post('exams',            [CbtController::class, 'storeExam'])->name('exams.store');
+        Route::post('exams/{exam}/close',   [CbtController::class, 'closeExam'])->name('close');
+        Route::post('exams/{exam}/publish', [CbtController::class, 'publishExam'])->name('publish');
+        Route::get('results',           [CbtController::class, 'results'])->name('results');
+        Route::get('exams/{exam}/start', [CbtController::class, 'startExam'])->name('exams.start');
+        Route::post('session/{session}/submit', [CbtController::class, 'submitExam'])->name('session.submit');
+    });
+
+    // ── Fees ──────────────────────────────────────────────────────────
+    Route::prefix('fees')->name('fees.')->group(function () {
+        Route::get('subaccounts',                [FeeController::class, 'subaccounts'])->name('subaccounts');
+        Route::post('subaccounts',               [FeeController::class, 'storeSubaccount'])->name('subaccounts.store');
+        Route::get('categories',                 [FeeController::class, 'categories'])->name('categories');
+        Route::post('categories',                [FeeController::class, 'storeCategory'])->name('categories.store');
+        Route::get('structures',                 [FeeController::class, 'structures'])->name('structures');
+        Route::post('structures',                [FeeController::class, 'storeStructure'])->name('structures.store');
+        Route::get('invoices',                   [FeeController::class, 'invoices'])->name('invoices');
+        Route::post('invoices/generate',         [FeeController::class, 'generateInvoices'])->name('invoices.generate');
+        Route::get('invoices/{invoice}',         [FeeController::class, 'showInvoice'])->name('invoices.show');
+        Route::post('payment/{invoice}',         [FeeController::class, 'recordPayment'])->name('payment.record');
+    });
+
+    // ── Fee Reminders ─────────────────────────────────────────────────
+    Route::prefix('fees/reminders')->name('fees.reminders.')->group(function () {
+        Route::get('/',       [\App\Http\Controllers\FeeReminderController::class, 'index'])->name('index');
+        Route::post('send',   [\App\Http\Controllers\FeeReminderController::class, 'sendReminder'])->name('send');
+        Route::post('bulk',   [\App\Http\Controllers\FeeReminderController::class, 'bulkSend'])->name('bulk');
+    });
+
+    // ── Payment Gateway ───────────────────────────────────────────────
+    Route::prefix('fees/gateway')->name('fees.gateway.')->group(function () {
+        Route::get('settings',             [\App\Http\Controllers\PaymentGatewayController::class, 'settings'])->name('settings');
+        Route::post('settings',            [\App\Http\Controllers\PaymentGatewayController::class, 'saveSettings'])->name('settings.save');
+        Route::get('pay/{invoice}',        [\App\Http\Controllers\PaymentGatewayController::class, 'initiate'])->name('initiate');
+        Route::get('paystack/callback',    [\App\Http\Controllers\PaymentGatewayController::class, 'paystackCallback'])->name('paystack.callback');
+        Route::get('flutterwave/callback', [\App\Http\Controllers\PaymentGatewayController::class, 'flutterwaveCallback'])->name('flutterwave.callback');
+    });
+
+    // ── Notifications ─────────────────────────────────────────────────
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/',         [NotificationController::class, 'index'])->name('index');
+        Route::post('send',     [NotificationController::class, 'send'])->name('send');
+        Route::get('logs',      [NotificationController::class, 'logs'])->name('logs');
+        Route::get('templates', [NotificationController::class, 'templates'])->name('templates');
+        Route::get('settings',  [NotificationController::class, 'notificationSettings'])->name('settings');
+    });
+
+    // ── Messages (Parent-Teacher) ──────────────────────────────────────
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/',                [\App\Http\Controllers\MessagingController::class, 'inbox'])->name('inbox');
+        Route::get('compose',          [\App\Http\Controllers\MessagingController::class, 'compose'])->name('compose');
+        Route::post('/',               [\App\Http\Controllers\MessagingController::class, 'store'])->name('store');
+        Route::get('{thread}',         [\App\Http\Controllers\MessagingController::class, 'thread'])->name('thread');
+        Route::post('{thread}/reply',  [\App\Http\Controllers\MessagingController::class, 'reply'])->name('reply');
+        Route::patch('{thread}/close', [\App\Http\Controllers\MessagingController::class, 'close'])->name('close');
+    });
+
+    // ── Timetable ─────────────────────────────────────────────────────
+    Route::prefix('timetable')->name('timetable.')->group(function () {
+        Route::get('/',               [\App\Http\Controllers\TimetableController::class, 'index'])->name('index');
+        Route::get('view',            [\App\Http\Controllers\TimetableController::class, 'view'])->name('view');
+        Route::post('store',          [\App\Http\Controllers\TimetableController::class, 'store'])->name('store');
+        Route::delete('{period}',     [\App\Http\Controllers\TimetableController::class, 'destroy'])->name('destroy');
+        Route::get('configure',       [\App\Http\Controllers\TimetableController::class, 'configure'])->name('configure');
+        Route::post('config',         [\App\Http\Controllers\TimetableController::class, 'saveConfig'])->name('config.save');
+        Route::get('frequency',       [\App\Http\Controllers\TimetableController::class, 'frequency'])->name('frequency');
+        Route::post('frequency/load', [\App\Http\Controllers\TimetableController::class, 'loadFrequency'])->name('frequency.load');
+        Route::post('frequency/save', [\App\Http\Controllers\TimetableController::class, 'saveFrequency'])->name('frequency.save');
+        Route::post('generate',       [\App\Http\Controllers\TimetableController::class, 'generate'])->name('generate');
+        Route::get('teacher',         [\App\Http\Controllers\TimetableController::class, 'teacher'])->name('teacher');
+        Route::get('conflicts',       [\App\Http\Controllers\TimetableController::class, 'conflicts'])->name('conflicts');
+    });
+
+    // ── School Settings ───────────────────────────────────────────────
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/',             [\App\Http\Controllers\SchoolSettingController::class, 'index'])->name('index');
+        Route::post('/',            [\App\Http\Controllers\SchoolSettingController::class, 'update'])->name('update');
+        Route::get('grading',       [\App\Http\Controllers\SchoolSettingController::class, 'gradingSystem'])->name('grading');
+        Route::post('grading',      [\App\Http\Controllers\SchoolSettingController::class, 'storeGrade'])->name('grading.store');
+        Route::delete('grading/{grade}', [\App\Http\Controllers\SchoolSettingController::class, 'destroyGrade'])->name('grading.destroy');
+    });
+
+    // ── Academic Calendar ─────────────────────────────────────────────
+    Route::prefix('calendar')->name('calendar.')->group(function () {
+        Route::get('/',          [\App\Http\Controllers\CalendarController::class, 'index'])->name('index');
+        Route::post('/',         [\App\Http\Controllers\CalendarController::class, 'store'])->name('store');
+        Route::patch('{event}',  [\App\Http\Controllers\CalendarController::class, 'update'])->name('update');
+        Route::delete('{event}', [\App\Http\Controllers\CalendarController::class, 'destroy'])->name('destroy');
+        Route::get('api/events', [\App\Http\Controllers\CalendarController::class, 'apiEvents'])->name('api');
+    });
+
+    // ── Admissions ────────────────────────────────────────────────────
+    Route::prefix('admissions')->name('admissions.')->group(function () {
+        // Static routes MUST be before {admission} wildcard
+        Route::get('/',                    [\App\Http\Controllers\AdmissionController::class, 'index'])->name('index');
+        Route::get('create',               [\App\Http\Controllers\AdmissionController::class, 'create'])->name('create');
+        Route::post('/',                   [\App\Http\Controllers\AdmissionController::class, 'store'])->name('store');
+        Route::get('export',               [\App\Http\Controllers\AdmissionController::class, 'exportCsv'])->name('export');
+        Route::post('bulk-status',         [\App\Http\Controllers\AdmissionController::class, 'bulkStatus'])->name('bulk-status');
+        // Portal management
+        Route::get('portal',               [\App\Http\Controllers\PublicAdmissionController::class, 'portalApplications'])->name('portal');
+        Route::get('portal/settings',      [\App\Http\Controllers\PublicAdmissionController::class, 'portalSettings'])->name('portal.settings');
+        Route::post('portal/settings',     [\App\Http\Controllers\PublicAdmissionController::class, 'savePortalSettings'])->name('portal.settings.save');
+        // Wildcard routes LAST
+        Route::get('{admission}',          [\App\Http\Controllers\AdmissionController::class, 'show'])->name('show');
+        Route::patch('{admission}/status', [\App\Http\Controllers\AdmissionController::class, 'updateStatus'])->name('status');
+        Route::delete('{admission}',       [\App\Http\Controllers\AdmissionController::class, 'destroy'])->name('destroy');
+        Route::get('{admission}/documents',         [\App\Http\Controllers\AdmissionController::class, 'documents'])->name('documents');
+        Route::post('{admission}/interview',        [\App\Http\Controllers\AdmissionController::class, 'scheduleInterview'])->name('interview');
+        Route::post('{admission}/score',            [\App\Http\Controllers\AdmissionController::class, 'recordInterview'])->name('score');
+        Route::post('{admission}/offer',            [\App\Http\Controllers\AdmissionController::class, 'sendOffer'])->name('offer');
+    });
+
+    // ── Health Records ────────────────────────────────────────────────
+    Route::prefix('health')->name('health.')->group(function () {
+        Route::get('/',         [\App\Http\Controllers\HealthRecordController::class, 'index'])->name('index');
+        Route::get('{student}', [\App\Http\Controllers\HealthRecordController::class, 'show'])->name('show');
+        Route::post('{student}',[\App\Http\Controllers\HealthRecordController::class, 'upsert'])->name('upsert');
+    });
+
+    // ── Expenses ──────────────────────────────────────────────────────
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::get('/',         [\App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
+        Route::post('/',        [\App\Http\Controllers\ExpenseController::class, 'store'])->name('store');
+        Route::delete('{expense}', [\App\Http\Controllers\ExpenseController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Payroll ───────────────────────────────────────────────────────
+    Route::prefix('payroll')->name('payroll.')->group(function () {
+        Route::get('/',                [\App\Http\Controllers\PayrollController::class, 'index'])->name('index');
+        Route::get('create',           [\App\Http\Controllers\PayrollController::class, 'create'])->name('create');
+        Route::post('generate',        [\App\Http\Controllers\PayrollController::class, 'generatePeriod'])->name('generate');
+        Route::get('{period}',         [\App\Http\Controllers\PayrollController::class, 'show'])->name('show');
+        Route::post('{period}/approve',[\App\Http\Controllers\PayrollController::class, 'approve'])->name('approve');
+        Route::post('{period}/paid',   [\App\Http\Controllers\PayrollController::class, 'markPaid'])->name('paid');
+        Route::get('salary/settings',  [\App\Http\Controllers\PayrollController::class, 'salarySettings'])->name('salary');
+        Route::post('salary/settings', [\App\Http\Controllers\PayrollController::class, 'saveSalarySetting'])->name('salary.save');
+        Route::get('templates',        [\App\Http\Controllers\PayrollController::class, 'templates'])->name('templates');
+        Route::post('templates/deductions',              [\App\Http\Controllers\PayrollController::class, 'storeDeduction'])->name('templates.deduction.store');
+        Route::delete('templates/deductions/{deduction}',[\App\Http\Controllers\PayrollController::class, 'destroyDeduction'])->name('templates.deduction.destroy');
+        Route::post('templates/roles',                   [\App\Http\Controllers\PayrollController::class, 'storeRoleTemplate'])->name('templates.role.store');
+    });
+
+    // ── Library ───────────────────────────────────────────────────────
+    Route::prefix('library')->name('library.')->group(function () {
+        Route::get('/',                     [\App\Http\Controllers\LibraryController::class, 'index'])->name('index');
+        Route::post('books',                [\App\Http\Controllers\LibraryController::class, 'store'])->name('books.store');
+        Route::get('loans',                 [\App\Http\Controllers\LibraryController::class, 'loans'])->name('loans');
+        Route::post('loans',                [\App\Http\Controllers\LibraryController::class, 'issueBook'])->name('issue');
+        Route::patch('loans/{loan}/return', [\App\Http\Controllers\LibraryController::class, 'returnBook'])->name('return');
+    });
+
+    // ── Announcements ─────────────────────────────────────────────────
+    Route::prefix('announcements')->name('announcements.')->group(function () {
+        Route::get('/',                      [\App\Http\Controllers\AnnouncementController::class, 'index'])->name('index');
+        Route::get('manage',                 [\App\Http\Controllers\AnnouncementController::class, 'manage'])->name('manage');
+        Route::post('/',                     [\App\Http\Controllers\AnnouncementController::class, 'store'])->name('store');
+        Route::delete('{announcement}',      [\App\Http\Controllers\AnnouncementController::class, 'destroy'])->name('destroy');
+        Route::patch('{announcement}/toggle',[\App\Http\Controllers\AnnouncementController::class, 'toggle'])->name('toggle');
+    });
+
+    // ── Analytics ─────────────────────────────────────────────────────
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\AnalyticsController::class, 'index'])->name('index');
+        Route::get('class-report',[\App\Http\Controllers\AnalyticsController::class, 'classReport'])->name('class-report');
+        Route::get('subjects',    [\App\Http\Controllers\AnalyticsController::class, 'subjectAnalysis'])->name('subjects');
+        Route::get('teachers',    [\App\Http\Controllers\AnalyticsController::class, 'teacherReport'])->name('teachers');
+        Route::get('financial',   [\App\Http\Controllers\AnalyticsController::class, 'financial'])->name('financial');
+        Route::get('comparative', [\App\Http\Controllers\AnalyticsController::class, 'comparative'])->name('comparative');
+        Route::get('outcomes',    [\App\Http\Controllers\AnalyticsController::class, 'outcomes'])->name('outcomes');
+    });
+
+    // ── Grade Book ────────────────────────────────────────────────────
+    Route::prefix('gradebook')->name('gradebook.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\GradeBookController::class, 'index'])->name('index');
+    });
+
+    // ── Exports ───────────────────────────────────────────────────────
+    Route::prefix('exports')->name('exports.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\ExportController::class, 'index'])->name('index');
+        Route::get('broadsheet',  [\App\Http\Controllers\ExportController::class, 'broadsheetCsv'])->name('broadsheet');
+        Route::get('students',    [\App\Http\Controllers\ExportController::class, 'studentsCsv'])->name('students');
+        Route::get('fees',        [\App\Http\Controllers\ExportController::class, 'feesCsv'])->name('fees');
+    });
+
+    // ── Push Notifications ────────────────────────────────────────────
+    Route::prefix('push')->name('push.')->group(function () {
+        Route::post('subscribe',   [\App\Http\Controllers\PushNotificationController::class, 'subscribe'])->name('subscribe');
+        Route::post('unsubscribe', [\App\Http\Controllers\PushNotificationController::class, 'unsubscribe'])->name('unsubscribe');
+        Route::post('test',        [\App\Http\Controllers\PushNotificationController::class, 'sendTest'])->name('test');
+        Route::post('broadcast',   [\App\Http\Controllers\PushNotificationController::class, 'broadcast'])->name('broadcast');
+        Route::get('vapid-key',    [\App\Http\Controllers\PushNotificationController::class, 'vapidKey'])->name('vapid-key');
+    });
+
+    // ── Parent Portal ─────────────────────────────────────────────────
+    Route::prefix('parent')->name('parent.')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\ParentPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('results',   [\App\Http\Controllers\ParentPortalController::class, 'results'])->name('results');
+        Route::get('fees',      [\App\Http\Controllers\ParentPortalController::class, 'fees'])->name('fees');
+    });
+
+
+
+
+    
+
+
+    // ── Payroll Templates ──────────────────────────────────────────────
+
+
+    Route::get('payroll/salary-settings', [\App\Http\Controllers\PayrollController::class, 'salarySettings'])->name('payroll.salary');
+
+    // ── Report Card Publications ───────────────────────────────────────
+    Route::get('reports/publications',  [\App\Http\Controllers\ReportCardController::class, 'publicationStatus'])->name('reports.publications');
+    Route::post('reports/publish',      [\App\Http\Controllers\ReportCardController::class, 'publish'])->name('reports.publish');
+    Route::post('reports/unpublish',    [\App\Http\Controllers\ReportCardController::class, 'unpublish'])->name('reports.unpublish');
+
+    // ── CBT Bulk Upload & Essay Grading ────────────────────────────────
+    Route::get('cbt/bulk-template',                     [\App\Http\Controllers\CbtController::class, 'bulkUploadTemplate'])->name('cbt.bulk-template');
+    Route::get('cbt/banks/{bank}/bulk-upload',           [\App\Http\Controllers\CbtController::class, 'bulkUploadPage'])->name('cbt.bulk-upload');
+    Route::post('cbt/banks/{bank}/bulk-import',          [\App\Http\Controllers\CbtController::class, 'bulkImport'])->name('cbt.bulk-import');
+    Route::post('cbt/session/{session}/grade-essay',     [\App\Http\Controllers\CbtController::class, 'gradeEssay'])->name('cbt.grade-essay');
+
+    // ── Academic Risk Flagging ─────────────────────────────────────────
+    Route::prefix('risk')->name('risk.')->group(function () {
+        Route::get('/',                                    [\App\Http\Controllers\RiskFlagController::class, 'index'])->name('index');
+        Route::get('/{flag}',                              [\App\Http\Controllers\RiskFlagController::class, 'show'])->name('show');
+        Route::post('/compute',                            [\App\Http\Controllers\RiskFlagController::class, 'compute'])->name('compute');
+        Route::post('/{flag}/acknowledge',                 [\App\Http\Controllers\RiskFlagController::class, 'acknowledge'])->name('acknowledge');
+        Route::post('/{flag}/resolve',                     [\App\Http\Controllers\RiskFlagController::class, 'resolve'])->name('resolve');
+        Route::post('/config/save',                        [\App\Http\Controllers\RiskFlagController::class, 'saveConfig'])->name('config.save');
+    });
+
+    // ── Fee Invoice Generation ─────────────────────────────────────────
+    Route::prefix('fees/generate')->name('fees.generate.')->group(function () {
+        Route::get('/',                                    [\App\Http\Controllers\InvoiceGenerationController::class, 'index'])->name('index');
+        Route::post('/preview',                            [\App\Http\Controllers\InvoiceGenerationController::class, 'preview'])->name('preview');
+        Route::post('/',                                   [\App\Http\Controllers\InvoiceGenerationController::class, 'generate'])->name('store');
+        Route::get('/batches',                             [\App\Http\Controllers\InvoiceGenerationController::class, 'batches'])->name('batches');
+        Route::delete('/batch/{batch}/void',               [\App\Http\Controllers\InvoiceGenerationController::class, 'voidBatch'])->name('batch.void');
+        Route::post('/discounts',                          [\App\Http\Controllers\InvoiceGenerationController::class, 'storeDiscount'])->name('discount.store');
+        Route::delete('/discounts/{discount}',             [\App\Http\Controllers\InvoiceGenerationController::class, 'destroyDiscount'])->name('discount.destroy');
+    });
+
+    // ── Fee Payment Plans ─────────────────────────────────────────────
+        Route::get('fees/plans',                               [\App\Http\Controllers\FeePaymentPlanController::class, 'index'])->name('fees.plans.index');
+        Route::post('fees/plans',                              [\App\Http\Controllers\FeePaymentPlanController::class, 'store'])->name('fees.plans.store');
+        Route::patch('fees/plans/{plan}/toggle',               [\App\Http\Controllers\FeePaymentPlanController::class, 'toggle'])->name('fees.plans.toggle');
+        Route::delete('fees/plans/{plan}',                     [\App\Http\Controllers\FeePaymentPlanController::class, 'destroy'])->name('fees.plans.destroy');
+        Route::get('fees/plans/overdue',                       [\App\Http\Controllers\FeePaymentPlanController::class, 'overdue'])->name('fees.plans.overdue');
+        Route::post('fees/plans/reminders',                    [\App\Http\Controllers\FeePaymentPlanController::class, 'sendReminders'])->name('fees.plans.reminders');
+        Route::post('fees/plans/invoice/{invoice}/assign',     [\App\Http\Controllers\FeePaymentPlanController::class, 'assignToInvoice'])->name('fees.plans.assign');
+        Route::post('fees/plans/installment/{inst}/pay',       [\App\Http\Controllers\FeePaymentPlanController::class, 'payInstallment'])->name('fees.plans.installment.pay');
+
+}); // End auth+tenant
+
+// ── Super Admin Routes ──────────────────────────────────────────────────
+Route::middleware(['auth'])->prefix('super')->name('super.')->group(function () {
+
+    Route::get('/',             [SuperAdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('tenants',       [SuperAdminController::class, 'tenants'])->name('tenants');
+    Route::get('tenants/create',[SuperAdminController::class, 'createTenant'])->name('tenants.create');
+    Route::post('tenants',      [SuperAdminController::class, 'storeTenant'])->name('tenants.store');
+    Route::get('tenants/{tenant}',     [SuperAdminController::class, 'showTenant'])->name('tenant.show');
+    Route::patch('tenants/{tenant}/toggle', [SuperAdminController::class, 'toggleTenant'])->name('tenant.toggle');
+    Route::post('tenants/{tenant}/extend',  [SuperAdminController::class, 'extendTenant'])->name('tenant.extend');
+    Route::post('tenants/{tenant}/renew',   [SuperAdminController::class, 'renewTenant'])->name('tenant.renew');
+    Route::post('impersonate/{tenant}',     [SuperAdminController::class, 'impersonate'])->name('impersonate');
+    Route::post('stop-impersonating',       [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
+    Route::get('subscriptions',            [SuperAdminController::class, 'subscriptions'])->name('subscriptions');
+    Route::get('plans',                    [SuperAdminController::class, 'plans'])->name('plans');
+    Route::post('plans',                   [SuperAdminController::class, 'storePlan'])->name('plans.store');
+    Route::patch('plans/{plan}',           [SuperAdminController::class, 'updatePlan'])->name('plans.update');
+    Route::get('payments',                 [SuperAdminController::class, 'payments'])->name('payments');
+    Route::get('settings',                 [SuperAdminController::class, 'settings'])->name('settings');
+    Route::post('settings',                [SuperAdminController::class, 'saveSettings'])->name('settings.save');
+    Route::get('analytics',                [SuperAdminController::class, 'analytics'])->name('analytics');
+    Route::post('send-renewals',           [SuperAdminController::class, 'sendRenewalReminders'])->name('send-renewals');
+
+    // Agents
+    Route::prefix('agents')->name('agents.')->group(function () {
+        Route::get('/',               [\App\Http\Controllers\AgentController::class, 'index'])->name('index');
+        Route::post('/',              [\App\Http\Controllers\AgentController::class, 'store'])->name('store');
+        Route::get('{agent}',         [\App\Http\Controllers\AgentController::class, 'show'])->name('show');
+        Route::patch('{agent}/toggle',[\App\Http\Controllers\AgentController::class, 'toggle'])->name('toggle');
+    });
+
+    // White-label
+    Route::get('tenants/{tenant}/white-label',   [\App\Http\Controllers\WhiteLabelController::class, 'settings'])->name('white-label');
+    Route::post('tenants/{tenant}/white-label',  [\App\Http\Controllers\WhiteLabelController::class, 'save'])->name('white-label.save');
+    Route::post('tenants/{tenant}/verify-domain',[\App\Http\Controllers\WhiteLabelController::class, 'verifyDomain'])->name('verify-domain');
+
+}); // End super admin
+
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC ADMISSIONS PORTAL (no auth required)
+// ═══════════════════════════════════════════════════════════════════
+Route::prefix('apply/{slug}')->name('portal.')->group(function () {
+    Route::get('/',              [\App\Http\Controllers\PublicAdmissionController::class, 'landing'])->name('landing');
+    Route::get('/form',          [\App\Http\Controllers\PublicAdmissionController::class, 'form'])->name('form');
+    Route::post('/submit',       [\App\Http\Controllers\PublicAdmissionController::class, 'submit'])->name('submit');
+    Route::get('/success/{app}', [\App\Http\Controllers\PublicAdmissionController::class, 'success'])->name('success');
+    Route::get('/status',        [\App\Http\Controllers\PublicAdmissionController::class, 'statusForm'])->name('status.form');
+    Route::post('/status',       [\App\Http\Controllers\PublicAdmissionController::class, 'checkStatus'])->name('status');
+});
+
+// ── Webhooks (no auth, no CSRF) ───────────────────────────────────────
+Route::post('webhooks/paystack',
+    [\App\Http\Controllers\PaymentGatewayController::class, 'paystackWebhook'])
+    ->name('webhooks.paystack')->withoutMiddleware(['web']);

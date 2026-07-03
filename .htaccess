@@ -1,0 +1,54 @@
+# -----------------------------------------------------------------
+# EduCore — public_html/.htaccess
+# Document root routes all requests through /index.php (custom
+# Laravel entry point that boots educore/ as the app).
+# -----------------------------------------------------------------
+
+Options -Indexes
+
+# ── Apache mod_rewrite ──────────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect trailing slashes (except directories)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Route everything through the custom index.php entry point
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ── LiteSpeed ───────────────────────────────────────────────────
+<IfModule LiteSpeed>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+    # Disable LiteSpeed Cache for all auth / session-sensitive routes.
+    # Without this, LiteSpeed strips Set-Cookie from cached responses and
+    # the browser never receives a session cookie → every login POST returns 419.
+    CacheDisable public /admin/login
+    CacheDisable public /staff/login
+    CacheDisable public /student/login
+    CacheDisable public /parent/login
+    CacheDisable public /platform/login
+    CacheDisable public /portal/login
+    CacheDisable public /get-started
+    CacheDisable public /school/register
+</IfModule>
+
+# ── PHP settings (shared hosting) ───────────────────────────────
+<IfModule mod_php.c>
+    php_value upload_max_filesize 64M
+    php_value post_max_size 64M
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+</IfModule>
