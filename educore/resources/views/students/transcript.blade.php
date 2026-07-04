@@ -21,15 +21,13 @@ table.sc th.sh-subj{text-align:left;background:#EFF6FF;color:var(--indigo);min-w
 table.sc th.sh-sess{background:var(--midnight);color:white;font-size:11px}
 table.sc th.sh-class{background:#0F2942;color:#B8C8DB;font-size:9.5px;font-weight:400;font-style:italic}
 table.sc th.sh-term{background:#F8FAFC;color:var(--slate);text-transform:uppercase;letter-spacing:.04em;font-size:9.5px}
+table.sc th.sh-metric{background:white;color:var(--slate-light);font-size:8.5px;font-weight:600;padding:4px 6px}
 table.sc td{padding:8px 10px;border:1px solid #F1F5F9;color:var(--midnight);text-align:center}
 table.sc td.td-subj{text-align:left;font-weight:600;background:#FAFBFF;border-right:1px solid var(--border)}
 table.sc td.td-pass{color:#059669;font-weight:700}
 table.sc td.td-fail{color:#DC2626;font-weight:700}
 table.sc td.td-nil{color:#CBD5E1}
-.score-grade{display:flex;align-items:baseline;justify-content:center;gap:4px;white-space:nowrap}
-.score-grade .grade{font-size:9px;font-weight:800;color:var(--slate-light)}
-table.sc td.td-pass .grade{color:#047857}
-table.sc td.td-fail .grade{color:#B91C1C}
+table.sc td.td-grade{font-size:11px;font-weight:800}
 table.sc tr.tr-total td{background:#F1F5F9;border-top:2px solid var(--border);font-weight:800;color:var(--midnight)}
 table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
 </style>
@@ -83,13 +81,13 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
         <thead>
             {{-- Row 1: session names --}}
             <tr>
-                <th class="sh-subj" rowspan="3">Subject</th>
+                <th class="sh-subj" rowspan="4">Subject</th>
                 @foreach($chunk as $sessionId => $sessionSummaries)
                 @php
                     $termCount   = $sessionSummaries->count();
                     $sessionName = optional($sessionSummaries->first()?->session)->name ?? 'Session';
                 @endphp
-                <th class="sh-sess" colspan="{{ $termCount }}">{{ $sessionName }}</th>
+                <th class="sh-sess" colspan="{{ $termCount * 2 }}">{{ $sessionName }}</th>
                 @endforeach
             </tr>
             {{-- Row 2: class per session --}}
@@ -100,14 +98,23 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
                     $classArm  = $sessionSummaries->first()?->classArm;
                     $cls = trim(optional(optional($classArm)->classLevel)->name . ' ' . optional($classArm)->name);
                 @endphp
-                <th class="sh-class" colspan="{{ $termCount }}">{{ $cls ?: '—' }}</th>
+                <th class="sh-class" colspan="{{ $termCount * 2 }}">{{ $cls ?: '—' }}</th>
                 @endforeach
             </tr>
             {{-- Row 3: term names --}}
             <tr>
                 @foreach($chunk as $sessionId => $sessionSummaries)
                 @foreach($sessionSummaries->sortBy('term_id') as $s)
-                <th class="sh-term">{{ optional($s->term)->name }}</th>
+                <th class="sh-term" colspan="2">{{ optional($s->term)->name }}</th>
+                @endforeach
+                @endforeach
+            </tr>
+            {{-- Row 4: Score / Grade per term --}}
+            <tr>
+                @foreach($chunk as $sessionId => $sessionSummaries)
+                @foreach($sessionSummaries->sortBy('term_id') as $s)
+                <th class="sh-metric">Score</th>
+                <th class="sh-metric">Grade</th>
                 @endforeach
                 @endforeach
             </tr>
@@ -134,10 +141,10 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
                 $isPass = $entry['is_pass'] ?? ($sc >= $pass);
             @endphp
             @if($sc !== null)
-                <td class="{{ $isPass ? 'td-pass' : 'td-fail' }}">
-                    <span class="score-grade"><span>{{ $sc }}</span><span class="grade">{{ $grade }}</span></span>
-                </td>
+                <td class="{{ $isPass ? 'td-pass' : 'td-fail' }}">{{ $sc }}</td>
+                <td class="td-grade {{ $isPass ? 'td-pass' : 'td-fail' }}">{{ $grade }}</td>
             @else
+                <td class="td-nil">—</td>
                 <td class="td-nil">—</td>
             @endif
             @endforeach
@@ -156,7 +163,7 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
                 $avg = $s->final_average ?? 0;
                 $hasScores = $ts > 0 || $avg > 0;
             @endphp
-            <td style="color:{{ $avg >= $pass ? '#059669' : ($hasScores ? '#DC2626' : '#94A3B8') }}">
+            <td colspan="2" style="color:{{ $avg >= $pass ? '#059669' : ($hasScores ? '#DC2626' : '#94A3B8') }}">
                 @if($hasScores){{ $ts }} / {{ number_format($avg, 1) }}%@else—@endif
             </td>
             @endforeach
