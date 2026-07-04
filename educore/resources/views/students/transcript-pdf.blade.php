@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <title>Transcript — {{ $student->full_name }}</title>
 <style>
+/* Paper size (A4 landscape) is set by the controller via setPaper().
+   Declaring size here as well makes DomPDF drop the margin rule. */
 @page {
-    size: A4 landscape;
-    margin: 12.5mm;
+    margin: 1.25cm;
 }
 
 * {

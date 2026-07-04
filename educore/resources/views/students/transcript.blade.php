@@ -22,12 +22,13 @@ table.sc th.sh-sess{background:var(--midnight);color:white;font-size:11px}
 table.sc th.sh-class{background:#0F2942;color:#B8C8DB;font-size:9.5px;font-weight:400;font-style:italic}
 table.sc th.sh-term{background:#F8FAFC;color:var(--slate);text-transform:uppercase;letter-spacing:.04em;font-size:9.5px}
 table.sc th.sh-metric{background:white;color:var(--slate-light);font-size:8.5px;font-weight:600;padding:4px 6px}
-table.sc td{padding:8px 10px;border:1px solid #F1F5F9;color:var(--midnight);text-align:center}
+table.sc td{padding:8px 10px;border:1px solid #E2E8F0;color:var(--midnight);text-align:center}
 table.sc td.td-subj{text-align:left;font-weight:600;background:#FAFBFF;border-right:1px solid var(--border)}
 table.sc td.td-pass{color:#059669;font-weight:700}
 table.sc td.td-fail{color:#DC2626;font-weight:700}
 table.sc td.td-nil{color:#CBD5E1}
-table.sc td.td-grade{font-size:11px;font-weight:800}
+table.sc td.td-grade{font-size:11px;font-weight:800;background:#FAFBFC;border-left:1px solid #CBD5E1;border-right:1px solid #CBD5E1}
+table.sc th.sh-metric+th.sh-metric{border-left:1px solid #CBD5E1}
 table.sc tr.tr-total td{background:#F1F5F9;border-top:2px solid var(--border);font-weight:800;color:var(--midnight)}
 table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
 </style>
