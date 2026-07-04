@@ -89,6 +89,11 @@ class LoginController extends Controller
                 'login_surface' => 'unified',
             ], $request);
 
+            // Persist authentication before the browser is sent to the dashboard.
+            // This prevents redirect loops when a reverse proxy/CDN delays or drops
+            // the session write until after the transition response is returned.
+            $request->session()->save();
+
             return $this->loginResponse(route('super.dashboard'));
         }
 
@@ -126,6 +131,11 @@ class LoginController extends Controller
             'login_surface' => 'unified',
         ], $request);
 
+        // Force the regenerated session ID and tenant context to storage before
+        // rendering the navigation page. Without this, the next request can arrive
+        // before the database session has been committed and auth redirects to login.
+        $request->session()->save();
+
         return $this->loginResponse($redirector->redirectFor($user)->getTargetUrl());
     }
 
@@ -138,7 +148,14 @@ class LoginController extends Controller
      */
     private function loginResponse(string $url): \Illuminate\Http\Response
     {
-        return response()->view('auth.redirecting', ['url' => $url]);
+        return response()
+            ->view('auth.redirecting', ['url' => $url])
+            ->withHeaders([
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0, private',
+                'Pragma'        => 'no-cache',
+                'Expires'       => 'Thu, 01 Jan 1970 00:00:00 GMT',
+                'Vary'          => 'Cookie',
+            ]);
     }
 
     public function logout(Request $request, AuthAuditLogger $audit)
