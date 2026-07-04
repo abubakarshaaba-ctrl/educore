@@ -1,0 +1,29 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (!Schema::hasTable('cbt_questions')) {
+            return;
+        }
+
+        if (Schema::hasColumn('cbt_questions', 'correct_option')) {
+            DB::statement("ALTER TABLE `cbt_questions` MODIFY `correct_option` TINYINT UNSIGNED NULL");
+        }
+
+        if (Schema::hasColumn('cbt_questions', 'options')) {
+            DB::statement("ALTER TABLE `cbt_questions` MODIFY `options` JSON NULL");
+        }
+    }
+
+    public function down(): void
+    {
+        // Non-destructive rollback.
+        // Do not revert to NOT NULL because essay/short-answer questions need NULL.
+    }
+};
