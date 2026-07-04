@@ -14,25 +14,21 @@ $BackupEnv = Join-Path $ProjectRoot '.env.local-validation-backup'
 $ValidationDb = Join-Path $ProjectRoot 'database/validation.sqlite'
 $HadOriginalEnv = Test-Path $OriginalEnv
 
-function Set-EnvValue {
+function Set-EnvValueInMemory {
     param(
-        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Content,
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$Value
     )
 
-    $content = Get-Content $Path -Raw
     $escapedName = [regex]::Escape($Name)
     $line = "$Name=$Value"
 
-    if ($content -match "(?m)^$escapedName=") {
-        $content = [regex]::Replace($content, "(?m)^$escapedName=.*$", $line)
-    }
-    else {
-        $content = $content.TrimEnd() + "`r`n$line`r`n"
+    if ($Content -match "(?m)^$escapedName=") {
+        return [regex]::Replace($Content, "(?m)^$escapedName=.*$", $line)
     }
 
-    Set-Content -Path $Path -Value $content -Encoding UTF8
+    return $Content.TrimEnd() + "`r`n$line`r`n"
 }
 
 try {
@@ -42,24 +38,27 @@ try {
         Copy-Item $OriginalEnv $BackupEnv -Force
     }
 
-    Copy-Item (Join-Path $ProjectRoot '.env.example') $OriginalEnv -Force
-
     if (Test-Path $ValidationDb) {
         Remove-Item $ValidationDb -Force
     }
     New-Item -ItemType File -Path $ValidationDb | Out-Null
 
     $sqlitePath = $ValidationDb.Replace('\', '/')
+    $envContent = Get-Content (Join-Path $ProjectRoot '.env.example') -Raw
 
-    Set-EnvValue $OriginalEnv 'APP_ENV' 'testing'
-    Set-EnvValue $OriginalEnv 'APP_DEBUG' 'true'
-    Set-EnvValue $OriginalEnv 'APP_URL' 'http://localhost'
-    Set-EnvValue $OriginalEnv 'DB_CONNECTION' 'sqlite'
-    Set-EnvValue $OriginalEnv 'DB_DATABASE' "`"$sqlitePath`""
-    Set-EnvValue $OriginalEnv 'SESSION_DRIVER' 'array'
-    Set-EnvValue $OriginalEnv 'CACHE_STORE' 'array'
-    Set-EnvValue $OriginalEnv 'QUEUE_CONNECTION' 'sync'
-    Set-EnvValue $OriginalEnv 'MAIL_MAILER' 'array'
+    $envContent = Set-EnvValueInMemory $envContent 'APP_ENV' 'testing'
+    $envContent = Set-EnvValueInMemory $envContent 'APP_DEBUG' 'true'
+    $envContent = Set-EnvValueInMemory $envContent 'APP_URL' 'http://localhost'
+    $envContent = Set-EnvValueInMemory $envContent 'DB_CONNECTION' 'sqlite'
+    $envContent = Set-EnvValueInMemory $envContent 'DB_DATABASE' "`"$sqlitePath`""
+    $envContent = Set-EnvValueInMemory $envContent 'SESSION_DRIVER' 'array'
+    $envContent = Set-EnvValueInMemory $envContent 'CACHE_STORE' 'array'
+    $envContent = Set-EnvValueInMemory $envContent 'QUEUE_CONNECTION' 'sync'
+    $envContent = Set-EnvValueInMemory $envContent 'MAIL_MAILER' 'array'
+
+    $tempEnv = Join-Path $ProjectRoot '.env.validation.tmp'
+    [System.IO.File]::WriteAllText($tempEnv, $envContent, [System.Text.UTF8Encoding]::new($false))
+    Move-Item $tempEnv $OriginalEnv -Force
 
     if (-not $SkipComposer) {
         Write-Host "`n[1/7] Validating composer.json..." -ForegroundColor Yellow
@@ -98,11 +97,19 @@ try {
 finally {
     Write-Host "`nRestoring local environment..." -ForegroundColor Cyan
 
+    Start-Sleep -Milliseconds 300
+
     if ($HadOriginalEnv -and (Test-Path $BackupEnv)) {
-        Move-Item $BackupEnv $OriginalEnv -Force
+        Copy-Item $BackupEnv $OriginalEnv -Force
+        Remove-Item $BackupEnv -Force
     }
     elseif (Test-Path $OriginalEnv) {
         Remove-Item $OriginalEnv -Force
+    }
+
+    $tempEnv = Join-Path $ProjectRoot '.env.validation.tmp'
+    if (Test-Path $tempEnv) {
+        Remove-Item $tempEnv -Force
     }
 
     if (Test-Path $ValidationDb) {
