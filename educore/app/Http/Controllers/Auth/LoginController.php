@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginRedirector;
 use App\Services\Auth\LoginUserResolver;
@@ -12,6 +11,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * Unified login for ALL user types:
+ *   super admin · tenant admin · staff · teacher · student · parent
+ *
+ * Uses standard Laravel session CSRF. After successful authentication the
+ * response is a 200 HTML handoff page (auth.redirecting) instead of a 302 —
+ * the proxy in front of the app has been observed dropping Set-Cookie from
+ * 302 responses, which loses the freshly regenerated session.
+ */
 class LoginController extends Controller
 {
     public function showLogin(LoginRedirector $redirector)
@@ -29,100 +37,91 @@ class LoginController extends Controller
         LoginRedirector $redirector,
         AuthAuditLogger $audit,
         TenantAccessService $tenantAccess
-    )
-    {
+    ) {
         $request->validate([
-            'login_id' => ['required', 'string'],
-            'password' => ['required'],
+            'login_id' => ['required', 'string', 'max:180'],
+            'password' => ['required', 'string'],
         ]);
 
         $loginId = trim($request->login_id);
-        $password = $request->password;
-        $user = $users->resolveGlobal($loginId);
+        $user    = $users->resolveGlobal($loginId);
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             if ($user) {
-                $audit->recordForUser($user, 'auth.login.denied', [
-                    'login_surface' => 'global',
-                ], $request, 'invalid_credentials');
+                $audit->recordForUser($user, 'auth.login.denied', ['login_surface' => 'unified'], $request, 'invalid_credentials');
             }
 
             return back()
-                ->withErrors(['login_id' => 'Credentials not found. Check your ID or email and password.'])
+                ->withErrors(['login_id' => 'These credentials do not match our records.'])
                 ->withInput(['login_id' => $loginId]);
         }
 
-        if (!$user->is_active || ($user->isTenantStaff() && !$user->isEmploymentActive())) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'global',
-            ], $request, 'inactive_or_ineligible_account');
+        if (!$user->is_active) {
+            $audit->recordForUser($user, 'auth.login.denied', ['login_surface' => 'unified'], $request, 'inactive_account');
 
             return back()->withErrors(['login_id' => 'Your account has been deactivated. Contact the school.']);
         }
 
-        // The platform gateway is reserved for super administration. Any valid school
-        // account (admin / staff / student / parent) is guided to its own login surface
-        // instead of being signed in here.
-        if (!$user->is_super_admin) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'global',
-            ], $request, 'non_platform_user');
+        if ($user->isTenantStaff() && !$user->isEmploymentActive()) {
+            $audit->recordForUser($user, 'auth.login.denied', ['login_surface' => 'unified'], $request, 'inactive_employment');
 
-            $target = $this->schoolSurfaceFor($user);
-
-            return redirect($target['url'])
-                ->withErrors(['login_id' => "School accounts sign in on their own page. {$target['hint']}"])
-                ->withInput(['login_id' => $loginId]);
+            return back()->withErrors(['login_id' => 'Your employment is no longer active. Contact the school.']);
         }
 
+        // ── Super admin ────────────────────────────────────────────────────
         if ($user->is_super_admin) {
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
-            $audit->recordForUser($user, 'auth.login.success', [
-                'login_surface' => 'global',
-            ], $request);
+            $request->session()->save();
 
-            return redirect()->route('super.dashboard');
+            $user->forceFill(['last_login_at' => now()])->save();
+            $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'unified'], $request);
+
+            return $this->handoff(route('super.dashboard'));
         }
 
+        // ── School user (admin / staff / teacher / student / parent) ───────
         $tenant = $user->tenant;
 
         if (!$tenant) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'global',
-            ], $request, 'missing_tenant');
+            $audit->recordForUser($user, 'auth.login.denied', ['login_surface' => 'unified'], $request, 'no_tenant');
 
-            return back()->withErrors(['login_id' => 'Account not linked to any school.']);
+            return back()->withErrors(['login_id' => 'Account is not linked to any school. Contact support.']);
         }
 
         $decision = $tenantAccess->applicationAccess($tenant);
+
         if ($decision->isDenied()) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'global',
-                'state' => $decision->state,
-            ], $request, 'tenant_' . $decision->state);
+            $audit->recordForUser($user, 'auth.login.denied', ['login_surface' => 'unified', 'state' => $decision->state], $request, 'tenant_' . $decision->state);
 
             return back()->withErrors(['login_id' => 'This school account is currently unavailable. Contact support.']);
         }
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
-        $request->session()->put('tenant_id', $tenant->id);
-        $request->session()->put('tenant_slug', $tenant->slug);
-        $user->forceFill(['last_login_at' => now()])->save();
-        $audit->recordForUser($user, 'auth.login.success', [
-            'login_surface' => 'global',
-        ], $request);
+        $request->session()->put('tenant_id',   $tenant->id);
+        $request->session()->put('tenant_slug',  $tenant->slug);
+        $request->session()->save();
 
-        return $redirector->redirectFor($user);
+        $user->forceFill(['last_login_at' => now()])->save();
+        $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'unified'], $request);
+
+        return $this->handoff($redirector->redirectFor($user)->getTargetUrl());
+    }
+
+    /**
+     * 200 HTML handoff instead of a 302 redirect — the proxy drops Set-Cookie
+     * on 302 responses, which would lose the regenerated session cookie.
+     */
+    private function handoff(string $url): \Illuminate\Http\Response
+    {
+        return response()->view('auth.redirecting', ['url' => $url]);
     }
 
     public function logout(Request $request, AuthAuditLogger $audit)
     {
         if ($user = Auth::user()) {
-            $audit->recordForUser($user, 'auth.logout', [
-                'tenant_slug' => $user->tenant?->slug,
-            ], $request);
+            $audit->recordForUser($user, 'auth.logout', ['tenant_slug' => $user->tenant?->slug], $request);
         }
 
         Auth::logout();
@@ -130,21 +129,5 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
-    }
-
-    /** Which dedicated login a non-super (school) user should use. */
-    private function schoolSurfaceFor(User $user): array
-    {
-        if ($user->isStudent()) {
-            return ['url' => route('student.login'), 'hint' => 'Use the student login.'];
-        }
-        if ($user->isParent()) {
-            return ['url' => route('parent.login'), 'hint' => 'Use the parent login.'];
-        }
-        $adminRoles = ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator', 'admission_officer'];
-        if (in_array($user->roleKey(), $adminRoles, true)) {
-            return ['url' => route('admin.login'), 'hint' => 'Use the administrator login.'];
-        }
-        return ['url' => route('staff.login'), 'hint' => 'Use the staff login.'];
     }
 }

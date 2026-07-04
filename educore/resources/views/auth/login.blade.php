@@ -1,6 +1,6 @@
 @extends('layouts.auth')
 
-@section('page-title', 'EduCore - Platform Access')
+@section('page-title', 'Sign In - EduCore')
 
 @section('auth-body')
 <div class="auth-shell auth-shell--refined" style="--tenant-primary: var(--ec-navy); --tenant-accent: var(--ec-gold);">
@@ -36,17 +36,17 @@
         <section class="auth-card" aria-labelledby="login-heading">
             <div class="auth-portal-context">
                 <span class="auth-portal-context__icon" aria-hidden="true">
-                    <img src="{{ asset('assets/brand/educore-icon.svg') }}" alt="">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4 20V9l8-5 8 5v11M8 20v-7h8v7M3 20h18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
                 <span>
-                    <span class="auth-portal-context__label">Platform Administration</span>
-                    <span class="auth-portal-context__meta">Restricted access</span>
+                    <span class="auth-portal-context__label">EduCore Sign In</span>
+                    <span class="auth-portal-context__meta">All users — one door</span>
                 </span>
             </div>
 
             <header class="auth-card__header">
                 <h2 class="auth-title" id="login-heading">Welcome back</h2>
-                <p class="auth-subtitle">Use your platform administrator credentials.</p>
+                <p class="auth-subtitle">Sign in with your email address, staff ID, or student ID.</p>
             </header>
 
             @if($errors->any())
@@ -59,13 +59,14 @@
             <form method="POST" action="{{ route('login') }}" novalidate>
                 @csrf
                 <div class="ec-form-group">
-                    <label class="ec-label" for="login_id">Email address</label>
+                    <label class="ec-label" for="login_id">Email, Staff ID, or Student ID</label>
                     <input id="login_id" class="ec-input{{ $errors->has('login_id') ? ' ec-input--error' : '' }}"
                         type="text" name="login_id" value="{{ old('login_id') }}"
-                        autocomplete="username" inputmode="email" required
-                        placeholder="Enter your email address"
-                        aria-invalid="{{ $errors->has('login_id') ? 'true' : 'false' }}">
-                    @error('login_id')<p class="ec-field-error">{{ $message }}</p>@enderror
+                        autocomplete="username" required
+                        placeholder="Enter your email or ID"
+                        aria-invalid="{{ $errors->has('login_id') ? 'true' : 'false' }}"
+                        @if($errors->has('login_id')) aria-describedby="login_id-error" @endif>
+                    @error('login_id')<p class="ec-field-error" id="login_id-error">{{ $message }}</p>@enderror
                 </div>
 
                 <div class="ec-form-group">
@@ -91,6 +92,11 @@
 
                 <x-auth.submit-button>Sign in</x-auth.submit-button>
             </form>
+
+            <div class="auth-register-link">
+                <span>Setting up a new school?</span>
+                <a href="{{ route('school.register') }}">Get started <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+            </div>
 
             <x-auth.footer />
         </section>

@@ -11,6 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust Cloudflare (and any other reverse proxy) so X-Forwarded-Proto/Host/IP are read correctly
+        $middleware->trustProxies(
+            at: '*',
+            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+                   | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+                   | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+                   | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
+        );
+
         // Run on every HTTP request (outermost layer)
         $middleware->prepend([
             \App\Http\Middleware\ForceHttps::class,
@@ -35,35 +44,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // CSRF token mismatch (419) — redirect back to login with a user-friendly message
-        // rather than showing the bare Laravel 419 page.
+        // CSRF token mismatch (419) — redirect to the unified login with a user-friendly message.
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Your session has expired. Please refresh and try again.'], 419);
             }
 
-            // Attempt to redirect back to the originating login surface.
-            $previous = url()->previous();
-            $fallback = route('login');
-
-            // Map login paths to their named routes so the user lands on the right form.
-            $loginMap = [
-                '/admin/login'   => route('admin.login'),
-                '/staff/login'   => route('staff.login'),
-                '/student/login' => route('student.login'),
-                '/parent/login'  => route('parent.login'),
-                '/portal/login'  => route('portal.parent.login'),
-            ];
-
-            $target = $fallback;
-            foreach ($loginMap as $path => $namedRoute) {
-                if (str_contains($previous, $path)) {
-                    $target = $namedRoute;
-                    break;
-                }
-            }
-
-            return redirect($target)
+            return redirect()->route('login')
                 ->withErrors(['login_id' => 'Your session expired. Please sign in again.']);
         });
     })->create();

@@ -35,18 +35,12 @@ class SecurityHeaders
             );
         }
 
-        // Prevent LiteSpeed / proxy caches from caching auth pages — if they do,
-        // Set-Cookie headers get stripped and the browser never gets a session cookie,
-        // causing every login POST to fail with 419 CSRF token mismatch.
-        $isAuthRoute = $request->routeIs(
-            'login', 'admin.login', 'staff.login', 'student.login',
-            'parent.login', 'portal.parent.login', 'school.register'
-        );
-        if ($isAuthRoute) {
-            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-            $response->headers->set('Pragma', 'no-cache');
-            $response->headers->set('X-Accel-Buffering', 'no');
-        }
+        // Never let any proxy (Cloudflare, LiteSpeed) cache Laravel-generated responses.
+        // Caching strips Set-Cookie headers → browser never gets session/CSRF cookie → 419.
+        // Static assets bypass this middleware entirely (served directly by web server).
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('X-Accel-Buffering', 'no');
 
         return $response;
     }

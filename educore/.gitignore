@@ -25,3 +25,29 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Databases and exports
+*.sql
+*.sqlite
+*.sqlite3
+
+# Logs and temporary files
+error_log
+public/error_log
+.tmp/
+storage/psysh/
+*.log
+
+# Debug and temporary scripts
+public/asc-debug.php
+test-gemini.php
+
+# Runtime files
+storage/framework/sessions/*
+storage/framework/cache/*
+storage/framework/views/*

@@ -1,3 +1,13 @@
+# Never let any proxy (Cloudflare, LiteSpeed) cache PHP-generated responses.
+# This prevents the "cached login page strips Set-Cookie → 419" failure mode.
+<IfModule mod_headers.c>
+    <FilesMatch "\.php$">
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, private"
+        Header always set Pragma "no-cache"
+        Header always set X-Accel-Buffering "no"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

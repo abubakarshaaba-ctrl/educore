@@ -34,7 +34,10 @@ Options -Indexes
 
     # Disable LiteSpeed Cache for all auth / session-sensitive routes.
     # Without this, LiteSpeed strips Set-Cookie from cached responses and
-    # the browser never receives a session cookie → every login POST returns 419.
+    # the browser never receives a session cookie.
+    CacheDisable public /login
+    CacheDisable public /logout
+    CacheDisable public /two-factor
     CacheDisable public /admin/login
     CacheDisable public /staff/login
     CacheDisable public /student/login

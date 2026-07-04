@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AcademicSessionController;
@@ -31,11 +31,12 @@ Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educor
     ->name('tenant.host.')
     ->middleware('tenant.host')
     ->group(function () {
-        Route::get('/', [TenantHostController::class, 'landing'])->name('landing');
-        Route::get('login', [TenantHostController::class, 'showLogin'])->name('login');
-        Route::post('login', [TenantHostController::class, 'login'])
-            ->middleware('throttle:tenant-login')
-            ->name('login.submit');
+        // School landing/login pages discarded — everything signs in at the
+        // single unified login on the main domain.
+        $centralLogin = fn () => redirect()->away(rtrim(config('app.url'), '/') . '/login');
+        Route::get('/', $centralLogin)->name('landing');
+        Route::get('login', $centralLogin)->name('login');
+        Route::post('login', $centralLogin)->name('login.submit');
         Route::get('forgot-password', [TenantHostController::class, 'showForgot'])->name('password.request');
         Route::post('forgot-password', [TenantHostController::class, 'sendResetLink'])
             ->middleware('throttle:tenant-password')
@@ -66,11 +67,11 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
     ->name('tenant.host.custom.')
     ->middleware('tenant.host')
     ->group(function () {
-        Route::get('/', [TenantHostController::class, 'landing'])->name('landing');
-        Route::get('login', [TenantHostController::class, 'showLogin'])->name('login');
-        Route::post('login', [TenantHostController::class, 'login'])
-            ->middleware('throttle:tenant-login')
-            ->name('login.submit');
+        // School landing/login pages discarded — unified login handles everyone.
+        $centralLogin = fn () => redirect()->away(rtrim(config('app.url'), '/') . '/login');
+        Route::get('/', $centralLogin)->name('landing');
+        Route::get('login', $centralLogin)->name('login');
+        Route::post('login', $centralLogin)->name('login.submit');
         Route::get('forgot-password', [TenantHostController::class, 'showForgot'])->name('password.request');
         Route::post('forgot-password', [TenantHostController::class, 'sendResetLink'])
             ->middleware('throttle:tenant-password')
@@ -100,32 +101,18 @@ Route::get('/get-started',  [\App\Http\Controllers\SchoolRegistrationController:
 Route::post('/get-started', [\App\Http\Controllers\SchoolRegistrationController::class, 'store'])->middleware('throttle:6,1')->name('school.register.post');
 
 Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
-    // Platform gateway â€” super administration only.
-    Route::get(config('portal.super_admin_login_path', 'platform/login'),  [LoginController::class, 'showLogin'])->name('login');
+    // Unified login — accepts all user types (super admin, tenant admin, staff, student, parent)
+    Route::get('/login',  [LoginController::class, 'showLogin'])->name('login');
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:global-login');
+
+    // Legacy login URLs — GET redirects to unified login; POST is accepted and
+    // handled by the unified controller so cached/stale forms never hit a 405.
+    Route::get(config('portal.super_admin_login_path', 'platform/login'), fn () => redirect()->route('login'))->name('platform.login');
     Route::post(config('portal.super_admin_login_path', 'platform/login'), [LoginController::class, 'login'])->middleware('throttle:global-login');
-    // School Administration login
-    Route::get('/admin/login',    [\App\Http\Controllers\Auth\RoleLoginController::class, 'show'])
-        ->defaults('surface', 'admin')->name('admin.login');
-    Route::post('/admin/login',   [\App\Http\Controllers\Auth\RoleLoginController::class, 'login'])
-        ->defaults('surface', 'admin')->middleware('throttle:tenant-login');
-
-    // School Staff login
-    Route::get('/staff/login',    [\App\Http\Controllers\Auth\RoleLoginController::class, 'show'])
-        ->defaults('surface', 'staff')->name('staff.login');
-    Route::post('/staff/login',   [\App\Http\Controllers\Auth\RoleLoginController::class, 'login'])
-        ->defaults('surface', 'staff')->middleware('throttle:tenant-login');
-
-    // Student login
-    Route::get('/student/login',  [\App\Http\Controllers\Auth\RoleLoginController::class, 'show'])
-        ->defaults('surface', 'student')->name('student.login');
-    Route::post('/student/login', [\App\Http\Controllers\Auth\RoleLoginController::class, 'login'])
-        ->defaults('surface', 'student')->middleware('throttle:tenant-login');
-
-    // Parent login
-    Route::get('/parent/login',  [\App\Http\Controllers\Auth\RoleLoginController::class, 'show'])
-        ->defaults('surface', 'parent')->name('parent.login');
-    Route::post('/parent/login', [\App\Http\Controllers\Auth\RoleLoginController::class, 'login'])
-        ->defaults('surface', 'parent')->middleware('throttle:tenant-login');
+    foreach (['admin', 'staff', 'student', 'parent'] as $legacyPortal) {
+        Route::get("/{$legacyPortal}/login",  fn () => redirect()->route('login'))->name("{$legacyPortal}.login");
+        Route::post("/{$legacyPortal}/login", [LoginController::class, 'login'])->middleware('throttle:global-login');
+    }
 });
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
 
@@ -135,9 +122,10 @@ Route::name('tenant.')->group(function () {
     $base = fn (string $slug, string $path = '') =>
         config('tenancy.scheme') . '://' . $slug . '.' . config('tenancy.base_domain') . ($path ? '/' . ltrim($path, '/') : '');
 
-    Route::get('_tenant_stub/{slug}',                  fn (string $slug) => redirect()->away($base($slug)))->name('portal.landing');
-    Route::get('_tenant_stub/{slug}/login',             fn (string $slug) => redirect()->away($base($slug, 'login')))->name('login');
-    Route::post('_tenant_stub/{slug}/login',            fn (string $slug) => redirect()->away($base($slug, 'login')))->name('login.submit');
+    // School portal landing/login discarded — everything goes to the unified login.
+    Route::get('_tenant_stub/{slug}',                  fn (string $slug) => redirect()->route('login'))->name('portal.landing');
+    Route::get('_tenant_stub/{slug}/login',             fn (string $slug) => redirect()->route('login'))->name('login');
+    Route::post('_tenant_stub/{slug}/login',            fn (string $slug) => redirect()->route('login'))->name('login.submit');
     Route::get('_tenant_stub/{slug}/forgot-password',   fn (string $slug) => redirect()->away($base($slug, 'forgot-password')))->name('password.request');
     Route::post('_tenant_stub/{slug}/forgot-password',  fn (string $slug) => redirect()->away($base($slug, 'forgot-password')))->name('password.email');
     Route::get('_tenant_stub/{slug}/reset-password/{token}', fn (string $slug, string $token) => redirect()->away($base($slug, 'reset-password/' . $token)))->name('password.reset');
@@ -844,7 +832,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // â”€â”€ Super Admin Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-Route::middleware(['auth', 'active.account', '2fa'])->prefix('super')->name('super.')->group(function () {
+Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->group(function () {
     Route::get('/',              [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('tenants',        [SuperAdminController::class, 'tenants'])->name('tenants');
     Route::get('tenants/create', [SuperAdminController::class, 'createTenant'])->name('tenants.create');

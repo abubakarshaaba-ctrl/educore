@@ -69,7 +69,7 @@ class TenantHostController extends Controller
         ]);
 
         $loginId = trim($validated['login_id']);
-        $user = $users->resolveTenantStaff($tenant, $loginId);
+        $user = $users->resolveTenantUser($tenant, $loginId);
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             $audit->recordForTenant($tenant, 'auth.login.denied', [
@@ -106,7 +106,10 @@ class TenantHostController extends Controller
             'login_surface' => 'tenant_host',
         ], $request);
 
-        return $redirector->redirectFor($user);
+        // Return 200 + JS redirect instead of 302 to ensure the session cookie
+        // is delivered to the browser (Cloudflare strips Set-Cookie from 302s).
+        $dest = $redirector->redirectFor($user)->getTargetUrl();
+        return response()->view('auth.redirecting', ['url' => $dest]);
     }
 
     public function showForgot(Request $request, TenantBrandingService $branding)
@@ -237,11 +240,16 @@ class TenantHostController extends Controller
 
     private function canUseTenantLogin(User $user, Tenant $tenant): bool
     {
-        return (int) $user->tenant_id === (int) $tenant->id
-            && !$user->isSuperAdmin()
-            && $user->isTenantStaff()
-            && (bool) $user->is_active
-            && $user->isEmploymentActive();
+        if ((int) $user->tenant_id !== (int) $tenant->id || $user->isSuperAdmin() || !(bool) $user->is_active) {
+            return false;
+        }
+
+        // Staff must also have active employment; students and parents only need is_active
+        if ($user->isTenantStaff()) {
+            return $user->isEmploymentActive();
+        }
+
+        return $user->isStudent() || $user->isParent();
     }
 
     private function eligibleUser(Tenant $tenant, string $email): ?User
