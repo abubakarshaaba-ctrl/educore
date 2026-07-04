@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\TenantResetPasswordNotification;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginRedirector;
 use App\Services\Auth\LoginUserResolver;
+use App\Services\TenantAccessService;
 use App\Services\TenantPortal\TenantBrandingService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
@@ -18,7 +20,6 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class TenantHostController extends Controller
 {
-    private const GENERIC_LOGIN_ERROR = 'The login details are invalid or this account cannot access this school portal.';
     private const GENERIC_RESET_STATUS = 'If the account is eligible, a password reset link has been sent.';
     private const GENERIC_RESET_ERROR = 'The password reset link is invalid or has expired.';
 
@@ -36,80 +37,28 @@ class TenantHostController extends Controller
         ]);
     }
 
-    public function showLogin(Request $request, TenantBrandingService $branding, LoginRedirector $redirector)
+    /**
+     * Backward-compatible tenant route adapter.
+     * Authentication logic and the rendered page now live exclusively in LoginController.
+     */
+    public function showLogin(Request $request, LoginController $controller, LoginRedirector $redirector)
     {
-        $tenant = $this->tenant($request);
-
-        if (auth()->check()) {
-            return $redirector->redirectFor(auth()->user());
-        }
-
-        return view('tenant.login', [
-            'tenant' => $tenant,
-            'branding' => $branding->forTenant($tenant),
-            'landingUrl' => $this->hostUrl($request, '/'),
-            'loginAction' => $this->hostUrl($request, '/login'),
-            'forgotPasswordUrl' => $this->hostUrl($request, '/forgot-password'),
-            'admissionsUrl' => $this->hostUrl($request, '/apply'),
-        ]);
+        return $controller->showLogin($request, $redirector);
     }
 
+    /**
+     * Backward-compatible tenant route adapter.
+     * This method performs no authentication logic of its own.
+     */
     public function login(
         Request $request,
+        LoginController $controller,
         LoginUserResolver $users,
         LoginRedirector $redirector,
-        AuthAuditLogger $audit
+        AuthAuditLogger $audit,
+        TenantAccessService $tenantAccess
     ) {
-        $tenant = $this->tenant($request);
-
-        $validated = $request->validate([
-            'login_id' => ['required', 'string', 'max:180'],
-            'password' => ['required', 'string'],
-            'remember' => ['nullable'],
-        ]);
-
-        $loginId = trim($validated['login_id']);
-        $user = $users->resolveTenantUser($tenant, $loginId);
-
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            $audit->recordForTenant($tenant, 'auth.login.denied', [
-                'login_id_hash' => hash('sha256', mb_strtolower($loginId)),
-                'host' => $request->getHost(),
-                'login_surface' => 'tenant_host',
-            ], $request, 'invalid_credentials_or_tenant_mismatch');
-
-            return back()
-                ->withErrors(['login_id' => self::GENERIC_LOGIN_ERROR])
-                ->withInput(['login_id' => $loginId]);
-        }
-
-        if (!$this->canUseTenantLogin($user, $tenant)) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'host' => $request->getHost(),
-                'login_surface' => 'tenant_host',
-            ], $request, 'inactive_or_ineligible_account');
-
-            return back()
-                ->withErrors(['login_id' => self::GENERIC_LOGIN_ERROR])
-                ->withInput(['login_id' => $loginId]);
-        }
-
-        auth()->login($user, $request->boolean('remember'));
-        $request->session()->regenerate();
-        $request->session()->put('tenant_id', $tenant->id);
-        $request->session()->put('tenant_slug', $tenant->slug);
-        $request->session()->put('tenant_host', $request->getHost());
-        $user->forceFill(['last_login_at' => now()])->save();
-
-        $audit->recordForUser($user, 'auth.login.success', [
-            'host' => $request->getHost(),
-            'login_surface' => 'tenant_host',
-        ], $request);
-
-        // Return 200 + JS redirect instead of 302 to ensure the session cookie
-        // is delivered to the browser (Cloudflare strips Set-Cookie from 302s).
-        $dest = $redirector->redirectFor($user)->getTargetUrl();
-        return response()->view('auth.redirecting', ['url' => $dest]);
+        return $controller->login($request, $users, $redirector, $audit, $tenantAccess);
     }
 
     public function showForgot(Request $request, TenantBrandingService $branding)
@@ -236,20 +185,6 @@ class TenantHostController extends Controller
     public function applySuccess(Request $request, PublicAdmissionController $admissions)
     {
         return $admissions->success($this->tenant($request)->slug, (string) $request->route('app'));
-    }
-
-    private function canUseTenantLogin(User $user, Tenant $tenant): bool
-    {
-        if ((int) $user->tenant_id !== (int) $tenant->id || $user->isSuperAdmin() || !(bool) $user->is_active) {
-            return false;
-        }
-
-        // Staff must also have active employment; students and parents only need is_active
-        if ($user->isTenantStaff()) {
-            return $user->isEmploymentActive();
-        }
-
-        return $user->isStudent() || $user->isParent();
     }
 
     private function eligibleUser(Tenant $tenant, string $email): ?User
