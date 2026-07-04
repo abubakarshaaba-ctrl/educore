@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,24 +12,15 @@ return new class extends Migration
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Make legacy CBT MCQ columns compatible with essay/short-answer questions
-        |--------------------------------------------------------------------------
-        | The original cbt_questions table created `options` as NOT NULL JSON and
-        | `correct_option` as NOT NULL unsignedTinyInteger. That works for MCQ but
-        | breaks essay/short-answer imports where no A/B/C/D option exists.
-        */
-        if (Schema::hasColumn('cbt_questions', 'correct_option')) {
-            DB::statement("ALTER TABLE `cbt_questions` MODIFY `correct_option` TINYINT UNSIGNED NULL");
-        }
-
-        if (Schema::hasColumn('cbt_questions', 'options')) {
-            DB::statement("ALTER TABLE `cbt_questions` MODIFY `options` JSON NULL");
-        }
-
-        // ── Extend cbt_questions for richer question types ─────────────
         Schema::table('cbt_questions', function (Blueprint $table) {
+            if (Schema::hasColumn('cbt_questions', 'correct_option')) {
+                $table->unsignedTinyInteger('correct_option')->nullable()->change();
+            }
+
+            if (Schema::hasColumn('cbt_questions', 'options')) {
+                $table->json('options')->nullable()->change();
+            }
+
             if (!Schema::hasColumn('cbt_questions', 'type')) {
                 $table->enum('type', ['mcq', 'essay', 'short_answer', 'fill_blank', 'true_false'])
                     ->default('mcq')
@@ -58,7 +48,6 @@ return new class extends Migration
             }
         });
 
-        // ── Extend cbt_student_sessions for essay answers ──────────────
         if (Schema::hasTable('cbt_student_sessions')) {
             Schema::table('cbt_student_sessions', function (Blueprint $table) {
                 if (!Schema::hasColumn('cbt_student_sessions', 'essay_answers')) {
@@ -78,8 +67,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Intentionally left non-destructive.
-        // Reverting correct_option/options to NOT NULL may break existing essay
-        // and short-answer records already imported into cbt_questions.
+        // Intentionally non-destructive: making these columns NOT NULL again
+        // could invalidate existing essay and short-answer records.
     }
 };
