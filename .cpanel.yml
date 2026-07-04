@@ -1,0 +1,33 @@
+---
+deployment:
+  tasks:
+    # Deploy repo contents to the live docroot.
+    # - Excludes .env (server-specific secrets), storage/ (runtime data),
+    #   vendor/ (composer-managed on server), and git/deploy metadata.
+    # - index.php at the root is the custom main-domain router and is part
+    #   of this repo — deploying it is intentional and safe.
+    - export DEPLOYPATH=/home/educoren/public_html
+    - /usr/bin/rsync -a --delete-excluded
+        --exclude='.git'
+        --exclude='.cpanel.yml'
+        --exclude='educore/.env'
+        --exclude='educore/storage/'
+        --exclude='educore/vendor/'
+        --exclude='educore/node_modules/'
+        --exclude='educore/bootstrap/cache/'
+        ./educore/app/ $DEPLOYPATH/educore/app/
+    - /usr/bin/rsync -a ./educore/routes/ $DEPLOYPATH/educore/routes/
+    - /usr/bin/rsync -a ./educore/resources/ $DEPLOYPATH/educore/resources/
+    - /usr/bin/rsync -a ./educore/config/ $DEPLOYPATH/educore/config/
+    - /usr/bin/rsync -a ./educore/database/ $DEPLOYPATH/educore/database/
+    - /usr/bin/rsync -a ./educore/bootstrap/app.php $DEPLOYPATH/educore/bootstrap/app.php
+    - /usr/bin/rsync -a ./educore/bootstrap/providers.php $DEPLOYPATH/educore/bootstrap/providers.php
+    - /usr/bin/rsync -a ./educore/tools/ $DEPLOYPATH/educore/tools/
+    - /usr/bin/rsync -a ./educore/public/ $DEPLOYPATH/educore/public/
+    - /bin/cp -f ./.htaccess $DEPLOYPATH/.htaccess
+    - /bin/cp -f ./index.php $DEPLOYPATH/index.php
+    # Clear Laravel caches so the deployed code takes effect immediately
+    - /usr/local/bin/php $DEPLOYPATH/educore/artisan route:clear || true
+    - /usr/local/bin/php $DEPLOYPATH/educore/artisan config:clear || true
+    - /usr/local/bin/php $DEPLOYPATH/educore/artisan view:clear || true
+    - /usr/local/bin/php $DEPLOYPATH/educore/artisan cache:clear || true
