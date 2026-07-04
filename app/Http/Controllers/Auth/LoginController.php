@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Support\LoginFormToken;
+use App\Models\Tenant;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginRedirector;
 use App\Services\Auth\LoginUserResolver;
@@ -13,17 +14,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Unified login for ALL user types:
- *   super admin · tenant admin · staff · teacher · student · parent
- *
- * The login POST is deliberately excluded from Laravel's CSRF middleware
- * (see bootstrap/app.php) and instead protected by a stateless HMAC-signed
- * token (LoginFormToken). This makes authentication immune to Cloudflare
- * caching the login page and stripping Set-Cookie / invalidating sessions.
+ * Single authentication controller for the EduCore platform domain and all
+ * tenant school hosts. Host middleware resolves the tenant before this
+ * controller runs; the same Blade page and session pipeline are used everywhere.
  */
 class LoginController extends Controller
 {
-    public function showLogin(LoginRedirector $redirector)
+    public function showLogin(Request $request, LoginRedirector $redirector)
     {
         if (Auth::check()) {
             return $redirector->redirectFor(Auth::user());
@@ -31,6 +28,8 @@ class LoginController extends Controller
 
         return view('auth.login', [
             'loginToken' => LoginFormToken::generate(),
+            'tenant' => $this->resolvedTenant($request),
+            'loginAction' => url('/login'),
         ]);
     }
 
@@ -41,7 +40,6 @@ class LoginController extends Controller
         AuthAuditLogger $audit,
         TenantAccessService $tenantAccess
     ) {
-        // Verify our stateless signed token (replaces CSRF for the login form).
         if (!LoginFormToken::verify((string) $request->input('_login_token', ''))) {
             return back()
                 ->with('loginToken', LoginFormToken::generate())
@@ -51,17 +49,28 @@ class LoginController extends Controller
 
         $request->validate([
             'login_id' => ['required', 'string', 'max:180'],
-            'password'  => ['required', 'string'],
+            'password' => ['required', 'string'],
         ]);
 
-        $loginId = trim($request->login_id);
-        $user    = $users->resolveGlobal($loginId);
+        $loginId = trim((string) $request->login_id);
+        $tenant = $this->resolvedTenant($request);
+        $surface = $tenant ? 'tenant_host' : 'unified';
+        $user = $tenant
+            ? $users->resolveTenantUser($tenant, $loginId)
+            : $users->resolveGlobal($loginId);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check((string) $request->password, $user->password)) {
             if ($user) {
                 $audit->recordForUser($user, 'auth.login.denied', [
-                    'login_surface' => 'unified',
+                    'host' => $request->getHost(),
+                    'login_surface' => $surface,
                 ], $request, 'invalid_credentials');
+            } elseif ($tenant) {
+                $audit->recordForTenant($tenant, 'auth.login.denied', [
+                    'login_id_hash' => hash('sha256', mb_strtolower($loginId)),
+                    'host' => $request->getHost(),
+                    'login_surface' => $surface,
+                ], $request, 'invalid_credentials_or_tenant_mismatch');
             }
 
             return back()
@@ -70,51 +79,56 @@ class LoginController extends Controller
                 ->withInput(['login_id' => $loginId]);
         }
 
+        if ($tenant && ($user->isSuperAdmin() || (int) $user->tenant_id !== (int) $tenant->id)) {
+            $audit->recordForUser($user, 'auth.login.denied', [
+                'host' => $request->getHost(),
+                'login_surface' => $surface,
+            ], $request, 'tenant_mismatch');
+
+            return back()
+                ->with('loginToken', LoginFormToken::generate())
+                ->withErrors(['login_id' => 'This account cannot access this school portal.'])
+                ->withInput(['login_id' => $loginId]);
+        }
+
         if (!$user->is_active || ($user->isTenantStaff() && !$user->isEmploymentActive())) {
             $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'unified',
+                'host' => $request->getHost(),
+                'login_surface' => $surface,
             ], $request, 'inactive_or_ineligible_account');
 
             return back()
                 ->with('loginToken', LoginFormToken::generate())
-                ->withErrors(['login_id' => 'Your account has been deactivated. Contact the school.']);
+                ->withErrors(['login_id' => 'Your account has been deactivated. Contact the school.'])
+                ->withInput(['login_id' => $loginId]);
         }
 
-        // ── Super admin ────────────────────────────────────────────────────
-        if ($user->is_super_admin) {
+        if ($user->isSuperAdmin()) {
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
             $user->forceFill(['last_login_at' => now()])->save();
             $audit->recordForUser($user, 'auth.login.success', [
-                'login_surface' => 'unified',
+                'host' => $request->getHost(),
+                'login_surface' => $surface,
             ], $request);
-
-            // Persist authentication before the browser is sent to the dashboard.
-            // This prevents redirect loops when a reverse proxy/CDN delays or drops
-            // the session write until after the transition response is returned.
             $request->session()->save();
 
             return $this->loginResponse(route('super.dashboard'));
         }
 
-        // ── School user (admin / staff / teacher / student / parent) ───────
-        $tenant = $user->tenant;
-
-        if (!$tenant) {
-            $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'unified',
-            ], $request, 'missing_tenant');
-
+        $userTenant = $tenant ?: $user->tenant;
+        if (!$userTenant) {
             return back()
                 ->with('loginToken', LoginFormToken::generate())
                 ->withErrors(['login_id' => 'Account not linked to any school.']);
         }
 
-        $decision = $tenantAccess->applicationAccess($tenant);
+        $decision = $tenantAccess->applicationAccess($userTenant);
         if ($decision->isDenied()) {
             $audit->recordForUser($user, 'auth.login.denied', [
-                'login_surface' => 'unified',
-                'state'         => $decision->state,
+                'host' => $request->getHost(),
+                'login_surface' => $surface,
+                'state' => $decision->state,
             ], $request, 'tenant_' . $decision->state);
 
             return back()
@@ -124,37 +138,36 @@ class LoginController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
-        $request->session()->put('tenant_id',   $tenant->id);
-        $request->session()->put('tenant_slug',  $tenant->slug);
+        $request->session()->put('tenant_id', $userTenant->id);
+        $request->session()->put('tenant_slug', $userTenant->slug);
+        $request->session()->put('tenant_host', $request->getHost());
         $user->forceFill(['last_login_at' => now()])->save();
+
         $audit->recordForUser($user, 'auth.login.success', [
-            'login_surface' => 'unified',
+            'host' => $request->getHost(),
+            'login_surface' => $surface,
         ], $request);
 
-        // Force the regenerated session ID and tenant context to storage before
-        // rendering the navigation page. Without this, the next request can arrive
-        // before the database session has been committed and auth redirects to login.
         $request->session()->save();
 
         return $this->loginResponse($redirector->redirectFor($user)->getTargetUrl());
     }
 
-    /**
-     * Return a 200 HTML response that navigates to $url via JS + meta-refresh.
-     *
-     * Why: Cloudflare strips Set-Cookie headers from 302 redirect responses
-     * (even with Cache-Control: no-store). Returning a 200 body ensures the
-     * browser always receives and stores the session cookie before navigating.
-     */
+    private function resolvedTenant(Request $request): ?Tenant
+    {
+        $tenant = $request->attributes->get('resolved_tenant');
+        return $tenant instanceof Tenant ? $tenant : null;
+    }
+
     private function loginResponse(string $url): \Illuminate\Http\Response
     {
         return response()
             ->view('auth.redirecting', ['url' => $url])
             ->withHeaders([
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0, private',
-                'Pragma'        => 'no-cache',
-                'Expires'       => 'Thu, 01 Jan 1970 00:00:00 GMT',
-                'Vary'          => 'Cookie',
+                'Pragma' => 'no-cache',
+                'Expires' => 'Thu, 01 Jan 1970 00:00:00 GMT',
+                'Vary' => 'Cookie',
             ]);
     }
 
@@ -170,6 +183,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect('/login');
     }
 }
