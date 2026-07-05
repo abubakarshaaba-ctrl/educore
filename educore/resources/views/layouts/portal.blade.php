@@ -164,8 +164,17 @@ table { width:100%; border-collapse:collapse; }
 @media (max-width:640px) {
     .two, .fr { grid-template-columns:1fr; }
     .page-header { flex-direction:column; align-items:flex-start; }
-    .p-content { padding:10px; }
+    .page-header .btn, .page-header a.btn { width:100%; justify-content:center; min-height:42px; }
+    .p-content { padding:10px; overflow-x:hidden; }
     .cb { padding:12px 14px; }
+    .child-tabs { gap:8px; }
+    .child-tab { flex:1 1 calc(50% - 8px); text-align:center; min-height:38px; display:inline-flex; align-items:center; justify-content:center; }
+    /* Stack inline flex space-between page headers on phones */
+    .p-content > div[style*="justify-content:space-between"],
+    .p-content > div[style*="justify-content: space-between"] {
+        flex-direction:column !important;
+        align-items:flex-start !important;
+    }
 }
 @media (max-width:380px) {
     .p-content { padding:8px; }

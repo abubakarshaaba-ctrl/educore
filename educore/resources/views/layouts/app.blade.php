@@ -211,16 +211,16 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
     padding:0 24px; position:sticky; top:0; z-index:50;
     box-shadow:var(--shadow);
 }
-.topbar-left { display:flex; align-items:center; gap:12px; }
+.topbar-left { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
 .mobile-toggle {
     display:none; background:none; border:none; cursor:pointer;
     padding:6px; border-radius:7px; color:var(--slate); transition:background 150ms;
 }
 .mobile-toggle:hover { background:#F1F5F9; }
 .mobile-toggle svg { width:20px; height:20px; display:block; }
-.topbar-title { font-size:16px; font-weight:700; color:var(--midnight); letter-spacing:-0.02em; }
+.topbar-title { font-size:16px; font-weight:700; color:var(--midnight); letter-spacing:-0.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.topbar-right { display:flex; align-items:center; gap:10px; }
+.topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
 .tenant-pill {
     font-size:11px; font-weight:600; background:var(--indigo-bg);
     color:var(--brand-navy); padding:5px 12px; border-radius:20px;
@@ -294,10 +294,21 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
     .tenant-access-banner a { margin-left:0; }
     .topbar-title { font-size: 14px; }
     .collapse-btn { display: none; }
+    .tenant-pill { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Ad-hoc page headers built with inline flex + space-between stack
+       vertically so titles and action buttons never collide on phones */
+    .page-content > div[style*="justify-content:space-between"],
+    .page-content > div[style*="justify-content: space-between"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
 }
 
 @media (max-width: 480px) {
     .page-content { padding: 10px; }
+    .tenant-pill { max-width: 100px; }
+    .super-pill { padding: 4px 8px; }
     .tenant-pill, .super-pill { display: none; }
 }
 
@@ -378,7 +389,24 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
 
     @media (max-width: 640px) {
         .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .page-header h1, .page-header .page-title { font-size: 18px; line-height: 1.25; }
         .page-header-actions { width: 100%; }
+        .page-header-actions .btn,
+        .page-header-actions a.btn,
+        .page-header-actions button.btn { flex: 1 1 auto; justify-content: center; min-height: 40px; }
+
+        /* Stat/profile strips: two per row instead of squeezing five across */
+        .profile-row .pstat, .stats-row .stat-pill { flex: 1 1 calc(50% - 12px); min-width: 0; }
+
+        /* Any table wrapper scrolls horizontally instead of breaking the page */
+        .trx, .table-wrap, .subject-wrap, .pub-grid { max-width: 100%; }
+    }
+
+    /* Never allow content to force horizontal page scroll on phones */
+    @media (max-width: 768px) {
+        .page-content { overflow-x: hidden; }
+        .page-content table { max-width: 100%; }
+        .page-content .card, .page-content .tcard { border-radius: 10px; }
     }
 
     /* ── Cards ─────────────────────────────────────────────────────────
