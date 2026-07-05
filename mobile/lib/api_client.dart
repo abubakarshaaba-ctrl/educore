@@ -54,6 +54,17 @@ class ApiClient {
         await http.post(uri, headers: _headers, body: jsonEncode(body)));
   }
 
+  /// Download raw bytes (e.g. a PDF) from an authenticated endpoint.
+  Future<List<int>> download(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final res = await http.get(uri, headers: {
+      'Accept': 'application/pdf',
+      if (_token != null) 'Authorization': 'Bearer $_token',
+    });
+    if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
+    throw ApiException('Download failed (${res.statusCode})', res.statusCode);
+  }
+
   Future<void> login(String loginId, String password) async {
     final data = await post('/auth/login', {
       'login_id': loginId,

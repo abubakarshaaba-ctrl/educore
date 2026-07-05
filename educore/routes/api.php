@@ -33,5 +33,20 @@ Route::prefix('v1')->group(function () {
         Route::get('staff-attendance',            [\App\Http\Controllers\Api\StaffAttendanceApiController::class, 'me']);
         Route::post('staff-attendance/clock-in',  [\App\Http\Controllers\StaffAttendanceController::class, 'clockInQr']);
         Route::post('staff-attendance/clock-out', [\App\Http\Controllers\StaffAttendanceController::class, 'clockOut']);
+
+        // Score entry (subject teachers)
+        Route::get('scores/teaching', [\App\Http\Controllers\Api\ScoreController::class, 'teaching']);
+        Route::get('scores/sheet',    [\App\Http\Controllers\Api\ScoreController::class, 'sheet']);
+        Route::post('scores/save',    [\App\Http\Controllers\Api\ScoreController::class, 'save']);
+
+        // Timetables
+        Route::get('timetable/mine',       [\App\Http\Controllers\Api\TimetableController::class, 'mine']);
+        Route::get('timetable/form-class', [\App\Http\Controllers\Api\TimetableController::class, 'formClass']);
+
+        // Staff self-service: ID card + payslips
+        Route::get('id-card',              [\App\Http\Controllers\Api\StaffCardController::class, 'idCard']);
+        Route::get('payslips',             [\App\Http\Controllers\Api\StaffCardController::class, 'payslips']);
+        Route::get('payslips/{item}',      [\App\Http\Controllers\Api\StaffCardController::class, 'payslip']);
+        Route::get('payslips/{item}/pdf',  [\App\Http\Controllers\Api\StaffCardController::class, 'payslipPdf']);
     });
 });

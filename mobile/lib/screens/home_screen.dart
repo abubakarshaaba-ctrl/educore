@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'attendance_screen.dart';
+import 'id_card_screen.dart';
 import 'login_screen.dart';
+import 'payslip_screen.dart';
+import 'scores_screen.dart';
 import 'staff_attendance_screen.dart';
+import 'timetable_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          const ['My Classes', 'My Attendance', 'Announcements', 'Profile'][_tab],
+          const ['My Classes', 'Enter Scores', 'Timetable', 'Clock-in', 'More'][_tab],
         ),
         actions: [
           Padding(
@@ -41,9 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _tab,
         children: const [
           _ClassesTab(),
+          ScoresScreen(),
+          _TimetableTab(),
           StaffAttendanceScreen(),
-          _AnnouncementsTab(),
-          _ProfileTab(),
+          _MoreTab(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -51,9 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_), label: 'Classes'),
+          NavigationDestination(icon: Icon(Icons.edit_note_outlined), selectedIcon: Icon(Icons.edit_note), label: 'Scores'),
+          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: 'Timetable'),
           NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'Clock-in'),
-          NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'News'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+          NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'More'),
         ],
       ),
     );
@@ -261,43 +267,89 @@ class _AnnouncementsTabState extends State<_AnnouncementsTab> {
   }
 }
 
-// ── Profile tab ─────────────────────────────────────────────────────────
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
+// ── Timetable tab (toggle: my subjects / my class) ──────────────────────
+class _TimetableTab extends StatefulWidget {
+  const _TimetableTab();
+
+  @override
+  State<_TimetableTab> createState() => _TimetableTabState();
+}
+
+class _TimetableTabState extends State<_TimetableTab> {
+  int _mode = 0; // 0 = my subjects, 1 = my class
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          child: SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 0, label: Text('My Subjects'), icon: Icon(Icons.menu_book_rounded, size: 18)),
+              ButtonSegment(value: 1, label: Text('My Class'), icon: Icon(Icons.groups_rounded, size: 18)),
+            ],
+            selected: {_mode},
+            onSelectionChanged: (s) => setState(() => _mode = s.first),
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+        Expanded(
+          child: TimetableScreen(
+            key: ValueKey(_mode),
+            endpoint: _mode == 0 ? '/timetable/mine' : '/timetable/form-class',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── More tab (profile + quick links) ────────────────────────────────────
+class _MoreTab extends StatelessWidget {
+  const _MoreTab();
 
   @override
   Widget build(BuildContext context) {
     final user = ApiClient.instance.user ?? {};
     final school = ApiClient.instance.school ?? {};
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
-        CircleAvatar(
-          radius: 38,
-          backgroundColor: kNavy,
-          child: Text(
-            ((user['name'] as String?) ?? 'S').substring(0, 1).toUpperCase(),
-            style: const TextStyle(color: kGold, fontSize: 30, fontWeight: FontWeight.w800),
-          ),
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: kNavy,
+              child: Text(
+                ((user['name'] as String?) ?? 'S').substring(0, 1).toUpperCase(),
+                style: const TextStyle(color: kGold, fontSize: 24, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(user['name'] as String? ?? '—',
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kInk)),
+                  Text('${user['role'] ?? 'staff'} · ${school['name'] ?? ''}',
+                      style: const TextStyle(color: kMuted, fontSize: 12.5)),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        Center(
-          child: Text(
-            user['name'] as String? ?? '—',
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: kInk),
-          ),
-        ),
-        Center(
-          child: Text(
-            '${user['role'] ?? 'staff'} · ${school['name'] ?? ''}',
-            style: const TextStyle(color: kMuted, fontSize: 13),
-          ),
-        ),
-        const SizedBox(height: 24),
-        _InfoRow(label: 'Staff ID', value: user['staff_id'] as String? ?? '—'),
-        _InfoRow(label: 'Email', value: user['email'] as String? ?? '—'),
-        _InfoRow(label: 'School', value: school['name'] as String? ?? '—'),
-        const SizedBox(height: 28),
+        const SizedBox(height: 22),
+        _menuTile(context, Icons.badge_outlined, 'My ID Card',
+            'View and share your staff ID', const IdCardScreen()),
+        _menuTile(context, Icons.receipt_long_outlined, 'My Payslips',
+            'View and download payslips', const PayslipListScreen()),
+        _menuTile(context, Icons.campaign_outlined, 'Announcements',
+            'School news for staff', const _AnnouncementsScreen()),
+        const SizedBox(height: 22),
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: kRisk,
@@ -319,37 +371,42 @@ class _ProfileTab extends StatelessWidget {
       ],
     );
   }
+
+  Widget _menuTile(BuildContext context, IconData icon, String title,
+      String subtitle, Widget screen) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFD8E0E8)),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: kGold.withOpacity(.16),
+          child: Icon(icon, color: kNavy),
+        ),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w700, color: kInk)),
+        subtitle: Text(subtitle,
+            style: const TextStyle(color: kMuted, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right, color: kMuted),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => screen)),
+      ),
+    );
+  }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-  final String label;
-  final String value;
+// Announcements as a standalone screen (reuses the list from _AnnouncementsTab)
+class _AnnouncementsScreen extends StatelessWidget {
+  const _AnnouncementsScreen();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD8E0E8)),
-      ),
-      child: Row(
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  color: kMuted, fontSize: 12, fontWeight: FontWeight.w700)),
-          const Spacer(),
-          Flexible(
-            child: Text(value,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    const TextStyle(color: kInk, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Announcements')),
+      body: const _AnnouncementsTab(),
     );
   }
 }
