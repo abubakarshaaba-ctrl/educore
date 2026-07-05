@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../api_client.dart';
 import '../main.dart';
@@ -60,6 +61,28 @@ class _StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
   }
 
   Future<void> _scanAndClockIn() async {
+    // Explicitly request camera permission so a denied state gives clear
+    // feedback instead of a black scanner screen.
+    var status = await Permission.camera.status;
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
+    }
+    if (!status.isGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Camera permission is needed to scan the QR code.'),
+        backgroundColor: kRisk,
+        action: status.isPermanentlyDenied
+            ? SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: openAppSettings,
+              )
+            : null,
+      ));
+      return;
+    }
+
     final token = await Navigator.of(context).push<String>(
       MaterialPageRoute(builder: (_) => const _QrScanScreen()),
     );
@@ -333,11 +356,32 @@ class _QrScanScreenState extends State<_QrScanScreen> {
           MobileScanner(
             onDetect: (capture) {
               if (_handled) return;
-              final raw = capture.barcodes.firstOrNull?.rawValue;
+              final barcodes = capture.barcodes;
+              final raw = barcodes.isNotEmpty ? barcodes.first.rawValue : null;
               if (raw != null && raw.isNotEmpty) {
                 _handled = true;
                 Navigator.of(context).pop(raw);
               }
+            },
+            errorBuilder: (context, error, child) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.no_photography_rounded,
+                          color: Colors.white70, size: 48),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Camera unavailable:\n${error.errorCode.name}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
           ),
           Center(
