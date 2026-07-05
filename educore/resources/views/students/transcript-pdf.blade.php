@@ -7,7 +7,7 @@
 /* Paper size (A4 landscape) is set by the controller via setPaper().
    Declaring size here as well makes DomPDF drop the margin rule. */
 @page {
-    margin: 1.5cm;
+    margin: 18pt; /* same as reports/pdf.blade.php */
 }
 
 * {
