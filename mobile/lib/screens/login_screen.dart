@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../api_client.dart';
 import '../main.dart';
@@ -53,16 +54,29 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.school_rounded, color: kGold, size: 56),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'EDUCORE',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
+                  Container(
+                    width: 84,
+                    height: 84,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 4,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: SvgPicture.asset('assets/icon/educore-icon.svg'),
+                  ),
+                  const SizedBox(height: 16),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                      children: [
+                        TextSpan(text: 'Edu', style: TextStyle(color: Colors.white)),
+                        TextSpan(text: 'Core', style: TextStyle(color: kGold)),
+                      ],
                     ),
                   ),
                   const Text(

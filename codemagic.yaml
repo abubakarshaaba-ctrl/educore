@@ -10,6 +10,8 @@ workflows:
     scripts:
       - name: Get packages
         script: flutter pub get
+      - name: Generate launcher icons
+        script: dart run flutter_launcher_icons
       - name: Build release APK (arm64)
         script: flutter build apk --release --target-platform android-arm64
     artifacts:
