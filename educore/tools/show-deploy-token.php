@@ -15,9 +15,20 @@ require $root . '/educore/vendor/autoload.php';
 $app = require $root . '/educore/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+// Activate freshly extracted code: clear compiled views/routes/config
+foreach ([Illuminate\Support\Facades\Artisan::class] as $a) {
+    $a::call('view:clear');
+    $a::call('route:clear');
+    $a::call('config:clear');
+    $a::call('cache:clear');
+}
+if (function_exists('opcache_reset')) opcache_reset();
+
 $token = App\Http\Controllers\SelfDeployController::derivedToken();
 
 header('Content-Type: text/plain; charset=utf-8');
 echo "Self-deploy token (save it, then DELETE this file):\n\n";
 echo $token, "\n\n";
-echo "Deploy URL:\nhttps://educoreng.online/deploy/pull?token={$token}\n";
+echo "Caches cleared.
+
+Deploy URL:\nhttps://educoreng.online/deploy/pull?token={$token}\n";
