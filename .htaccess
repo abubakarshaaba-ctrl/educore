@@ -6,6 +6,18 @@
 
 Options -Indexes
 
+# ── SECURITY: block direct access to the Laravel app tree ───────
+# The app lives inside the docroot (educore/) and must only ever be
+# reached through index.php. Without this, files like educore/.env,
+# source code, and logs are directly downloadable over HTTP.
+RewriteEngine On
+RewriteRule ^educore/ - [F,L]
+
+# Belt-and-braces: deny dotfiles and sensitive extensions everywhere
+<FilesMatch "(^\.env|\.(env|log|sqlite|ini|sh|bak))$">
+    Require all denied
+</FilesMatch>
+
 # ── Apache mod_rewrite ──────────────────────────────────────────
 <IfModule mod_rewrite.c>
     RewriteEngine On
