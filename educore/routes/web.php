@@ -96,6 +96,13 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
 // â”€â”€ Authentication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Route::get('/', [PublicMarketingController::class, 'index'])->name('home');
 
+// Shell-free deployment (cPanel Git deploy requires shell access this host
+// lacks). Pulls master from GitHub and syncs the deployable paths.
+// Trigger: /deploy/pull?token=<DEPLOY_TOKEN>
+Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, 'pull'])
+    ->middleware('throttle:5,10')
+    ->name('deploy.pull');
+
 // Staff mobile app download — serves the APK once it has been uploaded to
 // educore/public/downloads/educore-staff.apk (see mobile/README.md).
 Route::get('/download/app', function () {

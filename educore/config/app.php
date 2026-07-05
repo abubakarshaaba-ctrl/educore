@@ -13,6 +13,8 @@ return [
     |
     */
 
+    'deploy_token' => env('DEPLOY_TOKEN'),
+
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
