@@ -4,596 +4,305 @@
 <meta charset="UTF-8">
 <title>Transcript — {{ $student->full_name }}</title>
 <style>
-/* Paper size (A4 landscape) is set by the controller via setPaper().
-   Declaring size here as well makes DomPDF drop the margin rule. */
-@page {
-    margin: 18pt; /* same as reports/pdf.blade.php */
+@page { margin: 18pt; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; font-family: DejaVu Sans, sans-serif; font-size: 8pt; color: #172033; }
+table { border-collapse: collapse; }
+
+/* ── Brand header (same palette as reports/pdf.blade.php) ─────────────── */
+.report-header { width: 100%; border: 0.35pt solid #9aa8b6; }
+.report-header td { vertical-align: middle; }
+.brand-logo { width: 64pt; padding: 6pt; text-align: center; border-right: 0.35pt solid #cbd5e1; }
+.logo-image { width: 48pt; height: 48pt; object-fit: contain; }
+.logo-fallback { width: 46pt; height: 46pt; line-height: 46pt; margin: 0 auto; border: 0.9pt solid #1f4e79; border-radius: 23pt; color: #1f4e79; font-size: 22pt; font-weight: 700; }
+.brand-copy { padding: 5pt 10pt; text-align: center; }
+.school-name { color: #17365d; font-size: 14pt; line-height: 1.1; font-weight: 700; text-transform: uppercase; }
+.school-contact { margin-top: 2pt; color: #52606d; font-size: 7.2pt; line-height: 1.35; }
+.document-title { margin-top: 4pt; padding: 3pt 4pt; border-top: 0.35pt solid #7f93a8; border-bottom: 0.35pt solid #7f93a8; color: #17365d; font-size: 8.6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55pt; }
+
+/* ── Student identity ─────────────────────────────────────────────────── */
+.identity { width: 100%; border: 0.35pt solid #9aa8b6; border-top: 0; table-layout: fixed; }
+.identity td { padding: 3.2pt 5pt; border-right: 0.2pt solid #e1e6eb; font-size: 7.7pt; }
+.identity td:last-child { border-right: 0; }
+.label { color: #52606d; font-size: 6.5pt; font-weight: 700; text-transform: uppercase; }
+.value { color: #172033; font-weight: 600; }
+
+/* ── Section bar ──────────────────────────────────────────────────────── */
+.section-bar { width: 100%; margin-top: 6pt; table-layout: fixed; }
+.section-bar td {
+    padding: 3.6pt 5pt;
+    border: 0.35pt solid #9aa8b6;
+    border-top: 0.65pt solid #6f8499;
+    background: #edf3f8;
+    color: #17365d;
+    font-size: 7.4pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.35pt;
 }
 
-* {
-    box-sizing: border-box;
-}
-
-html,
-body {
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: DejaVu Sans, Arial, sans-serif;
+/* ── Transcript table ─────────────────────────────────────────────────── */
+.academic {
+    width: 100%;
+    table-layout: fixed;
+    border: 0.45pt solid #8fa0b2;
     font-size: 7.5pt;
-    line-height: 1.25;
-    color: #0F172A;
-    background: #FFFFFF;
 }
-
-.no-print {
-    display: none !important;
+.academic th {
+    padding: 3.4pt 2.2pt;
+    border: 0.35pt solid #aebbc9;
+    background: #f3f6f9;
+    color: #243b53;
+    text-align: center;
+    font-size: 6.6pt;
+    text-transform: uppercase;
+    line-height: 1.2;
 }
-
-/* DOMPDF-safe document header */
-table.header-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 8pt;
-    border-bottom: 2pt solid #D79A21;
-}
-
-.header-table td {
-    padding: 0 0 7pt 0;
+.academic th.session-head { background: #17365d; color: #ffffff; font-size: 7.4pt; letter-spacing: 0.4pt; }
+.academic th.class-head { background: #22456e; color: #cfdcec; font-weight: 400; font-style: italic; font-size: 6.6pt; text-transform: none; }
+.academic th.term-head { background: #edf3f8; color: #17365d; font-size: 6.8pt; }
+.academic th.subject-head { text-align: left; padding-left: 5pt; background: #edf3f8; color: #17365d; font-size: 7pt; }
+.academic td {
+    padding: 3.2pt 2.2pt;
+    border: 0.3pt solid #cbd5df;
+    text-align: center;
     vertical-align: middle;
 }
+.academic td.subject { text-align: left; padding-left: 5pt; font-weight: 600; color: #243b53; background: #fbfcfe; }
+.academic td.grade { font-weight: 700; background: #fbfcfe; }
+.good { color: #16794b; }
+.risk { color: #b42318; }
+.nil  { color: #b9c3cd; }
 
-.header-logo-cell {
-    width: 50pt;
-}
+.academic tr.summary-row td { background: #edf3f8; font-weight: 700; color: #17365d; border-top: 0.6pt solid #8fa0b2; }
+.academic tr.summary-row td.summary-label { text-align: left; padding-left: 5pt; font-size: 6.6pt; text-transform: uppercase; color: #52606d; }
+.academic tr.summary-sub td { background: #f6f9fc; font-weight: 600; color: #243b53; }
+.academic tr.summary-sub td.summary-label { text-align: left; padding-left: 5pt; font-size: 6.6pt; text-transform: uppercase; color: #52606d; font-weight: 700; }
 
-.header-school-cell {
-    text-align: left;
-}
+/* ── Page footer ──────────────────────────────────────────────────────── */
+.doc-footer { width: 100%; margin-top: 8pt; border-top: 0.35pt solid #9aa8b6; }
+.doc-footer td { padding-top: 3.5pt; color: #52606d; font-size: 6.4pt; }
 
-.header-document-cell {
-    width: 190pt;
-    text-align: right;
-}
-
-.logo-img {
-    display: block;
-    width: 42pt;
-    height: 42pt;
-    object-fit: contain;
-}
-
-.school-name {
-    font-size: 13pt;
-    line-height: 1.15;
-    font-weight: 700;
-    color: #0F172A;
-}
-
-.school-sub {
-    margin-top: 2pt;
-    font-size: 7pt;
-    line-height: 1.35;
-    color: #64748B;
-}
-
-.doc-label {
-    font-size: 11pt;
-    line-height: 1.2;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #D79A21;
-}
-
-.doc-sub {
-    margin-top: 2pt;
-    font-size: 6.5pt;
-    color: #64748B;
-}
-
-/* DOMPDF-safe student information panel */
-.bio {
-    margin-bottom: 8pt;
-    border: 0.75pt solid #D9E0E8;
-}
-
-.bio-head {
-    padding: 4pt 7pt;
-    border-bottom: 0.75pt solid #D9E0E8;
-    background: #F1F5F9;
-    color: #475569;
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-table.bio-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-}
-
-.bio-table td {
-    width: 25%;
-    padding: 5pt 7pt;
-    vertical-align: top;
-    border-right: 0.5pt solid #D9E0E8;
-    border-bottom: 0.5pt solid #D9E0E8;
-}
-
-.bio-table tr:last-child td {
-    border-bottom: 0;
-}
-
-.bio-table td:last-child {
-    border-right: 0;
-}
-
-.bio-label {
-    display: block;
-    margin-bottom: 1.5pt;
-    color: #94A3B8;
-    font-size: 5.8pt;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.bio-value {
-    display: block;
-    color: #0F172A;
-    font-size: 8pt;
-    font-weight: 700;
-    overflow-wrap: break-word;
-}
-
-/* Pages */
-.chunk {
-    page-break-inside: avoid;
-}
-
-.chunk.break-after {
-    page-break-after: always;
-}
-
-.chunk.last-chunk {
-    page-break-after: auto;
-}
-
-/* Continuation header */
-table.cont-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 7pt;
-    border-bottom: 1pt solid #CBD5E1;
-}
-
-.cont-table td {
-    padding: 0 0 5pt 0;
-    vertical-align: bottom;
-}
-
-.cont-right {
-    text-align: right;
-    color: #94A3B8;
-    font-size: 6.5pt;
-}
-
-.cont-name {
-    color: #071E45;
-    font-size: 9pt;
-    font-weight: 700;
-}
-
-.cont-sub {
-    margin-top: 1pt;
-    color: #64748B;
-    font-size: 6.5pt;
-}
-
-.sec-lbl {
-    margin: 0 0 3pt 0;
-    color: #D79A21;
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Transcript score table */
-table.sc {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-    margin-bottom: 6pt;
-    font-size: 6.8pt;
-}
-
-table.sc thead {
-    display: table-header-group;
-}
-
-table.sc tr {
-    page-break-inside: avoid;
-}
-
-table.sc th,
-table.sc td {
-    border: 0.45pt solid #CBD5E1;
-    vertical-align: middle;
-}
-
-table.sc th {
-    padding: 3pt 2pt;
-    background: #F8FAFC;
-    color: #64748B;
-    text-align: center;
-    font-size: 5.6pt;
-    line-height: 1.2;
-    font-weight: 700;
-    text-transform: uppercase;
-    overflow-wrap: break-word;
-}
-
-table.sc th.sh-subj {
-    width: 122pt;
-    padding-left: 6pt;
-    text-align: left;
-    color: #475569;
-}
-
-table.sc th.sh-sess {
-    background: #FFF8E8;
-    color: #B7791F;
-    font-size: 6.2pt;
-    font-weight: 800;
-}
-
-table.sc th.sh-class {
-    background: #F1F5F9;
-    color: #475569;
-    font-size: 5.5pt;
-    font-style: italic;
-    font-weight: 600;
-    text-transform: none;
-}
-
-table.sc th.sh-term {
-    background: #F8FAFC;
-    color: #334155;
-    font-size: 5.7pt;
-}
-
-table.sc th.sh-metric {
-    padding: 2.5pt 1pt;
-    background: #FFFFFF;
-    color: #64748B;
-    font-size: 5.1pt;
-}
-
-table.sc td {
-    padding: 3pt 2pt;
-    background: #FFFFFF;
-    text-align: center;
-}
-
-table.sc td.td-subj {
-    padding-left: 6pt;
-    background: #FAFCFF;
-    color: #0F172A;
-    text-align: left;
-    font-weight: 600;
-    overflow-wrap: break-word;
-}
-
-table.sc tbody tr:nth-child(even) td:not(.td-subj) {
-    background: #FCFDFE;
-}
-
-table.sc td.td-score {
-    font-weight: 700;
-}
-
-table.sc td.td-pass {
-    color: #047857;
-}
-
-table.sc td.td-fail {
-    color: #B91C1C;
-}
-
-table.sc td.td-nil {
-    color: #CBD5E1;
-    font-weight: 400;
-}
-
-table.sc tr.tr-total td {
-    padding-top: 4pt;
-    padding-bottom: 4pt;
-    border-top: 1pt solid #94A3B8;
-    background: #F1F5F9;
-    color: #0F172A;
-    font-weight: 800;
-}
-
-table.sc tr.tr-total td.td-subj {
-    color: #475569;
-    font-size: 6pt;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.position-text {
-    color: #1D4ED8;
-    font-size: 5.7pt;
-    font-weight: 700;
-}
-
-/* Footer stays with the final transcript page */
-table.footer-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 8pt;
-    border-top: 0.75pt dashed #CBD5E1;
-}
-
-.footer-table td {
-    width: 33.333%;
-    padding-top: 5pt;
-    color: #94A3B8;
-    font-size: 5.8pt;
-    vertical-align: top;
-}
-
-.footer-center {
-    text-align: center;
-}
-
-.footer-right {
-    text-align: right;
-}
+.page-chunk { page-break-after: always; }
+.page-chunk.last { page-break-after: avoid; }
 </style>
 </head>
 <body>
-
 @php
-    /* ── Logo ────────────────────────────────────── */
-    $logoSrc = null;
-    if ($tenant && !empty($tenant->logo_path)) {
-        $lp = storage_path('app/public/' . ltrim(str_replace('storage/', '', $tenant->logo_path), '/'));
-        if (file_exists($lp)) {
-            $logoSrc = 'data:' . mime_content_type($lp) . ';base64,' . base64_encode(file_get_contents($lp));
-        }
+    $logoAbsPath = null;
+    if (!empty($tenant->logo_path)) {
+        $cleanLogoPath = preg_replace('#^storage/#', '', ltrim($tenant->logo_path, '/'));
+        $candidateLogoPath = storage_path('app/public/' . $cleanLogoPath);
+        if (file_exists($candidateLogoPath)) $logoAbsPath = $candidateLogoPath;
     }
 
-    /* ── Chunk sessions into groups of 3 ─────────── */
-    $chunks = $bySession->chunk(3);
+    $pass = 40;
+
+    // Overall grade for a termly summary, using the grading system of its class level
+    $termGrade = function ($summary) use ($gradingSystems) {
+        $avg  = (float) ($summary->final_average ?? 0);
+        $clId = optional($summary->classArm)->class_level_id;
+        $gs   = $clId ? ($gradingSystems[$clId] ?? collect()) : collect();
+        $rec  = $gs->sortByDesc('min_score')->first(fn ($g) => $avg >= (float) $g->min_score && $avg <= (float) $g->max_score);
+        if ($rec) return $rec->grade_letter;
+        return match (true) {
+            $avg >= 70 => 'A', $avg >= 60 => 'B', $avg >= 50 => 'C',
+            $avg >= 45 => 'D', $avg >= 40 => 'E', default => 'F',
+        };
+    };
+
+    // 3 sessions per landscape page; each session padded to exactly 3 term slots
+    $chunks = $bySession->chunk(3)->values();
+
+    // Column plan: subject 16%, then 3 sessions x 3 terms x 2 cols = 18 equal cols
+    $subjectW = 16;
+    $colW = round((100 - $subjectW) / 18, 3);
 @endphp
 
-@foreach($chunks as $chunkIdx => $chunk)
+@forelse($chunks as $chunkIndex => $chunk)
 @php
-    $isFirstChunk = $loop->first;
-    $isLastChunk  = $loop->last;
+    // Pad every session in the chunk to 3 term slots (null = no record)
+    $sessions = [];
+    foreach ($chunk as $sessionId => $sessionSummaries) {
+        $slots = $sessionSummaries->sortBy('term_id')->values()->all();
+        while (count($slots) < 3) $slots[] = null;
+        $slots = array_slice($slots, 0, 3);
+        $sessions[] = [
+            'name'  => optional($sessionSummaries->first()?->session)->name ?? 'Session',
+            'class' => trim(optional(optional($sessionSummaries->first()?->classArm)->classLevel)->name . ' ' . optional($sessionSummaries->first()?->classArm)->name),
+            'slots' => $slots,
+        ];
+    }
+    // Pad the chunk itself to 3 sessions so every page has identical geometry
+    while (count($sessions) < 3) $sessions[] = ['name' => '—', 'class' => '', 'slots' => [null, null, null]];
+
+    // Subjects that actually have a score in this chunk
+    $chunkSubjects = $allSubjects->filter(function ($name, $sid) use ($sessions, $scoresByTerm) {
+        foreach ($sessions as $sess) {
+            foreach ($sess['slots'] as $s) {
+                if ($s && isset($scoresByTerm[$s->term_id][$sid])) return true;
+            }
+        }
+        return false;
+    });
 @endphp
-<div class="chunk {{ $isLastChunk ? 'last-chunk' : 'break-after' }}">
+<div class="page-chunk {{ $chunkIndex === $chunks->count() - 1 ? 'last' : '' }}">
 
-    @if($isFirstChunk)
-        {{-- ══ PAGE 1 HEADER ════════════════════════════════ --}}
-        <table class="header-table">
-            <tr>
-                @if($logoSrc)
-                    <td class="header-logo-cell">
-                        <img src="{{ $logoSrc }}" class="logo-img" alt="School logo">
-                    </td>
+    {{-- School header --}}
+    <table class="report-header">
+        <tr>
+            <td class="brand-logo">
+                @if($logoAbsPath)
+                    <img class="logo-image" src="{{ $logoAbsPath }}" alt="">
+                @else
+                    <div class="logo-fallback">{{ strtoupper(mb_substr($tenant->name ?? 'S', 0, 1)) }}</div>
                 @endif
-                <td class="header-school-cell">
-                    <div class="school-name">{{ optional($tenant)->name }}</div>
-                    @if(optional($tenant)->address)
-                        <div class="school-sub">{{ $tenant->address }}</div>
-                    @endif
-                    @if(optional($tenant)->phone)
-                        <div class="school-sub">{{ $tenant->phone }}</div>
-                    @endif
-                </td>
-                <td class="header-document-cell">
-                    <div class="doc-label">Academic Transcript</div>
-                    <div class="doc-sub">Official Student Record</div>
-                    <div class="doc-sub">Printed: {{ now()->format('d M Y') }}</div>
-                </td>
-            </tr>
-        </table>
+            </td>
+            <td class="brand-copy">
+                <div class="school-name">{{ $tenant->name }}</div>
+                <div class="school-contact">
+                    {{ $tenant->address ?? '' }}@if(!empty($tenant->phone)) · {{ $tenant->phone }}@endif
+                </div>
+                <div class="document-title">Academic Transcript — Official Student Record</div>
+            </td>
+        </tr>
+    </table>
 
-        {{-- ══ STUDENT BIO ═══════════════════════════════════ --}}
-        <div class="bio">
-            <div class="bio-head">Student Information</div>
-            <table class="bio-table">
-                <tr>
-                    <td>
-                        <span class="bio-label">Full Name</span>
-                        <span class="bio-value">{{ $student->full_name }}</span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Admission No.</span>
-                        <span class="bio-value">{{ $student->admission_number }}</span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Current Class</span>
-                        <span class="bio-value">
-                            {{ trim(optional(optional($student->currentClassArm)->classLevel)->name . ' ' . optional($student->currentClassArm)->name) ?: '—' }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Status</span>
-                        <span class="bio-value">{{ ucfirst($student->status ?? '—') }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <span class="bio-label">Date of Birth</span>
-                        <span class="bio-value">
-                            {{ $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->format('d M Y') : '—' }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Gender</span>
-                        <span class="bio-value">{{ ucfirst($student->gender ?? '—') }}</span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Overall Average</span>
-                        <span class="bio-value" style="color: {{ $summaries->avg('final_average') >= 40 ? '#047857' : '#B91C1C' }};">
-                            {{ number_format($summaries->avg('final_average'), 1) }}%
-                        </span>
-                    </td>
-                    <td>
-                        <span class="bio-label">Terms on Record</span>
-                        <span class="bio-value">{{ $summaries->count() }}</span>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    @else
-        {{-- ══ CONTINUATION HEADER ═══════════════════════════ --}}
-        <table class="cont-table">
-            <tr>
-                <td>
-                    <div class="cont-name">{{ $student->full_name }}</div>
-                    <div class="cont-sub">{{ $student->admission_number }} · Academic Transcript (continued)</div>
-                </td>
-                <td class="cont-right">{{ optional($tenant)->name }}</td>
-            </tr>
-        </table>
-    @endif
+    {{-- Student identity --}}
+    <table class="identity">
+        <tr>
+            <td><span class="label">Full Name</span><br><span class="value">{{ strtoupper($student->full_name) }}</span></td>
+            <td><span class="label">Admission No.</span><br><span class="value">{{ $student->admission_number }}</span></td>
+            <td><span class="label">Date of Birth</span><br><span class="value">{{ optional($student->date_of_birth)->format('d M Y') ?? '—' }}</span></td>
+            <td><span class="label">Gender</span><br><span class="value">{{ ucfirst($student->gender ?? '—') }}</span></td>
+            <td><span class="label">Current Class</span><br><span class="value">{{ trim(optional(optional($student->currentClassArm)->classLevel)->name . ' ' . optional($student->currentClassArm)->name) ?: '—' }}</span></td>
+            <td><span class="label">Status</span><br><span class="value">{{ ucfirst($student->status) }}</span></td>
+            <td><span class="label">Printed</span><br><span class="value">{{ now()->format('d M Y') }}</span></td>
+        </tr>
+    </table>
 
-    {{-- ══ SCORES TABLE ═════════════════════════════════════ --}}
-    <div class="sec-lbl">Academic Performance by Subject</div>
-    <table class="sc">
+    <table class="section-bar"><tr><td>Academic Performance by Subject @if($chunks->count() > 1) — Page {{ $chunkIndex + 1 }} of {{ $chunks->count() }} @endif</td></tr></table>
+
+    {{-- Transcript table --}}
+    <table class="academic">
+        <colgroup>
+            <col style="width: {{ $subjectW }}%">
+            @for($i = 0; $i < 18; $i++)<col style="width: {{ $colW }}%">@endfor
+        </colgroup>
         <thead>
-            {{-- Row 1: session names --}}
             <tr>
-                <th class="sh-subj" rowspan="4">Subject</th>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                    @php
-                        $termCount   = $sessionSummaries->count();
-                        $sessionName = optional($sessionSummaries->first()?->session)->name ?? 'Session';
-                    @endphp
-                    <th class="sh-sess" colspan="{{ $termCount * 2 }}">{{ $sessionName }}</th>
+                <th class="subject-head" rowspan="4">Subject</th>
+                @foreach($sessions as $sess)
+                    <th class="session-head" colspan="6">{{ $sess['name'] }}</th>
                 @endforeach
             </tr>
-
-            {{-- Row 2: class labels --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                    @php
-                        $termCount = $sessionSummaries->count();
-                        $classArm  = $sessionSummaries->first()?->classArm;
-                        $cls = trim(optional(optional($classArm)->classLevel)->name . ' ' . optional($classArm)->name);
-                    @endphp
-                    <th class="sh-class" colspan="{{ $termCount * 2 }}">{{ $cls ?: '—' }}</th>
+                @foreach($sessions as $sess)
+                    <th class="class-head" colspan="6">{{ $sess['class'] ?: '—' }}</th>
                 @endforeach
             </tr>
-
-            {{-- Row 3: term names --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                    @foreach($sessionSummaries->sortBy('term_id') as $s)
-                        <th class="sh-term" colspan="2">{{ optional($s->term)->name }}</th>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $i => $s)
+                        <th class="term-head" colspan="2">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
                     @endforeach
                 @endforeach
             </tr>
-
-            {{-- Row 4: Score / Grade --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                    @foreach($sessionSummaries->sortBy('term_id') as $s)
-                        <th class="sh-metric">Score</th>
-                        <th class="sh-metric">Grade</th>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        <th>Score</th>
+                        <th>Grade</th>
                     @endforeach
                 @endforeach
             </tr>
         </thead>
         <tbody>
-            @foreach($allSubjects as $sid => $subjectName)
-                @php
-                    $hasAny = false;
-                    foreach ($chunk as $sessionSummaries) {
-                        foreach ($sessionSummaries->sortBy('term_id') as $s) {
-                            if (isset($scoresByTerm[$s->term_id][$sid])) {
-                                $hasAny = true;
-                                break 2;
-                            }
-                        }
-                    }
-                @endphp
-
-                @if($hasAny)
-                    <tr>
-                        <td class="td-subj">{{ $subjectName }}</td>
-                        @foreach($chunk as $sessionId => $sessionSummaries)
-                            @foreach($sessionSummaries->sortBy('term_id') as $s)
-                                @php
-                                    $entry  = $scoresByTerm[$s->term_id][$sid] ?? null;
-                                    $sc     = $entry['total'] ?? null;
-                                    $isPass = $entry['is_pass'] ?? false;
-                                    $grade  = $entry['grade'] ?? '—';
-                                @endphp
-
-                                @if($sc !== null)
-                                    <td class="td-score {{ $isPass ? 'td-pass' : 'td-fail' }}">{{ $sc }}</td>
-                                    <td class="{{ $isPass ? 'td-pass' : 'td-fail' }}" style="font-weight: 700; font-size: 6.2pt;">
-                                        {{ $grade }}
-                                    </td>
-                                @else
-                                    <td class="td-nil">—</td>
-                                    <td class="td-nil">—</td>
-                                @endif
-                            @endforeach
-                        @endforeach
-                    </tr>
-                @endif
+            @foreach($chunkSubjects as $sid => $subjectName)
+            <tr>
+                <td class="subject">{{ $subjectName }}</td>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        @php
+                            $entry  = $s ? ($scoresByTerm[$s->term_id][$sid] ?? null) : null;
+                            $sc     = $entry['total'] ?? null;
+                            $grade  = $entry['grade'] ?? null;
+                            $isPass = $entry['is_pass'] ?? ($sc !== null && $sc >= $pass);
+                        @endphp
+                        @if($sc !== null)
+                            <td class="{{ $isPass ? 'good' : 'risk' }}">{{ $sc }}</td>
+                            <td class="grade {{ $isPass ? 'good' : 'risk' }}">{{ $grade }}</td>
+                        @else
+                            <td class="nil">—</td>
+                            <td class="nil">—</td>
+                        @endif
+                    @endforeach
+                @endforeach
+            </tr>
             @endforeach
 
-            {{-- Totals, average and position --}}
-            <tr class="tr-total">
-                <td class="td-subj">Total / Avg / Position</td>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                    @foreach($sessionSummaries->sortBy('term_id') as $s)
-                        @php
-                            $ts      = $s->total_score ?? 0;
-                            $avg     = $s->final_average ?? 0;
-                            $pos     = $s->position_in_class;
-                            $tot     = $s->total_students_in_class;
-                            $hasData = $ts > 0 || $avg > 0;
-                        @endphp
-                        <td colspan="2" style="color: {{ $avg >= 40 ? '#047857' : ($hasData ? '#B91C1C' : '#94A3B8') }};">
-                            @if($hasData)
-                                {{ $ts }} / {{ number_format($avg, 1) }}%
-                                @if($pos)
-                                    <br><span class="position-text">Pos {{ $pos }}/{{ $tot }}</span>
-                                @endif
-                            @else
-                                —
-                            @endif
-                        </td>
+            {{-- Term summaries pulled from the termly report --}}
+            <tr class="summary-row">
+                <td class="summary-label">Term Total Score</td>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        @if($s && (($s->total_score ?? 0) > 0 || ($s->final_average ?? 0) > 0))
+                            <td colspan="2">{{ number_format((float) $s->total_score, 1) }}</td>
+                        @else
+                            <td colspan="2" class="nil">—</td>
+                        @endif
+                    @endforeach
+                @endforeach
+            </tr>
+            <tr class="summary-sub">
+                <td class="summary-label">Term Average (%)</td>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        @if($s && ($s->final_average ?? 0) > 0)
+                            <td colspan="2" class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
+                        @else
+                            <td colspan="2" class="nil">—</td>
+                        @endif
+                    @endforeach
+                @endforeach
+            </tr>
+            <tr class="summary-sub">
+                <td class="summary-label">Term Grade</td>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        @if($s && ($s->final_average ?? 0) > 0)
+                            <td colspan="2">{{ $termGrade($s) }}</td>
+                        @else
+                            <td colspan="2" class="nil">—</td>
+                        @endif
+                    @endforeach
+                @endforeach
+            </tr>
+            <tr class="summary-sub">
+                <td class="summary-label">Position in Class</td>
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        @if($s && ($s->position_in_class ?? 0) > 0)
+                            <td colspan="2">{{ $s->position_in_class }} of {{ $s->total_students_in_class }}</td>
+                        @else
+                            <td colspan="2" class="nil">—</td>
+                        @endif
                     @endforeach
                 @endforeach
             </tr>
         </tbody>
     </table>
 
-    @if($isLastChunk)
-        <table class="footer-table">
-            <tr>
-                <td>{{ optional($tenant)->name }} · Official Academic Transcript</td>
-                <td class="footer-center">Generated: {{ now()->format('d M Y, H:i') }}</td>
-                <td class="footer-right">This is a computer-generated document.</td>
-            </tr>
-        </table>
-    @endif
+    <table class="doc-footer">
+        <tr>
+            <td style="text-align:left">{{ $tenant->name }} · Official Academic Transcript</td>
+            <td style="text-align:center">Generated {{ now()->format('d M Y, H:i') }}</td>
+            <td style="text-align:right">Computer-generated document — no signature required</td>
+        </tr>
+    </table>
 </div>
-@endforeach
-
+@empty
+<p style="padding:20pt;text-align:center;color:#52606d">No academic records found for this student.</p>
+@endforelse
 </body>
 </html>

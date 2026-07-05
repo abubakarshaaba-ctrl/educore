@@ -11,26 +11,29 @@
 .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms}
 .btn-primary{background:var(--indigo);color:white}
 .btn-ghost{background:#F1F5F9;color:var(--slate);border:1px solid var(--border)}
-.tcard{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
-.tcard-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-.tcard-title{font-size:13px;font-weight:700;color:var(--midnight)}
+.tcard{background:white;border:1px solid #9aa8b6;border-radius:8px;overflow:hidden;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.tcard-head{padding:12px 18px;border-bottom:1px solid #9aa8b6;background:#edf3f8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.tcard-title{font-size:13px;font-weight:700;color:#17365d;text-transform:uppercase;letter-spacing:.04em}
 .trx{overflow-x:auto}
-table.sc{width:100%;border-collapse:collapse;font-size:12.5px;min-width:500px}
-table.sc th{padding:7px 10px;border:1px solid var(--border);font-size:10px;font-weight:700;text-align:center;white-space:nowrap}
-table.sc th.sh-subj{text-align:left;background:#EFF6FF;color:var(--indigo);min-width:150px}
-table.sc th.sh-sess{background:var(--midnight);color:white;font-size:11px}
-table.sc th.sh-class{background:#0F2942;color:#B8C8DB;font-size:9.5px;font-weight:400;font-style:italic}
-table.sc th.sh-term{background:#F8FAFC;color:var(--slate);text-transform:uppercase;letter-spacing:.04em;font-size:9.5px}
-table.sc th.sh-metric{background:white;color:var(--slate-light);font-size:8.5px;font-weight:600;padding:4px 6px}
-table.sc td{padding:8px 10px;border:1px solid #E2E8F0;color:var(--midnight);text-align:center}
-table.sc td.td-subj{text-align:left;font-weight:600;background:#FAFBFF;border-right:1px solid var(--border)}
-table.sc td.td-pass{color:#059669;font-weight:700}
-table.sc td.td-fail{color:#DC2626;font-weight:700}
-table.sc td.td-nil{color:#CBD5E1}
-table.sc td.td-grade{font-size:11px;font-weight:800;background:#FAFBFC;border-left:1px solid #CBD5E1;border-right:1px solid #CBD5E1}
-table.sc th.sh-metric+th.sh-metric{border-left:1px solid #CBD5E1}
-table.sc tr.tr-total td{background:#F1F5F9;border-top:2px solid var(--border);font-weight:800;color:var(--midnight)}
-table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
+
+/* Transcript table — same shades as the report card PDF */
+table.sc{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;table-layout:fixed}
+table.sc col.c-subject{width:16%}
+table.sc th{padding:7px 6px;border:1px solid #aebbc9;background:#f3f6f9;color:#243b53;font-size:10.5px;font-weight:700;text-align:center;text-transform:uppercase;line-height:1.25}
+table.sc th.session-head{background:#17365d;color:#fff;font-size:12px;letter-spacing:.04em}
+table.sc th.class-head{background:#22456e;color:#cfdcec;font-weight:400;font-style:italic;font-size:11px;text-transform:none}
+table.sc th.term-head{background:#edf3f8;color:#17365d;font-size:11px}
+table.sc th.subject-head{text-align:left;padding-left:10px;background:#edf3f8;color:#17365d;font-size:11.5px}
+table.sc td{padding:7px 6px;border:1px solid #cbd5df;color:#172033;text-align:center;vertical-align:middle}
+table.sc td.subject{text-align:left;padding-left:10px;font-weight:600;color:#243b53;background:#fbfcfe}
+table.sc td.grade{font-weight:700;background:#fbfcfe}
+.good{color:#16794b}
+.risk{color:#b42318}
+.nil{color:#b9c3cd}
+table.sc tr.summary-row td{background:#edf3f8;font-weight:700;color:#17365d;border-top:2px solid #8fa0b2}
+table.sc tr.summary-row td.summary-label,
+table.sc tr.summary-sub td.summary-label{text-align:left;padding-left:10px;font-size:10.5px;text-transform:uppercase;color:#52606d;font-weight:700}
+table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
 </style>
 @endpush
 
@@ -55,6 +58,19 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
     $avgOfAvgs  = $totalTerms ? round($summaries->avg('final_average'), 1) : 0;
     $bestTerm   = $summaries->sortByDesc('final_average')->first();
     $pass = 40;
+
+    // Overall grade for a termly summary, using the grading system of its class level
+    $termGrade = function ($summary) use ($gradingSystems) {
+        $avg  = (float) ($summary->final_average ?? 0);
+        $clId = optional($summary->classArm)->class_level_id;
+        $gs   = $clId ? ($gradingSystems[$clId] ?? collect()) : collect();
+        $rec  = $gs->sortByDesc('min_score')->first(fn ($g) => $avg >= (float) $g->min_score && $avg <= (float) $g->max_score);
+        if ($rec) return $rec->grade_letter;
+        return match (true) {
+            $avg >= 70 => 'A', $avg >= 60 => 'B', $avg >= 50 => 'C',
+            $avg >= 45 => 'D', $avg >= 40 => 'E', default => 'F',
+        };
+    };
 @endphp
 
 <div class="profile-row">
@@ -62,112 +78,153 @@ table.sc tr.tr-total td.td-subj{background:#E2E8F0;color:var(--slate)}
     <div class="pstat"><div class="val">{{ $avgOfAvgs }}%</div><div class="lbl">Overall Average</div></div>
     <div class="pstat"><div class="val">{{ optional($bestTerm)->final_average ?? '—' }}%</div><div class="lbl">Best Term Avg</div></div>
     <div class="pstat">
-        <div class="val" style="color:{{ $student->status === 'active' ? '#059669':'' }}">{{ ucfirst($student->status) }}</div>
+        <div class="val" style="color:{{ $student->status === 'active' ? '#16794b':'' }}">{{ ucfirst($student->status) }}</div>
         <div class="lbl">Status</div>
     </div>
     <div class="pstat"><div class="val">{{ $allSubjects->count() }}</div><div class="lbl">Subjects Taken</div></div>
 </div>
 
-{{-- All sessions in one table per chunk of 3 --}}
-@php $chunks = $bySession->chunk(3); @endphp
+{{-- Three sessions per card; each session = 3 terms x (Score | Grade) --}}
+@php $chunks = $bySession->chunk(3)->values(); @endphp
 
-@forelse($chunks as $chunk)
+@forelse($chunks as $chunkIndex => $chunk)
+@php
+    // Pad every session in the chunk to 3 term slots (null = no record)
+    $sessions = [];
+    foreach ($chunk as $sessionId => $sessionSummaries) {
+        $slots = $sessionSummaries->sortBy('term_id')->values()->all();
+        while (count($slots) < 3) $slots[] = null;
+        $slots = array_slice($slots, 0, 3);
+        $sessions[] = [
+            'name'  => optional($sessionSummaries->first()?->session)->name ?? 'Session',
+            'class' => trim(optional(optional($sessionSummaries->first()?->classArm)->classLevel)->name . ' ' . optional($sessionSummaries->first()?->classArm)->name),
+            'slots' => $slots,
+        ];
+    }
+
+    // Subjects that actually have a score in this chunk
+    $chunkSubjects = $allSubjects->filter(function ($name, $sid) use ($sessions, $scoresByTerm) {
+        foreach ($sessions as $sess) {
+            foreach ($sess['slots'] as $s) {
+                if ($s && isset($scoresByTerm[$s->term_id][$sid])) return true;
+            }
+        }
+        return false;
+    });
+@endphp
 <div class="tcard">
     <div class="tcard-head">
-        <div class="tcard-title">Academic Performance by Subject</div>
-        <div style="font-size:11px;color:var(--slate-light)">Raw term totals · pass mark {{ $pass }}</div>
+        <div class="tcard-title">Academic Performance by Subject @if($chunks->count() > 1) — {{ $chunkIndex + 1 }}/{{ $chunks->count() }} @endif</div>
+        <div style="font-size:11px;color:#52606d">Score and grade per term · pass mark {{ $pass }}</div>
     </div>
     <div class="trx">
     <table class="sc">
+        <colgroup>
+            <col class="c-subject">
+        </colgroup>
         <thead>
             {{-- Row 1: session names --}}
             <tr>
-                <th class="sh-subj" rowspan="4">Subject</th>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                @php
-                    $termCount   = $sessionSummaries->count();
-                    $sessionName = optional($sessionSummaries->first()?->session)->name ?? 'Session';
-                @endphp
-                <th class="sh-sess" colspan="{{ $termCount * 2 }}">{{ $sessionName }}</th>
+                <th class="subject-head" rowspan="4">Subject</th>
+                @foreach($sessions as $sess)
+                    <th class="session-head" colspan="6">{{ $sess['name'] }}</th>
                 @endforeach
             </tr>
             {{-- Row 2: class per session --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                @php
-                    $termCount = $sessionSummaries->count();
-                    $classArm  = $sessionSummaries->first()?->classArm;
-                    $cls = trim(optional(optional($classArm)->classLevel)->name . ' ' . optional($classArm)->name);
-                @endphp
-                <th class="sh-class" colspan="{{ $termCount * 2 }}">{{ $cls ?: '—' }}</th>
+                @foreach($sessions as $sess)
+                    <th class="class-head" colspan="6">{{ $sess['class'] ?: '—' }}</th>
                 @endforeach
             </tr>
             {{-- Row 3: term names --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                @foreach($sessionSummaries->sortBy('term_id') as $s)
-                <th class="sh-term" colspan="2">{{ optional($s->term)->name }}</th>
-                @endforeach
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $i => $s)
+                        <th class="term-head" colspan="2">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
+                    @endforeach
                 @endforeach
             </tr>
             {{-- Row 4: Score / Grade per term --}}
             <tr>
-                @foreach($chunk as $sessionId => $sessionSummaries)
-                @foreach($sessionSummaries->sortBy('term_id') as $s)
-                <th class="sh-metric">Score</th>
-                <th class="sh-metric">Grade</th>
-                @endforeach
+                @foreach($sessions as $sess)
+                    @foreach($sess['slots'] as $s)
+                        <th>Score</th>
+                        <th>Grade</th>
+                    @endforeach
                 @endforeach
             </tr>
         </thead>
         <tbody>
-        @foreach($allSubjects as $sid => $subjectName)
-        @php
-            $hasAny = false;
-            foreach ($chunk as $sessionSummaries) {
-                foreach ($sessionSummaries as $s) {
-                    if (isset($scoresByTerm[$s->term_id][$sid])) { $hasAny = true; break 2; }
-                }
-            }
-        @endphp
-        @if($hasAny)
+        @foreach($chunkSubjects as $sid => $subjectName)
         <tr>
-            <td class="td-subj">{{ $subjectName }}</td>
-            @foreach($chunk as $sessionId => $sessionSummaries)
-            @foreach($sessionSummaries->sortBy('term_id') as $s)
-            @php
-                $entry = $scoresByTerm[$s->term_id][$sid] ?? null;
-                $sc = $entry['total'] ?? null;
-                $grade = $entry['grade'] ?? '—';
-                $isPass = $entry['is_pass'] ?? ($sc >= $pass);
-            @endphp
-            @if($sc !== null)
-                <td class="{{ $isPass ? 'td-pass' : 'td-fail' }}">{{ $sc }}</td>
-                <td class="td-grade {{ $isPass ? 'td-pass' : 'td-fail' }}">{{ $grade }}</td>
-            @else
-                <td class="td-nil">—</td>
-                <td class="td-nil">—</td>
-            @endif
-            @endforeach
+            <td class="subject">{{ $subjectName }}</td>
+            @foreach($sessions as $sess)
+                @foreach($sess['slots'] as $s)
+                    @php
+                        $entry  = $s ? ($scoresByTerm[$s->term_id][$sid] ?? null) : null;
+                        $sc     = $entry['total'] ?? null;
+                        $grade  = $entry['grade'] ?? null;
+                        $isPass = $entry['is_pass'] ?? ($sc !== null && $sc >= $pass);
+                    @endphp
+                    @if($sc !== null)
+                        <td class="{{ $isPass ? 'good' : 'risk' }}">{{ $sc }}</td>
+                        <td class="grade {{ $isPass ? 'good' : 'risk' }}">{{ $grade }}</td>
+                    @else
+                        <td class="nil">—</td>
+                        <td class="nil">—</td>
+                    @endif
+                @endforeach
             @endforeach
         </tr>
-        @endif
         @endforeach
 
-        {{-- Totals row --}}
-        <tr class="tr-total">
-            <td class="td-subj">Total / Average</td>
-            @foreach($chunk as $sessionId => $sessionSummaries)
-            @foreach($sessionSummaries->sortBy('term_id') as $s)
-            @php
-                $ts  = $s->total_score ?? 0;
-                $avg = $s->final_average ?? 0;
-                $hasScores = $ts > 0 || $avg > 0;
-            @endphp
-            <td colspan="2" style="color:{{ $avg >= $pass ? '#059669' : ($hasScores ? '#DC2626' : '#94A3B8') }}">
-                @if($hasScores){{ $ts }} / {{ number_format($avg, 1) }}%@else—@endif
-            </td>
+        {{-- Term summaries pulled from the termly report --}}
+        <tr class="summary-row">
+            <td class="summary-label">Term Total Score</td>
+            @foreach($sessions as $sess)
+                @foreach($sess['slots'] as $s)
+                    @if($s && (($s->total_score ?? 0) > 0 || ($s->final_average ?? 0) > 0))
+                        <td colspan="2">{{ number_format((float) $s->total_score, 1) }}</td>
+                    @else
+                        <td colspan="2" class="nil">—</td>
+                    @endif
+                @endforeach
             @endforeach
+        </tr>
+        <tr class="summary-sub">
+            <td class="summary-label">Term Average (%)</td>
+            @foreach($sessions as $sess)
+                @foreach($sess['slots'] as $s)
+                    @if($s && ($s->final_average ?? 0) > 0)
+                        <td colspan="2" class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
+                    @else
+                        <td colspan="2" class="nil">—</td>
+                    @endif
+                @endforeach
+            @endforeach
+        </tr>
+        <tr class="summary-sub">
+            <td class="summary-label">Term Grade</td>
+            @foreach($sessions as $sess)
+                @foreach($sess['slots'] as $s)
+                    @if($s && ($s->final_average ?? 0) > 0)
+                        <td colspan="2">{{ $termGrade($s) }}</td>
+                    @else
+                        <td colspan="2" class="nil">—</td>
+                    @endif
+                @endforeach
+            @endforeach
+        </tr>
+        <tr class="summary-sub">
+            <td class="summary-label">Position in Class</td>
+            @foreach($sessions as $sess)
+                @foreach($sess['slots'] as $s)
+                    @if($s && ($s->position_in_class ?? 0) > 0)
+                        <td colspan="2">{{ $s->position_in_class }} of {{ $s->total_students_in_class }}</td>
+                    @else
+                        <td colspan="2" class="nil">—</td>
+                    @endif
+                @endforeach
             @endforeach
         </tr>
         </tbody>
