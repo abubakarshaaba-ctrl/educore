@@ -26,8 +26,15 @@ deployment:
     - /usr/bin/rsync -a ./educore/public/ $DEPLOYPATH/educore/public/
     - /bin/cp -f ./.htaccess $DEPLOYPATH/.htaccess
     - /bin/cp -f ./index.php $DEPLOYPATH/index.php
-    # Clear Laravel caches so the deployed code takes effect immediately
-    - /usr/local/bin/php $DEPLOYPATH/educore/artisan route:clear || true
-    - /usr/local/bin/php $DEPLOYPATH/educore/artisan config:clear || true
-    - /usr/local/bin/php $DEPLOYPATH/educore/artisan view:clear || true
-    - /usr/local/bin/php $DEPLOYPATH/educore/artisan cache:clear || true
+    # Clear Laravel caches so the deployed code takes effect immediately.
+    # Delete cache files directly - artisan via /usr/local/bin/php proved
+    # unreliable on this host (silent failures left stale compiled views).
+    - /bin/rm -f $DEPLOYPATH/educore/storage/framework/views/*.php
+    - /bin/rm -f $DEPLOYPATH/educore/bootstrap/cache/routes-*.php
+    - /bin/rm -f $DEPLOYPATH/educore/bootstrap/cache/config.php
+    - /bin/rm -f $DEPLOYPATH/educore/bootstrap/cache/events.php
+    - /bin/rm -rf $DEPLOYPATH/educore/storage/framework/cache/data
+    # Belt and braces: also try artisan with the generic php binary
+    - php $DEPLOYPATH/educore/artisan view:clear || true
+    - php $DEPLOYPATH/educore/artisan route:clear || true
+    - php $DEPLOYPATH/educore/artisan config:clear || true
