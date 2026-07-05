@@ -26,7 +26,6 @@ table.sc th.term-head{background:#edf3f8;color:#17365d;font-size:11px}
 table.sc th.subject-head{text-align:left;padding-left:10px;background:#edf3f8;color:#17365d;font-size:11.5px}
 table.sc td{padding:7px 6px;border:1px solid #cbd5df;color:#172033;text-align:center;vertical-align:middle}
 table.sc td.subject{text-align:left;padding-left:10px;font-weight:600;color:#243b53;background:#fbfcfe}
-table.sc td.grade{font-weight:700;background:#fbfcfe}
 .good{color:#16794b}
 .risk{color:#b42318}
 .nil{color:#b9c3cd}
@@ -58,19 +57,6 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
     $avgOfAvgs  = $totalTerms ? round($summaries->avg('final_average'), 1) : 0;
     $bestTerm   = $summaries->sortByDesc('final_average')->first();
     $pass = 40;
-
-    // Overall grade for a termly summary, using the grading system of its class level
-    $termGrade = function ($summary) use ($gradingSystems) {
-        $avg  = (float) ($summary->final_average ?? 0);
-        $clId = optional($summary->classArm)->class_level_id;
-        $gs   = $clId ? ($gradingSystems[$clId] ?? collect()) : collect();
-        $rec  = $gs->sortByDesc('min_score')->first(fn ($g) => $avg >= (float) $g->min_score && $avg <= (float) $g->max_score);
-        if ($rec) return $rec->grade_letter;
-        return match (true) {
-            $avg >= 70 => 'A', $avg >= 60 => 'B', $avg >= 50 => 'C',
-            $avg >= 45 => 'D', $avg >= 40 => 'E', default => 'F',
-        };
-    };
 @endphp
 
 <div class="profile-row">
@@ -84,7 +70,7 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
     <div class="pstat"><div class="val">{{ $allSubjects->count() }}</div><div class="lbl">Subjects Taken</div></div>
 </div>
 
-{{-- Three sessions per card; each session = 3 terms x (Score | Grade) --}}
+{{-- Three sessions per card; each session = 3 terms x Score --}}
 @php $chunks = $bySession->chunk(3)->values(); @endphp
 
 @forelse($chunks as $chunkIndex => $chunk)
@@ -115,7 +101,7 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
 <div class="tcard">
     <div class="tcard-head">
         <div class="tcard-title">Academic Performance by Subject @if($chunks->count() > 1) — {{ $chunkIndex + 1 }}/{{ $chunks->count() }} @endif</div>
-        <div style="font-size:11px;color:#52606d">Score and grade per term · pass mark {{ $pass }}</div>
+        <div style="font-size:11px;color:#52606d">Score per term · pass mark {{ $pass }}</div>
     </div>
     <div class="trx">
     <table class="sc">
@@ -154,7 +140,6 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
                     @php
                         $entry  = $s ? ($scoresByTerm[$s->term_id][$sid] ?? null) : null;
                         $sc     = $entry['total'] ?? null;
-                        $grade  = $entry['grade'] ?? null;
                         $isPass = $entry['is_pass'] ?? ($sc !== null && $sc >= $pass);
                     @endphp
                     @if($sc !== null)
@@ -186,18 +171,6 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
                 @foreach($sess['slots'] as $s)
                     @if($s && ($s->final_average ?? 0) > 0)
                         <td class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
-                    @else
-                        <td class="nil">—</td>
-                    @endif
-                @endforeach
-            @endforeach
-        </tr>
-        <tr class="summary-sub">
-            <td class="summary-label">Term Grade</td>
-            @foreach($sessions as $sess)
-                @foreach($sess['slots'] as $s)
-                    @if($s && ($s->final_average ?? 0) > 0)
-                        <td>{{ $termGrade($s) }}</td>
                     @else
                         <td class="nil">—</td>
                     @endif
