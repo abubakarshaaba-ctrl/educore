@@ -1,0 +1,16 @@
+workflows:
+  android-release:
+    name: EduCore Staff APK
+    max_build_duration: 30
+    instance_type: linux_x2
+    working_directory: mobile
+    environment:
+      flutter: stable
+      java: 21
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Build release APK (arm64)
+        script: flutter build apk --release --target-platform android-arm64
+    artifacts:
+      - mobile/build/app/outputs/flutter-apk/app-release.apk
