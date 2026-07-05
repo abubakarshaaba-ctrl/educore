@@ -37,7 +37,7 @@ class SelfDeployController extends Controller
 
     public function pull(Request $request)
     {
-        $expected = (string) config('app.deploy_token', env('DEPLOY_TOKEN', ''));
+        $expected = (string) (config('app.deploy_token') ?: self::derivedToken());
 
         if ($expected === '' || !hash_equals($expected, (string) $request->query('token'))) {
             abort(403, 'Invalid deploy token.');
@@ -121,6 +121,16 @@ class SelfDeployController extends Controller
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
         ]);
+    }
+
+    /**
+     * Deterministic fallback token derived from APP_KEY, so no .env edit is
+     * needed on the server (cPanel editor risks BOM corruption). Retrieve it
+     * once via tools/show-deploy-token.php or artisan tinker.
+     */
+    public static function derivedToken(): string
+    {
+        return hash_hmac('sha256', 'educore-self-deploy', (string) config('app.key'));
     }
 
     private function copyTree(string $src, string $dst): int
