@@ -4,6 +4,7 @@ import '../api_client.dart';
 import '../main.dart';
 import 'attendance_screen.dart';
 import 'login_screen.dart';
+import 'staff_attendance_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,8 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          [_tab == 0 ? 'My Classes' : _tab == 1 ? 'Announcements' : 'Profile',
-          ].first,
+          const ['My Classes', 'My Attendance', 'Announcements', 'Profile'][_tab],
         ),
         actions: [
           Padding(
@@ -41,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _tab,
         children: const [
           _ClassesTab(),
+          StaffAttendanceScreen(),
           _AnnouncementsTab(),
           _ProfileTab(),
         ],
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_), label: 'Classes'),
+          NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'Clock-in'),
           NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'News'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
         ],

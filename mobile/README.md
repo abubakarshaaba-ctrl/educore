@@ -9,6 +9,8 @@ purpose-built mobile screens backed by the JSON API at
 - My Classes: form-tutor classes + subject-teacher assignments
 - Attendance: tap-to-cycle marking (present / absent / late / excused),
   "All present" shortcut, date picker for backfilling, one-tap save
+- Staff clock-in/out: scan the school's display QR (or your ID card),
+  geo-fence honoured when the school enables it, month history + counts
 - Announcements: staff-targeted school news
 - Profile + sign out
 
@@ -42,6 +44,14 @@ purpose-built mobile screens backed by the JSON API at
 - `educore/app/Http/Controllers/Api/*` — Auth, Teacher, Attendance
 - `api_tokens` table migration: `2026_07_05_100001_create_api_tokens_table.php`
   (runs automatically on deploy via `.cpanel.yml` `migrate --force`)
+
+## Permissions (add after `flutter create .`)
+- **Camera** (QR clock-in): `android/app/src/main/AndroidManifest.xml` needs
+  `<uses-permission android:name="android.permission.CAMERA"/>`;
+  iOS `Info.plist` needs `NSCameraUsageDescription`.
+- **Location** (geo-fenced schools): add
+  `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>`
+  and iOS `NSLocationWhenInUseUsageDescription`.
 
 ## Roadmap (next phases)
 - Score entry per subject/assessment

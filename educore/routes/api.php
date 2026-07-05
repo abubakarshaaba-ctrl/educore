@@ -27,5 +27,11 @@ Route::prefix('v1')->group(function () {
 
         Route::get('classes/{classArm}/attendance',  [AttendanceController::class, 'index']);
         Route::post('classes/{classArm}/attendance', [AttendanceController::class, 'store']);
+
+        // Staff self-attendance — clock-in/out reuse the proven web JSON
+        // endpoints (QR verification + geo-fence live in that controller)
+        Route::get('staff-attendance',            [\App\Http\Controllers\Api\StaffAttendanceApiController::class, 'me']);
+        Route::post('staff-attendance/clock-in',  [\App\Http\Controllers\StaffAttendanceController::class, 'clockInQr']);
+        Route::post('staff-attendance/clock-out', [\App\Http\Controllers\StaffAttendanceController::class, 'clockOut']);
     });
 });
