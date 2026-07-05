@@ -95,6 +95,20 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
 
 // â”€â”€ Authentication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Route::get('/', [PublicMarketingController::class, 'index'])->name('home');
+
+// Staff mobile app download — serves the APK once it has been uploaded to
+// educore/public/downloads/educore-staff.apk (see mobile/README.md).
+Route::get('/download/app', function () {
+    $apk = public_path('downloads/educore-staff.apk');
+
+    if (!file_exists($apk)) {
+        return response()->view('app-download-soon', [], 404);
+    }
+
+    return response()->download($apk, 'EduCore-Staff.apk', [
+        'Content-Type' => 'application/vnd.android.package-archive',
+    ]);
+})->name('app.download');
 Route::post('/contact', [PublicMarketingController::class, 'sendContact'])->middleware('throttle:public-form')->name('contact.submit');
 Route::post('/school-onboarding', [PublicMarketingController::class, 'sendSchoolOnboarding'])->middleware('throttle:public-form')->name('school-onboarding.submit');
 Route::get('/get-started',  [\App\Http\Controllers\SchoolRegistrationController::class, 'show'])->name('school.register');
