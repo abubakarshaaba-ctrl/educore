@@ -46,24 +46,24 @@ table { border-collapse: collapse; }
     width: 100%;
     table-layout: fixed;
     border: 0.45pt solid #8fa0b2;
-    font-size: 7.5pt;
+    font-size: 11pt;
 }
 .academic th {
-    padding: 3.4pt 2.2pt;
+    padding: 4.5pt 3pt;
     border: 0.35pt solid #aebbc9;
     background: #f3f6f9;
     color: #243b53;
     text-align: center;
-    font-size: 6.6pt;
+    font-size: 8.5pt;
     text-transform: uppercase;
     line-height: 1.2;
 }
-.academic th.session-head { background: #17365d; color: #ffffff; font-size: 7.4pt; letter-spacing: 0.4pt; }
-.academic th.class-head { background: #22456e; color: #cfdcec; font-weight: 400; font-style: italic; font-size: 6.6pt; text-transform: none; }
-.academic th.term-head { background: #edf3f8; color: #17365d; font-size: 6.8pt; }
-.academic th.subject-head { text-align: left; padding-left: 5pt; background: #edf3f8; color: #17365d; font-size: 7pt; }
+.academic th.session-head { background: #17365d; color: #ffffff; font-size: 10pt; letter-spacing: 0.4pt; }
+.academic th.class-head { background: #22456e; color: #cfdcec; font-weight: 400; font-style: italic; font-size: 8.5pt; text-transform: none; }
+.academic th.term-head { background: #edf3f8; color: #17365d; font-size: 9pt; }
+.academic th.subject-head { text-align: left; padding-left: 5pt; background: #edf3f8; color: #17365d; font-size: 9pt; }
 .academic td {
-    padding: 3.2pt 2.2pt;
+    padding: 4.5pt 3pt;
     border: 0.3pt solid #cbd5df;
     text-align: center;
     vertical-align: middle;
@@ -75,9 +75,9 @@ table { border-collapse: collapse; }
 .nil  { color: #b9c3cd; }
 
 .academic tr.summary-row td { background: #edf3f8; font-weight: 700; color: #17365d; border-top: 0.6pt solid #8fa0b2; }
-.academic tr.summary-row td.summary-label { text-align: left; padding-left: 5pt; font-size: 6.6pt; text-transform: uppercase; color: #52606d; }
+.academic tr.summary-row td.summary-label { text-align: left; padding-left: 5pt; font-size: 8pt; text-transform: uppercase; color: #52606d; }
 .academic tr.summary-sub td { background: #f6f9fc; font-weight: 600; color: #243b53; }
-.academic tr.summary-sub td.summary-label { text-align: left; padding-left: 5pt; font-size: 6.6pt; text-transform: uppercase; color: #52606d; font-weight: 700; }
+.academic tr.summary-sub td.summary-label { text-align: left; padding-left: 5pt; font-size: 8pt; text-transform: uppercase; color: #52606d; font-weight: 700; }
 
 /* ── Page footer ──────────────────────────────────────────────────────── */
 .doc-footer { width: 100%; margin-top: 8pt; border-top: 0.35pt solid #9aa8b6; }
@@ -114,9 +114,9 @@ table { border-collapse: collapse; }
     // 3 sessions per landscape page; each session padded to exactly 3 term slots
     $chunks = $bySession->chunk(3)->values();
 
-    // Column plan: subject 16%, then 3 sessions x 3 terms x 2 cols = 18 equal cols
-    $subjectW = 16;
-    $colW = round((100 - $subjectW) / 18, 3);
+    // Column plan: subject 19%, then 3 sessions x 3 terms = 9 equal score columns
+    $subjectW = 19;
+    $colW = round((100 - $subjectW) / 9, 3);
 @endphp
 
 @forelse($chunks as $chunkIndex => $chunk)
@@ -187,32 +187,24 @@ table { border-collapse: collapse; }
     <table class="academic">
         <colgroup>
             <col style="width: {{ $subjectW }}%">
-            @for($i = 0; $i < 18; $i++)<col style="width: {{ $colW }}%">@endfor
+            @for($i = 0; $i < 9; $i++)<col style="width: {{ $colW }}%">@endfor
         </colgroup>
         <thead>
             <tr>
-                <th class="subject-head" rowspan="4">Subject</th>
+                <th class="subject-head" rowspan="3">Subject</th>
                 @foreach($sessions as $sess)
-                    <th class="session-head" colspan="6">{{ $sess['name'] }}</th>
+                    <th class="session-head" colspan="3">{{ $sess['name'] }}</th>
                 @endforeach
             </tr>
             <tr>
                 @foreach($sessions as $sess)
-                    <th class="class-head" colspan="6">{{ $sess['class'] ?: '—' }}</th>
+                    <th class="class-head" colspan="3">{{ $sess['class'] ?: '—' }}</th>
                 @endforeach
             </tr>
             <tr>
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $i => $s)
-                        <th class="term-head" colspan="2">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
-                    @endforeach
-                @endforeach
-            </tr>
-            <tr>
-                @foreach($sessions as $sess)
-                    @foreach($sess['slots'] as $s)
-                        <th>Score</th>
-                        <th>Grade</th>
+                        <th class="term-head">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
                     @endforeach
                 @endforeach
             </tr>
@@ -231,9 +223,7 @@ table { border-collapse: collapse; }
                         @endphp
                         @if($sc !== null)
                             <td class="{{ $isPass ? 'good' : 'risk' }}">{{ $sc }}</td>
-                            <td class="grade {{ $isPass ? 'good' : 'risk' }}">{{ $grade }}</td>
                         @else
-                            <td class="nil">—</td>
                             <td class="nil">—</td>
                         @endif
                     @endforeach
@@ -247,9 +237,9 @@ table { border-collapse: collapse; }
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $s)
                         @if($s && (($s->total_score ?? 0) > 0 || ($s->final_average ?? 0) > 0))
-                            <td colspan="2">{{ number_format((float) $s->total_score, 1) }}</td>
+                            <td>{{ number_format((float) $s->total_score, 1) }}</td>
                         @else
-                            <td colspan="2" class="nil">—</td>
+                            <td class="nil">—</td>
                         @endif
                     @endforeach
                 @endforeach
@@ -259,9 +249,9 @@ table { border-collapse: collapse; }
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $s)
                         @if($s && ($s->final_average ?? 0) > 0)
-                            <td colspan="2" class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
+                            <td class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
                         @else
-                            <td colspan="2" class="nil">—</td>
+                            <td class="nil">—</td>
                         @endif
                     @endforeach
                 @endforeach
@@ -271,9 +261,9 @@ table { border-collapse: collapse; }
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $s)
                         @if($s && ($s->final_average ?? 0) > 0)
-                            <td colspan="2">{{ $termGrade($s) }}</td>
+                            <td>{{ $termGrade($s) }}</td>
                         @else
-                            <td colspan="2" class="nil">—</td>
+                            <td class="nil">—</td>
                         @endif
                     @endforeach
                 @endforeach
@@ -283,9 +273,9 @@ table { border-collapse: collapse; }
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $s)
                         @if($s && ($s->position_in_class ?? 0) > 0)
-                            <td colspan="2">{{ $s->position_in_class }} of {{ $s->total_students_in_class }}</td>
+                            <td>{{ $s->position_in_class }}/{{ $s->total_students_in_class }}</td>
                         @else
-                            <td colspan="2" class="nil">—</td>
+                            <td class="nil">—</td>
                         @endif
                     @endforeach
                 @endforeach

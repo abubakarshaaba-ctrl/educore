@@ -18,7 +18,7 @@
 
 /* Transcript table — same shades as the report card PDF */
 table.sc{width:100%;border-collapse:collapse;font-size:13px;min-width:900px;table-layout:fixed}
-table.sc col.c-subject{width:16%}
+table.sc col.c-subject{width:19%}
 table.sc th{padding:7px 6px;border:1px solid #aebbc9;background:#f3f6f9;color:#243b53;font-size:10.5px;font-weight:700;text-align:center;text-transform:uppercase;line-height:1.25}
 table.sc th.session-head{background:#17365d;color:#fff;font-size:12px;letter-spacing:.04em}
 table.sc th.class-head{background:#22456e;color:#cfdcec;font-weight:400;font-style:italic;font-size:11px;text-transform:none}
@@ -125,31 +125,22 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
         <thead>
             {{-- Row 1: session names --}}
             <tr>
-                <th class="subject-head" rowspan="4">Subject</th>
+                <th class="subject-head" rowspan="3">Subject</th>
                 @foreach($sessions as $sess)
-                    <th class="session-head" colspan="6">{{ $sess['name'] }}</th>
+                    <th class="session-head" colspan="3">{{ $sess['name'] }}</th>
                 @endforeach
             </tr>
             {{-- Row 2: class per session --}}
             <tr>
                 @foreach($sessions as $sess)
-                    <th class="class-head" colspan="6">{{ $sess['class'] ?: '—' }}</th>
+                    <th class="class-head" colspan="3">{{ $sess['class'] ?: '—' }}</th>
                 @endforeach
             </tr>
             {{-- Row 3: term names --}}
             <tr>
                 @foreach($sessions as $sess)
                     @foreach($sess['slots'] as $i => $s)
-                        <th class="term-head" colspan="2">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
-                    @endforeach
-                @endforeach
-            </tr>
-            {{-- Row 4: Score / Grade per term --}}
-            <tr>
-                @foreach($sessions as $sess)
-                    @foreach($sess['slots'] as $s)
-                        <th>Score</th>
-                        <th>Grade</th>
+                        <th class="term-head">{{ $s ? optional($s->term)->name : ['1st Term','2nd Term','3rd Term'][$i] }}</th>
                     @endforeach
                 @endforeach
             </tr>
@@ -168,9 +159,7 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
                     @endphp
                     @if($sc !== null)
                         <td class="{{ $isPass ? 'good' : 'risk' }}">{{ $sc }}</td>
-                        <td class="grade {{ $isPass ? 'good' : 'risk' }}">{{ $grade }}</td>
                     @else
-                        <td class="nil">—</td>
                         <td class="nil">—</td>
                     @endif
                 @endforeach
@@ -184,9 +173,9 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
             @foreach($sessions as $sess)
                 @foreach($sess['slots'] as $s)
                     @if($s && (($s->total_score ?? 0) > 0 || ($s->final_average ?? 0) > 0))
-                        <td colspan="2">{{ number_format((float) $s->total_score, 1) }}</td>
+                        <td>{{ number_format((float) $s->total_score, 1) }}</td>
                     @else
-                        <td colspan="2" class="nil">—</td>
+                        <td class="nil">—</td>
                     @endif
                 @endforeach
             @endforeach
@@ -196,9 +185,9 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
             @foreach($sessions as $sess)
                 @foreach($sess['slots'] as $s)
                     @if($s && ($s->final_average ?? 0) > 0)
-                        <td colspan="2" class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
+                        <td class="{{ ($s->final_average ?? 0) >= $pass ? 'good' : 'risk' }}">{{ number_format((float) $s->final_average, 1) }}%</td>
                     @else
-                        <td colspan="2" class="nil">—</td>
+                        <td class="nil">—</td>
                     @endif
                 @endforeach
             @endforeach
@@ -208,9 +197,9 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
             @foreach($sessions as $sess)
                 @foreach($sess['slots'] as $s)
                     @if($s && ($s->final_average ?? 0) > 0)
-                        <td colspan="2">{{ $termGrade($s) }}</td>
+                        <td>{{ $termGrade($s) }}</td>
                     @else
-                        <td colspan="2" class="nil">—</td>
+                        <td class="nil">—</td>
                     @endif
                 @endforeach
             @endforeach
@@ -220,9 +209,9 @@ table.sc tr.summary-sub td{background:#f6f9fc;font-weight:600;color:#243b53}
             @foreach($sessions as $sess)
                 @foreach($sess['slots'] as $s)
                     @if($s && ($s->position_in_class ?? 0) > 0)
-                        <td colspan="2">{{ $s->position_in_class }} of {{ $s->total_students_in_class }}</td>
+                        <td>{{ $s->position_in_class }}/{{ $s->total_students_in_class }}</td>
                     @else
-                        <td colspan="2" class="nil">—</td>
+                        <td class="nil">—</td>
                     @endif
                 @endforeach
             @endforeach
