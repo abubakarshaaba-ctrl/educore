@@ -271,7 +271,7 @@ class StudentController extends Controller
         ['summaries' => $summaries, 'bySession' => $bySession, 'scoresByTerm' => $scoresByTerm, 'allSubjects' => $allSubjects, 'gradingSystems' => $gradingSystems]
             = $this->buildTranscriptData($student);
         $tenant = auth()->user()->tenant;
-        $pdf = Pdf::loadView('students.transcript-pdf', compact('student', 'summaries', 'bySession', 'tenant', 'scoresByTerm', 'allSubjects', 'gradingSystems'))->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadView('students.transcript-pdf', compact('student', 'summaries', 'bySession', 'tenant', 'scoresByTerm', 'allSubjects', 'gradingSystems'))->setPaper('a3', 'landscape');
         $filename = 'Transcript_' . str_replace(' ', '_', $student->full_name) . '_' . now()->format('Y-m-d') . '.pdf';
         return $pdf->download($filename);
     }
