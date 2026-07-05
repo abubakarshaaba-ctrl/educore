@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">EduCore Icon (light)</title>
+  <g transform="translate(32 32) scale(0.875)">
+    <path d="M264 70a186 186 0 1 0 0 372v-82a104 104 0 1 1 0-208V70Z" fill="#FFFFFF"/>
+    <path d="M271 178a78 78 0 0 0 0 156V178Z" fill="#D79A21"/>
+    <circle cx="272" cy="256" r="30" fill="#FFFFFF"/>
+    <rect x="332" y="120" width="44" height="44" rx="7" fill="#F2C35B"/>
+    <rect x="389" y="172" width="35" height="35" rx="6" fill="#D79A21"/>
+    <rect x="330" y="234" width="42" height="42" rx="6" fill="#D79A21"/>
+    <rect x="399" y="267" width="30" height="30" rx="6" fill="#F2C35B"/>
+  </g>
+</svg>

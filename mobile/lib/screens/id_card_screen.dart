@@ -208,40 +208,56 @@ class _IdCardScreenState extends State<IdCardScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                Container(
-                  width: 104,
-                  height: 128,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.white,
-                    border: Border.all(color: kGold, width: 3),
-                    image: d['photo'] != null
-                        ? DecorationImage(
-                            image: NetworkImage(d['photo'] as String),
+                Builder(builder: (context) {
+                  final photo = d['photo'] as String?;
+                  final hasPhoto = photo != null && photo.trim().isNotEmpty;
+                  Widget fallback(String label) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            ((d['name'] as String?) ?? 'S')
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: const TextStyle(
+                                color: kNavy,
+                                fontSize: 40,
+                                fontWeight: FontWeight.w800),
+                          ),
+                          Text(label,
+                              style:
+                                  const TextStyle(color: kMuted, fontSize: 10)),
+                        ],
+                      );
+                  return Container(
+                    width: 104,
+                    height: 128,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white,
+                      border: Border.all(color: kGold, width: 3),
+                    ),
+                    alignment: Alignment.center,
+                    child: hasPhoto
+                        ? Image.network(
+                            photo,
                             fit: BoxFit.cover,
+                            width: 104,
+                            height: 128,
+                            loadingBuilder: (c, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : const Center(
+                                        child: SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2))),
+                            errorBuilder: (c, e, s) => fallback('Photo failed'),
                           )
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: d['photo'] != null
-                      ? null
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              ((d['name'] as String?) ?? 'S')
-                                  .substring(0, 1)
-                                  .toUpperCase(),
-                              style: const TextStyle(
-                                  color: kNavy,
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.w800),
-                            ),
-                            const Text('No photo',
-                                style: TextStyle(color: kMuted, fontSize: 10)),
-                          ],
-                        ),
-                ),
+                        : fallback('No photo'),
+                  );
+                }),
                 const SizedBox(height: 12),
                 Text(d['name'] as String? ?? '—',
                     style: const TextStyle(

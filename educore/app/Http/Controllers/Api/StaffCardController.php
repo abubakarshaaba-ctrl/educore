@@ -30,7 +30,7 @@ class StaffCardController extends Controller
             'role'        => $user->roleLabel() ?? 'Staff',
             'email'       => $user->email,
             'phone'       => $user->phone,
-            'photo'       => $user->passport_photo ? Storage::url($user->passport_photo) : null,
+            'photo'       => $this->absolutePhotoUrl($user->passport_photo),
             'qr_payload'  => $user->personalQrPayload(),
             'school'      => [
                 'name'  => $tenant?->name,
@@ -58,8 +58,22 @@ class StaffCardController extends Controller
 
         return response()->json([
             'message' => 'Photo updated.',
-            'photo'   => Storage::url($path),
+            'photo'   => $this->absolutePhotoUrl($path),
         ]);
+    }
+
+    /** Absolute, cache-busted URL for a stored public-disk image path. */
+    private function absolutePhotoUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $clean = preg_replace('#^storage/#', '', ltrim($path, '/'));
+
+        // Stored filenames are randomised per upload, so the URL is already
+        // unique; a short hash suffix defeats any intermediate caching.
+        return asset('storage/' . $clean) . '?v=' . substr(md5($path), 0, 8);
     }
 
     /** All payslips issued to this staff member. */

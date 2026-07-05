@@ -8,8 +8,10 @@
     <!-- Location: geo-fenced staff clock-in (only requested when the school enables it) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
-        android:label="EduCore Staff"
+        android:label="EduCore"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

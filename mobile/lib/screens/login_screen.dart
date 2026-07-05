@@ -54,22 +54,17 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: SvgPicture.asset('assets/icon/educore-icon.svg'),
+                  SvgPicture.asset(
+                    'assets/icon/educore-icon-light.svg',
+                    width: 96,
+                    height: 96,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   RichText(
                     textAlign: TextAlign.center,
                     text: const TextSpan(
                       style: TextStyle(
-                        fontSize: 30,
+                        fontSize: 32,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1,
                       ),
@@ -78,11 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextSpan(text: 'Core', style: TextStyle(color: kGold)),
                       ],
                     ),
-                  ),
-                  const Text(
-                    'Staff App',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: kGold, fontSize: 14, letterSpacing: 2),
                   ),
                   const SizedBox(height: 36),
                   Container(

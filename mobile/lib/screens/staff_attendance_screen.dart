@@ -346,44 +346,14 @@ class _QrScanScreen extends StatefulWidget {
 
 class _QrScanScreenState extends State<_QrScanScreen> {
   bool _handled = false;
-  late final MobileScannerController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = MobileScannerController(
-      facing: CameraFacing.back,
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      formats: const [BarcodeFormat.qrCode],
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan the attendance QR'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.flash_on),
-            onPressed: () => _controller.toggleTorch(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.cameraswitch),
-            onPressed: () => _controller.switchCamera(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Scan the attendance QR')),
       body: Stack(
         children: [
           MobileScanner(
-            controller: _controller,
             onDetect: (capture) {
               if (_handled) return;
               final barcodes = capture.barcodes;
@@ -407,11 +377,6 @@ class _QrScanScreenState extends State<_QrScanScreen> {
                         'Camera unavailable:\n${error.errorCode.name}',
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () => _controller.start(),
-                        child: const Text('Retry'),
                       ),
                     ],
                   ),
