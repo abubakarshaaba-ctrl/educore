@@ -1,0 +1,398 @@
+import 'package:flutter/material.dart';
+
+import '../api_client.dart';
+import '../main.dart';
+import 'attendance_screen.dart';
+import 'login_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _tab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final school = ApiClient.instance.school?['name'] ?? 'EduCore';
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          [_tab == 0 ? 'My Classes' : _tab == 1 ? 'Announcements' : 'Profile',
+          ].first,
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Text(
+                school as String,
+                style: const TextStyle(color: kGold, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _tab,
+        children: const [
+          _ClassesTab(),
+          _AnnouncementsTab(),
+          _ProfileTab(),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_), label: 'Classes'),
+          NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'News'),
+          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Classes tab ─────────────────────────────────────────────────────────
+class _ClassesTab extends StatefulWidget {
+  const _ClassesTab();
+
+  @override
+  State<_ClassesTab> createState() => _ClassesTabState();
+}
+
+class _ClassesTabState extends State<_ClassesTab> {
+  late Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<dynamic>> _load() async {
+    final data = await ApiClient.instance.get('/classes');
+    return data['classes'] as List<dynamic>;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async => setState(() => _future = _load()),
+      child: FutureBuilder<List<dynamic>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return _ErrorRetry(
+              message: snap.error.toString(),
+              onRetry: () => setState(() => _future = _load()),
+            );
+          }
+          final classes = snap.data ?? [];
+          if (classes.isEmpty) {
+            return const _Empty(
+              icon: Icons.class_outlined,
+              text: 'No classes assigned to you yet.\nAsk your school admin to assign you as a form tutor or subject teacher.',
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(14),
+            itemCount: classes.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, i) {
+              final c = classes[i] as Map<String, dynamic>;
+              final isTutor = c['role'] == 'form_tutor';
+              return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFFD8E0E8)),
+                ),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  leading: CircleAvatar(
+                    backgroundColor: isTutor ? kNavy : kGold.withOpacity(.18),
+                    child: Icon(
+                      isTutor ? Icons.star_rounded : Icons.menu_book_rounded,
+                      color: isTutor ? kGold : kNavy,
+                    ),
+                  ),
+                  title: Text(
+                    c['name'] as String? ?? '—',
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: kInk),
+                  ),
+                  subtitle: Text(
+                    isTutor
+                        ? 'Form tutor · ${c['students_count']} students'
+                        : '${(c['subject']?['name']) ?? 'Subject'} · ${c['students_count']} students',
+                    style: const TextStyle(color: kMuted, fontSize: 12.5),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: kMuted),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AttendanceScreen(
+                        classArmId: c['id'] as int,
+                        className: c['name'] as String? ?? 'Class',
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Announcements tab ───────────────────────────────────────────────────
+class _AnnouncementsTab extends StatefulWidget {
+  const _AnnouncementsTab();
+
+  @override
+  State<_AnnouncementsTab> createState() => _AnnouncementsTabState();
+}
+
+class _AnnouncementsTabState extends State<_AnnouncementsTab> {
+  late Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<dynamic>> _load() async {
+    final data = await ApiClient.instance.get('/announcements');
+    return data['announcements'] as List<dynamic>;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async => setState(() => _future = _load()),
+      child: FutureBuilder<List<dynamic>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return _ErrorRetry(
+              message: snap.error.toString(),
+              onRetry: () => setState(() => _future = _load()),
+            );
+          }
+          final items = snap.data ?? [];
+          if (items.isEmpty) {
+            return const _Empty(
+              icon: Icons.campaign_outlined,
+              text: 'No announcements right now.',
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(14),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, i) {
+              final a = items[i] as Map<String, dynamic>;
+              final urgent = a['priority'] == 'high' || a['priority'] == 'urgent';
+              return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: urgent ? const Color(0xFFFECDCA) : const Color(0xFFD8E0E8),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (urgent) ...[
+                            const Icon(Icons.priority_high_rounded,
+                                color: kRisk, size: 18),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: Text(
+                              a['title'] as String? ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, color: kInk),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        a['body'] as String? ?? '',
+                        style: const TextStyle(
+                            color: kMuted, fontSize: 13, height: 1.45),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        (a['publish_date'] as String? ?? '').split('T').first,
+                        style: const TextStyle(color: kMuted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Profile tab ─────────────────────────────────────────────────────────
+class _ProfileTab extends StatelessWidget {
+  const _ProfileTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ApiClient.instance.user ?? {};
+    final school = ApiClient.instance.school ?? {};
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        CircleAvatar(
+          radius: 38,
+          backgroundColor: kNavy,
+          child: Text(
+            ((user['name'] as String?) ?? 'S').substring(0, 1).toUpperCase(),
+            style: const TextStyle(color: kGold, fontSize: 30, fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: Text(
+            user['name'] as String? ?? '—',
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: kInk),
+          ),
+        ),
+        Center(
+          child: Text(
+            '${user['role'] ?? 'staff'} · ${school['name'] ?? ''}',
+            style: const TextStyle(color: kMuted, fontSize: 13),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _InfoRow(label: 'Staff ID', value: user['staff_id'] as String? ?? '—'),
+        _InfoRow(label: 'Email', value: user['email'] as String? ?? '—'),
+        _InfoRow(label: 'School', value: school['name'] as String? ?? '—'),
+        const SizedBox(height: 28),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kRisk,
+            side: const BorderSide(color: Color(0xFFFECDCA)),
+            minimumSize: const Size.fromHeight(50),
+          ),
+          icon: const Icon(Icons.logout_rounded),
+          label: const Text('Sign out'),
+          onPressed: () async {
+            await ApiClient.instance.logout();
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD8E0E8)),
+      ),
+      child: Row(
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  color: kMuted, fontSize: 12, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          Flexible(
+            child: Text(value,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    const TextStyle(color: kInk, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared bits ─────────────────────────────────────────────────────────
+class _Empty extends StatelessWidget {
+  const _Empty({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        const SizedBox(height: 120),
+        Icon(icon, size: 52, color: kMuted.withOpacity(.5)),
+        const SizedBox(height: 14),
+        Text(text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kMuted, height: 1.5)),
+      ],
+    );
+  }
+}
+
+class _ErrorRetry extends StatelessWidget {
+  const _ErrorRetry({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(30),
+      children: [
+        const SizedBox(height: 90),
+        const Icon(Icons.wifi_off_rounded, size: 48, color: kMuted),
+        const SizedBox(height: 14),
+        Text(message,
+            textAlign: TextAlign.center, style: const TextStyle(color: kMuted)),
+        const SizedBox(height: 16),
+        Center(
+          child: FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        ),
+      ],
+    );
+  }
+}

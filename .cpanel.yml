@@ -34,6 +34,8 @@ deployment:
     - /bin/rm -f $DEPLOYPATH/educore/bootstrap/cache/config.php
     - /bin/rm -f $DEPLOYPATH/educore/bootstrap/cache/events.php
     - /bin/rm -rf $DEPLOYPATH/educore/storage/framework/cache/data
+    # Run database migrations (safe no-op when nothing is pending)
+    - php $DEPLOYPATH/educore/artisan migrate --force || true
     # Belt and braces: also try artisan with the generic php binary
     - php $DEPLOYPATH/educore/artisan view:clear || true
     - php $DEPLOYPATH/educore/artisan route:clear || true

@@ -1,0 +1,156 @@
+import 'package:flutter/material.dart';
+
+import '../api_client.dart';
+import '../main.dart';
+import 'home_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _loginId = TextEditingController();
+  final _password = TextEditingController();
+  bool _busy = false;
+  bool _obscure = true;
+  String? _error;
+
+  Future<void> _submit() async {
+    if (_loginId.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = 'Enter your staff ID or email and password.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ApiClient.instance.login(_loginId.text.trim(), _password.text);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kNavy,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(Icons.school_rounded, color: kGold, size: 56),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'EDUCORE',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
+                    ),
+                  ),
+                  const Text(
+                    'Staff App',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: kGold, fontSize: 14, letterSpacing: 2),
+                  ),
+                  const SizedBox(height: 36),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Welcome back',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: kNavy,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Sign in with your staff ID or school email.',
+                          style: TextStyle(color: kMuted, fontSize: 13),
+                        ),
+                        const SizedBox(height: 20),
+                        if (_error != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3F2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFECDCA)),
+                            ),
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(color: kRisk, fontSize: 13),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        TextField(
+                          controller: _loginId,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Staff ID or Email',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _password,
+                          obscureText: _obscure,
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                  _obscure ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed: _busy ? null : _submit,
+                          child: _busy
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                )
+                              : const Text('Sign in'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

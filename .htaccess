@@ -36,6 +36,7 @@ Options -Indexes
     # Without this, LiteSpeed strips Set-Cookie from cached responses and
     # the browser never receives a session cookie.
     CacheDisable public /login
+    CacheDisable public /api
     CacheDisable public /logout
     CacheDisable public /two-factor
     CacheDisable public /admin/login
