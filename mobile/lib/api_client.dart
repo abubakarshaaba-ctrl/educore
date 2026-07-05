@@ -54,6 +54,22 @@ class ApiClient {
         await http.post(uri, headers: _headers, body: jsonEncode(body)));
   }
 
+  /// Upload a single file (multipart) to an authenticated endpoint.
+  Future<Map<String, dynamic>> upload(
+    String path,
+    String field,
+    String filePath,
+  ) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers['Accept'] = 'application/json'
+      ..headers['Authorization'] = 'Bearer $_token'
+      ..files.add(await http.MultipartFile.fromPath(field, filePath));
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+    return _decode(res);
+  }
+
   /// Download raw bytes (e.g. a PDF) from an authenticated endpoint.
   Future<List<int>> download(String path) async {
     final uri = Uri.parse('$baseUrl$path');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PayrollItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Staff self-service: ID card data and payslips for the mobile app.
@@ -29,12 +30,35 @@ class StaffCardController extends Controller
             'role'        => $user->roleLabel() ?? 'Staff',
             'email'       => $user->email,
             'phone'       => $user->phone,
+            'photo'       => $user->passport_photo ? Storage::url($user->passport_photo) : null,
             'qr_payload'  => $user->personalQrPayload(),
             'school'      => [
                 'name'  => $tenant?->name,
                 'logo'  => $logo,
                 'address' => $tenant?->address,
             ],
+        ]);
+    }
+
+    /** Upload / replace the staff passport photo used on the ID card. */
+    public function uploadPhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->passport_photo && Storage::disk('public')->exists($user->passport_photo)) {
+            Storage::disk('public')->delete($user->passport_photo);
+        }
+
+        $path = $request->file('photo')->store('passports', 'public');
+        $user->forceFill(['passport_photo' => $path])->save();
+
+        return response()->json([
+            'message' => 'Photo updated.',
+            'photo'   => Storage::url($path),
         ]);
     }
 

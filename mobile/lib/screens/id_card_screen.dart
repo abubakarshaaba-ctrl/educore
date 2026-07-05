@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -21,11 +22,39 @@ class _IdCardScreenState extends State<IdCardScreen> {
   late Future<Map<String, dynamic>> _future;
   final GlobalKey _cardKey = GlobalKey();
   bool _saving = false;
+  bool _uploading = false;
 
   @override
   void initState() {
     super.initState();
     _future = ApiClient.instance.get('/id-card');
+  }
+
+  Future<void> _uploadPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1000,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _uploading = true);
+    try {
+      await ApiClient.instance.upload('/id-card/photo', 'photo', picked.path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Passport photo updated.'),
+        backgroundColor: kGood,
+      ));
+      setState(() => _future = ApiClient.instance.get('/id-card'));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: kRisk));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 
   Future<void> _saveCard() async {
@@ -72,7 +101,32 @@ class _IdCardScreenState extends State<IdCardScreen> {
             child: Column(
               children: [
                 RepaintBoundary(key: _cardKey, child: _card(d, school)),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      side: const BorderSide(color: kNavy),
+                      foregroundColor: kNavy,
+                    ),
+                    onPressed: _uploading ? null : _uploadPhoto,
+                    icon: _uploading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.5))
+                        : const Icon(Icons.add_a_photo_outlined),
+                    label: Text(
+                      _uploading
+                          ? 'Uploading…'
+                          : (d['photo'] == null
+                              ? 'Upload passport photo'
+                              : 'Change passport photo'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -128,16 +182,32 @@ class _IdCardScreenState extends State<IdCardScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.white,
-                  child: Text(
-                    ((d['name'] as String?) ?? 'S').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                        color: kNavy,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800),
+                Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: kGold, width: 2.5),
+                    image: d['photo'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(d['photo'] as String),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
+                  alignment: Alignment.center,
+                  child: d['photo'] != null
+                      ? null
+                      : Text(
+                          ((d['name'] as String?) ?? 'S')
+                              .substring(0, 1)
+                              .toUpperCase(),
+                          style: const TextStyle(
+                              color: kNavy,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800),
+                        ),
                 ),
                 const SizedBox(height: 12),
                 Text(d['name'] as String? ?? '—',
