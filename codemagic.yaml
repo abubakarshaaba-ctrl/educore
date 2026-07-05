@@ -13,4 +13,5 @@ workflows:
       - name: Build release APK (arm64)
         script: flutter build apk --release --target-platform android-arm64
     artifacts:
-      - mobile/build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/*.apk
+      - mobile/build/app/outputs/flutter-apk/*.apk
