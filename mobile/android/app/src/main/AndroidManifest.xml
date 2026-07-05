@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Camera: QR clock-in scanning -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <!-- Location: geo-fenced staff clock-in (only requested when the school enables it) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

@@ -157,22 +157,48 @@ class _IdCardScreenState extends State<IdCardScreen> {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: const BoxDecoration(
               border: Border(
                   bottom: BorderSide(color: Color(0x33FFFFFF), width: 1)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.school_rounded, color: kGold, size: 26),
-                const SizedBox(width: 10),
+                Container(
+                  width: 42,
+                  height: 42,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: (school['logo'] != null)
+                      ? Image.network(school['logo'] as String,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.school_rounded, color: kNavy))
+                      : const Icon(Icons.school_rounded, color: kNavy),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    (school['name'] as String?) ?? 'EduCore',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (school['name'] as String?) ?? 'EduCore',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            height: 1.15),
+                      ),
+                      const Text('STAFF IDENTITY CARD',
+                          style: TextStyle(
+                              color: kGold,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5)),
+                    ],
                   ),
                 ),
               ],
@@ -183,12 +209,12 @@ class _IdCardScreenState extends State<IdCardScreen> {
             child: Column(
               children: [
                 Container(
-                  width: 92,
-                  height: 92,
+                  width: 104,
+                  height: 128,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(8),
                     color: Colors.white,
-                    border: Border.all(color: kGold, width: 2.5),
+                    border: Border.all(color: kGold, width: 3),
                     image: d['photo'] != null
                         ? DecorationImage(
                             image: NetworkImage(d['photo'] as String),
@@ -199,14 +225,21 @@ class _IdCardScreenState extends State<IdCardScreen> {
                   alignment: Alignment.center,
                   child: d['photo'] != null
                       ? null
-                      : Text(
-                          ((d['name'] as String?) ?? 'S')
-                              .substring(0, 1)
-                              .toUpperCase(),
-                          style: const TextStyle(
-                              color: kNavy,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800),
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              ((d['name'] as String?) ?? 'S')
+                                  .substring(0, 1)
+                                  .toUpperCase(),
+                              style: const TextStyle(
+                                  color: kNavy,
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            const Text('No photo',
+                                style: TextStyle(color: kMuted, fontSize: 10)),
+                          ],
                         ),
                 ),
                 const SizedBox(height: 12),
