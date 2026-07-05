@@ -4,9 +4,13 @@
 <meta charset="UTF-8">
 <title>Broadsheet — {{ $classArm->classLevel->name }} {{ $classArm->name }} — {{ $term->name }}</title>
 <style>
-@page { size: A4 landscape; margin: 18mm 20mm 18mm 20mm; }
+@page { size: A4 landscape; margin: 25mm 22mm 25mm 22mm; }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'DejaVu Sans', 'Arial', sans-serif; font-size:8pt; color:#1E293B; background:#fff; }
+
+/* ── Extra interior gutter so content never sits flush against the
+   @page margin boundary — a safety buffer beyond the print margin ── */
+.page-safe { padding: 0 5mm; }
 
 /* ── HEADER ── */
 .hdr { display:table; width:100%; border-bottom:2pt solid #D79A21; padding-bottom:8pt; margin-bottom:8pt; }
@@ -32,14 +36,14 @@ body { font-family:'DejaVu Sans', 'Arial', sans-serif; font-size:8pt; color:#1E2
 .ctx-right { display:table-cell; vertical-align:middle; text-align:right; font-size:7pt; color:#94A3B8; }
 
 /* ── TABLE ── */
-table { width:100%; border-collapse:collapse; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
 thead th {
     background:#071E45; color:#fff;
     padding:5pt 4pt; font-size:7pt; font-weight:700;
     text-align:center; border-right:0.5pt solid rgba(255,255,255,0.15);
-    white-space:nowrap;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-thead th.th-student { text-align:left; padding-left:6pt; min-width:100pt; }
+thead th.th-student { text-align:left; padding-left:6pt; }
 thead th.th-summary { background:#0F2942; }
 
 tbody td {
@@ -78,6 +82,7 @@ tbody tr:nth-child(even) td.td-total { background:#F1F5F9; }
 </style>
 </head>
 <body>
+<div class="page-safe">
 
 {{-- ── HEADER ── --}}
 <div class="hdr">
@@ -112,7 +117,26 @@ tbody tr:nth-child(even) td.td-total { background:#F1F5F9; }
 </div>
 
 {{-- ── TABLE ── --}}
+@php
+    // Column-width budget: student gets more room, summary columns (Total/Avg/Pos)
+    // slightly more than a bare subject column, subjects share what's left evenly —
+    // scales automatically whether a class has 6 subjects or 16+.
+    $studentPct   = 13;
+    $summaryPct   = 8;                              // each of Total / Avg / Pos
+    $summaryTotal = $summaryPct * 3;
+    $subjectCount = max($subjects->count(), 1);
+    $subjectPct   = round((100 - $studentPct - $summaryTotal) / $subjectCount, 3);
+@endphp
 <table>
+    <colgroup>
+        <col style="width:{{ $studentPct }}%">
+        @for($i = 0; $i < $subjectCount; $i++)
+            <col style="width:{{ $subjectPct }}%">
+        @endfor
+        <col style="width:{{ $summaryPct }}%">
+        <col style="width:{{ $summaryPct }}%">
+        <col style="width:{{ $summaryPct }}%">
+    </colgroup>
     <thead>
         <tr>
             <th class="th-student">#&nbsp; Student</th>
@@ -221,5 +245,6 @@ tbody tr:nth-child(even) td.td-total { background:#F1F5F9; }
     </div>
 </div>
 
+</div>
 </body>
 </html>
