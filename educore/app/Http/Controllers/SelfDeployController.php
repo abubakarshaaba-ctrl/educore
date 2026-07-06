@@ -53,13 +53,30 @@ class SelfDeployController extends Controller
 
         @mkdir($work, 0755, true);
 
-        // 1. Download the master zipball from GitHub (public repo)
-        $response = Http::withHeaders(['User-Agent' => 'educore-self-deploy'])
+        // 1. Download the master zipball from GitHub.
+        //    Public repos work anonymously; private repos need a read-only
+        //    token, supplied as ?gh=<token> or config('app.deploy_gh_token').
+        $ghToken = (string) ($request->query('gh') ?: config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', '')));
+
+        $headers = ['User-Agent' => 'educore-self-deploy'];
+        if ($ghToken !== '') {
+            $headers['Authorization'] = 'Bearer ' . $ghToken;
+        }
+
+        // API zipball endpoint honours the Authorization header for private repos.
+        $response = Http::withHeaders($headers)
             ->timeout(180)
-            ->get('https://codeload.github.com/' . self::REPO . '/zip/refs/heads/master');
+            ->get('https://api.github.com/repos/' . self::REPO . '/zipball/master');
 
         if (!$response->successful()) {
-            return response()->json(['ok' => false, 'step' => 'download', 'status' => $response->status()], 502);
+            return response()->json([
+                'ok'    => false,
+                'step'  => 'download',
+                'status'=> $response->status(),
+                'hint'  => $response->status() === 404
+                    ? 'Repo is private — append &gh=<github read token> to the deploy URL, or make the repo public.'
+                    : 'GitHub download failed.',
+            ], 200);
         }
 
         file_put_contents($zipPath, $response->body());
