@@ -12,7 +12,7 @@ dependencies:
   http: ^1.2.0
   shared_preferences: ^2.2.0
   intl: ^0.19.0
-  mobile_scanner: ^5.2.3
+  qr_code_scanner_plus: ^2.0.10+1
   geolocator: ^13.0.1
   flutter_svg: ^2.0.10+1
   permission_handler: ^11.3.1
@@ -32,7 +32,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/educore-icon.png"
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "#13294F"
   adaptive_icon_foreground: "assets/icon/educore-icon-fg.png"
   remove_alpha_ios: true
 
@@ -41,3 +41,4 @@ flutter:
   assets:
     - assets/icon/educore-icon.svg
     - assets/icon/educore-icon-light.svg
+    - assets/icon/educore-app-icon.svg

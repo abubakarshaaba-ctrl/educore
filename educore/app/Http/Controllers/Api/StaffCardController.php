@@ -24,19 +24,40 @@ class StaffCardController extends Controller
             $logo = asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->logo_path, '/')));
         }
 
+        $hasPhoto = $user->passport_photo
+            && Storage::disk('public')->exists($user->passport_photo);
+
         return response()->json([
             'name'        => $user->name,
             'staff_id'    => $user->staff_id,
             'role'        => $user->roleLabel() ?? 'Staff',
             'email'       => $user->email,
             'phone'       => $user->phone,
-            'photo'       => $this->absolutePhotoUrl($user->passport_photo),
+            // has_photo drives the app; it streams the image from photo_file
+            // (authenticated) which avoids any /storage symlink dependency.
+            'has_photo'    => (bool) $hasPhoto,
+            'photo_version'=> $hasPhoto ? substr(md5($user->passport_photo), 0, 10) : null,
+            'photo'        => $this->absolutePhotoUrl($user->passport_photo),
             'qr_payload'  => $user->personalQrPayload(),
             'school'      => [
                 'name'  => $tenant?->name,
                 'logo'  => $logo,
                 'address' => $tenant?->address,
             ],
+        ]);
+    }
+
+    /** Stream the staff passport photo (authenticated; no public URL needed). */
+    public function photoFile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->passport_photo || !Storage::disk('public')->exists($user->passport_photo)) {
+            abort(404, 'No photo on file.');
+        }
+
+        return Storage::disk('public')->response($user->passport_photo, null, [
+            'Cache-Control' => 'no-cache, private',
         ]);
     }
 

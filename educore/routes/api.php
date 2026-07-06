@@ -45,6 +45,7 @@ Route::prefix('v1')->group(function () {
 
         // Staff self-service: ID card + payslips
         Route::get('id-card',              [\App\Http\Controllers\Api\StaffCardController::class, 'idCard']);
+        Route::get('id-card/photo-file',   [\App\Http\Controllers\Api\StaffCardController::class, 'photoFile']);
         Route::post('id-card/photo',       [\App\Http\Controllers\Api\StaffCardController::class, 'uploadPhoto']);
         Route::get('payslips',             [\App\Http\Controllers\Api\StaffCardController::class, 'payslips']);
         Route::get('payslips/{item}',      [\App\Http\Controllers\Api\StaffCardController::class, 'payslip']);

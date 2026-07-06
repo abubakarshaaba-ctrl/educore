@@ -1,6 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../api_client.dart';
@@ -345,53 +347,66 @@ class _QrScanScreen extends StatefulWidget {
 }
 
 class _QrScanScreenState extends State<_QrScanScreen> {
+  final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? _controller;
   bool _handled = false;
+
+  // Hot-reload safety on Android (required by qr_code_scanner_plus).
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (Platform.isAndroid) {
+      _controller?.pauseCamera();
+    }
+    _controller?.resumeCamera();
+  }
+
+  void _onViewCreated(QRViewController controller) {
+    _controller = controller;
+    controller.scannedDataStream.listen((scan) {
+      if (_handled) return;
+      final code = scan.code;
+      if (code != null && code.isNotEmpty) {
+        _handled = true;
+        controller.pauseCamera();
+        Navigator.of(context).pop(code);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan the attendance QR')),
+      appBar: AppBar(
+        title: const Text('Scan the attendance QR'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            onPressed: () => _controller?.toggleFlash(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.cameraswitch),
+            onPressed: () => _controller?.flipCamera(),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          MobileScanner(
-            onDetect: (capture) {
-              if (_handled) return;
-              final barcodes = capture.barcodes;
-              final raw = barcodes.isNotEmpty ? barcodes.first.rawValue : null;
-              if (raw != null && raw.isNotEmpty) {
-                _handled = true;
-                Navigator.of(context).pop(raw);
-              }
-            },
-            errorBuilder: (context, error, child) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.no_photography_rounded,
-                          color: Colors.white70, size: 48),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Camera unavailable:\n${error.errorCode.name}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          Center(
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                border: Border.all(color: kGold, width: 3),
-                borderRadius: BorderRadius.circular(18),
-              ),
+          QRView(
+            key: _qrKey,
+            onQRViewCreated: _onViewCreated,
+            overlay: QrScannerOverlayShape(
+              borderColor: kGold,
+              borderRadius: 16,
+              borderLength: 32,
+              borderWidth: 8,
+              cutOutSize: 250,
             ),
           ),
           Positioned(

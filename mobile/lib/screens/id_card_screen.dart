@@ -23,6 +23,7 @@ class _IdCardScreenState extends State<IdCardScreen> {
   final GlobalKey _cardKey = GlobalKey();
   bool _saving = false;
   bool _uploading = false;
+  bool _showBack = false;
 
   @override
   void initState() {
@@ -100,8 +101,17 @@ class _IdCardScreenState extends State<IdCardScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                RepaintBoundary(key: _cardKey, child: _card(d, school)),
-                const SizedBox(height: 20),
+                RepaintBoundary(
+                  key: _cardKey,
+                  child: _showBack ? _cardBack(school) : _card(d, school),
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () => setState(() => _showBack = !_showBack),
+                  icon: const Icon(Icons.flip_to_back_rounded, size: 18),
+                  label: Text(_showBack ? 'Show front' : 'Show back'),
+                ),
+                const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -120,7 +130,7 @@ class _IdCardScreenState extends State<IdCardScreen> {
                     label: Text(
                       _uploading
                           ? 'Uploading…'
-                          : (d['photo'] == null
+                          : (d['has_photo'] != true
                               ? 'Upload passport photo'
                               : 'Change passport photo'),
                     ),
@@ -209,8 +219,10 @@ class _IdCardScreenState extends State<IdCardScreen> {
             child: Column(
               children: [
                 Builder(builder: (context) {
-                  final photo = d['photo'] as String?;
-                  final hasPhoto = photo != null && photo.trim().isNotEmpty;
+                  final hasPhoto = d['has_photo'] == true;
+                  final version = (d['photo_version'] as String?) ?? '';
+                  final photoUrl = ApiClient.instance
+                      .url('/id-card/photo-file?v=$version');
                   Widget fallback(String label) => Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -240,7 +252,8 @@ class _IdCardScreenState extends State<IdCardScreen> {
                     alignment: Alignment.center,
                     child: hasPhoto
                         ? Image.network(
-                            photo,
+                            photoUrl,
+                            headers: ApiClient.instance.imageHeaders,
                             fit: BoxFit.cover,
                             width: 104,
                             height: 128,
@@ -283,6 +296,111 @@ class _IdCardScreenState extends State<IdCardScreen> {
                 if ((d['phone'] as String?)?.isNotEmpty ?? false)
                   _kv('Phone', d['phone'] as String),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cardBack(Map<String, dynamic> school) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A2550), kNavy],
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(9)),
+                child: (school['logo'] != null)
+                    ? Image.network(school['logo'] as String,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.school_rounded, color: kNavy))
+                    : const Icon(Icons.school_rounded, color: kNavy),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  (school['name'] as String?) ?? 'School',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('CONDITIONS OF USE',
+              style: TextStyle(
+                  color: kGold,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5)),
+          const SizedBox(height: 8),
+          ...[
+            'This card is the property of the issuing school and must be presented on request.',
+            'It is non-transferable and valid only for the named staff member.',
+            'The QR code is for official attendance and identity verification only.',
+            'If found, please return to the school administration office.',
+          ].map((t) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 5, right: 8),
+                      child: Icon(Icons.circle, size: 5, color: kGold),
+                    ),
+                    Expanded(
+                      child: Text(t,
+                          style: const TextStyle(
+                              color: Color(0xCCFFFFFF),
+                              fontSize: 12,
+                              height: 1.45)),
+                    ),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 6),
+          if ((school['address'] as String?)?.isNotEmpty ?? false)
+            Text(school['address'] as String,
+                style: const TextStyle(color: Color(0x99FFFFFF), fontSize: 11)),
+          const Divider(color: Color(0x33FFFFFF), height: 24),
+          Center(
+            child: RichText(
+              text: const TextSpan(
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .5),
+                children: [
+                  TextSpan(text: 'Edu', style: TextStyle(color: Colors.white)),
+                  TextSpan(text: 'Core', style: TextStyle(color: kGold)),
+                  TextSpan(
+                      text: '  ·  Powered by EduCore',
+                      style: TextStyle(
+                          color: Color(0x99FFFFFF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
             ),
           ),
         ],

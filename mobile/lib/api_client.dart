@@ -31,6 +31,14 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
+  /// Auth headers for loading images via Image.network from the API.
+  Map<String, String> get imageHeaders => {
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
+
+  /// Absolute URL for an authenticated API resource (e.g. an image endpoint).
+  String url(String path) => '$baseUrl$path';
+
   Future<Map<String, dynamic>> _decode(http.Response res) async {
     final body = res.body.isEmpty
         ? <String, dynamic>{}
