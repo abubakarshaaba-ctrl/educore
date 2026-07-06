@@ -27,7 +27,15 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
             {{ optional($period->term)->name }} · {{ $period->start_date->format('d M') }} – {{ $period->end_date->format('d M Y') }}
         </div>
     </div>
-    <div class="page-header-actions"><a href="{{ route('exams.index') }}" class="btn btn-ghost">← All Periods</a></div>
+    <div class="page-header-actions">
+        <a href="{{ route('exams.index') }}" class="btn btn-ghost">← All Periods</a>
+        <a href="{{ route('exams.edit', $period) }}" class="btn btn-ghost">✎ Edit</a>
+        <form method="POST" action="{{ route('exams.destroy', $period) }}" onsubmit="return confirm('Delete this exam period? This removes the timetable and supervision plan too. This cannot be undone.')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-ghost" style="color:#B91C1C">🗑 Delete</button>
+        </form>
+    </div>
 </div>
 
 @if(session('success'))<div class="alert-success" style="margin-bottom:16px">{{ session('success') }}</div>@endif
@@ -118,12 +126,20 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
             Publishing makes each staff member's personal supervision schedule visible on the EduCore app
             ("My Exam Duties") and sends them a push notification.
         </p>
-        <form method="POST" action="{{ route('exams.publish', $period) }}">
-            @csrf
-            <button type="submit" class="btn btn-primary" {{ $period->status !== 'supervision_planned' && $period->status !== 'published' ? 'disabled' : '' }}>
-                {{ $period->status === 'published' ? 'Re-publish' : 'Publish to Staff' }}
-            </button>
-        </form>
+        <div style="display:flex;gap:8px">
+            @if($period->status === 'published')
+            <form method="POST" action="{{ route('exams.unpublish', $period) }}" onsubmit="return confirm('Unpublish? Staff will no longer see this schedule on the app.')">
+                @csrf
+                <button type="submit" class="btn btn-ghost">Unpublish</button>
+            </form>
+            @endif
+            <form method="POST" action="{{ route('exams.publish', $period) }}">
+                @csrf
+                <button type="submit" class="btn btn-primary" {{ $period->status !== 'supervision_planned' && $period->status !== 'published' ? 'disabled' : '' }}>
+                    {{ $period->status === 'published' ? 'Re-publish' : 'Publish to Staff' }}
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 @endsection

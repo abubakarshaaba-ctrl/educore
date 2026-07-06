@@ -38,8 +38,14 @@
                             {{ ucfirst(str_replace('_',' ',$p->status)) }}
                         </span>
                     </td>
-                    <td style="padding:12px 16px;text-align:right">
+                    <td style="padding:12px 16px;text-align:right;white-space:nowrap">
                         <a href="{{ route('exams.show', $p) }}" class="btn btn-ghost btn-sm">Open</a>
+                        <a href="{{ route('exams.edit', $p) }}" class="btn btn-ghost btn-sm">Edit</a>
+                        <form method="POST" action="{{ route('exams.destroy', $p) }}" style="display:inline" onsubmit="return confirm('Delete {{ addslashes($p->title) }}? This cannot be undone.')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-ghost btn-sm" style="color:#B91C1C">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 @empty

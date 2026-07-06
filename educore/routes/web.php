@@ -419,10 +419,14 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('create',                   [\App\Http\Controllers\ExamPeriodController::class, 'create'])->name('create');
         Route::post('/',                       [\App\Http\Controllers\ExamPeriodController::class, 'store'])->name('store');
         Route::get('{period}',                 [\App\Http\Controllers\ExamPeriodController::class, 'show'])->name('show');
+        Route::get('{period}/edit',            [\App\Http\Controllers\ExamPeriodController::class, 'edit'])->name('edit');
+        Route::put('{period}',                 [\App\Http\Controllers\ExamPeriodController::class, 'update'])->name('update');
+        Route::delete('{period}',              [\App\Http\Controllers\ExamPeriodController::class, 'destroy'])->name('destroy');
         Route::post('{period}/timetable',      [\App\Http\Controllers\ExamPeriodController::class, 'generateTimetable'])->name('timetable.generate');
         Route::post('{period}/staff-pool',     [\App\Http\Controllers\ExamPeriodController::class, 'saveStaffPool'])->name('staff-pool.save');
         Route::post('{period}/supervision',    [\App\Http\Controllers\ExamPeriodController::class, 'generateSupervision'])->name('supervision.generate');
         Route::post('{period}/publish',        [\App\Http\Controllers\ExamPeriodController::class, 'publish'])->name('publish');
+        Route::post('{period}/unpublish',      [\App\Http\Controllers\ExamPeriodController::class, 'unpublish'])->name('unpublish');
     });
 
     Route::prefix('reports')->name('reports.')->group(function () {

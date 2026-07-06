@@ -80,6 +80,82 @@ class ExamPeriodController extends Controller
         return redirect()->route('exams.show', $period)->with('success', 'Exam period created. Now generate the timetable.');
     }
 
+    public function edit(ExamPeriod $period)
+    {
+        $this->guard();
+        $period->load(['examSessions', 'classLevels']);
+        $terms = Term::with('session')->orderByDesc('id')->get();
+        $classLevels = ClassLevel::orderBy('order_index')->get();
+        return view('exams.edit', compact('period', 'terms', 'classLevels'));
+    }
+
+    public function update(Request $request, ExamPeriod $period)
+    {
+        $this->guard();
+        $data = $request->validate([
+            'term_id'                  => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
+            'title'                    => ['required', 'string', 'max:150'],
+            'start_date'               => ['required', 'date'],
+            'end_date'                 => ['required', 'date', 'after_or_equal:start_date'],
+            'excluded_weekdays'        => ['nullable', 'array'],
+            'excluded_weekdays.*'      => ['integer', 'min:0', 'max:6'],
+            'sessions'                 => ['required', 'array', 'min:1'],
+            'sessions.*.name'          => ['required', 'string', 'max:60'],
+            'sessions.*.start_time'    => ['required', 'date_format:H:i'],
+            'sessions.*.end_time'      => ['required', 'date_format:H:i', 'after:sessions.*.start_time'],
+            'class_level_ids'          => ['required', 'array', 'min:1'],
+            'class_level_ids.*'        => [Rule::exists('class_levels', 'id')->where('tenant_id', $this->tenantId())],
+        ]);
+
+        $period->update([
+            'term_id'           => $data['term_id'],
+            'title'             => $data['title'],
+            'start_date'        => $data['start_date'],
+            'end_date'          => $data['end_date'],
+            'excluded_weekdays' => $data['excluded_weekdays'] ?? [0, 6],
+        ]);
+
+        // Sessions, class levels, and any generated timetable/supervision are
+        // rebuilt from scratch — the schedule depends entirely on these inputs,
+        // so a stale plan against the new dates/classes would be meaningless.
+        $period->examSessions()->delete();
+        foreach ($data['sessions'] as $i => $s) {
+            $period->examSessions()->create([
+                'name'       => $s['name'],
+                'start_time' => $s['start_time'],
+                'end_time'   => $s['end_time'],
+                'sort_order' => $i,
+            ]);
+        }
+
+        $tid = $this->tenantId();
+        $period->classLevels()->sync(collect($data['class_level_ids'])->mapWithKeys(fn ($id) => [$id => ['tenant_id' => $tid]]));
+
+        $period->entries()->delete(); // cascades to exam_supervisors
+        $period->update(['status' => 'draft']);
+
+        return redirect()->route('exams.show', $period)
+            ->with('success', 'Exam period updated. The previous timetable and supervision plan were cleared — regenerate them.');
+    }
+
+    public function destroy(ExamPeriod $period)
+    {
+        $this->guard();
+        $period->delete();
+
+        return redirect()->route('exams.index')->with('success', 'Exam period deleted.');
+    }
+
+    public function unpublish(ExamPeriod $period)
+    {
+        $this->guard();
+        abort_unless($period->status === 'published', 422, 'This exam period is not published.');
+
+        $period->update(['status' => 'supervision_planned']);
+
+        return back()->with('success', 'Unpublished. Staff can no longer see this schedule on the app.');
+    }
+
     public function show(ExamPeriod $period)
     {
         $this->guard();
