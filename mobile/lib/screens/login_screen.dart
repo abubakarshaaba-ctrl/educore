@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../api_client.dart';
 import '../main.dart';
+import '../push_service.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await ApiClient.instance.login(_loginId.text.trim(), _password.text);
+      PushService.instance.registerForCurrentUser();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),

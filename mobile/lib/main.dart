@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'push_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
@@ -16,6 +17,10 @@ const kRisk = Color(0xFFB42318);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient.instance.restore();
+  await PushService.instance.init();
+  if (ApiClient.instance.isLoggedIn) {
+    PushService.instance.registerForCurrentUser();
+  }
   runApp(const EduCoreStaffApp());
 }
 

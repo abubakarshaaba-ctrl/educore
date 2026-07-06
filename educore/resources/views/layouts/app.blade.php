@@ -681,6 +681,12 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
             <span class="nav-label">Report Cards</span>
         </a>
         @endif
+        @if($u->canManage('exams'))
+        <a href="{{ route('exams.index') }}" class="nav-item {{ request()->routeIs('exams.*') ? 'active' : '' }}" data-tip="Exam Timetables">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+            <span class="nav-label">Exam Timetables</span>
+        </a>
+        @endif
         {{-- Transcript: admin, principal, vice principal only --}}
         @if($u->canAccessModule('transcript'))
         <a href="{{ route('students.transcript.index') }}" class="nav-item {{ request()->routeIs('students.transcript*') ? 'active' : '' }}" data-tip="Transcripts">

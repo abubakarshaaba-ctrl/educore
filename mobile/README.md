@@ -53,8 +53,18 @@ purpose-built mobile screens backed by the JSON API at
   `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>`
   and iOS `NSLocationWhenInUseUsageDescription`.
 
+## Push notifications (Firebase Cloud Messaging)
+Push is wired end-to-end but stays dormant until a Firebase project exists —
+the app and API both no-op gracefully without it:
+1. Create a free Firebase project, add an Android app for
+   `online.educoreng.educore_staff`, download `google-services.json` into
+   `mobile/android/app/`.
+2. Generate a service-account key (Project Settings -> Service Accounts) and
+   place it on the server (e.g. `storage/app/firebase-service-account.json`);
+   set `FCM_PROJECT_ID` and `FCM_CREDENTIALS_PATH` in `.env`.
+3. Rebuild the APK — `android/app/build.gradle.kts` only applies the
+   google-services Gradle plugin when the json file is present.
+
 ## Roadmap (next phases)
-- Score entry per subject/assessment
 - Report-card remarks for form tutors
-- Push notifications for announcements
 - Offline attendance queue with sync

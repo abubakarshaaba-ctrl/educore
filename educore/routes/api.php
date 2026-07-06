@@ -50,5 +50,12 @@ Route::prefix('v1')->group(function () {
         Route::get('payslips',             [\App\Http\Controllers\Api\StaffCardController::class, 'payslips']);
         Route::get('payslips/{item}',      [\App\Http\Controllers\Api\StaffCardController::class, 'payslip']);
         Route::get('payslips/{item}/pdf',  [\App\Http\Controllers\Api\StaffCardController::class, 'payslipPdf']);
+
+        // Exam supervision duties (personal, published only)
+        Route::get('exam-duties', [\App\Http\Controllers\Api\ExamDutyController::class, 'index']);
+
+        // Push notification device registration (FCM)
+        Route::post('push/register',   [\App\Http\Controllers\Api\PushController::class, 'registerToken']);
+        Route::post('push/unregister', [\App\Http\Controllers\Api\PushController::class, 'unregisterToken']);
     });
 });

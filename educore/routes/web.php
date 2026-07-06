@@ -414,6 +414,17 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     });
 
     // â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    Route::prefix('exams')->name('exams.')->group(function () {
+        Route::get('/',                        [\App\Http\Controllers\ExamPeriodController::class, 'index'])->name('index');
+        Route::get('create',                   [\App\Http\Controllers\ExamPeriodController::class, 'create'])->name('create');
+        Route::post('/',                       [\App\Http\Controllers\ExamPeriodController::class, 'store'])->name('store');
+        Route::get('{period}',                 [\App\Http\Controllers\ExamPeriodController::class, 'show'])->name('show');
+        Route::post('{period}/timetable',      [\App\Http\Controllers\ExamPeriodController::class, 'generateTimetable'])->name('timetable.generate');
+        Route::post('{period}/staff-pool',     [\App\Http\Controllers\ExamPeriodController::class, 'saveStaffPool'])->name('staff-pool.save');
+        Route::post('{period}/supervision',    [\App\Http\Controllers\ExamPeriodController::class, 'generateSupervision'])->name('supervision.generate');
+        Route::post('{period}/publish',        [\App\Http\Controllers\ExamPeriodController::class, 'publish'])->name('publish');
+    });
+
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/',                [ReportCardController::class, 'index'])->name('index');
         Route::post('compute',         [ReportCardController::class, 'compute'])->name('compute');

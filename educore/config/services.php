@@ -62,4 +62,9 @@ return [
         'model' => env('OLLAMA_MODEL', 'llama3'),
     ],
 
+    'fcm' => [
+        'project_id'  => env('FCM_PROJECT_ID'),
+        'credentials' => env('FCM_CREDENTIALS_PATH', storage_path('app/firebase-service-account.json')),
+    ],
+
 ];

@@ -4,6 +4,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase Cloud Messaging: only applied once google-services.json exists,
+// so the app keeps building normally before the Firebase project is set up.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "online.educoreng.educore_staff"
     compileSdk = flutter.compileSdkVersion
