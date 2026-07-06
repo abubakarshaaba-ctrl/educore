@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "532841786092",
+    "project_id": "educore-35d95",
+    "storage_bucket": "educore-35d95.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:532841786092:android:447919ca1cf9d7348693c9",
+        "android_client_info": {
+          "package_name": "online.educoreng.educore_staff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLMVEczU901dMLmagEvlSFEOtDbFhgCVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
