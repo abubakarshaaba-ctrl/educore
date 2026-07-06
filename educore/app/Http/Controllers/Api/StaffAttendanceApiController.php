@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\StaffAttendanceController;
 use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
 use Carbon\Carbon;
@@ -17,6 +18,30 @@ use Illuminate\Http\Request;
  */
 class StaffAttendanceApiController extends Controller
 {
+    /**
+     * Clock-in from the mobile app.
+     *
+     * The school display/ID-card QR encodes a URL like
+     * ".../staff-attendance/my?qr_token=<payload>". The web PWA reads the
+     * qr_token from the query string when the browser opens that URL, but the
+     * app scans the raw string — so we normalise it to the bare token here,
+     * then delegate to the proven web clock-in logic (QR + geo-fence rules).
+     */
+    public function clockIn(Request $request, StaffAttendanceController $web)
+    {
+        $token = (string) $request->input('token', '');
+
+        if (str_contains($token, 'qr_token=')) {
+            $query = parse_url($token, PHP_URL_QUERY) ?: '';
+            parse_str($query, $parts);
+            if (!empty($parts['qr_token'])) {
+                $request->merge(['token' => $parts['qr_token']]);
+            }
+        }
+
+        return $web->clockInQr($request);
+    }
+
     public function me(Request $request)
     {
         $user  = $request->user();
