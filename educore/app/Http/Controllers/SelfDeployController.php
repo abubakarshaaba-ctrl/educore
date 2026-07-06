@@ -243,6 +243,12 @@ class SelfDeployController extends Controller
             $out['period_id'] = $period?->id;
             $out['class_levels_synced'] = $period?->classLevels()->count();
 
+            // Also render the page the browser actually lands on after the redirect.
+            $showRes = $ctrl->show($period);
+            $html = $showRes->render();
+            $out['show_page_rendered'] = true;
+            $out['show_page_length'] = strlen($html);
+
             $period?->delete();
 
             return response()->json(['ok' => true, 'out' => $out]);
