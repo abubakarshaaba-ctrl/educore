@@ -106,9 +106,20 @@ Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, '
 // Staff mobile app download — serves the APK once it has been uploaded to
 // educore/public/downloads/educore-staff.apk (see mobile/README.md).
 Route::get('/download/app', function () {
-    $apk = public_path('downloads/educore-staff.apk');
+    // Prefer the canonical name; otherwise serve the newest .apk uploaded to
+    // the downloads folder (robust against the uploaded filename).
+    $preferred = public_path('downloads/educore-staff.apk');
+    $apk = file_exists($preferred) ? $preferred : null;
 
-    if (!file_exists($apk)) {
+    if (!$apk) {
+        $candidates = glob(public_path('downloads/*.apk')) ?: [];
+        if ($candidates) {
+            usort($candidates, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+            $apk = $candidates[0];
+        }
+    }
+
+    if (!$apk) {
         return response()->view('app-download-soon', [], 404);
     }
 
@@ -116,6 +127,16 @@ Route::get('/download/app', function () {
         'Content-Type' => 'application/vnd.android.package-archive',
     ]);
 })->name('app.download');
+
+// Quick diagnostic: what .apk files exist in the downloads folder.
+Route::get('/download/app/_debug', function (Illuminate\Http\Request $r) {
+    abort_unless($r->query('token') === (config('app.deploy_token') ?: \App\Http\Controllers\SelfDeployController::derivedToken()), 403);
+    $files = [];
+    foreach (glob(public_path('downloads/*')) ?: [] as $f) {
+        $files[] = ['name' => basename($f), 'size' => filesize($f)];
+    }
+    return response()->json(['dir' => public_path('downloads'), 'files' => $files]);
+});
 Route::post('/contact', [PublicMarketingController::class, 'sendContact'])->middleware('throttle:public-form')->name('contact.submit');
 Route::post('/school-onboarding', [PublicMarketingController::class, 'sendSchoolOnboarding'])->middleware('throttle:public-form')->name('school-onboarding.submit');
 Route::get('/get-started',  [\App\Http\Controllers\SchoolRegistrationController::class, 'show'])->name('school.register');
