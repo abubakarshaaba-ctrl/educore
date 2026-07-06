@@ -10,6 +10,41 @@ import 'package:permission_handler/permission_handler.dart';
 import '../api_client.dart';
 import '../main.dart';
 
+/// Best-effort device location for clock-in requests.
+///
+/// Deliberately never throws and never gates on a client-cached
+/// "geo_enabled" flag — whether location is actually required is a
+/// server-side decision (StaffAttendanceSetting::geo_enabled), and relying
+/// on a possibly-stale copy of that flag on the device caused clock-ins to
+/// silently omit lat/lng even when the school has geo-fencing on. Instead:
+/// always try to get a fix; if permission/service/timeout fails, return
+/// null and let the server's own response explain what's missing.
+Future<Position?> fetchPositionBestEffort() async {
+  try {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 12),
+      ),
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 /// The teacher's own clock-in/out: today card, month summary, QR scanner.
 class StaffAttendanceScreen extends StatefulWidget {
   const StaffAttendanceScreen({super.key});
@@ -44,25 +79,7 @@ class _StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
     }
   }
 
-  Future<Position?> _positionIfNeeded() async {
-    final geoEnabled =
-        (_data?['settings']?['geo_enabled'] as bool?) ?? false;
-    if (!geoEnabled) return null;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw ApiException(
-          'Location permission is required to clock in at this school.', 0);
-    }
-    return Geolocator.getCurrentPosition(
-      locationSettings:
-          const LocationSettings(accuracy: LocationAccuracy.high),
-    );
-  }
+  Future<Position?> _positionIfNeeded() => fetchPositionBestEffort();
 
   Future<void> _scanAndClockIn() async {
     // Explicitly request camera permission so a denied state gives clear
@@ -530,6 +547,7 @@ class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
     try {
       final bytes = await File(_capturedPhotoPath!).readAsBytes();
       final dataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      final pos = await fetchPositionBestEffort();
 
       final res = await ApiClient.instance.post(
         '/staff-attendance/proxy-clock-in',
@@ -537,6 +555,8 @@ class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
           'staff_id': _selected!['id'],
           'token': token,
           'photo': dataUri,
+          if (pos != null) 'lat': pos.latitude,
+          if (pos != null) 'lng': pos.longitude,
         },
       );
       if (!mounted) return;
