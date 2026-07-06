@@ -89,7 +89,7 @@ class ExamPeriodController extends Controller
         $entriesByDate = $period->entries->sortBy(fn ($e) => $e->exam_date->toDateString() . '-' . $e->examSession->sort_order)
             ->groupBy(fn ($e) => $e->exam_date->toDateString());
 
-        $staff = User::activeStaff($this->tenantId())->orderBy('first_name')->get();
+        $staff = User::activeStaff($this->tenantId())->orderBy('name')->get();
 
         return view('exams.show', compact('period', 'entriesByDate', 'staff'));
     }
