@@ -103,10 +103,6 @@ Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, '
     ->middleware('throttle:5,10')
     ->name('deploy.pull');
 
-// Temporary — remove once the exam-period 500 is confirmed fixed in production.
-Route::get('/deploy/diag-exam', [\App\Http\Controllers\SelfDeployController::class, 'diagExam'])
-    ->middleware('throttle:5,10');
-
 // Staff mobile app download — serves the APK once it has been uploaded to
 // educore/public/downloads/educore-staff.apk (see mobile/README.md).
 Route::get('/download/app', function () {
