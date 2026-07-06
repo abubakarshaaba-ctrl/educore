@@ -43,7 +43,9 @@ class SelfDeployController extends Controller
             abort(403, 'Invalid deploy token.');
         }
 
-        @set_time_limit(300);
+        // Keep running even if the gateway (Cloudflare) times out the request.
+        @set_time_limit(0);
+        @ignore_user_abort(true);
 
         $docroot = dirname(base_path()); // public_html
         $work    = storage_path('app/self-deploy');
@@ -148,6 +150,11 @@ class SelfDeployController extends Controller
             if ($item->isDir()) {
                 @mkdir($target, 0755, true);
             } else {
+                // Skip files that are byte-identical in size — avoids re-copying
+                // large unchanged binaries (e.g. the APK) on every deploy.
+                if (is_file($target) && filesize($target) === $item->getSize()) {
+                    continue;
+                }
                 @mkdir(dirname($target), 0755, true);
                 copy($item->getPathname(), $target) && $count++;
             }
