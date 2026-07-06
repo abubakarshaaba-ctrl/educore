@@ -13,6 +13,7 @@ class StaffAttendanceRecord extends BaseTenantModel
         'clock_in_method', 'clocked_in_by',
         'clock_in_lat', 'clock_in_lng', 'geo_verified',
         'notes', 'is_offline_upload', 'clock_in_photo', 'proxy_photo',
+        'proxy_review_status', 'proxy_reviewed_by', 'proxy_reviewed_at',
     ];
 
     protected function casts(): array
@@ -23,11 +24,13 @@ class StaffAttendanceRecord extends BaseTenantModel
             'is_offline_upload' => 'boolean',
             'clock_in_lat'      => 'float',
             'clock_in_lng'      => 'float',
+            'proxy_reviewed_at' => 'datetime',
         ];
     }
 
     public function staff(): BelongsTo        { return $this->belongsTo(User::class, 'user_id'); }
     public function clockedInBy(): BelongsTo  { return $this->belongsTo(User::class, 'clocked_in_by'); }
+    public function proxyReviewedBy(): BelongsTo { return $this->belongsTo(User::class, 'proxy_reviewed_by'); }
     public function tenant(): BelongsTo       { return $this->belongsTo(Tenant::class); }
 
     public function statusLabel(): string

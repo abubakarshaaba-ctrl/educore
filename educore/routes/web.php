@@ -473,6 +473,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('manual',              [\App\Http\Controllers\StaffAttendanceController::class, 'manualOverride'])->name('manual');
         Route::get('offline-queue',        [\App\Http\Controllers\StaffAttendanceController::class, 'offlineQueue'])->name('offline-queue');
         Route::post('offline-queue/{record}/process', [\App\Http\Controllers\StaffAttendanceController::class, 'processOffline'])->name('offline.process');
+        Route::get('proxy-review',                    [\App\Http\Controllers\StaffAttendanceController::class, 'proxyReviewQueue'])->name('proxy-review');
+        Route::post('proxy-review/{record}/decide',   [\App\Http\Controllers\StaffAttendanceController::class, 'proxyReviewDecide'])->name('proxy-review.decide');
         Route::post('proxy',               [\App\Http\Controllers\StaffAttendanceController::class, 'proxyClock'])->name('proxy');
         // API endpoints (for QR scanner app / JS)
         Route::post('api/clockin',          [\App\Http\Controllers\StaffAttendanceController::class, 'clockInQr'])->name('api.clockin');

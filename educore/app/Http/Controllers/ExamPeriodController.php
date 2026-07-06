@@ -177,6 +177,9 @@ class ExamPeriodController extends Controller
             $result = $scheduler->generateTimetable($period);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withErrors(['error' => 'Could not generate the timetable: ' . $e->getMessage()]);
         }
 
         $msg = "Timetable generated: {$result['placed']} sittings placed.";
@@ -208,6 +211,9 @@ class ExamPeriodController extends Controller
             $result = $scheduler->generateSupervision($period);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            report($e);
+            return back()->withErrors(['error' => 'Could not generate the supervision plan: ' . $e->getMessage()]);
         }
 
         $msg = "Supervision plan generated: {$result['assigned']} sittings assigned.";

@@ -210,7 +210,7 @@ class StaffAttendanceController extends Controller
             $geoVerified = true;
         }
 
-        return $this->recordClockIn(
+        $response = $this->recordClockIn(
             tenantId     : $clocker->tenant_id,
             userId       : $target->id,
             clockedBy    : $clocker->id,
@@ -222,6 +222,15 @@ class StaffAttendanceController extends Controller
             proxyVerified: true,
             proxyPhoto   : $proxyPhotoPath,
         );
+
+        // Flag for admin review: compare the captured photo against the
+        // colleague's passport photo (no automated facial match — see
+        // staff-attendance/proxy-review).
+        StaffAttendanceRecord::where('user_id', $target->id)
+            ->whereDate('attendance_date', today())
+            ->update(['proxy_review_status' => 'pending']);
+
+        return $response;
     }
 
     public function initiateProxy(Request $request)
@@ -614,6 +623,36 @@ class StaffAttendanceController extends Controller
             $record->update(['status' => 'rejected', 'reject_reason' => $data['reason']]);
         }
         return back()->with('success', 'Record ' . $data['action'] . 'd.');
+    }
+
+    // ── Proxy Photo Review ─────────────────────────────────────────────
+    // "Clock in for a colleague" (mobile) captures a live photo instead of
+    // a PIN. There is no automated facial match — an admin compares the
+    // captured photo against the staff member's passport photo here.
+    public function proxyReviewQueue()
+    {
+        $tid = auth()->user()->tenant_id;
+        $records = StaffAttendanceRecord::with(['staff', 'clockedInBy'])
+            ->where('tenant_id', $tid)
+            ->where('proxy_review_status', 'pending')
+            ->latest('attendance_date')
+            ->paginate(30);
+
+        return view('staff-attendance.proxy-review', compact('records'));
+    }
+
+    public function proxyReviewDecide(Request $request, StaffAttendanceRecord $record)
+    {
+        abort_unless($record->tenant_id === auth()->user()->tenant_id, 403);
+        $data = $request->validate(['action' => ['required', 'in:confirmed,flagged']]);
+
+        $record->update([
+            'proxy_review_status' => $data['action'],
+            'proxy_reviewed_by'   => auth()->id(),
+            'proxy_reviewed_at'   => now(),
+        ]);
+
+        return back()->with('success', 'Marked as ' . $data['action'] . '.');
     }
 
     // ── Manual Override ───────────────────────────────────────────────

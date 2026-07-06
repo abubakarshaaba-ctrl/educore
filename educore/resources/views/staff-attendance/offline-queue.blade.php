@@ -53,6 +53,10 @@ tbody tr:last-child td{border-bottom:none}
         📡 Offline Queue
     </a>
     @endif
+    <a href="{{ route('staff-attendance.proxy-review') }}"
+       class="nav-tab {{ request()->routeIs('staff-attendance.proxy-review') ? 'active':'' }}">
+        🪪 Proxy Review
+    </a>
     @endif
 </div>
 

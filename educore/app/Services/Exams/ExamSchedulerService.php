@@ -96,7 +96,10 @@ class ExamSchedulerService
             ->groupBy(fn ($cas) => $cas->subject_id)
             ->map(fn ($group) => $group->pluck('teacher_id')->filter()->unique()->all());
 
-        $counts = $staffPool->mapWithKeys(fn ($u) => [$u->id => 0]);
+        // Plain array, not a Collection — Collection offsetGet/offsetSet does
+        // not support the ++ increment operator (silently no-ops), which
+        // would defeat the fewest-assignments-first load balancing below.
+        $counts = $staffPool->mapWithKeys(fn ($u) => [$u->id => 0])->all();
         $busy = []; // "date|session_id" => [user_id, ...]
         $unassigned = [];
 

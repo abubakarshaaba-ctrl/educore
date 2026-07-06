@@ -64,6 +64,10 @@ tbody tr:hover td{background:#F8FAFC}
         📡 Offline Queue
     </a>
     @endif
+    <a href="{{ route('staff-attendance.proxy-review') }}"
+       class="nav-tab {{ request()->routeIs('staff-attendance.proxy-review') ? 'active':'' }}">
+        🪪 Proxy Review
+    </a>
     @endif
 </div>
 
