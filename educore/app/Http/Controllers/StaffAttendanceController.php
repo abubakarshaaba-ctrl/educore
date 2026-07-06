@@ -155,16 +155,17 @@ class StaffAttendanceController extends Controller
     }
 
     /**
-     * Single-step proxy clock-in for a colleague, verified by their
-     * attendance PIN (no face photo / waiting step — used by the mobile
-     * app's "Clock in for a colleague" flow).
+     * Single-step proxy clock-in for a colleague, verified by a live photo
+     * captured at the moment of clock-in (no PIN, no waiting step — used
+     * by the mobile app's "Clock in for a colleague" flow). The photo is
+     * evidence of presence, stored against the record for later review.
      */
-    public function proxyClockInWithPin(Request $request)
+    public function proxyClockInWithPhoto(Request $request)
     {
         $request->validate([
             'staff_id' => ['required', 'integer'],
             'token'    => ['required', 'string'],
-            'pin'      => ['required', 'string'],
+            'photo'    => ['required', 'string'],
             'lat'      => ['nullable', 'numeric'],
             'lng'      => ['nullable', 'numeric'],
         ]);
@@ -188,11 +189,10 @@ class StaffAttendanceController extends Controller
         if ($target->id === $clocker->id) {
             return response()->json(['ok' => false, 'message' => 'Use "Scan QR to clock in" for yourself.'], 422);
         }
-        if (!$target->attendance_pin) {
-            return response()->json(['ok' => false, 'message' => "{$target->name} has not set an attendance PIN yet."], 422);
-        }
-        if (!Hash::check($request->pin, $target->attendance_pin)) {
-            return response()->json(['ok' => false, 'message' => 'Incorrect PIN.'], 422);
+
+        $proxyPhotoPath = $this->storeAttendancePhoto($request->photo, $clocker->tenant_id, 'proxy');
+        if (!$proxyPhotoPath) {
+            return response()->json(['ok' => false, 'message' => 'Photo capture failed. Please try again.'], 422);
         }
 
         $geoVerified = false;
@@ -220,6 +220,7 @@ class StaffAttendanceController extends Controller
             geoVerified  : $geoVerified,
             settings     : $settings,
             proxyVerified: true,
+            proxyPhoto   : $proxyPhotoPath,
         );
     }
 

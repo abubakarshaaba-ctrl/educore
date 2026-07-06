@@ -35,15 +35,15 @@ class StaffAttendanceApiController extends Controller
     }
 
     /**
-     * Clock in a colleague from the mobile app, verified by their
-     * attendance PIN — one screen: scan the school QR, pick the colleague,
-     * enter their PIN.
+     * Clock in a colleague from the mobile app, verified by a live photo
+     * captured at the moment of clock-in — pick the colleague, scan the
+     * school QR, capture their photo.
      */
     public function proxyClockIn(Request $request, StaffAttendanceController $web)
     {
         $this->normaliseScannedToken($request, 'token');
 
-        return $web->proxyClockInWithPin($request);
+        return $web->proxyClockInWithPhoto($request);
     }
 
     /**

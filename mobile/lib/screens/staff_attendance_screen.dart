@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -449,7 +451,7 @@ class _QrScanScreenState extends State<_QrScanScreen> {
 }
 
 /// "Clock in for a colleague" — pick a colleague, scan the school QR,
-/// enter their attendance PIN. One screen, PIN-verified, no waiting step.
+/// capture a live photo of them as verification. One screen, no waiting step.
 class _ProxyClockInScreen extends StatefulWidget {
   const _ProxyClockInScreen();
 
@@ -458,10 +460,10 @@ class _ProxyClockInScreen extends StatefulWidget {
 }
 
 class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
-  final _pinController = TextEditingController();
   final _searchController = TextEditingController();
   List<dynamic> _colleagues = [];
   Map<String, dynamic>? _selected;
+  String? _capturedPhotoPath;
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -485,13 +487,34 @@ class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
     }
   }
 
+  Future<void> _capturePhoto() async {
+    var status = await Permission.camera.status;
+    if (!status.isGranted) status = await Permission.camera.request();
+    if (!status.isGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Camera permission is needed to capture the photo.'),
+      ));
+      return;
+    }
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.rear,
+      maxWidth: 900,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+    setState(() => _capturedPhotoPath = picked.path);
+  }
+
   Future<void> _submit() async {
     if (_selected == null) {
       setState(() => _error = 'Select a colleague first.');
       return;
     }
-    if (_pinController.text.trim().isEmpty) {
-      setState(() => _error = "Enter the colleague's attendance PIN.");
+    if (_capturedPhotoPath == null) {
+      setState(() => _error = "Capture a live photo of your colleague first.");
       return;
     }
 
@@ -505,12 +528,15 @@ class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
       _error = null;
     });
     try {
+      final bytes = await File(_capturedPhotoPath!).readAsBytes();
+      final dataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
       final res = await ApiClient.instance.post(
         '/staff-attendance/proxy-clock-in',
         {
           'staff_id': _selected!['id'],
           'token': token,
-          'pin': _pinController.text.trim(),
+          'photo': dataUri,
         },
       );
       if (!mounted) return;
@@ -618,15 +644,32 @@ class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
                   Text(_error!, style: const TextStyle(color: kRisk, fontSize: 12.5)),
                   const SizedBox(height: 8),
                 ],
-                TextField(
-                  controller: _pinController,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Colleague's attendance PIN",
-                    prefixIcon: Icon(Icons.pin_outlined),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _capturePhoto,
+                  icon: Icon(_capturedPhotoPath == null
+                      ? Icons.camera_alt_outlined
+                      : Icons.check_circle,
+                      color: _capturedPhotoPath == null ? kNavy : kGood),
+                  label: Text(_capturedPhotoPath == null
+                      ? 'Capture live photo of colleague'
+                      : 'Photo captured — retake?'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    foregroundColor: kNavy,
+                    side: BorderSide(
+                        color: _capturedPhotoPath == null
+                            ? const Color(0xFFD8E0E8)
+                            : kGood),
                   ),
                 ),
+                if (_capturedPhotoPath != null) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(File(_capturedPhotoPath!),
+                        height: 120, fit: BoxFit.cover),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 FilledButton.icon(
                   onPressed: _busy ? null : _submit,
