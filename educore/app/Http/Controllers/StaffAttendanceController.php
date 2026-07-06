@@ -154,6 +154,75 @@ class StaffAttendanceController extends Controller
         return $this->initiateProxy($request);
     }
 
+    /**
+     * Single-step proxy clock-in for a colleague, verified by their
+     * attendance PIN (no face photo / waiting step — used by the mobile
+     * app's "Clock in for a colleague" flow).
+     */
+    public function proxyClockInWithPin(Request $request)
+    {
+        $request->validate([
+            'staff_id' => ['required', 'integer'],
+            'token'    => ['required', 'string'],
+            'pin'      => ['required', 'string'],
+            'lat'      => ['nullable', 'numeric'],
+            'lng'      => ['nullable', 'numeric'],
+        ]);
+
+        $clocker  = auth()->user();
+        $settings = $this->attendanceSettings();
+
+        $isSchoolQr = $settings->verifyStaticQrToken($request->token)
+                   || $settings->verifyQrToken($request->token);
+        if (!$isSchoolQr) {
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Scan the school display QR to clock in a colleague (not a personal ID card).',
+            ], 422);
+        }
+
+        $target = User::attendanceEligibleOn($clocker->tenant_id, today())->find($request->staff_id);
+        if (!$target) {
+            return response()->json(['ok' => false, 'message' => 'Staff member not found.'], 404);
+        }
+        if ($target->id === $clocker->id) {
+            return response()->json(['ok' => false, 'message' => 'Use "Scan QR to clock in" for yourself.'], 422);
+        }
+        if (!$target->attendance_pin) {
+            return response()->json(['ok' => false, 'message' => "{$target->name} has not set an attendance PIN yet."], 422);
+        }
+        if (!Hash::check($request->pin, $target->attendance_pin)) {
+            return response()->json(['ok' => false, 'message' => 'Incorrect PIN.'], 422);
+        }
+
+        $geoVerified = false;
+        if ($settings->geo_enabled) {
+            if (!$request->lat || !$request->lng) {
+                return response()->json(['ok' => false, 'message' => 'Location required. Please enable GPS.'], 422);
+            }
+            $dist = $settings->distanceTo((float) $request->lat, (float) $request->lng);
+            if ($dist > $settings->geo_radius_meters) {
+                return response()->json([
+                    'ok'      => false,
+                    'message' => round($dist) . "m from school. Must be within {$settings->geo_radius_meters}m.",
+                ], 422);
+            }
+            $geoVerified = true;
+        }
+
+        return $this->recordClockIn(
+            tenantId     : $clocker->tenant_id,
+            userId       : $target->id,
+            clockedBy    : $clocker->id,
+            method       : 'proxy',
+            lat          : $request->lat,
+            lng          : $request->lng,
+            geoVerified  : $geoVerified,
+            settings     : $settings,
+            proxyVerified: true,
+        );
+    }
+
     public function initiateProxy(Request $request)
     {
         $request->validate([

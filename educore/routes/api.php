@@ -34,6 +34,10 @@ Route::prefix('v1')->group(function () {
         Route::post('staff-attendance/clock-in',  [\App\Http\Controllers\Api\StaffAttendanceApiController::class, 'clockIn']);
         Route::post('staff-attendance/clock-out', [\App\Http\Controllers\StaffAttendanceController::class, 'clockOut']);
 
+        // Clock in for a colleague (PIN-verified, single step)
+        Route::get('staff-attendance/colleagues',       [\App\Http\Controllers\StaffAttendanceController::class, 'staffSearch']);
+        Route::post('staff-attendance/proxy-clock-in',  [\App\Http\Controllers\Api\StaffAttendanceApiController::class, 'proxyClockIn']);
+
         // Score entry (subject teachers)
         Route::get('scores/teaching', [\App\Http\Controllers\Api\ScoreController::class, 'teaching']);
         Route::get('scores/sheet',    [\App\Http\Controllers\Api\ScoreController::class, 'sheet']);

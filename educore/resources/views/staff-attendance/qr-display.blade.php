@@ -151,9 +151,8 @@ body {
 
 @media print {
     .admin-bar, .fullscreen-hint, .no-phone { display: none; }
+    .live-clock, .live-date { display: none; } /* ticking clock is meaningless on a printed poster */
     body { background: white; color: #1E293B; }
-    .live-clock { color: #1E293B; font-size: 36px; }
-    .live-date  { color: #64748B; }
     .qr-card    { box-shadow: none; border: 2px solid #E2E8F0; }
 }
 </style>

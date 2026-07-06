@@ -29,17 +29,41 @@ class StaffAttendanceApiController extends Controller
      */
     public function clockIn(Request $request, StaffAttendanceController $web)
     {
-        $token = (string) $request->input('token', '');
-
-        if (str_contains($token, 'qr_token=')) {
-            $query = parse_url($token, PHP_URL_QUERY) ?: '';
-            parse_str($query, $parts);
-            if (!empty($parts['qr_token'])) {
-                $request->merge(['token' => $parts['qr_token']]);
-            }
-        }
+        $this->normaliseScannedToken($request, 'token');
 
         return $web->clockInQr($request);
+    }
+
+    /**
+     * Clock in a colleague from the mobile app, verified by their
+     * attendance PIN — one screen: scan the school QR, pick the colleague,
+     * enter their PIN.
+     */
+    public function proxyClockIn(Request $request, StaffAttendanceController $web)
+    {
+        $this->normaliseScannedToken($request, 'token');
+
+        return $web->proxyClockInWithPin($request);
+    }
+
+    /**
+     * The display/ID-card QR encodes a URL like
+     * ".../staff-attendance/my?qr_token=<payload>". The web PWA reads the
+     * qr_token from the query string when the browser opens that URL, but
+     * the app scans the raw string — normalise it to the bare token so the
+     * shared web verification logic (QR + geo-fence) accepts it unchanged.
+     */
+    private function normaliseScannedToken(Request $request, string $field): void
+    {
+        $value = (string) $request->input($field, '');
+
+        if (str_contains($value, 'qr_token=')) {
+            $query = parse_url($value, PHP_URL_QUERY) ?: '';
+            parse_str($query, $parts);
+            if (!empty($parts['qr_token'])) {
+                $request->merge([$field => $parts['qr_token']]);
+            }
+        }
     }
 
     public function me(Request $request)

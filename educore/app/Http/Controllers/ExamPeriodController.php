@@ -74,7 +74,8 @@ class ExamPeriodController extends Controller
             ]);
         }
 
-        $period->classLevels()->sync($data['class_level_ids']);
+        $tid = $this->tenantId();
+        $period->classLevels()->sync(collect($data['class_level_ids'])->mapWithKeys(fn ($id) => [$id => ['tenant_id' => $tid]]));
 
         return redirect()->route('exams.show', $period)->with('success', 'Exam period created. Now generate the timetable.');
     }
@@ -118,7 +119,8 @@ class ExamPeriodController extends Controller
             'user_ids.*' => [Rule::exists('users', 'id')->where('tenant_id', $this->tenantId())],
         ]);
 
-        $period->staffPool()->sync($data['user_ids']);
+        $tid = $this->tenantId();
+        $period->staffPool()->sync(collect($data['user_ids'])->mapWithKeys(fn ($id) => [$id => ['tenant_id' => $tid]]));
 
         return back()->with('success', 'Supervision staff pool saved (' . count($data['user_ids']) . ' staff).');
     }

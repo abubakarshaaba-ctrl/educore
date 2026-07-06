@@ -222,6 +222,25 @@ class _StaffAttendanceScreenState extends State<StaffAttendanceScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+
+          OutlinedButton.icon(
+            onPressed: _busy
+                ? null
+                : () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const _ProxyClockInScreen(),
+                    ));
+                    if (mounted) _load();
+                  },
+            icon: const Icon(Icons.people_alt_outlined),
+            label: const Text('Clock in for a colleague'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              foregroundColor: kNavy,
+              side: const BorderSide(color: Color(0xFFD8E0E8)),
+            ),
+          ),
           const SizedBox(height: 14),
 
           // ── Month summary ────────────────────────────────────────────
@@ -421,6 +440,200 @@ class _QrScanScreenState extends State<_QrScanScreen> {
                 fontSize: 14,
                 shadows: const [Shadow(blurRadius: 6, color: Colors.black)],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Clock in for a colleague" — pick a colleague, scan the school QR,
+/// enter their attendance PIN. One screen, PIN-verified, no waiting step.
+class _ProxyClockInScreen extends StatefulWidget {
+  const _ProxyClockInScreen();
+
+  @override
+  State<_ProxyClockInScreen> createState() => _ProxyClockInScreenState();
+}
+
+class _ProxyClockInScreenState extends State<_ProxyClockInScreen> {
+  final _pinController = TextEditingController();
+  final _searchController = TextEditingController();
+  List<dynamic> _colleagues = [];
+  Map<String, dynamic>? _selected;
+  bool _loading = true;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _search('');
+  }
+
+  Future<void> _search(String q) async {
+    setState(() => _loading = true);
+    try {
+      final data = await ApiClient.instance
+          .get('/staff-attendance/colleagues', {'q': q});
+      setState(() => _colleagues = data['staff'] as List<dynamic>);
+    } catch (_) {
+      setState(() => _colleagues = []);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selected == null) {
+      setState(() => _error = 'Select a colleague first.');
+      return;
+    }
+    if (_pinController.text.trim().isEmpty) {
+      setState(() => _error = "Enter the colleague's attendance PIN.");
+      return;
+    }
+
+    final token = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const _QrScanScreen()),
+    );
+    if (token == null || token.isEmpty || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final res = await ApiClient.instance.post(
+        '/staff-attendance/proxy-clock-in',
+        {
+          'staff_id': _selected!['id'],
+          'token': token,
+          'pin': _pinController.text.trim(),
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(res['message'] as String? ?? 'Clocked in.'),
+        backgroundColor: kGood,
+      ));
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Clock in for a colleague')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _search,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                labelText: 'Search colleague by name',
+              ),
+            ),
+          ),
+          if (_selected != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: kGold.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: kGold),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Selected: ${_selected!['name']}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _selected = null),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _colleagues.isEmpty
+                    ? const Center(
+                        child: Text('No matching staff (or all clocked in already).',
+                            style: TextStyle(color: kMuted)))
+                    : ListView.builder(
+                        itemCount: _colleagues.length,
+                        itemBuilder: (context, i) {
+                          final c = Map<String, dynamic>.from(
+                              _colleagues[i] as Map);
+                          final isSelected = _selected?['id'] == c['id'];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: kNavy,
+                              backgroundImage: c['photo'] != null
+                                  ? NetworkImage(c['photo'] as String)
+                                  : null,
+                              child: c['photo'] == null
+                                  ? Text(
+                                      ((c['name'] as String?) ?? 'S')
+                                          .substring(0, 1)
+                                          .toUpperCase(),
+                                      style: const TextStyle(color: kGold),
+                                    )
+                                  : null,
+                            ),
+                            title: Text(c['name'] as String? ?? '—'),
+                            subtitle: Text(c['emp'] as String? ?? ''),
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle, color: kGood)
+                                : null,
+                            onTap: () => setState(() => _selected = c),
+                          );
+                        },
+                      ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_error != null) ...[
+                  Text(_error!, style: const TextStyle(color: kRisk, fontSize: 12.5)),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  controller: _pinController,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Colleague's attendance PIN",
+                    prefixIcon: Icon(Icons.pin_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _busy ? null : _submit,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: Text(_busy ? 'Working…' : 'Scan school QR & clock in'),
+                ),
+              ],
             ),
           ),
         ],
