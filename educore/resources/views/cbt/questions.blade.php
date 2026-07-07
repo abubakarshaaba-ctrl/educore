@@ -4,6 +4,7 @@
 @section('builder-subtitle', optional($bank->subject)->name . ' · ' . optional($bank->classLevel)->name)
 @section('builder-bar-right')
     <span class="builder-pill">📚 {{ $questions->total() }} question{{ $questions->total() === 1 ? '' : 's' }}</span>
+    <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openAddQuestionModal()">➕ Add Question</button>
     <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
           onsubmit="return confirm('Reshuffle the order of all questions in this bank?')" style="display:inline">
         @csrf
@@ -129,16 +130,6 @@
     <div class="card">
         <div class="card-header">
             <span class="card-title">📚 Questions ({{ $questions->total() }})</span>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button type="button" class="btn btn-primary" style="padding:5px 12px;font-size:12px" onclick="openAddQuestionModal()">➕ Add Question</button>
-                <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
-                      onsubmit="return confirm('Reshuffle the order of all questions in this bank?')">
-                    @csrf
-                    <button type="submit" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">🔀 Reshuffle</button>
-                </form>
-                <a href="{{ route('cbt.banks.edit', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">✏️ Edit Bank</a>
-                <a href="{{ route('cbt.bulk-upload', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">⬆ Bulk Import</a>
-            </div>
         </div>
         <div class="card-body">
             @forelse($questions as $q)
