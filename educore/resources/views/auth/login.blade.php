@@ -27,7 +27,7 @@
         </svg>
 
         <div class="auth-brand__bottom">
-            <span>EduCore Education Technology</span>
+            <span><span style="color:#fff">Edu<span style="color:var(--ec-gold,#D79A21)">Core</span></span> Education Technology</span>
             <span>&copy; {{ date('Y') }}</span>
         </div>
     </aside>
