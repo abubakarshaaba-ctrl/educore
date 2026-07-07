@@ -73,6 +73,19 @@
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:900px){.dash-grid,.dash-grid-3{grid-template-columns:1fr}}
 @media(max-width:600px){.stats-grid{grid-template-columns:1fr}}
+
+/* ── Section headers ─────────────────────────────────────────────── */
+.dash-section-head{display:flex;align-items:center;gap:8px;margin:24px 0 12px}
+.dash-section-head:first-child{margin-top:0}
+.dash-section-title{font-size:15px;font-weight:800;color:var(--midnight)}
+.dash-section-line{flex:1;height:1px;background:var(--border)}
+
+/* ── Growth line chart ───────────────────────────────────────────── */
+.growth-svg-wrap{position:relative}
+.growth-pct-pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px}
+.growth-pct-up{background:#ECFDF5;color:#059669}
+.growth-pct-dn{background:#FEF2F2;color:#DC2626}
+.growth-pct-flat{background:#F1F5F9;color:var(--slate-light)}
 </style>
 @endpush
 
@@ -83,6 +96,64 @@
     📅 <strong>Current Term:</strong> {{ $currentTerm->name }} &nbsp;·&nbsp; {{ optional($currentTerm->session)->name }}
 </div>
 @endif
+
+{{-- ── Growth Section ────────────────────────────────────────────── --}}
+<div class="dash-section-head">
+    <span class="dash-section-title">📈 Growth</span>
+    <div class="dash-section-line"></div>
+</div>
+
+<div class="dash-grid">
+    {{-- Enrollment growth trend --}}
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">🌱 Student Enrollment — Last 6 Months</span>
+            @if(!is_null($enrollmentGrowthPct))
+            <span class="growth-pct-pill {{ $enrollmentGrowthPct > 0 ? 'growth-pct-up' : ($enrollmentGrowthPct < 0 ? 'growth-pct-dn' : 'growth-pct-flat') }}">
+                {{ $enrollmentGrowthPct > 0 ? '▲' : ($enrollmentGrowthPct < 0 ? '▼' : '—') }} {{ abs($enrollmentGrowthPct) }}%
+            </span>
+            @endif
+        </div>
+        <div class="card-body">
+            @if($enrollmentGrowth->max('count') > 0)
+            @php $maxEnroll = $enrollmentGrowth->max('count') ?: 1; @endphp
+            <div class="bar-chart" style="height:90px">
+                @foreach($enrollmentGrowth as $month)
+                <div class="bar-wrap">
+                    <div class="bar-val">{{ $month['count'] }}</div>
+                    <div class="bar" style="height:{{ max(4, ($month['count']/$maxEnroll)*70) }}px;background:#059669;opacity:{{ 0.55 + ($loop->index/$enrollmentGrowth->count())*0.45 }}"></div>
+                    <div class="bar-label">{{ $month['label'] }}</div>
+                </div>
+                @endforeach
+            </div>
+            <div style="margin-top:12px;font-size:12px;color:var(--slate-light)">
+                Cumulative active students admitted by end of each month
+            </div>
+            @else
+            <div style="text-align:center;padding:40px;color:var(--slate-light);font-size:13px">No enrollment history yet</div>
+            @endif
+        </div>
+    </div>
+
+    {{-- New this month/term --}}
+    <div>
+        <div class="stat-card stat-green" style="margin-bottom:14px">
+            <div class="stat-icon" style="background:#ECFDF5">🆕</div>
+            <div class="stat-val">{{ $newAdmissionsThisMonth }}</div>
+            <div class="stat-label">New Students This Month</div>
+        </div>
+        <div class="stat-card stat-purple">
+            <div class="stat-icon" style="background:#F5F3FF">🧑‍💼</div>
+            <div class="stat-val">{{ $newStaffThisTerm }}</div>
+            <div class="stat-label">New Staff This Term</div>
+        </div>
+    </div>
+</div>
+
+<div class="dash-section-head">
+    <span class="dash-section-title">⚙️ Operations</span>
+    <div class="dash-section-line"></div>
+</div>
 
 {{-- ── Top Stats Row ─────────────────────────────────────────────── --}}
 <div class="stats-grid">

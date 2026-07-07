@@ -100,6 +100,33 @@ class DashboardController extends Controller
                 'count' => $a->student_count,
             ]);
 
+        // ── Enrollment Growth (last 6 months, cumulative active students) ──
+        $enrollmentGrowth = collect(range(5, 0))->map(function ($monthsAgo) {
+            $cutoff = now()->subMonths($monthsAgo)->endOfMonth();
+            return [
+                'label' => $cutoff->format('M'),
+                'count' => Student::where('status', Student::STATUS_ACTIVE)
+                    ->where('admission_date', '<=', $cutoff)
+                    ->count(),
+            ];
+        });
+        $enrollmentGrowthPct = null;
+        if ($enrollmentGrowth->first()['count'] > 0) {
+            $enrollmentGrowthPct = round(
+                (($enrollmentGrowth->last()['count'] - $enrollmentGrowth->first()['count']) / $enrollmentGrowth->first()['count']) * 100,
+                1
+            );
+        }
+        $newAdmissionsThisMonth = Student::where('status', Student::STATUS_ACTIVE)
+            ->whereMonth('admission_date', now()->month)
+            ->whereYear('admission_date', now()->year)
+            ->count();
+
+        // ── Staff Growth (new hires this term vs total) ───────────────
+        $newStaffThisTerm = $currentTerm
+            ? User::activeStaff($tenantId)->where('employment_started_at', '>=', $currentTerm->start_date)->count()
+            : 0;
+
         // ── Trial / Subscription Status ───────────────────────────────
         $tenant = auth()->user()->tenant;
         $isOnTrial = false;
@@ -165,7 +192,8 @@ class DashboardController extends Controller
             'presentToday', 'absentToday', 'attendanceRate',
             'attendanceTrend', 'feesTrend', 'studentsByClass',
             'openRiskFlags', 'pendingAdmissions', 'announcements', 'genderBreakdown',
-            'isOnTrial', 'trialDaysLeft', 'broadcasts'
+            'isOnTrial', 'trialDaysLeft', 'broadcasts',
+            'enrollmentGrowth', 'enrollmentGrowthPct', 'newAdmissionsThisMonth', 'newStaffThisTerm'
         ));
     }
 

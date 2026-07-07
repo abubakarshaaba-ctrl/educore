@@ -66,6 +66,14 @@
                         <label class="form-label">Phone</label>
                         <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="08012345678">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">Select</option>
+                            <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Male</option>
+                            <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Female</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="grid-column:span 2">
                         <label class="form-label">Role <span>*</span></label>
                         @include('staff._role_select', ['selected' => old('role', '')])

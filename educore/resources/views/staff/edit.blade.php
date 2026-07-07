@@ -73,6 +73,14 @@ input:checked+.slider::before{transform:translateX(20px)}
                         <input type="text" name="phone" class="form-control"
                                value="{{ old('phone', $staff->phone) }}" placeholder="08012345678">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select name="gender" class="form-control">
+                            <option value="">Select</option>
+                            <option value="male" {{ old('gender', $staff->gender) === 'male' ? 'selected' : '' }}>Male</option>
+                            <option value="female" {{ old('gender', $staff->gender) === 'female' ? 'selected' : '' }}>Female</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="grid-column:span 2">
                         <label class="form-label">Role <span>*</span></label>
                         @include('staff._role_select', ['selected' => old('role', $staff->role)])
