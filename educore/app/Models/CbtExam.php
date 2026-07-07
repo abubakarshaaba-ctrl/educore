@@ -15,6 +15,7 @@ class CbtExam extends BaseTenantModel
         'section_objective_count', 'section_objective_marks',
         'section_theory_count',    'section_theory_marks',
         'scheduled_start', 'scheduled_end', 'shuffle_questions', 'shuffle_options', 'status',
+        'assessment_type_id',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class CbtExam extends BaseTenantModel
     public function term(): BelongsTo { return $this->belongsTo(Term::class); }
     public function classArm(): BelongsTo { return $this->belongsTo(ClassArm::class); }
     public function studentSessions(): HasMany { return $this->hasMany(CbtStudentSession::class); }
+    public function assessmentType(): BelongsTo { return $this->belongsTo(AssessmentType::class); }
 
     public function getExamDateAttribute(): mixed
     {

@@ -138,6 +138,22 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Feeds Score Entry Assessment <span style="font-weight:400;color:var(--slate-light)">(optional)</span></label>
+                    <select name="assessment_type_id" class="form-control">
+                        <option value="">— Not linked (regular CBT only) —</option>
+                        @foreach($assessmentTypes as $at)
+                            <option value="{{ $at->id }}" {{ old('assessment_type_id') == $at->id ? 'selected' : '' }}>
+                                {{ optional($at->term)->name }} — {{ $at->name }}
+                                @if($at->isSplit()) (Obj {{ $at->objective_max }} + Theory {{ $at->theory_max }}) @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <div style="font-size:10px;color:var(--slate-light);margin-top:3px">
+                        If the score entry sheet has an Objective+Theory assessment (e.g. "Exam"), tag this CBT to it
+                        so its results auto-fill the objective column for teachers.
+                    </div>
+                </div>
                 {{-- ── Section Configuration ──────────────────────────────────── --}}
                 <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
                     <div style="font-size:12px;font-weight:800;color:var(--midnight);margin-bottom:12px;letter-spacing:.03em">EXAM SECTIONS</div>

@@ -225,6 +225,22 @@
                         This is the terminal exam
                     </label>
                 </div>
+                <div class="form-group" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+                    <label class="form-label">Split into Objective + Theory <span style="font-weight:400;color:var(--slate-light)">(optional)</span></label>
+                    <div style="display:flex;gap:10px">
+                        <input type="number" step="0.5" name="objective_max" placeholder="Objective max"
+                            class="form-control {{ $errors->has('objective_max') ? 'is-invalid' : '' }}"
+                            value="{{ old('objective_max') }}">
+                        <input type="number" step="0.5" name="theory_max" placeholder="Theory max"
+                            class="form-control" value="{{ old('theory_max') }}">
+                    </div>
+                    @error('objective_max')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div style="font-size:11px;color:var(--slate-light);margin-top:4px">
+                        Leave both blank for a normal single-score assessment. If set, they must sum to the weight above —
+                        the objective score is pulled read-only from a CBT exam tagged to this assessment type; teachers
+                        only type the theory score.
+                    </div>
+                </div>
                 <button type="submit" class="btn btn-primary">Add Assessment Type</button>
             </form>
         </div>

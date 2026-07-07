@@ -16,14 +16,19 @@ class Score extends BaseTenantModel
         'session_id',
         'entered_by',
         'score',
+        'objective_score',
+        'theory_score',
+        'cbt_exam_id',
         'entered_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'score'      => 'float',
-            'entered_at' => 'datetime',
+            'score'           => 'float',
+            'objective_score' => 'float',
+            'theory_score'    => 'float',
+            'entered_at'      => 'datetime',
         ];
     }
 
@@ -34,4 +39,5 @@ class Score extends BaseTenantModel
     public function term(): BelongsTo { return $this->belongsTo(Term::class); }
     public function session(): BelongsTo { return $this->belongsTo(AcademicSession::class, 'session_id'); }
     public function enteredBy(): BelongsTo { return $this->belongsTo(User::class, 'entered_by'); }
+    public function cbtExam(): BelongsTo { return $this->belongsTo(CbtExam::class); }
 }

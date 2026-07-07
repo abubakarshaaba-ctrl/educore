@@ -13,6 +13,8 @@ class AssessmentType extends BaseTenantModel
         'term_id',
         'name',
         'weight_percentage',
+        'objective_max',
+        'theory_max',
         'is_exam',
     ];
 
@@ -20,6 +22,8 @@ class AssessmentType extends BaseTenantModel
     {
         return [
             'weight_percentage' => 'float',
+            'objective_max'     => 'float',
+            'theory_max'        => 'float',
             'is_exam'           => 'boolean',
         ];
     }
@@ -27,5 +31,15 @@ class AssessmentType extends BaseTenantModel
     public function term(): BelongsTo
     {
         return $this->belongsTo(Term::class);
+    }
+
+    /**
+     * Split-scored assessment types pull an objective score from a tagged
+     * CBT exam (read-only) and combine it with a manually-entered theory
+     * score. Plain assessment types take one manually-entered value.
+     */
+    public function isSplit(): bool
+    {
+        return $this->objective_max !== null && $this->theory_max !== null;
     }
 }

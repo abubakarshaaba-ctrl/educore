@@ -65,6 +65,15 @@
 
     .max-label { font-size:10px;color:var(--slate-light);margin-top:2px;display:block;text-align:center; }
 
+    /* Split (objective + theory) cell */
+    .split-cell { display:flex;flex-direction:column;gap:4px;align-items:center; }
+    .split-obj { font-size:10.5px;font-weight:700;color:var(--slate);background:#F1F5F9;border-radius:6px;padding:3px 7px;white-space:nowrap; }
+    .split-obj.missing { color:var(--crimson);background:#FEF2F2; }
+    .split-theory-input { width:56px;padding:5px 6px;font-size:12.5px;font-weight:600;text-align:center;border:1.5px solid var(--border);border-radius:6px;background:white;outline:none;font-family:inherit;color:var(--midnight); }
+    .split-theory-input:focus { border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+    .split-theory-input.has-value { background:#ECFDF5;border-color:#A7F3D0;color:var(--emerald); }
+    .split-total { font-size:10.5px;color:var(--slate-light); }
+
     .total-val { font-size:15px; }
     .total-green { color:var(--emerald); }
     .total-amber { color:var(--amber); }
@@ -128,6 +137,7 @@
                     <th>
                         {{ $at->name }}
                         @if($at->is_exam)<span style="font-size:9px;opacity:0.7"> EXAM</span>@endif
+                        @if($at->isSplit())<span style="font-size:9px;opacity:0.7"> (OBJ+THEORY)</span>@endif
                     </th>
                     @endforeach
                     <th style="background:#1E3A5F">Total / {{ $maxTotal }}</th>
@@ -135,7 +145,14 @@
                 <tr>
                     @foreach($assessmentTypes as $at)
                     <th style="background:#F8FAFC;color:var(--slate);font-size:10px;padding:4px 8px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)">
-                        Max: {{ $at->weight_percentage }}
+                        @if($at->isSplit())
+                            Obj {{ $at->objective_max }} + Theory {{ $at->theory_max }}
+                            @if($objectiveExamMissing[$at->id] ?? false)
+                                <br><span style="color:var(--crimson)">No CBT tagged</span>
+                            @endif
+                        @else
+                            Max: {{ $at->weight_percentage }}
+                        @endif
                     </th>
                     @endforeach
                     <th style="background:#EFF6FF;border-bottom:1px solid var(--border);border-right:1px solid var(--border)"></th>
@@ -150,6 +167,38 @@
                     </td>
 
                     @foreach($assessmentTypes as $at)
+                    @if($at->isSplit())
+                        @php
+                            $obj = $objectiveScores[$student->id][$at->id] ?? null;
+                            $theoryVal = $existingTheory[$student->id][$at->id] ?? '';
+                        @endphp
+                        <td class="score-col">
+                            <div class="split-cell">
+                                <span class="split-obj {{ $obj === null ? 'missing' : '' }}">
+                                    Obj: {{ $obj === null ? '—' : $obj }}/{{ $at->objective_max }}
+                                </span>
+                                <input
+                                    type="number"
+                                    name="scores[{{ $student->id }}][{{ $at->id }}]"
+                                    class="split-theory-input {{ $theoryVal !== '' ? 'has-value' : '' }}"
+                                    value="{{ $theoryVal !== '' ? $theoryVal : '' }}"
+                                    min="0"
+                                    max="{{ $at->theory_max }}"
+                                    step="0.5"
+                                    placeholder="Theory"
+                                    title="Theory score (max {{ $at->theory_max }})"
+                                    data-max="{{ $at->theory_max }}"
+                                    data-objective="{{ $obj ?? 0 }}"
+                                    data-split-cap="{{ $at->weight_percentage }}"
+                                    data-student="{{ $student->id }}"
+                                    oninput="updateTotal({{ $student->id }}); validateInput(this); updateSplitTotal({{ $student->id }}, {{ $at->id }})"
+                                >
+                                <span class="split-total" id="split_total_{{ $student->id }}_{{ $at->id }}">
+                                    = {{ ($obj !== null && $theoryVal !== '') ? min($obj + (float) $theoryVal, $at->weight_percentage) : '—' }}
+                                </span>
+                            </div>
+                        </td>
+                    @else
                     @php $val = $existingScores[$student->id][$at->id] ?? ''; @endphp
                     <td class="score-col">
                         <input
@@ -166,6 +215,7 @@
                             oninput="updateTotal({{ $student->id }}); validateInput(this)"
                         >
                     </td>
+                    @endif
                     @endforeach
 
                     <td class="total-col">
@@ -215,8 +265,16 @@ function updateTotal(studentId) {
         const input = document.querySelector(
             `input[name="scores[${studentId}][${atId}]"]`
         );
-        const val = parseFloat(input?.value || 0);
-        if (!isNaN(val)) total += val;
+        if (!input) return;
+        const val = parseFloat(input.value || 0) || 0;
+        const objective = parseFloat(input.dataset.objective || 0) || 0;
+        const cap = parseFloat(input.dataset.splitCap || atMaxValues[atId]);
+        // Split cells (data-objective present) contribute objective+theory,
+        // capped at the assessment's total weight; plain cells contribute
+        // their single value as before.
+        total += input.dataset.objective !== undefined
+            ? Math.min(val + objective, cap)
+            : val;
     });
 
     const el = document.getElementById('total_' + studentId);
@@ -228,6 +286,22 @@ function updateTotal(studentId) {
         total >= maxTotal * 0.5 ? 'total-green' :
         total >= maxTotal * 0.3 ? 'total-amber' : 'total-red'
     );
+}
+
+function updateSplitTotal(studentId, atId) {
+    const input = document.querySelector(`input[name="scores[${studentId}][${atId}]"]`);
+    const el = document.getElementById(`split_total_${studentId}_${atId}`);
+    if (!input || !el) return;
+
+    const objective = parseFloat(input.dataset.objective || 0) || 0;
+    const cap = parseFloat(input.dataset.splitCap);
+    if (input.value === '') {
+        el.textContent = '—';
+        return;
+    }
+    const theory = parseFloat(input.value) || 0;
+    const total = Math.min(objective + theory, cap);
+    el.textContent = '= ' + total.toFixed(total % 1 === 0 ? 0 : 1);
 }
 
 function validateInput(input) {
@@ -247,7 +321,7 @@ function validateInput(input) {
 }
 
 // Tab key navigation — move to next input
-document.querySelectorAll('.score-input').forEach((input, idx, all) => {
+document.querySelectorAll('.score-input, .split-theory-input').forEach((input, idx, all) => {
     input.addEventListener('keydown', e => {
         if (e.key === 'Tab' && !e.shiftKey) {
             e.preventDefault();

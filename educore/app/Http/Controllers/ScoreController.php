@@ -9,6 +9,7 @@ use App\Models\Score;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
+use App\Services\Scores\ObjectiveScoreResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -170,14 +171,32 @@ class ScoreController extends Controller
         // Existing scores for all students + all assessment types for this subject/term
         // Keyed as [student_id][assessment_type_id] => score value
         $existingScores = [];
+        $existingTheory = [];
         if ($students->isNotEmpty() && $assessmentTypes->isNotEmpty()) {
             Score::whereIn('student_id', $students->pluck('id'))
                  ->where('subject_id', $subject->id)
                  ->where('term_id', $term->id)
                  ->get()
-                 ->each(function ($score) use (&$existingScores) {
+                 ->each(function ($score) use (&$existingScores, &$existingTheory) {
                      $existingScores[$score->student_id][$score->assessment_type_id] = $score->score;
+                     $existingTheory[$score->student_id][$score->assessment_type_id] = $score->theory_score;
                  });
+        }
+
+        // For split assessment types, resolve each student's objective score
+        // from the CBT exam tagged to that assessment type (read-only on the
+        // sheet — the teacher can only enter the theory portion).
+        $resolver = app(ObjectiveScoreResolver::class);
+        $objectiveScores = [];
+        $objectiveExamMissing = [];
+        foreach ($assessmentTypes->filter->isSplit() as $at) {
+            $exam = $resolver->findExam($classArm->id, $subject->id, $term->id, $at);
+            $objectiveExamMissing[$at->id] = !$exam;
+            if (!$exam) continue;
+
+            foreach ($students as $student) {
+                $objectiveScores[$student->id][$at->id] = $resolver->resolve($student, $exam, $at);
+            }
         }
 
         // Per-student subject totals (sum of all assessments)
@@ -193,7 +212,8 @@ class ScoreController extends Controller
         return view('scores.entry', compact(
             'classArm', 'subject', 'term',
             'students', 'assessmentTypes',
-            'existingScores', 'studentTotals'
+            'existingScores', 'existingTheory', 'studentTotals',
+            'objectiveScores', 'objectiveExamMissing'
         ));
     }
 
@@ -224,7 +244,9 @@ class ScoreController extends Controller
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        DB::transaction(function () use ($request, $term, $tenantId, $allowedStudentIds, $allowedAssessmentTypeIds) {
+        $resolver = app(ObjectiveScoreResolver::class);
+
+        DB::transaction(function () use ($request, $term, $classArm, $tenantId, $allowedStudentIds, $allowedAssessmentTypeIds, $resolver) {
             // scores[student_id][assessment_type_id] = value
             foreach ($request->scores as $studentId => $assessments) {
                 abort_unless(in_array((int) $studentId, $allowedStudentIds, true), 403);
@@ -235,6 +257,39 @@ class ScoreController extends Controller
 
                     $at = AssessmentType::find($assessmentTypeId);
                     if (!$at) continue;
+
+                    if ($at->isSplit()) {
+                        // The submitted value is the manually-marked theory
+                        // score only. The objective score is never trusted
+                        // from the client — it's re-resolved from the CBT
+                        // exam here, same as it was displayed on the sheet.
+                        $theory = min((float) $scoreValue, $at->theory_max);
+
+                        $exam = $resolver->findExam($classArm->id, (int) $request->subject_id, $term->id, $at);
+                        $student = Student::find($studentId);
+                        $objective = ($exam && $student) ? $resolver->resolve($student, $exam, $at) : null;
+
+                        $total = min(($objective ?? 0) + $theory, $at->weight_percentage);
+
+                        Score::updateOrCreate(
+                            [
+                                'student_id'         => $studentId,
+                                'subject_id'         => $request->subject_id,
+                                'assessment_type_id' => $assessmentTypeId,
+                                'term_id'            => $request->term_id,
+                            ],
+                            [
+                                'session_id'      => $term->session_id,
+                                'score'           => $total,
+                                'objective_score' => $objective,
+                                'theory_score'    => $theory,
+                                'cbt_exam_id'     => $exam?->id,
+                                'entered_by'      => Auth::id(),
+                                'entered_at'      => now(),
+                            ]
+                        );
+                        continue;
+                    }
 
                     $capped = min((float)$scoreValue, $at->weight_percentage);
 
@@ -539,6 +594,8 @@ class ScoreController extends Controller
             'name'              => ['required', 'string', 'max:100'],
             'weight_percentage' => ['required', 'integer', 'min:1', 'max:100'],
             'is_exam'           => ['boolean'],
+            'objective_max'     => ['nullable', 'numeric', 'min:0.5'],
+            'theory_max'        => ['nullable', 'numeric', 'min:0.5'],
         ]);
 
         $currentTotal = AssessmentType::where('term_id', $validated['term_id'])->sum('weight_percentage');
@@ -546,6 +603,22 @@ class ScoreController extends Controller
             return back()->withErrors([
                 'weight_percentage' => "Total weight would exceed 100%. Current: {$currentTotal}%."
             ]);
+        }
+
+        $hasObjective = $request->filled('objective_max');
+        $hasTheory    = $request->filled('theory_max');
+        if ($hasObjective xor $hasTheory) {
+            return back()->withErrors([
+                'objective_max' => 'Provide both an objective max and a theory max, or leave both blank.',
+            ]);
+        }
+        if ($hasObjective && $hasTheory) {
+            $sum = round($validated['objective_max'] + $validated['theory_max'], 2);
+            if ($sum !== (float) $validated['weight_percentage']) {
+                return back()->withErrors([
+                    'objective_max' => "Objective max ({$validated['objective_max']}) + Theory max ({$validated['theory_max']}) must equal the assessment's total weight ({$validated['weight_percentage']}).",
+                ]);
+            }
         }
 
         $validated['is_exam'] = $request->boolean('is_exam');

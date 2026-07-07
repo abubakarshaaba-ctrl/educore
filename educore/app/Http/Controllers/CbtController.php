@@ -429,7 +429,8 @@ class CbtController extends Controller
             ? ClassLevel::orderBy('order_index')->get()
             : ClassLevel::whereIn('id', $classArms->pluck('class_level_id')->unique())->orderBy('order_index')->get();
         $terms     = Term::with('session')->latest()->get();
-        return view('cbt.exams', compact('exams', 'banks', 'classArms', 'classLevels', 'terms'));
+        $assessmentTypes = \App\Models\AssessmentType::orderBy('term_id')->orderBy('name')->get();
+        return view('cbt.exams', compact('exams', 'banks', 'classArms', 'classLevels', 'terms', 'assessmentTypes'));
     }
 
     public function storeExam(Request $request)
@@ -448,6 +449,9 @@ class CbtController extends Controller
             // Section B — Theory / Short Answer / Essay
             'section_theory_count'    => ['nullable', 'integer', 'min:0'],
             'section_theory_marks'    => ['nullable', 'numeric', 'min:0.25'],
+            // Feeds the objective score into this report-card assessment
+            // type on the score entry sheet (optional).
+            'assessment_type_id'      => ['nullable', 'exists:assessment_types,id'],
         ]);
 
         $objCount    = (int)   ($validated['section_objective_count'] ?? 0);
@@ -515,6 +519,7 @@ class CbtController extends Controller
                 'question_bank_id'        => $validated['question_bank_id'],
                 'class_arm_id'            => $arm->id,
                 'term_id'                 => $validated['term_id'],
+                'assessment_type_id'      => $validated['assessment_type_id'] ?? null,
                 'total_questions'         => $totalQuestions,
                 'total_marks'             => $totalMarks,
                 'section_objective_count' => $objCount,
