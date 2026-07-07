@@ -1,13 +1,29 @@
-@extends('layouts.app')
+@extends('layouts.builder')
 @section('title','Manage Questions — '.$bank->name)
-@section('page-title','CBT Questions')
+@section('builder-title', $bank->name)
+@section('builder-subtitle', optional($bank->subject)->name . ' · ' . optional($bank->classLevel)->name)
+@section('builder-bar-right')
+    <span class="builder-pill">📚 {{ $questions->total() }} question{{ $questions->total() === 1 ? '' : 's' }}</span>
+    <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
+          onsubmit="return confirm('Reshuffle the order of all questions in this bank?')" style="display:inline">
+        @csrf
+        <button type="submit" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">🔀 Reshuffle</button>
+    </form>
+    <a href="{{ route('cbt.banks.edit', $bank) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">✏️ Edit Bank</a>
+    <a href="{{ route('cbt.bulk-upload', $bank) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">⬆ Bulk Import</a>
+@endsection
 
 @push('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
 .breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px}
 .breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
-.two-col{display:grid;grid-template-columns:1fr 440px;gap:20px;align-items:start}
+/* Full-height split workspace — each pane scrolls independently, no page scroll */
+.two-col{display:grid;grid-template-columns:1fr 440px;gap:0}
+.two-col > div{height:100%;overflow-y:auto;padding:20px}
+.two-col > div:first-child{border-right:1px solid var(--border)}
+.two-col .card{margin-bottom:12px}
+.alert-s,.alert-e{margin:20px 20px 0}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px}
 .card-header{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between}
 .card-title{font-size:13px;font-weight:700;color:var(--midnight)}
@@ -91,11 +107,7 @@
 @endpush
 
 @section('content')
-<div class="breadcrumb">
-    <a href="{{ route('cbt.banks') }}">Question Banks</a>
-    <svg viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;flex-shrink:0"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-    {{ $bank->name }}
-</div>
+<div style="display:flex;flex-direction:column;height:100%">
 
 @if(session('success'))<div class="alert-s">✓ {{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert-e">{{ $errors->first() }}</div>@endif
@@ -106,7 +118,7 @@
 </div>
 @endif
 
-<div class="two-col">
+<div class="two-col" style="flex:1;min-height:0">
     {{-- Left: Question list --}}
     <div>
         <div class="card">
@@ -369,6 +381,7 @@
         </div>
     </div>
     </div>
+</div>
 </div>
 
 {{-- ═══════════════════════════════════════════════════════════
