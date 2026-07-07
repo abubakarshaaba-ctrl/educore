@@ -1,11 +1,22 @@
-@php $staffUser = auth()->user(); @endphp
+@php
+    $staffUser = auth()->user();
+    // Admin-tier staff get one dashboard, not two: send them to the same
+    // full school dashboard the "Core" nav below links to, instead of a
+    // separate self-service page (matches LoginRedirector's landing choice).
+    $isDashboardAdmin = $staffUser->canAccessExactModule('students');
+    $dashboardRoute = $isDashboardAdmin ? 'dashboard' : 'staff.portal.dashboard';
+@endphp
 
 <div class="p-nav-section">
     <div class="p-nav-label">Self Service</div>
-    <a href="{{ route('staff.portal.dashboard') }}" class="p-nav-item {{ request()->routeIs('staff.portal.dashboard') ? 'active' : '' }}">
+    {{-- Admin-tier staff already get a "Dashboard" entry in the Core section
+         below (pointing at this same route) — don't show it twice. --}}
+    @unless($isDashboardAdmin)
+    <a href="{{ route($dashboardRoute) }}" class="p-nav-item {{ request()->routeIs($dashboardRoute) ? 'active' : '' }}">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
         <span>Dashboard</span>
     </a>
+    @endunless
     <a href="{{ route('staff-attendance.my') }}" class="p-nav-item {{ request()->routeIs('staff-attendance.my') ? 'active' : '' }}">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2zm1 11h-2V7h2zm0 4h-2v-2h2z"/></svg>
         <span>My Attendance</span>
@@ -23,4 +34,4 @@
 {{-- Full feature navigation — identical module links to the main admin/staff
      app shell (layouts/app.blade.php), scoped by the same canAccessModule()
      checks per role, so staff portal accounts get full feature parity. --}}
-@include('layouts.partials.full-nav')
+@include('layouts.partials.full-nav', ['inPortal' => true])

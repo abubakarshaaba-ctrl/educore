@@ -5,10 +5,16 @@
     {{-- CORE — always visible --}}
     <div class="nav-section">
         <div class="nav-section-label">Core</div>
+        {{-- When included from the staff portal sidebar, this would just
+             bounce non-admin staff straight back to their portal dashboard
+             (see DashboardController::index()) — skip it there to avoid a
+             second, redundant "Dashboard" link pointing at the same page. --}}
+        @unless(($inPortal ?? false) && !auth()->user()->canAccessExactModule('students'))
         <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}" data-tip="Dashboard">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
             <span class="nav-label">Dashboard</span>
         </a>
+        @endunless
     </div>
 
     {{-- ACADEMICS --}}

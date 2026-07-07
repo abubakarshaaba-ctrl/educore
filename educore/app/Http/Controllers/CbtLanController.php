@@ -37,7 +37,8 @@ class CbtLanController extends Controller
 
     private function authorize404(): void
     {
-        abort_unless(Auth::user() && Auth::user()->isStaff(), 403, 'Staff access only.');
+        $user = Auth::user();
+        abort_unless($user && ($user->isSuperAdmin() || $user->isAdmin()), 403, 'Only administrators can access LAN Mode.');
     }
 
     private function cloudUrl(): string
@@ -49,13 +50,10 @@ class CbtLanController extends Controller
     public function dashboard()
     {
         $this->authorize404();
-        $user = Auth::user();
 
+        // Only admins reach this point (see authorize404), so no per-teacher
+        // subject scoping is needed — admins see every exam bank.
         $exams = CbtExam::query()
-            ->when(!$this->fullAccess($user), function ($q) use ($user) {
-                $subjectIds = \App\Models\ClassArmSubject::where('teacher_id', $user->id)->pluck('subject_id');
-                $q->whereHas('questionBank', fn ($qb) => $qb->whereIn('subject_id', $subjectIds));
-            })
             ->with('questionBank.subject', 'classArm')
             ->latest()
             ->get();
@@ -67,13 +65,6 @@ class CbtLanController extends Controller
             ->pluck('c', 'cbt_exam_id');
 
         return view('cbt.lan', compact('exams', 'pendingCounts'));
-    }
-
-    private function fullAccess($user): bool
-    {
-        if (!$user) return false;
-        if ($user->isSuperAdmin() || $user->isAdmin()) return true;
-        return !in_array($user->roleKey(), ['subject_teacher', 'teacher', 'form_subject_teacher'], true);
     }
 
     // ── Export package (run on the CLOUD instance, while online) ────────

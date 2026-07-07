@@ -13,7 +13,12 @@ class LoginRedirector
             $user->isSuperAdmin() => 'super.dashboard',
             $user->isStudent() => 'student.portal.dashboard',
             $user->isParent() => 'parent.dashboard',
-            $user->isStaff() => 'staff.portal.dashboard',
+            // Admin-tier staff go straight to the full school dashboard —
+            // only teachers/other limited-access staff land on the
+            // self-service portal dashboard (matches DashboardController's
+            // own canAccessExactModule('students') gate, so this never
+            // sends someone to a page that would just redirect them away).
+            $user->isStaff() && !$user->canAccessExactModule('students') => 'staff.portal.dashboard',
             default => 'dashboard',
         };
 
