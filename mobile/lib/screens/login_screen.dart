@@ -151,12 +151,44 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 22),
+                  const _SupportFooter(),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SupportFooter extends StatelessWidget {
+  const _SupportFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 10,
+          runSpacing: 4,
+          children: [
+            Text('07065595768', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('|', style: TextStyle(color: Colors.white30, fontSize: 12)),
+            Text('WhatsApp: +2347065595768', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('|', style: TextStyle(color: Colors.white30, fontSize: 12)),
+            Text('support@educoreng.online', style: TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
+        ),
+        SizedBox(height: 8),
+        Text(
+          'EduCore Education Technology © 2026',
+          style: TextStyle(color: Colors.white38, fontSize: 11.5, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

@@ -4,7 +4,7 @@
 ])
 
 @php
-    $supportEmail = env('EDUCORE_CONTACT_EMAIL', 'support@educoreng.online');
+    $supportEmail = config('mail.from.address', 'support@educoreng.online');
     $supportPhone = '07065595768';
     $supportPhoneInternational = '+2347065595768';
 @endphp

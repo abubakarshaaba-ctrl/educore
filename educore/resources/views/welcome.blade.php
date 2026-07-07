@@ -159,6 +159,9 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 .fb2-links{display:flex;gap:20px}
 .fb2-links a{font-size:12px;color:rgba(255,255,255,.45);text-decoration:none}
 .fb2-links a:hover{color:var(--gold)}
+.fcontact{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px}
+.fcontact a{font-size:12.5px;color:rgba(255,255,255,.55);text-decoration:none;font-weight:600}
+.fcontact a:hover{color:var(--gold)}
 
 /* RESPONSIVE */
 @media(max-width:1024px){
@@ -418,7 +421,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <p>Join hundreds of Nigerian schools already running on EduCore.</p>
     <div class="cta-acts">
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-navy btn-lg">Start Today &rarr;</a>
-        <a href="mailto:hello@educore.app" class="btn btn-white btn-lg">Talk to Sales</a>
+        <a href="mailto:{{ config('mail.from.address', 'support@educoreng.online') }}" class="btn btn-white btn-lg">Talk to Sales</a>
     </div>
 </section>
 
@@ -430,6 +433,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
                 <span style="font-size:17px;font-weight:800;color:white">Edu<span style="color:var(--gold)">Core</span></span>
             </div>
             <p>The complete school management platform built for Nigerian K-12 institutions.</p>
+            <div class="fcontact">
+                <a href="tel:+2347065595768">Call 07065595768</a>
+                <a href="https://wa.me/2347065595768" target="_blank" rel="noopener">WhatsApp +2347065595768</a>
+                <a href="mailto:{{ config('mail.from.address', 'support@educoreng.online') }}">{{ config('mail.from.address', 'support@educoreng.online') }}</a>
+            </div>
         </div>
         <div class="fc"><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#portals">Portals</a><a href="#testimonials">Reviews</a></div>
         <div class="fc">
@@ -439,11 +447,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
             <a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a>
             <a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a>
         </div>
-        <div class="fc"><h4>Company</h4><a href="mailto:hello@educore.app">Contact</a><a href="mailto:support@educore.app">Support</a><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+        <div class="fc"><h4>Company</h4><a href="mailto:{{ config('mail.from.address', 'support@educoreng.online') }}">Contact</a><a href="mailto:{{ config('mail.from.address', 'support@educoreng.online') }}">Support</a><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
     </div>
     <div class="fb2">
-        <p>&copy; {{ date('Y') }} EduCore. All rights reserved.</p>
-        <div class="fb2-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:hello@educore.app">Contact</a></div>
+        <p>EduCore Education Technology &copy; {{ date('Y') }}. All rights reserved.</p>
+        <div class="fb2-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:{{ config('mail.from.address', 'support@educoreng.online') }}">Contact</a></div>
     </div>
 </footer>
 </body>
