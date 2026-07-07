@@ -49,7 +49,8 @@ class AuthenticationPageDesignTest extends TestCase
     {
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Sign in to EduCore');
+            ->assertSee('EduCore Sign In')
+            ->assertSee('Welcome back');
     }
 
     public function test_global_login_password_field_has_correct_autocomplete(): void

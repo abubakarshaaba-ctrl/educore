@@ -79,9 +79,11 @@ class SuperAdminTenantEditTest extends TestCase
         $this->assertSame('nova-academy', $audit->new_values['slug']);
         $this->assertArrayNotHasKey('tenant_id', $audit->new_values);
 
+        // The old /school/{slug} path was retired — the edit page's "School
+        // Login" URL is now the tenant's own (slug-based) subdomain host.
         $this->get(route('super.tenant.edit', $tenant))
             ->assertOk()
-            ->assertSee('/school/nova-academy', false)
+            ->assertSee('nova-academy.educore.test/login', false)
             ->assertSee('nova-school.educore.test/login', false);
     }
 

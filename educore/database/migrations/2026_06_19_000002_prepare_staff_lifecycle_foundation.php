@@ -117,9 +117,17 @@ return new class extends Migration
         }
     }
 
+    // information_schema-backed named-index management is a MySQL-only
+    // concern (idempotent production migrations). SQLite (test suite) has no
+    // information_schema, so these steps are simply skipped there.
+    private function usesInformationSchema(): bool
+    {
+        return DB::connection()->getDriverName() === 'mysql';
+    }
+
     private function addIndexIfMissing(string $table, array $columns, string $indexName): void
     {
-        if ($this->indexExists($table, $indexName)) {
+        if (!$this->usesInformationSchema() || $this->indexExists($table, $indexName)) {
             return;
         }
 
@@ -130,7 +138,7 @@ return new class extends Migration
 
     private function dropIndexIfExists(string $table, string $indexName): void
     {
-        if (!$this->indexExists($table, $indexName)) {
+        if (!$this->usesInformationSchema() || !$this->indexExists($table, $indexName)) {
             return;
         }
 

@@ -37,12 +37,14 @@ educore/auth.json
 # Claude session files
 .claude/
 
-# Temp/diagnostic files
-diag*.php
-fix*.php
-check*.php
-audit*.php
-test-*.php
+# Temp/diagnostic files — anchored to repo root only, so real source files
+# elsewhere (e.g. app/Models/AuditLog.php, app/Http/Middleware/CheckModuleAccess.php)
+# named similarly to a throwaway diagnostic script never get silently ignored.
+/diag*.php
+/fix*.php
+/check*.php
+/audit*.php
+/test-*.php
 nc_assets/
 
 # cPanel

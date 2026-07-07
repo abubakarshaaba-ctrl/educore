@@ -334,6 +334,7 @@ trait BuildsAcademicCycleTestSchema
             $table->string('section')->default('primary');
             $table->integer('order_index')->default(0);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('class_arms', function (Blueprint $table) {
@@ -343,6 +344,7 @@ trait BuildsAcademicCycleTestSchema
             $table->unsignedBigInteger('academic_track_id')->nullable();
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('subjects', function (Blueprint $table) {
@@ -352,6 +354,7 @@ trait BuildsAcademicCycleTestSchema
             $table->string('code')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('grading_systems', function (Blueprint $table) {

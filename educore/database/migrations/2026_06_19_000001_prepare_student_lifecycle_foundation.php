@@ -9,7 +9,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('students') && Schema::hasColumn('students', 'status')) {
+        // The MODIFY/JOIN-UPDATE/information_schema calls below are MySQL-only.
+        // SQLite (used by the test suite) has dynamically-typed, already-nullable
+        // columns, and its Schema builder handles indexes/FKs without needing
+        // information_schema lookups — so those steps are simply skipped there,
+        // while the portable Schema::create/table calls further down still run.
+        if (Schema::hasTable('students') && Schema::hasColumn('students', 'status')
+            && DB::connection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE `students` MODIFY `status` VARCHAR(40) NOT NULL DEFAULT 'applicant'");
         }
 
@@ -179,7 +185,8 @@ return new class extends Migration
     {
         if (
             !Schema::hasColumn('student_enrollments', 'is_current') ||
-            !Schema::hasColumn('student_enrollments', 'status')
+            !Schema::hasColumn('student_enrollments', 'status') ||
+            DB::connection()->getDriverName() !== 'mysql'
         ) {
             return;
         }
@@ -218,7 +225,7 @@ SQL);
 
     private function restoreEnrollmentUniqueConstraintIfSafe(): void
     {
-        if ($this->indexExists('student_enrollments', 'uq_enrollment_unique')) {
+        if (!$this->usesInformationSchema() || $this->indexExists('student_enrollments', 'uq_enrollment_unique')) {
             return;
         }
 
@@ -239,7 +246,7 @@ SQL);
 
     private function addIndexIfMissing(string $table, array $columns, string $indexName): void
     {
-        if ($this->indexExists($table, $indexName)) {
+        if (!$this->usesInformationSchema() || $this->indexExists($table, $indexName)) {
             return;
         }
 
@@ -250,7 +257,7 @@ SQL);
 
     private function dropIndexIfExists(string $table, string $indexName): void
     {
-        if (!$this->indexExists($table, $indexName)) {
+        if (!$this->usesInformationSchema() || !$this->indexExists($table, $indexName)) {
             return;
         }
 
@@ -261,7 +268,7 @@ SQL);
 
     private function addForeignIfMissing(string $table, string $foreignName, Closure $callback): void
     {
-        if ($this->foreignKeyExists($table, $foreignName)) {
+        if (!$this->usesInformationSchema() || $this->foreignKeyExists($table, $foreignName)) {
             return;
         }
 
@@ -270,7 +277,7 @@ SQL);
 
     private function dropForeignIfExists(string $table, string $foreignName): void
     {
-        if (!$this->foreignKeyExists($table, $foreignName)) {
+        if (!$this->usesInformationSchema() || !$this->foreignKeyExists($table, $foreignName)) {
             return;
         }
 
@@ -296,5 +303,13 @@ SQL);
             ->where('constraint_name', $foreignName)
             ->where('constraint_type', 'FOREIGN KEY')
             ->exists();
+    }
+
+    // information_schema-backed named index/FK management is a MySQL-only
+    // concern (used for zero-downtime idempotent migrations in production).
+    // SQLite, used only by the test suite, doesn't need it skipped safely.
+    private function usesInformationSchema(): bool
+    {
+        return DB::connection()->getDriverName() === 'mysql';
     }
 };

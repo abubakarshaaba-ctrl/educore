@@ -14,14 +14,18 @@ return new class extends Migration
         }
 
         // ── Step 1: Make legacy NOT NULL columns nullable ────────────────
-        // correct_option is NOT NULL — breaks essay/short_answer questions
-        if (Schema::hasColumn('cbt_questions', 'correct_option')) {
-            DB::statement("ALTER TABLE `cbt_questions` MODIFY `correct_option` TINYINT UNSIGNED NULL");
-        }
+        // MODIFY is MySQL-only syntax; SQLite (test suite) columns are already
+        // dynamically typed/nullable-by-default, so there's nothing to widen there.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            // correct_option is NOT NULL — breaks essay/short_answer questions
+            if (Schema::hasColumn('cbt_questions', 'correct_option')) {
+                DB::statement("ALTER TABLE `cbt_questions` MODIFY `correct_option` TINYINT UNSIGNED NULL");
+            }
 
-        // options JSON was NOT NULL — breaks essay questions with no options
-        if (Schema::hasColumn('cbt_questions', 'options')) {
-            DB::statement("ALTER TABLE `cbt_questions` MODIFY `options` JSON NULL");
+            // options JSON was NOT NULL — breaks essay questions with no options
+            if (Schema::hasColumn('cbt_questions', 'options')) {
+                DB::statement("ALTER TABLE `cbt_questions` MODIFY `options` JSON NULL");
+            }
         }
 
         // ── Step 2: Add new columns for richer question types ────────────
