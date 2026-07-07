@@ -61,6 +61,11 @@ Route::prefix('v1')->group(function () {
         // Push notification device registration (FCM)
         Route::post('push/register',   [\App\Http\Controllers\Api\PushController::class, 'registerToken']);
         Route::post('push/unregister', [\App\Http\Controllers\Api\PushController::class, 'unregisterToken']);
+
+        // Messages (student-linked / internal threads this staff member is party to)
+        Route::get('messages',                [\App\Http\Controllers\Api\MessageController::class, 'index']);
+        Route::get('messages/{thread}',       [\App\Http\Controllers\Api\MessageController::class, 'show']);
+        Route::post('messages/{thread}/reply', [\App\Http\Controllers\Api\MessageController::class, 'reply']);
     });
 });
 
