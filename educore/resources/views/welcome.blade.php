@@ -559,11 +559,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
             <a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a>
             <a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a>
         </div>
-        <div class="fc"><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="mailto:support@educoreng.online">Support</a><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+        <div class="fc"><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="mailto:support@educoreng.online">Support</a><a href="{{ route('legal.privacy') }}">Privacy Policy</a><a href="{{ route('legal.terms') }}">Terms</a></div>
     </div>
     <div class="fb2">
         <p><span style="color:#fff;font-weight:700">Edu<span style="color:var(--gold)">Core</span></span> Education Technology &copy; {{ date('Y') }}. All rights reserved.</p>
-        <div class="fb2-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:support@educoreng.online">Contact</a></div>
+        <div class="fb2-links"><a href="{{ route('legal.privacy') }}">Privacy</a><a href="{{ route('legal.terms') }}">Terms</a><a href="mailto:support@educoreng.online">Contact</a></div>
     </div>
 </footer>
 </body>

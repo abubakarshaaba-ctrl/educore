@@ -95,6 +95,8 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
 
 // â”€â”€ Authentication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Route::get('/', [PublicMarketingController::class, 'index'])->name('home');
+Route::get('/privacy', [PublicMarketingController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [PublicMarketingController::class, 'terms'])->name('legal.terms');
 
 // Shell-free deployment (cPanel Git deploy requires shell access this host
 // lacks). Pulls master from GitHub and syncs the deployable paths.

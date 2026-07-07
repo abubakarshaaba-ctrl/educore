@@ -34,6 +34,16 @@ class PublicMarketingController extends Controller
         return view('welcome', compact('stats', 'plans'));
     }
 
+    public function privacy(): View
+    {
+        return view('legal.privacy');
+    }
+
+    public function terms(): View
+    {
+        return view('legal.terms');
+    }
+
     public function sendContact(Request $request): RedirectResponse
     {
         $data = $request->validate([
