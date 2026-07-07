@@ -23,8 +23,8 @@
 .sp-stat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light,#7A7F87);margin-top:4px}
 
 .sp-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-.sp-ql{display:flex;flex-direction:column;align-items:center;gap:7px;padding:18px 12px;border-radius:12px;text-decoration:none;font-size:13px;font-weight:700;text-align:center;transition:transform 150ms}
-.sp-ql:hover{transform:translateY(-2px)}
+.sp-ql{display:flex;flex-direction:column;align-items:center;gap:7px;padding:18px 12px;border-radius:12px;border:1px solid transparent;text-decoration:none;font-size:13px;font-weight:700;text-align:center;transition:transform 150ms,box-shadow 150ms}
+.sp-ql:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
 
 .sp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .sp-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden}
@@ -92,15 +92,15 @@
 
 {{-- Quick actions --}}
 <div class="sp-quick">
-    <a href="{{ route('staff.portal.payroll') }}" class="sp-ql" style="background:#EFF6FF;color:#2563EB">
+    <a href="{{ route('staff.portal.payroll') }}" class="sp-ql" style="background:#EFF6FF;color:#2563EB;border-color:#BFDBFE">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
         My Payslips
     </a>
-    <a href="{{ route('dashboard') }}" class="sp-ql" style="background:#ECFDF5;color:#059669">
+    <a href="{{ route('dashboard') }}" class="sp-ql" style="background:#ECFDF5;color:#059669;border-color:#A7F3D0">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
         School Dashboard
     </a>
-    <a href="{{ route('logout') }}" onclick="event.preventDefault();document.getElementById('sp-logout').submit();" class="sp-ql" style="background:#FEF2F2;color:#DC2626">
+    <a href="{{ route('logout') }}" onclick="event.preventDefault();document.getElementById('sp-logout').submit();" class="sp-ql" style="background:#FEF2F2;color:#DC2626;border-color:#FECACA">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
         Sign Out
     </a>
