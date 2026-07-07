@@ -72,6 +72,13 @@
 .sci-modal-head h3{font-size:15px;font-weight:800;color:var(--midnight)}
 .sci-modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--slate-light);padding:0 4px}
 .sci-modal-body{padding:16px 20px}
+
+/* Add Question Modal */
+.aq-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:8000;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
+.aq-modal-bg.open{display:flex}
+.aq-modal{background:white;border-radius:14px;width:min(720px,95vw);max-height:calc(100vh - 60px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.aq-modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1}
+.aq-modal-body{padding:20px}
 .sci-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
 .sci-tab{padding:6px 14px;font-size:12px;font-weight:700;border-radius:8px;border:1.5px solid var(--border);background:white;cursor:pointer;font-family:inherit;transition:all 150ms}
 .sci-tab.active{background:var(--indigo);color:white;border-color:var(--indigo)}
@@ -118,23 +125,22 @@
 </div>
 @endif
 
-<div class="two-col" style="flex:1;min-height:0">
-    {{-- Left: Question list --}}
-    <div>
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">📚 Questions ({{ $questions->total() }})</span>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
-                          onsubmit="return confirm('Reshuffle the order of all questions in this bank?')">
-                        @csrf
-                        <button type="submit" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">🔀 Reshuffle</button>
-                    </form>
-                    <a href="{{ route('cbt.banks.edit', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">✏️ Edit Bank</a>
-                    <a href="{{ route('cbt.bulk-upload', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">⬆ Bulk Import</a>
-                </div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:20px">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📚 Questions ({{ $questions->total() }})</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" class="btn btn-primary" style="padding:5px 12px;font-size:12px" onclick="openAddQuestionModal()">➕ Add Question</button>
+                <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
+                      onsubmit="return confirm('Reshuffle the order of all questions in this bank?')">
+                    @csrf
+                    <button type="submit" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">🔀 Reshuffle</button>
+                </form>
+                <a href="{{ route('cbt.banks.edit', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">✏️ Edit Bank</a>
+                <a href="{{ route('cbt.bulk-upload', $bank) }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">⬆ Bulk Import</a>
             </div>
-            <div class="card-body">
+        </div>
+        <div class="card-body">
             @forelse($questions as $q)
             @php
                 [$tbg, $tclr] = $q->typeBadgeColor();
@@ -204,15 +210,20 @@
             </div>
             @endforelse
             <div style="margin-top:10px">{{ $questions->links() }}</div>
-            </div>
         </div>
     </div>
+</div>
 
-    {{-- Right: Add question form --}}
-    <div>
-        <div class="card">
-            <div class="card-header"><span class="card-title">➕ Add Question</span></div>
-            <div class="card-body">
+{{-- ═══════════════════════════════════════════════════════════
+     ADD QUESTION — dedicated modal window (opened via the button above)
+════════════════════════════════════════════════════════════ --}}
+<div class="aq-modal-bg" id="addQuestionModal">
+    <div class="aq-modal">
+        <div class="aq-modal-head">
+            <span class="card-title">➕ Add Question</span>
+            <button type="button" class="sci-modal-close" onclick="closeAddQuestionModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="aq-modal-body">
 
             {{-- Question type selector --}}
             <div class="form-group">
@@ -353,33 +364,7 @@
                 <button type="submit" class="btn btn-primary">➕ Add Question</button>
             </form>
 
-            </div>
         </div>
-    {{-- Bulk Import Card --}}
-    <div class="card" style="border:2px dashed #BFDBFE;background:#EFF6FF">
-        <div class="card-header" style="background:#EFF6FF;border-color:#BFDBFE">
-            <span class="card-title" style="color:var(--indigo)">⬆ Bulk Import from CSV</span>
-        </div>
-        <div class="card-body" style="font-size:13px">
-            <p style="color:var(--slate);margin-bottom:12px;line-height:1.6">
-                Import multiple questions at once using a CSV file.
-                Supports <strong>MCQ, Essay, Short Answer, Fill Blank, True/False</strong>.
-            </p>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <a href="{{ route('cbt.bulk-upload', $bank) }}"
-                   class="btn btn-primary" style="background:var(--indigo);color:white;flex:1;justify-content:center">
-                    ⬆ Upload CSV Questions
-                </a>
-                <a href="{{ route('cbt.bulk-template') }}"
-                   class="btn btn-ghost" style="white-space:nowrap">
-                    ↓ Download Template
-                </a>
-            </div>
-            <div style="margin-top:10px;font-size:11px;color:var(--slate-light)">
-                CSV columns: type, question_text, option_a, option_b, option_c, option_d, correct_option (a/b/c/d), explanation, difficulty (1-3), marks, model_answer
-            </div>
-        </div>
-    </div>
     </div>
 </div>
 </div>
@@ -531,6 +516,10 @@ function renderListMath() {
     });
 }
 
+/* ── Add Question Modal ── */
+function openAddQuestionModal() { document.getElementById('addQuestionModal').classList.add('open'); }
+function closeAddQuestionModal() { document.getElementById('addQuestionModal').classList.remove('open'); }
+
 /* ── Science Modal ── */
 var _sciMode = 'inline';
 function openSciModal(tab) {
@@ -580,6 +569,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (inp) inp.addEventListener('input', renderSciPreview);
     var bg = document.getElementById('sciModal');
     if (bg) bg.addEventListener('click', function(e){ if(e.target===bg) closeSciModal(); });
+    var aqbg = document.getElementById('addQuestionModal');
+    if (aqbg) aqbg.addEventListener('click', function(e){ if(e.target===aqbg) closeAddQuestionModal(); });
+    @if($errors->any() || old('type'))
+    openAddQuestionModal();
+    @endif
     /* type-tab wiring */
     var smap = {'MCQ':'mcq','Essay':'essay','Short Answer':'short_answer','Fill Blank':'fill_blank','True / False':'true_false'};
     document.querySelectorAll('.type-tab').forEach(function(btn) {
