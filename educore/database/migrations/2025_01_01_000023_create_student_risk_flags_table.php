@@ -40,8 +40,10 @@ return new class extends Migration {
                 $table->unsignedBigInteger('resolved_by')->nullable();
                 $table->timestamp('resolved_at')->nullable();
 
-                // Metadata
-                $table->timestamp('computed_at');
+                // Metadata — always set explicitly on write (see
+                // RiskFlagController), but a second NOT NULL timestamp column
+                // with no default is rejected outright under strict MySQL modes.
+                $table->timestamp('computed_at')->nullable();
                 $table->timestamps();
 
                 $table->index(['tenant_id', 'term_id', 'risk_level']);
