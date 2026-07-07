@@ -1,5 +1,6 @@
-@extends('layouts.portal')
+@extends('layouts.app')
 @section('title','Payroll & Payslips')
+@section('page-title','Payroll & Payslips')
 @section('content')
 
 <div class="page-header">

@@ -1,5 +1,6 @@
-@extends('layouts.portal')
+@extends('layouts.app')
 @section('title','My Dashboard')
+@section('page-title','My Dashboard')
 @section('content')
 
 {{-- Welcome banner --}}
