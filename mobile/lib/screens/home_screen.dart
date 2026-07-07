@@ -6,6 +6,7 @@ import 'attendance_screen.dart';
 import 'exam_duties_screen.dart';
 import 'id_card_screen.dart';
 import 'login_screen.dart';
+import 'messages_screen.dart';
 import 'payslip_screen.dart';
 import 'scores_screen.dart';
 import 'staff_attendance_screen.dart';
@@ -350,6 +351,8 @@ class _MoreTab extends StatelessWidget {
             'Your personal supervision schedule', const ExamDutiesScreen()),
         _menuTile(context, Icons.receipt_long_outlined, 'My Payslips',
             'View and download payslips', const PayslipListScreen()),
+        _menuTile(context, Icons.forum_outlined, 'Messages',
+            'Conversations with the school', const MessagesScreen()),
         _menuTile(context, Icons.campaign_outlined, 'Announcements',
             'School news for staff', const _AnnouncementsScreen()),
         const SizedBox(height: 22),
