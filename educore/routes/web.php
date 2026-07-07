@@ -518,6 +518,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('exams/{exam}/publish',          [CbtController::class, 'publishExam'])->name('publish');
         Route::get('results/{exam?}',                [CbtController::class, 'results'])->name('results');
         Route::post('session/{session}/grade-essay', [CbtController::class, 'gradeEssay'])->name('grade-essay');
+        // ── LAN deployment (offline exam-taking) ────────────────────────
+        Route::get('lan',                            [\App\Http\Controllers\CbtLanController::class, 'dashboard'])->name('lan');
+        Route::get('exams/{exam}/lan-export',         [\App\Http\Controllers\CbtLanController::class, 'exportPackage'])->name('lan.export');
+        Route::post('lan/import',                     [\App\Http\Controllers\CbtLanController::class, 'importPackage'])->name('lan.import');
+        Route::post('exams/{exam}/lan-sync',          [\App\Http\Controllers\CbtLanController::class, 'syncNow'])->name('lan.sync');
     });
 
     // â”€â”€ Fees â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -16,6 +16,7 @@ class CbtExam extends BaseTenantModel
         'section_theory_count',    'section_theory_marks',
         'scheduled_start', 'scheduled_end', 'shuffle_questions', 'shuffle_options', 'status',
         'assessment_type_id',
+        'lan_sync_token', 'lan_exported_at',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class CbtExam extends BaseTenantModel
         return [
             'scheduled_start'          => 'datetime',
             'scheduled_end'            => 'datetime',
+            'lan_exported_at'          => 'datetime',
             'shuffle_questions'        => 'boolean',
             'shuffle_options'          => 'boolean',
             'total_marks'              => 'float',

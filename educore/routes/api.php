@@ -63,3 +63,10 @@ Route::prefix('v1')->group(function () {
         Route::post('push/unregister', [\App\Http\Controllers\Api\PushController::class, 'unregisterToken']);
     });
 });
+
+// LAN CBT sync-back — receives finished exam sessions from an offline LAN
+// instance once it regains internet. Authenticated by an opaque per-exam
+// token embedded in the export package (see CbtLanController), not by a
+// logged-in session, since the caller is a separate app installation.
+Route::post('lan/sync', [\App\Http\Controllers\CbtLanController::class, 'apiSync'])
+    ->middleware('throttle:30,1');
