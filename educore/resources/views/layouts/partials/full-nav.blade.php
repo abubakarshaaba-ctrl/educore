@@ -5,16 +5,31 @@
     {{-- CORE — always visible --}}
     <div class="nav-section">
         <div class="nav-section-label">Core</div>
-        {{-- When included from the staff portal sidebar, this would just
-             bounce non-admin staff straight back to their portal dashboard
-             (see DashboardController::index()) — skip it there to avoid a
-             second, redundant "Dashboard" link pointing at the same page. --}}
-        @unless(($inPortal ?? false) && !auth()->user()->canAccessExactModule('students'))
+        {{-- Non-admin-tier staff land on the portal dashboard (see
+             DashboardController::index() / LoginRedirector), which already
+             carries this same "Dashboard" nav item lower down — skip it here
+             to avoid a duplicate link pointing at the same page. --}}
+        @unless(!auth()->user()->canAccessExactModule('students'))
         <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}" data-tip="Dashboard">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
             <span class="nav-label">Dashboard</span>
         </a>
         @endunless
+        {{-- Self-service links for portal (non-admin-dashboard) staff --}}
+        @if(!auth()->user()->canAccessExactModule('students'))
+        <a href="{{ route('staff.portal.dashboard') }}" class="nav-item {{ request()->routeIs('staff.portal.dashboard') ? 'active' : '' }}" data-tip="Dashboard">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="{{ route('staff.portal.payroll') }}" class="nav-item {{ request()->routeIs('staff.portal.payroll') || request()->routeIs('staff.portal.payslip.*') ? 'active' : '' }}" data-tip="Payroll & Payslips">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H4v-6h16zm0-10H4V6h16z"/></svg>
+            <span class="nav-label">Payroll & Payslips</span>
+        </a>
+        <a href="{{ route('staff.portal.messages') }}" class="nav-item {{ request()->routeIs('staff.portal.messages*') ? 'active' : '' }}" data-tip="Messages">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            <span class="nav-label">Messages</span>
+        </a>
+        @endif
     </div>
 
     {{-- ACADEMICS --}}
