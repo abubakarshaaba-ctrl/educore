@@ -33,6 +33,7 @@ class SelfDeployController extends Controller
         'educore/public/',
         '.htaccess',
         'index.php',
+        '.user.ini',
     ];
 
     public function pull(Request $request)
@@ -126,9 +127,12 @@ class SelfDeployController extends Controller
             $migrated = 'error: ' . $e->getMessage();
         }
 
-        if (function_exists('opcache_reset')) {
-            opcache_reset();
-        }
+        // opcache_reset() only clears the CURRENT PHP-FPM worker's cache —
+        // other workers keep serving stale bytecode until they individually
+        // revalidate. The shipped .user.ini (opcache.validate_timestamps=1)
+        // is the actual fix; this call is just a best-effort nudge for the
+        // worker handling this request.
+        $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
 
         // 5. Tidy up the workspace
         @unlink($zipPath);
@@ -137,6 +141,7 @@ class SelfDeployController extends Controller
         return response()->json([
             'ok'       => true,
             'copied'   => $copied,
+            'opcache_reset' => $opcacheReset,
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
         ]);
