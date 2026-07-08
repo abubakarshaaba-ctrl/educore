@@ -20,20 +20,27 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class MaintenanceMode
 {
-    private const EXEMPT_ROUTE_NAMES = [
-        'home',
-        'legal.privacy',
-        'legal.terms',
+    // Matched against the request URI (Request::is), NOT route names — some
+    // of these routes (e.g. the actual POST /login credential submission)
+    // are intentionally unnamed, so name-based matching silently misses
+    // them and blocks login itself during maintenance. Path matching is
+    // robust to that regardless of whether a route happens to have a name.
+    private const EXEMPT_PATHS = [
+        '/',
         'login',
-        'login.submit',
+        'platform/login',
+        'admin/login',
+        'staff/login',
+        'student/login',
+        'parent/login',
         'logout',
-        'password.request',
-        'password.email',
-        'password.reset',
-        'password.update',
-        'school.register',
-        'school.register.post',
-        'deploy.pull',
+        'forgot-password',
+        'reset-password*',
+        'get-started*',
+        'privacy',
+        'terms',
+        'deploy/pull*',
+        'up',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -46,7 +53,7 @@ class MaintenanceMode
             return $next($request);
         }
 
-        if ($request->is('up') || $request->routeIs('super.*') || $request->routeIs(self::EXEMPT_ROUTE_NAMES)) {
+        if ($request->routeIs('super.*') || $request->is(self::EXEMPT_PATHS)) {
             return $next($request);
         }
 
