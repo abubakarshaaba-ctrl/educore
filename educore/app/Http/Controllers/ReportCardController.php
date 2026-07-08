@@ -777,11 +777,14 @@ class ReportCardController extends Controller
         $termId   = $request->term_id;
         $armIds   = $request->class_arm_ids ?? [$request->class_arm_id];
         $published = 0;
+        $term = \App\Models\Term::find($termId);
 
         foreach ($armIds as $armId) {
-            $count = \App\Models\TermlySummary::where('class_arm_id', $armId)
-                        ->where('term_id', $termId)->count();
-            if ($count === 0) continue;
+            $summaries = \App\Models\TermlySummary::where('class_arm_id', $armId)
+                ->where('term_id', $termId)
+                ->with('student.guardians')
+                ->get();
+            if ($summaries->isEmpty()) continue;
 
             \App\Models\ReportCardPublication::updateOrCreate(
                 ['class_arm_id' => $armId, 'term_id' => $termId],
@@ -794,6 +797,31 @@ class ReportCardController extends Controller
                 ]
             );
             $published++;
+
+            $notifier = app(\App\Services\GuardianNotifier::class);
+            foreach ($summaries as $summary) {
+                $student = $summary->student;
+                if (!$student) continue;
+
+                $guardian = $student->guardians->firstWhere('pivot.is_primary_contact', true)
+                    ?? $student->guardians->first();
+
+                try {
+                    $notifier->send(
+                        $guardian,
+                        'Results published — ' . $student->full_name,
+                        [
+                            ($term?->name ?? 'Term') . " results for {$student->full_name} are now available.",
+                            'Sign in to the parent portal to view the full report card.',
+                        ],
+                        smsBody: "Dear Parent, {$student->full_name}'s " . ($term?->name ?? 'term') . ' results are now available on the EduCore parent portal.',
+                        actionLabel: 'View Results',
+                        actionUrl: route('login'),
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Results-published notification failed for student {$student->id}: " . $e->getMessage());
+                }
+            }
         }
 
         $msg = count($armIds) === 1

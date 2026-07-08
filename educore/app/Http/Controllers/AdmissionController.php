@@ -100,7 +100,9 @@ class AdmissionController extends Controller
 
     private function enrollStudent(Admission $admission, ?int $classArmId)
     {
-        DB::transaction(function () use ($admission, $classArmId) {
+        $enrolled = null;
+
+        DB::transaction(function () use ($admission, $classArmId, &$enrolled) {
             $tenant  = auth()->user()->tenant;
             $session = \App\Models\AcademicSession::where('is_current', true)->first();
 
@@ -144,7 +146,29 @@ class AdmissionController extends Controller
             $student->guardians()->attach($guardian->id, ['is_primary_contact' => true, 'tenant_id' => $tenant->id]);
 
             $admission->update(['enrolled_as_student_id' => $student->id]);
+
+            $enrolled = ['student' => $student, 'guardian' => $guardian, 'tenant' => $tenant];
         });
+
+        if (!$enrolled) {
+            return;
+        }
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $enrolled['guardian'],
+                'Enrollment confirmed — ' . $enrolled['student']->full_name,
+                [
+                    $enrolled['student']->full_name . ' has been successfully enrolled at ' . $enrolled['tenant']->name . '.',
+                    'Admission number: ' . $enrolled['student']->admission_number,
+                ],
+                smsBody: "Dear {$enrolled['guardian']->full_name}, {$enrolled['student']->full_name} has been successfully enrolled at {$enrolled['tenant']->name}. Admission No: {$enrolled['student']->admission_number}.",
+                actionLabel: 'Sign In',
+                actionUrl: route('login'),
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Enrollment guardian notification failed: ' . $e->getMessage());
+        }
     }
 
     public function destroy(Admission $admission)

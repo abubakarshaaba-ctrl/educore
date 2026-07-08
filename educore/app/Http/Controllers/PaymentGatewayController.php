@@ -244,7 +244,9 @@ class PaymentGatewayController extends Controller
 
     private function applyPayment(OnlinePaymentLog $log): void
     {
-        DB::transaction(function () use ($log) {
+        $notifyContext = null;
+
+        DB::transaction(function () use ($log, &$notifyContext) {
             if (PaymentTransaction::where('gateway_reference', $log->reference)->exists()) {
                 return;
             }
@@ -277,6 +279,44 @@ class PaymentGatewayController extends Controller
                 'paid_by_phone'     => $guardian?->phone,
                 'paid_at'           => $log->verified_at ?? now(),
             ]);
+
+            $notifyContext = [
+                'invoice'  => $invoice,
+                'student'  => $student,
+                'guardian' => $guardian,
+                'amount'   => (float) $log->amount,
+            ];
         });
+
+        if (!$notifyContext) {
+            return;
+        }
+
+        ['invoice' => $invoice, 'student' => $student, 'guardian' => $guardian, 'amount' => $amount] = $notifyContext;
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $guardian,
+                'Payment received' . ($student ? ' — ' . $student->full_name : ''),
+                [
+                    'We have received a payment of ₦' . number_format($amount, 2) . ($student ? ' for ' . $student->full_name . '.' : '.'),
+                    'Invoice status: ' . ucfirst(str_replace('_', ' ', $invoice->status)),
+                ],
+                smsBody: 'EduCore: Payment of ₦' . number_format($amount, 2) . ' received' . ($student ? " for {$student->full_name}" : '') . '. Thank you.',
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Guardian payment notification failed: ' . $e->getMessage());
+        }
+
+        try {
+            $tenant = $invoice->tenant ?? \App\Models\Tenant::find($invoice->tenant_id);
+            $tenant?->notifyAdmins(new \App\Notifications\Tenant\FeePaymentReceivedNotification(
+                $invoice,
+                $amount,
+                $student?->full_name ?? 'a student'
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admin payment notification failed: ' . $e->getMessage());
+        }
     }
 }

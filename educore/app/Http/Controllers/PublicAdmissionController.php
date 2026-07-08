@@ -167,6 +167,38 @@ class PublicAdmissionController extends Controller
             ]);
         }
 
+        // Actually notify the guardian now (the NotificationQueue rows above
+        // are an audit trail only — nothing was ever processing them).
+        try {
+            $guardianContact = new \App\Models\Guardian([
+                'first_name' => $data['guardian_name'],
+                'email'      => $settings->notify_guardian_email ? ($data['guardian_email'] ?? null) : null,
+                'phone'      => $settings->notify_guardian_sms ? ($data['guardian_phone'] ?? null) : null,
+            ]);
+            $guardianContact->tenant_id = $tenant->id;
+
+            app(\App\Services\GuardianNotifier::class)->send(
+                $guardianContact,
+                'Application received — ' . $tenant->name,
+                [
+                    "Your application for {$data['first_name']} {$data['last_name']} has been received.",
+                    "Application number: {$appNumber}",
+                    'You can track your application status at any time using this number.',
+                ],
+                smsBody: "Dear {$data['guardian_name']}, your application for {$data['first_name']} {$data['last_name']} to {$tenant->name} has been received. App No: {$appNumber}.",
+                actionLabel: 'Track Application',
+                actionUrl: route('portal.status.form', $slug),
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admission-received guardian notification failed: ' . $e->getMessage());
+        }
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\NewAdmissionApplicationNotification($admission));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('New admission admin notification failed: ' . $e->getMessage());
+        }
+
         // Auto-shortlist if configured
         if ($settings->auto_shortlist) {
             $admission->update(['status' => 'shortlisted']);
