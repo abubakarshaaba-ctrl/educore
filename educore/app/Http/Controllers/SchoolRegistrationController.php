@@ -119,6 +119,16 @@ class SchoolRegistrationController extends Controller
         });
 
         $user = User::where('tenant_id', $tenant->id)->where('role', 'admin')->first();
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantWelcomeNotification(
+                $tenant,
+                $tenant->subscription_expires_at?->format('d M Y')
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Tenant welcome notification failed: ' . $e->getMessage());
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 

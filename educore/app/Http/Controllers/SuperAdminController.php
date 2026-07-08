@@ -237,6 +237,15 @@ class SuperAdminController extends Controller
             throw $e;
         }
 
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantWelcomeNotification(
+                $tenant,
+                $tenant->subscription_expires_at?->format('d M Y')
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Tenant welcome notification failed: ' . $e->getMessage());
+        }
+
         return redirect()
             ->route('super.tenant.show', $tenant)
             ->with('success', 'School provisioned successfully. The school portal and login links are now available below.');
@@ -642,7 +651,23 @@ class SuperAdminController extends Controller
             ], $request, null, auth()->user());
         }
 
+        $previousStatus = $tenant->status;
         $tenant->update(['status' => $request->status]);
+
+        if ($request->status === Tenant::STATUS_SUSPENDED && $previousStatus !== Tenant::STATUS_SUSPENDED) {
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantSuspendedNotification($tenant, reactivated: false));
+            } catch (\Throwable $e) {
+                \Log::error("Tenant suspended notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
+        } elseif ($request->status === Tenant::STATUS_ACTIVE && $previousStatus === Tenant::STATUS_SUSPENDED) {
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantSuspendedNotification($tenant, reactivated: true));
+            } catch (\Throwable $e) {
+                \Log::error("Tenant reactivated notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
+        }
+
         return back()->with('success', "Status updated to: {$request->status}");
     }
 
@@ -839,10 +864,22 @@ class SuperAdminController extends Controller
 
         $sent = 0;
         foreach ($expiring as $sub) {
-            $days = now()->diffInDays($sub->expires_at);
-            // In production: dispatch email job. Here we log.
-            \Log::info("Renewal reminder: {$sub->tenant->name} expires in {$days} days ({$sub->tenant->email})");
-            $sent++;
+            if (!$sub->tenant) {
+                continue;
+            }
+
+            $days = (int) now()->diffInDays($sub->expires_at);
+
+            try {
+                $sub->tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionExpiringNotification(
+                    $sub->tenant,
+                    $sub->expires_at->format('d M Y'),
+                    $days
+                ));
+                $sent++;
+            } catch (\Throwable $e) {
+                \Log::error("Renewal reminder failed for tenant {$sub->tenant->id}: " . $e->getMessage());
+            }
         }
 
         return back()->with('success', "Renewal reminders sent to {$sent} schools.");
@@ -853,7 +890,15 @@ class SuperAdminController extends Controller
         abort_unless(auth()->user()?->isSuperAdmin(), 403);
         $data = $request->validate(['months' => ['required','integer','min:1','max:24']]);
         $current = $tenant->subscription_expires_at ?? now();
-        $tenant->update(['subscription_expires_at' => \Carbon\Carbon::parse($current)->addMonths($data['months'])]);
+        $newExpiry = \Carbon\Carbon::parse($current)->addMonths($data['months']);
+        $tenant->update(['subscription_expires_at' => $newExpiry]);
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y')));
+        } catch (\Throwable $e) {
+            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+        }
+
         return back()->with('success', "Subscription extended by {$data['months']} month(s).");
     }
 
@@ -861,15 +906,23 @@ class SuperAdminController extends Controller
     {
         $data = $request->validate(['plan_id' => ['required','exists:subscription_plans,id']]);
         $plan = \App\Models\SubscriptionPlan::findOrFail($data['plan_id']);
+        $newExpiry = now()->addMonths($plan->duration_months);
         $tenant->update([
-            'subscription_expires_at' => now()->addMonths($plan->duration_months),
+            'subscription_expires_at' => $newExpiry,
             'is_active' => true,
         ]);
         \App\Models\TenantSubscription::create([
             'tenant_id' => $tenant->id, 'plan_id' => $plan->id,
-            'starts_at' => now(), 'ends_at' => now()->addMonths($plan->duration_months),
+            'starts_at' => now(), 'ends_at' => $newExpiry,
             'amount_paid' => $plan->price, 'status' => 'active',
         ]);
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y'), (float) $plan->price));
+        } catch (\Throwable $e) {
+            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+        }
+
         return back()->with('success', "Subscription renewed for {$plan->duration_months} month(s).");
     }
 
@@ -969,12 +1022,19 @@ class SuperAdminController extends Controller
         if ($tenant) {
             $months = $invoice->billing_cycle === 'annual' ? 12 : 1;
             $from   = max(now(), \Carbon\Carbon::parse($tenant->subscription_expires_at));
+            $newExpiry = $from->addMonths($months);
             $tenant->update([
-                'subscription_expires_at' => $from->addMonths($months),
+                'subscription_expires_at' => $newExpiry,
                 'status' => 'active',
             ]);
 
             $this->creditReferralCommission($tenant, (float) $invoice->amount);
+
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y'), (float) $invoice->amount));
+            } catch (\Throwable $e) {
+                \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Invoice marked as paid and subscription extended.');
@@ -1137,6 +1197,12 @@ class SuperAdminController extends Controller
         ]);
 
         $this->creditReferralCommission($tenant, (float) $invoice->amount);
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $expiry->format('d M Y'), (float) $invoice->amount));
+        } catch (\Throwable $e) {
+            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+        }
 
         return $tenant;
     }

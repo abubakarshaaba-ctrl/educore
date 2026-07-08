@@ -83,6 +83,24 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
+    /** Active school-admin accounts — who tenant lifecycle notifications go to. */
+    public function admins(): HasMany
+    {
+        return $this->hasMany(User::class)
+            ->where('role', 'admin')
+            ->where('is_active', true);
+    }
+
+    /** Notify every active admin of this school. No-op safely if there are none. */
+    public function notifyAdmins($notification): void
+    {
+        $admins = $this->admins()->whereNotNull('email')->get();
+
+        if ($admins->isNotEmpty()) {
+            \Illuminate\Support\Facades\Notification::send($admins, $notification);
+        }
+    }
+
     public function academicSessions(): HasMany
     {
         return $this->hasMany(AcademicSession::class);
