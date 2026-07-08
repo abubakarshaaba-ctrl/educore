@@ -63,10 +63,22 @@ tr:last-child td{border:none}tr:hover td{background:#F8FAFC}
                 <td style="font-size:12px;color:{{ $m->subscription_expires_at && \Carbon\Carbon::parse($m->subscription_expires_at)->isPast() ? '#DC2626':'#64748B' }}">
                     {{ $m->subscription_expires_at ? \Carbon\Carbon::parse($m->subscription_expires_at)->format('d M Y') : '—' }}
                 </td>
-                <td><span style="font-size:11px;text-transform:capitalize;color:#64748B">{{ $m->role ?? 'member' }}</span></td>
+                <td>
+                    @if(($m->role ?? 'member') === 'lead')
+                        <span class="badge" style="background:#FEF9EC;color:#92400E">👑 Lead</span>
+                    @else
+                        <span style="font-size:11px;text-transform:capitalize;color:#64748B">Member</span>
+                    @endif
+                </td>
                 <td>
                     <div style="display:flex;gap:6px">
                         <a href="{{ route('super.tenant.show',$m->tenant_id) }}" class="btn btn-ghost" style="padding:4px 8px;font-size:11px">View</a>
+                        @if(($m->role ?? 'member') !== 'lead')
+                        <form method="POST" action="{{ route('super.groups.members.set-lead',[$group->id,$m->tenant_id]) }}">
+                            @csrf
+                            <button class="btn btn-p" style="padding:4px 8px;font-size:11px" onclick="return confirm('Make {{ $m->name }} the lead campus? Its subscription will govern the whole group.')">Make Lead</button>
+                        </form>
+                        @endif
                         <form method="POST" action="{{ route('super.groups.members.remove',[$group->id,$m->tenant_id]) }}">
                             @csrf @method('DELETE')
                             <button class="btn btn-danger" style="padding:4px 8px;font-size:11px" onclick="return confirm('Remove?')">✕</button>

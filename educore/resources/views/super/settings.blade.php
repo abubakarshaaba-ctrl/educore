@@ -143,4 +143,34 @@
     </div>
 </form>
 
+<div class="settings-card" style="margin-top:20px">
+    <form method="POST" action="{{ route('super.password.update') }}">
+        @csrf
+        <div class="settings-section">
+            <div class="section-title">&#128274; Change Password</div>
+            @if($errors->has('current_password'))
+                <div class="form-hint" style="color:#DC2626;margin-bottom:10px">{{ $errors->first('current_password') }}</div>
+            @endif
+            @if(session('success_pw'))
+                <div class="alert-success">&#10003; {{ session('success_pw') }}</div>
+            @endif
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <input type="password" name="current_password" class="form-control" required autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input type="password" name="password" class="form-control" required minlength="8" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" name="password_confirmation" class="form-control" required minlength="8" autocomplete="new-password">
+            </div>
+        </div>
+        <div class="settings-section">
+            <button type="submit" class="btn btn-primary">&#128274; Update Password</button>
+        </div>
+    </form>
+</div>
+
 @endsection

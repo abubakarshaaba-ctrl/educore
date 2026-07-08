@@ -1003,6 +1003,10 @@ class User extends Authenticatable
             ? $this->tenant
             : $this->tenant()->with(['activeSubscription.plan'])->first();
 
+        // Multi-campus groups share one subscription, held by the group's
+        // "lead" campus — resolve features against that tenant instead.
+        $tenant = $tenant?->billingTenant();
+
         if ($tenant) {
             $tenant->loadMissing(['activeSubscription.plan', 'subscriptions.plan']);
         }

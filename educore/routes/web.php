@@ -158,6 +158,20 @@ Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
         Route::post("/{$legacyPortal}/login", [LoginController::class, 'login'])->middleware('throttle:global-login');
     }
 });
+
+// Unified "forgot password" — every account type except super admins (who
+// change their password from inside the Super Admin panel).
+Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
+    Route::get('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showForgot'])->name('password.request');
+    Route::post('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendResetLink'])
+        ->middleware('throttle:tenant-password')
+        ->name('password.email');
+    Route::get('reset-password/{token}', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showReset'])->name('password.reset');
+    Route::post('reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])
+        ->middleware('throttle:tenant-password')
+        ->name('password.update');
+});
+
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
 
 // Named stubs so internal route() helpers still resolve â€” they build subdomain URLs directly.
@@ -919,6 +933,7 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::get('payments',       [SuperAdminController::class, 'payments'])->name('payments');
     Route::get('settings',               [SuperAdminController::class, 'settings'])->name('settings');
     Route::post('settings',              [SuperAdminController::class, 'saveSettings'])->name('settings.save');
+    Route::post('password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('password.update');
     Route::get('payment-gateways',       [SuperAdminController::class, 'paymentGateways'])->name('payment-gateways');
     Route::post('payment-gateways',      [SuperAdminController::class, 'savePaymentGateways'])->name('payment-gateways.save');
     Route::get('analytics',      [SuperAdminController::class, 'analytics'])->name('analytics');
@@ -944,6 +959,7 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
         Route::get('{group}',             [\App\Http\Controllers\SchoolGroupController::class, 'show'])->name('show');
         Route::post('{group}/members',    [\App\Http\Controllers\SchoolGroupController::class, 'addMember'])->name('members.add');
         Route::delete('{group}/members/{tenant}', [\App\Http\Controllers\SchoolGroupController::class, 'removeMember'])->name('members.remove');
+        Route::post('{group}/members/{tenant}/lead', [\App\Http\Controllers\SchoolGroupController::class, 'setLead'])->name('members.set-lead');
         Route::get('{group}/report',      [\App\Http\Controllers\SchoolGroupController::class, 'report'])->name('report');
         Route::delete('{group}',          [\App\Http\Controllers\SchoolGroupController::class, 'destroy'])->name('destroy');
     });

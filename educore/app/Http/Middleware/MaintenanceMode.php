@@ -9,17 +9,30 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Blocks tenant-facing access when the super-admin "Maintenance Mode"
- * toggle (Super Admin → Settings) is on. Super admins and a small set
- * of exempt routes (login, deploy, health check) remain reachable so
- * the platform can still be administered/recovered.
+ * Blocks TENANT (school) access when the super-admin "Maintenance Mode"
+ * toggle (Super Admin → Settings) is on — school admins/staff/students/
+ * parents are locked out with a maintenance page while updates happen.
+ *
+ * It deliberately does NOT touch the public marketing site (landing page,
+ * legal pages, school registration) or the super admin account/panel —
+ * maintenance mode is scoped to "tenant application access", not "the
+ * entire platform is unreachable".
  */
 class MaintenanceMode
 {
     private const EXEMPT_ROUTE_NAMES = [
+        'home',
+        'legal.privacy',
+        'legal.terms',
         'login',
         'login.submit',
         'logout',
+        'password.request',
+        'password.email',
+        'password.reset',
+        'password.update',
+        'school.register',
+        'school.register.post',
         'deploy.pull',
     ];
 

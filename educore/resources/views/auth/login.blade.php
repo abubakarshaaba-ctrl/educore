@@ -85,10 +85,13 @@
                     @error('password')<p class="ec-field-error">{{ $message }}</p>@enderror
                 </div>
 
-                <label class="ec-remember">
-                    <input type="checkbox" name="remember" value="1">
-                    <span>Keep me signed in</span>
-                </label>
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                    <label class="ec-remember">
+                        <input type="checkbox" name="remember" value="1">
+                        <span>Keep me signed in</span>
+                    </label>
+                    <a href="{{ route('password.request') }}" style="font-size:13px;color:var(--ec-navy);font-weight:600;text-decoration:none">Forgot password?</a>
+                </div>
 
                 <x-auth.submit-button>Sign in</x-auth.submit-button>
             </form>

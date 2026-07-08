@@ -104,6 +104,34 @@ class Tenant extends Model
         return $this->hasMany(TenantSubscription::class);
     }
 
+    /**
+     * Multi-campus school groups share a single subscription: the campus
+     * marked "lead" in school_group_members holds it, and every other
+     * member campus's access/features are resolved against the lead's
+     * subscription instead of needing one of their own.
+     *
+     * Returns the lead tenant if this tenant belongs to a group with one
+     * designated, otherwise returns itself.
+     */
+    public function billingTenant(): self
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('school_group_members')) {
+            return $this;
+        }
+
+        $leadTenantId = \Illuminate\Support\Facades\DB::table('school_group_members as m1')
+            ->join('school_group_members as m2', 'm1.group_id', '=', 'm2.group_id')
+            ->where('m1.tenant_id', $this->id)
+            ->where('m2.role', 'lead')
+            ->value('m2.tenant_id');
+
+        if ($leadTenantId && (int) $leadTenantId !== (int) $this->id) {
+            return static::find($leadTenantId) ?? $this;
+        }
+
+        return $this;
+    }
+
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);

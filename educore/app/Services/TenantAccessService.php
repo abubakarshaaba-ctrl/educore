@@ -49,7 +49,10 @@ class TenantAccessService
             );
         }
 
-        $expiresAt = $tenant->subscription_expires_at;
+        // Multi-campus groups share one subscription, held by the group's
+        // "lead" campus — a member campus's expiry follows the lead's,
+        // rather than needing its own subscription kept current.
+        $expiresAt = $tenant->billingTenant()->subscription_expires_at;
         if ($expiresAt && $expiresAt->isPast()) {
             $graceDays = $this->gracePeriodDays();
             if ($graceDays > 0 && $expiresAt->copy()->addDays($graceDays)->isFuture()) {
