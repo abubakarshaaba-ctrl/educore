@@ -127,13 +127,6 @@
                             <input type="text" name="logo_path" class="form-control {{ $errors->has('logo_path') ? 'is-invalid' : '' }}" value="{{ old('logo_path', $tenant->logo_path) }}" placeholder="storage/logos/school.png">
                             @error('logo_path')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        @foreach(['theme_primary' => 'Primary Colour', 'theme_accent' => 'Accent Colour', 'theme_sidebar' => 'Sidebar Colour', 'primary_color' => 'White-label Primary', 'secondary_color' => 'White-label Secondary'] as $field => $label)
-                            <div class="form-group">
-                                <label class="form-label">{{ $label }}</label>
-                                <input type="text" name="{{ $field }}" class="form-control {{ $errors->has($field) ? 'is-invalid' : '' }}" value="{{ old($field, $tenant->{$field}) }}" placeholder="#071E45">
-                                @error($field)<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
-                        @endforeach
                     </div>
                 </div>
             </div>

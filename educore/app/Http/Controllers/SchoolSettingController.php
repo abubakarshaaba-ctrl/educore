@@ -24,9 +24,6 @@ class SchoolSettingController extends Controller
             'email'         => ['nullable', 'email'],
             'website'       => ['nullable', 'url'],
             'logo'          => ['nullable', 'image', 'max:2048'],
-            'theme_primary' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_accent'  => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_sidebar' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -44,9 +41,6 @@ class SchoolSettingController extends Controller
             'address'       => $data['address'] ?? null,
             'phone'         => $data['phone'] ?? null,
             'email'         => $data['email'] ?? null,
-            'theme_primary' => $data['theme_primary'] ?? $tenant->theme_primary ?? '#071E45',
-            'theme_accent'  => $data['theme_accent']  ?? $tenant->theme_accent  ?? '#D79A21',
-            'theme_sidebar' => $data['theme_sidebar']  ?? $tenant->theme_sidebar ?? '#071E45',
         ]);
 
         // Save extra settings

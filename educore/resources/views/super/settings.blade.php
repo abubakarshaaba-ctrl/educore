@@ -129,6 +129,7 @@
                     <div class="form-hint">Block all tenant access while performing updates</div>
                 </div>
                 <label class="toggle-wrap">
+                    <input type="hidden" name="settings[maintenance_mode]" value="0">
                     <input type="checkbox" name="settings[maintenance_mode]" value="1"
                            {{ $val('maintenance_mode') == '1' ? 'checked' : '' }}>
                     <span class="toggle-slider"></span>

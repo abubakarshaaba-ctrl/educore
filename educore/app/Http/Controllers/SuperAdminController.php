@@ -310,11 +310,6 @@ class SuperAdminController extends Controller
                     $fail('The logo path must be a safe relative asset path.');
                 }
             }],
-            'theme_primary' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_accent' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_sidebar' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'secondary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'custom_domain' => ['nullable', 'string', 'max:200', function ($attribute, $value, $fail) use ($hosts, $tenant) {
                 if (!$value) {
                     return;
@@ -674,11 +669,6 @@ class SuperAdminController extends Controller
             'subscription_expires_at',
             'motto',
             'logo_path',
-            'theme_primary',
-            'theme_accent',
-            'theme_sidebar',
-            'primary_color',
-            'secondary_color',
             'custom_domain',
             'domain_verified',
         ];

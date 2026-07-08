@@ -77,13 +77,10 @@ class TenantOnboardingController extends Controller
         $tenant = $this->tenant($request);
 
         $data = $request->validate([
-            'theme_primary' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_accent' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_sidebar' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ]);
 
-        $old = $tenant->only(['theme_primary', 'theme_accent', 'theme_sidebar', 'logo_path']);
+        $old = $tenant->only(['logo_path']);
 
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store("logos/{$tenant->id}", 'public');

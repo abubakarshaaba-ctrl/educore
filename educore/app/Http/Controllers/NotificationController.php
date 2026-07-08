@@ -77,9 +77,19 @@ class NotificationController extends Controller
                     Log::error("Email notification failed to {$recipient['contact']}: " . $e->getMessage());
                 }
             } elseif ($channel === 'sms') {
-                // SMS is dispatched via gateway — mark queued for now (wired in SmsCampaign)
-                $status = 'queued';
-                $sent++;
+                $gateway = \App\Models\PlatformSetting::valueFor('default_sms_gateway', 'termii');
+                $result  = $gateway === 'africas_talking'
+                    ? $this->sendSmsViaAfricasTalking($recipient['contact'], $validated['message'])
+                    : $this->sendSmsViaTermii($recipient['contact'], $validated['message'], (string) $this->tenantId());
+
+                $gwResponse = $result;
+                if (($result['status'] ?? null) === 'sent') {
+                    $status = 'sent';
+                    $sent++;
+                } else {
+                    $status = 'failed';
+                    $failed++;
+                }
             }
 
             NotificationLog::create([
