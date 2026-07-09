@@ -778,6 +778,7 @@ class ReportCardController extends Controller
         $armIds   = $request->class_arm_ids ?? [$request->class_arm_id];
         $published = 0;
         $term = \App\Models\Term::find($termId);
+        $schoolName = auth()->user()->tenant?->name;
 
         foreach ($armIds as $armId) {
             $summaries = \App\Models\TermlySummary::where('class_arm_id', $armId)
@@ -817,6 +818,7 @@ class ReportCardController extends Controller
                         smsBody: "Dear Parent, {$student->full_name}'s " . ($term?->name ?? 'term') . ' results are now available on the EduCore parent portal.',
                         actionLabel: 'View Results',
                         actionUrl: route('login'),
+                        schoolName: $schoolName,
                     );
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::error("Results-published notification failed for student {$student->id}: " . $e->getMessage());

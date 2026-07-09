@@ -70,6 +70,7 @@ class SendFeeDefaulterReminders extends Command
                             smsBody: "Dear Parent, {$invoice->student->full_name} has an outstanding balance of ₦" . number_format($balance, 2) . " at {$tenant->name}. Please settle at your earliest convenience.",
                             actionLabel: 'Pay Now',
                             actionUrl: route('login'),
+                            schoolName: $tenant->name,
                         );
 
                         FeeReminder::create([

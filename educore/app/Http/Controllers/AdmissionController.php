@@ -165,6 +165,7 @@ class AdmissionController extends Controller
                 smsBody: "Dear {$enrolled['guardian']->full_name}, {$enrolled['student']->full_name} has been successfully enrolled at {$enrolled['tenant']->name}. Admission No: {$enrolled['student']->admission_number}.",
                 actionLabel: 'Sign In',
                 actionUrl: route('login'),
+                schoolName: $enrolled['tenant']->name,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Enrollment guardian notification failed: ' . $e->getMessage());

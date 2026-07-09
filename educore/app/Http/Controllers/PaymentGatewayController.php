@@ -293,6 +293,7 @@ class PaymentGatewayController extends Controller
         }
 
         ['invoice' => $invoice, 'student' => $student, 'guardian' => $guardian, 'amount' => $amount] = $notifyContext;
+        $tenant = $invoice->tenant ?? \App\Models\Tenant::find($invoice->tenant_id);
 
         try {
             app(\App\Services\GuardianNotifier::class)->send(
@@ -302,14 +303,14 @@ class PaymentGatewayController extends Controller
                     'We have received a payment of ₦' . number_format($amount, 2) . ($student ? ' for ' . $student->full_name . '.' : '.'),
                     'Invoice status: ' . ucfirst(str_replace('_', ' ', $invoice->status)),
                 ],
-                smsBody: 'EduCore: Payment of ₦' . number_format($amount, 2) . ' received' . ($student ? " for {$student->full_name}" : '') . '. Thank you.',
+                smsBody: ($tenant->name ?? 'EduCore') . ': Payment of ₦' . number_format($amount, 2) . ' received' . ($student ? " for {$student->full_name}" : '') . '. Thank you.',
+                schoolName: $tenant?->name,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Guardian payment notification failed: ' . $e->getMessage());
         }
 
         try {
-            $tenant = $invoice->tenant ?? \App\Models\Tenant::find($invoice->tenant_id);
             $tenant?->notifyAdmins(new \App\Notifications\Tenant\FeePaymentReceivedNotification(
                 $invoice,
                 $amount,

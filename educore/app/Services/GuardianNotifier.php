@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Guardian;
 use App\Models\PlatformSetting;
+use App\Models\Tenant;
 use App\Notifications\GuardianMailNotification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -28,15 +29,23 @@ class GuardianNotifier
         ?string $smsBody = null,
         ?string $actionLabel = null,
         ?string $actionUrl = null,
+        ?string $schoolName = null,
     ): void {
         if (!$guardian) {
             return;
         }
 
+        // Emails to a parent should read as coming from their child's school,
+        // not a generic platform sender — resolve the tenant name unless the
+        // caller already has it handy (avoids an extra query in that case).
+        $schoolName ??= $guardian->tenant_id
+            ? Tenant::find($guardian->tenant_id)?->name
+            : null;
+
         if ($guardian->email) {
             try {
                 Notification::route('mail', $guardian->email)->notify(
-                    new GuardianMailNotification($subject, $guardian->full_name, $lines, $actionLabel, $actionUrl)
+                    new GuardianMailNotification($subject, $guardian->full_name, $lines, $actionLabel, $actionUrl, $schoolName)
                 );
             } catch (\Throwable $e) {
                 Log::error("Guardian email notification failed ({$guardian->id}): " . $e->getMessage());

@@ -188,6 +188,7 @@ class PublicAdmissionController extends Controller
                 smsBody: "Dear {$data['guardian_name']}, your application for {$data['first_name']} {$data['last_name']} to {$tenant->name} has been received. App No: {$appNumber}.",
                 actionLabel: 'Track Application',
                 actionUrl: route('portal.status.form', $slug),
+                schoolName: $tenant->name,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Admission-received guardian notification failed: ' . $e->getMessage());

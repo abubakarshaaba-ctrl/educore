@@ -24,6 +24,7 @@ class GuardianMailNotification extends Notification
         public readonly array $lines,
         public readonly ?string $actionLabel = null,
         public readonly ?string $actionUrl = null,
+        public readonly ?string $schoolName = null,
     ) {
     }
 
@@ -37,6 +38,10 @@ class GuardianMailNotification extends Notification
         $mail = (new MailMessage)
             ->subject($this->subject)
             ->greeting('Dear ' . $this->greetingName . ',');
+
+        if ($this->schoolName) {
+            $mail->from(config('mail.from.address'), $this->schoolName);
+        }
 
         foreach ($this->lines as $line) {
             $mail->line($line);
