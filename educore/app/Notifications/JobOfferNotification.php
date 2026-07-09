@@ -17,6 +17,7 @@ class JobOfferNotification extends Notification
         public readonly string $schoolName,
         public readonly string $trackUrl,
         public readonly string $pdfContent,
+        public readonly ?string $replyToEmail = null,
     ) {
     }
 
@@ -27,7 +28,8 @@ class JobOfferNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
+            ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
             ->subject('Job Offer — ' . $this->applicant->jobPosting->title . ' at ' . $this->schoolName)
             ->greeting('Dear ' . $this->applicant->name . ',')
@@ -37,5 +39,11 @@ class JobOfferNotification extends Notification
             ->attachData($this->pdfContent, 'Job-Offer-' . $this->applicant->name . '.pdf', [
                 'mime' => 'application/pdf',
             ]);
+
+        if ($this->replyToEmail) {
+            $mail->replyTo($this->replyToEmail, $this->schoolName);
+        }
+
+        return $mail;
     }
 }

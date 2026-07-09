@@ -112,7 +112,7 @@ class PublicRecruitmentController extends Controller
         if ($applicant->email) {
             try {
                 NotificationFacade::route('mail', $applicant->email)
-                    ->notify(new ApplicantApplicationReceivedNotification($applicant, $tenant->name, $trackUrl));
+                    ->notify(new ApplicantApplicationReceivedNotification($applicant, $tenant->name, $trackUrl, $tenant->email));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Applicant application-received email failed: ' . $e->getMessage());
             }

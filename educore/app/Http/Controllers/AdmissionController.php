@@ -137,6 +137,7 @@ class AdmissionController extends Controller
                 actionLabel: 'Track Application',
                 actionUrl: route('portal.status.form', $tenant->slug),
                 schoolName: $tenant->name,
+                replyToEmail: $tenant->email,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Admission status-change guardian notification failed: ' . $e->getMessage());
@@ -211,6 +212,7 @@ class AdmissionController extends Controller
                 actionLabel: 'Sign In',
                 actionUrl: route('login'),
                 schoolName: $enrolled['tenant']->name,
+                replyToEmail: $enrolled['tenant']->email,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Enrollment guardian notification failed: ' . $e->getMessage());
@@ -255,6 +257,7 @@ class AdmissionController extends Controller
                 actionLabel: 'Track Application',
                 actionUrl: route('portal.status.form', $tenant->slug),
                 schoolName: $tenant->name,
+                replyToEmail: $tenant->email,
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Admission interview guardian notification failed: ' . $e->getMessage());
@@ -294,7 +297,7 @@ class AdmissionController extends Controller
         if ($admission->guardian_email) {
             try {
                 \Illuminate\Support\Facades\Notification::route('mail', $admission->guardian_email)
-                    ->notify(new AdmissionOfferNotification($admission, $tenant->name, $statusUrl, $pdfContent));
+                    ->notify(new AdmissionOfferNotification($admission, $tenant->name, $statusUrl, $pdfContent, $tenant->email));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Admission offer email failed: ' . $e->getMessage());
             }

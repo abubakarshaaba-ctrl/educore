@@ -17,6 +17,7 @@ class AdmissionOfferNotification extends Notification
         public readonly string $schoolName,
         public readonly string $statusUrl,
         public readonly string $pdfContent,
+        public readonly ?string $replyToEmail = null,
     ) {
     }
 
@@ -27,7 +28,8 @@ class AdmissionOfferNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
+            ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
             ->subject('Admission Offer — ' . $this->admission->first_name . ' ' . $this->admission->last_name . ' — ' . $this->schoolName)
             ->greeting('Dear ' . $this->admission->guardian_name . ',')
@@ -37,5 +39,11 @@ class AdmissionOfferNotification extends Notification
             ->attachData($this->pdfContent, 'Admission-Offer-' . $this->admission->application_number . '.pdf', [
                 'mime' => 'application/pdf',
             ]);
+
+        if ($this->replyToEmail) {
+            $mail->replyTo($this->replyToEmail, $this->schoolName);
+        }
+
+        return $mail;
     }
 }

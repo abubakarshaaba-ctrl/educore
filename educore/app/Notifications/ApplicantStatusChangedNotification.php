@@ -16,6 +16,7 @@ class ApplicantStatusChangedNotification extends Notification
         public readonly JobApplicant $applicant,
         public readonly string $schoolName,
         public readonly string $trackUrl,
+        public readonly ?string $replyToEmail = null,
     ) {
     }
 
@@ -39,11 +40,18 @@ class ApplicantStatusChangedNotification extends Notification
             default => 'Your application status for the ' . $posting->title . ' role has been updated to: ' . $label . '.',
         };
 
-        return (new MailMessage)
+        $mail = (new MailMessage)
+            ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
             ->subject('Application update — ' . $posting->title . ' at ' . $this->schoolName)
             ->greeting('Hi ' . $this->applicant->name . ',')
             ->line($line)
             ->action('View Application Status', $this->trackUrl);
+
+        if ($this->replyToEmail) {
+            $mail->replyTo($this->replyToEmail, $this->schoolName);
+        }
+
+        return $mail;
     }
 }

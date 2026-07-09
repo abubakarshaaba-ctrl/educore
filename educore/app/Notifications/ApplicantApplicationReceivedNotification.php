@@ -16,6 +16,7 @@ class ApplicantApplicationReceivedNotification extends Notification
         public readonly JobApplicant $applicant,
         public readonly string $schoolName,
         public readonly string $trackUrl,
+        public readonly ?string $replyToEmail = null,
     ) {
     }
 
@@ -26,7 +27,8 @@ class ApplicantApplicationReceivedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
+            ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
             ->subject('Application received — ' . $this->applicant->jobPosting->title . ' at ' . $this->schoolName)
             ->greeting('Hi ' . $this->applicant->name . ',')
@@ -34,5 +36,11 @@ class ApplicantApplicationReceivedNotification extends Notification
             ->line('Your application has been received and is under review.')
             ->action('Track Your Application & Message Us', $this->trackUrl)
             ->line('You can use the link above at any time to check your status or send us a message.');
+
+        if ($this->replyToEmail) {
+            $mail->replyTo($this->replyToEmail, $this->schoolName);
+        }
+
+        return $mail;
     }
 }

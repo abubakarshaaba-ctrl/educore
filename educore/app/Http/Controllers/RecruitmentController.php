@@ -202,7 +202,7 @@ class RecruitmentController extends Controller
 
         try {
             Notification::route('mail', $applicant->email)
-                ->notify(new ApplicantStatusChangedNotification($applicant, $tenant->name, $trackUrl));
+                ->notify(new ApplicantStatusChangedNotification($applicant, $tenant->name, $trackUrl, $tenant->email));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Applicant status-changed email failed: ' . $e->getMessage());
         }
@@ -231,7 +231,7 @@ class RecruitmentController extends Controller
 
             try {
                 Notification::route('mail', $applicant->email)
-                    ->notify(new ApplicantMessageReceivedNotification($message, $tenant->name, $trackUrl));
+                    ->notify(new ApplicantMessageReceivedNotification($message, $tenant->name, $trackUrl, $tenant->email));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Applicant message-received email failed: ' . $e->getMessage());
             }
@@ -261,7 +261,7 @@ class RecruitmentController extends Controller
         if ($applicant->email) {
             try {
                 Notification::route('mail', $applicant->email)
-                    ->notify(new JobOfferNotification($applicant, $tenant->name, $trackUrl, $pdfContent));
+                    ->notify(new JobOfferNotification($applicant, $tenant->name, $trackUrl, $pdfContent, $tenant->email));
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Job offer email failed: ' . $e->getMessage());
             }

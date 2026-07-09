@@ -30,22 +30,25 @@ class GuardianNotifier
         ?string $actionLabel = null,
         ?string $actionUrl = null,
         ?string $schoolName = null,
+        ?string $replyToEmail = null,
     ): void {
         if (!$guardian) {
             return;
         }
 
         // Emails to a parent should read as coming from their child's school,
-        // not a generic platform sender — resolve the tenant name unless the
-        // caller already has it handy (avoids an extra query in that case).
-        $schoolName ??= $guardian->tenant_id
-            ? Tenant::find($guardian->tenant_id)?->name
-            : null;
+        // not a generic platform sender — resolve the tenant unless the
+        // caller already has the name handy (avoids an extra query in that case).
+        if ($schoolName === null && $guardian->tenant_id) {
+            $tenant = Tenant::find($guardian->tenant_id);
+            $schoolName ??= $tenant?->name;
+            $replyToEmail ??= $tenant?->email;
+        }
 
         if ($guardian->email) {
             try {
                 Notification::route('mail', $guardian->email)->notify(
-                    new GuardianMailNotification($subject, $guardian->full_name, $lines, $actionLabel, $actionUrl, $schoolName)
+                    new GuardianMailNotification($subject, $guardian->full_name, $lines, $actionLabel, $actionUrl, $schoolName, $replyToEmail)
                 );
             } catch (\Throwable $e) {
                 Log::error("Guardian email notification failed ({$guardian->id}): " . $e->getMessage());

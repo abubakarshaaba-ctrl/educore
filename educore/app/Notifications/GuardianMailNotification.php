@@ -25,6 +25,7 @@ class GuardianMailNotification extends Notification
         public readonly ?string $actionLabel = null,
         public readonly ?string $actionUrl = null,
         public readonly ?string $schoolName = null,
+        public readonly ?string $replyToEmail = null,
     ) {
     }
 
@@ -36,11 +37,19 @@ class GuardianMailNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
+            ->theme('educore')
             ->subject($this->subject)
             ->greeting('Dear ' . $this->greetingName . ',');
 
         if ($this->schoolName) {
             $mail->from(config('mail.from.address'), $this->schoolName);
+        }
+
+        // The sending address stays on our own authenticated domain (so
+        // SPF/DKIM keeps deliverability intact), but replies should land
+        // straight in the school's own inbox, not ours.
+        if ($this->replyToEmail) {
+            $mail->replyTo($this->replyToEmail, $this->schoolName);
         }
 
         foreach ($this->lines as $line) {
