@@ -54,6 +54,14 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             <span class="nav-label">Staff</span>
         </a>
+        <a href="{{ route('coverage.index') }}" class="nav-item {{ request()->routeIs('coverage.*') ? 'active' : '' }}" data-tip="Class Coverage">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7-6 1.41-1.41L18.83 5l1.59-1.59L19 2l-3 3 1.41 1.41z"/></svg>
+            <span class="nav-label">Class Coverage</span>
+        </a>
+        <a href="{{ route('recruitment.index') }}" class="nav-item {{ request()->routeIs('recruitment.*') ? 'active' : '' }}" data-tip="Recruitment">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.1 0 2-.89 2-2V8c0-1.11-.9-2-2-2zM15 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>
+            <span class="nav-label">Recruitment</span>
+        </a>
         @endif
         @if($u->canAccessModule('classes'))
         <a href="{{ route('classes.levels') }}" class="nav-item {{ request()->routeIs('classes.*') && !request()->routeIs('classes.promotion*') && !request()->routeIs('classes.bulk-promote*') && !request()->routeIs('classes.grading') ? 'active' : '' }}" data-tip="Classes">
@@ -130,6 +138,10 @@
         <a href="{{ route('alumni.index') }}" class="nav-item {{ request()->routeIs('alumni.*') ? 'active' : '' }}" data-tip="Alumni">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
             <span class="nav-label">Alumni</span>
+        </a>
+        <a href="{{ route('hostels.index') }}" class="nav-item {{ request()->routeIs('hostels.*') ? 'active' : '' }}" data-tip="Boarding / Hostel">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="nav-label">Boarding / Hostel</span>
         </a>
         @endif
     </div>
@@ -370,6 +382,10 @@
         <a href="{{ route('profile.edit') }}" class="nav-item {{ request()->routeIs('profile.*') ? 'active' : '' }}" data-tip="My Profile">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             <span class="nav-label">My Profile</span>
+        </a>
+        <a href="{{ route('leave.index') }}" class="nav-item {{ request()->routeIs('leave.*') ? 'active' : '' }}" data-tip="My Leave">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+            <span class="nav-label">My Leave</span>
         </a>
 
     @if($u->canAccessModule('settings') || $u->canAccessModule('portal-accounts'))

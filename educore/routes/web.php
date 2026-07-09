@@ -879,6 +879,45 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::delete('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'destroy'])->name('destroy');
     });
 
+    // -- Boarding / Hostel Management --------------------------------------------
+    Route::prefix('hostels')->name('hostels.')->group(function () {
+        Route::get('/',                 [\App\Http\Controllers\HostelController::class, 'index'])->name('index');
+        Route::post('/',                [\App\Http\Controllers\HostelController::class, 'storeHostel'])->name('store');
+        Route::post('{hostel}/rooms',   [\App\Http\Controllers\HostelController::class, 'storeRoom'])->name('rooms.store');
+        Route::get('{hostel}/rooms',    [\App\Http\Controllers\HostelController::class, 'roomsFor'])->name('rooms.for');
+        Route::post('allocate',         [\App\Http\Controllers\HostelController::class, 'allocate'])->name('allocate');
+        Route::patch('allocations/{allocation}/vacate', [\App\Http\Controllers\HostelController::class, 'vacate'])->name('vacate');
+        Route::patch('allocations/{allocation}/fee-paid', [\App\Http\Controllers\HostelController::class, 'markFeePaid'])->name('fee-paid');
+    });
+
+    // -- Staff Leave Management ---------------------------------------------------
+    Route::prefix('leave')->name('leave.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\StaffLeaveController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\StaffLeaveController::class, 'store'])->name('store');
+        Route::patch('{leaveRequest}/approve', [\App\Http\Controllers\StaffLeaveController::class, 'approve'])->name('approve');
+        Route::patch('{leaveRequest}/reject',  [\App\Http\Controllers\StaffLeaveController::class, 'reject'])->name('reject');
+        Route::patch('{leaveRequest}/cancel',  [\App\Http\Controllers\StaffLeaveController::class, 'cancel'])->name('cancel');
+    });
+
+    // -- Substitute / Relief Teacher Coverage ------------------------------------
+    Route::prefix('coverage')->name('coverage.')->group(function () {
+        Route::get('/',                [\App\Http\Controllers\ClassCoverageController::class, 'index'])->name('index');
+        Route::post('/',               [\App\Http\Controllers\ClassCoverageController::class, 'store'])->name('store');
+        Route::patch('{assignment}/complete', [\App\Http\Controllers\ClassCoverageController::class, 'complete'])->name('complete');
+        Route::patch('{assignment}/cancel',   [\App\Http\Controllers\ClassCoverageController::class, 'cancel'])->name('cancel');
+    });
+
+    // -- Recruitment / Applicant Tracking ----------------------------------------
+    Route::prefix('recruitment')->name('recruitment.')->group(function () {
+        Route::get('/',                     [\App\Http\Controllers\RecruitmentController::class, 'index'])->name('index');
+        Route::post('postings',             [\App\Http\Controllers\RecruitmentController::class, 'storePosting'])->name('postings.store');
+        Route::patch('postings/{posting}/close', [\App\Http\Controllers\RecruitmentController::class, 'closePosting'])->name('postings.close');
+        Route::get('postings/{posting}',    [\App\Http\Controllers\RecruitmentController::class, 'show'])->name('show');
+        Route::post('postings/{posting}/applicants', [\App\Http\Controllers\RecruitmentController::class, 'storeApplicant'])->name('applicants.store');
+        Route::patch('applicants/{applicant}/status', [\App\Http\Controllers\RecruitmentController::class, 'updateApplicantStatus'])->name('applicants.status');
+        Route::post('applicants/{applicant}/interview', [\App\Http\Controllers\RecruitmentController::class, 'scheduleInterview'])->name('applicants.interview');
+    });
+
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('transport')->name('transport.')->group(function () {
         Route::get('routes',                   [\App\Http\Controllers\TransportController::class, 'routes'])->name('routes');
