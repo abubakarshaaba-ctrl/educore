@@ -118,6 +118,20 @@
             <span class="nav-label">Skill Ratings</span>
         </a>
         @endif
+        @if($u->canAccessModule('students'))
+        <a href="{{ route('discipline.index') }}" class="nav-item {{ request()->routeIs('discipline.*') ? 'active' : '' }}" data-tip="Discipline & Conduct">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-8-3zm-1 14-4-4 1.41-1.41L11 13.17l4.59-4.58L17 10l-6 6z"/></svg>
+            <span class="nav-label">Discipline & Conduct</span>
+        </a>
+        <a href="{{ route('certificates.index') }}" class="nav-item {{ request()->routeIs('certificates.*') ? 'active' : '' }}" data-tip="Certificates">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-8-3zm0 4.5c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 11c-1.86 0-3.5-.94-4.5-2.37.06-1.5 3-2.33 4.5-2.33s4.44.83 4.5 2.33c-1 1.43-2.64 2.37-4.5 2.37z"/></svg>
+            <span class="nav-label">Certificates</span>
+        </a>
+        <a href="{{ route('alumni.index') }}" class="nav-item {{ request()->routeIs('alumni.*') ? 'active' : '' }}" data-tip="Alumni">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+            <span class="nav-label">Alumni</span>
+        </a>
+        @endif
     </div>
     @endif
 
@@ -155,6 +169,10 @@
         <a href="{{ route('cbt.banks') }}" class="nav-item {{ request()->routeIs('cbt.*') ? 'active' : '' }}" data-tip="CBT Exams">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
             <span class="nav-label">CBT Exams</span>
+        </a>
+        <a href="{{ route('exam-bodies.index') }}" class="nav-item {{ request()->routeIs('exam-bodies.*') ? 'active' : '' }}" data-tip="WAEC/NECO/JAMB Registration">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            <span class="nav-label">Exam Body Registration</span>
         </a>
         @endif
     </div>
@@ -216,6 +234,18 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
             <span class="nav-label">Expenses</span>
         </a>
+        <a href="{{ route('procurement.index') }}" class="nav-item {{ request()->routeIs('procurement.*') ? 'active' : '' }}" data-tip="Procurement">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 7h-3V6a4 4 0 0 0-8 0v1H5a1 1 0 0 0-1 1v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1zM10 6a2 2 0 0 1 4 0v1h-4z"/></svg>
+            <span class="nav-label">Procurement</span>
+        </a>
+        <a href="{{ route('assets.index') }}" class="nav-item {{ request()->routeIs('assets.*') ? 'active' : '' }}" data-tip="Asset & Inventory">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
+            <span class="nav-label">Asset & Inventory</span>
+        </a>
+        <a href="{{ route('scholarships.index') }}" class="nav-item {{ request()->routeIs('scholarships.*') ? 'active' : '' }}" data-tip="Scholarships">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+            <span class="nav-label">Scholarships</span>
+        </a>
         @endif
         @if($u->canAccessModule('payroll'))
         <a href="{{ route('payroll.index') }}" class="nav-item {{ request()->routeIs('payroll.*') ? 'active' : '' }}" data-tip="Payroll">
@@ -236,6 +266,10 @@
             <span class="nav-label">Health Records</span>
         </a>
         @endif
+        <a href="{{ route('visitors.index') }}" class="nav-item {{ request()->routeIs('visitors.*') ? 'active' : '' }}" data-tip="Visitor Log">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span class="nav-label">Visitor Log</span>
+        </a>
         @if($u->canAccessModule('library'))
         <a href="{{ route('library.index') }}" class="nav-item {{ request()->routeIs('library.*') ? 'active' : '' }}" data-tip="Library">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>

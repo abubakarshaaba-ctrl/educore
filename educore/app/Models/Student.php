@@ -102,6 +102,11 @@ class Student extends BaseTenantModel
         return $this->belongsTo(ClassArm::class, 'current_class_arm_id');
     }
 
+    public function alumniProfile()
+    {
+        return $this->hasOne(\App\Models\AlumniProfile::class);
+    }
+
     public function guardians(): BelongsToMany
     {
         return $this->belongsToMany(Guardian::class, 'guardian_student')

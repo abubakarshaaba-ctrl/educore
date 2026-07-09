@@ -132,6 +132,7 @@
         <a href="{{ route('students.transcript', $student) }}" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;font-size:12px;font-weight:600;background:#EFF6FF;color:#2563EB;border-radius:8px;text-decoration:none;border:1px solid #BFDBFE">📋 Transcript</a>
         @endif
         <a href="{{ route('curriculum.student-subjects', $student) }}" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;font-size:12px;font-weight:600;background:#F0FDF4;color:#059669;border-radius:8px;text-decoration:none;border:1px solid #A7F3D0">📚 Subjects</a>
+        <a href="{{ route('students.id-card', $student) }}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:8px 14px;font-size:12px;font-weight:600;background:#FEF9EC;color:#92400E;border-radius:8px;text-decoration:none;border:1px solid #F2C35B66">🪪 ID Card</a>
         @can('students.edit')
         <a href="{{ route('students.edit', $student) }}" class="btn btn-ghost" style="width:100%;justify-content:center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>

@@ -814,6 +814,67 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::get('transcripts/search',       [\App\Http\Controllers\StudentController::class, 'transcriptIndex'])->name('students.transcript.search');
     Route::get('students/{student}/transcript',     [\App\Http\Controllers\StudentController::class, 'transcript'])->name('students.transcript');
     Route::get('students/{student}/transcript/pdf', [\App\Http\Controllers\StudentController::class, 'transcriptPdf'])->name('students.transcript.pdf');
+    Route::get('students/{student}/id-card',         [\App\Http\Controllers\StudentIdCardController::class, 'show'])->name('students.id-card');
+
+    // -- Discipline & Conduct ------------------------------------------------
+    Route::prefix('discipline')->name('discipline.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\DisciplineController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\DisciplineController::class, 'store'])->name('store');
+        Route::patch('{record}/resolve', [\App\Http\Controllers\DisciplineController::class, 'resolve'])->name('resolve');
+        Route::delete('{record}',    [\App\Http\Controllers\DisciplineController::class, 'destroy'])->name('destroy');
+    });
+
+    // -- Certificates & Testimonials ------------------------------------------
+    Route::prefix('certificates')->name('certificates.')->group(function () {
+        Route::get('/',        [\App\Http\Controllers\CertificateController::class, 'index'])->name('index');
+        Route::post('generate',[\App\Http\Controllers\CertificateController::class, 'generate'])->name('generate');
+    });
+
+    // -- Alumni ----------------------------------------------------------------
+    Route::prefix('alumni')->name('alumni.')->group(function () {
+        Route::get('/',                   [\App\Http\Controllers\AlumniController::class, 'index'])->name('index');
+        Route::put('{student}',           [\App\Http\Controllers\AlumniController::class, 'update'])->name('update');
+    });
+
+    // -- Scholarships & Fee Waivers --------------------------------------------
+    Route::prefix('scholarships')->name('scholarships.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\ScholarshipController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\ScholarshipController::class, 'store'])->name('store');
+        Route::patch('{scholarship}/revoke', [\App\Http\Controllers\ScholarshipController::class, 'revoke'])->name('revoke');
+    });
+
+    // -- Procurement (vendors + purchase orders) -------------------------------
+    Route::prefix('procurement')->name('procurement.')->group(function () {
+        Route::get('/',                    [\App\Http\Controllers\ProcurementController::class, 'index'])->name('index');
+        Route::post('vendors',             [\App\Http\Controllers\ProcurementController::class, 'storeVendor'])->name('vendors.store');
+        Route::post('orders',              [\App\Http\Controllers\ProcurementController::class, 'storeOrder'])->name('orders.store');
+        Route::patch('orders/{order}/approve', [\App\Http\Controllers\ProcurementController::class, 'approve'])->name('orders.approve');
+        Route::patch('orders/{order}/received', [\App\Http\Controllers\ProcurementController::class, 'markReceived'])->name('orders.received');
+        Route::patch('orders/{order}/cancel',  [\App\Http\Controllers\ProcurementController::class, 'cancel'])->name('orders.cancel');
+    });
+
+    // -- Asset / Inventory Management -------------------------------------------
+    Route::prefix('assets')->name('assets.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\AssetController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\AssetController::class, 'store'])->name('store');
+        Route::patch('{asset}',   [\App\Http\Controllers\AssetController::class, 'update'])->name('update');
+        Route::delete('{asset}',  [\App\Http\Controllers\AssetController::class, 'destroy'])->name('destroy');
+    });
+
+    // -- Visitor / Gate Pass Log ------------------------------------------------
+    Route::prefix('visitors')->name('visitors.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\VisitorLogController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\VisitorLogController::class, 'store'])->name('store');
+        Route::patch('{visitor}/checkout', [\App\Http\Controllers\VisitorLogController::class, 'checkOut'])->name('checkout');
+    });
+
+    // -- External Exam Body Registration (WAEC/NECO/NABTEB/JAMB) ----------------
+    Route::prefix('exam-bodies')->name('exam-bodies.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\ExamBodyRegistrationController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\ExamBodyRegistrationController::class, 'store'])->name('store');
+        Route::patch('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'update'])->name('update');
+        Route::delete('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'destroy'])->name('destroy');
+    });
 
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('transport')->name('transport.')->group(function () {
