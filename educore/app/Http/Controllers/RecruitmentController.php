@@ -7,6 +7,7 @@ use App\Models\JobApplicantMessage;
 use App\Models\JobInterview;
 use App\Models\JobPosting;
 use App\Notifications\ApplicantMessageReceivedNotification;
+use App\Notifications\ApplicantStatusChangedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -84,7 +85,12 @@ class RecruitmentController extends Controller
             'notes'  => ['nullable', 'string'],
         ]);
 
+        $statusChanged = $applicant->status !== $data['status'];
         $applicant->update($data);
+
+        if ($statusChanged) {
+            $this->notifyApplicantOfStatus($applicant);
+        }
 
         return back()->with('success', 'Applicant status updated.');
     }
@@ -106,8 +112,30 @@ class RecruitmentController extends Controller
         ]);
 
         $applicant->update(['status' => 'interview_scheduled']);
+        $this->notifyApplicantOfStatus($applicant);
 
         return back()->with('success', 'Interview scheduled.');
+    }
+
+    private function notifyApplicantOfStatus(JobApplicant $applicant): void
+    {
+        if (!$applicant->email) {
+            return;
+        }
+
+        if (!$applicant->access_token) {
+            $applicant->update(['access_token' => \Illuminate\Support\Str::random(32)]);
+        }
+
+        $tenant = auth()->user()->tenant;
+        $trackUrl = route('careers.track', [$tenant->slug, $applicant->access_token]);
+
+        try {
+            Notification::route('mail', $applicant->email)
+                ->notify(new ApplicantStatusChangedNotification($applicant, $tenant->name, $trackUrl));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Applicant status-changed email failed: ' . $e->getMessage());
+        }
     }
 
     public function sendMessage(Request $request, JobApplicant $applicant)

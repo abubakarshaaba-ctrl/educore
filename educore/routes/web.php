@@ -674,6 +674,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('{admission}/interview',     [\App\Http\Controllers\AdmissionController::class, 'scheduleInterview'])->name('interview');
         Route::post('{admission}/score',         [\App\Http\Controllers\AdmissionController::class, 'recordInterview'])->name('score');
         Route::post('{admission}/offer',         [\App\Http\Controllers\AdmissionController::class, 'sendOffer'])->name('offer');
+        Route::get('{admission}/offer/download', [\App\Http\Controllers\AdmissionController::class, 'downloadOfferLetter'])->name('offer.download');
     });
 
     // â”€â”€ Health Records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

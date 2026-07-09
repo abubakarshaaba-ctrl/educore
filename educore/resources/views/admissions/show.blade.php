@@ -105,6 +105,24 @@
     </div>
     @endif
 
+    @if($admission->status === 'admitted')
+    <div class="card">
+      <div class="ch">Admission Offer Letter</div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:8px">
+        @if($admission->offer_letter_sent)
+          <div style="font-size:12px;color:var(--slate)">✓ Offer sent {{ $admission->offer_sent_at?->format('d M Y, h:ia') }}</div>
+        @endif
+        <form method="POST" action="{{ route('admissions.offer',$admission) }}">
+          @csrf
+          <button type="submit" class="btn btn-p" style="width:100%">
+            {{ $admission->offer_letter_sent ? 'Resend Offer Letter' : 'Send Offer Letter' }}
+          </button>
+        </form>
+        <a href="{{ route('admissions.offer.download',$admission) }}" class="btn btn-ghost">⬇ Download Offer Letter PDF</a>
+      </div>
+    </div>
+    @endif
+
     <div class="card">
       <div class="ch">Actions</div>
       <div class="cb" style="display:flex;flex-direction:column;gap:8px">
