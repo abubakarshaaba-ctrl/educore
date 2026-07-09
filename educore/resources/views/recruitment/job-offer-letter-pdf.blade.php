@@ -19,18 +19,18 @@ body{font-family:'DejaVu Sans',sans-serif;color:#1E293B;line-height:1.8;font-siz
 <body>
 @include('pdf.partials.letterhead', ['tenant' => $tenant])
 
-<div class="ref">Application No: {{ $admission->application_number }} &middot; Issued {{ now()->format('d M Y') }}</div>
-<div class="title">Admission Offer Letter</div>
+<div class="ref">Ref: JOB-{{ $applicant->id }} &middot; Issued {{ now()->format('d M Y') }}</div>
+<div class="title">Job Offer Letter</div>
 
 <div class="body-text">{{ $intro }}</div>
 
 <div class="body-text">{{ $body }}</div>
 
 <div class="details">
-    <div><strong>Applicant:</strong> {{ $admission->first_name }} {{ $admission->last_name }}</div>
-    <div><strong>Application Number:</strong> {{ $admission->application_number }}</div>
-    @if($admission->applyingForClassLevel)<div><strong>Class:</strong> {{ $admission->applyingForClassLevel->name }}</div>@endif
-    <div><strong>Guardian:</strong> {{ $admission->guardian_name }} ({{ $admission->guardian_phone }})</div>
+    <div><strong>Candidate:</strong> {{ $applicant->name }}</div>
+    <div><strong>Position:</strong> {{ $applicant->jobPosting->title }}</div>
+    @if($applicant->jobPosting->department)<div><strong>Department:</strong> {{ $applicant->jobPosting->department }}</div>@endif
+    @if($applicant->phone)<div><strong>Contact:</strong> {{ $applicant->phone }}</div>@endif
 </div>
 
 <div class="body-text">{{ $closing }}</div>

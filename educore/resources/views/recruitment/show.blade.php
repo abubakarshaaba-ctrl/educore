@@ -38,6 +38,7 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
                 <div class="fg"><label class="fl">Phone</label><input type="text" name="phone" class="fc"></div>
                 <div class="fg"><label class="fl">Resume (PDF/DOC)</label><input type="file" name="resume" class="fc"></div>
             </div>
+            <div class="fg"><label class="fl">Certificates (PDF/image, multiple allowed)</label><input type="file" name="certificates[]" class="fc" multiple></div>
             <div class="fg"><label class="fl">Cover Letter</label><textarea name="cover_letter" class="fc" rows="2"></textarea></div>
             <button type="submit" class="btn btn-p">Add Applicant</button>
         </form>
@@ -47,7 +48,7 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
 <div class="card">
     <div class="ch">Applicants ({{ $applicants->total() }})</div>
     <div style="overflow-x:auto"><table>
-        <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>Interviews</th><th>Schedule Interview</th><th>Messages</th></tr></thead>
+        <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>Documents</th><th>Interviews</th><th>Schedule Interview</th><th>Offer Letter</th><th>Messages</th></tr></thead>
         <tbody>
         @forelse($applicants as $a)
         <tr>
@@ -67,6 +68,11 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
                 </form>
             </td>
             <td class="mini">
+                <a href="{{ route('recruitment.applicants.documents', $a) }}" style="color:var(--indigo);text-decoration:none">
+                    📂 {{ $a->documents_count ?? $a->documents()->count() }} doc{{ ($a->documents_count ?? $a->documents()->count()) === 1 ? '' : 's' }}
+                </a>
+            </td>
+            <td class="mini">
                 @forelse($a->interviews as $iv)
                     {{ $iv->interview_at->format('d M Y, h:ia') }} — {{ ucfirst($iv->outcome) }}<br>
                 @empty
@@ -82,6 +88,18 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
                         <button type="submit" class="btn" style="background:#F1F5F9;color:#475569;padding:5px 10px;font-size:11px">Set</button>
                     </form>
                 </details>
+            </td>
+            <td class="mini">
+                @if($a->offer_letter_sent)
+                    <div style="margin-bottom:4px">✓ Sent {{ $a->offer_sent_at?->format('d M Y') }}</div>
+                @endif
+                <form method="POST" action="{{ route('recruitment.applicants.offer', $a) }}" style="margin-bottom:4px" onsubmit="return confirm('Send offer letter to {{ $a->name }}?')">
+                    @csrf
+                    <button type="submit" class="btn" style="background:#EEF2FF;color:var(--indigo);padding:5px 10px;font-size:11px">
+                        {{ $a->offer_letter_sent ? 'Resend' : 'Send Offer' }}
+                    </button>
+                </form>
+                <a href="{{ route('recruitment.applicants.offer.download', $a) }}" class="mini" style="color:var(--indigo)">⬇ Download PDF</a>
             </td>
             <td style="min-width:220px">
                 <details>
@@ -105,7 +123,7 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
             </td>
         </tr>
         @empty
-        <tr><td colspan="6" style="text-align:center;padding:30px;color:#94A3B8">No applicants yet.</td></tr>
+        <tr><td colspan="8" style="text-align:center;padding:30px;color:#94A3B8">No applicants yet.</td></tr>
         @endforelse
         </tbody>
     </table></div>

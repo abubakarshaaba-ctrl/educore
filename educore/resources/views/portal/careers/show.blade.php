@@ -94,7 +94,11 @@ body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color
             </div>
             <div class="fr">
                 <div class="fg"><label class="fl">Phone</label><input type="text" name="phone" class="fc" value="{{ old('phone') }}"></div>
-                <div class="fg"><label class="fl">Resume (PDF or Word)</label><input type="file" name="resume" class="fc"></div>
+                <div class="fg"><label class="fl">Resume (PDF or Word) *</label><input type="file" name="resume" class="fc" required></div>
+            </div>
+            <div class="fg">
+                <label class="fl">Certificates (PDF or image, select all that apply) *</label>
+                <input type="file" name="certificates[]" class="fc" multiple required>
             </div>
             <div class="fg"><label class="fl">Cover Letter</label><textarea name="cover_letter" class="fc" rows="4">{{ old('cover_letter') }}</textarea></div>
             <button type="submit" class="btn-submit">Submit Application</button>

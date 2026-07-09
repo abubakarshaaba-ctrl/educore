@@ -644,6 +644,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('/',            [\App\Http\Controllers\SchoolSettingController::class, 'update'])->name('update');
         Route::get('grading',       fn () => redirect()->route('classes.grading'))->name('grading');
         Route::get('promotion',     fn () => redirect()->route('classes.promotion'))->name('promotion');
+        Route::get('letter-templates',       [\App\Http\Controllers\LetterTemplateController::class, 'edit'])->name('letter-templates.edit');
+        Route::put('letter-templates/{type}', [\App\Http\Controllers\LetterTemplateController::class, 'update'])->name('letter-templates.update');
     });
 
     // â”€â”€ Academic Calendar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -930,6 +932,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::patch('applicants/{applicant}/status', [\App\Http\Controllers\RecruitmentController::class, 'updateApplicantStatus'])->name('applicants.status');
         Route::post('applicants/{applicant}/interview', [\App\Http\Controllers\RecruitmentController::class, 'scheduleInterview'])->name('applicants.interview');
         Route::post('applicants/{applicant}/message', [\App\Http\Controllers\RecruitmentController::class, 'sendMessage'])->name('applicants.message');
+        Route::get('applicants/{applicant}/documents', [\App\Http\Controllers\RecruitmentController::class, 'documents'])->name('applicants.documents');
+        Route::get('applicants/{applicant}/documents/{doc}/download', [\App\Http\Controllers\RecruitmentController::class, 'downloadDocument'])->name('applicants.documents.download');
+        Route::post('applicants/{applicant}/documents/{doc}/verify', [\App\Http\Controllers\RecruitmentController::class, 'verifyDocument'])->name('applicants.documents.verify');
+        Route::post('applicants/{applicant}/offer', [\App\Http\Controllers\RecruitmentController::class, 'sendOffer'])->name('applicants.offer');
+        Route::get('applicants/{applicant}/offer/download', [\App\Http\Controllers\RecruitmentController::class, 'downloadOfferLetter'])->name('applicants.offer.download');
     });
 
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

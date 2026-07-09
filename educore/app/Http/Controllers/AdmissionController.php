@@ -285,6 +285,7 @@ class AdmissionController extends Controller
         $pdf = Pdf::loadView('admissions.offer-letter-pdf', [
             'admission' => $admission,
             'tenant'    => $tenant,
+            ...$this->offerLetterVars($admission, $tenant),
         ]);
         $pdfContent = $pdf->output();
 
@@ -330,9 +331,33 @@ class AdmissionController extends Controller
         $pdf = Pdf::loadView('admissions.offer-letter-pdf', [
             'admission' => $admission,
             'tenant'    => $tenant,
+            ...$this->offerLetterVars($admission, $tenant),
         ]);
 
         return $pdf->download("Admission-Offer-{$admission->application_number}.pdf");
+    }
+
+    /** Merge the tenant's (customisable) admission-offer letter template with this application's details. */
+    private function offerLetterVars(Admission $admission, \App\Models\Tenant $tenant): array
+    {
+        $template = \App\Models\LetterTemplate::forTenant($tenant->id, \App\Models\LetterTemplate::TYPE_ADMISSION_OFFER);
+
+        $vars = [
+            'applicant_name' => $admission->first_name . ' ' . $admission->last_name,
+            'guardian_name'  => $admission->guardian_name,
+            'school_name'    => $tenant->name,
+            'class'          => $admission->applyingForClassLevel?->name ?? 'the appropriate class',
+            'academic_year'  => $admission->academic_year ?? (date('Y') . '/' . (date('Y') + 1)),
+            'application_number' => $admission->application_number,
+        ];
+
+        return [
+            'intro'      => \App\Models\LetterTemplate::merge($template->intro_text, $vars),
+            'body'       => \App\Models\LetterTemplate::merge($template->body_text, $vars),
+            'closing'    => \App\Models\LetterTemplate::merge($template->closing_text, $vars),
+            'signatory1' => $template->signatory_1_label ?: 'Admissions Officer',
+            'signatory2' => $template->signatory_2_label ?: 'Principal / Head of School',
+        ];
     }
 
     // ── Documents view ────────────────────────────────────────────────

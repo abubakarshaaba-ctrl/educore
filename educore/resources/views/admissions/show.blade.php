@@ -126,6 +126,7 @@
     <div class="card">
       <div class="ch">Actions</div>
       <div class="cb" style="display:flex;flex-direction:column;gap:8px">
+        <a href="{{ route('admissions.documents', $admission) }}" class="btn btn-ghost">📂 Review Submitted Documents</a>
         <a href="{{ route('admissions.create') }}" class="btn btn-ghost">+ New Application</a>
         @if($admission->status==='rejected' || $admission->status==='withdrawn')
         <form method="POST" action="{{ route('admissions.destroy',$admission) }}" onsubmit="return confirm('Permanently delete this application?')">

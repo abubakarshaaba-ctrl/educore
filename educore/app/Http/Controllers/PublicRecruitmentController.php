@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\JobApplicant;
+use App\Models\JobApplicantDocument;
 use App\Models\JobApplicantMessage;
 use App\Models\JobPosting;
 use App\Models\Tenant;
@@ -59,17 +60,18 @@ class PublicRecruitmentController extends Controller
             ->findOrFail($posting);
 
         $data = $request->validate([
-            'name'         => ['required', 'string', 'max:150'],
-            'email'        => ['nullable', 'email', 'max:150'],
-            'phone'        => ['nullable', 'string', 'max:30'],
-            'resume'       => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:4096'],
-            'cover_letter' => ['nullable', 'string'],
+            'name'            => ['required', 'string', 'max:150'],
+            'email'           => ['nullable', 'email', 'max:150'],
+            'phone'           => ['nullable', 'string', 'max:30'],
+            'resume'          => ['required', 'file', 'mimes:pdf,doc,docx', 'max:4096'],
+            'certificates'    => ['required', 'array', 'min:1'],
+            'certificates.*'  => ['file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:4096'],
+            'cover_letter'    => ['nullable', 'string'],
         ]);
 
-        if ($request->hasFile('resume')) {
-            $data['resume_path'] = $request->file('resume')->store("recruitment/{$jobPosting->id}", 'public');
-        }
-        unset($data['resume']);
+        $resumeFile = $request->file('resume');
+        $data['resume_path'] = $resumeFile->store("recruitment/{$jobPosting->id}", 'public');
+        unset($data['resume'], $data['certificates']);
 
         $applicant = JobApplicant::withoutTenantScope()->create([
             ...$data,
@@ -79,6 +81,25 @@ class PublicRecruitmentController extends Controller
             'status'         => 'applied',
             'applied_at'     => now(),
         ]);
+
+        JobApplicantDocument::withoutTenantScope()->create([
+            'tenant_id'        => $tenant->id,
+            'job_applicant_id' => $applicant->id,
+            'document_type'    => 'resume',
+            'file_path'        => $applicant->resume_path,
+            'original_name'    => $resumeFile->getClientOriginalName(),
+        ]);
+
+        foreach ($request->file('certificates', []) as $certFile) {
+            $path = $certFile->store("recruitment/{$jobPosting->id}/certificates", 'public');
+            JobApplicantDocument::withoutTenantScope()->create([
+                'tenant_id'        => $tenant->id,
+                'job_applicant_id' => $applicant->id,
+                'document_type'    => 'certificate',
+                'file_path'        => $path,
+                'original_name'    => $certFile->getClientOriginalName(),
+            ]);
+        }
 
         try {
             $tenant->notifyAdmins(new \App\Notifications\Tenant\NewJobApplicantNotification($applicant));
