@@ -49,20 +49,6 @@
             <span class="nav-label">Student Transfers</span>
         </a>
         @endcan
-        @if($u->canAccessModule('staff'))
-        <a href="{{ route('staff.index') }}" class="nav-item {{ request()->routeIs('staff.*') && !request()->routeIs('staff.archive.*') && !request()->routeIs('staff.reinstate*') ? 'active' : '' }}" data-tip="Staff">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            <span class="nav-label">Staff</span>
-        </a>
-        <a href="{{ route('coverage.index') }}" class="nav-item {{ request()->routeIs('coverage.*') ? 'active' : '' }}" data-tip="Class Coverage">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7-6 1.41-1.41L18.83 5l1.59-1.59L19 2l-3 3 1.41 1.41z"/></svg>
-            <span class="nav-label">Class Coverage</span>
-        </a>
-        <a href="{{ route('recruitment.index') }}" class="nav-item {{ request()->routeIs('recruitment.*') ? 'active' : '' }}" data-tip="Recruitment">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.1 0 2-.89 2-2V8c0-1.11-.9-2-2-2zM15 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>
-            <span class="nav-label">Recruitment</span>
-        </a>
-        @endif
         @if($u->canAccessModule('classes'))
         <a href="{{ route('classes.levels') }}" class="nav-item {{ request()->routeIs('classes.*') && !request()->routeIs('classes.promotion*') && !request()->routeIs('classes.bulk-promote*') && !request()->routeIs('classes.grading') ? 'active' : '' }}" data-tip="Classes">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
@@ -95,16 +81,6 @@
         <a href="{{ route('attendance.index') }}" class="nav-item {{ request()->routeIs('attendance.*') && !request()->routeIs('staff-attendance.*') ? 'active' : '' }}" data-tip="Student Attendance">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
             <span class="nav-label">Student Attendance</span>
-        </a>
-        @endif
-
-           {{-- Staff Attendance — gated by plan feature --}}
-        @if($u->canAccessModule('staff-attendance'))
-        <a href="{{ route('staff-attendance.my') }}"
-           class="nav-item {{ request()->routeIs('staff-attendance.*') ? 'active' : '' }}"
-           data-tip="Staff Attendance">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-            <span class="nav-label">Staff Attendance</span>
         </a>
         @endif
         @if($u->canAccessModule('timetable'))
@@ -146,6 +122,42 @@
         @endif
     </div>
     @endif
+
+    {{-- HUMAN RESOURCE — "Staff Leave" is a self-service link everyone gets
+         (own leave requests), so this section always renders; the rest of
+         the items are gated per-module as usual. --}}
+    <div class="nav-section">
+        <div class="nav-section-label">Human Resource</div>
+        @if($u->canAccessModule('staff'))
+        <a href="{{ route('staff.index') }}" class="nav-item {{ request()->routeIs('staff.*') && !request()->routeIs('staff.archive.*') && !request()->routeIs('staff.reinstate*') ? 'active' : '' }}" data-tip="Staff">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span class="nav-label">Staff</span>
+        </a>
+        @endif
+        @if($u->canAccessModule('staff-attendance'))
+        <a href="{{ route('staff-attendance.my') }}"
+           class="nav-item {{ request()->routeIs('staff-attendance.*') ? 'active' : '' }}"
+           data-tip="Staff Attendance">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+            <span class="nav-label">Staff Attendance</span>
+        </a>
+        @endif
+        {{-- Ungated: every staff member (not just admin-tier) needs to file their own leave --}}
+        <a href="{{ route('leave.index') }}" class="nav-item {{ request()->routeIs('leave.*') ? 'active' : '' }}" data-tip="Staff Leave">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+            <span class="nav-label">Staff Leave</span>
+        </a>
+        @if($u->canAccessModule('staff'))
+        <a href="{{ route('coverage.index') }}" class="nav-item {{ request()->routeIs('coverage.*') ? 'active' : '' }}" data-tip="Class Coverage">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm7-6 1.41-1.41L18.83 5l1.59-1.59L19 2l-3 3 1.41 1.41z"/></svg>
+            <span class="nav-label">Class Coverage</span>
+        </a>
+        <a href="{{ route('recruitment.index') }}" class="nav-item {{ request()->routeIs('recruitment.*') ? 'active' : '' }}" data-tip="Recruitment">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.1 0 2-.89 2-2V8c0-1.11-.9-2-2-2zM15 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>
+            <span class="nav-label">Recruitment</span>
+        </a>
+        @endif
+    </div>
 
     {{-- ASSESSMENTS --}}
     @if($u->canAccessModule('scores') || $u->canAccessModule('reports') || $u->canAccessModule('cbt') || $u->canAccessModule('gradebook'))
@@ -198,9 +210,13 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             <span class="nav-label">Applications</span>
         </a>
-        <a href="{{ route('admissions.portal') }}" class="nav-item {{ request()->routeIs('admissions.portal*') ? 'active' : '' }}" data-tip="Online Portal">
+        <a href="{{ route('admissions.portal') }}" class="nav-item {{ request()->routeIs('admissions.portal') ? 'active' : '' }}" data-tip="Online Portal">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
             <span class="nav-label">Online Portal</span>
+        </a>
+        <a href="{{ route('admissions.portal.settings') }}" class="nav-item {{ request()->routeIs('admissions.portal.settings') ? 'active' : '' }}" data-tip="Portal Settings">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+            <span class="nav-label">Portal Settings</span>
         </a>
         @if($u->canAccessModule('transfers'))
         <a href="{{ route('students.transfers.index') }}" class="nav-item {{ request()->routeIs('students.transfers.*') ? 'active' : '' }}" data-tip="Transfers">
@@ -383,11 +399,6 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             <span class="nav-label">My Profile</span>
         </a>
-        <a href="{{ route('leave.index') }}" class="nav-item {{ request()->routeIs('leave.*') ? 'active' : '' }}" data-tip="My Leave">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
-            <span class="nav-label">My Leave</span>
-        </a>
-
     @if($u->canAccessModule('settings') || $u->canAccessModule('portal-accounts'))
         @if($u->canAccessModule('portal-accounts'))
         <a href="{{ route('portal-accounts.index') }}" class="nav-item {{ request()->routeIs('portal-accounts.*') ? 'active' : '' }}" data-tip="Portal Accounts">
