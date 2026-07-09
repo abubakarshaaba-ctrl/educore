@@ -86,7 +86,7 @@ body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color
 
     <div class="card">
         <div class="subhead" style="margin-top:0">Apply for This Position</div>
-        <form method="POST" action="{{ route('careers.apply', [$tenant->slug, $posting->id]) }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ url()->current() . '/apply' }}" enctype="multipart/form-data">
             @csrf
             <div class="fr">
                 <div class="fg"><label class="fl">Full Name *</label><input type="text" name="name" class="fc" value="{{ old('name') }}" required></div>
