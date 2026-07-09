@@ -106,7 +106,7 @@
             <div class="doc-actions">
                 <span class="badge {{ $badgeClass }}">{{ $badgeIcon }} {{ ucfirst($doc->verification_status) }}</span>
 
-                <a href="{{ asset('storage/' . ltrim($doc->file_path, 'storage/')) }}" target="_blank" class="btn btn-view">
+                <a href="{{ asset('storage/' . $doc->file_path) }}" target="_blank" class="btn btn-view">
                     👁 View
                 </a>
                 <a href="{{ route('recruitment.applicants.documents.download', [$applicant, $doc]) }}" class="btn btn-download">
