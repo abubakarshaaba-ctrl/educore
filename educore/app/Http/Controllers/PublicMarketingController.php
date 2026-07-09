@@ -21,17 +21,11 @@ class PublicMarketingController extends Controller
             'schools' => Tenant::publiclyAccessible()->count(),
             'students' => Student::withoutTenantScope()->count(),
             'staff' => User::whereNotNull('tenant_id')->where('is_active', true)->count(),
-            'plans' => SubscriptionPlan::where('is_active', true)->count(),
         ];
 
-        $plans = SubscriptionPlan::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('monthly_price')
-            ->limit(4)
-            ->get();
+        $tiers = \App\Services\PricingService::tiers();
 
-        return view('welcome', compact('stats', 'plans'));
+        return view('welcome', compact('stats', 'tiers'));
     }
 
     public function privacy(): View

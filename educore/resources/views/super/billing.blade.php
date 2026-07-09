@@ -85,7 +85,7 @@ tr:hover td{background:#F8FAFC}
                 <tr>
                     <td style="font-weight:700;font-family:monospace">{{ $inv->invoice_number }}</td>
                     <td style="font-weight:600">{{ $inv->school_name }}</td>
-                    <td>{{ $inv->plan_name }} <span style="font-size:11px;color:#94A3B8">({{ $inv->billing_cycle }})</span></td>
+                    <td>{{ $inv->plan_name ?? '—' }} <span style="font-size:11px;color:#94A3B8">({{ $inv->billing_cycle }})</span></td>
                     <td style="font-weight:700">₦{{ number_format($inv->amount) }}</td>
                     <td style="font-size:12px;color:{{ \Carbon\Carbon::parse($inv->due_date)->isPast() && $inv->status!='paid' ? '#DC2626':'#64748B' }}">
                         {{ \Carbon\Carbon::parse($inv->due_date)->format('d M Y') }}
@@ -127,25 +127,20 @@ tr:hover td{background:#F8FAFC}
                         @foreach($tenants as $t)<option value="{{ $t->id }}">{{ $t->name }}</option>@endforeach
                     </select>
                 </div>
-                <div class="fg"><label class="fl">Plan *</label>
-                    <select name="plan_id" class="fc" id="planSel" required onchange="updateAmount()">
-                        <option value="">Select plan...</option>
-                        @foreach(\Illuminate\Support\Facades\DB::table('subscription_plans')->where('is_active',1)->orderBy('sort_order')->get() as $p)
-                        <option value="{{ $p->id }}" data-monthly="{{ $p->monthly_price }}" data-annual="{{ $p->annual_price }}">
-                            {{ $p->name }}
-                        </option>
-                        @endforeach
-                    </select>
+                <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#475569">
+                    Pay-per-student pricing: free up to 20 students, ₦500/student (21–200), ₦400/student (201–500),
+                    custom quote beyond 500. The amount is computed automatically from the school's active
+                    enrollment unless you enter a custom amount below.
                 </div>
                 <div class="fg"><label class="fl">Billing Cycle *</label>
-                    <select name="billing_cycle" class="fc" id="cycleSel" required onchange="updateAmount()">
-                        <option value="monthly">Monthly</option>
-                        <option value="annual">Annual</option>
+                    <select name="billing_cycle" class="fc" required>
+                        <option value="termly">Per term</option>
+                        <option value="annual">Full year (3 terms, 10% off)</option>
                     </select>
                 </div>
-                <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;margin-bottom:12px;text-align:center">
-                    <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.06em">Invoice Amount</div>
-                    <div id="amtDisplay" style="font-size:22px;font-weight:800;color:#2563EB">₦0</div>
+                <div class="fg">
+                    <label class="fl">Custom Amount (₦) — only for 500+ students</label>
+                    <input type="number" name="custom_amount" class="fc" min="0" step="0.01" placeholder="Leave blank for automatic pricing">
                 </div>
                 <div class="fg"><label class="fl">Due Date *</label>
                     <input type="date" name="due_date" class="fc" required value="{{ now()->addDays(14)->format('Y-m-d') }}">
@@ -154,6 +149,7 @@ tr:hover td{background:#F8FAFC}
                     <textarea name="notes" class="fc" rows="2" placeholder="Optional note..."></textarea>
                 </div>
                 <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">🧾 Generate Invoice</button>
+                <p style="font-size:11px;color:#94A3B8;margin-top:8px">The invoice amount is computed automatically from the school's active enrollment, except for schools past 500 students, where you enter the negotiated custom amount.</p>
             </form>
             </div>
         </div>
@@ -174,15 +170,6 @@ tr:hover td{background:#F8FAFC}
 
 @push('scripts')
 <script>
-const plans = {!! json_encode(\Illuminate\Support\Facades\DB::table('subscription_plans')->where('is_active',1)->get()->keyBy('id')) !!};
-function updateAmount() {
-    const pId = document.getElementById('planSel').value;
-    const cycle = document.getElementById('cycleSel').value;
-    const plan = plans[pId];
-    if (!plan) { document.getElementById('amtDisplay').textContent = '₦0'; return; }
-    const amt = cycle === 'annual' ? plan.annual_price : plan.monthly_price;
-    document.getElementById('amtDisplay').textContent = '₦'+Number(amt).toLocaleString();
-}
 function markPaid(id) {
     const method = prompt('Payment method (bank_transfer / card / cash / pos):','bank_transfer');
     if (!method) return;

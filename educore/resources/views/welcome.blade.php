@@ -131,6 +131,14 @@ section{padding:100px 5vw}
 
 /* PRICING */
 .pricing{background:var(--off)}
+.tier-table{max-width:760px;margin:56px auto 0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tier-row{display:grid;grid-template-columns:2fr 1.3fr 1fr;gap:12px;align-items:center;padding:20px 28px;border-bottom:1px solid var(--border)}
+.tier-row:last-child{border-bottom:none}
+.tier-row.tier-free{background:#F0FDF4}
+.tier-range{font-size:15px;font-weight:700;color:var(--navy)}
+.tier-rate{font-size:16px;font-weight:800;color:var(--navy)}
+.tier-cycle{font-size:12px;color:var(--muted);text-align:right}
+.pricing-note{max-width:700px;margin:24px auto 0;text-align:center;font-size:13px;color:var(--muted)}
 .pgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:56px}
 .prc{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:28px;display:flex;flex-direction:column;transition:all 200ms;position:relative}
 .prc:hover{box-shadow:var(--sh-lg);transform:translateY(-3px)}
@@ -491,32 +499,21 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 <section class="pricing" id="pricing">
     <div class="tc">
         <div class="slabel">Plans &amp; Pricing</div>
-        <h2 class="stitle">Start small, scale freely</h2>
-        <p class="ssub">No setup fees. No hidden charges. Cancel any time.</p>
+        <h2 class="stitle">One plan. Every feature. Priced by enrollment.</h2>
+        <p class="ssub">No feature tiers, no add-on packages — every school gets the complete EduCore platform. You only pay for the size of school you run today.</p>
     </div>
-    <div class="pgrid2">
-        <div class="prc">
-            <div class="pname">Basic</div><div class="pdesc">Perfect for small schools getting started</div>
-            <div class="pamount"><sup>&#8358;</sup>10,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Up to 300 students</li><li>Student &amp; staff management</li><li>Score entry &amp; report cards</li><li>Student attendance</li><li>Fee invoicing</li><li>Basic analytics</li></ul>
-            <div class="pcta"><a href="{{ route('school.register') }}" class="pbtn">Get Basic</a></div>
+    <div class="tier-table">
+        @foreach($tiers as $tier)
+        <div class="tier-row {{ $loop->first ? 'tier-free' : '' }}">
+            <div class="tier-range">{{ $tier['range'] }}</div>
+            <div class="tier-rate">{{ $tier['rate'] }}</div>
+            <div class="tier-cycle">{{ $tier['cycle'] }}</div>
         </div>
-        <div class="prc popular">
-            <div class="pop-badge">&#11088; Most Popular</div>
-            <div class="pname">Standard</div><div class="pdesc">For growing schools that need more power</div>
-            <div class="pamount"><sup>&#8358;</sup>30,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Up to 800 students</li><li>Everything in Basic</li><li>Timetable management</li><li>CBT exam engine</li><li>Staff attendance &amp; payroll</li><li>Parent &amp; student portals</li><li>Online fee payment</li></ul>
-            <div class="pcta"><a href="{{ route('school.register') }}" class="pbtn">Get Standard</a></div>
-        </div>
-        <div class="prc">
-            <div class="pname">Premium</div><div class="pdesc">Full features for established institutions</div>
-            <div class="pamount"><sup>&#8358;</sup>45,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Unlimited students</li><li>Everything in Standard</li><li>SMS notifications</li><li>Academic risk flags</li><li>Library &amp; transport</li><li>Advanced analytics</li><li>White-label branding</li><li>Priority support</li></ul>
-            <div class="pcta"><a href="{{ route('school.register') }}" class="pbtn">Get Premium</a></div>
-        </div>
+        @endforeach
+    </div>
+    <p class="pricing-note">Billed per academic term to match how Nigerian schools collect fees — pay a full year (3 terms) upfront and save 10%. Schools above 500 students get a tailored volume quote.</p>
+    <div class="cta-acts" style="margin-top:32px">
+        <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
     </div>
 </section>
 

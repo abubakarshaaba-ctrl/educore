@@ -989,98 +989,15 @@ class User extends Authenticatable
         return in_array($this->roleKey(), $requested, true);
     }
 
+    /**
+     * Feature access is no longer plan-tiered — every tenant gets every
+     * feature regardless of enrollment size or which pricing tier they
+     * fall into (see App\Services\PricingService). Pricing scales with
+     * active student count instead of gating functionality.
+     */
     public function subscriptionFeatureKeys(): array
     {
-        if ($this->isSuperAdmin()) {
-            return ['*'];
-        }
-
-        if ($this->cachedSubscriptionFeatures !== null) {
-            return $this->cachedSubscriptionFeatures;
-        }
-
-        $tenant = $this->relationLoaded('tenant')
-            ? $this->tenant
-            : $this->tenant()->with(['activeSubscription.plan'])->first();
-
-        // Multi-campus groups share one subscription, held by the group's
-        // "lead" campus — resolve features against that tenant instead.
-        $tenant = $tenant?->billingTenant();
-
-        if ($tenant) {
-            $tenant->loadMissing(['activeSubscription.plan', 'subscriptions.plan']);
-        }
-
-        $plan = $tenant?->activeSubscription?->plan;
-
-        if (!$plan && $tenant) {
-            $subscription = $tenant->subscriptions()
-                ->with('plan')
-                ->where('status', 'active')
-                ->whereNotNull('plan_id')
-                ->orderByDesc('id')
-                ->first();
-
-            $plan = $subscription?->plan;
-        }
-
-        if (!$plan && $tenant) {
-            if (Schema::hasTable('platform_invoices') && Schema::hasTable('subscription_plans')) {
-                $plan = DB::table('platform_invoices')
-                    ->join('subscription_plans', 'subscription_plans.id', '=', 'platform_invoices.plan_id')
-                    ->select('subscription_plans.features', 'subscription_plans.has_cbt', 'subscription_plans.has_sms', 'subscription_plans.has_paystack')
-                    ->where('platform_invoices.tenant_id', $tenant->id)
-                    ->where('platform_invoices.status', 'paid')
-                    ->orderByDesc('platform_invoices.paid_at')
-                    ->orderByDesc('platform_invoices.created_at')
-                    ->first();
-            }
-        }
-
-        if (!$plan && $tenant && app()->environment('testing')) {
-            return array_values(array_unique(array_keys(self::FEATURE_ROUTE_PREFIXES)));
-        }
-
-        // Trial tenants have full feature access — "30 days free, all features"
-        if (!$plan && $tenant) {
-            $hasTrial = Schema::hasTable('tenant_subscriptions') && DB::table('tenant_subscriptions')
-                ->where('tenant_id', $tenant->id)
-                ->where('status', 'trial')
-                ->exists();
-            if ($hasTrial) {
-                $this->cachedSubscriptionFeatures = array_values(array_unique(array_keys(self::FEATURE_ROUTE_PREFIXES)));
-                return $this->cachedSubscriptionFeatures;
-            }
-        }
-
-        $features = [];
-
-        if ($plan) {
-            $features = is_array($plan->features)
-                ? $plan->features
-                : (json_decode((string) $plan->features, true) ?: []);
-
-            $legacyFlags = [
-                'cbt'             => (bool) ($plan->has_cbt ?? false),
-                'sms'             => (bool) ($plan->has_sms ?? false),
-                'online_payments' => (bool) ($plan->has_paystack ?? false),
-            ];
-
-            foreach ($legacyFlags as $feature => $enabled) {
-                if ($enabled && !in_array($feature, $features, true)) {
-                    $features[] = $feature;
-                }
-            }
-        }
-
-        $normalized = [];
-        foreach ($features as $feature) {
-            $normalized[] = $this->normalizeFeatureKey((string) $feature);
-        }
-
-        $this->cachedSubscriptionFeatures = array_values(array_unique(array_filter($normalized)));
-
-        return $this->cachedSubscriptionFeatures;
+        return ['*'];
     }
 
     public function canUseFeature(string $feature): bool
@@ -1094,7 +1011,9 @@ class User extends Authenticatable
             return true;
         }
 
-        return in_array($this->normalizeFeatureKey($feature), $this->subscriptionFeatureKeys(), true);
+        $keys = $this->subscriptionFeatureKeys();
+
+        return in_array('*', $keys, true) || in_array($this->normalizeFeatureKey($feature), $keys, true);
     }
 
     private function featureForModule(string $module): ?string

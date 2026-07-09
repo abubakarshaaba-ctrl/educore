@@ -803,7 +803,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
 
     // â”€â”€ School Admin Self-Service Billing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('billing/subscription', [\App\Http\Controllers\BillingController::class, 'index'])->name('billing.subscription');
-    Route::post('billing/subscription/select', [\App\Http\Controllers\BillingController::class, 'selectPlan'])->name('billing.select-plan');
+    Route::post('billing/subscription/generate', [\App\Http\Controllers\BillingController::class, 'generateInvoice'])->name('billing.generate-invoice');
 
     // â”€â”€ Support Tickets & Platform Notices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('support',          [\App\Http\Controllers\SupportController::class, 'index'])->name('support.index');

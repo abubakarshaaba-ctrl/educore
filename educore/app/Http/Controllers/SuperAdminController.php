@@ -934,7 +934,7 @@ class SuperAdminController extends Controller
         $this->guard();
         $invoices = DB::table('platform_invoices')
             ->join('tenants','tenants.id','=','platform_invoices.tenant_id')
-            ->join('subscription_plans','subscription_plans.id','=','platform_invoices.plan_id')
+            ->leftJoin('subscription_plans','subscription_plans.id','=','platform_invoices.plan_id')
             ->select('platform_invoices.*','tenants.name as school_name','subscription_plans.name as plan_name')
             ->when($request->filled('status'), fn($q) => $q->where('platform_invoices.status', $request->status))
             ->when($request->filled('tenant_id'), fn($q) => $q->where('platform_invoices.tenant_id', $request->tenant_id))
@@ -956,27 +956,37 @@ class SuperAdminController extends Controller
     {
         $this->guard();
         $data = $request->validate([
-            'tenant_id'     => ['required','exists:tenants,id'],
-            'plan_id'       => ['required','exists:subscription_plans,id'],
-            'billing_cycle' => ['required','in:monthly,annual'],
-            'due_date'      => ['required','date'],
-            'notes'         => ['nullable','string'],
+            'tenant_id'      => ['required','exists:tenants,id'],
+            'billing_cycle'  => ['required','in:termly,annual'],
+            'custom_amount'  => ['nullable','numeric','min:0'],
+            'due_date'       => ['required','date'],
+            'notes'          => ['nullable','string'],
         ]);
 
-        $tenant  = Tenant::findOrFail($data['tenant_id']);
-        $plan    = DB::table('subscription_plans')->find($data['plan_id']);
-        $amount  = $data['billing_cycle'] === 'annual' ? $plan->annual_price : $plan->monthly_price;
-        $ref     = 'INV-'.strtoupper(Str::random(8));
+        $tenant       = Tenant::findOrFail($data['tenant_id']);
+        $studentCount = \App\Services\PricingService::activeStudentCount($tenant->id);
+        $isCustom     = \App\Services\PricingService::isCustomQuote($studentCount);
+
+        if ($isCustom) {
+            $request->validate(['custom_amount' => ['required','numeric','min:0']]);
+            $amount = (float) $data['custom_amount'];
+        } else {
+            $amount = $data['billing_cycle'] === 'annual'
+                ? \App\Services\PricingService::annualAmount($studentCount)
+                : \App\Services\PricingService::termlyAmount($studentCount);
+        }
+
+        $ref = 'INV-'.strtoupper(Str::random(8));
 
         DB::table('platform_invoices')->insert([
             'tenant_id'      => $data['tenant_id'],
-            'plan_id'        => $data['plan_id'],
+            'plan_id'        => null,
             'invoice_number' => $ref,
             'amount'         => $amount,
             'billing_cycle'  => $data['billing_cycle'],
             'status'         => 'pending',
             'due_date'       => $data['due_date'],
-            'notes'          => $data['notes'],
+            'notes'          => $data['notes'] ?: ($studentCount . ' active students'),
             'created_at'     => now(),
             'updated_at'     => now(),
         ]);
@@ -1020,9 +1030,12 @@ class SuperAdminController extends Controller
         // Extend tenant subscription
         $tenant = Tenant::find($invoice->tenant_id);
         if ($tenant) {
-            $months = $invoice->billing_cycle === 'annual' ? 12 : 1;
             $from   = max(now(), \Carbon\Carbon::parse($tenant->subscription_expires_at));
-            $newExpiry = $from->addMonths($months);
+            $newExpiry = match ($invoice->billing_cycle) {
+                'annual' => $from->addMonths(12),
+                'termly' => $from->addDays(112),
+                default  => $from->addMonths(1),
+            };
             $tenant->update([
                 'subscription_expires_at' => $newExpiry,
                 'status' => 'active',
@@ -1164,7 +1177,11 @@ class SuperAdminController extends Controller
         ]);
 
         $tenant = Tenant::find($invoice->tenant_id);
-        $days   = $invoice->billing_cycle === 'annual' ? 365 : 30;
+        $days   = match ($invoice->billing_cycle) {
+            'annual' => 365,
+            'termly' => 112, // one academic term (~16 weeks)
+            default  => 30,
+        };
         $expiry = $tenant->subscription_expires_at && $tenant->subscription_expires_at->isFuture()
                   ? $tenant->subscription_expires_at->copy()->addDays($days)
                   : now()->addDays($days);
