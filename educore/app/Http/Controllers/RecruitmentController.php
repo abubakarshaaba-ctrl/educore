@@ -13,8 +13,9 @@ class RecruitmentController extends Controller
     public function index()
     {
         $postings = JobPosting::withCount('applicants')->latest()->get();
+        $careersUrl = route('careers.landing', auth()->user()->tenant?->slug ?? 'school');
 
-        return view('recruitment.index', compact('postings'));
+        return view('recruitment.index', compact('postings', 'careersUrl'));
     }
 
     public function storePosting(Request $request)

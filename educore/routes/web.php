@@ -53,6 +53,10 @@ Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educor
         Route::post('apply/status', [TenantHostController::class, 'applyStatus'])->name('apply.status');
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
 
+        Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->name('careers.apply');
+
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
             ->name('account-status');
@@ -87,6 +91,10 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
         Route::get('apply/status', [TenantHostController::class, 'applyStatusForm'])->name('apply.status.form');
         Route::post('apply/status', [TenantHostController::class, 'applyStatus'])->name('apply.status');
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
+
+        Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->name('careers.apply');
 
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
@@ -1183,6 +1191,16 @@ Route::name('portal.')->group(function () {
     Route::get('_apply_stub/{slug}/status',       fn (string $slug) => redirect()->away($apply($slug, 'status')))->name('status.form');
     Route::post('_apply_stub/{slug}/submit',      fn () => abort(404))->name('submit');
     Route::post('_apply_stub/{slug}/status',      fn () => abort(404))->name('status');
+});
+
+// ── Public Careers Portal stubs (subdomain handles the real routes) ────────
+Route::name('careers.')->group(function () {
+    $careers = fn (string $slug, string $path = '') =>
+        config('tenancy.scheme') . '://' . $slug . '.' . config('tenancy.base_domain') . '/careers' . ($path ? '/' . ltrim($path, '/') : '');
+
+    Route::get('_careers_stub/{slug}',                fn (string $slug) => redirect()->away($careers($slug)))->name('landing');
+    Route::get('_careers_stub/{slug}/{posting}',      fn (string $slug, $posting) => redirect()->away($careers($slug, (string) $posting)))->name('show');
+    Route::post('_careers_stub/{slug}/{posting}/apply', fn () => abort(404))->name('apply');
 });
 
 // â”€â”€ Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

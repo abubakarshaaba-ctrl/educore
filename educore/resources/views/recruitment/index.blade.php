@@ -25,6 +25,15 @@ tr:last-child td{border:none}
 @endpush
 @section('content')
 <div class="card">
+    <div class="ch">Public Careers Page</div>
+    <div class="cb" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--slate)">Share this link with candidates:</span>
+        <code style="background:#F8FAFC;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">{{ $careersUrl }}</code>
+        <a href="{{ $careersUrl }}" target="_blank" class="btn" style="background:#F1F5F9;color:#475569;padding:6px 12px;font-size:12px">Open ↗</a>
+    </div>
+</div>
+
+<div class="card">
     <div class="ch">Post a Job Opening</div>
     <div class="cb">
         <form method="POST" action="{{ route('recruitment.postings.store') }}">
