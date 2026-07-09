@@ -30,7 +30,7 @@ select.inline{padding:4px 6px;font-size:11px;border:1px solid var(--border);bord
 <div class="card">
     <div class="ch">Add Asset</div>
     <div class="cb">
-        <form method="POST" action="{{ route('assets.store') }}">
+        <form method="POST" action="{{ route('inventory.store') }}">
             @csrf
             <div class="fr">
                 <div class="fg"><label class="fl">Name *</label><input type="text" name="name" class="fc" required></div>
@@ -81,7 +81,7 @@ select.inline{padding:4px 6px;font-size:11px;border:1px solid var(--border);bord
             <td>{{ ucfirst($a->condition) }}</td>
             <td><span class="badge b-{{ $a->status }}">{{ ucwords(str_replace('_',' ',$a->status)) }}</span></td>
             <td>
-                <form method="POST" action="{{ route('assets.destroy', $a) }}" onsubmit="return confirm('Remove this asset?')">
+                <form method="POST" action="{{ route('inventory.destroy', $a) }}" onsubmit="return confirm('Remove this asset?')">
                     @csrf @method('DELETE')
                     <button class="btn btn-danger">Remove</button>
                 </form>

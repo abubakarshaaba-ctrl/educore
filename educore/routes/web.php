@@ -854,7 +854,10 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     });
 
     // -- Asset / Inventory Management -------------------------------------------
-    Route::prefix('assets')->name('assets.')->group(function () {
+    // Named "inventory" (not "assets") — public/assets/ is a real static
+    // directory (brand images etc.), so a route prefixed /assets/ never
+    // reaches Laravel: Apache serves/blocks the physical folder first.
+    Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/',           [\App\Http\Controllers\AssetController::class, 'index'])->name('index');
         Route::post('/',          [\App\Http\Controllers\AssetController::class, 'store'])->name('store');
         Route::patch('{asset}',   [\App\Http\Controllers\AssetController::class, 'update'])->name('update');
