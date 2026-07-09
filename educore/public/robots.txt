@@ -1,2 +1,9 @@
 User-agent: *
-Disallow:
+Disallow: /_tenant_stub/
+Disallow: /_apply_stub/
+Disallow: /_careers_stub/
+Disallow: /platform/
+Disallow: /login
+Disallow: /dashboard
+
+Sitemap: https://educoreng.online/sitemap.xml

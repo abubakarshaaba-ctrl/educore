@@ -3,11 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="EduCore — Complete school management platform for Nigerian K-12 schools.">
-<title>EduCore — School Management Platform</title>
+<meta name="description" content="EduCore is a complete school management platform for Nigerian K-12 schools — admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication in one system. Free for up to 20 students.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#071E45">
+<meta name="author" content="EduCore">
+<link rel="canonical" href="https://educoreng.online/">
+<title>EduCore — School Management Platform for Nigerian Schools</title>
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800,900" rel="stylesheet">
+
+{{-- Open Graph / Facebook, WhatsApp, LinkedIn link previews --}}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://educoreng.online/">
+<meta property="og:site_name" content="EduCore">
+<meta property="og:locale" content="en_NG">
+<meta property="og:title" content="EduCore — School Management Platform for Nigerian Schools">
+<meta property="og:description" content="Admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication — unified in one platform built for Nigerian K-12 schools. Free for up to 20 students.">
+<meta property="og:image" content="https://educoreng.online/brand/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="EduCore — School Management Platform">
+
+{{-- Twitter/X Card --}}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EduCore — School Management Platform for Nigerian Schools">
+<meta name="twitter:description" content="Admissions, academics, fees, payroll and staff HR — unified in one platform built for Nigerian K-12 schools.">
+<meta name="twitter:image" content="https://educoreng.online/brand/og-image.png">
+
+{{-- Structured data for Google rich results --}}
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "SoftwareApplication",
+  "name": "EduCore",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Web, Android, iOS",
+  "url": "https://educoreng.online/",
+  "description": "Complete school management platform for Nigerian K-12 schools covering admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication.",
+  "offers": {
+    "@@type": "Offer",
+    "price": "0",
+    "priceCurrency": "NGN",
+    "description": "Free for up to 20 students. Paid tiers scale per student per term."
+  },
+  "provider": {
+    "@@type": "Organization",
+    "name": "EduCore",
+    "url": "https://educoreng.online/",
+    "email": "support@educoreng.online",
+    "telephone": "+2347065595768"
+  }
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
