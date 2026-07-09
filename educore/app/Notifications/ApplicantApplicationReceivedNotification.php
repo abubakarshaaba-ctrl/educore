@@ -27,9 +27,12 @@ class ApplicantApplicationReceivedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        view()->share('mailBrandName', $this->schoolName);
+
         $mail = (new MailMessage)
             ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
+            ->salutation("Regards,\n" . $this->schoolName)
             ->subject('Application received — ' . $this->applicant->jobPosting->title . ' at ' . $this->schoolName)
             ->greeting('Hi ' . $this->applicant->name . ',')
             ->line('Thank you for applying for the ' . $this->applicant->jobPosting->title . ' role at ' . $this->schoolName . '.')

@@ -28,9 +28,12 @@ class JobOfferNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        view()->share('mailBrandName', $this->schoolName);
+
         $mail = (new MailMessage)
             ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
+            ->salutation("Regards,\n" . $this->schoolName)
             ->subject('Job Offer — ' . $this->applicant->jobPosting->title . ' at ' . $this->schoolName)
             ->greeting('Dear ' . $this->applicant->name . ',')
             ->line('We are pleased to offer you the ' . $this->applicant->jobPosting->title . ' position at ' . $this->schoolName . '.')

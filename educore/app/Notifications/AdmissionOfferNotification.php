@@ -28,9 +28,12 @@ class AdmissionOfferNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        view()->share('mailBrandName', $this->schoolName);
+
         $mail = (new MailMessage)
             ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
+            ->salutation("Regards,\n" . $this->schoolName)
             ->subject('Admission Offer — ' . $this->admission->first_name . ' ' . $this->admission->last_name . ' — ' . $this->schoolName)
             ->greeting('Dear ' . $this->admission->guardian_name . ',')
             ->line('We are pleased to offer ' . $this->admission->first_name . ' ' . $this->admission->last_name . ' admission to ' . $this->schoolName . '.')

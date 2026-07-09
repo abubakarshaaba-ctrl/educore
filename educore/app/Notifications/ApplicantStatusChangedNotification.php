@@ -40,9 +40,12 @@ class ApplicantStatusChangedNotification extends Notification
             default => 'Your application status for the ' . $posting->title . ' role has been updated to: ' . $label . '.',
         };
 
+        view()->share('mailBrandName', $this->schoolName);
+
         $mail = (new MailMessage)
             ->theme('educore')
             ->from(config('mail.from.address'), $this->schoolName)
+            ->salutation("Regards,\n" . $this->schoolName)
             ->subject('Application update — ' . $posting->title . ' at ' . $this->schoolName)
             ->greeting('Hi ' . $this->applicant->name . ',')
             ->line($line)

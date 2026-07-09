@@ -43,6 +43,11 @@ class GuardianMailNotification extends Notification
 
         if ($this->schoolName) {
             $mail->from(config('mail.from.address'), $this->schoolName);
+            $mail->salutation("Regards,\n" . $this->schoolName);
+            // The markdown mail::message component hardcodes config('app.name')
+            // in its header/footer — share the school name so it shows there
+            // instead of "EduCore".
+            view()->share('mailBrandName', $this->schoolName);
         }
 
         // The sending address stays on our own authenticated domain (so
