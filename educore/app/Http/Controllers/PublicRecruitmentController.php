@@ -2,9 +2,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\JobApplicant;
+use App\Models\JobApplicantMessage;
 use App\Models\JobPosting;
 use App\Models\Tenant;
+use App\Notifications\ApplicantApplicationReceivedNotification;
+use App\Notifications\ApplicantMessageReceivedNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Support\Str;
 
 /**
  * PUBLIC Careers Portal — NO AUTH REQUIRED
@@ -70,6 +75,7 @@ class PublicRecruitmentController extends Controller
             ...$data,
             'tenant_id'      => $tenant->id,
             'job_posting_id' => $jobPosting->id,
+            'access_token'   => Str::random(32),
             'status'         => 'applied',
             'applied_at'     => now(),
         ]);
@@ -80,7 +86,61 @@ class PublicRecruitmentController extends Controller
             \Illuminate\Support\Facades\Log::error('New job applicant admin notification failed: ' . $e->getMessage());
         }
 
-        return redirect()->route('careers.show', [$slug, $jobPosting->id])
+        $trackUrl = rtrim($request->getSchemeAndHttpHost(), '/') . '/careers/track/' . $applicant->access_token;
+
+        if ($applicant->email) {
+            try {
+                NotificationFacade::route('mail', $applicant->email)
+                    ->notify(new ApplicantApplicationReceivedNotification($applicant, $tenant->name, $trackUrl));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Applicant application-received email failed: ' . $e->getMessage());
+            }
+        }
+
+        return redirect($trackUrl)
             ->with('success', 'Your application has been submitted. Thank you!');
+    }
+
+    // ── Public: Track Application & Message Thread ───────────────────
+    public function track(string $slug, string $token)
+    {
+        $tenant = $this->getTenant($slug);
+
+        $applicant = JobApplicant::withoutTenantScope()
+            ->where('tenant_id', $tenant->id)
+            ->where('access_token', $token)
+            ->with(['jobPosting', 'messages'])
+            ->firstOrFail();
+
+        return view('portal.careers.track', compact('tenant', 'applicant'));
+    }
+
+    public function reply(Request $request, string $slug, string $token)
+    {
+        $tenant = $this->getTenant($slug);
+
+        $applicant = JobApplicant::withoutTenantScope()
+            ->where('tenant_id', $tenant->id)
+            ->where('access_token', $token)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $message = JobApplicantMessage::withoutTenantScope()->create([
+            'tenant_id'       => $tenant->id,
+            'job_applicant_id' => $applicant->id,
+            'sender_type'     => 'applicant',
+            'body'            => $data['body'],
+        ]);
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\NewApplicantMessageNotification($message));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('New applicant message admin notification failed: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Your message has been sent.');
     }
 }

@@ -47,7 +47,7 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
 <div class="card">
     <div class="ch">Applicants ({{ $applicants->total() }})</div>
     <div style="overflow-x:auto"><table>
-        <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>Interviews</th><th>Schedule Interview</th></tr></thead>
+        <thead><tr><th>Name</th><th>Contact</th><th>Status</th><th>Interviews</th><th>Schedule Interview</th><th>Messages</th></tr></thead>
         <tbody>
         @forelse($applicants as $a)
         <tr>
@@ -83,9 +83,29 @@ details summary{cursor:pointer;color:var(--indigo);font-size:11px;font-weight:60
                     </form>
                 </details>
             </td>
+            <td style="min-width:220px">
+                <details>
+                    <summary>{{ $a->messages->count() }} message{{ $a->messages->count() === 1 ? '' : 's' }}</summary>
+                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto">
+                        @forelse($a->messages as $m)
+                            <div style="font-size:11px;padding:6px 8px;border-radius:6px;background:{{ $m->sender_type === 'school' ? '#EEF2FF' : '#F1F5F9' }}">
+                                <strong>{{ $m->sender_type === 'school' ? 'You' : $a->name }}:</strong> {{ $m->body }}
+                                <div class="mini">{{ $m->created_at->format('d M, h:ia') }}</div>
+                            </div>
+                        @empty
+                            <div class="mini">No messages yet.</div>
+                        @endforelse
+                    </div>
+                    <form method="POST" action="{{ route('recruitment.applicants.message', $a) }}" style="margin-top:6px">
+                        @csrf
+                        <textarea name="body" class="fc" rows="2" placeholder="Message applicant..." required></textarea>
+                        <button type="submit" class="btn" style="background:#F1F5F9;color:#475569;padding:5px 10px;font-size:11px;margin-top:4px">Send</button>
+                    </form>
+                </details>
+            </td>
         </tr>
         @empty
-        <tr><td colspan="5" style="text-align:center;padding:30px;color:#94A3B8">No applicants yet.</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:30px;color:#94A3B8">No applicants yet.</td></tr>
         @endforelse
         </tbody>
     </table></div>

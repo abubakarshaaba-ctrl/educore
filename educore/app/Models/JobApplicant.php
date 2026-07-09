@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class JobApplicant extends BaseTenantModel
 {
     protected $fillable = [
-        'tenant_id', 'job_posting_id', 'name', 'email', 'phone', 'resume_path',
+        'tenant_id', 'job_posting_id', 'access_token', 'name', 'email', 'phone', 'resume_path',
         'cover_letter', 'status', 'notes', 'applied_at',
     ];
 
@@ -25,5 +25,10 @@ class JobApplicant extends BaseTenantModel
     public function interviews(): HasMany
     {
         return $this->hasMany(JobInterview::class, 'applicant_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(JobApplicantMessage::class)->orderBy('created_at');
     }
 }

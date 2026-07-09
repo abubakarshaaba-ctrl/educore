@@ -54,8 +54,10 @@ Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educor
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
 
         Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
-        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->name('careers.show');
-        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->name('careers.apply');
+        Route::get('careers/track/{token}', [TenantHostController::class, 'careersTrack'])->name('careers.track');
+        Route::post('careers/track/{token}/reply', [TenantHostController::class, 'careersReply'])->name('careers.track.reply');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->where('posting', '[0-9]+')->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->where('posting', '[0-9]+')->name('careers.apply');
 
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
@@ -93,8 +95,10 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
 
         Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
-        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->name('careers.show');
-        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->name('careers.apply');
+        Route::get('careers/track/{token}', [TenantHostController::class, 'careersTrack'])->name('careers.track');
+        Route::post('careers/track/{token}/reply', [TenantHostController::class, 'careersReply'])->name('careers.track.reply');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->where('posting', '[0-9]+')->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->where('posting', '[0-9]+')->name('careers.apply');
 
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
@@ -924,6 +928,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('postings/{posting}/applicants', [\App\Http\Controllers\RecruitmentController::class, 'storeApplicant'])->name('applicants.store');
         Route::patch('applicants/{applicant}/status', [\App\Http\Controllers\RecruitmentController::class, 'updateApplicantStatus'])->name('applicants.status');
         Route::post('applicants/{applicant}/interview', [\App\Http\Controllers\RecruitmentController::class, 'scheduleInterview'])->name('applicants.interview');
+        Route::post('applicants/{applicant}/message', [\App\Http\Controllers\RecruitmentController::class, 'sendMessage'])->name('applicants.message');
     });
 
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1199,6 +1204,8 @@ Route::name('careers.')->group(function () {
         config('tenancy.scheme') . '://' . $slug . '.' . config('tenancy.base_domain') . '/careers' . ($path ? '/' . ltrim($path, '/') : '');
 
     Route::get('_careers_stub/{slug}',                fn (string $slug) => redirect()->away($careers($slug)))->name('landing');
+    Route::get('_careers_stub/{slug}/track/{token}',  fn (string $slug, string $token) => redirect()->away($careers($slug, 'track/' . $token)))->name('track');
+    Route::post('_careers_stub/{slug}/track/{token}/reply', fn () => abort(404))->name('track.reply');
     Route::get('_careers_stub/{slug}/{posting}',      fn (string $slug, $posting) => redirect()->away($careers($slug, (string) $posting)))->name('show');
     Route::post('_careers_stub/{slug}/{posting}/apply', fn () => abort(404))->name('apply');
 });
