@@ -939,6 +939,14 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('applicants/{applicant}/offer/download', [\App\Http\Controllers\RecruitmentController::class, 'downloadOfferLetter'])->name('applicants.offer.download');
     });
 
+    // -- Staff Disciplinary Actions -----------------------------------------------
+    Route::prefix('staff-discipline')->name('staff-discipline.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\StaffDisciplinaryController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\StaffDisciplinaryController::class, 'store'])->name('store');
+        Route::patch('{action}/deactivate-deduction', [\App\Http\Controllers\StaffDisciplinaryController::class, 'deactivateDeduction'])->name('deactivate-deduction');
+        Route::patch('{action}/rescind', [\App\Http\Controllers\StaffDisciplinaryController::class, 'rescind'])->name('rescind');
+    });
+
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('transport')->name('transport.')->group(function () {
         Route::get('routes',                   [\App\Http\Controllers\TransportController::class, 'routes'])->name('routes');
