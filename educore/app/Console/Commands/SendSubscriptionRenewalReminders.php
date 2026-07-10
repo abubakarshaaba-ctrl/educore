@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\TenantSubscription;
+use App\Models\Tenant;
 use App\Notifications\Tenant\SubscriptionExpiringNotification;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -30,25 +30,18 @@ class SendSubscriptionRenewalReminders extends Command
         foreach (self::THRESHOLDS as $days) {
             $targetDate = now()->addDays($days)->toDateString();
 
-            $subscriptions = TenantSubscription::where('status', 'active')
-                ->whereDate('expires_at', $targetDate)
-                ->with('tenant')
-                ->get();
+            $tenants = Tenant::whereDate('subscription_expires_at', $targetDate)->get();
 
-            foreach ($subscriptions as $sub) {
-                if (!$sub->tenant) {
-                    continue;
-                }
-
+            foreach ($tenants as $tenant) {
                 try {
-                    $sub->tenant->notifyAdmins(new SubscriptionExpiringNotification(
-                        $sub->tenant,
-                        $sub->expires_at->format('d M Y'),
+                    $tenant->notifyAdmins(new SubscriptionExpiringNotification(
+                        $tenant,
+                        $tenant->subscription_expires_at->format('d M Y'),
                         $days
                     ));
                     $sent++;
                 } catch (\Throwable $e) {
-                    Log::error("Renewal reminder failed for tenant {$sub->tenant->id}: " . $e->getMessage());
+                    Log::error("Renewal reminder failed for tenant {$tenant->id}: " . $e->getMessage());
                 }
             }
         }

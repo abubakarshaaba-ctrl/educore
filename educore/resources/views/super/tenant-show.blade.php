@@ -51,17 +51,14 @@ tbody tr:last-child td{border-bottom:none}
         @endif
         <div style="font-size:15px;font-weight:700">{{ $tenant->name }}</div>
         <div style="font-size:11px;color:var(--slate-light);margin-top:3px">{{ $tenant->subdomain ? $tenant->subdomain.'.educore.test' : 'No local subdomain set' }}</div>
-        @php $sub=$tenant->activeSubscription; @endphp
-        @if($sub)
-          <div style="margin-top:8px"><span class="badge b-{{ $sub->status }}">{{ ucfirst($sub->status) }} &middot; {{ optional($sub->plan)->name }}</span></div>
-        @endif
+        <div style="margin-top:8px"><span class="badge b-{{ $tenant->status }}">{{ ucfirst($tenant->status) }} &middot; {{ \App\Services\PricingService::capacityFor($tenant) }} students</span></div>
       </div>
 
       <div class="info-row"><span class="ik">Email</span><span class="iv">{{ $tenant->email }}</span></div>
       <div class="info-row"><span class="ik">Phone</span><span class="iv">{{ $tenant->phone ?? '-' }}</span></div>
       <div class="info-row"><span class="ik">Location</span><span class="iv">{{ $tenant->address ?? '-' }}</span></div>
       <div class="info-row"><span class="ik">Users</span><span class="iv">{{ $tenant->users->count() }}</span></div>
-      <div class="info-row"><span class="ik">Expires</span><span class="iv">{{ optional($sub)->expires_at ? \Carbon\Carbon::parse($sub->expires_at)->format('d M Y') : '-' }}</span></div>
+      <div class="info-row"><span class="ik">Expires</span><span class="iv">{{ $tenant->subscription_expires_at ? \Carbon\Carbon::parse($tenant->subscription_expires_at)->format('d M Y') : '-' }}</span></div>
       <div class="info-row"><span class="ik">School Portal</span><span class="iv"><a href="{{ route('tenant.portal.landing', $tenant->slug) }}" target="_blank" rel="noopener">/school/{{ $tenant->slug }}</a></span></div>
       <div class="info-row"><span class="ik">School Login</span><span class="iv"><a href="{{ route('tenant.login', $tenant->slug) }}" target="_blank" rel="noopener">/school/{{ $tenant->slug }}/login</a></span></div>
       <div class="info-row"><span class="ik">Admissions</span><span class="iv"><a href="{{ route('portal.landing', $tenant->slug) }}" target="_blank" rel="noopener">/apply/{{ $tenant->slug }}</a></span></div>
@@ -107,38 +104,18 @@ tbody tr:last-child td{border-bottom:none}
 
   <div>
     <div class="card">
-      <div class="ch">Subscription History</div>
-      <div class="tbl"><table>
-        <thead><tr><th>Plan</th><th>Status</th><th>Start</th><th>Expires</th></tr></thead>
-        <tbody>
-        @forelse($tenant->subscriptions as $sub)
-        <tr>
-            <td>{{ optional($sub->plan)->name }}</td>
-            <td><span class="badge b-{{ $sub->status }}">{{ ucfirst($sub->status) }}</span></td>
-            <td style="font-size:11px">{{ \Carbon\Carbon::parse($sub->starts_at)->format('d M Y') }}</td>
-            <td style="font-size:11px">{{ \Carbon\Carbon::parse($sub->expires_at)->format('d M Y') }}</td>
-        </tr>
-        @empty
-        <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--slate-light)">No subscriptions</td></tr>
-        @endforelse
-        </tbody>
-      </table></div>
-    </div>
-
-    <div class="card">
       <div class="ch">Payment History</div>
       <div class="tbl"><table>
-        <thead><tr><th>Amount</th><th>Plan</th><th>Date</th><th>Method</th></tr></thead>
+        <thead><tr><th>Amount</th><th>Date</th><th>Method</th></tr></thead>
         <tbody>
         @forelse($payments as $pay)
         <tr>
             <td style="font-weight:700">NGN {{ number_format($pay->amount) }}</td>
-            <td>-</td>
             <td style="font-size:11px">{{ \Carbon\Carbon::parse($pay->paid_at)->format('d M Y') }}</td>
             <td style="font-size:11px;text-transform:capitalize">{{ $pay->payment_method ?? '-' }}</td>
         </tr>
         @empty
-        <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--slate-light)">No payments recorded</td></tr>
+        <tr><td colspan="3" style="text-align:center;padding:20px;color:var(--slate-light)">No payments recorded</td></tr>
         @endforelse
         </tbody>
       </table></div>

@@ -1059,7 +1059,6 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::delete('tenants/{tenant}',        [SuperAdminController::class, 'destroyTenant'])->name('tenant.destroy');
     Route::post('impersonate/{tenant}',      [SuperAdminController::class, 'impersonate'])->name('impersonate');
     Route::post('stop-impersonating',        [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
-    Route::get('subscriptions',  [SuperAdminController::class, 'subscriptions'])->name('subscriptions');
     Route::get('plans',          [SuperAdminController::class, 'plans'])->name('plans');
     Route::get('payments',       [SuperAdminController::class, 'payments'])->name('payments');
     Route::get('settings',               [SuperAdminController::class, 'settings'])->name('settings');

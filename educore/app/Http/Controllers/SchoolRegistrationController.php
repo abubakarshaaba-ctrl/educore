@@ -67,22 +67,6 @@ class SchoolRegistrationController extends Controller
                 'referred_by_agent_id'    => $referringAgent?->id,
             ]);
 
-            if (Schema::hasTable('tenant_subscriptions')) {
-                DB::table('tenant_subscriptions')->insert([
-                    'tenant_id'         => $tenant->id,
-                    'plan_id'           => null,
-                    'status'            => 'trial',
-                    'billing_cycle'     => 'monthly',
-                    'amount_paid'       => 0,
-                    'starts_at'         => now()->toDateString(),
-                    'expires_at'        => $trialEnds->toDateString(),
-                    'next_billing_date' => $trialEnds->toDateString(),
-                    'created_by'        => null,
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
-                ]);
-            }
-
             // Create agent referral record so the agent's portal counts this school
             if ($referringAgent && Schema::hasTable('agent_referrals')) {
                 DB::table('agent_referrals')->insert([

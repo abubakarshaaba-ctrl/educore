@@ -26,9 +26,9 @@ class SupportController extends Controller
         $tenantId = $this->tenantId();
         $tenant   = auth()->user()->tenant;
 
-        // Determine tenant status for filtering
-        $isOnTrial = \Illuminate\Support\Facades\Schema::hasTable('tenant_subscriptions')
-            && DB::table('tenant_subscriptions')->where('tenant_id', $tenantId)->where('status', 'trial')->exists();
+        // Determine tenant status for filtering ("trial" = on the free
+        // pay-per-student tier, i.e. hasn't paid for extra capacity yet)
+        $isOnTrial = \App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($tenantId));
         $tenantStatus = $isOnTrial ? 'trial' : ($tenant && $tenant->is_active ? 'active' : 'expired');
 
         $notices = DB::table('platform_broadcasts')

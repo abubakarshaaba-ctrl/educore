@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Tenant;
-use App\Models\TenantSubscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -71,14 +70,13 @@ class TenantAccessService
             );
         }
 
-        $latestSubscription = $this->latestSubscription($tenant);
-        if ($latestSubscription?->status === 'trial'
-            && (!$latestSubscription->expires_at || $latestSubscription->expires_at->isFuture())) {
+        // "Trial" under the pay-per-student model just means the school
+        // hasn't paid for extra capacity yet (still on the free tier).
+        if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
             return TenantAccessDecision::warning(
                 TenantAccessDecision::STATE_TRIAL,
-                'This school account is currently using a trial subscription.',
-                $latestSubscription->expires_at ?? $expiresAt,
-                ['subscription_id' => $latestSubscription->id]
+                'This school account is currently on the free plan.',
+                $expiresAt
             );
         }
 
@@ -96,18 +94,6 @@ class TenantAccessService
     public function genericUnavailableMessage(): string
     {
         return 'This school portal is currently unavailable. Please contact the school administration.';
-    }
-
-    private function latestSubscription(Tenant $tenant): ?TenantSubscription
-    {
-        if (!Schema::hasTable('tenant_subscriptions')) {
-            return null;
-        }
-
-        return TenantSubscription::where('tenant_id', $tenant->id)
-            ->latest('created_at')
-            ->latest('id')
-            ->first();
     }
 
     private function gracePeriodDays(): int

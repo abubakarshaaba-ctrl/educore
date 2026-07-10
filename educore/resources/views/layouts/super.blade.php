@@ -173,10 +173,6 @@ table { width:100%; border-collapse:collapse; }
 
     <div class="nav-section">
         <div class="nav-label">Billing</div>
-        <a href="{{ route('super.subscriptions') }}" class="nav-item {{ request()->routeIs('super.subscriptions') ? 'active' : '' }}">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-            Subscriptions
-        </a>
         <a href="{{ route('super.plans') }}" class="nav-item {{ request()->routeIs('super.plans*') ? 'active' : '' }}">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
             Pricing

@@ -14,15 +14,6 @@
 .tier-rate{font-size:15px;font-weight:800;color:var(--midnight)}
 .tier-cycle{font-size:11px;color:var(--slate-light)}
 .note{padding:14px 20px;font-size:12px;color:var(--slate-light);background:#F8FAFC;border-top:1px solid var(--border)}
-
-.legacy-banner{background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13px;color:#92400E}
-.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.pc{background:white;border:1px solid var(--border);border-radius:12px;padding:16px 18px;opacity:0.85}
-.pc-name{font-size:14px;font-weight:800;color:var(--midnight)}
-.pc-price{font-size:12px;color:var(--slate-light);margin-top:2px}
-.pc-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#F1F5F9;color:#64748B}
-.feat-tags{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}
-.feat-tag{padding:2px 8px;background:#F1F5F9;color:#64748B;border-radius:20px;font-size:10px;font-weight:600}
 </style>
 @endpush
 @section('content')
@@ -50,32 +41,5 @@
         via a code deployment rather than a database record, so pricing can't drift out of sync
         with what's actually enforced.
     </div>
-</div>
-
-{{-- ══ Legacy plans — historical reference only ══════════════════════ --}}
-<div class="legacy-banner">
-    ⚠️ The plans below are from the old tiered subscription model and are kept only for
-    historical invoice records. They no longer control feature access or billing for any
-    school — every school is on the pay-per-student model above.
-</div>
-<div class="plan-grid">
-@forelse($plans as $plan)
-@php $planFeatures = is_array($plan->features) ? $plan->features : (json_decode($plan->features ?? '[]', true) ?? []); @endphp
-<div class="pc">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-            <div class="pc-name">{{ $plan->name }}</div>
-            <div class="pc-price">₦{{ number_format($plan->monthly_price) }}/mo (legacy) &nbsp;·&nbsp; ₦{{ number_format($plan->annual_price) }}/yr (legacy)</div>
-        </div>
-        <span class="pc-badge">Historical</span>
-    </div>
-    <div class="feat-tags">
-        <span class="feat-tag">{{ count($planFeatures) }} features (legacy)</span>
-        <span class="feat-tag">{{ number_format($plan->max_students) }} students (legacy cap)</span>
-    </div>
-</div>
-@empty
-<p style="color:var(--slate-light);font-size:13px">No legacy plans on record.</p>
-@endforelse
 </div>
 @endsection

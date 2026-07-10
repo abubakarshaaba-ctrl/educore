@@ -107,22 +107,6 @@ class Tenant extends Model
         return $this->hasMany(AcademicSession::class);
     }
 
-    public function activeSubscription()
-    {
-        // Only return subscriptions that actually have a plan assigned.
-        // Admin-created subscriptions without a plan_id are treated as "no plan"
-        // and should not prevent a paid plan from showing as current.
-        return $this->hasOne(TenantSubscription::class)
-            ->where('status', 'active')
-            ->whereNotNull('plan_id')
-            ->latest();
-    }
-
-    public function subscriptions()
-    {
-        return $this->hasMany(TenantSubscription::class);
-    }
-
     /**
      * Multi-campus school groups share a single subscription: the campus
      * marked "lead" in school_group_members holds it, and every other

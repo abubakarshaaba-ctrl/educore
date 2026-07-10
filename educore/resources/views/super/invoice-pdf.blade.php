@@ -72,7 +72,7 @@ td{padding:10pt 12pt;border-bottom:1pt solid #E2E8F0;font-size:11pt}
     </thead>
     <tbody>
         <tr>
-            <td><strong>{{ $invoice->plan_name }}</strong> Subscription<br>
+            <td><strong>Pay-Per-Student Subscription</strong> — {{ number_format($invoice->student_count) }} students<br>
                 <span style="font-size:9pt;color:#64748B">School Management Software — EduCore</span>
             </td>
             <td style="text-transform:capitalize">{{ $invoice->billing_cycle }}</td>

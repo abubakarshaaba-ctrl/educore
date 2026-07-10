@@ -82,31 +82,10 @@
                             <input type="text" name="address" class="form-control" value="{{ old('address') }}" placeholder="School address">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Subscription Plan <span>*</span></label>
-                            <select name="plan_id" class="form-control {{ $errors->has('plan_id') ? 'is-invalid' : '' }}" required>
-                                <option value="">Select subscription plan...</option>
-                                @forelse($plans as $plan)
-                                    <option value="{{ $plan->id }}" {{ (string) old('plan_id') === (string) $plan->id ? 'selected' : '' }}>
-                                        {{ $plan->name }} - Monthly NGN {{ number_format($plan->monthly_price, 2) }} / Annual NGN {{ number_format($plan->annual_price, 2) }}
-                                    </option>
-                                @empty
-                                    <option value="" disabled>No active subscription plans available</option>
-                                @endforelse
-                            </select>
-                            @error('plan_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Billing Cycle <span>*</span></label>
-                            <select name="billing_cycle" class="form-control {{ $errors->has('billing_cycle') ? 'is-invalid' : '' }}" required>
-                                <option value="annual" {{ old('billing_cycle', 'annual') === 'annual' ? 'selected' : '' }}>Annual</option>
-                                <option value="monthly" {{ old('billing_cycle') === 'monthly' ? 'selected' : '' }}>Monthly</option>
-                            </select>
-                            @error('billing_cycle')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group">
                             <label class="form-label">Subscription Expires <span>*</span></label>
                             <input type="date" name="subscription_expires_at" class="form-control"
                                    value="{{ old('subscription_expires_at', now()->addYear()->format('Y-m-d')) }}">
+                            <small style="color:var(--slate-light)">New schools start on the free tier (up to 20 students, no invoice needed). Generate an invoice from Billing &amp; Invoicing afterward to raise their paid capacity.</small>
                         </div>
                     </div>
                 </div>
