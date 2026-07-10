@@ -79,13 +79,14 @@ tr:hover td{background:#F8FAFC}
             <div class="ch">📋 Platform Invoices<span style="font-size:12px;color:#64748B">{{ $invoices->total() }} records</span></div>
             <div style="overflow-x:auto">
             <table>
-                <thead><tr><th>Invoice #</th><th>School</th><th>Plan</th><th>Amount</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Invoice #</th><th>School</th><th>Cycle</th><th>Capacity</th><th>Amount</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                 @forelse($invoices as $inv)
                 <tr>
                     <td style="font-weight:700;font-family:monospace">{{ $inv->invoice_number }}</td>
                     <td style="font-weight:600">{{ $inv->school_name }}</td>
-                    <td>{{ $inv->plan_name ?? '—' }} <span style="font-size:11px;color:#94A3B8">({{ $inv->billing_cycle }})</span></td>
+                    <td>{{ ucfirst($inv->billing_cycle) }}{{ $inv->billing_cycle === 'monthly' ? ' (legacy)' : '' }}</td>
+                    <td style="font-size:12px">{{ $inv->student_count ?? '—' }}</td>
                     <td style="font-weight:700">₦{{ number_format($inv->amount) }}</td>
                     <td style="font-size:12px;color:{{ \Carbon\Carbon::parse($inv->due_date)->isPast() && $inv->status!='paid' ? '#DC2626':'#64748B' }}">
                         {{ \Carbon\Carbon::parse($inv->due_date)->format('d M Y') }}
@@ -105,7 +106,7 @@ tr:hover td{background:#F8FAFC}
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" style="text-align:center;padding:40px;color:#94A3B8">No invoices found.</td></tr>
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:#94A3B8">No invoices found.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -141,6 +142,10 @@ tr:hover td{background:#F8FAFC}
                 <div class="fg">
                     <label class="fl">Custom Amount (₦) — only for 500+ students</label>
                     <input type="number" name="custom_amount" class="fc" min="0" step="0.01" placeholder="Leave blank for automatic pricing">
+                </div>
+                <div class="fg">
+                    <label class="fl">Grant Capacity (students) — optional</label>
+                    <input type="number" name="capacity" class="fc" min="1" placeholder="Defaults to current enrollment">
                 </div>
                 <div class="fg"><label class="fl">Due Date *</label>
                     <input type="date" name="due_date" class="fc" required value="{{ now()->addDays(14)->format('Y-m-d') }}">

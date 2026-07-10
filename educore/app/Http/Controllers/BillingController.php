@@ -33,9 +33,11 @@ class BillingController extends Controller
         $hasOutstandingInvoice = $invoices->contains(fn ($inv) => $inv->status !== 'paid');
 
         $studentCount = PricingService::activeStudentCount($tenant->id);
+        $capacity     = PricingService::capacityFor($tenant);
+        $atCapacity   = !PricingService::canAddStudent($tenant);
 
         return view('billing.self-service', compact(
-            'tenant', 'invoices', 'totalPaid', 'gatewayConfigured', 'hasOutstandingInvoice', 'studentCount'
+            'tenant', 'invoices', 'totalPaid', 'gatewayConfigured', 'hasOutstandingInvoice', 'studentCount', 'capacity', 'atCapacity'
         ));
     }
 
@@ -55,22 +57,27 @@ class BillingController extends Controller
         $tenant = $user->tenant;
 
         $data = $request->validate([
-            'billing_cycle' => ['required', 'in:termly,annual'],
+            'billing_cycle'    => ['required', 'in:termly,annual'],
+            'target_capacity'  => ['nullable', 'integer', 'min:1'],
         ]);
 
         $studentCount = PricingService::activeStudentCount($tenant->id);
 
-        if (PricingService::isCustomQuote($studentCount)) {
-            return back()->withErrors(['plan' => 'Your enrollment qualifies for custom volume pricing — contact EduCore for a tailored quote instead of a self-service invoice.']);
+        // Admins can buy ahead of their current enrollment (e.g. to leave
+        // headroom for pending admissions) — never less than what's in use.
+        $capacity = max($studentCount, (int) ($data['target_capacity'] ?? $studentCount));
+
+        if (PricingService::isCustomQuote($capacity)) {
+            return back()->withErrors(['plan' => 'That enrollment size qualifies for custom volume pricing — contact EduCore for a tailored quote instead of a self-service invoice.']);
         }
 
-        if (PricingService::isFree($studentCount)) {
+        if (PricingService::isFree($capacity)) {
             return back()->withErrors(['plan' => 'Your current enrollment (' . $studentCount . ' students) falls under the free plan — no invoice needed.']);
         }
 
         $amount = $data['billing_cycle'] === 'annual'
-            ? PricingService::annualAmount($studentCount)
-            : PricingService::termlyAmount($studentCount);
+            ? PricingService::annualAmount($capacity)
+            : PricingService::termlyAmount($capacity);
 
         $existing = DB::table('platform_invoices')
             ->where('tenant_id', $tenant->id)
@@ -89,15 +96,16 @@ class BillingController extends Controller
             'plan_id'        => null,
             'invoice_number' => $ref,
             'amount'         => $amount,
+            'student_count'  => $capacity,
             'billing_cycle'  => $data['billing_cycle'],
             'status'         => 'pending',
             'due_date'       => now()->addDays(7)->toDateString(),
-            'notes'          => 'Self-service pay-per-student invoice — ' . $studentCount . ' active students.',
+            'notes'          => 'Self-service pay-per-student invoice — capacity for ' . $capacity . ' students.',
             'created_at'     => now(),
             'updated_at'     => now(),
         ]);
 
         return redirect()->route('super.billing.pay', $invoiceId)
-            ->with('success', "Invoice {$ref} created for {$studentCount} students — complete payment to activate.");
+            ->with('success', "Invoice {$ref} created for {$capacity} students — complete payment to activate.");
     }
 }

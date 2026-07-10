@@ -959,6 +959,7 @@ class SuperAdminController extends Controller
             'tenant_id'      => ['required','exists:tenants,id'],
             'billing_cycle'  => ['required','in:termly,annual'],
             'custom_amount'  => ['nullable','numeric','min:0'],
+            'capacity'       => ['nullable','integer','min:1'],
             'due_date'       => ['required','date'],
             'notes'          => ['nullable','string'],
         ]);
@@ -976,6 +977,11 @@ class SuperAdminController extends Controller
                 : \App\Services\PricingService::termlyAmount($studentCount);
         }
 
+        // Capacity this invoice pays for — defaults to current enrollment,
+        // but a super admin can grant headroom above that (e.g. a negotiated
+        // custom-volume deal for planned growth).
+        $capacity = $data['capacity'] ?? $studentCount;
+
         $ref = 'INV-'.strtoupper(Str::random(8));
 
         DB::table('platform_invoices')->insert([
@@ -983,6 +989,7 @@ class SuperAdminController extends Controller
             'plan_id'        => null,
             'invoice_number' => $ref,
             'amount'         => $amount,
+            'student_count'  => $capacity,
             'billing_cycle'  => $data['billing_cycle'],
             'status'         => 'pending',
             'due_date'       => $data['due_date'],
@@ -1039,6 +1046,9 @@ class SuperAdminController extends Controller
             $tenant->update([
                 'subscription_expires_at' => $newExpiry,
                 'status' => 'active',
+                'students_capacity' => $invoice->student_count
+                    ? max($invoice->student_count, $tenant->students_capacity ?? 0)
+                    : $tenant->students_capacity,
             ]);
 
             $this->creditReferralCommission($tenant, (float) $invoice->amount);
@@ -1189,6 +1199,9 @@ class SuperAdminController extends Controller
         $tenant->update([
             'status'                  => 'active',
             'subscription_expires_at' => $expiry,
+            'students_capacity'       => $invoice->student_count
+                ? max($invoice->student_count, $tenant->students_capacity ?? 0)
+                : $tenant->students_capacity,
         ]);
 
         // Deactivate any existing active subscriptions so the new plan wins ordering.

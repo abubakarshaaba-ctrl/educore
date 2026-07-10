@@ -88,6 +88,12 @@ class AdmissionController extends Controller
 
         $statusChanged = $admission->status !== $data['status'];
 
+        if ($statusChanged && $data['status'] === 'admitted' && !$admission->enrolled_as_student_id) {
+            if ($error = \App\Services\PlanLimitService::checkStudentLimit(auth()->user()->tenant)) {
+                return back()->withErrors(['limit' => $error]);
+            }
+        }
+
         $admission->update([
             'status'        => $data['status'],
             'notes'         => $data['notes'] ?? $admission->notes,

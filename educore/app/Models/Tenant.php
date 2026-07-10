@@ -57,6 +57,7 @@ class Tenant extends Model
         'email',
         'status',
         'subscription_expires_at',
+        'students_capacity',
         'theme_primary',
         'theme_accent',
         'theme_sidebar',

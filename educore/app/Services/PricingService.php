@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Student;
+use App\Models\Tenant;
 
 /**
  * The single, system-wide pricing model: every tenant gets full feature
@@ -78,6 +79,27 @@ class PricingService
             ->where('tenant_id', $tenantId)
             ->where('status', Student::STATUS_ACTIVE)
             ->count();
+    }
+
+    /**
+     * The number of students this tenant is currently paid up for.
+     * Null capacity (never paid, or never explicitly raised) defaults to
+     * the free threshold — every tenant starts able to hold the free tier.
+     */
+    public static function capacityFor(Tenant $tenant): int
+    {
+        return $tenant->students_capacity ?? self::FREE_THRESHOLD;
+    }
+
+    /** Whether this tenant can enroll one more active student within their paid capacity. */
+    public static function canAddStudent(Tenant $tenant): bool
+    {
+        return self::activeStudentCount($tenant->id) < self::capacityFor($tenant);
+    }
+
+    public static function remainingCapacity(Tenant $tenant): int
+    {
+        return max(0, self::capacityFor($tenant) - self::activeStudentCount($tenant->id));
     }
 
     /** All published tiers, for display on pricing/marketing pages. */

@@ -51,14 +51,24 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
         <div class="lbl">Expires</div>
     </div>
     <div class="bstat">
-        <div class="val" style="font-size:15px">{{ $studentCount }}</div>
-        <div class="lbl">Active Students</div>
+        <div class="val" style="font-size:15px">{{ $studentCount }} / {{ $capacity }}</div>
+        <div class="lbl">Students / Paid Capacity</div>
     </div>
     <div class="bstat">
         <div class="val">₦{{ number_format($totalPaid) }}</div>
         <div class="lbl">Total Paid</div>
     </div>
 </div>
+
+@if($atCapacity)
+<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+    <div style="font-size:24px">🚫</div>
+    <div>
+        <div style="font-size:13px;font-weight:700;color:#991B1B">You've reached your paid capacity of {{ $capacity }} students</div>
+        <div style="font-size:12px;color:#B91C1B;margin-top:3px">New students can't be enrolled until you generate and pay an invoice for additional capacity below.</div>
+    </div>
+</div>
+@endif
 
 @if($tenant->isExpired() || $tenant->isExpiringSoon())
 <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
@@ -115,9 +125,17 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
             </div>
             <div class="sub">{{ $studentCount }} active students × {{ \App\Services\PricingService::tierLabel($studentCount) }}</div>
 
-            <form method="POST" action="{{ route('billing.generate-invoice') }}">
+            <form method="POST" action="{{ route('billing.generate-invoice') }}" style="max-width:340px;margin:0 auto">
                 @csrf
                 <input type="hidden" name="billing_cycle" id="cycleInput" value="termly">
+                <div style="text-align:left;margin:18px 0 6px">
+                    <label style="font-size:11px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em">
+                        Capacity to purchase (optional headroom)
+                    </label>
+                    <input type="number" name="target_capacity" class="fc" min="{{ $studentCount }}" placeholder="Defaults to current: {{ $studentCount }}"
+                           style="padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;width:100%;margin-top:6px">
+                    <div style="font-size:11px;color:var(--slate-light);margin-top:4px">Buy ahead of your current enrollment to leave room for pending admissions — the final amount reflects the capacity you request here.</div>
+                </div>
                 <button type="submit" class="pay-btn">Generate Invoice &amp; Pay</button>
             </form>
         </div>
@@ -129,13 +147,17 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
     <div style="overflow-x:auto">
     <table>
         <thead>
-            <tr><th>Invoice #</th><th>Cycle</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Action</th></tr>
+            <tr><th>Invoice #</th><th>Cycle</th><th>Capacity</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Action</th></tr>
         </thead>
         <tbody>
         @forelse($invoices as $inv)
         <tr>
             <td style="font-weight:700;font-family:monospace">{{ $inv->invoice_number }}</td>
-            <td style="font-size:12px;text-transform:capitalize">{{ $inv->billing_cycle ?? '—' }}</td>
+            <td style="font-size:12px;text-transform:capitalize">
+                {{ $inv->billing_cycle ?? '—' }}
+                @if($inv->billing_cycle === 'monthly')<span class="badge" style="background:#F1F5F9;color:#64748B">Legacy plan</span>@endif
+            </td>
+            <td style="font-size:12px">{{ $inv->student_count ?? '—' }}</td>
             <td style="font-weight:700">₦{{ number_format($inv->amount) }}</td>
             <td style="font-size:12px;color:{{ \Carbon\Carbon::parse($inv->due_date)->isPast() && $inv->status !== 'paid' ? '#DC2626':'' }}">
                 {{ \Carbon\Carbon::parse($inv->due_date)->format('d M Y') }}
@@ -155,7 +177,7 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
             </td>
         </tr>
         @empty
-        <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--slate-light)">No invoices yet</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--slate-light)">No invoices yet</td></tr>
         @endforelse
         </tbody>
     </table>
