@@ -151,8 +151,19 @@ class Tenant extends Model
 
     public function isExpired(): bool
     {
-        return $this->status === self::STATUS_SUBSCRIPTION_EXPIRED
-            || ($this->subscription_expires_at && $this->subscription_expires_at->isPast());
+        // An explicit super-admin override (suspending/expiring a specific
+        // tenant) always applies, regardless of tier.
+        if ($this->status === self::STATUS_SUBSCRIPTION_EXPIRED) {
+            return true;
+        }
+
+        // The free tier (≤20 students) never expires on the automatic
+        // date clock — matches the "free forever" pricing promise.
+        if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
+            return false;
+        }
+
+        return $this->subscription_expires_at && $this->subscription_expires_at->isPast();
     }
 
     /**
@@ -164,6 +175,10 @@ class Tenant extends Model
     public function isExpiringSoon(int $days = 14): bool
     {
         if (!$this->subscription_expires_at || $this->isExpired()) {
+            return false;
+        }
+
+        if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
             return false;
         }
 
