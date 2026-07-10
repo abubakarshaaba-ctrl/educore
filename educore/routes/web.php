@@ -1056,14 +1056,11 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::get('tenants/{tenant}',      [SuperAdminController::class, 'showTenant'])->name('tenant.show');
     Route::patch('tenants/{tenant}/toggle',  [SuperAdminController::class, 'toggleTenant'])->name('tenant.toggle');
     Route::post('tenants/{tenant}/extend',   [SuperAdminController::class, 'extendTenant'])->name('tenant.extend');
-    Route::post('tenants/{tenant}/renew',    [SuperAdminController::class, 'renewTenant'])->name('tenant.renew');
     Route::delete('tenants/{tenant}',        [SuperAdminController::class, 'destroyTenant'])->name('tenant.destroy');
     Route::post('impersonate/{tenant}',      [SuperAdminController::class, 'impersonate'])->name('impersonate');
     Route::post('stop-impersonating',        [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
     Route::get('subscriptions',  [SuperAdminController::class, 'subscriptions'])->name('subscriptions');
     Route::get('plans',          [SuperAdminController::class, 'plans'])->name('plans');
-    Route::post('plans',         [SuperAdminController::class, 'storePlan'])->name('plans.store');
-    Route::patch('plans/{plan}', [SuperAdminController::class, 'updatePlan'])->name('plans.update');
     Route::get('payments',       [SuperAdminController::class, 'payments'])->name('payments');
     Route::get('settings',               [SuperAdminController::class, 'settings'])->name('settings');
     Route::post('settings',              [SuperAdminController::class, 'saveSettings'])->name('settings.save');

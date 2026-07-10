@@ -262,10 +262,9 @@ class SuperAdminController extends Controller
                            ->orderByDesc('created_at')->get();
         $payments = DB::table('platform_payments')->where('tenant_id', $tenant->id)
                       ->orderByDesc('created_at')->get();
-        $plans = DB::table('subscription_plans')->where('is_active', 1)->orderBy('sort_order')->get();
         $onboardingStatus = $onboarding->status($tenant);
 
-        return view('super.tenant-show', compact('tenant', 'subscriptions', 'payments', 'plans', 'onboardingStatus'));
+        return view('super.tenant-show', compact('tenant', 'subscriptions', 'payments', 'onboardingStatus'));
     }
 
     public function editTenant(Tenant $tenant, TenantUrlGenerator $urls, TenantHostResolver $hosts)
@@ -492,82 +491,6 @@ class SuperAdminController extends Controller
         $this->guard();
         $plans = \App\Models\SubscriptionPlan::orderBy('sort_order')->get();
         return view('super.plans', compact('plans'));
-    }
-
-    public function storePlan(Request $request)
-    {
-        $this->guard();
-        $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:100'],
-            'slug'          => ['required', 'string', 'max:100', 'unique:subscription_plans,slug', 'regex:/^[a-z0-9-]+$/'],
-            'monthly_price' => ['required', 'numeric', 'min:0'],
-            'annual_price'  => ['required', 'numeric', 'min:0'],
-            'max_students'  => ['required', 'integer', 'min:1'],
-            'max_staff'     => ['required', 'integer', 'min:1'],
-            'description'   => ['nullable', 'string', 'max:500'],
-            'features'      => ['nullable', 'array'],
-            'features.*'    => ['string'],
-        ]);
-
-        $features = $validated['features'] ?? [];
-        // Derive legacy boolean flags from features array
-        $hasCbt = in_array('cbt', $features, true);
-        $hasSms = in_array('sms', $features, true);
-
-        DB::table('subscription_plans')->insert([
-            'name'          => $validated['name'],
-            'slug'          => $validated['slug'],
-            'description'   => $validated['description'] ?? null,
-            'monthly_price' => $validated['monthly_price'],
-            'annual_price'  => $validated['annual_price'],
-            'max_students'  => $validated['max_students'],
-            'max_staff'     => $validated['max_staff'],
-            'has_cbt'       => $hasCbt,
-            'has_sms'       => $hasSms,
-            'features'      => json_encode($features),
-            'is_active'     => true,
-            'sort_order'    => DB::table('subscription_plans')->count() + 1,
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
-
-        return back()->with('success', "Plan \"{$validated['name']}\" created successfully.");
-    }
-
-    public function updatePlan(Request $request, $planId)
-    {
-        $this->guard();
-        $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:100'],
-            'monthly_price' => ['required', 'numeric', 'min:0'],
-            'annual_price'  => ['required', 'numeric', 'min:0'],
-            'max_students'  => ['required', 'integer', 'min:1'],
-            'max_staff'     => ['required', 'integer', 'min:1'],
-            'description'   => ['nullable', 'string', 'max:500'],
-            'is_active'     => ['boolean'],
-            'features'      => ['nullable', 'array'],
-            'features.*'    => ['string'],
-        ]);
-
-        $features = $validated['features'] ?? [];
-        $hasCbt   = in_array('cbt', $features, true);
-        $hasSms   = in_array('sms', $features, true);
-
-        DB::table('subscription_plans')->where('id', $planId)->update([
-            'name'          => $validated['name'],
-            'description'   => $validated['description'] ?? null,
-            'monthly_price' => $validated['monthly_price'],
-            'annual_price'  => $validated['annual_price'],
-            'max_students'  => $validated['max_students'],
-            'max_staff'     => $validated['max_staff'],
-            'has_cbt'       => $hasCbt,
-            'has_sms'       => $hasSms,
-            'features'      => json_encode($features),
-            'is_active'     => $request->boolean('is_active', true),
-            'updated_at'    => now(),
-        ]);
-
-        return back()->with('success', "Plan updated successfully.");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -900,30 +823,6 @@ class SuperAdminController extends Controller
         }
 
         return back()->with('success', "Subscription extended by {$data['months']} month(s).");
-    }
-
-    public function renewTenant(Request $request, \App\Models\Tenant $tenant)
-    {
-        $data = $request->validate(['plan_id' => ['required','exists:subscription_plans,id']]);
-        $plan = \App\Models\SubscriptionPlan::findOrFail($data['plan_id']);
-        $newExpiry = now()->addMonths($plan->duration_months);
-        $tenant->update([
-            'subscription_expires_at' => $newExpiry,
-            'is_active' => true,
-        ]);
-        \App\Models\TenantSubscription::create([
-            'tenant_id' => $tenant->id, 'plan_id' => $plan->id,
-            'starts_at' => now(), 'ends_at' => $newExpiry,
-            'amount_paid' => $plan->price, 'status' => 'active',
-        ]);
-
-        try {
-            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y'), (float) $plan->price));
-        } catch (\Throwable $e) {
-            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
-        }
-
-        return back()->with('success', "Subscription renewed for {$plan->duration_months} month(s).");
     }
 
     // ═══════════════════════════════════════════════════════════════

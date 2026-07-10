@@ -146,18 +146,10 @@ tbody tr:last-child td{border-bottom:none}
 
     <div class="card">
       <div class="ch">Renew Subscription</div>
-      <div style="padding:16px">
-        <form method="POST" action="{{ route('super.tenant.renew',$tenant) }}">
-        @csrf
-        <div class="fg"><label class="fl">Plan</label>
-          <select name="plan_id" class="fc">
-            @foreach($plans as $plan)<option value="{{ $plan->id }}">{{ $plan->name }} - NGN {{ number_format($plan->annual_price) }}/yr</option>@endforeach
-          </select>
-        </div>
-        <div class="fg"><label class="fl">Amount Paid (NGN)</label><input type="number" name="amount" class="fc" required></div>
-        <div class="fg"><label class="fl">Months</label><input type="number" name="months" class="fc" value="12" min="1" max="36"></div>
-        <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">Process Renewal</button>
-        </form>
+      <div style="padding:16px;font-size:12.5px;color:var(--slate-light)">
+        Renewals are pay-per-student now — generate and mark an invoice paid from
+        <a href="{{ route('super.billing') }}">Billing &amp; Invoicing</a> instead of a fixed plan.
+        Paying an invoice automatically extends this school's subscription and paid capacity.
       </div>
     </div>
   </div>
