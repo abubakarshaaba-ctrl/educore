@@ -21,7 +21,10 @@
 .stat-copy{min-width:0}.stat-val{font-size:27px;line-height:1;font-weight:850;letter-spacing:-.04em;color:var(--tone)}
 .stat-label{font-size:12px;font-weight:750;color:#344054;margin-top:7px}.stat-sub{font-size:11px;color:var(--dash-muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trend-good{color:var(--dash-green);font-weight:800}.trend-risk{color:var(--dash-red);font-weight:800}
 .dash-grid{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(300px,1fr);gap:16px;margin-bottom:16px}
-.dash-lower{display:grid;grid-template-columns:minmax(250px,1fr) minmax(220px,.78fr) minmax(260px,1.05fr);gap:16px;margin-bottom:16px}
+.dash-lower{display:grid;grid-template-columns:minmax(250px,1.15fr) minmax(205px,.8fr) minmax(205px,.8fr) minmax(260px,1.1fr);gap:16px;margin-bottom:16px;align-items:stretch}
+.dash-lower>.dash-card{height:100%}
+.dash-bottom{display:grid;grid-template-columns:minmax(290px,.85fr) minmax(0,2.15fr);gap:16px;margin-bottom:16px;align-items:stretch}
+.dash-bottom>.dash-card{height:100%}
 .stack{display:grid;gap:16px;align-content:start}
 .dash-card{background:#fff;border:1px solid var(--dash-line);border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(16,24,40,.03)}
 .card-head{min-height:54px;padding:14px 18px;border-bottom:1px solid #edf0f5;display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -43,8 +46,10 @@
 .fee-trend{display:flex;align-items:flex-end;gap:15px;height:130px;padding:8px 8px 0;border-bottom:1px solid #dfe5ee;background:repeating-linear-gradient(to bottom,transparent 0,transparent 39px,#edf1f6 40px)}.fee-month{flex:1;display:flex;height:100%;min-width:0;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}.fee-month strong{font-size:10px;color:#344054}.fee-bar{width:min(38px,58%);border-radius:8px 8px 2px 2px;background:linear-gradient(180deg,#dba63b,#c07e0a);min-height:5px}.fee-month span{font-size:10px;color:var(--dash-muted)}
 .empty-state{text-align:center;padding:48px 16px;color:var(--dash-muted);font-size:12px}.empty-state svg{display:block;margin:0 auto 10px;color:#98a2b3}
 .icon{width:18px;height:18px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}.icon-sm{width:15px;height:15px}
-@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}.dash-lower{grid-template-columns:1fr 1fr}.dash-lower>.stack:last-child{grid-column:1/-1;grid-template-columns:1fr 1fr}.fee-layout{gap:14px}}
-@media(max-width:900px){.dash-grid,.dash-lower{grid-template-columns:1fr}.dash-lower>.stack:last-child{grid-column:auto;grid-template-columns:1fr}.dash-welcome{flex-direction:column}.dash-welcome>div:last-child{width:100%;display:flex;flex-wrap:wrap}.admissions-alert{flex:1}}
+@media(min-width:1201px){body:has(.admin-dashboard){--nav-w:250px}.admin-dashboard{min-width:0}}
+@media(max-width:1300px){.dash-lower{grid-template-columns:1fr 1fr}.dash-bottom{grid-template-columns:1fr 1.6fr}.fee-layout{gap:14px}}
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.dash-grid,.dash-lower,.dash-bottom{grid-template-columns:1fr}.dash-welcome{flex-direction:column}.dash-welcome>div:last-child{width:100%;display:flex;flex-wrap:wrap}.admissions-alert{flex:1}}
 @media(max-width:600px){.stats-grid{grid-template-columns:1fr}.stat-card{min-height:110px}.dash-greeting{font-size:24px}.fee-layout{flex-direction:column}.quick-actions{grid-template-columns:1fr}.attendance-chart{gap:4px}.bar{width:70%}.bar-label{font-size:8px}.card-body{padding:14px}}
 </style>
 @endpush
@@ -143,8 +148,7 @@
             </div>
         </section>
 
-        <div class="stack">
-            <section class="dash-card">
+        <section class="dash-card">
                 <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-flag"/></svg></span><div class="card-title">Risk Flags</div></div>@if($openRiskFlags && $openRiskFlags->sum() > 0)<a class="card-link" href="{{ route('risk.index') }}">View all →</a>@endif</div>
                 <div class="card-body">
                     @if($openRiskFlags && $openRiskFlags->sum() > 0)
@@ -159,15 +163,13 @@
                     </div>
                     @endif
                 </div>
-            </section>
-            <section class="dash-card">
+        </section>
+        <section class="dash-card">
                 <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-pie"/></svg></span><div class="card-title">Gender Split</div></div></div>
                 <div class="card-body"><div class="gender-layout"><div class="gender-ring" style="--male:{{$malePct}}%"><div class="gender-center"><strong>{{ number_format($totalStudents) }}</strong><span>Students</span></div></div><div class="gender-legend"><div class="gender-item" style="--gender:#2d69d5"><span class="gender-dot"></span><div class="gender-copy"><strong>{{ $malePct }}%</strong><small>{{ $male }} male</small></div></div><div class="gender-item" style="--gender:#e95087"><span class="gender-dot"></span><div class="gender-copy"><strong>{{ 100-$malePct }}%</strong><small>{{ $female }} female</small></div></div></div></div></div>
-            </section>
-        </div>
+        </section>
 
-        <div class="stack">
-            <section class="dash-card">
+        <section class="dash-card">
                 <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-bolt"/></svg></span><div class="card-title">Quick Actions</div></div></div>
                 <div class="card-body"><div class="quick-actions">
                     <a href="{{ route('students.create') }}" class="action-btn" style="--action:#1d58ac"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-user-plus"/></svg></span>Add Student</a>
@@ -177,21 +179,24 @@
                     <a href="{{ route('students.bulk-upload.index') }}" class="action-btn" style="--action:#16794b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-upload"/></svg></span>Bulk Upload</a>
                     <a href="{{ route('risk.index') }}" class="action-btn" style="--action:#c9362b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-flag"/></svg></span>Risk Flags</a>
                 </div></div>
-            </section>
-            @if(count($announcements) > 0)
-            <section class="dash-card">
-                <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div class="card-title">Announcements</div></div><a class="card-link" href="{{ route('announcements.index') }}">View all</a></div>
-                <div class="card-body"><div class="ann-list">@foreach($announcements as $ann)<div class="ann-item"><span class="ann-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div style="min-width:0"><div class="ann-title">{{ $ann->title }}</div><div class="ann-meta">{{ optional($ann->created_at)->diffForHumans() }}</div></div><span class="ann-arrow">›</span></div>@endforeach</div></div>
-            </section>
-            @endif
-        </div>
+        </section>
     </div>
 
-    @if($feesTrend->count() > 1)
-    <section class="dash-card">
-        <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-trending"/></svg></span><div><div class="card-title">Fee Collection Trend</div><div class="card-meta">Revenue performance over the last six months</div></div></div><span class="chart-filter">Last 6 Months</span></div>
-        <div class="card-body">@php $maxFee = $feesTrend->max('collected') ?: 1; @endphp<div class="fee-trend">@foreach($feesTrend as $month)<div class="fee-month"><strong>₦{{ number_format($month['collected']/1000,0) }}K</strong><div class="fee-bar" style="height:{{ max(5,($month['collected']/$maxFee)*82) }}px;opacity:{{ .62+($loop->index/max(1,$feesTrend->count()-1))*.38 }}"></div><span>{{ $month['label'] }}</span></div>@endforeach</div></div>
-    </section>
+    @if(count($announcements) > 0 || $feesTrend->count() > 1)
+    <div class="dash-bottom">
+        @if(count($announcements) > 0)
+        <section class="dash-card">
+            <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div class="card-title">Announcements</div></div><a class="card-link" href="{{ route('announcements.index') }}">View all</a></div>
+            <div class="card-body"><div class="ann-list">@foreach($announcements as $ann)<div class="ann-item"><span class="ann-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div style="min-width:0"><div class="ann-title">{{ $ann->title }}</div><div class="ann-meta">{{ optional($ann->created_at)->diffForHumans() }}</div></div><span class="ann-arrow">›</span></div>@endforeach</div></div>
+        </section>
+        @endif
+        @if($feesTrend->count() > 1)
+        <section class="dash-card" @if(count($announcements) === 0) style="grid-column:1/-1" @endif>
+            <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-trending"/></svg></span><div><div class="card-title">Fee Collection Trend</div><div class="card-meta">Revenue performance over the last six months</div></div></div><span class="chart-filter">Last 6 Months</span></div>
+            <div class="card-body">@php $maxFee = $feesTrend->max('collected') ?: 1; @endphp<div class="fee-trend">@foreach($feesTrend as $month)<div class="fee-month"><strong>₦{{ number_format($month['collected']/1000,0) }}K</strong><div class="fee-bar" style="height:{{ max(5,($month['collected']/$maxFee)*82) }}px;opacity:{{ .62+($loop->index/max(1,$feesTrend->count()-1))*.38 }}"></div><span>{{ $month['label'] }}</span></div>@endforeach</div></div>
+        </section>
+        @endif
+    </div>
     @endif
 
     <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
