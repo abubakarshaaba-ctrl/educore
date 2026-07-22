@@ -26,6 +26,9 @@ use App\Http\Controllers\TenantHostController;
 use App\Http\Controllers\TenantOnboardingController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('mobile/session/{token}', [\App\Http\Controllers\Api\MobilePortalController::class, 'consumeSession'])
+    ->middleware(['signed', 'throttle:10,1'])->name('mobile.web-session');
+
 Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educore.test'))
     ->where(['tenantSubdomain' => '[A-Za-z0-9][A-Za-z0-9-]*'])
     ->name('tenant.host.')

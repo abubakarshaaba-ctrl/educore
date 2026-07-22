@@ -27,6 +27,8 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
 
         Route::get('me',            [TeacherController::class, 'me']);
+        Route::get('portal/modules', [\App\Http\Controllers\Api\MobilePortalController::class, 'modules']);
+        Route::post('portal/session', [\App\Http\Controllers\Api\MobilePortalController::class, 'createSession']);
         Route::get('classes',       [TeacherController::class, 'classes']);
         Route::get('classes/{classArm}/students', [TeacherController::class, 'students']);
         Route::get('announcements', [TeacherController::class, 'announcements']);

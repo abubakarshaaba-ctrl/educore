@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'staff_attendance_screen.dart';
 
 class TransportOfficerScreen extends StatefulWidget {
   const TransportOfficerScreen({super.key});
@@ -29,8 +30,15 @@ class _TransportOfficerScreenState extends State<TransportOfficerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(titles[_tab]),
-        actions: const [
-          Padding(
+        actions: [
+          IconButton(
+              tooltip: 'My attendance',
+              icon: const Icon(Icons.badge_outlined),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const StaffAttendanceScreen()))),
+          const Padding(
               padding: EdgeInsets.only(right: 10),
               child: Chip(
                   avatar: Icon(Icons.shield_outlined, size: 16, color: kGold),

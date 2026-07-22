@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'web_modules_screen.dart';
 
 class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({super.key});
@@ -143,9 +144,9 @@ class _ParentDashboardState extends State<_ParentDashboard> {
   }
 
   Future<Map<String, dynamic>> _load() => ApiClient.instance.get(
-    '/parent/dashboard',
-    widget.childId == null ? null : {'child_id': '${widget.childId}'},
-  );
+        '/parent/dashboard',
+        widget.childId == null ? null : {'child_id': '${widget.childId}'},
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -199,9 +200,8 @@ class _ParentDashboardState extends State<_ParentDashboard> {
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(15),
                                 border: Border.all(
-                                  color: active
-                                      ? kGold
-                                      : const Color(0xFFD8E0E8),
+                                  color:
+                                      active ? kGold : const Color(0xFFD8E0E8),
                                   width: active ? 1.5 : 1,
                                 ),
                               ),
@@ -236,11 +236,8 @@ class _ParentDashboardState extends State<_ParentDashboard> {
                                           ),
                                         ),
                                         Text(
-                                          (child['class']
-                                                      as Map<
-                                                        String,
-                                                        dynamic
-                                                      >?)?['name']
+                                          (child['class'] as Map<String,
+                                                      dynamic>?)?['name']
                                                   ?.toString() ??
                                               'No class',
                                           style: const TextStyle(
@@ -265,9 +262,8 @@ class _ParentDashboardState extends State<_ParentDashboard> {
                     child: _ParentMetric(
                       icon: Icons.description_outlined,
                       label: 'Latest result',
-                      value: result == null
-                          ? '—'
-                          : '${result['average'] ?? 0}%',
+                      value:
+                          result == null ? '—' : '${result['average'] ?? 0}%',
                       color: kNavy,
                     ),
                   ),
@@ -394,37 +390,37 @@ class _ParentListState extends State<_ParentList> {
 
   @override
   Widget build(BuildContext context) => _ParentFuture(
-    future: _future,
-    onRetry: () =>
-        setState(() => _future = ApiClient.instance.get(widget.endpoint)),
-    builder: (data) {
-      final items = data[widget.listKey] as List<dynamic>? ?? const [];
-      return RefreshIndicator(
-        onRefresh: () async =>
+        future: _future,
+        onRetry: () =>
             setState(() => _future = ApiClient.instance.get(widget.endpoint)),
-        child: ListView(
-          padding: const EdgeInsets.all(14),
-          children: items.isEmpty
-              ? [
-                  Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Text(
-                      widget.emptyText,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: kMuted),
-                    ),
-                  ),
-                ]
-              : items
-                    .map(
-                      (item) =>
-                          widget.itemBuilder(item as Map<String, dynamic>),
-                    )
-                    .toList(),
-        ),
+        builder: (data) {
+          final items = data[widget.listKey] as List<dynamic>? ?? const [];
+          return RefreshIndicator(
+            onRefresh: () async => setState(
+                () => _future = ApiClient.instance.get(widget.endpoint)),
+            child: ListView(
+              padding: const EdgeInsets.all(14),
+              children: items.isEmpty
+                  ? [
+                      Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text(
+                          widget.emptyText,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: kMuted),
+                        ),
+                      ),
+                    ]
+                  : items
+                      .map(
+                        (item) =>
+                            widget.itemBuilder(item as Map<String, dynamic>),
+                      )
+                      .toList(),
+            ),
+          );
+        },
       );
-    },
-  );
 }
 
 class _ParentFuture extends StatelessWidget {
@@ -438,35 +434,37 @@ class _ParentFuture extends StatelessWidget {
   final Widget Function(Map<String, dynamic>) builder;
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (snapshot.hasError) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_rounded, color: kMuted, size: 46),
-                const SizedBox(height: 12),
-                Text(
-                  snapshot.error.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: kMuted),
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded,
+                        color: kMuted, size: 46),
+                    const SizedBox(height: 12),
+                    Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: kMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                        onPressed: onRetry, child: const Text('Retry')),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
-            ),
-          ),
-        );
-      }
-      return builder(snapshot.data ?? const {});
-    },
-  );
+              ),
+            );
+          }
+          return builder(snapshot.data ?? const {});
+        },
+      );
 }
 
 class _ParentMore extends StatelessWidget {
@@ -503,6 +501,18 @@ class _ParentMore extends StatelessWidget {
           title: 'Attendance',
           subtitle: 'Attendance records for your linked children',
         ),
+        _ParentTile(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Payments and all parent services',
+          subtitle:
+              'Pay outstanding invoices and open every permitted parent function',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) =>
+                    const WebModulesScreen(title: 'Parent Services')),
+          ),
+        ),
         const _ParentTile(
           icon: Icons.notifications_outlined,
           title: 'Announcements',
@@ -536,46 +546,46 @@ class _ParentHero extends StatelessWidget {
   final String name;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [kNavy, Color(0xFF0A2F69)]),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Welcome, $name',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-          ),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [kNavy, Color(0xFF0A2F69)]),
+          borderRadius: BorderRadius.circular(20),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Your children’s school life, clearly connected.',
-          style: TextStyle(color: Color(0xFFCFDCF0)),
-        ),
-        const SizedBox(height: 14),
-        const Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.lock_outline, color: kGold, size: 16),
-            SizedBox(width: 6),
             Text(
-              'Parent access · Linked children only',
-              style: TextStyle(
+              'Welcome, $name',
+              style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
               ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Your children’s school life, clearly connected.',
+              style: TextStyle(color: Color(0xFFCFDCF0)),
+            ),
+            const SizedBox(height: 14),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline, color: kGold, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'Parent access · Linked children only',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _ParentMetric extends StatelessWidget {
@@ -591,33 +601,33 @@ class _ParentMetric extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: const Color(0xFFD8E0E8)),
-    ),
-    child: Column(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            color: kInk,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFD8E0E8)),
         ),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: kMuted, fontSize: 10.5),
+        child: Column(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                color: kInk,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: kMuted, fontSize: 10.5),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _ParentHeading extends StatelessWidget {
@@ -625,16 +635,16 @@ class _ParentHeading extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 9),
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: kInk,
-        fontSize: 17,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 9),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: kInk,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
 }
 
 class _ParentTile extends StatelessWidget {
@@ -650,26 +660,26 @@ class _ParentTile extends StatelessWidget {
   final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    child: ListTile(
-      leading: CircleAvatar(
-        backgroundColor: const Color(0x1FD79A21),
-        child: Icon(icon, color: kNavy),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: kMuted, fontSize: 12),
-      ),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right),
-      onTap: onTap,
-    ),
-  );
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: const Color(0x1FD79A21),
+            child: Icon(icon, color: kNavy),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: kMuted, fontSize: 12),
+          ),
+          trailing: onTap == null ? null : const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+      );
 }
 
 void _showInvoice(BuildContext context, Map<String, dynamic> item) {
@@ -783,16 +793,16 @@ void _showParentResult(BuildContext context, Map<String, dynamic> result) {
 }
 
 Widget _detail(String label, String value) => Padding(
-  padding: const EdgeInsets.only(bottom: 9),
-  child: Row(
-    children: [
-      Expanded(
-        child: Text(label, style: const TextStyle(color: kMuted)),
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: const TextStyle(color: kMuted)),
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ],
       ),
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-    ],
-  ),
-);
+    );
 
 String _parentMoney(dynamic amount) {
   final value = (amount as num?)?.toDouble() ?? double.tryParse('$amount') ?? 0;
