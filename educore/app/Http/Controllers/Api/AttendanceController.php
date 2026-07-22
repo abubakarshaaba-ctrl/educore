@@ -18,7 +18,7 @@ class AttendanceController extends Controller
     public function index(Request $request, int $classArmId)
     {
         $user = $request->user();
-        abort_unless(TeacherController::canAccessArm($user, $classArmId), 403, 'You are not assigned to this class.');
+        abort_unless(TeacherController::canMarkAttendance($user, $classArmId), 403, 'Only the assigned form teacher can manage student attendance.');
 
         $data = $request->validate([
             'date' => ['nullable', 'date'],
@@ -61,7 +61,7 @@ class AttendanceController extends Controller
     public function store(Request $request, int $classArmId)
     {
         $user = $request->user();
-        abort_unless(TeacherController::canAccessArm($user, $classArmId), 403, 'You are not assigned to this class.');
+        abort_unless(TeacherController::canMarkAttendance($user, $classArmId), 403, 'Only the assigned form teacher can manage student attendance.');
 
         $data = $request->validate([
             'date'                 => ['required', 'date', 'before_or_equal:today'],

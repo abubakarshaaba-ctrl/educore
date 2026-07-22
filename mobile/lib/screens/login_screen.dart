@@ -43,6 +43,46 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = TextEditingController(
+        text: _loginId.text.contains('@') ? _loginId.text.trim() : '');
+    final value = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Reset password'),
+              content: TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Registered email address')),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, email.text.trim()),
+                    child: const Text('Send link'))
+              ],
+            ));
+    email.dispose();
+    if (value == null || value.isEmpty) return;
+    try {
+      final response = await ApiClient.instance
+          .post('/auth/forgot-password', {'email': value});
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                response['message']?.toString() ?? 'Password reset link sent.'),
+            backgroundColor: kGood));
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString()), backgroundColor: kRisk));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,7 +182,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                              onPressed: _busy ? null : _forgotPassword,
+                              child: const Text('Forgot password?')),
+                        ),
+                        const SizedBox(height: 8),
                         FilledButton(
                           onPressed: _busy ? null : _submit,
                           child: _busy
@@ -182,17 +228,23 @@ class _SupportFooter extends StatelessWidget {
           spacing: 10,
           runSpacing: 4,
           children: [
-            Text('07065595768', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('07065595768',
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
             Text('|', style: TextStyle(color: Colors.white30, fontSize: 12)),
-            Text('WhatsApp: +2347065595768', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('WhatsApp: +2347065595768',
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
             Text('|', style: TextStyle(color: Colors.white30, fontSize: 12)),
-            Text('support@educoreng.online', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('support@educoreng.online',
+                style: TextStyle(color: Colors.white70, fontSize: 12)),
           ],
         ),
         SizedBox(height: 8),
         Text(
           'EduCore Education Technology © 2026',
-          style: TextStyle(color: Colors.white38, fontSize: 11.5, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              color: Colors.white38,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600),
         ),
       ],
     );

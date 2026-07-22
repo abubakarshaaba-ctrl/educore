@@ -7,12 +7,16 @@ use App\Models\AcademicSession;
 use App\Models\Admission;
 use App\Models\AttendanceRecord;
 use App\Models\ClassArm;
+use App\Models\ClassLevel;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
@@ -164,7 +168,12 @@ class AdminController extends Controller
     {
         $user = $this->administrator($request);
         abort_unless((int) $student->tenant_id === (int) $user->tenant_id && $this->allows($user, 'students'), 404);
-        $data = $request->validate(['status' => ['required', 'in:active,inactive,graduated,transferred,withdrawn']]);
+        $data = $request->validate([
+            'status' => ['sometimes', Rule::in(Student::LIFECYCLE_STATUSES)],
+            'first_name' => ['sometimes', 'string', 'max:100'], 'last_name' => ['sometimes', 'string', 'max:100'],
+            'gender' => ['sometimes', 'in:male,female,other'],
+            'current_class_arm_id' => ['sometimes', Rule::exists('class_arms', 'id')->where('tenant_id', $user->tenant_id)],
+        ]);
         $student->update($data);
         return response()->json(['message' => 'Student status updated.', 'status' => $student->status]);
     }
@@ -174,9 +183,108 @@ class AdminController extends Controller
         $user = $this->administrator($request);
         abort_unless((int) $member->tenant_id === (int) $user->tenant_id && $this->allows($user, 'staff'), 404);
         abort_if($member->id === $user->id, 422, 'You cannot deactivate your own account.');
-        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $data = $request->validate([
+            'is_active' => ['sometimes', 'boolean'], 'name' => ['sometimes', 'string', 'max:150'],
+            'email' => ['sometimes', 'email', Rule::unique('users', 'email')->ignore($member->id)],
+            'phone' => ['nullable', 'string', 'max:20'], 'role' => ['sometimes', Rule::in(User::staffRoleNames())],
+        ]);
+        if (isset($data['role'])) $data['role'] = User::canonicalRole($data['role']);
         $member->update($data);
         return response()->json(['message' => 'Staff account updated.', 'active' => (bool) $member->is_active]);
+    }
+
+    public function management(Request $request)
+    {
+        $user = $this->administrator($request);
+        return response()->json([
+            'class_levels' => ClassLevel::where('tenant_id', $user->tenant_id)->orderBy('order_index')->get(['id', 'name']),
+            'classes' => ClassArm::where('tenant_id', $user->tenant_id)->with(['classLevel:id,name', 'formTutor:id,name'])->get()->map(fn ($arm) => [
+                'id' => $arm->id, 'name' => $arm->name, 'full_name' => $arm->full_name,
+                'class_level_id' => $arm->class_level_id, 'form_tutor_id' => $arm->form_tutor_id,
+                'form_tutor' => $arm->formTutor?->name,
+            ]),
+            'subjects' => Subject::where('tenant_id', $user->tenant_id)->orderBy('name')->get(['id', 'name', 'code', 'is_active']),
+            'teachers' => User::where('tenant_id', $user->tenant_id)->where('is_active', true)
+                ->whereIn('role', ['teacher', 'form_teacher', 'asst_form_teacher', 'subject_teacher', 'form_subject_teacher'])
+                ->orderBy('name')->get(['id', 'name', 'role']),
+            'staff_roles' => collect(User::staffRoleNames())->reject(fn ($role) => in_array($role, ['super_admin', 'student', 'parent'], true))->values(),
+        ]);
+    }
+
+    public function storeStudent(Request $request)
+    {
+        $user = $this->administrator($request);
+        abort_unless($this->allows($user, 'students'), 403);
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'], 'last_name' => ['required', 'string', 'max:100'],
+            'gender' => ['required', 'in:male,female,other'], 'date_of_birth' => ['required', 'date', 'before:today'],
+            'admission_date' => ['required', 'date'],
+            'current_class_arm_id' => ['required', Rule::exists('class_arms', 'id')->where('tenant_id', $user->tenant_id)],
+        ]);
+        $prefix = 'STU-'.now()->format('Y').'-';
+        $last = Student::withoutTenantScope()->where('tenant_id', $user->tenant_id)->where('admission_number', 'like', $prefix.'%')->max('admission_number');
+        $data['admission_number'] = $prefix.str_pad((string) (((int) Str::afterLast((string) $last, '-')) + 1), 4, '0', STR_PAD_LEFT);
+        $data['tenant_id'] = $user->tenant_id; $data['status'] = Student::STATUS_ACTIVE;
+        $student = Student::create($data);
+        return response()->json(['message' => 'Student added.', 'student' => ['id' => $student->id, 'name' => $student->full_name]], 201);
+    }
+
+    public function storeStaff(Request $request)
+    {
+        $user = $this->administrator($request);
+        abort_unless($this->allows($user, 'staff'), 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'], 'email' => ['required', 'email', 'unique:users,email'],
+            'role' => ['required', Rule::in(User::staffRoleNames())], 'password' => ['required', 'string', 'min:8'],
+            'phone' => ['nullable', 'string', 'max:20'],
+        ]);
+        abort_if(in_array(User::canonicalRole($data['role']), ['student', 'parent', 'super_admin'], true), 422);
+        $member = User::create([
+            ...$data, 'tenant_id' => $user->tenant_id, 'password' => Hash::make($data['password']),
+            'role' => User::canonicalRole($data['role']), 'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE, 'employment_started_at' => today(), 'status_changed_at' => now(),
+        ]);
+        $member->assignRole($member->role);
+        return response()->json(['message' => 'Staff account added.', 'staff' => ['id' => $member->id, 'name' => $member->name]], 201);
+    }
+
+    public function storeClass(Request $request)
+    {
+        $user = $this->administrator($request); abort_unless($this->allows($user, 'classes'), 403);
+        $data = $this->classData($request, $user);
+        $arm = ClassArm::create([...$data, 'tenant_id' => $user->tenant_id]);
+        return response()->json(['message' => 'Class added.', 'class' => ['id' => $arm->id, 'name' => $arm->full_name]], 201);
+    }
+
+    public function updateClass(Request $request, ClassArm $classArm)
+    {
+        $user = $this->administrator($request); abort_unless($classArm->tenant_id === $user->tenant_id && $this->allows($user, 'classes'), 404);
+        $classArm->update($this->classData($request, $user));
+        return response()->json(['message' => 'Class updated.']);
+    }
+
+    public function storeSubject(Request $request)
+    {
+        $user = $this->administrator($request); abort_unless($this->allows($user, 'subjects'), 403);
+        $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'code' => ['nullable', 'string', 'max:10'], 'is_active' => ['nullable', 'boolean']]);
+        $subject = Subject::create([...$data, 'tenant_id' => $user->tenant_id, 'is_active' => $data['is_active'] ?? true]);
+        return response()->json(['message' => 'Subject added.', 'subject' => $subject], 201);
+    }
+
+    public function updateSubject(Request $request, Subject $subject)
+    {
+        $user = $this->administrator($request); abort_unless($subject->tenant_id === $user->tenant_id && $this->allows($user, 'subjects'), 404);
+        $subject->update($request->validate(['name' => ['sometimes', 'string', 'max:100'], 'code' => ['nullable', 'string', 'max:10'], 'is_active' => ['nullable', 'boolean']]));
+        return response()->json(['message' => 'Subject updated.']);
+    }
+
+    private function classData(Request $request, User $user): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:50'],
+            'class_level_id' => ['required', Rule::exists('class_levels', 'id')->where('tenant_id', $user->tenant_id)],
+            'form_tutor_id' => ['nullable', Rule::exists('users', 'id')->where(fn ($q) => $q->where('tenant_id', $user->tenant_id)->whereIn('role', ['teacher', 'form_teacher', 'asst_form_teacher', 'form_subject_teacher']))],
+        ]);
     }
 
     private function administrator(Request $request): User

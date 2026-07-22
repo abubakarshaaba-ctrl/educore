@@ -7,9 +7,12 @@ use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PricingService;
+use App\Services\TenantOnboardingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class PlatformController extends Controller
 {
@@ -116,6 +119,40 @@ class PlatformController extends Controller
         ]);
         $tenant->update($data);
         return response()->json(['message' => 'School account updated.', 'tenant' => $this->tenantData($tenant->fresh()->loadCount(['users', 'students']))]);
+    }
+
+    public function storeTenant(Request $request, TenantOnboardingService $onboarding)
+    {
+        $this->guard($request);
+        $request->merge(['slug' => Tenant::normalizeSlug($request->input('slug'))]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'], 'slug' => Tenant::slugRules(),
+            'email' => ['required', 'email'], 'phone' => ['nullable', 'string', 'max:30'],
+            'subscription_expires_at' => ['required', 'date', 'after:today'],
+            'admin_name' => ['required', 'string', 'max:150'],
+            'admin_email' => ['required', 'email', 'unique:users,email'],
+            'admin_password' => ['required', 'string', 'min:8'],
+        ]);
+
+        $tenant = DB::transaction(function () use ($data, $onboarding) {
+            $tenant = Tenant::create([
+                'name' => $data['name'], 'slug' => $data['slug'], 'email' => $data['email'],
+                'phone' => $data['phone'] ?? null, 'status' => Tenant::STATUS_ACTIVE,
+                'subscription_expires_at' => $data['subscription_expires_at'],
+                'theme_primary' => '#071E45', 'theme_accent' => '#D79A21', 'theme_sidebar' => '#071E45',
+            ]);
+            $admin = User::create([
+                'tenant_id' => $tenant->id, 'name' => $data['admin_name'], 'email' => $data['admin_email'],
+                'password' => Hash::make($data['admin_password']), 'role' => 'admin', 'is_super_admin' => false,
+                'is_active' => true, 'employment_status' => User::STAFF_STATUS_ACTIVE,
+                'employment_started_at' => today(), 'status_changed_at' => now(),
+            ]);
+            $admin->assignRole('admin');
+            $onboarding->createProvisioningDefaults($tenant);
+            return $tenant;
+        });
+
+        return response()->json(['message' => 'School registered successfully.', 'tenant' => $this->tenantData($tenant->loadCount(['users', 'students']))], 201);
     }
 
     private function guard(Request $request): void

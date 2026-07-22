@@ -5,6 +5,8 @@ import '../main.dart';
 import 'login_screen.dart';
 import 'admission_officer_screen.dart';
 import 'scores_screen.dart';
+import 'admin_management_screen.dart';
+import 'staff_attendance_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -137,97 +139,97 @@ class _AdminDashboardState extends State<_AdminDashboard> {
 
   @override
   Widget build(BuildContext context) => _AdminFuture(
-    future: _future,
-    onRetry: () => setState(() => _future = _load()),
-    builder: (data) {
-      final admin = _map(data['administrator']);
-      final period = _map(data['academic_period']);
-      final metrics = _map(data['metrics']);
-      final operations = _map(data['operations']);
-      final finance = data['finance'] is Map ? _map(data['finance']) : null;
-      return RefreshIndicator(
-        onRefresh: () async => setState(() => _future = _load()),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 30),
-          children: [
-            _AdminHero(
-              name: admin['name']?.toString() ?? 'Administrator',
-              role: admin['role']?.toString() ?? 'School Administrator',
-              period: '${period['term']} · ${period['session']}',
-            ),
-            const SizedBox(height: 18),
-            const _Heading('Today at a glance'),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.55,
+        future: _future,
+        onRetry: () => setState(() => _future = _load()),
+        builder: (data) {
+          final admin = _map(data['administrator']);
+          final period = _map(data['academic_period']);
+          final metrics = _map(data['metrics']);
+          final operations = _map(data['operations']);
+          final finance = data['finance'] is Map ? _map(data['finance']) : null;
+          return RefreshIndicator(
+            onRefresh: () async => setState(() => _future = _load()),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 30),
               children: [
-                _Metric(
-                  icon: Icons.school_outlined,
-                  label: 'Students',
-                  value: '${metrics['students'] ?? 0}',
-                  color: kNavy,
+                _AdminHero(
+                  name: admin['name']?.toString() ?? 'Administrator',
+                  role: admin['role']?.toString() ?? 'School Administrator',
+                  period: '${period['term']} · ${period['session']}',
                 ),
-                _Metric(
-                  icon: Icons.badge_outlined,
-                  label: 'Active staff',
-                  value: '${metrics['staff'] ?? 0}',
-                  color: kGold,
+                const SizedBox(height: 18),
+                const _Heading('Today at a glance'),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.55,
+                  children: [
+                    _Metric(
+                      icon: Icons.school_outlined,
+                      label: 'Students',
+                      value: '${metrics['students'] ?? 0}',
+                      color: kNavy,
+                    ),
+                    _Metric(
+                      icon: Icons.badge_outlined,
+                      label: 'Active staff',
+                      value: '${metrics['staff'] ?? 0}',
+                      color: kGold,
+                    ),
+                    _Metric(
+                      icon: Icons.fact_check_outlined,
+                      label: 'Attendance',
+                      value: metrics['attendance_rate'] == null
+                          ? 'Not marked'
+                          : '${metrics['attendance_rate']}%',
+                      color: kGood,
+                    ),
+                    _Metric(
+                      icon: Icons.how_to_reg_outlined,
+                      label: 'Admissions pending',
+                      value: '${metrics['pending_admissions'] ?? 0}',
+                      color: const Color(0xFFC86B16),
+                    ),
+                  ],
                 ),
-                _Metric(
-                  icon: Icons.fact_check_outlined,
-                  label: 'Attendance',
-                  value: metrics['attendance_rate'] == null
-                      ? 'Not marked'
-                      : '${metrics['attendance_rate']}%',
-                  color: kGood,
-                ),
-                _Metric(
-                  icon: Icons.how_to_reg_outlined,
-                  label: 'Admissions pending',
-                  value: '${metrics['pending_admissions'] ?? 0}',
-                  color: const Color(0xFFC86B16),
+                if (finance != null) ...[
+                  const SizedBox(height: 20),
+                  const _Heading('Financial position'),
+                  _FinanceSummary(data: finance),
+                ],
+                const SizedBox(height: 20),
+                const _Heading('School operations'),
+                Card(
+                  child: Column(
+                    children: [
+                      _InfoRow(
+                        icon: Icons.meeting_room_outlined,
+                        title: 'Classes',
+                        value: '${operations['classes'] ?? 0}',
+                      ),
+                      const Divider(height: 1),
+                      _InfoRow(
+                        icon: Icons.menu_book_outlined,
+                        title: 'Subjects',
+                        value: '${operations['subjects'] ?? 0}',
+                      ),
+                      const Divider(height: 1),
+                      _InfoRow(
+                        icon: Icons.co_present_outlined,
+                        title: 'Attendance records today',
+                        value: '${operations['attendance_marked'] ?? 0}',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            if (finance != null) ...[
-              const SizedBox(height: 20),
-              const _Heading('Financial position'),
-              _FinanceSummary(data: finance),
-            ],
-            const SizedBox(height: 20),
-            const _Heading('School operations'),
-            Card(
-              child: Column(
-                children: [
-                  _InfoRow(
-                    icon: Icons.meeting_room_outlined,
-                    title: 'Classes',
-                    value: '${operations['classes'] ?? 0}',
-                  ),
-                  const Divider(height: 1),
-                  _InfoRow(
-                    icon: Icons.menu_book_outlined,
-                    title: 'Subjects',
-                    value: '${operations['subjects'] ?? 0}',
-                  ),
-                  const Divider(height: 1),
-                  _InfoRow(
-                    icon: Icons.co_present_outlined,
-                    title: 'Attendance records today',
-                    value: '${operations['attendance_marked'] ?? 0}',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 }
 
 class _PeopleScreen extends StatefulWidget {
@@ -251,94 +253,94 @@ class _PeopleScreenState extends State<_PeopleScreen> {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(14),
-        child: SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(
-              value: true,
-              icon: Icon(Icons.school_outlined),
-              label: Text('Students'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.school_outlined),
+                  label: Text('Students'),
+                ),
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.badge_outlined),
+                  label: Text('Staff'),
+                ),
+              ],
+              selected: {_students},
+              onSelectionChanged: (value) => _switch(value.first),
             ),
-            ButtonSegment(
-              value: false,
-              icon: Icon(Icons.badge_outlined),
-              label: Text('Staff'),
-            ),
-          ],
-          selected: {_students},
-          onSelectionChanged: (value) => _switch(value.first),
-        ),
-      ),
-      Expanded(
-        child: _AdminFuture(
-          future: _future,
-          onRetry: () => setState(() => _future = _load()),
-          builder: (data) {
-            final items =
-                (data[_students ? 'students' : 'staff'] as List<dynamic>?) ??
-                const [];
-            if (items.isEmpty) {
-              return const _Empty(
-                icon: Icons.groups_outlined,
-                text: 'No records available.',
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: () async => setState(() => _future = _load()),
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
-                itemCount: items.length,
-                itemBuilder: (_, index) {
-                  final item = _map(items[index]);
-                  return _AdminTile(
-                    icon: _students
-                        ? Icons.person_outline
-                        : Icons.badge_outlined,
-                    title: item['name']?.toString() ?? 'Unnamed',
-                    subtitle: _students
-                        ? '${item['admission_number'] ?? 'No ID'} · ${item['class'] ?? 'Unassigned'}'
-                        : '${item['staff_id'] ?? 'No staff ID'} · ${item['role'] ?? 'Staff'}',
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) => _update(item, value),
-                      itemBuilder: (_) => _students
-                          ? const [
-                              PopupMenuItem(
-                                value: 'active',
-                                child: Text('Mark active'),
-                              ),
-                              PopupMenuItem(
-                                value: 'inactive',
-                                child: Text('Mark inactive'),
-                              ),
-                              PopupMenuItem(
-                                value: 'transferred',
-                                child: Text('Mark transferred'),
-                              ),
-                            ]
-                          : [
-                              PopupMenuItem(
-                                value: item['active'] == true
-                                    ? 'deactivate'
-                                    : 'activate',
-                                child: Text(
-                                  item['active'] == true
-                                      ? 'Deactivate account'
-                                      : 'Activate account',
-                                ),
-                              ),
-                            ],
-                    ),
+          ),
+          Expanded(
+            child: _AdminFuture(
+              future: _future,
+              onRetry: () => setState(() => _future = _load()),
+              builder: (data) {
+                final items = (data[_students ? 'students' : 'staff']
+                        as List<dynamic>?) ??
+                    const [];
+                if (items.isEmpty) {
+                  return const _Empty(
+                    icon: Icons.groups_outlined,
+                    text: 'No records available.',
                   );
-                },
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => setState(() => _future = _load()),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+                    itemCount: items.length,
+                    itemBuilder: (_, index) {
+                      final item = _map(items[index]);
+                      return _AdminTile(
+                        icon: _students
+                            ? Icons.person_outline
+                            : Icons.badge_outlined,
+                        title: item['name']?.toString() ?? 'Unnamed',
+                        subtitle: _students
+                            ? '${item['admission_number'] ?? 'No ID'} · ${item['class'] ?? 'Unassigned'}'
+                            : '${item['staff_id'] ?? 'No staff ID'} · ${item['role'] ?? 'Staff'}',
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) => _update(item, value),
+                          itemBuilder: (_) => _students
+                              ? const [
+                                  PopupMenuItem(
+                                    value: 'active',
+                                    child: Text('Mark active'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'inactive',
+                                    child: Text('Mark inactive'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'transferred',
+                                    child: Text('Mark transferred'),
+                                  ),
+                                ]
+                              : [
+                                  PopupMenuItem(
+                                    value: item['active'] == true
+                                        ? 'deactivate'
+                                        : 'activate',
+                                    child: Text(
+                                      item['active'] == true
+                                          ? 'Deactivate account'
+                                          : 'Activate account',
+                                    ),
+                                  ),
+                                ],
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
 
   Future<void> _update(Map<String, dynamic> item, String value) async {
     try {
@@ -377,55 +379,55 @@ class _AcademicsScreenState extends State<_AcademicsScreen> {
   );
   @override
   Widget build(BuildContext context) => _AdminFuture(
-    future: _future,
-    onRetry: () =>
-        setState(() => _future = ApiClient.instance.get('/admin/academics')),
-    builder: (data) {
-      final classes = data['classes'] as List<dynamic>? ?? const [];
-      return RefreshIndicator(
-        onRefresh: () async => setState(
-          () => _future = ApiClient.instance.get('/admin/academics'),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(14),
-          children: [
-            Row(
+        future: _future,
+        onRetry: () => setState(
+            () => _future = ApiClient.instance.get('/admin/academics')),
+        builder: (data) {
+          final classes = data['classes'] as List<dynamic>? ?? const [];
+          return RefreshIndicator(
+            onRefresh: () async => setState(
+              () => _future = ApiClient.instance.get('/admin/academics'),
+            ),
+            child: ListView(
+              padding: const EdgeInsets.all(14),
               children: [
-                Expanded(
-                  child: _Metric(
-                    icon: Icons.meeting_room_outlined,
-                    label: 'Class arms',
-                    value: '${classes.length}',
-                    color: kNavy,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _Metric(
+                        icon: Icons.meeting_room_outlined,
+                        label: 'Class arms',
+                        value: '${classes.length}',
+                        color: kNavy,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _Metric(
+                        icon: Icons.menu_book_outlined,
+                        label: 'Subjects',
+                        value: '${data['subject_count'] ?? 0}',
+                        color: kGold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _Metric(
-                    icon: Icons.menu_book_outlined,
-                    label: 'Subjects',
-                    value: '${data['subject_count'] ?? 0}',
-                    color: kGold,
-                  ),
-                ),
+                const SizedBox(height: 20),
+                const _Heading('Class administration'),
+                ...classes.map((raw) {
+                  final item = _map(raw);
+                  return _AdminTile(
+                    icon: Icons.class_outlined,
+                    title: item['name']?.toString() ?? 'Class',
+                    subtitle:
+                        '${item['students'] ?? 0} students · Tutor: ${item['form_tutor'] ?? 'Not assigned'}',
+                  );
+                }),
               ],
             ),
-            const SizedBox(height: 20),
-            const _Heading('Class administration'),
-            ...classes.map((raw) {
-              final item = _map(raw);
-              return _AdminTile(
-                icon: Icons.class_outlined,
-                title: item['name']?.toString() ?? 'Class',
-                subtitle:
-                    '${item['students'] ?? 0} students · Tutor: ${item['form_tutor'] ?? 'Not assigned'}',
-              );
-            }),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 }
 
 class _FinanceScreen extends StatefulWidget {
@@ -440,35 +442,35 @@ class _FinanceScreenState extends State<_FinanceScreen> {
   );
   @override
   Widget build(BuildContext context) => _AdminFuture(
-    future: _future,
-    onRetry: () =>
-        setState(() => _future = ApiClient.instance.get('/admin/finance')),
-    builder: (data) {
-      final invoices = data['invoices'] as List<dynamic>? ?? const [];
-      return RefreshIndicator(
-        onRefresh: () async =>
+        future: _future,
+        onRetry: () =>
             setState(() => _future = ApiClient.instance.get('/admin/finance')),
-        child: ListView(
-          padding: const EdgeInsets.all(14),
-          children: [
-            _FinanceSummary(data: _map(data['summary'])),
-            const SizedBox(height: 20),
-            const _Heading('Recent invoices'),
-            ...invoices.map((raw) {
-              final item = _map(raw);
-              return _AdminTile(
-                icon: Icons.receipt_long_outlined,
-                title: item['student']?.toString() ?? 'Student invoice',
-                subtitle:
-                    '${item['invoice_number']} · ${_money(item['balance'])} outstanding',
-                trailing: _Status(text: '${item['status'] ?? ''}'),
-              );
-            }),
-          ],
-        ),
+        builder: (data) {
+          final invoices = data['invoices'] as List<dynamic>? ?? const [];
+          return RefreshIndicator(
+            onRefresh: () async => setState(
+                () => _future = ApiClient.instance.get('/admin/finance')),
+            child: ListView(
+              padding: const EdgeInsets.all(14),
+              children: [
+                _FinanceSummary(data: _map(data['summary'])),
+                const SizedBox(height: 20),
+                const _Heading('Recent invoices'),
+                ...invoices.map((raw) {
+                  final item = _map(raw);
+                  return _AdminTile(
+                    icon: Icons.receipt_long_outlined,
+                    title: item['student']?.toString() ?? 'Student invoice',
+                    subtitle:
+                        '${item['invoice_number']} · ${_money(item['balance'])} outstanding',
+                    trailing: _Status(text: '${item['status'] ?? ''}'),
+                  );
+                }),
+              ],
+            ),
+          );
+        },
       );
-    },
-  );
 }
 
 class _AdminMore extends StatelessWidget {
@@ -506,6 +508,22 @@ class _AdminMore extends StatelessWidget {
           style: const TextStyle(color: kMuted),
         ),
         const SizedBox(height: 24),
+        _AdminTile(
+          icon: Icons.settings_suggest_outlined,
+          title: 'Manage school records',
+          subtitle: 'Add and edit classes, subjects, students, and staff.',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const AdminManagementScreen())),
+        ),
+        _AdminTile(
+          icon: Icons.badge_outlined,
+          title: 'Staff attendance',
+          subtitle: 'Clock in and view your personal staff attendance.',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const StaffAttendanceScreen())),
+        ),
         _AdminTile(
           icon: Icons.how_to_reg_outlined,
           title: 'Manage admissions',
@@ -560,45 +578,45 @@ class _AdminHero extends StatelessWidget {
   final String period;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [kNavy, Color(0xFF0A346F)]),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Good day, ${name.split(' ').first}',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 23,
-            fontWeight: FontWeight.w800,
-          ),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [kNavy, Color(0xFF0A346F)]),
+          borderRadius: BorderRadius.circular(20),
         ),
-        const SizedBox(height: 5),
-        Text(period, style: const TextStyle(color: Color(0xFFCFDCF0))),
-        const SizedBox(height: 15),
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.shield_outlined, color: kGold, size: 17),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                '$role · Authorized modules only',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            Text(
+              'Good day, ${name.split(' ').first}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 23,
+                fontWeight: FontWeight.w800,
               ),
+            ),
+            const SizedBox(height: 5),
+            Text(period, style: const TextStyle(color: Color(0xFFCFDCF0))),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.shield_outlined, color: kGold, size: 17),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '$role · Authorized modules only',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _FinanceSummary extends StatelessWidget {
@@ -606,34 +624,34 @@ class _FinanceSummary extends StatelessWidget {
   final Map<String, dynamic> data;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(17),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: const Color(0xFFD8E0E8)),
-    ),
-    child: Column(
-      children: [
-        _MoneyRow(
-          label: 'Total billed',
-          value: _money(data['billed']),
-          color: kInk,
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: const Color(0xFFD8E0E8)),
         ),
-        const SizedBox(height: 13),
-        _MoneyRow(
-          label: 'Collected',
-          value: _money(data['collected']),
-          color: kGood,
+        child: Column(
+          children: [
+            _MoneyRow(
+              label: 'Total billed',
+              value: _money(data['billed']),
+              color: kInk,
+            ),
+            const SizedBox(height: 13),
+            _MoneyRow(
+              label: 'Collected',
+              value: _money(data['collected']),
+              color: kGood,
+            ),
+            const Divider(height: 26),
+            _MoneyRow(
+              label: 'Outstanding',
+              value: _money(data['outstanding']),
+              color: kRisk,
+            ),
+          ],
         ),
-        const Divider(height: 26),
-        _MoneyRow(
-          label: 'Outstanding',
-          value: _money(data['outstanding']),
-          color: kRisk,
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _MoneyRow extends StatelessWidget {
@@ -647,22 +665,22 @@ class _MoneyRow extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        label,
-        style: const TextStyle(color: kMuted, fontWeight: FontWeight.w600),
-      ),
-      Text(
-        value,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w800,
-          fontSize: 17,
-        ),
-      ),
-    ],
-  );
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: kMuted, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+        ],
+      );
 }
 
 class _Metric extends StatelessWidget {
@@ -678,35 +696,35 @@ class _Metric extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFD8E0E8)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const Spacer(),
-        Text(
-          value,
-          maxLines: 1,
-          style: const TextStyle(
-            color: kInk,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFD8E0E8)),
         ),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: kMuted, fontSize: 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const Spacer(),
+            Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: kInk,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: kMuted, fontSize: 11),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _InfoRow extends StatelessWidget {
@@ -720,23 +738,23 @@ class _InfoRow extends StatelessWidget {
   final String value;
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: CircleAvatar(
-      backgroundColor: const Color(0x14071E45),
-      child: Icon(icon, color: kNavy),
-    ),
-    title: Text(
-      title,
-      style: const TextStyle(color: kInk, fontWeight: FontWeight.w600),
-    ),
-    trailing: Text(
-      value,
-      style: const TextStyle(
-        color: kNavy,
-        fontSize: 17,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
+        leading: CircleAvatar(
+          backgroundColor: const Color(0x14071E45),
+          child: Icon(icon, color: kNavy),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(color: kInk, fontWeight: FontWeight.w600),
+        ),
+        trailing: Text(
+          value,
+          style: const TextStyle(
+            color: kNavy,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
 }
 
 class _AdminTile extends StatelessWidget {
@@ -754,26 +772,26 @@ class _AdminTile extends StatelessWidget {
   final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 10),
-    child: ListTile(
-      leading: CircleAvatar(
-        backgroundColor: const Color(0x1FD79A21),
-        child: Icon(icon, color: kNavy),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: kMuted, fontSize: 12),
-      ),
-      trailing: trailing,
-      onTap: onTap,
-    ),
-  );
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: const Color(0x1FD79A21),
+            child: Icon(icon, color: kNavy),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: kMuted, fontSize: 12),
+          ),
+          trailing: trailing,
+          onTap: onTap,
+        ),
+      );
 }
 
 class _Status extends StatelessWidget {
@@ -781,20 +799,20 @@ class _Status extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: const Color(0x1416794B),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      text.replaceAll('_', ' '),
-      style: const TextStyle(
-        color: kGood,
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0x1416794B),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          text.replaceAll('_', ' '),
+          style: const TextStyle(
+            color: kGood,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
 }
 
 class _Heading extends StatelessWidget {
@@ -802,16 +820,16 @@ class _Heading extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 9),
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: kInk,
-        fontSize: 17,
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 9),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: kInk,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      );
 }
 
 class _Empty extends StatelessWidget {
@@ -820,15 +838,15 @@ class _Empty extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: kMuted, size: 48),
-        const SizedBox(height: 10),
-        Text(text, style: const TextStyle(color: kMuted)),
-      ],
-    ),
-  );
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: kMuted, size: 48),
+            const SizedBox(height: 10),
+            Text(text, style: const TextStyle(color: kMuted)),
+          ],
+        ),
+      );
 }
 
 class _AdminFuture extends StatelessWidget {
@@ -842,35 +860,37 @@ class _AdminFuture extends StatelessWidget {
   final Widget Function(Map<String, dynamic>) builder;
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (snapshot.hasError) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_rounded, color: kMuted, size: 46),
-                const SizedBox(height: 12),
-                Text(
-                  snapshot.error.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: kMuted),
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded,
+                        color: kMuted, size: 46),
+                    const SizedBox(height: 12),
+                    Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: kMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                        onPressed: onRetry, child: const Text('Retry')),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
-            ),
-          ),
-        );
-      }
-      return builder(snapshot.data ?? const {});
-    },
-  );
+              ),
+            );
+          }
+          return builder(snapshot.data ?? const {});
+        },
+      );
 }
 
 Map<String, dynamic> _map(dynamic value) => value is Map<String, dynamic>

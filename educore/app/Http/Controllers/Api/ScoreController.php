@@ -19,6 +19,7 @@ class ScoreController extends Controller
     public function teaching(Request $request)
     {
         $user = $request->user();
+        abort_if($user->isAccountant(), 403, 'Accountants cannot enter academic scores.');
         $term = Term::current()->first();
 
         $assignments = ClassArmSubject::with(['classArm.classLevel', 'subject'])
@@ -156,6 +157,7 @@ class ScoreController extends Controller
 
     private function assertTeaches($user, int $classArmId, int $subjectId): void
     {
+        abort_if($user->isAccountant(), 403, 'Accountants cannot enter academic scores.');
         if ($this->canEnterAll($user)) return;
         $ok = ClassArmSubject::where('teacher_id', $user->id)
             ->where('class_arm_id', $classArmId)

@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:10,1');
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
+        ->middleware('throttle:5,1');
 
     Route::middleware(\App\Http\Middleware\AuthenticateApiToken::class)->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -99,6 +101,18 @@ Route::prefix('v1')->group(function () {
             Route::get('finance', [AdminController::class, 'finance']);
             Route::patch('students/{student}', [AdminController::class, 'updateStudent']);
             Route::patch('staff/{member}', [AdminController::class, 'updateStaff']);
+            Route::get('management', [AdminController::class, 'management']);
+            Route::post('students', [AdminController::class, 'storeStudent']);
+            Route::post('staff', [AdminController::class, 'storeStaff']);
+            Route::post('classes', [AdminController::class, 'storeClass']);
+            Route::patch('classes/{classArm}', [AdminController::class, 'updateClass']);
+            Route::post('subjects', [AdminController::class, 'storeSubject']);
+            Route::patch('subjects/{subject}', [AdminController::class, 'updateSubject']);
+        });
+
+        Route::prefix('accountant')->group(function () {
+            Route::get('dashboard', [\App\Http\Controllers\Api\AccountantController::class, 'dashboard']);
+            Route::get('payroll', [\App\Http\Controllers\Api\AccountantController::class, 'payroll']);
         });
 
         Route::prefix('platform')->group(function () {
@@ -107,6 +121,7 @@ Route::prefix('v1')->group(function () {
             Route::get('billing', [PlatformController::class, 'billing']);
             Route::get('plans', [PlatformController::class, 'plans']);
             Route::patch('tenants/{tenant}', [PlatformController::class, 'updateTenant']);
+            Route::post('tenants', [PlatformController::class, 'storeTenant']);
         });
 
         Route::prefix('admissions')->group(function () {

@@ -9,6 +9,7 @@ use App\Services\Auth\LoginUserResolver;
 use App\Services\TenantAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 /**
  * Unified mobile API authentication for tenant portal accounts.
@@ -105,5 +106,14 @@ class AuthController extends Controller
         $token?->delete();
 
         return response()->json(['message' => 'Signed out.']);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $data = $request->validate(['email' => ['required', 'email']]);
+        Password::sendResetLink(['email' => strtolower(trim($data['email']))]);
+
+        // Deliberately identical response whether the address exists or not.
+        return response()->json(['message' => 'If that email is registered, a password reset link has been sent.']);
     }
 }

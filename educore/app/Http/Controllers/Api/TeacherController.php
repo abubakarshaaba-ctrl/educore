@@ -33,6 +33,7 @@ class TeacherController extends Controller
                 'permissions' => ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans'],
             ]);
         }
+        $session = AcademicSession::current()->first();
         $term    = Term::current()->first();
 
         return response()->json([
@@ -64,6 +65,7 @@ class TeacherController extends Controller
     public function classes(Request $request)
     {
         $user    = $request->user();
+        abort_if($user->isAccountant(), 403, 'Accountants do not have teaching assignments.');
         $session = AcademicSession::current()->first();
 
         $tutorArms = ClassArm::with('classLevel')
@@ -139,5 +141,11 @@ class TeacherController extends Controller
         return ClassArmSubject::where('teacher_id', $user->id)
             ->where('class_arm_id', $armId)
             ->exists();
+    }
+
+    public static function canMarkAttendance($user, int $armId): bool
+    {
+        if ($user->isAccountant()) return false;
+        return ClassArm::where('id', $armId)->where('form_tutor_id', $user->id)->exists();
     }
 }

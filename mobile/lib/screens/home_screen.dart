@@ -32,22 +32,32 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  bool _allowed(Iterable<String> permissions) {
-    return ApiClient.instance.canAny(permissions);
-  }
-
   @override
   Widget build(BuildContext context) {
     final school = ApiClient.instance.school?['name'] ?? 'EduCore';
     final role = ApiClient.instance.user?['role']?.toString() ?? 'Staff';
+    final roleKey = ApiClient.instance.user?['role_key']?.toString() ?? '';
+    const formRoles = {
+      'form_teacher',
+      'asst_form_teacher',
+      'form_subject_teacher'
+    };
+    const subjectRoles = {'subject_teacher', 'form_subject_teacher'};
+    const teachingRoles = {
+      'teacher',
+      'form_teacher',
+      'asst_form_teacher',
+      'subject_teacher',
+      'form_subject_teacher',
+    };
     final tabs = <_StaffTab>[
-      if (_allowed(['classes.view', 'students.view', 'attendance.view']))
+      if (formRoles.contains(roleKey) || subjectRoles.contains(roleKey))
         const _StaffTab('My Classes', 'Classes', Icons.class_outlined,
             Icons.class_, _ClassesTab()),
-      if (_allowed(['scores.enter.own']))
+      if (subjectRoles.contains(roleKey))
         const _StaffTab('Enter Scores', 'Scores', Icons.edit_note_outlined,
             Icons.edit_note, ScoresScreen()),
-      if (_allowed(['timetable.view', 'timetable.view.own']))
+      if (teachingRoles.contains(roleKey))
         const _StaffTab('Timetable', 'Timetable', Icons.calendar_month_outlined,
             Icons.calendar_month, _TimetableTab()),
       const _StaffTab('Clock-in', 'Clock-in', Icons.badge_outlined, Icons.badge,
@@ -266,14 +276,14 @@ class _ClassesTabState extends State<_ClassesTab> {
                     style: const TextStyle(color: kMuted, fontSize: 12.5),
                   ),
                   trailing: const Icon(Icons.chevron_right, color: kMuted),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AttendanceScreen(
-                        classArmId: c['id'] as int,
-                        className: c['name'] as String? ?? 'Class',
-                      ),
-                    ),
-                  ),
+                  onTap: isTutor
+                      ? () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => AttendanceScreen(
+                              classArmId: c['id'] as int,
+                              className: c['name'] as String? ?? 'Class',
+                            ),
+                          ))
+                      : null,
                 ),
               );
             },
