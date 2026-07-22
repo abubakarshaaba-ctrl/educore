@@ -23,21 +23,63 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
 
   @override
+  void initState() {
+    super.initState();
+    ApiClient.instance.refreshSession().then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {
+      // Cached identity remains usable while individual screens show retry UI.
+    });
+  }
+
+  bool _allowed(Iterable<String> permissions) {
+    final granted = ApiClient.instance.permissions;
+    return granted.isEmpty || ApiClient.instance.canAny(permissions);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final school = ApiClient.instance.school?['name'] ?? 'EduCore';
+    final role = ApiClient.instance.user?['role']?.toString() ?? 'Staff';
+    final tabs = <_StaffTab>[
+      if (_allowed(['classes.view', 'students.view', 'attendance.view']))
+        const _StaffTab('My Classes', 'Classes', Icons.class_outlined,
+            Icons.class_, _ClassesTab()),
+      if (_allowed(['scores.enter.own']))
+        const _StaffTab('Enter Scores', 'Scores', Icons.edit_note_outlined,
+            Icons.edit_note, ScoresScreen()),
+      if (_allowed(['timetable.view', 'timetable.view.own']))
+        const _StaffTab('Timetable', 'Timetable', Icons.calendar_month_outlined,
+            Icons.calendar_month, _TimetableTab()),
+      const _StaffTab('Clock-in', 'Clock-in', Icons.badge_outlined, Icons.badge,
+          StaffAttendanceScreen()),
+      const _StaffTab('More', 'More', Icons.grid_view_outlined, Icons.grid_view,
+          _MoreTab()),
+    ];
+    if (_tab >= tabs.length) _tab = 0;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          const ['My Classes', 'Enter Scores', 'Timetable', 'Clock-in', 'More'][_tab],
-        ),
+        title: Text(tabs[_tab].title),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Center(
-              child: Text(
-                school as String,
-                style: const TextStyle(color: kGold, fontSize: 12),
-                overflow: TextOverflow.ellipsis,
+            padding: const EdgeInsets.only(right: 10),
+            child: Tooltip(
+              message: 'Role-based access: $role',
+              child: Chip(
+                avatar: const Icon(Icons.verified_user_outlined,
+                    size: 16, color: kGold),
+                label: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 130),
+                  child: Text(
+                    '$role · $school',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+                backgroundColor: const Color(0xFF0A2A5E),
+                side: const BorderSide(color: Color(0x557CA7DA)),
+                visualDensity: VisualDensity.compact,
               ),
             ),
           ),
@@ -45,27 +87,32 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: IndexedStack(
         index: _tab,
-        children: const [
-          _ClassesTab(),
-          ScoresScreen(),
-          _TimetableTab(),
-          StaffAttendanceScreen(),
-          _MoreTab(),
-        ],
+        children: tabs.map((tab) => tab.screen).toList(),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_), label: 'Classes'),
-          NavigationDestination(icon: Icon(Icons.edit_note_outlined), selectedIcon: Icon(Icons.edit_note), label: 'Scores'),
-          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: 'Timetable'),
-          NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'Clock-in'),
-          NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'More'),
-        ],
+        destinations: tabs
+            .map((tab) => NavigationDestination(
+                  icon: Icon(tab.icon),
+                  selectedIcon: Icon(tab.selectedIcon),
+                  label: tab.label,
+                ))
+            .toList(),
       ),
     );
   }
+}
+
+class _StaffTab {
+  const _StaffTab(
+      this.title, this.label, this.icon, this.selectedIcon, this.screen);
+
+  final String title;
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Widget screen;
 }
 
 // ── Classes tab ─────────────────────────────────────────────────────────
@@ -77,7 +124,7 @@ class _ClassesTab extends StatefulWidget {
 }
 
 class _ClassesTabState extends State<_ClassesTab> {
-  late Future<List<dynamic>> _future;
+  late Future<_StaffHomeData> _future;
 
   @override
   void initState() {
@@ -85,16 +132,23 @@ class _ClassesTabState extends State<_ClassesTab> {
     _future = _load();
   }
 
-  Future<List<dynamic>> _load() async {
-    final data = await ApiClient.instance.get('/classes');
-    return data['classes'] as List<dynamic>;
+  Future<_StaffHomeData> _load() async {
+    final responses = await Future.wait([
+      ApiClient.instance.get('/classes'),
+      ApiClient.instance.get('/announcements'),
+    ]);
+    return _StaffHomeData(
+      classes: responses[0]['classes'] as List<dynamic>? ?? const [],
+      announcements:
+          responses[1]['announcements'] as List<dynamic>? ?? const [],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async => setState(() => _future = _load()),
-      child: FutureBuilder<List<dynamic>>(
+      child: FutureBuilder<_StaffHomeData>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
@@ -106,22 +160,87 @@ class _ClassesTabState extends State<_ClassesTab> {
               onRetry: () => setState(() => _future = _load()),
             );
           }
-          final classes = snap.data ?? [];
+          final data = snap.data ?? const _StaffHomeData();
+          final classes = data.classes;
           if (classes.isEmpty) {
             return const _Empty(
               icon: Icons.class_outlined,
-              text: 'No classes assigned to you yet.\nAsk your school admin to assign you as a form tutor or subject teacher.',
+              text:
+                  'No classes assigned to you yet.\nAsk your school admin to assign you as a form tutor or subject teacher.',
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(14),
-            itemCount: classes.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+          final uniqueArms = <int>{};
+          var students = 0;
+          for (final item in classes) {
+            final row = item as Map<String, dynamic>;
+            final id = row['id'] as int?;
+            if (id != null && uniqueArms.add(id)) {
+              students += (row['students_count'] as num?)?.toInt() ?? 0;
+            }
+          }
+          final userName =
+              ApiClient.instance.user?['name']?.toString() ?? 'Staff';
+          final firstName = userName.trim().split(RegExp(r'\s+')).first;
+          final role = ApiClient.instance.user?['role']?.toString() ?? 'Staff';
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
+            itemCount: classes.length + 3,
             itemBuilder: (context, i) {
-              final c = classes[i] as Map<String, dynamic>;
+              if (i == 0) {
+                return _WelcomePanel(firstName: firstName, role: role);
+              }
+              if (i == 1) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 14, bottom: 18),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _MetricCard(
+                          icon: Icons.menu_book_rounded,
+                          value: '${uniqueArms.length}',
+                          label: 'Classes',
+                          color: kNavy,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricCard(
+                          icon: Icons.groups_rounded,
+                          value: '$students',
+                          label: 'Students',
+                          color: kGold,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricCard(
+                          icon: Icons.campaign_outlined,
+                          value: '${data.announcements.length}',
+                          label: 'Notices',
+                          color: kGood,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              if (i == 2) {
+                return const Padding(
+                  padding: EdgeInsets.only(bottom: 10),
+                  child: Text('Assigned classes',
+                      style: TextStyle(
+                          color: kInk,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800)),
+                );
+              }
+              final classIndex = i - 3;
+              final c = classes[classIndex] as Map<String, dynamic>;
               final isTutor = c['role'] == 'form_tutor';
               return Card(
                 elevation: 0,
+                margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: const BorderSide(color: Color(0xFFD8E0E8)),
@@ -138,7 +257,8 @@ class _ClassesTabState extends State<_ClassesTab> {
                   ),
                   title: Text(
                     c['name'] as String? ?? '—',
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: kInk),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: kInk),
                   ),
                   subtitle: Text(
                     isTutor
@@ -160,6 +280,144 @@ class _ClassesTabState extends State<_ClassesTab> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _StaffHomeData {
+  const _StaffHomeData({
+    this.classes = const [],
+    this.announcements = const [],
+  });
+
+  final List<dynamic> classes;
+  final List<dynamic> announcements;
+}
+
+class _WelcomePanel extends StatelessWidget {
+  const _WelcomePanel({required this.firstName, required this.role});
+
+  final String firstName;
+  final String role;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [kNavy, Color(0xFF0A2F69)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26071E45),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Good ${_dayPart()}, $firstName',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                const Text('Everything assigned to you, in one place.',
+                    style: TextStyle(color: Color(0xFFCFDCF0), height: 1.4)),
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0x1FFFFFFF),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: const Color(0x44FFFFFF)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.shield_outlined, color: kGold, size: 16),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text('$role access',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 58,
+            height: 58,
+            decoration:
+                const BoxDecoration(color: kGold, shape: BoxShape.circle),
+            child: const Icon(Icons.school_rounded, color: kNavy, size: 30),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _dayPart() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFD8E0E8)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(value,
+              style: const TextStyle(
+                  color: kInk, fontSize: 20, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: kMuted, fontSize: 11)),
+        ],
       ),
     );
   }
@@ -216,13 +474,16 @@ class _AnnouncementsTabState extends State<_AnnouncementsTab> {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final a = items[i] as Map<String, dynamic>;
-              final urgent = a['priority'] == 'high' || a['priority'] == 'urgent';
+              final urgent =
+                  a['priority'] == 'high' || a['priority'] == 'urgent';
               return Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: urgent ? const Color(0xFFFECDCA) : const Color(0xFFD8E0E8),
+                    color: urgent
+                        ? const Color(0xFFFECDCA)
+                        : const Color(0xFFD8E0E8),
                   ),
                 ),
                 child: Padding(
@@ -288,8 +549,14 @@ class _TimetableTabState extends State<_TimetableTab> {
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
           child: SegmentedButton<int>(
             segments: const [
-              ButtonSegment(value: 0, label: Text('My Subjects'), icon: Icon(Icons.menu_book_rounded, size: 18)),
-              ButtonSegment(value: 1, label: Text('My Class'), icon: Icon(Icons.groups_rounded, size: 18)),
+              ButtonSegment(
+                  value: 0,
+                  label: Text('My Subjects'),
+                  icon: Icon(Icons.menu_book_rounded, size: 18)),
+              ButtonSegment(
+                  value: 1,
+                  label: Text('My Class'),
+                  icon: Icon(Icons.groups_rounded, size: 18)),
             ],
             selected: {_mode},
             onSelectionChanged: (s) => setState(() => _mode = s.first),
@@ -326,8 +593,11 @@ class _MoreTab extends StatelessWidget {
               radius: 30,
               backgroundColor: kNavy,
               child: Text(
-                ((user['name'] as String?) ?? 'S').substring(0, 1).toUpperCase(),
-                style: const TextStyle(color: kGold, fontSize: 24, fontWeight: FontWeight.w800),
+                ((user['name'] as String?) ?? 'S')
+                    .substring(0, 1)
+                    .toUpperCase(),
+                style: const TextStyle(
+                    color: kGold, fontSize: 24, fontWeight: FontWeight.w800),
               ),
             ),
             const SizedBox(width: 14),
@@ -336,7 +606,10 @@ class _MoreTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(user['name'] as String? ?? '—',
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kInk)),
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kInk)),
                   Text('${user['role'] ?? 'staff'} · ${school['name'] ?? ''}',
                       style: const TextStyle(color: kMuted, fontSize: 12.5)),
                 ],
@@ -394,8 +667,8 @@ class _MoreTab extends StatelessWidget {
         ),
         title: Text(title,
             style: const TextStyle(fontWeight: FontWeight.w700, color: kInk)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(color: kMuted, fontSize: 12)),
+        subtitle:
+            Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12)),
         trailing: const Icon(Icons.chevron_right, color: kMuted),
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => screen)),

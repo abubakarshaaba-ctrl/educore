@@ -13,6 +13,7 @@ class ApiClient {
   String? _token;
   Map<String, dynamic>? user;
   Map<String, dynamic>? school;
+  Set<String> permissions = <String>{};
 
   bool get isLoggedIn => _token != null;
 
@@ -21,9 +22,15 @@ class ApiClient {
     _token = prefs.getString('token');
     final u = prefs.getString('user');
     final s = prefs.getString('school');
+    final p = prefs.getStringList('permissions');
     if (u != null) user = jsonDecode(u) as Map<String, dynamic>;
     if (s != null) school = jsonDecode(s) as Map<String, dynamic>;
+    permissions = (p ?? const <String>[]).toSet();
   }
+
+  bool can(String permission) => permissions.contains(permission);
+
+  bool canAny(Iterable<String> requested) => requested.any(can);
 
   Map<String, String> get _headers => {
         'Accept': 'application/json',
@@ -44,6 +51,7 @@ class ApiClient {
         ? <String, dynamic>{}
         : jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode >= 200 && res.statusCode < 300) return body;
+    if (res.statusCode == 401) await _clearSession();
     throw ApiException(
       (body['message'] as String?) ?? 'Request failed (${res.statusCode})',
       res.statusCode,
@@ -56,7 +64,8 @@ class ApiClient {
     return _decode(await http.get(uri, headers: _headers));
   }
 
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(
+      String path, Map<String, dynamic> body) async {
     final uri = Uri.parse('$baseUrl$path');
     return _decode(
         await http.post(uri, headers: _headers, body: jsonEncode(body)));
@@ -98,22 +107,48 @@ class ApiClient {
     _token = data['token'] as String;
     user = data['user'] as Map<String, dynamic>;
     school = data['school'] as Map<String, dynamic>;
+    permissions = ((data['permissions'] as List<dynamic>?) ?? const [])
+        .map((value) => value.toString())
+        .toSet();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', _token!);
     await prefs.setString('user', jsonEncode(user));
     await prefs.setString('school', jsonEncode(school));
+    await prefs.setStringList('permissions', permissions.toList()..sort());
+  }
+
+  Future<void> refreshSession() async {
+    final data = await get('/me');
+    user = data['user'] as Map<String, dynamic>;
+    school = data['school'] as Map<String, dynamic>;
+    permissions = ((data['permissions'] as List<dynamic>?) ?? const [])
+        .map((value) => value.toString())
+        .toSet();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user', jsonEncode(user));
+    await prefs.setString('school', jsonEncode(school));
+    await prefs.setStringList('permissions', permissions.toList()..sort());
   }
 
   Future<void> logout() async {
     try {
       await post('/auth/logout', {});
     } catch (_) {/* token may already be dead — clear locally regardless */}
+    await _clearSession();
+  }
+
+  Future<void> _clearSession() async {
     _token = null;
     user = null;
     school = null;
+    permissions = <String>{};
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('school');
+    await prefs.remove('permissions');
   }
 }
 

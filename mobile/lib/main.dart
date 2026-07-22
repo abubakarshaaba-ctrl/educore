@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 import 'push_service.dart';
-import 'screens/home_screen.dart';
+import 'portal_router.dart';
 import 'screens/login_screen.dart';
 
 // EduCore brand
@@ -30,7 +30,7 @@ class EduCoreStaffApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'EduCore Staff',
+      title: 'EduCore',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -44,14 +44,39 @@ class EduCoreStaffApp extends StatelessWidget {
           backgroundColor: kNavy,
           foregroundColor: Colors.white,
           elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+            side: BorderSide(color: Color(0xFFD8E0E8)),
+          ),
+        ),
+        navigationBarTheme: const NavigationBarThemeData(
+          backgroundColor: Colors.white,
+          indicatorColor: Color(0x24D79A21),
+          labelTextStyle: WidgetStatePropertyAll(
+            TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+          ),
+          iconTheme: WidgetStatePropertyAll(IconThemeData(color: kNavy)),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             backgroundColor: kGold,
             foregroundColor: kNavy,
             minimumSize: const Size.fromHeight(52),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -72,7 +97,7 @@ class EduCoreStaffApp extends StatelessWidget {
         ),
       ),
       home: ApiClient.instance.isLoggedIn
-          ? const HomeScreen()
+          ? homeForCurrentSession()
           : const LoginScreen(),
     );
   }

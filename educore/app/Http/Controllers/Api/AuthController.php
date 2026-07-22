@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Mobile API authentication — teachers/staff only (v1).
+ * Unified mobile API authentication for tenant portal accounts.
  * Mirrors the unified web login rules (LoginUserResolver + tenant access).
  */
 class AuthController extends Controller
@@ -38,27 +38,40 @@ class AuthController extends Controller
             return response()->json(['message' => 'Your account has been deactivated. Contact the school.'], 403);
         }
 
-        // v1 is a staff app — students/parents/super admins use the web portals
-        if ($user->is_super_admin || !$user->isTenantStaff()) {
-            return response()->json(['message' => 'The mobile app is for school staff accounts.'], 403);
+        if (!$user->isSuperAdmin() && !$user->isTenantStaff() && !$user->isStudent() && !$user->isParent()) {
+            return response()->json(['message' => 'This account is not enabled for the mobile app yet.'], 403);
         }
 
-        if (!$user->isEmploymentActive()) {
+        if ($user->isTenantStaff() && !$user->isEmploymentActive()) {
             return response()->json(['message' => 'Your employment is no longer active. Contact the school.'], 403);
         }
 
         $tenant = $user->tenant;
 
-        if (!$tenant) {
+        if (!$user->isSuperAdmin() && !$tenant) {
             return response()->json(['message' => 'Account is not linked to any school.'], 403);
         }
 
-        $decision = $tenantAccess->applicationAccess($tenant);
-        if ($decision->isDenied()) {
-            return response()->json(['message' => 'This school account is currently unavailable.'], 403);
+        if (!$user->isSuperAdmin()) {
+            $decision = $tenantAccess->applicationAccess($tenant);
+            if ($decision->isDenied()) {
+                return response()->json(['message' => 'This school account is currently unavailable.'], 403);
+            }
         }
 
         $token = ApiToken::issue($user, $data['device'] ?? $request->userAgent());
+
+        $managementRoles = [
+            'admin', 'principal', 'head', 'head_teacher',
+            'vice_principal', 'academic_administrator',
+        ];
+        $portal = $user->isSuperAdmin()
+            ? 'platform'
+            : ($user->isStudent()
+            ? 'student'
+            : ($user->isParent()
+                ? 'parent'
+                : (in_array($user->roleKey(), $managementRoles, true) ? 'admin' : 'staff')));
 
         $user->forceFill(['last_login_at' => now()])->save();
         $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'mobile_api'], $request);
@@ -70,13 +83,19 @@ class AuthController extends Controller
                 'name'     => $user->name,
                 'email'    => $user->email,
                 'staff_id' => $user->staff_id,
+                'role_key' => $user->roleKey(),
                 'role'     => $user->roleLabel() ?? 'staff',
+                'roles'    => $user->getRoleNames()->values(),
+                'portal'   => $portal,
             ],
             'school' => [
-                'id'   => $tenant->id,
-                'name' => $tenant->name,
-                'slug' => $tenant->slug,
+                'id'   => $tenant?->id,
+                'name' => $tenant?->name ?? 'EduCore Platform',
+                'slug' => $tenant?->slug ?? 'platform',
             ],
+            'permissions' => $user->isSuperAdmin()
+                ? ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans']
+                : $user->getAllPermissions()->pluck('name')->sort()->values(),
         ]);
     }
 

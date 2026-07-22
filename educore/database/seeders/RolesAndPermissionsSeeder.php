@@ -61,6 +61,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // Fees
             'fees.view', 'fees.manage',
 
+            // Student health records (sensitive) and school transport
+            'health.view', 'health.manage',
+            'transport.view', 'transport.manage',
+
             // Notifications
             'notifications.send',
 
@@ -98,6 +102,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'timetable.view', 'timetable.manage',
             'cbt.view', 'cbt.manage',
             'fees.view', 'fees.manage',
+            'health.view', 'health.manage',
+            'transport.view', 'transport.manage',
             'notifications.send',
         ]);
 
@@ -197,12 +203,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'asst_form_teacher'      => $formTeacherPermissions,
             'assistant_form_teacher' => $formTeacherPermissions,
             'form_subject_teacher'   => array_values(array_unique(array_merge($formTeacherPermissions, $subjectTeacherPermissions))),
-            'health_officer'         => $supportPermissions,
+            'health_officer'         => array_merge($supportPermissions, ['health.view', 'health.manage']),
             'librarian'              => $supportPermissions,
-            'transport_officer'      => $supportPermissions,
+            'transport_officer'      => array_merge($supportPermissions, ['transport.view', 'transport.manage']),
             'communication_officer'  => ['dashboard.view', 'notifications.send'],
-            'driver'                 => ['dashboard.view'],
-            'bus_assistant'          => ['dashboard.view'],
+            'driver'                 => ['dashboard.view', 'transport.view'],
+            'bus_assistant'          => ['dashboard.view', 'transport.view'],
             'student'                => ['dashboard.view'],
             'parent'                 => ['dashboard.view'],
         ];

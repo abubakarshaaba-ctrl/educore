@@ -296,7 +296,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline btn-lg">School Login</a>
         <a href="{{ route('app.download') }}" class="btn btn-outline btn-lg">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-            Download Staff App
+            Download EduCore App
         </a>
     </div>
     <div class="hero-stats">

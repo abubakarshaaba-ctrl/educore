@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../api_client.dart';
 import '../main.dart';
+import '../portal_router.dart';
 import '../push_service.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (_loginId.text.trim().isEmpty || _password.text.isEmpty) {
-      setState(() => _error = 'Enter your staff ID or email and password.');
+      setState(() => _error = 'Enter your school ID or email and password.');
       return;
     }
     setState(() {
@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
       PushService.instance.registerForCurrentUser();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => homeForCurrentSession()),
       );
     } catch (e) {
       setState(() => _error = e.toString());
@@ -71,7 +71,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         letterSpacing: 1,
                       ),
                       children: [
-                        TextSpan(text: 'Edu', style: TextStyle(color: Colors.white)),
+                        TextSpan(
+                            text: 'Edu', style: TextStyle(color: Colors.white)),
                         TextSpan(text: 'Core', style: TextStyle(color: kGold)),
                       ],
                     ),
@@ -96,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Sign in with your staff ID or school email.',
+                          'Sign in with your school ID or email.',
                           style: TextStyle(color: kMuted, fontSize: 13),
                         ),
                         const SizedBox(height: 20),
@@ -106,11 +107,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFFEF3F2),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFECDCA)),
+                              border:
+                                  Border.all(color: const Color(0xFFFECDCA)),
                             ),
                             child: Text(
                               _error!,
-                              style: const TextStyle(color: kRisk, fontSize: 13),
+                              style:
+                                  const TextStyle(color: kRisk, fontSize: 13),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -120,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           autocorrect: false,
                           decoration: const InputDecoration(
-                            labelText: 'Staff ID or Email',
+                            labelText: 'School ID or Email',
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -131,9 +134,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             labelText: 'Password',
                             suffixIcon: IconButton(
-                              icon: Icon(
-                                  _obscure ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: Icon(_obscure
+                                  ? Icons.visibility
+                                  : Icons.visibility_off),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
                             ),
                           ),
                         ),
@@ -144,7 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5),
                                 )
                               : const Text('Sign in'),
                         ),

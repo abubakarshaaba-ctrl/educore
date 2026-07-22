@@ -119,12 +119,11 @@ Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, '
     ->middleware('throttle:5,10')
     ->name('deploy.pull');
 
-// Staff mobile app download — serves the APK once it has been uploaded to
-// educore/public/downloads/educore-staff.apk (see mobile/README.md).
+// Unified mobile app download — serves the signed production APK.
 Route::get('/download/app', function () {
-    // Prefer the canonical name; otherwise serve the newest .apk uploaded to
-    // the downloads folder (robust against the uploaded filename).
-    $preferred = public_path('downloads/educore-staff.apk');
+    // Prefer the canonical product filename; retain compatibility with older
+    // uploaded filenames while installations transition to the unified app.
+    $preferred = public_path('downloads/EduCore.apk');
     $apk = file_exists($preferred) ? $preferred : null;
 
     if (!$apk) {
@@ -139,7 +138,7 @@ Route::get('/download/app', function () {
         return response()->view('app-download-soon', [], 404);
     }
 
-    return response()->download($apk, 'EduCore-Staff.apk', [
+    return response()->download($apk, 'EduCore.apk', [
         'Content-Type' => 'application/vnd.android.package-archive',
     ]);
 })->name('app.download');
@@ -1231,4 +1230,3 @@ Route::get('admissions/fee-callback', [\App\Http\Controllers\PublicAdmissionCont
 Route::post('webhooks/paystack',
     [\App\Http\Controllers\PaymentGatewayController::class, 'paystackWebhook'])
     ->name('webhooks.paystack')->withoutMiddleware(['web']);
-
