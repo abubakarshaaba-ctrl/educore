@@ -628,12 +628,8 @@ class _MoreTab extends StatelessWidget {
             'Conversations with the school', const MessagesScreen()),
         _menuTile(context, Icons.campaign_outlined, 'Announcements',
             'School news for staff', const _AnnouncementsScreen()),
-        _menuTile(
-            context,
-            Icons.apps_rounded,
-            'All permitted modules',
-            'Open every web function allowed for your role',
-            const WebModulesScreen()),
+        _menuTile(context, Icons.open_in_browser_rounded, 'Open web portal',
+            'Access other functions allowed for your role', const WebModulesScreen(title: 'Web Portal')),
         const SizedBox(height: 22),
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(

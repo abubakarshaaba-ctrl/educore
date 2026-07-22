@@ -31,13 +31,7 @@ class _TransportOfficerScreenState extends State<TransportOfficerScreen> {
       appBar: AppBar(
         title: Text(titles[_tab]),
         actions: [
-          IconButton(
-              tooltip: 'My attendance',
-              icon: const Icon(Icons.badge_outlined),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const StaffAttendanceScreen()))),
+          IconButton(tooltip: 'My attendance', icon: const Icon(Icons.badge_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffAttendanceScreen()))),
           const Padding(
               padding: EdgeInsets.only(right: 10),
               child: Chip(
