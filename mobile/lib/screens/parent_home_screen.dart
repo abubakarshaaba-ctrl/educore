@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
-import 'web_modules_screen.dart';
 
 class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({super.key});
@@ -508,12 +507,6 @@ class _ParentMore extends StatelessWidget {
           icon: Icons.notifications_outlined,
           title: 'Announcements',
           subtitle: 'School news and important notices',
-        ),
-        _ParentTile(
-          icon: Icons.open_in_browser_rounded,
-          title: 'Payments and web portal',
-          subtitle: 'Pay fees or access other parent services online',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WebModulesScreen(title: 'Parent Web Portal'))),
         ),
         const SizedBox(height: 18),
         OutlinedButton.icon(

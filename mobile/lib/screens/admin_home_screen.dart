@@ -5,7 +5,6 @@ import '../main.dart';
 import 'login_screen.dart';
 import 'admission_officer_screen.dart';
 import 'scores_screen.dart';
-import 'web_modules_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -526,13 +525,6 @@ class _AdminMore extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (_) => const ScoresScreen()),
           ),
-        ),
-        _AdminTile(
-          icon: Icons.open_in_browser_rounded,
-          title: 'Open web portal',
-          subtitle: 'Access other school functions allowed for your role.',
-          trailing: const Icon(Icons.open_in_new_rounded),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WebModulesScreen(title: 'School Web Portal'))),
         ),
         const SizedBox(height: 18),
         OutlinedButton.icon(

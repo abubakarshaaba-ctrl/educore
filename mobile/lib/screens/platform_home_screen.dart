@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
-import 'web_modules_screen.dart';
 
 class PlatformHomeScreen extends StatefulWidget {
   const PlatformHomeScreen({super.key});
@@ -487,13 +486,6 @@ class _GovernanceScreen extends StatelessWidget {
           subtitle: 'View current pay-per-student pricing tiers.',
           trailing: const Icon(Icons.chevron_right),
           onTap: () => onNavigate(3),
-        ),
-        _PlatformTile(
-          icon: Icons.open_in_browser_rounded,
-          title: 'Open web portal',
-          subtitle: 'Access advanced platform administration functions.',
-          trailing: const Icon(Icons.open_in_new_rounded),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WebModulesScreen(title: 'Platform Web Portal'))),
         ),
         const SizedBox(height: 18),
         OutlinedButton.icon(

@@ -11,7 +11,6 @@ import 'payslip_screen.dart';
 import 'scores_screen.dart';
 import 'staff_attendance_screen.dart';
 import 'timetable_screen.dart';
-import 'web_modules_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -628,8 +627,6 @@ class _MoreTab extends StatelessWidget {
             'Conversations with the school', const MessagesScreen()),
         _menuTile(context, Icons.campaign_outlined, 'Announcements',
             'School news for staff', const _AnnouncementsScreen()),
-        _menuTile(context, Icons.open_in_browser_rounded, 'Open web portal',
-            'Access other functions allowed for your role', const WebModulesScreen(title: 'Web Portal')),
         const SizedBox(height: 22),
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
