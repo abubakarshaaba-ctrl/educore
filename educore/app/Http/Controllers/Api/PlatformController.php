@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
-use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PlatformController extends Controller
 {
@@ -16,8 +17,10 @@ class PlatformController extends Controller
     {
         $this->guard($request);
 
-        $payments = DB::table('platform_payments')->where('status', 'confirmed');
-        $recentTenants = Tenant::with('activeSubscription.plan')->latest()->limit(8)->get()
+        $payments = Schema::hasTable('platform_payments')
+            ? DB::table('platform_payments')->where('status', 'confirmed')
+            : null;
+        $recentTenants = Tenant::withCount(['users', 'students'])->latest()->limit(8)->get()
             ->map(fn (Tenant $tenant) => $this->tenantData($tenant));
 
         return response()->json([
@@ -27,8 +30,8 @@ class PlatformController extends Controller
                 'active_schools' => Tenant::where('status', Tenant::STATUS_ACTIVE)->count(),
                 'students' => Student::withoutTenantScope()->count(),
                 'platform_users' => User::whereNotNull('tenant_id')->count(),
-                'monthly_revenue' => (float) (clone $payments)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount'),
-                'total_revenue' => (float) (clone $payments)->sum('amount'),
+                'monthly_revenue' => $payments ? (float) (clone $payments)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount') : 0,
+                'total_revenue' => $payments ? (float) (clone $payments)->sum('amount') : 0,
             ],
             'attention' => [
                 'pending' => Tenant::where('status', Tenant::STATUS_PENDING)->count(),
@@ -43,7 +46,7 @@ class PlatformController extends Controller
     public function tenants(Request $request)
     {
         $this->guard($request);
-        $query = Tenant::with(['activeSubscription.plan'])->withCount(['users', 'students'])->latest();
+        $query = Tenant::withCount(['users', 'students'])->latest();
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
@@ -58,6 +61,9 @@ class PlatformController extends Controller
     public function billing(Request $request)
     {
         $this->guard($request);
+        if (!Schema::hasTable('platform_payments')) {
+            return response()->json(['summary' => ['confirmed' => 0, 'pending' => 0, 'this_month' => 0], 'payments' => []]);
+        }
         $base = DB::table('platform_payments');
         $payments = (clone $base)->join('tenants', 'tenants.id', '=', 'platform_payments.tenant_id')
             ->select('platform_payments.*', 'tenants.name as school_name')
@@ -85,20 +91,31 @@ class PlatformController extends Controller
     public function plans(Request $request)
     {
         $this->guard($request);
-        $plans = SubscriptionPlan::withCount(['subscriptions as subscribers_count' => fn ($query) => $query->whereIn('status', ['active', 'trial'])])
-            ->orderBy('sort_order')->get()->map(fn (SubscriptionPlan $plan) => [
-                'id' => $plan->id,
-                'name' => $plan->name,
-                'slug' => $plan->slug,
-                'monthly_price' => (float) $plan->monthly_price,
-                'annual_price' => (float) $plan->annual_price,
-                'max_students' => $plan->max_students,
-                'max_staff' => $plan->max_staff,
-                'subscribers' => $plan->subscribers_count,
-                'active' => (bool) $plan->is_active,
-                'features' => $plan->features ?? [],
-            ]);
-        return response()->json(['plans' => $plans]);
+        $plans = collect(PricingService::tiers())->values()->map(fn (array $tier, int $index) => [
+            'id' => $index + 1,
+            'name' => $tier['range'],
+            'rate' => $tier['rate'],
+            'cycle' => $tier['cycle'],
+            'active' => true,
+            'features' => ['All EduCore modules', 'Role-based access', 'Unlimited staff accounts'],
+        ]);
+        return response()->json([
+            'model' => 'Pay per active student',
+            'annual_discount_percent' => (int) round(PricingService::ANNUAL_DISCOUNT * 100),
+            'plans' => $plans,
+        ]);
+    }
+
+    public function updateTenant(Request $request, Tenant $tenant)
+    {
+        $this->guard($request);
+        $data = $request->validate([
+            'status' => ['sometimes', 'in:active,pending,suspended,subscription_expired'],
+            'students_capacity' => ['sometimes', 'integer', 'min:20', 'max:1000000'],
+            'subscription_expires_at' => ['sometimes', 'nullable', 'date'],
+        ]);
+        $tenant->update($data);
+        return response()->json(['message' => 'School account updated.', 'tenant' => $this->tenantData($tenant->fresh()->loadCount(['users', 'students']))]);
     }
 
     private function guard(Request $request): void
@@ -113,7 +130,8 @@ class PlatformController extends Controller
             'name' => $tenant->name,
             'slug' => $tenant->slug,
             'status' => $tenant->status,
-            'plan' => $tenant->activeSubscription?->plan?->name ?? 'No active plan',
+            'plan' => PricingService::tierLabel((int) ($tenant->students_count ?? PricingService::activeStudentCount($tenant->id))),
+            'students_capacity' => PricingService::capacityFor($tenant),
             'subscription_expires_at' => $tenant->subscription_expires_at?->toDateString(),
             'users' => $tenant->users_count ?? $tenant->users()->count(),
             'students' => $tenant->students_count ?? $tenant->students()->count(),

@@ -19,7 +19,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     'Classes',
     'CBT Exams',
     'Results',
-    'More'
+    'More',
   ];
 
   @override
@@ -60,25 +60,30 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         onDestinationSelected: (value) => setState(() => _tab = value),
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home'),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.menu_book_outlined),
-              selectedIcon: Icon(Icons.menu_book),
-              label: 'Classes'),
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'Classes',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.quiz_outlined),
-              selectedIcon: Icon(Icons.quiz),
-              label: 'Exams'),
+            icon: Icon(Icons.quiz_outlined),
+            selectedIcon: Icon(Icons.quiz),
+            label: 'Exams',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart),
-              label: 'Results'),
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Results',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view),
-              label: 'More'),
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view),
+            label: 'More',
+          ),
         ],
       ),
     );
@@ -106,7 +111,8 @@ class _StudentDashboardState extends State<_StudentDashboard> {
     return _StudentFuture(
       future: _future,
       onRetry: () => setState(
-          () => _future = ApiClient.instance.get('/student/dashboard')),
+        () => _future = ApiClient.instance.get('/student/dashboard'),
+      ),
       builder: (data) {
         final student = data['student'] as Map<String, dynamic>? ?? const {};
         final attendance =
@@ -118,44 +124,51 @@ class _StudentDashboardState extends State<_StudentDashboard> {
         final firstName = name.trim().split(RegExp(r'\s+')).first;
         final className =
             (student['class'] as Map<String, dynamic>?)?['name']?.toString() ??
-                'No class assigned';
+            'No class assigned';
 
         return RefreshIndicator(
           onRefresh: () async => setState(
-              () => _future = ApiClient.instance.get('/student/dashboard')),
+            () => _future = ApiClient.instance.get('/student/dashboard'),
+          ),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
             children: [
               _StudentHero(
-                  firstName: firstName,
-                  className: className,
-                  admissionNumber:
-                      student['admission_number']?.toString() ?? '—'),
+                firstName: firstName,
+                className: className,
+                admissionNumber: student['admission_number']?.toString() ?? '—',
+              ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                      child: _StudentMetric(
-                          icon: Icons.calendar_today_rounded,
-                          label: 'Attendance',
-                          value: '${attendance['rate'] ?? 0}%',
-                          color: kGold)),
+                    child: _StudentMetric(
+                      icon: Icons.calendar_today_rounded,
+                      label: 'Attendance',
+                      value: '${attendance['rate'] ?? 0}%',
+                      color: kGold,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                      child: _StudentMetric(
-                          icon: Icons.auto_graph_rounded,
-                          label: 'Latest result',
-                          value: summary == null
-                              ? '—'
-                              : '${summary['average'] ?? 0}%',
-                          color: kGood)),
+                    child: _StudentMetric(
+                      icon: Icons.auto_graph_rounded,
+                      label: 'Latest result',
+                      value: summary == null
+                          ? '—'
+                          : '${summary['average'] ?? 0}%',
+                      color: kGood,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                      child: _StudentMetric(
-                          icon: Icons.quiz_rounded,
-                          label: 'Upcoming CBT',
-                          value: '${exams.length}',
-                          color: kNavy)),
+                    child: _StudentMetric(
+                      icon: Icons.quiz_rounded,
+                      label: 'Upcoming CBT',
+                      value: '${exams.length}',
+                      color: kNavy,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 22),
@@ -248,6 +261,7 @@ class _StudentResults extends StatelessWidget {
         title: '${item['term'] ?? 'Term'} · ${item['session'] ?? ''}',
         subtitle:
             'Average ${item['average'] ?? 0}% · Position ${item['position'] ?? '—'} of ${item['class_size'] ?? '—'}',
+        onTap: () => _showResult(context, item),
       ),
     );
   }
@@ -266,44 +280,62 @@ class _StudentMore extends StatelessWidget {
           radius: 34,
           backgroundColor: kNavy,
           child: Text(
-              (user['name']?.toString() ?? 'S').substring(0, 1).toUpperCase(),
-              style: const TextStyle(
-                  color: kGold, fontSize: 28, fontWeight: FontWeight.w800)),
+            (user['name']?.toString() ?? 'S').substring(0, 1).toUpperCase(),
+            style: const TextStyle(
+              color: kGold,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
         const SizedBox(height: 12),
-        Text(user['name']?.toString() ?? 'Student',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: kInk, fontSize: 19, fontWeight: FontWeight.w800)),
-        const Text('Student access · Personal records only',
-            textAlign: TextAlign.center, style: TextStyle(color: kMuted)),
+        Text(
+          user['name']?.toString() ?? 'Student',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: kInk,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const Text(
+          'Student access · Personal records only',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kMuted),
+        ),
         const SizedBox(height: 28),
         const _InfoTile(
-            icon: Icons.calendar_month_outlined,
-            title: 'Attendance',
-            subtitle: 'Your personal attendance record'),
+          icon: Icons.calendar_month_outlined,
+          title: 'Attendance',
+          subtitle: 'Your personal attendance record',
+        ),
         const _InfoTile(
-            icon: Icons.badge_outlined,
-            title: 'Student ID',
-            subtitle: 'Your EduCore identity'),
+          icon: Icons.badge_outlined,
+          title: 'Student ID',
+          subtitle: 'Your EduCore identity',
+        ),
         const _InfoTile(
-            icon: Icons.notifications_outlined,
-            title: 'Announcements',
-            subtitle: 'Updates from your school'),
+          icon: Icons.notifications_outlined,
+          title: 'Announcements',
+          subtitle: 'Updates from your school',
+        ),
         const SizedBox(height: 18),
         OutlinedButton.icon(
           onPressed: () async {
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false);
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
             }
           },
           icon: const Icon(Icons.logout_rounded),
           label: const Text('Sign out'),
           style: OutlinedButton.styleFrom(
-              foregroundColor: kRisk, minimumSize: const Size.fromHeight(50)),
+            foregroundColor: kRisk,
+            minimumSize: const Size.fromHeight(50),
+          ),
         ),
       ],
     );
@@ -311,11 +343,12 @@ class _StudentMore extends StatelessWidget {
 }
 
 class _EndpointList extends StatefulWidget {
-  const _EndpointList(
-      {required this.endpoint,
-      required this.listKey,
-      required this.emptyText,
-      required this.itemBuilder});
+  const _EndpointList({
+    required this.endpoint,
+    required this.listKey,
+    required this.emptyText,
+    required this.itemBuilder,
+  });
   final String endpoint;
   final String listKey;
   final String emptyText;
@@ -350,9 +383,11 @@ class _EndpointListState extends State<_EndpointList> {
             children: items.isEmpty
                 ? [_StudentEmptyLine(widget.emptyText)]
                 : items
-                    .map((item) =>
-                        widget.itemBuilder(item as Map<String, dynamic>))
-                    .toList(),
+                      .map(
+                        (item) =>
+                            widget.itemBuilder(item as Map<String, dynamic>),
+                      )
+                      .toList(),
           ),
         );
       },
@@ -361,8 +396,11 @@ class _EndpointListState extends State<_EndpointList> {
 }
 
 class _StudentFuture extends StatelessWidget {
-  const _StudentFuture(
-      {required this.future, required this.builder, required this.onRetry});
+  const _StudentFuture({
+    required this.future,
+    required this.builder,
+    required this.onRetry,
+  });
   final Future<Map<String, dynamic>> future;
   final Widget Function(Map<String, dynamic>) builder;
   final VoidCallback onRetry;
@@ -384,9 +422,11 @@ class _StudentFuture extends StatelessWidget {
                 children: [
                   const Icon(Icons.cloud_off_rounded, color: kMuted, size: 46),
                   const SizedBox(height: 12),
-                  Text(snapshot.error.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: kMuted)),
+                  Text(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: kMuted),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton(onPressed: onRetry, child: const Text('Retry')),
                 ],
@@ -401,10 +441,11 @@ class _StudentFuture extends StatelessWidget {
 }
 
 class _StudentHero extends StatelessWidget {
-  const _StudentHero(
-      {required this.firstName,
-      required this.className,
-      required this.admissionNumber});
+  const _StudentHero({
+    required this.firstName,
+    required this.className,
+    required this.admissionNumber,
+  });
   final String firstName;
   final String className;
   final String admissionNumber;
@@ -420,24 +461,35 @@ class _StudentHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Hello, $firstName',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            'Hello, $firstName',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text('$className · $admissionNumber',
-              style: const TextStyle(color: Color(0xFFCFDCF0))),
+          Text(
+            '$className · $admissionNumber',
+            style: const TextStyle(color: Color(0xFFCFDCF0)),
+          ),
           const SizedBox(height: 14),
-          const Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.lock_outline, color: kGold, size: 16),
-            SizedBox(width: 6),
-            Text('Student access · Your records only',
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline, color: kGold, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Student access · Your records only',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700))
-          ]),
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -445,11 +497,12 @@ class _StudentHero extends StatelessWidget {
 }
 
 class _StudentMetric extends StatelessWidget {
-  const _StudentMetric(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      required this.color});
+  const _StudentMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -460,20 +513,30 @@ class _StudentMetric extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFFD8E0E8))),
-      child: Column(children: [
-        Icon(icon, color: color),
-        const SizedBox(height: 8),
-        Text(value,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFD8E0E8)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 8),
+          Text(
+            value,
             style: const TextStyle(
-                color: kInk, fontSize: 19, fontWeight: FontWeight.w800)),
-        Text(label,
+              color: kInk,
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: kMuted, fontSize: 10.5))
-      ]),
+            style: const TextStyle(color: kMuted, fontSize: 10.5),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -483,18 +546,29 @@ class _SectionTitle extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: const TextStyle(
-              color: kInk, fontSize: 17, fontWeight: FontWeight.w800)));
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: kInk,
+        fontSize: 17,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  );
 }
 
 class _InfoTile extends StatelessWidget {
-  const _InfoTile(
-      {required this.icon, required this.title, required this.subtitle});
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -502,17 +576,126 @@ class _InfoTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         leading: CircleAvatar(
-            backgroundColor: const Color(0x1FD79A21),
-            child: Icon(icon, color: kNavy)),
-        title: Text(title,
-            style: const TextStyle(color: kInk, fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: kMuted, fontSize: 12)),
+          backgroundColor: const Color(0x1FD79A21),
+          child: Icon(icon, color: kNavy),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: kMuted, fontSize: 12),
+        ),
+        trailing: onTap == null ? null : const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
+}
+
+void _showResult(BuildContext context, Map<String, dynamic> result) {
+  final raw = result['subject_breakdown'];
+  final rows = <Map<String, dynamic>>[];
+  if (raw is List) {
+    rows.addAll(
+      raw.whereType<Map>().map((item) => item.cast<String, dynamic>()),
+    );
+  } else if (raw is Map) {
+    for (final entry in raw.entries) {
+      if (entry.value is Map) {
+        rows.add({
+          'subject': entry.key.toString(),
+          ...(entry.value as Map).cast<String, dynamic>(),
+        });
+      } else {
+        rows.add({'subject': entry.key.toString(), 'total': entry.value});
+      }
+    }
+  }
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .78,
+      maxChildSize: .95,
+      builder: (_, controller) => ListView(
+        controller: controller,
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            '${result['term'] ?? 'Term'} · ${result['session'] ?? ''}',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Average ${result['average'] ?? 0}% · Position ${result['position'] ?? '—'} of ${result['class_size'] ?? '—'}',
+            style: const TextStyle(color: kMuted),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Subject breakdown',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (rows.isEmpty)
+            const Text(
+              'No subject-level scores were stored for this report.',
+              style: TextStyle(color: kMuted),
+            )
+          else
+            ...rows.map(
+              (row) => Card(
+                child: ListTile(
+                  title: Text(
+                    '${row['subject'] ?? row['subject_name'] ?? row['name'] ?? 'Subject'}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(_scoreParts(row)),
+                  trailing: Text(
+                    '${row['grade'] ?? row['total'] ?? row['score'] ?? ''}',
+                    style: const TextStyle(
+                      color: kNavy,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (result['form_tutor_remark'] != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Form tutor: ${result['form_tutor_remark']}',
+              style: const TextStyle(color: kMuted),
+            ),
+          ],
+          if (result['principal_remark'] != null)
+            Text(
+              'Principal: ${result['principal_remark']}',
+              style: const TextStyle(color: kMuted),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+String _scoreParts(Map<String, dynamic> row) {
+  final parts = <String>[];
+  for (final key in [
+    'ca',
+    'continuous_assessment',
+    'exam',
+    'total',
+    'score',
+    'remark',
+  ]) {
+    if (row[key] != null) parts.add('${key.replaceAll('_', ' ')}: ${row[key]}');
+  }
+  return parts.isEmpty ? 'Published result' : parts.join(' · ');
 }
 
 class _StudentEmptyLine extends StatelessWidget {
@@ -520,7 +703,11 @@ class _StudentEmptyLine extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Text(text,
-          textAlign: TextAlign.center, style: const TextStyle(color: kMuted)));
+    padding: const EdgeInsets.symmetric(vertical: 40),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: kMuted),
+    ),
+  );
 }

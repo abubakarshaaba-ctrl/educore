@@ -33,7 +33,6 @@ class TeacherController extends Controller
                 'permissions' => ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans'],
             ]);
         }
-        $session = AcademicSession::current()->first();
         $term    = Term::current()->first();
 
         return response()->json([
@@ -42,7 +41,7 @@ class TeacherController extends Controller
                 'name'     => $user->name,
                 'email'    => $user->email,
                 'staff_id' => $user->staff_id,
-                'role_key' => $user->role,
+                'role_key' => $user->roleKey(),
                 'role'     => $user->roleLabel() ?? 'staff',
                 'roles'    => $user->getRoleNames()->values(),
                 'portal'   => in_array($user->roleKey(), ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'], true) ? 'admin' : 'staff',
@@ -80,7 +79,6 @@ class TeacherController extends Controller
 
         $subjectArms = ClassArmSubject::with(['classArm.classLevel', 'subject'])
             ->where('teacher_id', $user->id)
-            ->when($session, fn ($q) => $q->where('session_id', $session->id))
             ->get()
             ->filter(fn ($cas) => $cas->classArm)
             ->map(fn ($cas) => [

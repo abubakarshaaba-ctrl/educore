@@ -8,6 +8,7 @@ import 'screens/admin_home_screen.dart';
 import 'screens/platform_home_screen.dart';
 import 'screens/transport_officer_screen.dart';
 import 'screens/health_officer_screen.dart';
+import 'screens/admission_officer_screen.dart';
 
 Widget homeForCurrentSession() {
   final user = ApiClient.instance.user ?? const <String, dynamic>{};
@@ -29,6 +30,9 @@ Widget homeForCurrentSession() {
   }
   if (roleKey == 'health_officer') {
     return const HealthOfficerScreen();
+  }
+  if (roleKey == 'admission_officer') {
+    return const AdmissionOfficerScreen();
   }
   const managementRoles = {
     'admin',

@@ -160,6 +160,25 @@ class AdminController extends Controller
         ]);
     }
 
+    public function updateStudent(Request $request, Student $student)
+    {
+        $user = $this->administrator($request);
+        abort_unless((int) $student->tenant_id === (int) $user->tenant_id && $this->allows($user, 'students'), 404);
+        $data = $request->validate(['status' => ['required', 'in:active,inactive,graduated,transferred,withdrawn']]);
+        $student->update($data);
+        return response()->json(['message' => 'Student status updated.', 'status' => $student->status]);
+    }
+
+    public function updateStaff(Request $request, User $member)
+    {
+        $user = $this->administrator($request);
+        abort_unless((int) $member->tenant_id === (int) $user->tenant_id && $this->allows($user, 'staff'), 404);
+        abort_if($member->id === $user->id, 422, 'You cannot deactivate your own account.');
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $member->update($data);
+        return response()->json(['message' => 'Staff account updated.', 'active' => (bool) $member->is_active]);
+    }
+
     private function administrator(Request $request): User
     {
         /** @var User $user */

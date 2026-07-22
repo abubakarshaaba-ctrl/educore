@@ -33,15 +33,15 @@ class ApiClient {
   bool canAny(Iterable<String> requested) => requested.any(can);
 
   Map<String, String> get _headers => {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   /// Auth headers for loading images via Image.network from the API.
   Map<String, String> get imageHeaders => {
-        if (_token != null) 'Authorization': 'Bearer $_token',
-      };
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   /// Absolute URL for an authenticated API resource (e.g. an image endpoint).
   String url(String path) => '$baseUrl$path';
@@ -58,17 +58,32 @@ class ApiClient {
     );
   }
 
-  Future<Map<String, dynamic>> get(String path,
-      [Map<String, String>? query]) async {
+  Future<Map<String, dynamic>> get(
+    String path, [
+    Map<String, String>? query,
+  ]) async {
     final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
     return _decode(await http.get(uri, headers: _headers));
   }
 
   Future<Map<String, dynamic>> post(
-      String path, Map<String, dynamic> body) async {
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     final uri = Uri.parse('$baseUrl$path');
     return _decode(
-        await http.post(uri, headers: _headers, body: jsonEncode(body)));
+      await http.post(uri, headers: _headers, body: jsonEncode(body)),
+    );
+  }
+
+  Future<Map<String, dynamic>> patch(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final uri = Uri.parse('$baseUrl$path');
+    return _decode(
+      await http.patch(uri, headers: _headers, body: jsonEncode(body)),
+    );
   }
 
   /// Upload a single file (multipart) to an authenticated endpoint.
@@ -90,10 +105,13 @@ class ApiClient {
   /// Download raw bytes (e.g. a PDF) from an authenticated endpoint.
   Future<List<int>> download(String path) async {
     final uri = Uri.parse('$baseUrl$path');
-    final res = await http.get(uri, headers: {
-      'Accept': 'application/pdf',
-      if (_token != null) 'Authorization': 'Bearer $_token',
-    });
+    final res = await http.get(
+      uri,
+      headers: {
+        'Accept': 'application/pdf',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      },
+    );
     if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
     throw ApiException('Download failed (${res.statusCode})', res.statusCode);
   }
@@ -135,7 +153,9 @@ class ApiClient {
   Future<void> logout() async {
     try {
       await post('/auth/logout', {});
-    } catch (_) {/* token may already be dead — clear locally regardless */}
+    } catch (_) {
+      /* token may already be dead — clear locally regardless */
+    }
     await _clearSession();
   }
 

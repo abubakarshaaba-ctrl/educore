@@ -120,6 +120,9 @@ class StudentController extends Controller
                 'subjects_offered' => $summary->subjects_offered,
                 'subjects_failed' => $summary->subjects_failed,
                 'promotion_status' => $summary->promotion_status,
+                'subject_breakdown' => $summary->subject_breakdown ?? [],
+                'form_tutor_remark' => $summary->form_tutor_remark,
+                'principal_remark' => $summary->principal_remark,
             ]);
 
         return response()->json(['results' => $summaries]);

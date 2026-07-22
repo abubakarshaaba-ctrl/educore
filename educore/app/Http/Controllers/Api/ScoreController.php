@@ -22,8 +22,7 @@ class ScoreController extends Controller
         $term = Term::current()->first();
 
         $assignments = ClassArmSubject::with(['classArm.classLevel', 'subject'])
-            ->where('teacher_id', $user->id)
-            ->when($term, fn ($q) => $q->where('session_id', $term->session_id))
+            ->when(!$this->canEnterAll($user), fn ($q) => $q->where('teacher_id', $user->id))
             ->get()
             ->filter(fn ($cas) => $cas->classArm && $cas->subject)
             ->map(fn ($cas) => [
@@ -157,11 +156,18 @@ class ScoreController extends Controller
 
     private function assertTeaches($user, int $classArmId, int $subjectId): void
     {
+        if ($this->canEnterAll($user)) return;
         $ok = ClassArmSubject::where('teacher_id', $user->id)
             ->where('class_arm_id', $classArmId)
             ->where('subject_id', $subjectId)
             ->exists();
 
         abort_unless($ok, 403, 'You are not assigned to teach this subject in this class.');
+    }
+
+    private function canEnterAll($user): bool
+    {
+        $access = \App\Models\User::ROLE_ACCESS[$user->roleKey()] ?? [];
+        return in_array('*', $access, true) || in_array('scores', $access, true);
     }
 }

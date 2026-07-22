@@ -27,12 +27,12 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
 
         Route::get('me',            [TeacherController::class, 'me']);
-        Route::get('classes',       [TeacherController::class, 'classes'])->middleware('can:students.view');
-        Route::get('classes/{classArm}/students', [TeacherController::class, 'students'])->middleware('can:students.view');
+        Route::get('classes',       [TeacherController::class, 'classes']);
+        Route::get('classes/{classArm}/students', [TeacherController::class, 'students']);
         Route::get('announcements', [TeacherController::class, 'announcements']);
 
-        Route::get('classes/{classArm}/attendance',  [AttendanceController::class, 'index'])->middleware('can:attendance.view');
-        Route::post('classes/{classArm}/attendance', [AttendanceController::class, 'store'])->middleware('can:attendance.mark');
+        Route::get('classes/{classArm}/attendance',  [AttendanceController::class, 'index']);
+        Route::post('classes/{classArm}/attendance', [AttendanceController::class, 'store']);
 
         // Staff self-attendance — clock-in/out reuse the proven web JSON
         // endpoints (QR verification + geo-fence live in that controller)
@@ -45,9 +45,9 @@ Route::prefix('v1')->group(function () {
         Route::post('staff-attendance/proxy-clock-in',  [\App\Http\Controllers\Api\StaffAttendanceApiController::class, 'proxyClockIn']);
 
         // Score entry (subject teachers)
-        Route::get('scores/teaching', [\App\Http\Controllers\Api\ScoreController::class, 'teaching'])->middleware('can:scores.view');
-        Route::get('scores/sheet',    [\App\Http\Controllers\Api\ScoreController::class, 'sheet'])->middleware('can:scores.enter.own');
-        Route::post('scores/save',    [\App\Http\Controllers\Api\ScoreController::class, 'save'])->middleware('can:scores.enter.own');
+        Route::get('scores/teaching', [\App\Http\Controllers\Api\ScoreController::class, 'teaching']);
+        Route::get('scores/sheet',    [\App\Http\Controllers\Api\ScoreController::class, 'sheet']);
+        Route::post('scores/save',    [\App\Http\Controllers\Api\ScoreController::class, 'save']);
 
         // Timetables
         Route::get('timetable/mine',       [\App\Http\Controllers\Api\TimetableController::class, 'mine']);
@@ -95,6 +95,8 @@ Route::prefix('v1')->group(function () {
             Route::get('staff', [AdminController::class, 'staff']);
             Route::get('academics', [AdminController::class, 'academics']);
             Route::get('finance', [AdminController::class, 'finance']);
+            Route::patch('students/{student}', [AdminController::class, 'updateStudent']);
+            Route::patch('staff/{member}', [AdminController::class, 'updateStaff']);
         });
 
         Route::prefix('platform')->group(function () {
@@ -102,6 +104,13 @@ Route::prefix('v1')->group(function () {
             Route::get('tenants', [PlatformController::class, 'tenants']);
             Route::get('billing', [PlatformController::class, 'billing']);
             Route::get('plans', [PlatformController::class, 'plans']);
+            Route::patch('tenants/{tenant}', [PlatformController::class, 'updateTenant']);
+        });
+
+        Route::prefix('admissions')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\AdmissionOfficerController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\AdmissionOfficerController::class, 'store']);
+            Route::patch('{admission}/status', [\App\Http\Controllers\Api\AdmissionOfficerController::class, 'updateStatus']);
         });
 
         Route::prefix('transport-officer')->group(function () {
