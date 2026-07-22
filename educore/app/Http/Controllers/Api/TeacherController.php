@@ -15,6 +15,24 @@ class TeacherController extends Controller
     public function me(Request $request)
     {
         $user    = $request->user();
+        if ($user->isSuperAdmin()) {
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'staff_id' => null,
+                    'role_key' => 'super_admin',
+                    'role' => 'Platform Super Admin',
+                    'roles' => ['super_admin'],
+                    'portal' => 'platform',
+                ],
+                'school' => ['id' => null, 'name' => 'EduCore Platform', 'slug' => 'platform'],
+                'current_session' => null,
+                'current_term' => null,
+                'permissions' => ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans'],
+            ]);
+        }
         $session = AcademicSession::current()->first();
         $term    = Term::current()->first();
 
@@ -24,7 +42,10 @@ class TeacherController extends Controller
                 'name'     => $user->name,
                 'email'    => $user->email,
                 'staff_id' => $user->staff_id,
+                'role_key' => $user->role,
                 'role'     => $user->roleLabel() ?? 'staff',
+                'roles'    => $user->getRoleNames()->values(),
+                'portal'   => in_array($user->roleKey(), ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'], true) ? 'admin' : 'staff',
             ],
             'school' => [
                 'id'   => $user->tenant?->id,
@@ -33,6 +54,7 @@ class TeacherController extends Controller
             ],
             'current_session' => $session?->only(['id', 'name']),
             'current_term'    => $term?->only(['id', 'name']),
+            'permissions'     => $user->getAllPermissions()->pluck('name')->sort()->values(),
         ]);
     }
 
