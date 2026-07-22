@@ -182,22 +182,16 @@
         </section>
     </div>
 
-    @if(count($announcements) > 0 || $feesTrend->count() > 1)
     <div class="dash-bottom">
-        @if(count($announcements) > 0)
         <section class="dash-card">
             <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div class="card-title">Announcements</div></div><a class="card-link" href="{{ route('announcements.index') }}">View all</a></div>
-            <div class="card-body"><div class="ann-list">@foreach($announcements as $ann)<div class="ann-item"><span class="ann-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div style="min-width:0"><div class="ann-title">{{ $ann->title }}</div><div class="ann-meta">{{ optional($ann->created_at)->diffForHumans() }}</div></div><span class="ann-arrow">›</span></div>@endforeach</div></div>
+            <div class="card-body">@if(count($announcements) > 0)<div class="ann-list">@foreach($announcements as $ann)<div class="ann-item"><span class="ann-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span><div style="min-width:0"><div class="ann-title">{{ $ann->title }}</div><div class="ann-meta">{{ optional($ann->created_at)->diffForHumans() }}</div></div><span class="ann-arrow">›</span></div>@endforeach</div>@else<div class="empty-state"><svg class="icon"><use href="#i-megaphone"/></svg>No announcements published yet.</div>@endif</div>
         </section>
-        @endif
-        @if($feesTrend->count() > 1)
-        <section class="dash-card" @if(count($announcements) === 0) style="grid-column:1/-1" @endif>
+        <section class="dash-card">
             <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-trending"/></svg></span><div><div class="card-title">Fee Collection Trend</div><div class="card-meta">Revenue performance over the last six months</div></div></div><span class="chart-filter">Last 6 Months</span></div>
-            <div class="card-body">@php $maxFee = $feesTrend->max('collected') ?: 1; @endphp<div class="fee-trend">@foreach($feesTrend as $month)<div class="fee-month"><strong>₦{{ number_format($month['collected']/1000,0) }}K</strong><div class="fee-bar" style="height:{{ max(5,($month['collected']/$maxFee)*82) }}px;opacity:{{ .62+($loop->index/max(1,$feesTrend->count()-1))*.38 }}"></div><span>{{ $month['label'] }}</span></div>@endforeach</div></div>
+            <div class="card-body">@if($feesTrend->count() > 0)@php $maxFee = $feesTrend->max('collected') ?: 1; @endphp<div class="fee-trend">@foreach($feesTrend as $month)<div class="fee-month"><strong>₦{{ number_format($month['collected']/1000,0) }}K</strong><div class="fee-bar" style="height:{{ max(5,($month['collected']/$maxFee)*82) }}px;opacity:{{ .62+($loop->index/max(1,$feesTrend->count()-1))*.38 }}"></div><span>{{ $month['label'] }}</span></div>@endforeach</div>@else<div class="empty-state"><svg class="icon"><use href="#i-trending"/></svg>No fee collection history is available yet.</div>@endif</div>
         </section>
-        @endif
     </div>
-    @endif
 
     <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
         <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6 3v3m12-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></symbol>
