@@ -47,13 +47,22 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
-      # ── Build ────────────────────────────────────────────────────────
+      # ── Build APK (for direct download) ─────────────────────────────
       - run: flutter build apk --release --target-platform android-arm64
 
       - uses: actions/upload-artifact@v4
         with:
           name: educore-staff-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      # ── Build AAB (for Play Store submission) ───────────────────────
+      - run: flutter build appbundle --release --target-platform android-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: educore-play-aab
+          path: mobile/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
   # ── Deploy APK to production server via SCP ───────────────────────
