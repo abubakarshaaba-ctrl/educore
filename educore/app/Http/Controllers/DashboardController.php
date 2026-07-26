@@ -100,20 +100,40 @@ class DashboardController extends Controller
                 'count' => $a->student_count,
             ]);
 
+        // ── Enrollment Growth (last 6 months, cumulative active students) ──
+        $enrollmentGrowth = collect(range(5, 0))->map(function ($monthsAgo) {
+            $cutoff = now()->subMonths($monthsAgo)->endOfMonth();
+            return [
+                'label' => $cutoff->format('M'),
+                'count' => Student::where('status', Student::STATUS_ACTIVE)
+                    ->where('admission_date', '<=', $cutoff)
+                    ->count(),
+            ];
+        });
+        $enrollmentGrowthPct = null;
+        if ($enrollmentGrowth->first()['count'] > 0) {
+            $enrollmentGrowthPct = round(
+                (($enrollmentGrowth->last()['count'] - $enrollmentGrowth->first()['count']) / $enrollmentGrowth->first()['count']) * 100,
+                1
+            );
+        }
+        $newAdmissionsThisMonth = Student::where('status', Student::STATUS_ACTIVE)
+            ->whereMonth('admission_date', now()->month)
+            ->whereYear('admission_date', now()->year)
+            ->count();
+
+        // ── Staff Growth (new hires this term vs total) ───────────────
+        $newStaffThisTerm = $currentTerm
+            ? User::activeStaff($tenantId)->where('employment_started_at', '>=', $currentTerm->start_date)->count()
+            : 0;
+
         // ── Trial / Subscription Status ───────────────────────────────
+        // Under the pay-per-student model there's no time-limited trial —
+        // "trial" here means the school hasn't paid yet and is on the free
+        // tier (≤20 students). Still used to target platform broadcasts.
         $tenant = auth()->user()->tenant;
-        $isOnTrial = false;
+        $isOnTrial = \App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($tenantId));
         $trialDaysLeft = 0;
-        try {
-            $trialSub = \Illuminate\Support\Facades\DB::table('tenant_subscriptions')
-                ->where('tenant_id', $tenantId)
-                ->where('status', 'trial')
-                ->first();
-            $isOnTrial = !is_null($trialSub);
-            if ($isOnTrial && $tenant && $tenant->subscription_expires_at) {
-                $trialDaysLeft = max(0, (int) now()->diffInDays($tenant->subscription_expires_at, false));
-            }
-        } catch (\Exception $e) {}
 
         // ── Platform Broadcasts ───────────────────────────────────────
         $broadcasts = [];
@@ -165,7 +185,8 @@ class DashboardController extends Controller
             'presentToday', 'absentToday', 'attendanceRate',
             'attendanceTrend', 'feesTrend', 'studentsByClass',
             'openRiskFlags', 'pendingAdmissions', 'announcements', 'genderBreakdown',
-            'isOnTrial', 'trialDaysLeft', 'broadcasts'
+            'isOnTrial', 'trialDaysLeft', 'broadcasts',
+            'enrollmentGrowth', 'enrollmentGrowthPct', 'newAdmissionsThisMonth', 'newStaffThisTerm'
         ));
     }
 
@@ -194,7 +215,7 @@ class DashboardController extends Controller
                                           ->count(),
         ];
 
-        $recentTenants = \App\Models\Tenant::with('activeSubscription.plan')
+        $recentTenants = \App\Models\Tenant::query()
             ->latest()
             ->limit(8)
             ->get();

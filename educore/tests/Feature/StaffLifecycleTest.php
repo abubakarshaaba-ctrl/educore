@@ -736,6 +736,7 @@ class StaffLifecycleTest extends TestCase
             'audit_logs',
             'staff_work_histories',
             'staff_status_histories',
+            'tenant_subscriptions',
             'users',
             'tenants',
         ] as $table) {
@@ -745,6 +746,19 @@ class StaffLifecycleTest extends TestCase
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // Empty by design — these tests aren't exercising billing/subscription
+        // features, they just need the table to exist so module-access checks
+        // that query it don't fail; an empty result is treated as "no active
+        // subscription", which the app already handles gracefully.
+        Schema::create('tenant_subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('plan_id')->nullable();
+            $table->string('status')->default('trial');
             $table->timestamps();
         });
 
@@ -757,6 +771,8 @@ class StaffLifecycleTest extends TestCase
             $table->string('role')->nullable();
             $table->string('staff_id')->nullable();
             $table->string('phone')->nullable();
+            $table->string('gender', 10)->nullable();
+            $table->json('qualifications')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_super_admin')->default(false);
             $table->string('employment_status')->nullable();

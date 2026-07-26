@@ -650,6 +650,7 @@ class StudentLifecycleTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('class_arms', function (Blueprint $table) {
@@ -660,6 +661,7 @@ class StudentLifecycleTest extends TestCase
             $table->unsignedBigInteger('form_tutor_id')->nullable();
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('students', function (Blueprint $table) {

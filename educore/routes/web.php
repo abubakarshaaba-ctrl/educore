@@ -26,6 +26,9 @@ use App\Http\Controllers\TenantHostController;
 use App\Http\Controllers\TenantOnboardingController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('mobile/session/{token}', [\App\Http\Controllers\Api\MobilePortalController::class, 'consumeSession'])
+    ->middleware(['signed', 'throttle:10,1'])->name('mobile.web-session');
+
 Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educore.test'))
     ->where(['tenantSubdomain' => '[A-Za-z0-9][A-Za-z0-9-]*'])
     ->name('tenant.host.')
@@ -52,6 +55,12 @@ Route::domain('{tenantSubdomain}.' . config('tenancy.local_base_domain', 'educor
         Route::get('apply/status', [TenantHostController::class, 'applyStatusForm'])->name('apply.status.form');
         Route::post('apply/status', [TenantHostController::class, 'applyStatus'])->name('apply.status');
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
+
+        Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
+        Route::get('careers/track/{token}', [TenantHostController::class, 'careersTrack'])->name('careers.track');
+        Route::post('careers/track/{token}/reply', [TenantHostController::class, 'careersReply'])->name('careers.track.reply');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->where('posting', '[0-9]+')->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->where('posting', '[0-9]+')->name('careers.apply');
 
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
@@ -88,6 +97,12 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
         Route::post('apply/status', [TenantHostController::class, 'applyStatus'])->name('apply.status');
         Route::get('apply/success/{app}', [TenantHostController::class, 'applySuccess'])->name('apply.success');
 
+        Route::get('careers', [TenantHostController::class, 'careersLanding'])->name('careers');
+        Route::get('careers/track/{token}', [TenantHostController::class, 'careersTrack'])->name('careers.track');
+        Route::post('careers/track/{token}/reply', [TenantHostController::class, 'careersReply'])->name('careers.track.reply');
+        Route::get('careers/{posting}', [TenantHostController::class, 'careersShow'])->where('posting', '[0-9]+')->name('careers.show');
+        Route::post('careers/{posting}/apply', [TenantHostController::class, 'careersApply'])->where('posting', '[0-9]+')->name('careers.apply');
+
         Route::get('account-status', [TenantAccountStatusController::class, 'show'])
             ->middleware(['auth', 'active.account'])
             ->name('account-status');
@@ -95,6 +110,10 @@ Route::domain('{customSubdomain}.{customDomain}.{customTld}')
 
 // â”€â”€ Authentication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Route::get('/', [PublicMarketingController::class, 'index'])->name('home');
+Route::get('/privacy', [PublicMarketingController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [PublicMarketingController::class, 'terms'])->name('legal.terms');
+Route::get('/blog', [\App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show'])->name('blog.show');
 
 // Shell-free deployment (cPanel Git deploy requires shell access this host
 // lacks). Pulls master from GitHub and syncs the deployable paths.
@@ -155,6 +174,20 @@ Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
         Route::post("/{$legacyPortal}/login", [LoginController::class, 'login'])->middleware('throttle:global-login');
     }
 });
+
+// Unified "forgot password" — every account type except super admins (who
+// change their password from inside the Super Admin panel).
+Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
+    Route::get('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showForgot'])->name('password.request');
+    Route::post('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendResetLink'])
+        ->middleware('throttle:tenant-password')
+        ->name('password.email');
+    Route::get('reset-password/{token}', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showReset'])->name('password.reset');
+    Route::post('reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])
+        ->middleware('throttle:tenant-password')
+        ->name('password.update');
+});
+
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
 
 // Named stubs so internal route() helpers still resolve â€” they build subdomain URLs directly.
@@ -615,6 +648,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('/',            [\App\Http\Controllers\SchoolSettingController::class, 'update'])->name('update');
         Route::get('grading',       fn () => redirect()->route('classes.grading'))->name('grading');
         Route::get('promotion',     fn () => redirect()->route('classes.promotion'))->name('promotion');
+        Route::get('letter-templates',       [\App\Http\Controllers\LetterTemplateController::class, 'edit'])->name('letter-templates.edit');
+        Route::put('letter-templates/{type}', [\App\Http\Controllers\LetterTemplateController::class, 'update'])->name('letter-templates.update');
     });
 
     // â”€â”€ Academic Calendar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -645,6 +680,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('{admission}/interview',     [\App\Http\Controllers\AdmissionController::class, 'scheduleInterview'])->name('interview');
         Route::post('{admission}/score',         [\App\Http\Controllers\AdmissionController::class, 'recordInterview'])->name('score');
         Route::post('{admission}/offer',         [\App\Http\Controllers\AdmissionController::class, 'sendOffer'])->name('offer');
+        Route::get('{admission}/offer/download', [\App\Http\Controllers\AdmissionController::class, 'downloadOfferLetter'])->name('offer.download');
     });
 
     // â”€â”€ Health Records â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -771,7 +807,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
 
     // â”€â”€ School Admin Self-Service Billing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('billing/subscription', [\App\Http\Controllers\BillingController::class, 'index'])->name('billing.subscription');
-    Route::post('billing/subscription/select', [\App\Http\Controllers\BillingController::class, 'selectPlan'])->name('billing.select-plan');
+    Route::post('billing/subscription/generate', [\App\Http\Controllers\BillingController::class, 'generateInvoice'])->name('billing.generate-invoice');
 
     // â”€â”€ Support Tickets & Platform Notices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('support',          [\App\Http\Controllers\SupportController::class, 'index'])->name('support.index');
@@ -797,6 +833,123 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::get('transcripts/search',       [\App\Http\Controllers\StudentController::class, 'transcriptIndex'])->name('students.transcript.search');
     Route::get('students/{student}/transcript',     [\App\Http\Controllers\StudentController::class, 'transcript'])->name('students.transcript');
     Route::get('students/{student}/transcript/pdf', [\App\Http\Controllers\StudentController::class, 'transcriptPdf'])->name('students.transcript.pdf');
+    Route::get('students/{student}/id-card',         [\App\Http\Controllers\StudentIdCardController::class, 'show'])->name('students.id-card');
+
+    // -- Discipline & Conduct ------------------------------------------------
+    Route::prefix('discipline')->name('discipline.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\DisciplineController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\DisciplineController::class, 'store'])->name('store');
+        Route::patch('{record}/resolve', [\App\Http\Controllers\DisciplineController::class, 'resolve'])->name('resolve');
+        Route::delete('{record}',    [\App\Http\Controllers\DisciplineController::class, 'destroy'])->name('destroy');
+    });
+
+    // -- Certificates & Testimonials ------------------------------------------
+    Route::prefix('certificates')->name('certificates.')->group(function () {
+        Route::get('/',        [\App\Http\Controllers\CertificateController::class, 'index'])->name('index');
+        Route::post('generate',[\App\Http\Controllers\CertificateController::class, 'generate'])->name('generate');
+    });
+
+    // -- Alumni ----------------------------------------------------------------
+    Route::prefix('alumni')->name('alumni.')->group(function () {
+        Route::get('/',                   [\App\Http\Controllers\AlumniController::class, 'index'])->name('index');
+        Route::put('{student}',           [\App\Http\Controllers\AlumniController::class, 'update'])->name('update');
+    });
+
+    // -- Scholarships & Fee Waivers --------------------------------------------
+    Route::prefix('scholarships')->name('scholarships.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\ScholarshipController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\ScholarshipController::class, 'store'])->name('store');
+        Route::patch('{scholarship}/revoke', [\App\Http\Controllers\ScholarshipController::class, 'revoke'])->name('revoke');
+    });
+
+    // -- Procurement (vendors + purchase orders) -------------------------------
+    Route::prefix('procurement')->name('procurement.')->group(function () {
+        Route::get('/',                    [\App\Http\Controllers\ProcurementController::class, 'index'])->name('index');
+        Route::post('vendors',             [\App\Http\Controllers\ProcurementController::class, 'storeVendor'])->name('vendors.store');
+        Route::post('orders',              [\App\Http\Controllers\ProcurementController::class, 'storeOrder'])->name('orders.store');
+        Route::patch('orders/{order}/approve', [\App\Http\Controllers\ProcurementController::class, 'approve'])->name('orders.approve');
+        Route::patch('orders/{order}/received', [\App\Http\Controllers\ProcurementController::class, 'markReceived'])->name('orders.received');
+        Route::patch('orders/{order}/cancel',  [\App\Http\Controllers\ProcurementController::class, 'cancel'])->name('orders.cancel');
+    });
+
+    // -- Asset / Inventory Management -------------------------------------------
+    // Named "inventory" (not "assets") — public/assets/ is a real static
+    // directory (brand images etc.), so a route prefixed /assets/ never
+    // reaches Laravel: Apache serves/blocks the physical folder first.
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\AssetController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\AssetController::class, 'store'])->name('store');
+        Route::patch('{asset}',   [\App\Http\Controllers\AssetController::class, 'update'])->name('update');
+        Route::delete('{asset}',  [\App\Http\Controllers\AssetController::class, 'destroy'])->name('destroy');
+    });
+
+    // -- Visitor / Gate Pass Log ------------------------------------------------
+    Route::prefix('visitors')->name('visitors.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\VisitorLogController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\VisitorLogController::class, 'store'])->name('store');
+        Route::patch('{visitor}/checkout', [\App\Http\Controllers\VisitorLogController::class, 'checkOut'])->name('checkout');
+    });
+
+    // -- External Exam Body Registration (WAEC/NECO/NABTEB/JAMB) ----------------
+    Route::prefix('exam-bodies')->name('exam-bodies.')->group(function () {
+        Route::get('/',           [\App\Http\Controllers\ExamBodyRegistrationController::class, 'index'])->name('index');
+        Route::post('/',          [\App\Http\Controllers\ExamBodyRegistrationController::class, 'store'])->name('store');
+        Route::patch('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'update'])->name('update');
+        Route::delete('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'destroy'])->name('destroy');
+    });
+
+    // -- Boarding / Hostel Management --------------------------------------------
+    Route::prefix('hostels')->name('hostels.')->group(function () {
+        Route::get('/',                 [\App\Http\Controllers\HostelController::class, 'index'])->name('index');
+        Route::post('/',                [\App\Http\Controllers\HostelController::class, 'storeHostel'])->name('store');
+        Route::post('{hostel}/rooms',   [\App\Http\Controllers\HostelController::class, 'storeRoom'])->name('rooms.store');
+        Route::get('{hostel}/rooms',    [\App\Http\Controllers\HostelController::class, 'roomsFor'])->name('rooms.for');
+        Route::post('allocate',         [\App\Http\Controllers\HostelController::class, 'allocate'])->name('allocate');
+        Route::patch('allocations/{allocation}/vacate', [\App\Http\Controllers\HostelController::class, 'vacate'])->name('vacate');
+        Route::patch('allocations/{allocation}/fee-paid', [\App\Http\Controllers\HostelController::class, 'markFeePaid'])->name('fee-paid');
+    });
+
+    // -- Staff Leave Management ---------------------------------------------------
+    Route::prefix('leave')->name('leave.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\StaffLeaveController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\StaffLeaveController::class, 'store'])->name('store');
+        Route::patch('{leaveRequest}/approve', [\App\Http\Controllers\StaffLeaveController::class, 'approve'])->name('approve');
+        Route::patch('{leaveRequest}/reject',  [\App\Http\Controllers\StaffLeaveController::class, 'reject'])->name('reject');
+        Route::patch('{leaveRequest}/cancel',  [\App\Http\Controllers\StaffLeaveController::class, 'cancel'])->name('cancel');
+    });
+
+    // -- Substitute / Relief Teacher Coverage ------------------------------------
+    Route::prefix('coverage')->name('coverage.')->group(function () {
+        Route::get('/',                [\App\Http\Controllers\ClassCoverageController::class, 'index'])->name('index');
+        Route::post('/',               [\App\Http\Controllers\ClassCoverageController::class, 'store'])->name('store');
+        Route::patch('{assignment}/complete', [\App\Http\Controllers\ClassCoverageController::class, 'complete'])->name('complete');
+        Route::patch('{assignment}/cancel',   [\App\Http\Controllers\ClassCoverageController::class, 'cancel'])->name('cancel');
+    });
+
+    // -- Recruitment / Applicant Tracking ----------------------------------------
+    Route::prefix('recruitment')->name('recruitment.')->group(function () {
+        Route::get('/',                     [\App\Http\Controllers\RecruitmentController::class, 'index'])->name('index');
+        Route::post('postings',             [\App\Http\Controllers\RecruitmentController::class, 'storePosting'])->name('postings.store');
+        Route::patch('postings/{posting}/close', [\App\Http\Controllers\RecruitmentController::class, 'closePosting'])->name('postings.close');
+        Route::get('postings/{posting}',    [\App\Http\Controllers\RecruitmentController::class, 'show'])->name('show');
+        Route::post('postings/{posting}/applicants', [\App\Http\Controllers\RecruitmentController::class, 'storeApplicant'])->name('applicants.store');
+        Route::patch('applicants/{applicant}/status', [\App\Http\Controllers\RecruitmentController::class, 'updateApplicantStatus'])->name('applicants.status');
+        Route::post('applicants/{applicant}/interview', [\App\Http\Controllers\RecruitmentController::class, 'scheduleInterview'])->name('applicants.interview');
+        Route::post('applicants/{applicant}/message', [\App\Http\Controllers\RecruitmentController::class, 'sendMessage'])->name('applicants.message');
+        Route::get('applicants/{applicant}/documents', [\App\Http\Controllers\RecruitmentController::class, 'documents'])->name('applicants.documents');
+        Route::get('applicants/{applicant}/documents/{doc}/download', [\App\Http\Controllers\RecruitmentController::class, 'downloadDocument'])->name('applicants.documents.download');
+        Route::post('applicants/{applicant}/documents/{doc}/verify', [\App\Http\Controllers\RecruitmentController::class, 'verifyDocument'])->name('applicants.documents.verify');
+        Route::post('applicants/{applicant}/offer', [\App\Http\Controllers\RecruitmentController::class, 'sendOffer'])->name('applicants.offer');
+        Route::get('applicants/{applicant}/offer/download', [\App\Http\Controllers\RecruitmentController::class, 'downloadOfferLetter'])->name('applicants.offer.download');
+    });
+
+    // -- Staff Disciplinary Actions -----------------------------------------------
+    Route::prefix('staff-discipline')->name('staff-discipline.')->group(function () {
+        Route::get('/',              [\App\Http\Controllers\StaffDisciplinaryController::class, 'index'])->name('index');
+        Route::post('/',             [\App\Http\Controllers\StaffDisciplinaryController::class, 'store'])->name('store');
+        Route::patch('{action}/deactivate-deduction', [\App\Http\Controllers\StaffDisciplinaryController::class, 'deactivateDeduction'])->name('deactivate-deduction');
+        Route::patch('{action}/rescind', [\App\Http\Controllers\StaffDisciplinaryController::class, 'rescind'])->name('rescind');
+    });
 
     // â”€â”€ Transport Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('transport')->name('transport.')->group(function () {
@@ -905,17 +1058,14 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::get('tenants/{tenant}',      [SuperAdminController::class, 'showTenant'])->name('tenant.show');
     Route::patch('tenants/{tenant}/toggle',  [SuperAdminController::class, 'toggleTenant'])->name('tenant.toggle');
     Route::post('tenants/{tenant}/extend',   [SuperAdminController::class, 'extendTenant'])->name('tenant.extend');
-    Route::post('tenants/{tenant}/renew',    [SuperAdminController::class, 'renewTenant'])->name('tenant.renew');
     Route::delete('tenants/{tenant}',        [SuperAdminController::class, 'destroyTenant'])->name('tenant.destroy');
     Route::post('impersonate/{tenant}',      [SuperAdminController::class, 'impersonate'])->name('impersonate');
     Route::post('stop-impersonating',        [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
-    Route::get('subscriptions',  [SuperAdminController::class, 'subscriptions'])->name('subscriptions');
     Route::get('plans',          [SuperAdminController::class, 'plans'])->name('plans');
-    Route::post('plans',         [SuperAdminController::class, 'storePlan'])->name('plans.store');
-    Route::patch('plans/{plan}', [SuperAdminController::class, 'updatePlan'])->name('plans.update');
     Route::get('payments',       [SuperAdminController::class, 'payments'])->name('payments');
     Route::get('settings',               [SuperAdminController::class, 'settings'])->name('settings');
     Route::post('settings',              [SuperAdminController::class, 'saveSettings'])->name('settings.save');
+    Route::post('password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('password.update');
     Route::get('payment-gateways',       [SuperAdminController::class, 'paymentGateways'])->name('payment-gateways');
     Route::post('payment-gateways',      [SuperAdminController::class, 'savePaymentGateways'])->name('payment-gateways.save');
     Route::get('analytics',      [SuperAdminController::class, 'analytics'])->name('analytics');
@@ -941,6 +1091,7 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
         Route::get('{group}',             [\App\Http\Controllers\SchoolGroupController::class, 'show'])->name('show');
         Route::post('{group}/members',    [\App\Http\Controllers\SchoolGroupController::class, 'addMember'])->name('members.add');
         Route::delete('{group}/members/{tenant}', [\App\Http\Controllers\SchoolGroupController::class, 'removeMember'])->name('members.remove');
+        Route::post('{group}/members/{tenant}/lead', [\App\Http\Controllers\SchoolGroupController::class, 'setLead'])->name('members.set-lead');
         Route::get('{group}/report',      [\App\Http\Controllers\SchoolGroupController::class, 'report'])->name('report');
         Route::delete('{group}',          [\App\Http\Controllers\SchoolGroupController::class, 'destroy'])->name('destroy');
     });
@@ -1061,6 +1212,18 @@ Route::name('portal.')->group(function () {
     Route::get('_apply_stub/{slug}/status',       fn (string $slug) => redirect()->away($apply($slug, 'status')))->name('status.form');
     Route::post('_apply_stub/{slug}/submit',      fn () => abort(404))->name('submit');
     Route::post('_apply_stub/{slug}/status',      fn () => abort(404))->name('status');
+});
+
+// ── Public Careers Portal stubs (subdomain handles the real routes) ────────
+Route::name('careers.')->group(function () {
+    $careers = fn (string $slug, string $path = '') =>
+        config('tenancy.scheme') . '://' . $slug . '.' . config('tenancy.base_domain') . '/careers' . ($path ? '/' . ltrim($path, '/') : '');
+
+    Route::get('_careers_stub/{slug}',                fn (string $slug) => redirect()->away($careers($slug)))->name('landing');
+    Route::get('_careers_stub/{slug}/track/{token}',  fn (string $slug, string $token) => redirect()->away($careers($slug, 'track/' . $token)))->name('track');
+    Route::post('_careers_stub/{slug}/track/{token}/reply', fn () => abort(404))->name('track.reply');
+    Route::get('_careers_stub/{slug}/{posting}',      fn (string $slug, $posting) => redirect()->away($careers($slug, (string) $posting)))->name('show');
+    Route::post('_careers_stub/{slug}/{posting}/apply', fn () => abort(404))->name('apply');
 });
 
 // â”€â”€ Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

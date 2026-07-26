@@ -78,6 +78,22 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
 .p-nav-item.active { background:rgba(215,154,33,0.25); color:#F2C35B; }
 .p-nav-item.active svg { color:#F2C35B; }
 
+/* layouts/partials/full-nav.blade.php is shared with the main admin/staff
+   app shell (which styles .nav-section/.nav-item), so alias those classes
+   to the portal's own .p-nav-* look for visual parity here. */
+.nav-section { padding:16px 10px 6px; }
+.nav-section-label { font-size:9px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:.1em; padding:0 8px; margin-bottom:4px; }
+.nav-item {
+    display:flex; align-items:center; gap:9px; padding:9px 10px;
+    border-radius:8px; font-size:13px; font-weight:500; color:#94A3B8;
+    text-decoration:none; transition:all 150ms; margin-bottom:1px; white-space:nowrap;
+}
+.nav-item svg { width:16px; height:16px; flex-shrink:0; }
+.nav-item:hover { background:rgba(255,255,255,0.07); color:#CBD5E1; }
+.nav-item.active { background:rgba(215,154,33,0.25); color:#F2C35B; }
+.nav-item.active svg { color:#F2C35B; }
+.nav-label { }
+
 /* Main content */
 .p-main { margin-left:var(--sidebar-w); margin-top:var(--nav-h); min-height:calc(100vh - var(--nav-h)); }
 .p-content { padding:24px; max-width:1200px; }

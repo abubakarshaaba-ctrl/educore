@@ -7,7 +7,7 @@
     <aside class="auth-brand" aria-label="EduCore">
         <div class="auth-brand__identity">
             <img src="{{ asset('assets/brand/educore-icon.svg') }}" alt="EduCore">
-            <span class="auth-brand__wordmark">EDUCORE</span>
+            <span class="auth-brand__wordmark">EDU<span style="color:var(--ec-gold)">CORE</span></span>
         </div>
 
         <div class="auth-brand__body">
@@ -27,7 +27,7 @@
         </svg>
 
         <div class="auth-brand__bottom">
-            <span>EduCore Education Technology</span>
+            <span><span style="color:#fff">Edu<span style="color:var(--ec-gold,#D79A21)">Core</span></span> Education Technology</span>
             <span>&copy; {{ date('Y') }}</span>
         </div>
     </aside>
@@ -85,10 +85,13 @@
                     @error('password')<p class="ec-field-error">{{ $message }}</p>@enderror
                 </div>
 
-                <label class="ec-remember">
-                    <input type="checkbox" name="remember" value="1">
-                    <span>Keep me signed in</span>
-                </label>
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                    <label class="ec-remember">
+                        <input type="checkbox" name="remember" value="1">
+                        <span>Keep me signed in</span>
+                    </label>
+                    <a href="{{ route('password.request') }}" style="font-size:13px;color:var(--ec-navy);font-weight:600;text-decoration:none">Forgot password?</a>
+                </div>
 
                 <x-auth.submit-button>Sign in</x-auth.submit-button>
             </form>
@@ -97,8 +100,6 @@
                 <span>Setting up a new school?</span>
                 <a href="{{ route('school.register') }}">Get started <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
             </div>
-
-            <x-auth.footer />
         </section>
     </main>
 </div>

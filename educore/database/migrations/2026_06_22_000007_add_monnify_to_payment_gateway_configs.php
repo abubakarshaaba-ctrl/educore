@@ -13,9 +13,12 @@ return new class extends Migration
             return;
         }
 
-        // Widen the gateway enum to include monnify
-        DB::statement("ALTER TABLE `payment_gateway_configs`
-            MODIFY COLUMN `gateway` ENUM('paystack', 'flutterwave', 'monnify') NOT NULL DEFAULT 'paystack'");
+        // Widen the gateway enum to include monnify. MODIFY is MySQL-only —
+        // SQLite (test suite) stores this as TEXT already, nothing to widen.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE `payment_gateway_configs`
+                MODIFY COLUMN `gateway` ENUM('paystack', 'flutterwave', 'monnify') NOT NULL DEFAULT 'paystack'");
+        }
 
         // Add contract_code needed by Monnify (Paystack/Flutterwave don't use it)
         if (!Schema::hasColumn('payment_gateway_configs', 'contract_code')) {
@@ -30,8 +33,10 @@ return new class extends Migration
         if (!Schema::hasTable('payment_gateway_configs')) {
             return;
         }
-        DB::statement("ALTER TABLE `payment_gateway_configs`
-            MODIFY COLUMN `gateway` ENUM('paystack', 'flutterwave') NOT NULL DEFAULT 'paystack'");
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE `payment_gateway_configs`
+                MODIFY COLUMN `gateway` ENUM('paystack', 'flutterwave') NOT NULL DEFAULT 'paystack'");
+        }
 
         if (Schema::hasColumn('payment_gateway_configs', 'contract_code')) {
             Schema::table('payment_gateway_configs', function (Blueprint $table) {

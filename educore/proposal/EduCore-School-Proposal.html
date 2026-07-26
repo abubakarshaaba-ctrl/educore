@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduCore — School Management Platform</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+    --navy:   #0B1D3A;
+    --navy-2: #1A3A6A;
+    --blue:   #1A56DB;
+    --sky:    #3B82F6;
+    --gold:   #D79A21;
+    --green:  #10B981;
+    --slate:  #64748B;
+    --border: #E2E8F0;
+    --bg:     #F8FAFC;
+    --ink:    #1E293B;
+}
+body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #E7ECF3;
+    color: var(--ink);
+    line-height: 1.65;
+}
+.page { max-width: 900px; margin: 0 auto; background: white; }
+
+/* ---- COVER ---- */
+.cover {
+    background: linear-gradient(160deg, var(--navy) 0%, #0F2952 55%, var(--navy-2) 100%);
+    color: white;
+    padding: 90px 70px 70px;
+    position: relative;
+    overflow: hidden;
+}
+.cover::before {
+    content: ''; position: absolute; top: -120px; right: -120px; width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(215,154,33,0.18) 0%, transparent 70%);
+}
+.cover::after {
+    content: ''; position: absolute; bottom: -140px; left: -100px; width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+}
+.brand-row { display:flex; align-items:center; gap:14px; position:relative; z-index:1; }
+.brand-mark { width: 52px; height: 52px; border-radius: 14px; overflow:hidden; flex-shrink:0; background:white; }
+.brand-mark svg { width:100%; height:100%; display:block; }
+.brand-name { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+.brand-name .c-gold { color: var(--gold); }
+.brand-tag { font-size: 12px; color: rgba(255,255,255,0.55); margin-top:2px; letter-spacing:0.5px; text-transform:uppercase; }
+
+.cover-title { margin-top: 110px; position: relative; z-index:1; }
+.cover-eyebrow {
+    display:inline-block; font-size:12px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    color: var(--gold); background: rgba(215,154,33,0.12); border:1px solid rgba(215,154,33,0.35);
+    padding:6px 14px; border-radius:100px; margin-bottom:22px;
+}
+.cover-title h1 { font-size: 44px; font-weight: 800; letter-spacing:-0.02em; line-height:1.15; max-width:660px; }
+.cover-title h1 span { color: #7FB1FF; }
+.cover-sub { font-size:16px; color:rgba(255,255,255,0.65); margin-top:18px; max-width:580px; }
+
+.cover-badges { margin-top:60px; display:flex; gap:14px; flex-wrap:wrap; position:relative; z-index:1; }
+.cover-badge {
+    display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.14); border-radius:10px; padding:10px 16px; font-size:13px; font-weight:600;
+}
+
+/* ---- SECTION SHELL ---- */
+section { padding: 56px 70px; border-bottom: 1px solid var(--border); }
+.section-label { font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--blue); margin-bottom:10px; }
+h2.section-title { font-size:28px; font-weight:800; color:var(--navy); letter-spacing:-0.01em; margin-bottom:18px; }
+p.lead { font-size:16px; color:#334155; max-width:700px; }
+
+/* ---- PROBLEM GRID ---- */
+.problem-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:28px; }
+.problem-card { background:#FEF6F0; border:1px solid #FBE3CC; border-radius:12px; padding:18px 20px; }
+.problem-card .icon { font-size:20px; margin-bottom:8px; }
+.problem-card b { display:block; font-size:14px; color:var(--navy); margin-bottom:4px; }
+.problem-card p { font-size:13px; color:#57534E; }
+
+/* ---- MODULE CARDS ---- */
+.module-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
+.module-card { background:var(--bg); border:1px solid var(--border); border-radius:14px; padding:22px 20px; }
+.module-icon {
+    width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:18px; color:white; margin-bottom:14px;
+}
+.module-card h3 { font-size:15px; font-weight:700; color:var(--navy); margin-bottom:8px; }
+.module-card ul { list-style:none; font-size:12.5px; color:#475569; }
+.module-card li { padding:3px 0 3px 16px; position:relative; }
+.module-card li::before { content:'•'; position:absolute; left:2px; color:var(--blue); }
+
+/* ---- DIFFERENTIATORS ---- */
+.diff-row { display:flex; gap:20px; margin-top:28px; align-items:flex-start; }
+.diff-row + .diff-row { margin-top:22px; }
+.diff-num {
+    width:34px; height:34px; border-radius:50%; background:var(--navy); color:white; font-weight:800; font-size:14px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.diff-row h4 { font-size:15px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+.diff-row p { font-size:13.5px; color:#475569; }
+
+/* ---- STEPS ---- */
+.steps { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:28px; }
+.step-card { text-align:center; }
+.step-num {
+    width:38px; height:38px; border-radius:50%; background:#EFF6FF; color:var(--blue); font-weight:800; font-size:15px;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 12px;
+}
+.step-card h5 { font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:6px; }
+.step-card p { font-size:11.5px; color:var(--slate); }
+
+/* ---- PRICING ---- */
+.tier-table { border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-top:28px; }
+.tier-row { display:grid; grid-template-columns:2fr 1.3fr 1fr; gap:12px; align-items:center; padding:18px 24px; border-bottom:1px solid var(--border); }
+.tier-row:last-child { border-bottom:none; }
+.tier-row.tier-free { background:#F0FDF4; }
+.tier-range { font-size:14px; font-weight:700; color:var(--navy); }
+.tier-rate { font-size:15px; font-weight:800; color:var(--navy); }
+.tier-cycle { font-size:12px; color:var(--slate); text-align:right; }
+.pricing-note { font-size:12px; color:var(--slate); margin-top:14px; font-style:italic; }
+.pricing-highlight {
+    background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:16px 20px; margin-top:20px;
+    font-size:13.5px; color:#1E3A8A;
+}
+
+/* ---- CTA ---- */
+.cta {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color:white; padding:60px 70px; text-align:center; position:relative; overflow:hidden;
+}
+.cta::before {
+    content:''; position:absolute; top:-80px; left:50%; transform:translateX(-50%);
+    width:500px; height:500px; background:radial-gradient(circle, rgba(26,86,219,0.25) 0%, transparent 70%);
+}
+.cta h2 { font-size:26px; font-weight:800; margin-bottom:12px; position:relative; z-index:1; }
+.cta p { font-size:14px; color:rgba(255,255,255,0.65); max-width:520px; margin:0 auto 28px; position:relative; z-index:1; }
+.cta-contacts { display:flex; justify-content:center; gap:36px; flex-wrap:wrap; position:relative; z-index:1; }
+.cta-contacts div { font-size:13px; }
+.cta-contacts .k { color:rgba(255,255,255,0.45); font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.cta-contacts .v { font-weight:700; }
+.cta-contacts a { color:white; text-decoration:none; }
+.cta-contacts a:hover { text-decoration:underline; }
+
+footer { text-align:center; padding:24px; font-size:11px; color:var(--slate); background:white; }
+
+@media print {
+    body { background:white; }
+    .page { max-width:100%; }
+    section, .cover, .cta { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="cover">
+    <div class="brand-row">
+        <div class="brand-mark">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+                <g transform="translate(32 32) scale(0.875)">
+                    <path d="M264 70a186 186 0 1 0 0 372v-82a104 104 0 1 1 0-208V70Z" fill="#071E45"/>
+                    <path d="M271 178a78 78 0 0 0 0 156V178Z" fill="#D79A21"/>
+                    <circle cx="272" cy="256" r="30" fill="#FFFFFF"/>
+                    <rect x="332" y="120" width="44" height="44" rx="7" fill="#F2C35B"/>
+                    <rect x="389" y="172" width="35" height="35" rx="6" fill="#D79A21"/>
+                    <rect x="330" y="234" width="42" height="42" rx="6" fill="#D79A21"/>
+                    <rect x="399" y="267" width="30" height="30" rx="6" fill="#F2C35B"/>
+                </g>
+            </svg>
+        </div>
+        <div>
+            <div class="brand-name">Edu<span class="c-gold">Core</span></div>
+            <div class="brand-tag">School Management Platform</div>
+        </div>
+    </div>
+
+    <div class="cover-title">
+        <div class="cover-eyebrow">Partnership Proposal</div>
+        <h1>Run your entire school<br>from <span>one connected platform</span></h1>
+        <p class="cover-sub">
+            Admissions, academics, attendance, fees, payroll, staff HR, exams, transport, and
+            parent communication — unified in a single system built for how Nigerian schools
+            actually operate.
+        </p>
+    </div>
+
+    <div class="cover-badges">
+        <div class="cover-badge">🇳🇬 Built for Nigerian schools</div>
+        <div class="cover-badge">🔓 Every feature included, on every plan</div>
+        <div class="cover-badge">📅 Billed per academic term</div>
+        <div class="cover-badge">📱 Native mobile app for staff</div>
+    </div>
+</div>
+
+<section>
+    <div class="section-label">The Problem</div>
+    <h2 class="section-title">Running a school still means juggling a dozen disconnected tools</h2>
+    <p class="lead">Most schools patch together spreadsheets, WhatsApp groups, paper registers, and
+    manual bank reconciliation — and every gap between those tools costs time, money, and trust
+    with parents.</p>
+
+    <div class="problem-grid">
+        <div class="problem-card">
+            <div class="icon">📋</div>
+            <b>Paper-based records</b>
+            <p>Admission files, attendance registers, and report cards live in cabinets — slow to
+            retrieve, easy to lose, impossible to analyze.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">💸</div>
+            <b>Manual fee collection</b>
+            <p>Tracking who has paid, chasing defaulters, and reconciling bank transfers by hand
+            eats into staff time every single term.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">📵</div>
+            <b>Disconnected communication</b>
+            <p>Parents find out about school closures, fee deadlines, or their child's performance
+            late — or not at all.</p>
+        </div>
+        <div class="problem-card">
+            <div class="icon">🧾</div>
+            <b>Slow, error-prone admissions</b>
+            <p>Walk-in applications, handwritten forms, and no way for parents to track application
+            status remotely.</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-label">The Solution</div>
+    <h2 class="section-title">EduCore — every feature your school needs, in one place</h2>
+    <p class="lead">EduCore covers the complete lifecycle of a student and a staff member — from
+    the day someone applies, to the day they graduate or retire — with every module talking to
+    every other module. Nothing here is a paid add-on: every school gets everything below.</p>
+
+    <div class="module-grid">
+        <div class="module-card">
+            <div class="module-icon" style="background:var(--blue)">🎓</div>
+            <h3>Academics</h3>
+            <ul>
+                <li>Student records, class arms &amp; promotion engine</li>
+                <li>Student &amp; staff attendance (incl. QR clock-in)</li>
+                <li>Timetable builder &amp; AI lesson planner</li>
+                <li>Curriculum tracks &amp; subject management</li>
+                <li>Scores, gradebook, report cards &amp; transcripts</li>
+                <li>CBT exam engine (objective, essay &amp; results)</li>
+                <li>Exam timetable &amp; supervision duty builder</li>
+                <li>Skill / psychomotor ratings</li>
+                <li>WAEC/NECO/JAMB candidate registration</li>
+                <li>Academic risk flags</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <div class="module-icon" style="background:var(--gold)">📝</div>
+            <h3>Admissions &amp; Enrollment</h3>
+            <ul>
+                <li>Public online application portal (own subdomain)</li>
+                <li>Document upload &amp; verification workflow</li>
+                <li>Interview scheduling &amp; scoring</li>
+                <li>Digital, customizable admission offer letters</li>
+                <li>Application status tracking for parents</li>
+                <li>Student transfers (in &amp; out)</li>
+                <li>Bulk admission decisions &amp; CSV export</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <div class="module-icon" style="background:var(--green)">💳</div>
+            <h3>Finance &amp; Fees</h3>
+            <ul>
+                <li>Fee setup, categories &amp; structures</li>
+                <li>Invoice generation &amp; payment plans</li>
+                <li>Online payments (Paystack/Flutterwave)</li>
+                <li>Automated fee reminders</li>
+                <li>Scholarships, bursaries &amp; fee waivers</li>
+                <li>Expense tracking &amp; procurement workflow</li>
+                <li>Asset &amp; inventory management</li>
+                <li>Financial reports &amp; analytics</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <div class="module-icon" style="background:#7C3AED">🧑‍💼</div>
+            <h3>Human Resource</h3>
+            <ul>
+                <li>Staff records &amp; full employment lifecycle</li>
+                <li>Payroll with Nigerian PAYE &amp; pension</li>
+                <li>Leave management &amp; substitute class coverage</li>
+                <li>Recruitment pipeline &amp; public careers portal</li>
+                <li>Job offer letters, linked to applicant tracking</li>
+                <li>Staff disciplinary actions — linked to payroll</li>
+                <li>Staff ID cards &amp; QR attendance clock-in</li>
+                <li>Mobile app: personalized timetable, lesson &amp; exam duty schedules</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <div class="module-icon" style="background:#DB2777">💬</div>
+            <h3>Communication &amp; Portals</h3>
+            <ul>
+                <li>SMS &amp; branded email notifications</li>
+                <li>Announcements &amp; school calendar</li>
+                <li>Parent portal &amp; student portal</li>
+                <li>Internal staff messaging</li>
+                <li>Automated triggers (fee due, results out, etc.)</li>
+                <li>Platform notices &amp; support desk</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <div class="module-icon" style="background:#0891B2">📊</div>
+            <h3>Operations, Welfare &amp; Reporting</h3>
+            <ul>
+                <li>Library management</li>
+                <li>Transport / fleet management</li>
+                <li>Boarding &amp; hostel management</li>
+                <li>Health records &amp; visitor / gate-pass log</li>
+                <li>Discipline &amp; conduct records</li>
+                <li>Alumni tracking &amp; leaving certificates</li>
+                <li>Government census (ASC) reporting</li>
+                <li>Analytics, exports &amp; multi-campus support</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-label">Why EduCore</div>
+    <h2 class="section-title">Built specifically for how Nigerian schools operate</h2>
+
+    <div class="diff-row">
+        <div class="diff-num">1</div>
+        <div>
+            <h4>One platform, not ten subscriptions</h4>
+            <p>Admissions, fees, payroll, and communication tools are usually bought separately and
+            never talk to each other. EduCore replaces all of them with one login, one source of
+            truth, and no double data entry.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">2</div>
+        <div>
+            <h4>Every feature, on every plan</h4>
+            <p>There are no locked-away premium features. A small school and a large one use the
+            exact same platform — only the price scales with enrollment.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">3</div>
+        <div>
+            <h4>Your own branded school portal</h4>
+            <p>Every school gets its own subdomain, branded admissions page, and careers page —
+            parents and job applicants interact with your school's identity, not a generic
+            third-party tool.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">4</div>
+        <div>
+            <h4>Nigerian payroll &amp; compliance, built in</h4>
+            <p>PAYE tax bands, pension deductions, and WAEC/NECO/JAMB candidate registration are
+            native features — not workarounds bolted onto a foreign system.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">5</div>
+        <div>
+            <h4>Parents stay informed automatically</h4>
+            <p>Fee reminders, result publication, admission updates, and disciplinary notices reach
+            parents by email and SMS without any manual follow-up from your staff.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">6</div>
+        <div>
+            <h4>Grows with your school</h4>
+            <p>Whether you run one campus or several, EduCore scales from a single classroom block
+            to a multi-campus group without switching systems.</p>
+        </div>
+    </div>
+    <div class="diff-row">
+        <div class="diff-num">7</div>
+        <div>
+            <h4>A real mobile app — not just a mobile website</h4>
+            <p>Teachers install the EduCore app and get their own personalized schedule the moment
+            they log in: their timetable, their lesson periods for the day, and their exam
+            supervision duty assignments — plus QR-code staff attendance clock-in, all from their
+            phone, with no separate device or hardware required.</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-label">Getting Started</div>
+    <h2 class="section-title">Onboarding takes days, not months</h2>
+    <p class="lead">We handle the heavy lifting — your team focuses on running the school.</p>
+
+    <div class="steps">
+        <div class="step-card">
+            <div class="step-num">1</div>
+            <h5>Discovery Call</h5>
+            <p>We map your current processes and student/staff numbers.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">2</div>
+            <h5>Data Migration</h5>
+            <p>Existing student, staff, and fee records are imported for you.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">3</div>
+            <h5>Branding Setup</h5>
+            <p>Your logo, subdomain, and admissions/careers pages go live.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">4</div>
+            <h5>Staff Training</h5>
+            <p>Hands-on training for admin, teachers, and finance staff.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-num">5</div>
+            <h5>Go Live</h5>
+            <p>Ongoing support through your first full term on EduCore.</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-label">Investment</div>
+    <h2 class="section-title">One plan. Every feature. Priced by enrollment.</h2>
+    <p class="lead">No feature tiers, no add-on packages — every school gets the complete EduCore
+    platform. You only pay for the size of school you run today, billed per academic term to
+    match how Nigerian schools already collect fees.</p>
+
+    <div class="tier-table">
+        <div class="tier-row tier-free">
+            <div class="tier-range">Up to 20 students</div>
+            <div class="tier-rate">Free</div>
+            <div class="tier-cycle">—</div>
+        </div>
+        <div class="tier-row">
+            <div class="tier-range">21 – 200 students</div>
+            <div class="tier-rate">₦500 / student</div>
+            <div class="tier-cycle">Per term</div>
+        </div>
+        <div class="tier-row">
+            <div class="tier-range">201 – 500 students</div>
+            <div class="tier-rate">₦400 / student</div>
+            <div class="tier-cycle">Per term</div>
+        </div>
+        <div class="tier-row">
+            <div class="tier-range">501+ students</div>
+            <div class="tier-rate">Custom volume pricing</div>
+            <div class="tier-cycle">Per term</div>
+        </div>
+    </div>
+    <div class="pricing-highlight">
+        💡 Pay a full academic year (3 terms) upfront and save 10%.
+    </div>
+    <p class="pricing-note">Pricing is based on active enrollment at the start of each term — every
+    module listed above is included at every tier, with no locked features.</p>
+</section>
+
+<div class="cta">
+    <h2>Let's bring your school onto EduCore</h2>
+    <p>Book a short discovery call and see the platform running with your own school's data before
+    you commit to anything.</p>
+    <div class="cta-contacts">
+        <div><div class="k">Website</div><div class="v"><a href="https://educoreng.online">educoreng.online</a></div></div>
+        <div><div class="k">Email</div><div class="v"><a href="mailto:support@educoreng.online">support@educoreng.online</a></div></div>
+        <div><div class="k">Phone / WhatsApp</div><div class="v"><a href="tel:+2347065595768">+234 706 559 5768</a></div></div>
+    </div>
+</div>
+
+<footer>© 2026 EduCore. All rights reserved.</footer>
+
+</div>
+</body>
+</html>

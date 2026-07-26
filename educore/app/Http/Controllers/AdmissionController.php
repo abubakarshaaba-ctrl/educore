@@ -6,6 +6,8 @@ use App\Models\ClassLevel;
 use App\Models\Student;
 use App\Models\ClassArm;
 use App\Models\Guardian;
+use App\Notifications\AdmissionOfferNotification;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -83,6 +85,15 @@ class AdmissionController extends Controller
             'notes'         => ['nullable','string'],
             'class_arm_id'  => ['nullable','exists:class_arms,id'],
         ]);
+
+        $statusChanged = $admission->status !== $data['status'];
+
+        if ($statusChanged && $data['status'] === 'admitted' && !$admission->enrolled_as_student_id) {
+            if ($error = \App\Services\PlanLimitService::checkStudentLimit(auth()->user()->tenant)) {
+                return back()->withErrors(['limit' => $error]);
+            }
+        }
+
         $admission->update([
             'status'        => $data['status'],
             'notes'         => $data['notes'] ?? $admission->notes,
@@ -95,12 +106,55 @@ class AdmissionController extends Controller
             $this->enrollStudent($admission, $data['class_arm_id'] ?? null);
         }
 
+        if ($statusChanged) {
+            $this->notifyGuardianOfStatus($admission);
+        }
+
         return back()->with('success', "Application status updated to: {$data['status']}.");
+    }
+
+    /** Notify the guardian by email/SMS whenever the application's status changes. */
+    private function notifyGuardianOfStatus(Admission $admission): void
+    {
+        $tenant = auth()->user()->tenant;
+        $name = $admission->first_name . ' ' . $admission->last_name;
+
+        $line = match ($admission->status) {
+            'shortlisted' => "Good news! {$name}'s application has been shortlisted. We will contact you with next steps.",
+            'admitted'    => "Congratulations! {$name} has been offered admission. You will receive a formal offer letter shortly.",
+            'rejected'    => "Thank you for applying. After careful review, we will not be proceeding with {$name}'s application at this time.",
+            'withdrawn'   => "{$name}'s application has been marked as withdrawn as requested.",
+            default       => "{$name}'s application status has been updated to: " . ucfirst($admission->status) . '.',
+        };
+
+        $guardian = new Guardian([
+            'first_name' => $admission->guardian_name,
+            'email'      => $admission->guardian_email,
+            'phone'      => $admission->guardian_phone,
+        ]);
+        $guardian->tenant_id = $tenant->id;
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $guardian,
+                'Application update — ' . $name . ' — ' . $tenant->name,
+                [$line, 'Application number: ' . $admission->application_number],
+                smsBody: "Dear {$admission->guardian_name}, {$line}",
+                actionLabel: 'Track Application',
+                actionUrl: route('portal.status.form', $tenant->slug),
+                schoolName: $tenant->name,
+                replyToEmail: $tenant->email,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admission status-change guardian notification failed: ' . $e->getMessage());
+        }
     }
 
     private function enrollStudent(Admission $admission, ?int $classArmId)
     {
-        DB::transaction(function () use ($admission, $classArmId) {
+        $enrolled = null;
+
+        DB::transaction(function () use ($admission, $classArmId, &$enrolled) {
             $tenant  = auth()->user()->tenant;
             $session = \App\Models\AcademicSession::where('is_current', true)->first();
 
@@ -144,7 +198,31 @@ class AdmissionController extends Controller
             $student->guardians()->attach($guardian->id, ['is_primary_contact' => true, 'tenant_id' => $tenant->id]);
 
             $admission->update(['enrolled_as_student_id' => $student->id]);
+
+            $enrolled = ['student' => $student, 'guardian' => $guardian, 'tenant' => $tenant];
         });
+
+        if (!$enrolled) {
+            return;
+        }
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $enrolled['guardian'],
+                'Enrollment confirmed — ' . $enrolled['student']->full_name,
+                [
+                    $enrolled['student']->full_name . ' has been successfully enrolled at ' . $enrolled['tenant']->name . '.',
+                    'Admission number: ' . $enrolled['student']->admission_number,
+                ],
+                smsBody: "Dear {$enrolled['guardian']->full_name}, {$enrolled['student']->full_name} has been successfully enrolled at {$enrolled['tenant']->name}. Admission No: {$enrolled['student']->admission_number}.",
+                actionLabel: 'Sign In',
+                actionUrl: route('login'),
+                schoolName: $enrolled['tenant']->name,
+                replyToEmail: $enrolled['tenant']->email,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Enrollment guardian notification failed: ' . $e->getMessage());
+        }
     }
 
     public function destroy(Admission $admission)
@@ -162,17 +240,36 @@ class AdmissionController extends Controller
         ]);
         $admission->update($data);
 
-        // Notify guardian via SMS
-        \App\Models\NotificationQueue::create([
-            'tenant_id' => auth()->user()->tenant_id,
-            'channel'   => 'sms',
-            'recipient' => $admission->guardian_phone,
-            'body'      => "Dear {$admission->guardian_name}, {$admission->first_name} {$admission->last_name} has been scheduled for an interview on " . \Carbon\Carbon::parse($data['interview_date'])->format('d M Y') . ". Please arrive 15 minutes early. " . auth()->user()->tenant?->name,
-            'gateway'   => 'termii',
-            'status'    => 'pending',
-        ]);
+        $tenant = auth()->user()->tenant;
+        $name = $admission->first_name . ' ' . $admission->last_name;
+        $dateLabel = \Carbon\Carbon::parse($data['interview_date'])->format('d M Y');
 
-        return back()->with('success', 'Interview scheduled and guardian notified via SMS.');
+        $guardian = new Guardian([
+            'first_name' => $admission->guardian_name,
+            'email'      => $admission->guardian_email,
+            'phone'      => $admission->guardian_phone,
+        ]);
+        $guardian->tenant_id = $tenant->id;
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $guardian,
+                'Interview scheduled — ' . $name . ' — ' . $tenant->name,
+                [
+                    "{$name} has been scheduled for an interview on {$dateLabel}. Please arrive 15 minutes early.",
+                    'Application number: ' . $admission->application_number,
+                ],
+                smsBody: "Dear {$admission->guardian_name}, {$name} has been scheduled for an interview on {$dateLabel}. Please arrive 15 minutes early. {$tenant->name}",
+                actionLabel: 'Track Application',
+                actionUrl: route('portal.status.form', $tenant->slug),
+                schoolName: $tenant->name,
+                replyToEmail: $tenant->email,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admission interview guardian notification failed: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Interview scheduled and guardian notified.');
     }
 
     // ── Record Interview Score ────────────────────────────────────────
@@ -194,19 +291,82 @@ class AdmissionController extends Controller
         }
 
         $tenant = auth()->user()->tenant;
-        $msg = "Dear {$admission->guardian_name}, we are pleased to offer {$admission->first_name} {$admission->last_name} admission to {$tenant->name}. Please contact us to complete enrollment. Application No: {$admission->application_number}";
-
-        \App\Models\NotificationQueue::create([
-            'tenant_id' => $tenant->id,
-            'channel'   => 'sms',
-            'recipient' => $admission->guardian_phone,
-            'body'      => $msg,
-            'gateway'   => 'termii',
-            'status'    => 'pending',
+        $pdf = Pdf::loadView('admissions.offer-letter-pdf', [
+            'admission' => $admission,
+            'tenant'    => $tenant,
+            ...$this->offerLetterVars($admission, $tenant),
         ]);
+        $pdfContent = $pdf->output();
+
+        $statusUrl = route('portal.status.form', $tenant->slug);
+
+        if ($admission->guardian_email) {
+            try {
+                \Illuminate\Support\Facades\Notification::route('mail', $admission->guardian_email)
+                    ->notify(new AdmissionOfferNotification($admission, $tenant->name, $statusUrl, $pdfContent, $tenant->email));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Admission offer email failed: ' . $e->getMessage());
+            }
+        }
+
+        $smsBody = "Dear {$admission->guardian_name}, we are pleased to offer {$admission->first_name} {$admission->last_name} admission to {$tenant->name}. Please contact us to complete enrollment. Application No: {$admission->application_number}";
+        $guardian = new Guardian([
+            'first_name' => $admission->guardian_name,
+            'phone'      => $admission->guardian_phone,
+        ]);
+        $guardian->tenant_id = $tenant->id;
+
+        try {
+            app(\App\Services\GuardianNotifier::class)->send(
+                $guardian,
+                'Admission Offer — ' . $admission->first_name . ' ' . $admission->last_name,
+                [], // email already sent above with the PDF attached; this call is SMS-only
+                smsBody: $smsBody,
+                schoolName: $tenant->name,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Admission offer SMS failed: ' . $e->getMessage());
+        }
 
         $admission->update(['offer_letter_sent' => true, 'offer_sent_at' => now()]);
-        return back()->with('success', 'Offer letter sent to guardian via SMS.');
+        return back()->with('success', 'Offer letter emailed to guardian with PDF attached, and SMS sent.');
+    }
+
+    // ── Download Offer Letter PDF (admin re-download) ────────────────
+    public function downloadOfferLetter(Admission $admission)
+    {
+        $tenant = auth()->user()->tenant;
+
+        $pdf = Pdf::loadView('admissions.offer-letter-pdf', [
+            'admission' => $admission,
+            'tenant'    => $tenant,
+            ...$this->offerLetterVars($admission, $tenant),
+        ]);
+
+        return $pdf->download("Admission-Offer-{$admission->application_number}.pdf");
+    }
+
+    /** Merge the tenant's (customisable) admission-offer letter template with this application's details. */
+    private function offerLetterVars(Admission $admission, \App\Models\Tenant $tenant): array
+    {
+        $template = \App\Models\LetterTemplate::forTenant($tenant->id, \App\Models\LetterTemplate::TYPE_ADMISSION_OFFER);
+
+        $vars = [
+            'applicant_name' => $admission->first_name . ' ' . $admission->last_name,
+            'guardian_name'  => $admission->guardian_name,
+            'school_name'    => $tenant->name,
+            'class'          => $admission->applyingForClassLevel?->name ?? 'the appropriate class',
+            'academic_year'  => $admission->academic_year ?? (date('Y') . '/' . (date('Y') + 1)),
+            'application_number' => $admission->application_number,
+        ];
+
+        return [
+            'intro'      => \App\Models\LetterTemplate::merge($template->intro_text, $vars),
+            'body'       => \App\Models\LetterTemplate::merge($template->body_text, $vars),
+            'closing'    => \App\Models\LetterTemplate::merge($template->closing_text, $vars),
+            'signatory1' => $template->signatory_1_label ?: 'Admissions Officer',
+            'signatory2' => $template->signatory_2_label ?: 'Principal / Head of School',
+        ];
     }
 
     // ── Documents view ────────────────────────────────────────────────

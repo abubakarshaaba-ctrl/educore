@@ -47,7 +47,9 @@
 <div class="page-tabs">
     <a href="{{ route('cbt.banks') }}" class="page-tab">Question Banks</a>
     <a href="{{ route('cbt.exams') }}" class="page-tab active">Exams</a>
+    @if(auth()->user()->isSuperAdmin() || auth()->user()->isAdmin())
     <a href="{{ route('cbt.lan') }}" class="page-tab">📡 LAN Mode</a>
+    @endif
 </div>
 
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif

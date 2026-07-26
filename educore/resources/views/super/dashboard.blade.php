@@ -97,7 +97,7 @@
             </div>
         </div>
         <div class="tbl"><table>
-            <thead><tr><th>School</th><th>Plan</th><th>Status</th><th>Expires</th><th></th></tr></thead>
+            <thead><tr><th>School</th><th>Capacity</th><th>Status</th><th>Expires</th><th></th></tr></thead>
             <tbody>
                 @foreach($recentTenants as $t)
                 <tr>
@@ -105,7 +105,7 @@
                         <strong>{{ $t->name }}</strong>
                         <div style="font-size:10px;color:#94A3B8">{{ $t->email }}</div>
                     </td>
-                    <td style="font-size:11px">{{ optional(optional($t->activeSubscription)->plan)->name ?? '—' }}</td>
+                    <td style="font-size:11px">{{ \App\Services\PricingService::capacityFor($t) }} students</td>
                     <td>
                         <span class="badge {{ $t->status==='active'?'badge-green':($t->status==='suspended'?'badge-red':'badge-amber') }}">
                             {{ ucfirst(str_replace('_',' ',$t->status)) }}

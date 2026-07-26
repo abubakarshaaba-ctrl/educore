@@ -3,11 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="EduCore — Complete school management platform for Nigerian K-12 schools.">
-<title>EduCore — School Management Platform</title>
+<meta name="description" content="EduCore is a complete school management platform for Nigerian K-12 schools — admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication in one system. Free for up to 20 students.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#071E45">
+<meta name="author" content="EduCore">
+<link rel="canonical" href="https://educoreng.online/">
+<title>EduCore — School Management Platform for Nigerian Schools</title>
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800,900" rel="stylesheet">
+
+{{-- Open Graph / Facebook, WhatsApp, LinkedIn link previews --}}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://educoreng.online/">
+<meta property="og:site_name" content="EduCore">
+<meta property="og:locale" content="en_NG">
+<meta property="og:title" content="EduCore — School Management Platform for Nigerian Schools">
+<meta property="og:description" content="Admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication — unified in one platform built for Nigerian K-12 schools. Free for up to 20 students.">
+<meta property="og:image" content="https://educoreng.online/brand/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="EduCore — School Management Platform">
+
+{{-- Twitter/X Card --}}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EduCore — School Management Platform for Nigerian Schools">
+<meta name="twitter:description" content="Admissions, academics, fees, payroll and staff HR — unified in one platform built for Nigerian K-12 schools.">
+<meta name="twitter:image" content="https://educoreng.online/brand/og-image.png">
+
+{{-- Structured data for Google rich results --}}
+<script type="application/ld+json">
+{
+  "@@context": "https://schema.org",
+  "@@type": "SoftwareApplication",
+  "name": "EduCore",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Web, Android, iOS",
+  "url": "https://educoreng.online/",
+  "description": "Complete school management platform for Nigerian K-12 schools covering admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication.",
+  "offers": {
+    "@@type": "Offer",
+    "price": "0",
+    "priceCurrency": "NGN",
+    "description": "Free for up to 20 students. Paid tiers scale per student per term."
+  },
+  "provider": {
+    "@@type": "Organization",
+    "name": "EduCore",
+    "url": "https://educoreng.online/",
+    "email": "support@educoreng.online",
+    "telephone": "+2347065595768"
+  }
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -88,6 +136,16 @@ section{padding:100px 5vw}
 .fp-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:3px}
 .fp-line{height:10px;border-radius:4px;background:var(--border)}
 
+/* FULL FEATURE LIST */
+.flist-head{margin-top:72px;margin-bottom:8px}
+.flist{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:32px}
+.flist-cat{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:22px}
+.flist-cat h4{font-size:13px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.flist-cat h4::before{content:'';width:8px;height:8px;border-radius:2px;background:var(--gold)}
+.flist-cat ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+.flist-cat ul li{font-size:12.5px;color:var(--slate);display:flex;align-items:flex-start;gap:7px;line-height:1.5}
+.flist-cat ul li::before{content:'✓';color:#059669;font-weight:800;flex-shrink:0}
+
 /* STEPS */
 .how{background:#fff}
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-top:56px}
@@ -121,6 +179,14 @@ section{padding:100px 5vw}
 
 /* PRICING */
 .pricing{background:var(--off)}
+.tier-table{max-width:760px;margin:56px auto 0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tier-row{display:grid;grid-template-columns:2fr 1.3fr 1fr;gap:12px;align-items:center;padding:20px 28px;border-bottom:1px solid var(--border)}
+.tier-row:last-child{border-bottom:none}
+.tier-row.tier-free{background:#F0FDF4}
+.tier-range{font-size:15px;font-weight:700;color:var(--navy)}
+.tier-rate{font-size:16px;font-weight:800;color:var(--navy)}
+.tier-cycle{font-size:12px;color:var(--muted);text-align:right}
+.pricing-note{max-width:700px;margin:24px auto 0;text-align:center;font-size:13px;color:var(--muted)}
 .pgrid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:56px}
 .prc{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:28px;display:flex;flex-direction:column;transition:all 200ms;position:relative}
 .prc:hover{box-shadow:var(--sh-lg);transform:translateY(-3px)}
@@ -159,6 +225,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 .fb2-links{display:flex;gap:20px}
 .fb2-links a{font-size:12px;color:rgba(255,255,255,.45);text-decoration:none}
 .fb2-links a:hover{color:var(--gold)}
+.fcontact{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.fcontact-row{display:flex;align-items:center;gap:10px}
+.fcontact-row svg{width:16px;height:16px;flex-shrink:0;color:var(--gold)}
+.fcontact a{font-size:12.5px;color:rgba(255,255,255,.7);text-decoration:none;font-weight:600}
+.fcontact a:hover{color:var(--gold)}
 
 /* RESPONSIVE */
 @media(max-width:1024px){
@@ -198,7 +269,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     </div>
     <div class="nav-cta">
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline">Login</a>
-        <a href="#pricing" class="btn btn-gold">Get Started &rarr;</a>
+        <a href="{{ route('school.register') }}" class="btn btn-gold">Get Started &rarr;</a>
     </div>
     <button class="nav-toggle" onclick="document.getElementById('nm').classList.toggle('open')" aria-label="Menu">
         <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
@@ -211,7 +282,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <a href="#testimonials" onclick="document.getElementById('nm').classList.remove('open')">Reviews</a>
     <div class="nm-cta">
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline" style="justify-content:center">Login</a>
-        <a href="#pricing" class="btn btn-gold" style="justify-content:center">Get Started</a>
+        <a href="{{ route('school.register') }}" class="btn btn-gold" style="justify-content:center">Get Started</a>
     </div>
 </div>
 
@@ -221,7 +292,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <h1>Run Your School<br><span>Smarter. Faster.</span><br>Better.</h1>
     <p class="hero-sub">EduCore is the all-in-one school management platform &mdash; admissions, academics, fees, payroll, portals, and everything in between. One system, zero chaos.</p>
     <div class="hero-actions">
-        <a href="#pricing" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
+        <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline btn-lg">School Login</a>
         <a href="{{ route('app.download') }}" class="btn btn-outline btn-lg">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -307,6 +378,98 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
             </div>
         </div>
     </div>
+
+    <div class="tc flist-head">
+        <div class="slabel">Every module, in full</div>
+        <h2 class="stitle">The complete feature list</h2>
+        <p class="ssub">Everything above, broken down module by module.</p>
+    </div>
+    <div class="flist">
+        <div class="flist-cat">
+            <h4>Academics</h4>
+            <ul>
+                <li>Academic sessions &amp; terms with activation control</li>
+                <li>Class levels, arms &amp; form tutor assignment</li>
+                <li>Promotion engine with configurable rules</li>
+                <li>Curriculum tracks &amp; subject management</li>
+                <li>Timetable builder with conflict detection</li>
+                <li>AI-assisted lesson planner</li>
+                <li>Student &amp; staff attendance (QR clock-in)</li>
+                <li>Skill ratings &amp; behavioural assessment</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Assessments &amp; Results</h4>
+            <ul>
+                <li>Score entry with configurable assessment types</li>
+                <li>Automated broadsheet &amp; report card publishing</li>
+                <li>Transcript generation</li>
+                <li>CBT engine &mdash; objective &amp; essay sections</li>
+                <li>CBT LAN mode for offline exam halls</li>
+                <li>Exam timetables &amp; supervision duty rosters</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Admissions</h4>
+            <ul>
+                <li>Online application portal</li>
+                <li>Application review &amp; status tracking</li>
+                <li>Student transfers between schools</li>
+                <li>Class transfers &amp; enrollment lifecycle</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Finance &amp; Payroll</h4>
+            <ul>
+                <li>Fee structures, categories &amp; sub-accounts</li>
+                <li>Invoice generation &amp; bulk billing</li>
+                <li>Online payments &mdash; Paystack &amp; Monnify</li>
+                <li>Payment plans &amp; instalments</li>
+                <li>Automated fee reminders</li>
+                <li>Staff payroll, PAYE &amp; salary templates</li>
+                <li>Expense tracking</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Operations</h4>
+            <ul>
+                <li>Health records</li>
+                <li>Library management</li>
+                <li>Transport routes</li>
+                <li>School announcements &amp; calendar</li>
+                <li>In-app messaging (staff, parent &amp; student threads)</li>
+                <li>SMS campaigns &amp; automated notification triggers</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Reporting &amp; Analytics</h4>
+            <ul>
+                <li>School-wide analytics dashboard</li>
+                <li>Financial reports</li>
+                <li>Academic risk flags</li>
+                <li>Data export tools</li>
+                <li>Nigerian School Census (ASC) reporting</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Portals &amp; Access</h4>
+            <ul>
+                <li>Dedicated admin, staff, parent &amp; student portals</li>
+                <li>Role-based access control</li>
+                <li>Agent/referral portal with commission tracking</li>
+                <li>Native mobile app for staff</li>
+            </ul>
+        </div>
+        <div class="flist-cat">
+            <h4>Platform</h4>
+            <ul>
+                <li>Multi-school, multi-tenant architecture</li>
+                <li>Per-school branding &amp; custom subdomain</li>
+                <li>Isolated data per school</li>
+                <li>Subscription &amp; billing management</li>
+            </ul>
+        </div>
+    </div>
 </section>
 
 <section class="how">
@@ -384,32 +547,21 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 <section class="pricing" id="pricing">
     <div class="tc">
         <div class="slabel">Plans &amp; Pricing</div>
-        <h2 class="stitle">Start small, scale freely</h2>
-        <p class="ssub">No setup fees. No hidden charges. Cancel any time.</p>
+        <h2 class="stitle">One plan. Every feature. Priced by enrollment.</h2>
+        <p class="ssub">No feature tiers, no add-on packages — every school gets the complete EduCore platform. You only pay for the size of school you run today.</p>
     </div>
-    <div class="pgrid2">
-        <div class="prc">
-            <div class="pname">Basic</div><div class="pdesc">Perfect for small schools getting started</div>
-            <div class="pamount"><sup>&#8358;</sup>10,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Up to 300 students</li><li>Student &amp; staff management</li><li>Score entry &amp; report cards</li><li>Student attendance</li><li>Fee invoicing</li><li>Basic analytics</li></ul>
-            <div class="pcta"><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="pbtn">Get Basic</a></div>
+    <div class="tier-table">
+        @foreach($tiers as $tier)
+        <div class="tier-row {{ $loop->first ? 'tier-free' : '' }}">
+            <div class="tier-range">{{ $tier['range'] }}</div>
+            <div class="tier-rate">{{ $tier['rate'] }}</div>
+            <div class="tier-cycle">{{ $tier['cycle'] }}</div>
         </div>
-        <div class="prc popular">
-            <div class="pop-badge">&#11088; Most Popular</div>
-            <div class="pname">Standard</div><div class="pdesc">For growing schools that need more power</div>
-            <div class="pamount"><sup>&#8358;</sup>30,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Up to 800 students</li><li>Everything in Basic</li><li>Timetable management</li><li>CBT exam engine</li><li>Staff attendance &amp; payroll</li><li>Parent &amp; student portals</li><li>Online fee payment</li></ul>
-            <div class="pcta"><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="pbtn">Get Standard</a></div>
-        </div>
-        <div class="prc">
-            <div class="pname">Premium</div><div class="pdesc">Full features for established institutions</div>
-            <div class="pamount"><sup>&#8358;</sup>45,000<small>/month</small></div>
-            <hr class="pdiv">
-            <ul class="pfeats"><li>Unlimited students</li><li>Everything in Standard</li><li>SMS notifications</li><li>Academic risk flags</li><li>Library &amp; transport</li><li>Advanced analytics</li><li>White-label branding</li><li>Priority support</li></ul>
-            <div class="pcta"><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="pbtn">Get Premium</a></div>
-        </div>
+        @endforeach
+    </div>
+    <p class="pricing-note">Billed per academic term to match how Nigerian schools collect fees — pay a full year (3 terms) upfront and save 10%. Schools above 500 students get a tailored volume quote.</p>
+    <div class="cta-acts" style="margin-top:32px">
+        <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
     </div>
 </section>
 
@@ -417,8 +569,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <h2>Ready to transform your school?</h2>
     <p>Join hundreds of Nigerian schools already running on EduCore.</p>
     <div class="cta-acts">
-        <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-navy btn-lg">Start Today &rarr;</a>
-        <a href="mailto:hello@educore.app" class="btn btn-white btn-lg">Talk to Sales</a>
+        <a href="{{ route('school.register') }}" class="btn btn-navy btn-lg">Start Today &rarr;</a>
     </div>
 </section>
 
@@ -430,6 +581,20 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
                 <span style="font-size:17px;font-weight:800;color:white">Edu<span style="color:var(--gold)">Core</span></span>
             </div>
             <p>The complete school management platform built for Nigerian K-12 institutions.</p>
+            <div class="fcontact">
+                <div class="fcontact-row">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.7 5.1 6.5 6.5l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1.1.5 1.1 1.1V20c0 .6-.5 1.1-1.1 1.1C10.9 21.1 2.9 13.1 2.9 3.2c0-.6.5-1.1 1.1-1.1h3.5c.6 0 1.1.5 1.1 1.1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+                    <a href="tel:+2347065595768">07065595768</a>
+                </div>
+                <div class="fcontact-row">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 5L2 22l5.2-1.3c1.5.8 3.1 1.3 4.8 1.3 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.1c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3c-.9-1.4-1.3-2.9-1.3-4.5 0-4.5 3.7-8.2 8.2-8.2s8.2 3.7 8.2 8.2-3.7 8.2-8.2 8.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8.9-.1.2-.3.2-.6.1-.2-.1-1-.4-1.9-1.2-.7-.6-1.2-1.4-1.3-1.6-.1-.2 0-.4.1-.5.1-.1.2-.3.4-.4.1-.1.2-.2.2-.4.1-.1 0-.3 0-.4-.1-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.4c.1.2 1.6 2.4 3.8 3.4.5.2.9.4 1.3.5.5.2 1 .1 1.4.1.4-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2-.1-.1-.2-.2-.4-.3z"/></svg>
+                    <a href="https://wa.me/2347065595768" target="_blank" rel="noopener">WhatsApp: +2347065595768</a>
+                </div>
+                <div class="fcontact-row">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                    <a href="mailto:support@educoreng.online">support@educoreng.online</a>
+                </div>
+            </div>
         </div>
         <div class="fc"><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#portals">Portals</a><a href="#testimonials">Reviews</a></div>
         <div class="fc">
@@ -439,11 +604,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
             <a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a>
             <a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a>
         </div>
-        <div class="fc"><h4>Company</h4><a href="mailto:hello@educore.app">Contact</a><a href="mailto:support@educore.app">Support</a><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
+        <div class="fc"><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="mailto:support@educoreng.online">Support</a><a href="{{ route('legal.privacy') }}">Privacy Policy</a><a href="{{ route('legal.terms') }}">Terms</a></div>
     </div>
     <div class="fb2">
-        <p>&copy; {{ date('Y') }} EduCore. All rights reserved.</p>
-        <div class="fb2-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:hello@educore.app">Contact</a></div>
+        <p><span style="color:#fff;font-weight:700">Edu<span style="color:var(--gold)">Core</span></span> Education Technology &copy; {{ date('Y') }}. All rights reserved.</p>
+        <div class="fb2-links"><a href="{{ route('legal.privacy') }}">Privacy</a><a href="{{ route('legal.terms') }}">Terms</a><a href="mailto:support@educoreng.online">Contact</a></div>
     </div>
 </footer>
 </body>

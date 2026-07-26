@@ -28,8 +28,6 @@ class WhiteLabelController extends Controller
                     $fail('This custom domain is already assigned to another school.');
                 }
             }],
-            'primary_color'   => ['nullable', 'string', 'max:10'],
-            'secondary_color' => ['nullable', 'string', 'max:10'],
         ]);
 
         if ($data['custom_domain'] ?? null) {

@@ -1,28 +1,17 @@
 <?php
 namespace App\Helpers;
 
-use Illuminate\Support\Facades\Auth;
-
 class ThemeHelper
 {
+    /**
+     * EduCore's fixed brand palette. Per-tenant colour customisation has
+     * been removed — every school uses the same navy/gold branding.
+     */
     public static function css(): string
     {
-        try {
-            $tenant = Auth::user()?->tenant;
-            $primary = $tenant?->theme_primary ?? '#071E45';
-            $accent  = $tenant?->theme_accent  ?? '#D79A21';
-            $sidebar = $tenant?->theme_sidebar  ?? '#071E45';
-        } catch (\Throwable) {
-            $primary = '#071E45';
-            $accent  = '#D79A21';
-            $sidebar = '#071E45';
-        }
-
-        // Validate hex colours — reject anything that's not a valid 6-digit hex
-        $hex = '/^#[0-9A-Fa-f]{6}$/';
-        if (!preg_match($hex, $primary)) $primary = '#071E45';
-        if (!preg_match($hex, $accent))  $accent  = '#D79A21';
-        if (!preg_match($hex, $sidebar)) $sidebar = '#071E45';
+        $primary = '#071E45';
+        $accent  = '#D79A21';
+        $sidebar = '#071E45';
 
         return "<style>
 :root{--brand-navy:{$sidebar};--brand-gold:{$accent};--midnight:{$primary};--indigo:{$accent};--indigo-dark:{$accent};--indigo-bg:{$accent}18;}

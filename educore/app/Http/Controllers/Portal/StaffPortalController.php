@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\MessageThread;
+use App\Models\MessageThreadReply;
 use App\Models\PayrollItem;
 use App\Models\PayrollPeriod;
 use App\Models\StaffAttendanceRecord;
@@ -99,5 +101,66 @@ class StaffPortalController extends Controller
         $tenant = $user->tenant;
 
         return view('payroll.payslip-pdf', compact('period', 'item', 'tenant'));
+    }
+
+    // ── Messages (student-linked threads this staff member is party to) ──
+    public function messages()
+    {
+        $userId = Auth::id();
+
+        $threads = MessageThread::where(function ($q) use ($userId) {
+                $q->where('initiated_by', $userId)
+                  ->orWhereHas('replies', fn ($r) => $r->where('sender_id', $userId));
+            })
+            ->with(['student', 'initiator', 'replies' => fn ($q) => $q->latest()->limit(1)])
+            ->latest()
+            ->paginate(20);
+
+        $unreadCount = MessageThread::whereHas('replies', fn ($q) =>
+            $q->where('is_read', false)->where('sender_id', '!=', $userId)
+        )->count();
+
+        return view('portal.staff.messages', compact('threads', 'unreadCount', 'userId'));
+    }
+
+    public function messageThread(MessageThread $thread)
+    {
+        $user = Auth::user();
+        abort_unless(
+            (int) $thread->initiated_by === (int) $user->id
+                || $thread->replies()->where('sender_id', $user->id)->exists(),
+            403,
+            'You are not a participant in this conversation.'
+        );
+
+        $thread->load(['student', 'initiator', 'replies.sender']);
+
+        $thread->replies()
+            ->where('sender_id', '!=', $user->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return view('portal.staff.message-thread', compact('thread'));
+    }
+
+    public function messageReply(Request $request, MessageThread $thread)
+    {
+        $user = Auth::user();
+        abort_unless(
+            (int) $thread->initiated_by === (int) $user->id
+                || $thread->replies()->where('sender_id', $user->id)->exists(),
+            403,
+            'You are not a participant in this conversation.'
+        );
+
+        $data = $request->validate(['body' => ['required', 'string']]);
+
+        MessageThreadReply::create([
+            'thread_id' => $thread->id,
+            'sender_id' => $user->id,
+            'body'      => $data['body'],
+        ]);
+
+        return back()->with('success', 'Reply sent.');
     }
 }

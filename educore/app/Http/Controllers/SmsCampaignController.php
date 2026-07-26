@@ -112,16 +112,32 @@ class SmsCampaignController extends Controller
 
     private function sendCampaign(\App\Models\SmsCampaign $campaign, array $phones): void
     {
-        // In production: dispatch to queue / SMS provider (Twilio, Africa's Talking, etc.)
-        // For now: create log entries as "queued"
+        $gateway = \App\Models\PlatformSetting::valueFor('default_sms_gateway', 'termii');
+        $notifier = new NotificationController();
+        $sent = 0;
+
         foreach ($phones as $phone) {
+            $result = $gateway === 'africas_talking'
+                ? $notifier->sendSmsViaAfricasTalking($phone, $campaign->message)
+                : $notifier->sendSmsViaTermii($phone, $campaign->message, (string) auth()->user()->tenant_id);
+
+            if (($result['status'] ?? null) === 'sent') {
+                $sent++;
+            }
+
             \App\Models\SmsLog::create([
                 'campaign_id' => $campaign->id,
                 'phone'       => $phone,
                 'message'     => $campaign->message,
-                'status'      => 'queued',
+                'status'      => $result['status'] ?? 'failed',
+                'error'       => $result['error'] ?? null,
             ]);
         }
-        $campaign->update(['status' => 'sent', 'sent_at' => now(), 'recipient_count' => count($phones)]);
+
+        $campaign->update([
+            'status'          => $sent > 0 ? 'sent' : 'failed',
+            'sent_at'         => now(),
+            'recipient_count' => count($phones),
+        ]);
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Tenant;
-use App\Models\TenantSubscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -49,7 +48,24 @@ class TenantAccessService
             );
         }
 
-        $expiresAt = $tenant->subscription_expires_at;
+        // Multi-campus groups share one subscription, held by the group's
+        // "lead" campus — a member campus's expiry follows the lead's,
+        // rather than needing its own subscription kept current.
+        $expiresAt = $tenant->billingTenant()->subscription_expires_at;
+
+        // "Trial" under the pay-per-student model just means the school
+        // hasn't paid for extra capacity yet (still on the free tier). The
+        // free tier never expires on the automatic date clock — checked
+        // before the expiry gate below so a free-tier school is never
+        // locked out just because its (irrelevant) expiry date passed.
+        if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
+            return TenantAccessDecision::warning(
+                TenantAccessDecision::STATE_TRIAL,
+                'This school account is currently on the free plan.',
+                $expiresAt
+            );
+        }
+
         if ($expiresAt && $expiresAt->isPast()) {
             $graceDays = $this->gracePeriodDays();
             if ($graceDays > 0 && $expiresAt->copy()->addDays($graceDays)->isFuture()) {
@@ -68,17 +84,6 @@ class TenantAccessService
             );
         }
 
-        $latestSubscription = $this->latestSubscription($tenant);
-        if ($latestSubscription?->status === 'trial'
-            && (!$latestSubscription->expires_at || $latestSubscription->expires_at->isFuture())) {
-            return TenantAccessDecision::warning(
-                TenantAccessDecision::STATE_TRIAL,
-                'This school account is currently using a trial subscription.',
-                $latestSubscription->expires_at ?? $expiresAt,
-                ['subscription_id' => $latestSubscription->id]
-            );
-        }
-
         if ($expiresAt && $expiresAt->betweenIncluded(now(), now()->addDays(self::EXPIRING_SOON_DAYS))) {
             return TenantAccessDecision::warning(
                 TenantAccessDecision::STATE_EXPIRING_SOON,
@@ -93,18 +98,6 @@ class TenantAccessService
     public function genericUnavailableMessage(): string
     {
         return 'This school portal is currently unavailable. Please contact the school administration.';
-    }
-
-    private function latestSubscription(Tenant $tenant): ?TenantSubscription
-    {
-        if (!Schema::hasTable('tenant_subscriptions')) {
-            return null;
-        }
-
-        return TenantSubscription::where('tenant_id', $tenant->id)
-            ->latest('created_at')
-            ->latest('id')
-            ->first();
     }
 
     private function gracePeriodDays(): int

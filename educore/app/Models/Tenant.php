@@ -57,6 +57,7 @@ class Tenant extends Model
         'email',
         'status',
         'subscription_expires_at',
+        'students_capacity',
         'theme_primary',
         'theme_accent',
         'theme_sidebar',
@@ -83,25 +84,55 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
+    /** Active school-admin accounts — who tenant lifecycle notifications go to. */
+    public function admins(): HasMany
+    {
+        return $this->hasMany(User::class)
+            ->where('role', 'admin')
+            ->where('is_active', true);
+    }
+
+    /** Notify every active admin of this school. No-op safely if there are none. */
+    public function notifyAdmins($notification): void
+    {
+        $admins = $this->admins()->whereNotNull('email')->get();
+
+        if ($admins->isNotEmpty()) {
+            \Illuminate\Support\Facades\Notification::send($admins, $notification);
+        }
+    }
+
     public function academicSessions(): HasMany
     {
         return $this->hasMany(AcademicSession::class);
     }
 
-    public function activeSubscription()
+    /**
+     * Multi-campus school groups share a single subscription: the campus
+     * marked "lead" in school_group_members holds it, and every other
+     * member campus's access/features are resolved against the lead's
+     * subscription instead of needing one of their own.
+     *
+     * Returns the lead tenant if this tenant belongs to a group with one
+     * designated, otherwise returns itself.
+     */
+    public function billingTenant(): self
     {
-        // Only return subscriptions that actually have a plan assigned.
-        // Admin-created subscriptions without a plan_id are treated as "no plan"
-        // and should not prevent a paid plan from showing as current.
-        return $this->hasOne(TenantSubscription::class)
-            ->where('status', 'active')
-            ->whereNotNull('plan_id')
-            ->latest();
-    }
+        if (!\Illuminate\Support\Facades\Schema::hasTable('school_group_members')) {
+            return $this;
+        }
 
-    public function subscriptions()
-    {
-        return $this->hasMany(TenantSubscription::class);
+        $leadTenantId = \Illuminate\Support\Facades\DB::table('school_group_members as m1')
+            ->join('school_group_members as m2', 'm1.group_id', '=', 'm2.group_id')
+            ->where('m1.tenant_id', $this->id)
+            ->where('m2.role', 'lead')
+            ->value('m2.tenant_id');
+
+        if ($leadTenantId && (int) $leadTenantId !== (int) $this->id) {
+            return static::find($leadTenantId) ?? $this;
+        }
+
+        return $this;
     }
 
     public function students(): HasMany
@@ -120,8 +151,19 @@ class Tenant extends Model
 
     public function isExpired(): bool
     {
-        return $this->status === self::STATUS_SUBSCRIPTION_EXPIRED
-            || ($this->subscription_expires_at && $this->subscription_expires_at->isPast());
+        // An explicit super-admin override (suspending/expiring a specific
+        // tenant) always applies, regardless of tier.
+        if ($this->status === self::STATUS_SUBSCRIPTION_EXPIRED) {
+            return true;
+        }
+
+        // The free tier (≤20 students) never expires on the automatic
+        // date clock — matches the "free forever" pricing promise.
+        if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
+            return false;
+        }
+
+        return $this->subscription_expires_at && $this->subscription_expires_at->isPast();
     }
 
     /**
@@ -133,6 +175,10 @@ class Tenant extends Model
     public function isExpiringSoon(int $days = 14): bool
     {
         if (!$this->subscription_expires_at || $this->isExpired()) {
+            return false;
+        }
+
+        if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
             return false;
         }
 

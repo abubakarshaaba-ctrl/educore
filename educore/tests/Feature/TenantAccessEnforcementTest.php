@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -13,6 +14,9 @@ use Tests\TestCase;
 
 class TenantAccessEnforcementTest extends TestCase
 {
+    /** Comfortably inside the paid tier, so fixtures aren't accidentally free-tier. */
+    private const PAID_TIER_STUDENTS = 25;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -53,6 +57,8 @@ class TenantAccessEnforcementTest extends TestCase
 
     public function test_expired_tenant_is_redirected_to_account_status_and_account_status_page_loads(): void
     {
+        // Paid tier — the free tier never expires on the automatic date
+        // clock (see test_expired_free_tier_tenant_is_not_redirected below).
         $tenant = $this->tenantFixture('Expired School', 'expired-school', [
             'subscription_expires_at' => now()->subDay()->toDateString(),
         ]);
@@ -69,6 +75,23 @@ class TenantAccessEnforcementTest extends TestCase
             ->assertSee('Expired School');
 
         $this->assertSame(1, AuditLog::where('action', 'tenant.access.expired')->count());
+    }
+
+    public function test_expired_free_tier_tenant_is_not_redirected(): void
+    {
+        // Free tier (≤20 students) never expires on the automatic date
+        // clock — matches the "free forever" pricing promise.
+        $tenant = $this->tenantFixture('Free Tier School', 'free-tier-school', [
+            'subscription_expires_at' => now()->subYear()->toDateString(),
+        ], studentCount: 5);
+        $user = $this->staffFixture($tenant);
+
+        $this->actingAs($user)
+            ->get('/__tenant-access/protected')
+            ->assertOk()
+            ->assertSee('protected');
+
+        $this->assertSame(0, AuditLog::where('action', 'tenant.access.expired')->count());
     }
 
     public function test_named_billing_and_subscription_routes_are_exempt(): void
@@ -125,9 +148,10 @@ class TenantAccessEnforcementTest extends TestCase
 
     public function test_trial_tenant_gets_warning_decision_but_access_is_allowed(): void
     {
-        $tenant = $this->tenantFixture('Trial School', 'trial-school');
+        // "Trial" under the pay-per-student model is just the free tier
+        // (≤20 students) — no separate subscription row needed.
+        $tenant = $this->tenantFixture('Trial School', 'trial-school', studentCount: 5);
         $user = $this->staffFixture($tenant);
-        $this->subscription($tenant, 'trial', now()->addDays(10));
 
         $this->actingAs($user)
             ->get('/__tenant-access/protected-view')
@@ -150,9 +174,9 @@ class TenantAccessEnforcementTest extends TestCase
             ->name('tenant-access.protected-view');
     }
 
-    private function tenantFixture(string $name, string $slug, array $overrides = []): Tenant
+    private function tenantFixture(string $name, string $slug, array $overrides = [], int $studentCount = self::PAID_TIER_STUDENTS): Tenant
     {
-        return Tenant::create(array_merge([
+        $tenant = Tenant::create(array_merge([
             'name' => $name,
             'slug' => $slug,
             'email' => "info@{$slug}.test",
@@ -161,6 +185,22 @@ class TenantAccessEnforcementTest extends TestCase
             'theme_primary' => '#071E45',
             'theme_accent' => '#D79A21',
         ], $overrides));
+
+        $this->seedStudents($tenant, $studentCount);
+
+        return $tenant;
+    }
+
+    private function seedStudents(Tenant $tenant, int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            DB::table('students')->insert([
+                'tenant_id' => $tenant->id,
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function staffFixture(Tenant $tenant): User
@@ -177,25 +217,13 @@ class TenantAccessEnforcementTest extends TestCase
         ]);
     }
 
-    private function subscription(Tenant $tenant, string $status, \DateTimeInterface $expiresAt): void
-    {
-        \App\Models\TenantSubscription::create([
-            'tenant_id' => $tenant->id,
-            'status' => $status,
-            'billing_cycle' => 'annual',
-            'amount_paid' => 0,
-            'starts_at' => now()->subDay()->toDateString(),
-            'expires_at' => $expiresAt->format('Y-m-d'),
-        ]);
-    }
-
     private function rebuildSchema(): void
     {
         foreach ([
             'audit_logs',
-            'tenant_subscriptions',
             'platform_settings',
             'school_settings',
+            'students',
             'users',
             'tenants',
         ] as $table) {
@@ -204,8 +232,9 @@ class TenantAccessEnforcementTest extends TestCase
 
         $this->createTenantTables();
         $this->createUserTable();
+        $this->createStudentsTable();
         $this->createAuditLogsTable();
-        $this->createTenantSubscriptionTables();
+        $this->createSettingsTables();
     }
 
     private function createTenantTables(): void
@@ -221,6 +250,7 @@ class TenantAccessEnforcementTest extends TestCase
             $table->string('phone')->nullable();
             $table->string('status')->default(Tenant::STATUS_PENDING);
             $table->date('subscription_expires_at')->nullable();
+            $table->unsignedInteger('students_capacity')->nullable();
             $table->string('theme_primary', 20)->nullable();
             $table->string('theme_accent', 20)->nullable();
             $table->string('primary_color', 20)->nullable();
@@ -260,6 +290,17 @@ class TenantAccessEnforcementTest extends TestCase
         });
     }
 
+    private function createStudentsTable(): void
+    {
+        Schema::create('students', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('status')->default('active');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    }
+
     private function createAuditLogsTable(): void
     {
         Schema::create('audit_logs', function (Blueprint $table) {
@@ -278,21 +319,8 @@ class TenantAccessEnforcementTest extends TestCase
         });
     }
 
-    private function createTenantSubscriptionTables(): void
+    private function createSettingsTables(): void
     {
-        Schema::create('tenant_subscriptions', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('plan_id')->nullable();
-            $table->string('status')->default('trial');
-            $table->string('billing_cycle')->default('annual');
-            $table->decimal('amount_paid', 10, 2)->default(0);
-            $table->date('starts_at');
-            $table->date('expires_at');
-            $table->date('next_billing_date')->nullable();
-            $table->timestamps();
-        });
-
         Schema::create('platform_settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
@@ -302,5 +330,4 @@ class TenantAccessEnforcementTest extends TestCase
             $table->timestamps();
         });
     }
-
 }

@@ -39,9 +39,10 @@ class TenantCustomDomainSecurityTest extends TestCase
             'domain_verified' => true,
         ]);
 
-        $this->get('http://school.local.test/')
-            ->assertOk()
-            ->assertSee('Custom School');
+        // Per-tenant landing pages were retired in favour of the unified
+        // /login (see routes/web.php's tenant.host.custom. domain group) —
+        // a resolved custom domain now redirects straight there.
+        $this->get('http://school.local.test/')->assertRedirect();
     }
 
     public function test_unverified_custom_domain_is_not_resolved(): void

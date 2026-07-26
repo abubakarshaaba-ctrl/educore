@@ -31,7 +31,10 @@ tbody tr:hover td{background:#F8FAFC}
 @section('content')
 <div class="ph">
     <div><h2 style="font-size:18px;font-weight:700">Admissions Management</h2></div>
-    <a href="{{ route('admissions.create') }}" class="btn btn-p">+ New Application</a>
+    <div style="display:flex;gap:8px">
+        <a href="{{ route('admissions.export') }}{{ request('status') ? '?status='.request('status') : '' }}" class="btn" style="background:white;border:1px solid var(--border);color:var(--midnight)">⬇ Export CSV</a>
+        <a href="{{ route('admissions.create') }}" class="btn btn-p">+ New Application</a>
+    </div>
 </div>
 <div class="stats-row">
     <div class="sc"><div class="sv">{{ $stats['total'] }}</div><div class="sl">Total</div></div>

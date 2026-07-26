@@ -24,26 +24,9 @@ class TenantBrandingService
             'email' => $tenant->email,
             'website' => $this->safeWebsite($settings->get('website')),
             'logo_url' => $this->logoUrl($tenant),
-            'primary' => $this->safeColor(
-                $tenant->theme_primary
-                    ?: $tenant->primary_color
-                    ?: self::DEFAULT_PRIMARY,
-                self::DEFAULT_PRIMARY
-            ),
-            'accent' => $this->safeColor(
-                $tenant->theme_accent
-                    ?: $tenant->secondary_color
-                    ?: self::DEFAULT_ACCENT,
-                self::DEFAULT_ACCENT
-            ),
+            'primary' => self::DEFAULT_PRIMARY,
+            'accent' => self::DEFAULT_ACCENT,
         ];
-    }
-
-    public function safeColor(?string $value, string $fallback): string
-    {
-        $value = trim((string) $value);
-
-        return preg_match('/^#[0-9A-Fa-f]{6}$/', $value) ? $value : $fallback;
     }
 
     private function safeWebsite(?string $value): ?string

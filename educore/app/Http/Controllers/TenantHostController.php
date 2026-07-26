@@ -238,6 +238,31 @@ class TenantHostController extends Controller
         return $admissions->success($this->tenant($request)->slug, (string) $request->route('app'));
     }
 
+    public function careersLanding(Request $request, PublicRecruitmentController $careers)
+    {
+        return $careers->landing($this->tenant($request)->slug);
+    }
+
+    public function careersShow(Request $request, PublicRecruitmentController $careers)
+    {
+        return $careers->show($this->tenant($request)->slug, (int) $request->route('posting'));
+    }
+
+    public function careersApply(Request $request, PublicRecruitmentController $careers)
+    {
+        return $careers->apply($request, $this->tenant($request)->slug, (int) $request->route('posting'));
+    }
+
+    public function careersTrack(Request $request, PublicRecruitmentController $careers)
+    {
+        return $careers->track($this->tenant($request)->slug, (string) $request->route('token'));
+    }
+
+    public function careersReply(Request $request, PublicRecruitmentController $careers)
+    {
+        return $careers->reply($request, $this->tenant($request)->slug, (string) $request->route('token'));
+    }
+
     private function canUseTenantLogin(User $user, Tenant $tenant): bool
     {
         if ((int) $user->tenant_id !== (int) $tenant->id || $user->isSuperAdmin() || !(bool) $user->is_active) {

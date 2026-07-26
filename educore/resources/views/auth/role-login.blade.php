@@ -7,7 +7,7 @@
     <aside class="auth-brand" aria-label="EduCore">
         <div class="auth-brand__identity">
             <img src="{{ asset('assets/brand/educore-icon.svg') }}" alt="EduCore">
-            <span class="auth-brand__wordmark">EDUCORE</span>
+            <span class="auth-brand__wordmark">EDU<span style="color:var(--ec-gold)">CORE</span></span>
         </div>
 
         <div class="auth-brand__body">

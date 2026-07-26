@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Student;
 use App\Models\AuditLog;
 use App\Models\StaffWorkHistory;
-use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\AuthAuditLogger;
@@ -54,7 +53,7 @@ class SuperAdminController extends Controller
                                          ->count(),
         ];
 
-        $recentTenants  = Tenant::with('activeSubscription.plan')->latest()->limit(8)->get();
+        $recentTenants  = Tenant::latest()->limit(8)->get();
         $recentPayments = DB::table('platform_payments')
                             ->join('tenants', 'tenants.id', '=', 'platform_payments.tenant_id')
                             ->select('platform_payments.*', 'tenants.name as school_name')
@@ -75,28 +74,21 @@ class SuperAdminController extends Controller
     public function tenants(Request $request)
     {
         $this->guard();
-        $query = Tenant::withCount(['users', 'students'])->with('activeSubscription.plan')->latest();
+        $query = Tenant::withCount(['users', 'students'])->latest();
 
         if ($request->filled('search'))  $query->where('name', 'like', '%'.$request->search.'%');
         if ($request->filled('status'))  $query->where('status', $request->status);
-        if ($request->filled('plan'))    $query->whereHas('activeSubscription', fn($q) => $q->where('plan_id', $request->plan));
 
         $tenants = $query->paginate(20)->withQueryString();
-        $plans   = DB::table('subscription_plans')->where('is_active', 1)->orderBy('sort_order')->get();
 
-        return view('super.tenants', compact('tenants', 'plans'));
+        return view('super.tenants', compact('tenants'));
     }
 
     public function createTenant()
     {
         $this->guard();
-        $plans = SubscriptionPlan::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
 
-        return view('super.tenant-create', compact('plans'));
+        return view('super.tenant-create');
     }
 
     public function storeTenant(Request $request, TenantOnboardingService $onboarding, AuthAuditLogger $audit)
@@ -114,11 +106,6 @@ class SuperAdminController extends Controller
             'email'                   => ['required', 'email'],
             'phone'                   => ['nullable', 'string'],
             'address'                 => ['nullable', 'string'],
-            'plan_id'                 => [
-                'required',
-                Rule::exists('subscription_plans', 'id')->where(fn ($query) => $query->where('is_active', 1)),
-            ],
-            'billing_cycle'           => ['required', 'in:monthly,annual'],
             'subscription_expires_at' => ['required', 'date', 'after:today'],
             'admin_name'              => ['required', 'string'],
             'admin_email'             => ['required', 'email', 'unique:users,email'],
@@ -147,27 +134,8 @@ class SuperAdminController extends Controller
                     'subdomain' => $tenant->subdomain,
                 ], request(), null, auth()->user());
 
-                $plan = SubscriptionPlan::query()
-                    ->where('is_active', true)
-                    ->findOrFail($validated['plan_id']);
-                $amount = $validated['billing_cycle'] === 'annual' ? $plan->annual_price : $plan->monthly_price;
-
-                DB::table('tenant_subscriptions')->insert([
-                    'tenant_id'          => $tenant->id,
-                    'plan_id'            => $validated['plan_id'],
-                    'status'             => 'active',
-                    'billing_cycle'      => $validated['billing_cycle'],
-                    'amount_paid'        => $amount,
-                    'starts_at'          => now()->toDateString(),
-                    'expires_at'         => $validated['subscription_expires_at'],
-                    'next_billing_date'  => $validated['subscription_expires_at'],
-                    'created_by'         => auth()->id(),
-                    'created_at'         => now(),
-                    'updated_at'         => now(),
-                ]);
-
-                $this->creditReferralCommission($tenant, (float) $amount);
-
+                // Pay-per-student capacity defaults to the free tier (20 students);
+                // raise it afterward via Billing & Invoicing once the school pays.
                 $admin = User::create([
                     'tenant_id'  => $tenant->id,
                     'name'       => $validated['admin_name'],
@@ -237,6 +205,15 @@ class SuperAdminController extends Controller
             throw $e;
         }
 
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantWelcomeNotification(
+                $tenant,
+                $tenant->subscription_expires_at?->format('d M Y')
+            ));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Tenant welcome notification failed: ' . $e->getMessage());
+        }
+
         return redirect()
             ->route('super.tenant.show', $tenant)
             ->with('success', 'School provisioned successfully. The school portal and login links are now available below.');
@@ -246,17 +223,11 @@ class SuperAdminController extends Controller
     {
         $this->guard();
         $tenant->load(['users', 'students']);
-        $subscriptions = DB::table('tenant_subscriptions')
-                           ->join('subscription_plans', 'subscription_plans.id', '=', 'tenant_subscriptions.plan_id')
-                           ->select('tenant_subscriptions.*', 'subscription_plans.name as plan_name')
-                           ->where('tenant_id', $tenant->id)
-                           ->orderByDesc('created_at')->get();
         $payments = DB::table('platform_payments')->where('tenant_id', $tenant->id)
                       ->orderByDesc('created_at')->get();
-        $plans = DB::table('subscription_plans')->where('is_active', 1)->orderBy('sort_order')->get();
         $onboardingStatus = $onboarding->status($tenant);
 
-        return view('super.tenant-show', compact('tenant', 'subscriptions', 'payments', 'plans', 'onboardingStatus'));
+        return view('super.tenant-show', compact('tenant', 'payments', 'onboardingStatus'));
     }
 
     public function editTenant(Tenant $tenant, TenantUrlGenerator $urls, TenantHostResolver $hosts)
@@ -310,11 +281,6 @@ class SuperAdminController extends Controller
                     $fail('The logo path must be a safe relative asset path.');
                 }
             }],
-            'theme_primary' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_accent' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'theme_sidebar' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'secondary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'custom_domain' => ['nullable', 'string', 'max:200', function ($attribute, $value, $fail) use ($hosts, $tenant) {
                 if (!$value) {
                     return;
@@ -405,165 +371,12 @@ class SuperAdminController extends Controller
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // SUBSCRIPTION MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════
-    public function subscriptions(Request $request)
-    {
-        $this->guard();
-        $query = DB::table('tenant_subscriptions')
-                   ->join('tenants', 'tenants.id', '=', 'tenant_subscriptions.tenant_id')
-                   ->join('subscription_plans', 'subscription_plans.id', '=', 'tenant_subscriptions.plan_id')
-                   ->select('tenant_subscriptions.*', 'tenants.name as school_name', 'subscription_plans.name as plan_name')
-                   ->orderByDesc('tenant_subscriptions.created_at');
-
-        if ($request->filled('status')) $query->where('tenant_subscriptions.status', $request->status);
-        $subscriptions = $query->paginate(20)->withQueryString();
-
-        return view('super.subscriptions', compact('subscriptions'));
-    }
-
-    public function renewSubscription(Request $request, Tenant $tenant)
-    {
-        $this->guard();
-        $validated = $request->validate([
-            'plan_id'       => ['required', 'exists:subscription_plans,id'],
-            'billing_cycle' => ['required', 'in:monthly,annual'],
-            'expires_at'    => ['required', 'date', 'after:today'],
-            'amount_paid'   => ['required', 'numeric', 'min:0'],
-            'payment_method'=> ['required', 'string'],
-            'notes'         => ['nullable', 'string'],
-        ]);
-
-        DB::transaction(function () use ($tenant, $validated) {
-            // Create new subscription
-            $subId = DB::table('tenant_subscriptions')->insertGetId([
-                'tenant_id'      => $tenant->id,
-                'plan_id'        => $validated['plan_id'],
-                'status'         => 'active',
-                'billing_cycle'  => $validated['billing_cycle'],
-                'amount_paid'    => $validated['amount_paid'],
-                'starts_at'      => now()->toDateString(),
-                'expires_at'     => $validated['expires_at'],
-                'payment_method' => $validated['payment_method'],
-                'notes'          => $validated['notes'] ?? null,
-                'created_by'     => auth()->id(),
-                'created_at'     => now(),
-                'updated_at'     => now(),
-            ]);
-
-            // Record payment
-            if ($validated['amount_paid'] > 0) {
-                DB::table('platform_payments')->insert([
-                    'tenant_id'       => $tenant->id,
-                    'subscription_id' => $subId,
-                    'reference'       => 'PAY-'.strtoupper(Str::random(10)),
-                    'amount'          => $validated['amount_paid'],
-                    'status'          => 'confirmed',
-                    'payment_method'  => $validated['payment_method'],
-                    'description'     => 'Subscription renewal - '.$validated['billing_cycle'],
-                    'confirmed_by'    => auth()->id(),
-                    'paid_at'         => now(),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
-            }
-
-            $this->creditReferralCommission($tenant, (float) $validated['amount_paid']);
-
-            // Update tenant expiry and status
-            $tenant->update([
-                'status'                  => 'active',
-                'subscription_expires_at' => $validated['expires_at'],
-            ]);
-        });
-
-        return back()->with('success', 'Subscription renewed and payment recorded.');
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // SUBSCRIPTION PLANS
     // ═══════════════════════════════════════════════════════════════
     public function plans()
     {
         $this->guard();
-        $plans = \App\Models\SubscriptionPlan::orderBy('sort_order')->get();
-        return view('super.plans', compact('plans'));
-    }
-
-    public function storePlan(Request $request)
-    {
-        $this->guard();
-        $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:100'],
-            'slug'          => ['required', 'string', 'max:100', 'unique:subscription_plans,slug', 'regex:/^[a-z0-9-]+$/'],
-            'monthly_price' => ['required', 'numeric', 'min:0'],
-            'annual_price'  => ['required', 'numeric', 'min:0'],
-            'max_students'  => ['required', 'integer', 'min:1'],
-            'max_staff'     => ['required', 'integer', 'min:1'],
-            'description'   => ['nullable', 'string', 'max:500'],
-            'features'      => ['nullable', 'array'],
-            'features.*'    => ['string'],
-        ]);
-
-        $features = $validated['features'] ?? [];
-        // Derive legacy boolean flags from features array
-        $hasCbt = in_array('cbt', $features, true);
-        $hasSms = in_array('sms', $features, true);
-
-        DB::table('subscription_plans')->insert([
-            'name'          => $validated['name'],
-            'slug'          => $validated['slug'],
-            'description'   => $validated['description'] ?? null,
-            'monthly_price' => $validated['monthly_price'],
-            'annual_price'  => $validated['annual_price'],
-            'max_students'  => $validated['max_students'],
-            'max_staff'     => $validated['max_staff'],
-            'has_cbt'       => $hasCbt,
-            'has_sms'       => $hasSms,
-            'features'      => json_encode($features),
-            'is_active'     => true,
-            'sort_order'    => DB::table('subscription_plans')->count() + 1,
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
-
-        return back()->with('success', "Plan \"{$validated['name']}\" created successfully.");
-    }
-
-    public function updatePlan(Request $request, $planId)
-    {
-        $this->guard();
-        $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:100'],
-            'monthly_price' => ['required', 'numeric', 'min:0'],
-            'annual_price'  => ['required', 'numeric', 'min:0'],
-            'max_students'  => ['required', 'integer', 'min:1'],
-            'max_staff'     => ['required', 'integer', 'min:1'],
-            'description'   => ['nullable', 'string', 'max:500'],
-            'is_active'     => ['boolean'],
-            'features'      => ['nullable', 'array'],
-            'features.*'    => ['string'],
-        ]);
-
-        $features = $validated['features'] ?? [];
-        $hasCbt   = in_array('cbt', $features, true);
-        $hasSms   = in_array('sms', $features, true);
-
-        DB::table('subscription_plans')->where('id', $planId)->update([
-            'name'          => $validated['name'],
-            'description'   => $validated['description'] ?? null,
-            'monthly_price' => $validated['monthly_price'],
-            'annual_price'  => $validated['annual_price'],
-            'max_students'  => $validated['max_students'],
-            'max_staff'     => $validated['max_staff'],
-            'has_cbt'       => $hasCbt,
-            'has_sms'       => $hasSms,
-            'features'      => json_encode($features),
-            'is_active'     => $request->boolean('is_active', true),
-            'updated_at'    => now(),
-        ]);
-
-        return back()->with('success', "Plan updated successfully.");
+        return view('super.plans');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -600,7 +413,6 @@ class SuperAdminController extends Controller
 
         DB::transaction(function () use ($tenant) {
             // Delete all related data
-            DB::table('tenant_subscriptions')->where('tenant_id', $tenant->id)->delete();
             DB::table('platform_payments')->where('tenant_id', $tenant->id)->delete();
             DB::table('platform_invoices')->where('tenant_id', $tenant->id)->delete();
             DB::table('audit_logs')->where('tenant_id', $tenant->id)->delete();
@@ -647,7 +459,23 @@ class SuperAdminController extends Controller
             ], $request, null, auth()->user());
         }
 
+        $previousStatus = $tenant->status;
         $tenant->update(['status' => $request->status]);
+
+        if ($request->status === Tenant::STATUS_SUSPENDED && $previousStatus !== Tenant::STATUS_SUSPENDED) {
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantSuspendedNotification($tenant, reactivated: false));
+            } catch (\Throwable $e) {
+                \Log::error("Tenant suspended notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
+        } elseif ($request->status === Tenant::STATUS_ACTIVE && $previousStatus === Tenant::STATUS_SUSPENDED) {
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantSuspendedNotification($tenant, reactivated: true));
+            } catch (\Throwable $e) {
+                \Log::error("Tenant reactivated notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
+        }
+
         return back()->with('success', "Status updated to: {$request->status}");
     }
 
@@ -674,11 +502,6 @@ class SuperAdminController extends Controller
             'subscription_expires_at',
             'motto',
             'logo_path',
-            'theme_primary',
-            'theme_accent',
-            'theme_sidebar',
-            'primary_color',
-            'secondary_color',
             'custom_domain',
             'domain_verified',
         ];
@@ -802,57 +625,63 @@ class SuperAdminController extends Controller
         return back()->with('success', 'Settings saved.');
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // EXTEND SUBSCRIPTION (legacy)
-    // ═══════════════════════════════════════════════════════════════
-    public function extendSubscription(Request $request, Tenant $tenant)
-    {
-        $this->guard();
-        $request->validate(['expires_at' => ['required', 'date', 'after:today']]);
-        $tenant->update(['subscription_expires_at' => $request->expires_at, 'status' => 'active']);
-        return back()->with('success', 'Subscription extended.');
-    }
-
     // ── Super Admin Analytics ─────────────────────────────────────
     public function analytics()
     {
         $this->guard();
-        $tenants = \App\Models\Tenant::withCount([
-            'users',
-        ])->with('activeSubscription.plan')->latest()->get();
+        $tenants = \App\Models\Tenant::withCount(['users'])->latest()->get();
 
         $growth = \App\Models\Tenant::selectRaw('MONTH(created_at) as month, YEAR(created_at) as year, COUNT(*) as count')
             ->whereYear('created_at', date('Y'))
             ->groupBy('year','month')->orderBy('year')->orderBy('month')->get();
 
-        $planDist = \App\Models\TenantSubscription::where('status','active')
-            ->join('subscription_plans','subscription_plans.id','=','tenant_subscriptions.plan_id')
-            ->selectRaw('subscription_plans.name as plan, COUNT(*) as count')
-            ->groupBy('subscription_plans.name')->get();
+        // Distribution across the pay-per-student pricing tiers, in place of
+        // the old fixed-plan distribution — there are no more plan tiers,
+        // just where each school's active enrollment falls on PricingService.
+        $studentCounts = \App\Models\Student::withoutTenantScope()
+            ->where('status', \App\Models\Student::STATUS_ACTIVE)
+            ->selectRaw('tenant_id, COUNT(*) as cnt')
+            ->groupBy('tenant_id')
+            ->pluck('cnt', 'tenant_id');
 
-        $revenue = \App\Models\TenantSubscription::selectRaw('MONTH(created_at) as month, YEAR(created_at) as year, SUM(amount_paid) as total')
-            ->whereYear('created_at', date('Y'))
-            ->groupBy('year','month')->orderBy('year')->orderBy('month')->get();
+        $tierCounts = collect(['Free (≤20 students)' => 0, '₦500/student tier' => 0, '₦400/student tier' => 0, 'Custom volume' => 0]);
+        foreach ($tenants as $t) {
+            $count = (int) ($studentCounts[$t->id] ?? 0);
+            $label = match (true) {
+                \App\Services\PricingService::isFree($count) => 'Free (≤20 students)',
+                $count <= \App\Services\PricingService::TIER2_MAX => '₦500/student tier',
+                $count <= \App\Services\PricingService::TIER3_MAX => '₦400/student tier',
+                default => 'Custom volume',
+            };
+            $tierCounts[$label]++;
+        }
+        $planDist = $tierCounts->map(fn ($count, $label) => (object) ['plan' => $label, 'count' => $count])->values();
 
-        return view('super.analytics', compact('tenants','growth','planDist','revenue'));
+        return view('super.analytics', compact('tenants', 'growth', 'planDist'));
     }
 
     // ── Send Renewal Reminders ────────────────────────────────────
     public function sendRenewalReminders()
     {
         $this->guard();
-        $expiring = \App\Models\TenantSubscription::where('status','active')
-            ->where('expires_at','<=', now()->addDays(30))
-            ->where('expires_at','>=', now())
-            ->with(['tenant'])
+        $expiring = Tenant::where('subscription_expires_at', '<=', now()->addDays(30))
+            ->where('subscription_expires_at', '>=', now())
             ->get();
 
         $sent = 0;
-        foreach ($expiring as $sub) {
-            $days = now()->diffInDays($sub->expires_at);
-            // In production: dispatch email job. Here we log.
-            \Log::info("Renewal reminder: {$sub->tenant->name} expires in {$days} days ({$sub->tenant->email})");
-            $sent++;
+        foreach ($expiring as $t) {
+            $days = (int) now()->diffInDays($t->subscription_expires_at);
+
+            try {
+                $t->notifyAdmins(new \App\Notifications\Tenant\SubscriptionExpiringNotification(
+                    $t,
+                    $t->subscription_expires_at->format('d M Y'),
+                    $days
+                ));
+                $sent++;
+            } catch (\Throwable $e) {
+                \Log::error("Renewal reminder failed for tenant {$t->id}: " . $e->getMessage());
+            }
         }
 
         return back()->with('success', "Renewal reminders sent to {$sent} schools.");
@@ -863,24 +692,16 @@ class SuperAdminController extends Controller
         abort_unless(auth()->user()?->isSuperAdmin(), 403);
         $data = $request->validate(['months' => ['required','integer','min:1','max:24']]);
         $current = $tenant->subscription_expires_at ?? now();
-        $tenant->update(['subscription_expires_at' => \Carbon\Carbon::parse($current)->addMonths($data['months'])]);
-        return back()->with('success', "Subscription extended by {$data['months']} month(s).");
-    }
+        $newExpiry = \Carbon\Carbon::parse($current)->addMonths($data['months']);
+        $tenant->update(['subscription_expires_at' => $newExpiry]);
 
-    public function renewTenant(Request $request, \App\Models\Tenant $tenant)
-    {
-        $data = $request->validate(['plan_id' => ['required','exists:subscription_plans,id']]);
-        $plan = \App\Models\SubscriptionPlan::findOrFail($data['plan_id']);
-        $tenant->update([
-            'subscription_expires_at' => now()->addMonths($plan->duration_months),
-            'is_active' => true,
-        ]);
-        \App\Models\TenantSubscription::create([
-            'tenant_id' => $tenant->id, 'plan_id' => $plan->id,
-            'starts_at' => now(), 'ends_at' => now()->addMonths($plan->duration_months),
-            'amount_paid' => $plan->price, 'status' => 'active',
-        ]);
-        return back()->with('success', "Subscription renewed for {$plan->duration_months} month(s).");
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y')));
+        } catch (\Throwable $e) {
+            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+        }
+
+        return back()->with('success', "Subscription extended by {$data['months']} month(s).");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -891,8 +712,7 @@ class SuperAdminController extends Controller
         $this->guard();
         $invoices = DB::table('platform_invoices')
             ->join('tenants','tenants.id','=','platform_invoices.tenant_id')
-            ->join('subscription_plans','subscription_plans.id','=','platform_invoices.plan_id')
-            ->select('platform_invoices.*','tenants.name as school_name','subscription_plans.name as plan_name')
+            ->select('platform_invoices.*','tenants.name as school_name')
             ->when($request->filled('status'), fn($q) => $q->where('platform_invoices.status', $request->status))
             ->when($request->filled('tenant_id'), fn($q) => $q->where('platform_invoices.tenant_id', $request->tenant_id))
             ->orderByDesc('platform_invoices.created_at')
@@ -913,27 +733,44 @@ class SuperAdminController extends Controller
     {
         $this->guard();
         $data = $request->validate([
-            'tenant_id'     => ['required','exists:tenants,id'],
-            'plan_id'       => ['required','exists:subscription_plans,id'],
-            'billing_cycle' => ['required','in:monthly,annual'],
-            'due_date'      => ['required','date'],
-            'notes'         => ['nullable','string'],
+            'tenant_id'      => ['required','exists:tenants,id'],
+            'billing_cycle'  => ['required','in:termly,annual'],
+            'custom_amount'  => ['nullable','numeric','min:0'],
+            'capacity'       => ['nullable','integer','min:1'],
+            'due_date'       => ['required','date'],
+            'notes'          => ['nullable','string'],
         ]);
 
-        $tenant  = Tenant::findOrFail($data['tenant_id']);
-        $plan    = DB::table('subscription_plans')->find($data['plan_id']);
-        $amount  = $data['billing_cycle'] === 'annual' ? $plan->annual_price : $plan->monthly_price;
-        $ref     = 'INV-'.strtoupper(Str::random(8));
+        $tenant       = Tenant::findOrFail($data['tenant_id']);
+        $studentCount = \App\Services\PricingService::activeStudentCount($tenant->id);
+        $isCustom     = \App\Services\PricingService::isCustomQuote($studentCount);
+
+        if ($isCustom) {
+            $request->validate(['custom_amount' => ['required','numeric','min:0']]);
+            $amount = (float) $data['custom_amount'];
+        } else {
+            $amount = $data['billing_cycle'] === 'annual'
+                ? \App\Services\PricingService::annualAmount($studentCount)
+                : \App\Services\PricingService::termlyAmount($studentCount);
+        }
+
+        // Capacity this invoice pays for — defaults to current enrollment,
+        // but a super admin can grant headroom above that (e.g. a negotiated
+        // custom-volume deal for planned growth).
+        $capacity = $data['capacity'] ?? $studentCount;
+
+        $ref = 'INV-'.strtoupper(Str::random(8));
 
         DB::table('platform_invoices')->insert([
             'tenant_id'      => $data['tenant_id'],
-            'plan_id'        => $data['plan_id'],
+            'plan_id'        => null,
             'invoice_number' => $ref,
             'amount'         => $amount,
+            'student_count'  => $capacity,
             'billing_cycle'  => $data['billing_cycle'],
             'status'         => 'pending',
             'due_date'       => $data['due_date'],
-            'notes'          => $data['notes'],
+            'notes'          => $data['notes'] ?: ($studentCount . ' active students'),
             'created_at'     => now(),
             'updated_at'     => now(),
         ]);
@@ -977,14 +814,27 @@ class SuperAdminController extends Controller
         // Extend tenant subscription
         $tenant = Tenant::find($invoice->tenant_id);
         if ($tenant) {
-            $months = $invoice->billing_cycle === 'annual' ? 12 : 1;
             $from   = max(now(), \Carbon\Carbon::parse($tenant->subscription_expires_at));
+            $newExpiry = match ($invoice->billing_cycle) {
+                'annual' => $from->addMonths(12),
+                'termly' => $from->addDays(112),
+                default  => $from->addMonths(1),
+            };
             $tenant->update([
-                'subscription_expires_at' => $from->addMonths($months),
+                'subscription_expires_at' => $newExpiry,
                 'status' => 'active',
+                'students_capacity' => $invoice->student_count
+                    ? max($invoice->student_count, $tenant->students_capacity ?? 0)
+                    : $tenant->students_capacity,
             ]);
 
             $this->creditReferralCommission($tenant, (float) $invoice->amount);
+
+            try {
+                $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $newExpiry->format('d M Y'), (float) $invoice->amount));
+            } catch (\Throwable $e) {
+                \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Invoice marked as paid and subscription extended.');
@@ -995,8 +845,7 @@ class SuperAdminController extends Controller
         $this->guard();
         $invoice = DB::table('platform_invoices')
             ->join('tenants','tenants.id','=','platform_invoices.tenant_id')
-            ->join('subscription_plans','subscription_plans.id','=','platform_invoices.plan_id')
-            ->select('platform_invoices.*','tenants.name as school_name','tenants.address as school_address','tenants.email as school_email','subscription_plans.name as plan_name')
+            ->select('platform_invoices.*','tenants.name as school_name','tenants.address as school_address','tenants.email as school_email')
             ->where('platform_invoices.id',$invoiceId)->first();
 
         if (!$invoice) abort(404);
@@ -1114,7 +963,11 @@ class SuperAdminController extends Controller
         ]);
 
         $tenant = Tenant::find($invoice->tenant_id);
-        $days   = $invoice->billing_cycle === 'annual' ? 365 : 30;
+        $days   = match ($invoice->billing_cycle) {
+            'annual' => 365,
+            'termly' => 112, // one academic term (~16 weeks)
+            default  => 30,
+        };
         $expiry = $tenant->subscription_expires_at && $tenant->subscription_expires_at->isFuture()
                   ? $tenant->subscription_expires_at->copy()->addDays($days)
                   : now()->addDays($days);
@@ -1122,31 +975,18 @@ class SuperAdminController extends Controller
         $tenant->update([
             'status'                  => 'active',
             'subscription_expires_at' => $expiry,
-        ]);
-
-        // Deactivate any existing active subscriptions so the new plan wins ordering.
-        DB::table('tenant_subscriptions')
-            ->where('tenant_id', $tenant->id)
-            ->where('status', 'active')
-            ->update(['status' => 'expired', 'updated_at' => now()]);
-
-        DB::table('tenant_subscriptions')->insert([
-            'tenant_id'         => $tenant->id,
-            'plan_id'           => $invoice->plan_id,
-            'status'            => 'active',
-            'billing_cycle'     => $invoice->billing_cycle,
-            'amount_paid'       => $invoice->amount,
-            'starts_at'         => now()->toDateString(),
-            'expires_at'        => $expiry->toDateString(),
-            'next_billing_date' => $expiry->toDateString(),
-            'payment_method'    => $method,
-            'notes'             => 'Auto-created from paid subscription invoice',
-            'created_by'        => auth()->id(),
-            'created_at'        => now(),
-            'updated_at'        => now(),
+            'students_capacity'       => $invoice->student_count
+                ? max($invoice->student_count, $tenant->students_capacity ?? 0)
+                : $tenant->students_capacity,
         ]);
 
         $this->creditReferralCommission($tenant, (float) $invoice->amount);
+
+        try {
+            $tenant->notifyAdmins(new \App\Notifications\Tenant\SubscriptionRenewedNotification($tenant, $expiry->format('d M Y'), (float) $invoice->amount));
+        } catch (\Throwable $e) {
+            \Log::error("Subscription renewed notification failed for tenant {$tenant->id}: " . $e->getMessage());
+        }
 
         return $tenant;
     }

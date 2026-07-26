@@ -106,7 +106,10 @@ class TenantOnboardingTest extends TestCase
         $unverifiedStatus = $this->service()->status($unverified);
         $verifiedStatus = $this->service()->status($verified);
 
-        $this->assertStringContainsString('/school/unverified-school/login', $unverifiedStatus->urls['slug_login']);
+        // Old /school/{slug} paths were retired in favour of the unified
+        // /login page — the tenant.login route now just resolves to a stub
+        // that redirects there (see routes/web.php Route::name('tenant.') group).
+        $this->assertStringContainsString('/_tenant_stub/unverified-school/login', $unverifiedStatus->urls['slug_login']);
         $this->assertSame('http://unverified-school.educore.test/login', $unverifiedStatus->urls['local_subdomain_login']);
         $this->assertNull($unverifiedStatus->urls['custom_domain']);
         $this->assertSame('http://verified.local.test/', $verifiedStatus->urls['custom_domain']);
@@ -320,6 +323,7 @@ class TenantOnboardingTest extends TestCase
             $table->string('section')->nullable();
             $table->integer('order_index')->default(0);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('class_arms', function (Blueprint $table) {
@@ -328,6 +332,7 @@ class TenantOnboardingTest extends TestCase
             $table->unsignedBigInteger('class_level_id');
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('subjects', function (Blueprint $table) {
@@ -337,6 +342,7 @@ class TenantOnboardingTest extends TestCase
             $table->string('code')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('grading_systems', function (Blueprint $table) {

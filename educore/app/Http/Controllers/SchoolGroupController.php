@@ -110,6 +110,25 @@ class SchoolGroupController extends Controller
         return back()->with('success', 'School removed from group.');
     }
 
+    /**
+     * Designate the campus that holds the group's single shared subscription.
+     * Every other member's access/features are resolved against this
+     * campus's subscription (see Tenant::billingTenant()). Only one lead
+     * per group, so promoting a new one demotes the previous.
+     */
+    public function setLead($groupId, $tenantId)
+    {
+        $this->guard();
+
+        DB::table('school_group_members')->where('group_id', $groupId)->update(['role' => 'member']);
+        DB::table('school_group_members')
+            ->where('group_id', $groupId)
+            ->where('tenant_id', $tenantId)
+            ->update(['role' => 'lead']);
+
+        return back()->with('success', "Lead campus updated \xe2\x80\x94 this school's subscription now governs the whole group.");
+    }
+
     // ── Group aggregate report ────────────────────────────────────────
     public function report($groupId)
     {

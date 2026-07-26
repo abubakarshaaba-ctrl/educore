@@ -30,6 +30,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
+        // Runs inside the routed "web" group so route()/routeIs() are available.
+        $middleware->web(append: [
+            \App\Http\Middleware\MaintenanceMode::class,
+        ]);
+
         $middleware->alias([
             'tenant'         => \App\Http\Middleware\IdentifyTenant::class,
             'tenant.host'    => \App\Http\Middleware\ResolveTenantFromHost::class,

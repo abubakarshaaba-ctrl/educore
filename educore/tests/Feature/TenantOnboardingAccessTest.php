@@ -322,6 +322,7 @@ class TenantOnboardingAccessTest extends TestCase
             $table->string('section')->nullable();
             $table->integer('order_index')->default(0);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('class_arms', function (Blueprint $table) {
@@ -330,6 +331,7 @@ class TenantOnboardingAccessTest extends TestCase
             $table->unsignedBigInteger('class_level_id');
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('subjects', function (Blueprint $table) {
@@ -339,6 +341,7 @@ class TenantOnboardingAccessTest extends TestCase
             $table->string('code')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('grading_systems', function (Blueprint $table) {

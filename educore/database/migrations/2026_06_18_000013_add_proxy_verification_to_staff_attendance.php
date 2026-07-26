@@ -45,7 +45,9 @@ return new class extends Migration {
                 $table->enum('status', ['pending','approved','rejected','expired'])->default('pending');
                 $table->string('reject_reason')->nullable();
                 $table->timestamps();
-                $table->index(['tenant_id','target_user_id','attendance_date']);
+                // Auto-generated name for this column set exceeds MySQL's
+                // 64-char identifier limit — give it an explicit short one.
+                $table->index(['tenant_id','target_user_id','attendance_date'], 'idx_staff_proxy_requests_lookup');
             });
         }
     }

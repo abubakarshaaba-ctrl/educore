@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Student;
-use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -21,17 +20,21 @@ class PublicMarketingController extends Controller
             'schools' => Tenant::publiclyAccessible()->count(),
             'students' => Student::withoutTenantScope()->count(),
             'staff' => User::whereNotNull('tenant_id')->where('is_active', true)->count(),
-            'plans' => SubscriptionPlan::where('is_active', true)->count(),
         ];
 
-        $plans = SubscriptionPlan::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('monthly_price')
-            ->limit(4)
-            ->get();
+        $tiers = \App\Services\PricingService::tiers();
 
-        return view('welcome', compact('stats', 'plans'));
+        return view('welcome', compact('stats', 'tiers'));
+    }
+
+    public function privacy(): View
+    {
+        return view('legal.privacy');
+    }
+
+    public function terms(): View
+    {
+        return view('legal.terms');
     }
 
     public function sendContact(Request $request): RedirectResponse

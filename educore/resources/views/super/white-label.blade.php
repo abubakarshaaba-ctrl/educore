@@ -52,22 +52,6 @@
             <input type="text" name="custom_domain" class="fc" value="{{ $tenant->custom_domain }}" placeholder="e.g. portal.schoolname.com.ng">
             <span style="font-size:11px;color:var(--slate-light)">Point your DNS CNAME to: sms.yourplatform.ng</span>
         </div>
-        <div class="fr">
-            <div class="fg">
-                <label class="fl">Primary Colour</label>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <input type="color" name="primary_color" value="{{ $tenant->primary_color ?? '#2563EB' }}" style="width:42px;height:38px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
-                    <input type="text" id="primary_text" value="{{ $tenant->primary_color ?? '#2563EB' }}" class="fc" style="flex:1" readonly>
-                </div>
-            </div>
-            <div class="fg">
-                <label class="fl">Secondary Colour</label>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <input type="color" name="secondary_color" value="{{ $tenant->secondary_color ?? '#1E40AF' }}" style="width:42px;height:38px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
-                    <input type="text" id="secondary_text" value="{{ $tenant->secondary_color ?? '#1E40AF' }}" class="fc" style="flex:1" readonly>
-                </div>
-            </div>
-        </div>
         <button type="submit" class="btn btn-p">Save White-label Settings</button>
         </form>
     </div>
@@ -94,12 +78,4 @@
     </div>
 </div>
 @endif
-<script>
-document.querySelectorAll('input[type="color"]').forEach(function(picker) {
-    picker.addEventListener('input', function() {
-        var textInput = this.parentElement.querySelector('input[type="text"]');
-        if (textInput) textInput.value = this.value;
-    });
-});
-</script>
 @endsection

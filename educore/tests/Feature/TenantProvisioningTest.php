@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\StaffWorkHistory;
-use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
@@ -31,22 +30,18 @@ class TenantProvisioningTest extends TestCase
 
     public function test_super_admin_can_access_tenant_creation(): void
     {
-        $this->planFixture();
-
         $this->actingAs($this->superAdmin())
             ->get(route('super.tenants.create'))
             ->assertOk()
             ->assertSee('Provision New School')
-            ->assertSee('Subscription Plan')
+            ->assertSee('Subscription Expires')
             ->assertSee('Employment Start Date');
     }
 
     public function test_tenant_and_primary_administrator_are_created_atomically(): void
     {
-        $plan = $this->planFixture();
-
         $this->actingAs($this->superAdmin())
-            ->post(route('super.tenants.store'), $this->payload($plan))
+            ->post(route('super.tenants.store'), $this->payload())
             ->assertRedirect();
 
         $tenant = Tenant::where('slug', 'blue-rayy-academy')->firstOrFail();
@@ -59,7 +54,10 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame(User::STAFF_STATUS_ACTIVE, $admin->employment_status);
         $this->assertTrue($admin->hasRole('admin'));
         $this->assertSame(1, StaffWorkHistory::withoutTenantScope()->where('user_id', $admin->id)->whereNull('end_date')->count());
-        $this->assertDatabaseHas('tenant_subscriptions', ['tenant_id' => $tenant->id, 'plan_id' => $plan->id, 'status' => 'active']);
+        // New tenants start on the pay-per-student free tier — no legacy
+        // subscription row, no explicit capacity (defaults to the free
+        // threshold via PricingService).
+        $this->assertNull($tenant->students_capacity);
         $this->assertDatabaseHas('school_settings', ['tenant_id' => $tenant->id, 'key' => 'currency', 'value' => 'NGN']);
         $this->assertDatabaseHas('admission_portal_settings', ['tenant_id' => $tenant->id, 'is_open' => false]);
         $this->assertSame(1, AuditLog::where('action', 'tenant.provisioning.administrator_created')->count());
@@ -73,8 +71,7 @@ class TenantProvisioningTest extends TestCase
 
     public function test_failed_retry_does_not_create_duplicate_tenant_or_admin(): void
     {
-        $plan = $this->planFixture();
-        $payload = $this->payload($plan);
+        $payload = $this->payload();
         $superAdmin = $this->superAdmin();
 
         $this->actingAs($superAdmin)->post(route('super.tenants.store'), $payload)->assertRedirect();
@@ -86,7 +83,7 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame(1, User::where('email', 'admin@bluerayy.test')->count());
     }
 
-    private function payload(SubscriptionPlan $plan, array $overrides = []): array
+    private function payload(array $overrides = []): array
     {
         return array_merge([
             'name' => 'Blue Rayy Academy',
@@ -95,28 +92,12 @@ class TenantProvisioningTest extends TestCase
             'email' => 'info@bluerayy.test',
             'phone' => '08000000000',
             'address' => '1 School Road',
-            'plan_id' => $plan->id,
-            'billing_cycle' => 'annual',
             'subscription_expires_at' => now()->addYear()->toDateString(),
             'admin_name' => 'School Administrator',
             'admin_email' => 'admin@bluerayy.test',
             'admin_password' => 'SecretPass123!',
             'admin_employment_started_at' => now()->toDateString(),
         ], $overrides);
-    }
-
-    private function planFixture(array $overrides = []): SubscriptionPlan
-    {
-        return SubscriptionPlan::create(array_merge([
-            'name' => 'Standard',
-            'slug' => 'standard',
-            'monthly_price' => 1000,
-            'annual_price' => 10000,
-            'max_students' => 500,
-            'max_staff' => 50,
-            'is_active' => true,
-            'sort_order' => 1,
-        ], $overrides));
     }
 
     private function superAdmin(): User
@@ -136,13 +117,12 @@ class TenantProvisioningTest extends TestCase
         foreach ([
             'audit_logs',
             'staff_work_histories',
-            'tenant_subscriptions',
             'admission_portal_settings',
             'school_settings',
             'platform_payments',
+            'platform_settings',
             'model_has_roles',
             'roles',
-            'subscription_plans',
             'students',
             'users',
             'tenants',
@@ -154,8 +134,8 @@ class TenantProvisioningTest extends TestCase
         $this->createUserTable();
         $this->createStudentsTable();
         $this->createRoleTables();
-        $this->createSubscriptionTables();
         $this->createSettingsTables();
+        $this->createPlatformSettingsTable();
         $this->createPlatformPaymentsTable();
         $this->createStaffWorkHistoriesTable();
         $this->createAuditLogsTable();
@@ -175,6 +155,7 @@ class TenantProvisioningTest extends TestCase
             $table->string('email')->nullable();
             $table->string('status')->default(Tenant::STATUS_PENDING);
             $table->date('subscription_expires_at')->nullable();
+            $table->unsignedInteger('students_capacity')->nullable();
             $table->string('theme_primary', 20)->nullable();
             $table->string('theme_accent', 20)->nullable();
             $table->string('theme_sidebar', 20)->nullable();
@@ -215,6 +196,7 @@ class TenantProvisioningTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
+            $table->string('status')->default('active');
             $table->timestamps();
             $table->softDeletes();
         });
@@ -236,36 +218,6 @@ class TenantProvisioningTest extends TestCase
             $table->unsignedBigInteger('model_id');
             $table->index(['model_id', 'model_type']);
             $table->primary(['role_id', 'model_id', 'model_type']);
-        });
-    }
-
-    private function createSubscriptionTables(): void
-    {
-        Schema::create('subscription_plans', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('slug')->unique();
-            $table->decimal('monthly_price', 10, 2)->default(0);
-            $table->decimal('annual_price', 10, 2)->default(0);
-            $table->integer('max_students')->default(0);
-            $table->integer('max_staff')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->integer('sort_order')->default(0);
-            $table->timestamps();
-        });
-
-        Schema::create('tenant_subscriptions', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('plan_id')->nullable();
-            $table->string('status')->default('active');
-            $table->string('billing_cycle')->default('annual');
-            $table->decimal('amount_paid', 10, 2)->default(0);
-            $table->date('starts_at');
-            $table->date('expires_at');
-            $table->date('next_billing_date')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->timestamps();
         });
     }
 
@@ -293,12 +245,23 @@ class TenantProvisioningTest extends TestCase
         });
     }
 
+    private function createPlatformSettingsTable(): void
+    {
+        Schema::create('platform_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
+            $table->string('type')->default('string');
+            $table->string('group')->default('general');
+            $table->timestamps();
+        });
+    }
+
     private function createPlatformPaymentsTable(): void
     {
         Schema::create('platform_payments', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('subscription_id')->nullable();
             $table->string('reference')->nullable();
             $table->decimal('amount', 10, 2)->default(0);
             $table->string('status')->default('confirmed');

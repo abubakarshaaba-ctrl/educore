@@ -267,14 +267,14 @@ class _ClassesTabState extends State<_ClassesTab> {
                     style: const TextStyle(color: kMuted, fontSize: 12.5),
                   ),
                   trailing: const Icon(Icons.chevron_right, color: kMuted),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => AttendanceScreen(
-                        classArmId: c['id'] as int,
-                        className: c['name'] as String? ?? 'Class',
-                      ),
-                    ),
-                  ),
+                  onTap: isTutor
+                      ? () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => AttendanceScreen(
+                              classArmId: c['id'] as int,
+                              className: c['name'] as String? ?? 'Class',
+                            ),
+                          ))
+                      : null,
                 ),
               );
             },

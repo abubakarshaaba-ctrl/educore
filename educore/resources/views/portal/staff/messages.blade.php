@@ -1,4 +1,4 @@
-@extends('layouts.portal')
+@extends('layouts.app')
 @section('title','Messages')
 @section('page-title','Messages')
 @push('styles')

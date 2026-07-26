@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:1080px; height:1080px; font-family:'Segoe UI', -apple-system, sans-serif; overflow:hidden; }
+.card {
+    width:1080px; height:1080px;
+    background: linear-gradient(160deg, #071E45 0%, #0d2a5e 55%, #133A7A 100%);
+    position:relative; display:flex; flex-direction:column; padding:90px;
+}
+.card::before {
+    content:''; position:absolute; top:-140px; left:-120px; width:480px; height:480px;
+    background: radial-gradient(circle, rgba(215,154,33,0.2) 0%, transparent 70%);
+}
+.brand { display:flex; align-items:center; gap:16px; position:relative; z-index:1; }
+.mark { width:60px; height:60px; border-radius:16px; overflow:hidden; background:white; flex-shrink:0; }
+.mark svg { width:100%; height:100%; display:block; }
+.brand-name { font-size:28px; font-weight:800; color:white; letter-spacing:-0.5px; }
+.brand-name .gold { color:#D79A21; }
+.eyebrow {
+    display:inline-block; margin-top:56px; font-size:20px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    color:#D79A21; background:rgba(215,154,33,0.12); border:1px solid rgba(215,154,33,0.35);
+    padding:10px 24px; border-radius:100px; width:fit-content; position:relative; z-index:1;
+}
+h1 { font-size:56px; font-weight:800; color:white; line-height:1.2; letter-spacing:-1px; margin-top:28px; position:relative; z-index:1; }
+h1 span { color:#7FB1FF; }
+.tier-table { margin-top:56px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14); border-radius:18px; overflow:hidden; position:relative; z-index:1; }
+.tier-row { display:flex; justify-content:space-between; align-items:center; padding:28px 36px; border-bottom:1px solid rgba(255,255,255,0.1); }
+.tier-row:last-child { border-bottom:none; }
+.tier-row.free { background:rgba(16,185,129,0.12); }
+.tier-range { font-size:24px; font-weight:700; color:white; }
+.tier-rate { font-size:26px; font-weight:800; color:#D79A21; }
+.tier-row.free .tier-rate { color:#34D399; }
+.footer-note { margin-top:44px; font-size:22px; color:rgba(255,255,255,0.6); text-align:center; position:relative; z-index:1; }
+.footer-tag { position:absolute; bottom:48px; left:90px; font-size:20px; color:rgba(255,255,255,0.45); z-index:1; }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="brand">
+        <div class="mark">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+                <g transform="translate(32 32) scale(0.875)">
+                    <path d="M264 70a186 186 0 1 0 0 372v-82a104 104 0 1 1 0-208V70Z" fill="#071E45"/>
+                    <path d="M271 178a78 78 0 0 0 0 156V178Z" fill="#D79A21"/>
+                    <circle cx="272" cy="256" r="30" fill="#FFFFFF"/>
+                    <rect x="332" y="120" width="44" height="44" rx="7" fill="#F2C35B"/>
+                    <rect x="389" y="172" width="35" height="35" rx="6" fill="#D79A21"/>
+                    <rect x="330" y="234" width="42" height="42" rx="6" fill="#D79A21"/>
+                    <rect x="399" y="267" width="30" height="30" rx="6" fill="#F2C35B"/>
+                </g>
+            </svg>
+        </div>
+        <div class="brand-name">Edu<span class="gold">Core</span></div>
+    </div>
+    <div class="eyebrow">Simple pricing</div>
+    <h1>One plan. Every<br>feature. Priced by <span>enrollment.</span></h1>
+    <div class="tier-table">
+        <div class="tier-row free"><span class="tier-range">Up to 20 students</span><span class="tier-rate">Free</span></div>
+        <div class="tier-row"><span class="tier-range">21 – 200 students</span><span class="tier-rate">N500/student/term</span></div>
+        <div class="tier-row"><span class="tier-range">201 – 500 students</span><span class="tier-rate">N400/student/term</span></div>
+        <div class="tier-row"><span class="tier-range">501+ students</span><span class="tier-rate">Custom pricing</span></div>
+    </div>
+    <p class="footer-note">No feature tiers. No add-on packages. Save 10% paying yearly.</p>
+    <div class="footer-tag">educoreng.online</div>
+</div>
+</body>
+</html>

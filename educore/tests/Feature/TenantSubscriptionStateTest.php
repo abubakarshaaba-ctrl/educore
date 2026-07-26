@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Tenant;
-use App\Models\TenantSubscription;
 use App\Services\TenantAccessDecision;
 use App\Services\TenantAccessService;
 use Illuminate\Database\Schema\Blueprint;
@@ -13,6 +12,9 @@ use Tests\TestCase;
 
 class TenantSubscriptionStateTest extends TestCase
 {
+    /** Comfortably inside the paid tier, so "active" fixtures aren't accidentally free-tier. */
+    private const PAID_TIER_STUDENTS = 25;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -88,22 +90,29 @@ class TenantSubscriptionStateTest extends TestCase
         $this->assertSame(TenantAccessDecision::STATE_GRACE, $decision->state);
     }
 
-    public function test_trial_subscription_is_allowed_with_warning(): void
+    public function test_free_tier_tenant_is_allowed_with_trial_warning(): void
     {
-        $tenant = $this->tenantFixture();
-        TenantSubscription::create([
-            'tenant_id' => $tenant->id,
-            'status' => 'trial',
-            'billing_cycle' => 'annual',
-            'amount_paid' => 0,
-            'starts_at' => now()->subDay()->toDateString(),
-            'expires_at' => now()->addDays(10)->toDateString(),
-        ]);
+        // Free tier (≤20 students) — no dedicated students seeded at all.
+        $tenant = $this->tenantFixture(studentCount: 0);
 
         $decision = $this->service()->applicationAccess($tenant);
 
         $this->assertTrue($decision->allowed);
         $this->assertTrue($decision->isWarning());
+        $this->assertSame(TenantAccessDecision::STATE_TRIAL, $decision->state);
+    }
+
+    public function test_free_tier_tenant_is_never_denied_by_a_past_expiry_date(): void
+    {
+        // The free tier's automatic expiry clock is a no-op by design —
+        // only an explicit STATUS_SUBSCRIPTION_EXPIRED override can deny it.
+        $tenant = $this->tenantFixture(studentCount: 5, overrides: [
+            'subscription_expires_at' => now()->subYear()->toDateString(),
+        ]);
+
+        $decision = $this->service()->applicationAccess($tenant);
+
+        $this->assertTrue($decision->allowed);
         $this->assertSame(TenantAccessDecision::STATE_TRIAL, $decision->state);
     }
 
@@ -125,9 +134,14 @@ class TenantSubscriptionStateTest extends TestCase
             'slug' => 'expired-school',
             'subscription_expires_at' => now()->subDay()->toDateString(),
         ]);
+        $expiredButFree = $this->tenantFixture(studentCount: 0, overrides: [
+            'slug' => 'expired-but-free-school',
+            'subscription_expires_at' => now()->subDay()->toDateString(),
+        ]);
 
         $this->assertTrue($active->isPublicPortalAvailable());
         $this->assertFalse($expired->isPublicPortalAvailable());
+        $this->assertTrue($expiredButFree->isPublicPortalAvailable());
     }
 
     private function service(): TenantAccessService
@@ -135,20 +149,36 @@ class TenantSubscriptionStateTest extends TestCase
         return app(TenantAccessService::class);
     }
 
-    private function tenantFixture(array $overrides = []): Tenant
+    private function tenantFixture(array $overrides = [], int $studentCount = self::PAID_TIER_STUDENTS): Tenant
     {
-        return Tenant::create(array_merge([
+        $tenant = Tenant::create(array_merge([
             'name' => 'Bluerayy Academy',
             'slug' => 'bluerayy-academy',
             'email' => 'info@bluerayy.test',
             'status' => Tenant::STATUS_ACTIVE,
             'subscription_expires_at' => now()->addYear()->toDateString(),
         ], $overrides));
+
+        $this->seedStudents($tenant, $studentCount);
+
+        return $tenant;
+    }
+
+    private function seedStudents(Tenant $tenant, int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            DB::table('students')->insert([
+                'tenant_id' => $tenant->id,
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function rebuildSchema(): void
     {
-        foreach (['tenant_subscriptions', 'platform_settings', 'tenants'] as $table) {
+        foreach (['students', 'platform_settings', 'tenants'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -159,21 +189,17 @@ class TenantSubscriptionStateTest extends TestCase
             $table->string('email')->nullable();
             $table->string('status')->default(Tenant::STATUS_PENDING);
             $table->date('subscription_expires_at')->nullable();
+            $table->unsignedInteger('students_capacity')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
 
-        Schema::create('tenant_subscriptions', function (Blueprint $table) {
+        Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('plan_id')->nullable();
-            $table->string('status')->default('trial');
-            $table->string('billing_cycle')->default('annual');
-            $table->decimal('amount_paid', 10, 2)->default(0);
-            $table->date('starts_at');
-            $table->date('expires_at');
-            $table->date('next_billing_date')->nullable();
+            $table->string('status')->default('active');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('platform_settings', function (Blueprint $table) {

@@ -29,36 +29,12 @@ class TenantSubdomainAccessTest extends TestCase
         $this->rebuildSchema();
     }
 
-    public function test_local_subdomain_landing_and_login_pages_load(): void
-    {
-        $this->tenantFixture('Bluerayy Academy', 'bluerayy');
-
-        $this->get('http://bluerayy.educore.test/')
-            ->assertOk()
-            ->assertSee('Bluerayy Academy');
-
-        $this->get('http://bluerayy.educore.test/login')
-            ->assertOk()
-            ->assertSee('Staff Login')
-            ->assertSee('action="http://bluerayy.educore.test/login"', false)
-            ->assertSee('href="http://bluerayy.educore.test/forgot-password"', false)
-            ->assertDontSee('tenant_id');
-    }
-
-    public function test_valid_staff_can_login_through_local_subdomain(): void
-    {
-        $tenant = $this->tenantFixture('Bluerayy Academy', 'bluerayy');
-        $user = $this->staffFixture($tenant, 'admin@bluerayy.test');
-
-        $this->post('http://bluerayy.educore.test/login', [
-            'login_id' => 'admin@bluerayy.test',
-            'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
-
-        $this->assertAuthenticatedAs($user);
-        $this->assertSame($tenant->id, session('tenant_id'));
-        $this->assertSame('bluerayy.educore.test', session('tenant_host'));
-    }
+    // NOTE: per-tenant subdomain landing/login pages were retired in favour of
+    // the single unified /login (see routes/web.php — the {tenantSubdomain}
+    // domain group now redirects straight to it). Tests for the old pages and
+    // for logging in directly via subdomain were removed along with that
+    // feature; forgot/reset-password still resolve per-subdomain and are
+    // covered below.
 
     public function test_forgot_password_page_loads_on_local_subdomain(): void
     {
@@ -120,7 +96,10 @@ class TenantSubdomainAccessTest extends TestCase
     {
         $this->tenantFixture('Bluerayy Academy', 'bluerayy');
 
-        $this->get('http://bluerayy.educore.test/')->assertOk();
+        // Landing on the subdomain root now redirects to the unified /login
+        // (the old per-tenant landing page was retired), but host resolution
+        // still happens first and should still be audited.
+        $this->get('http://bluerayy.educore.test/')->assertRedirect();
 
         $this->assertSame(1, AuditLog::where('action', 'tenant.host.resolved')->count());
     }
@@ -251,6 +230,7 @@ class TenantSubdomainAccessTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('admissions', function (Blueprint $table) {
@@ -258,6 +238,7 @@ class TenantSubdomainAccessTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->string('status')->default('pending');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('admission_portal_settings', function (Blueprint $table) {
