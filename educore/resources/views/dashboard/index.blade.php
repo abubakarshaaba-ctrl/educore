@@ -149,7 +149,15 @@
                 <div class="card-body">
                     @if($openRiskFlags && $openRiskFlags->sum() > 0)
                     <div class="risk-list">@foreach(['critical'=>'#c9362b','high'=>'#e76516','medium'=>'#c98a13'] as $level=>$color)@if($openRiskFlags->get($level,0) > 0)<div class="risk-row" style="--risk:{{$color}}"><span class="risk-name"><span class="risk-icon"><svg class="icon icon-sm"><use href="#i-alert"/></svg></span>{{ ucfirst($level) }}</span><span class="risk-count">{{ $openRiskFlags->get($level,0) }}</span></div>@endif @endforeach</div>
-                    @else<div class="risk-empty"><svg class="icon" style="width:30px;height:30px"><use href="#i-shield-check"/></svg>No open risk flags@if(!$currentTerm)<br><small>Run analysis after configuring the term.</small>@endif</div>@endif
+                    @else
+                    <div class="risk-empty">
+                        <svg class="icon" style="width:30px;height:30px"><use href="#i-shield-check"/></svg>
+                        No open risk flags
+                        @if(!$currentTerm)
+                        <br><small>Run analysis after configuring the term.</small>
+                        @endif
+                    </div>
+                    @endif
                 </div>
             </section>
             <section class="dash-card">

@@ -1,53 +1,52 @@
-*.log
+# OS
 .DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/pail
-/storage/framework/views/*.php
-/storage/framework/sessions/*
-/storage/framework/cache/data/*
-/vendor
-Homestead.json
-Homestead.yaml
 Thumbs.db
 
-# Environment and secrets
-.env
-.env.*
-!.env.example
-
-# Databases and exports
-*.sql
-*.sqlite
-*.sqlite3
-
-# Logs and temporary files
-error_log
-public/error_log
-.tmp/
-storage/psysh/
+# Logs
 *.log
+error_log
 
-# Debug and temporary scripts
-public/asc-debug.php
-test-gemini.php
+# Laravel
+educore/.env
+educore/.env.backup
+educore/.env.production
+educore/.env.bak*
+educore/.env_local
+educore/vendor/
+educore/node_modules/
+educore/public/build/
+educore/public/hot
+educore/public/storage
+educore/storage/*.key
+educore/storage/pail/
+educore/storage/framework/views/*.php
+educore/storage/framework/sessions/*
+educore/storage/framework/cache/data/*
+educore/storage/logs/*
+educore/.phpunit.result.cache
+educore/.phpunit.cache/
+educore/auth.json
 
-# Runtime files
-storage/framework/sessions/*
-storage/framework/cache/*
-storage/framework/views/*
+# IDE
+.fleet/
+.idea/
+.nova/
+.vscode/
+.zed/
+
+# Claude session files
+.claude/
+
+# Temp/diagnostic files — anchored to repo root only, so real source files
+# elsewhere (e.g. app/Models/AuditLog.php, app/Http/Middleware/CheckModuleAccess.php)
+# named similarly to a throwaway diagnostic script never get silently ignored.
+/diag*.php
+/fix*.php
+/check*.php
+/audit*.php
+/test-*.php
+nc_assets/
+
+# cPanel
+cgi-bin/
+parking-page.shtml

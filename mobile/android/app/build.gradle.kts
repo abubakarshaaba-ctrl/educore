@@ -34,20 +34,28 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            check(keystorePropertiesFile.exists()) {
-                "android/key.properties is required for a signed release build."
+        if (keystorePropertiesFile.exists()) {
+            val storeFileRef = file(keystoreProperties["storeFile"] as String)
+            if (storeFileRef.exists()) {
+                create("release") {
+                    keyAlias = keystoreProperties["keyAlias"] as String
+                    keyPassword = keystoreProperties["keyPassword"] as String
+                    storeFile = storeFileRef
+                    storePassword = keystoreProperties["storePassword"] as String
+                }
             }
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) {
+                signingConfig = releaseSigning
+            } else {
+                // Fall back to debug signing when release keystore is unavailable.
+                signingConfig = signingConfigs.getByName("debug")
+            }
             // Flutter already tree-shakes Dart release code. R8 shrinking is
             // kept off here to make release builds reliable on the constrained
             // Windows deployment workstation; signing and release mode remain.

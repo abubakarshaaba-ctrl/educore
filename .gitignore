@@ -45,6 +45,23 @@ audit*.php
 test-*.php
 nc_assets/
 
+# Android signing (NEVER commit)
+*.jks
+*.keystore
+mobile/android/key.properties
+mobile/android/app/key.properties
+
+# Flutter build outputs
+mobile/build/
+mobile/.dart_tool/
+mobile/.packages
+mobile/.pub-cache/
+
+# Build artifacts & worktree
+.fix-worktree/
+educore-lan-build/
+educore/public/downloads/*.apk
+
 # cPanel
 cgi-bin/
 parking-page.shtml

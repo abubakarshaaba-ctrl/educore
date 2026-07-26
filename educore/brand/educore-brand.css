@@ -1,0 +1,57 @@
+:root {
+  --brand-navy: #071E45;
+  --brand-gold: #D79A21;
+  --brand-gold-light: #F2C35B;
+  --brand-gray: #7A7F87;
+  --brand-surface: #FFFFFF;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--brand-navy);
+}
+
+.brand-logo__icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.brand-logo__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brand-logo__name {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.brand-logo__name .brand-gold {
+  color: var(--brand-gold);
+}
+
+.brand-logo__tagline {
+  margin-top: 4px;
+  color: var(--brand-gray);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.sidebar .brand-logo__name,
+.auth-brand-panel .brand-logo__name {
+  color: #FFFFFF;
+}
+
+.sidebar .brand-logo__tagline,
+.auth-brand-panel .brand-logo__tagline {
+  color: rgba(255,255,255,.72);
+}
