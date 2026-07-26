@@ -67,3 +67,4 @@ educore/public/downloads/*.apk
 # cPanel
 cgi-bin/
 parking-page.shtml
+nul
