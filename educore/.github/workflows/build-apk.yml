@@ -55,3 +55,45 @@ jobs:
           name: educore-staff-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
+
+  # ── Deploy APK to production server ───────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: educore-staff-apk
+          path: .
+
+      - name: Deploy APK via SCP
+        if: env.DEPLOY_SSH_KEY != ''
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: app-release.apk
+          target: ${{ secrets.DEPLOY_APK_PATH }}
+          strip_components: 0
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Rename APK on server
+        if: env.DEPLOY_SSH_KEY != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            cd ${{ secrets.DEPLOY_APK_PATH }}
+            if [ -f app-release.apk ]; then
+              mv -f app-release.apk EduCore.apk
+              echo "Deployed EduCore.apk ($(stat -c%s EduCore.apk) bytes)"
+            fi
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
