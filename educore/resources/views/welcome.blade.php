@@ -231,12 +231,59 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 .fcontact a{font-size:12.5px;color:rgba(255,255,255,.7);text-decoration:none;font-weight:600}
 .fcontact a:hover{color:var(--gold)}
 
+/* DOWNLOAD SECTION */
+.download{background:linear-gradient(180deg,var(--navy-dark) 0%,#0a1e3d 100%);padding:100px 5vw 80px;position:relative;overflow:hidden}
+.download::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(215,154,33,.08) 0%,transparent 70%);pointer-events:none}
+.download .slabel{color:var(--gold-light)}
+.download .stitle{color:#fff}
+.download .ssub{color:rgba(255,255,255,.65);margin:0 auto}
+.phone-grid{display:flex;justify-content:center;gap:24px;margin-top:56px;flex-wrap:wrap}
+.phone{width:220px;border-radius:28px;background:#111;border:3px solid #333;padding:8px;box-shadow:0 20px 60px rgba(0,0,0,.4);transition:transform 300ms}
+.phone:hover{transform:translateY(-8px)}
+.phone:nth-child(2){transform:translateY(-20px)}
+.phone:nth-child(2):hover{transform:translateY(-28px)}
+.phone-screen{border-radius:20px;overflow:hidden;background:#fff;aspect-ratio:9/16;position:relative}
+.phone-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:60px;height:24px;background:#111;border-radius:0 0 14px 14px;z-index:2}
+.ps-header{background:var(--navy);padding:32px 14px 16px;text-align:center}
+.ps-header img{width:32px;height:32px;border-radius:8px;margin-bottom:6px}
+.ps-header p{font-size:8px;color:rgba(255,255,255,.8);font-weight:700}
+.ps-body{padding:12px 14px}
+.ps-card{background:var(--off);border-radius:10px;padding:10px;margin-bottom:8px}
+.ps-card-title{font-size:7px;font-weight:800;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.ps-stat{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.ps-stat-label{font-size:6px;color:var(--muted)}
+.ps-stat-val{font-size:8px;font-weight:800;color:var(--navy)}
+.ps-bar{height:4px;border-radius:2px;background:var(--border);margin-bottom:4px}
+.ps-bar-fill{height:100%;border-radius:2px}
+.ps-row{display:flex;gap:6px;margin-bottom:6px}
+.ps-pill{flex:1;height:6px;border-radius:3px}
+.ps-list-item{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.ps-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ps-text{height:4px;border-radius:2px;background:var(--border);flex:1}
+.ps-nav{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0}
+.ps-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.ps-nav-dot{width:14px;height:14px;border-radius:4px}
+.ps-nav-label{font-size:5px;color:var(--muted);font-weight:600}
+.dl-actions{display:flex;gap:14px;justify-content:center;margin-top:48px;flex-wrap:wrap}
+.dl-btn{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px;transition:all 200ms}
+.dl-btn-primary{background:var(--gold);color:var(--navy)}.dl-btn-primary:hover{background:var(--gold-light);transform:translateY(-2px);box-shadow:0 8px 32px rgba(215,154,33,.3)}
+.dl-btn-outline{background:rgba(255,255,255,.08);color:#fff;border:1.5px solid rgba(255,255,255,.2)}.dl-btn-outline:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4)}
+.dl-btn svg{width:20px;height:20px}
+.dl-badges{display:flex;gap:12px;justify-content:center;margin-top:20px}
+.dl-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-decoration:none;color:#fff;font-size:12px;font-weight:600;transition:all 200ms}
+.dl-badge:hover{background:rgba(255,255,255,.12);border-color:rgba(215,154,33,.4)}
+.dl-badge svg{width:18px;height:18px}
+.dl-badge-text{display:flex;flex-direction:column;line-height:1.2}
+.dl-badge-sub{font-size:8px;color:rgba(255,255,255,.5);font-weight:400}
+
 /* RESPONSIVE */
 @media(max-width:1024px){
   .b-1{grid-column:span 12}.b-2{grid-column:span 12}
   .b-3,.b-4,.b-5{grid-column:span 4}
   .b-6,.b-7{grid-column:span 12}
   .fg{grid-template-columns:1fr 1fr}
+  .phone:nth-child(2){transform:none}
+  .phone:nth-child(2):hover{transform:translateY(-8px)}
 }
 @media(max-width:768px){
   section{padding:72px 5vw}
@@ -245,12 +292,18 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   .b-3,.b-4,.b-5{grid-column:span 12}
   .bento{gap:12px}
   .fg{grid-template-columns:1fr}
+  .phone{width:180px}
+  .phone-grid{gap:16px}
 }
 @media(max-width:480px){
   .hero-stats{grid-template-columns:1fr;gap:16px;padding-top:36px}
   .hero-actions{flex-direction:column;align-items:center}
   .btn-lg{width:100%;max-width:340px;justify-content:center}
   .fb2{flex-direction:column;text-align:center}
+  .phone-grid{flex-direction:column;align-items:center}
+  .phone{width:200px}
+  .dl-actions{flex-direction:column;align-items:center}
+  .dl-btn{width:100%;max-width:300px;justify-content:center}
 }
 </style>
 </head>
@@ -562,6 +615,142 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <p class="pricing-note">Billed per academic term to match how Nigerian schools collect fees — pay a full year (3 terms) upfront and save 10%. Schools above 500 students get a tailored volume quote.</p>
     <div class="cta-acts" style="margin-top:32px">
         <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
+    </div>
+</section>
+
+<section class="download" id="download">
+    <div class="tc">
+        <div class="slabel">Available on all devices</div>
+        <h2 class="stitle">Manage your school<br>from <span style="color:var(--gold)">anywhere</span></h2>
+        <p class="ssub">Download the EduCore mobile app for staff, students, and parents. Available for Android — iOS coming soon.</p>
+    </div>
+    <div class="phone-grid">
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="phone-notch"></div>
+                <div class="ps-header">
+                    <img src="/brand/educore-icon.svg" alt="">
+                    <p>EduCore Dashboard</p>
+                </div>
+                <div class="ps-body">
+                    <div class="ps-card">
+                        <div class="ps-card-title">Overview</div>
+                        <div class="ps-stat"><span class="ps-stat-label">Students</span><span class="ps-stat-val">1,247</span></div>
+                        <div class="ps-stat"><span class="ps-stat-label">Staff</span><span class="ps-stat-val">86</span></div>
+                        <div class="ps-stat"><span class="ps-stat-label">Revenue</span><span class="ps-stat-val">&#8358;12.4M</span></div>
+                    </div>
+                    <div class="ps-card">
+                        <div class="ps-card-title">Attendance Today</div>
+                        <div class="ps-bar"><div class="ps-bar-fill" style="width:92%;background:#059669"></div></div>
+                        <div style="display:flex;justify-content:space-between"><span class="ps-stat-label">92% present</span><span class="ps-stat-label">8 absent</span></div>
+                    </div>
+                </div>
+                <div class="ps-nav">
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">Home</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Students</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Fees</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="phone-notch"></div>
+                <div class="ps-header">
+                    <img src="/brand/educore-icon.svg" alt="">
+                    <p>Student Portal</p>
+                </div>
+                <div class="ps-body">
+                    <div class="ps-card">
+                        <div class="ps-card-title">My Results</div>
+                        <div class="ps-list-item"><div class="ps-dot" style="background:#059669"></div><div class="ps-text" style="width:60%"></div></div>
+                        <div class="ps-list-item"><div class="ps-dot" style="background:var(--gold)"></div><div class="ps-text" style="width:80%"></div></div>
+                        <div class="ps-list-item"><div class="ps-dot" style="background:#059669"></div><div class="ps-text" style="width:45%"></div></div>
+                    </div>
+                    <div class="ps-card">
+                        <div class="ps-card-title">CBT Exam</div>
+                        <div style="text-align:center;padding:8px 0">
+                            <div style="font-size:18px;font-weight:900;color:var(--navy)">45:23</div>
+                            <div style="font-size:6px;color:var(--muted);margin-top:2px">Question 12 of 40</div>
+                        </div>
+                    </div>
+                    <div class="ps-card">
+                        <div class="ps-card-title">Timetable</div>
+                        <div class="ps-row"><div class="ps-pill" style="background:var(--navy)"></div><div class="ps-pill" style="background:var(--gold)"></div><div class="ps-pill" style="background:#059669"></div></div>
+                        <div class="ps-row"><div class="ps-pill" style="background:var(--gold)"></div><div class="ps-pill" style="background:#059669"></div><div class="ps-pill" style="background:var(--navy)"></div></div>
+                    </div>
+                </div>
+                <div class="ps-nav">
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Results</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">Exams</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Fees</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="phone">
+            <div class="phone-screen">
+                <div class="phone-notch"></div>
+                <div class="ps-header">
+                    <img src="/brand/educore-icon.svg" alt="">
+                    <p>Staff Attendance</p>
+                </div>
+                <div class="ps-body">
+                    <div class="ps-card" style="text-align:center;padding:16px 10px">
+                        <div style="width:48px;height:48px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px">&#9201;</div>
+                        <div style="font-size:10px;font-weight:800;color:var(--navy)">Clock In</div>
+                        <div style="font-size:6px;color:var(--muted);margin-top:2px">QR Scan or GPS</div>
+                    </div>
+                    <div class="ps-card">
+                        <div class="ps-card-title">Today</div>
+                        <div class="ps-stat"><span class="ps-stat-label">Clock In</span><span class="ps-stat-val" style="color:#059669">8:02 AM</span></div>
+                        <div class="ps-stat"><span class="ps-stat-label">Status</span><span class="ps-stat-val">Present</span></div>
+                    </div>
+                    <div class="ps-card">
+                        <div class="ps-card-title">This Week</div>
+                        <div class="ps-bar"><div class="ps-bar-fill" style="width:100%;background:#059669"></div></div>
+                        <div style="display:flex;gap:4px;margin-top:4px">
+                            <div style="flex:1;height:3px;border-radius:2px;background:#059669"></div>
+                            <div style="flex:1;height:3px;border-radius:2px;background:#059669"></div>
+                            <div style="flex:1;height:3px;border-radius:2px;background:#059669"></div>
+                            <div style="flex:1;height:3px;border-radius:2px;background:#059669"></div>
+                            <div style="flex:1;height:3px;border-radius:2px;background:var(--border)"></div>
+                        </div>
+                        <div style="font-size:6px;color:var(--muted);margin-top:4px">4/5 days this week</div>
+                    </div>
+                </div>
+                <div class="ps-nav">
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Clock</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">My Day</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Messages</span></div>
+                    <div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dl-actions">
+        <a href="{{ route('app.download') }}" class="dl-btn dl-btn-primary" aria-label="Download EduCore APK">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            Download APK
+        </a>
+        <a href="#pricing" class="dl-btn dl-btn-outline" aria-label="View pricing plans">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20m5-17H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            View Pricing
+        </a>
+    </div>
+    <div class="dl-badges">
+        <a href="{{ route('app.download') }}" class="dl-badge" aria-label="Download from website">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            <span class="dl-badge-text">Direct Download<span class="dl-badge-sub">APK &bull; No store needed</span></span>
+        </a>
+        <a href="https://www.amazon.com/dp/YOUR_AMAZON_ID" class="dl-badge" target="_blank" rel="noopener" aria-label="Get on Amazon Appstore">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.46 15.37c-.39.55-.97.83-1.74.83-.55 0-1.08-.17-1.59-.5-.52-.34-.93-.81-1.24-1.42l-1.46 1.02c.49.92 1.2 1.62 2.12 2.11.92.49 1.9.73 2.93.73.96 0 1.83-.22 2.61-.66.78-.44 1.39-1.06 1.83-1.86.44-.8.66-1.7.66-2.68v-.57H15.9v.57c0 .57.1 1.06.28 1.46zm-2.83-7.55c0-.52-.11-.97-.33-1.35-.22-.38-.53-.68-.92-.9-.39-.23-.84-.34-1.34-.34-.5 0-.95.11-1.34.34-.39.22-.7.52-.92.9-.22.38-.33.83-.33 1.35v.28c0 .52.11.97.33 1.35.22.38.53.68.92.9.39.23.84.34 1.34.34.5 0 .95-.11 1.34-.34.39-.22.7-.52.92-.9.22-.38.33-.83.33-1.35v-.28zm-1.39 7.55c-.43 0-.79-.14-1.08-.42-.29-.28-.43-.67-.43-1.16v-.28c0-.49.14-.88.43-1.16.29-.28.65-.42 1.08-.42.43 0 .79.14 1.08.42.29.28.43.67.43 1.16v.28c0 .49-.14.88-.43 1.16-.29.28-.65.42-1.08.42z"/></svg>
+            <span class="dl-badge-text">Amazon<span class="dl-badge-sub">Appstore</span></span>
+        </a>
+        <a href="https://appgallery.huawei.com/app/C110000000" class="dl-badge" target="_blank" rel="noopener" aria-label="Get on Huawei AppGallery">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span class="dl-badge-text">Huawei<span class="dl-badge-sub">AppGallery</span></span>
+        </a>
     </div>
 </section>
 
