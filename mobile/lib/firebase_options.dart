@@ -37,6 +37,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '532841786092',
     projectId: 'educore-35d95',
     storageBucket: 'educore-35d95.firebasestorage.app',
-    iosBundleId: 'online.educoreng.educore',
+    iosBundleId: 'online.educoreng.educoreStaff',
   );
 }
