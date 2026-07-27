@@ -28,19 +28,32 @@ jobs:
       - run: flutter pub get
 
       # ── Decode release keystore from GitHub Secrets ──────────────────
+      # Note: secrets context is not available in step-level 'if' conditions,
+      # so we use a bash conditional to skip when the secret is empty.
       - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        run: echo "$KEYSTORE_BASE64" | base64 -d > android/app/educore-release.jks
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/educore-release.jks
+            echo "✅ Keystore decoded"
+          else
+            echo "⚠️ KEYSTORE_BASE64 not set — will use debug signing"
+          fi
+        shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Write key.properties
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         run: |
-          echo "storePassword=$KEYSTORE_STORE_PASSWORD" > android/key.properties
-          echo "keyPassword=$KEYSTORE_KEY_PASSWORD"     >> android/key.properties
-          echo "keyAlias=$KEYSTORE_KEY_ALIAS"           >> android/key.properties
-          echo "storeFile=educore-release.jks"          >> android/key.properties
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD" > android/key.properties
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"     >> android/key.properties
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"           >> android/key.properties
+            echo "storeFile=educore-release.jks"          >> android/key.properties
+            echo "✅ key.properties written"
+          else
+            echo "⚠️ No keystore secrets — skipping key.properties"
+          fi
+        shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
