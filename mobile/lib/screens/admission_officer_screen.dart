@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import '../push_service.dart';
 import 'staff_attendance_screen.dart';
 
 class AdmissionOfficerScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _AdmissionOfficerScreenState extends State<AdmissionOfficerScreen> {
         IconButton(
           tooltip: 'Sign out',
           onPressed: () async {
+            PushService.instance.unregisterToken();
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(

@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../api_client.dart';
 import '../main.dart';
+import 'empty_state.dart';
+import 'haptic_helper.dart';
 import 'login_screen.dart';
+import '../push_service.dart';
+import 'pressable_card.dart';
+import 'skeleton_loader.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -57,7 +62,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (value) => setState(() => _tab = value),
+        onDestinationSelected: (value) {
+          HapticHelper.selection();
+          setState(() => _tab = value);
+        },
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.home_outlined),
@@ -161,28 +169,68 @@ class _StudentDashboardState extends State<_StudentDashboard> {
               const SizedBox(height: 22),
               const _SectionTitle('Upcoming CBT exams'),
               if (exams.isEmpty)
-                const _StudentEmptyLine('No published examinations right now.')
+                const EmptyState(
+                  icon: Icons.quiz_outlined,
+                  title: 'No exams scheduled',
+                  subtitle: 'No published examinations right now.',
+                )
               else
                 ...exams.take(3).map((item) {
                   final exam = item as Map<String, dynamic>;
-                  return _InfoTile(
-                    icon: Icons.quiz_outlined,
-                    title: exam['title']?.toString() ?? 'Examination',
-                    subtitle:
+                  return PressableCard(
+                    borderRadius: 12,
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x1FD79A21),
+                        child: Icon(Icons.quiz_outlined, color: kNavy),
+                      ),
+                      title: Text(
+                        exam['title']?.toString() ?? 'Examination',
+                        style: const TextStyle(
+                            color: kInk, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
                         '${exam['subject'] ?? 'Subject'} · ${exam['duration_minutes'] ?? 0} minutes',
+                        style:
+                            const TextStyle(color: kMuted, fontSize: 12),
+                      ),
+                      trailing:
+                          const Icon(Icons.chevron_right, color: kMuted),
+                    ),
                   );
                 }),
               const SizedBox(height: 18),
               const _SectionTitle('School announcements'),
               if (notices.isEmpty)
-                const _StudentEmptyLine('No announcements right now.')
+                const EmptyState(
+                  icon: Icons.campaign_outlined,
+                  title: 'No announcements',
+                  subtitle: 'No announcements right now.',
+                )
               else
                 ...notices.take(3).map((item) {
                   final notice = item as Map<String, dynamic>;
-                  return _InfoTile(
-                    icon: Icons.campaign_outlined,
-                    title: notice['title']?.toString() ?? 'Announcement',
-                    subtitle: notice['body']?.toString() ?? '',
+                  return PressableCard(
+                    borderRadius: 12,
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x1FD79A21),
+                        child:
+                            Icon(Icons.campaign_outlined, color: kNavy),
+                      ),
+                      title: Text(
+                        notice['title']?.toString() ?? 'Announcement',
+                        style: const TextStyle(
+                            color: kInk, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        notice['body']?.toString() ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(color: kMuted, fontSize: 12),
+                      ),
+                    ),
                   );
                 }),
             ],
@@ -202,11 +250,26 @@ class _StudentTimetable extends StatelessWidget {
       endpoint: '/student/timetable',
       listKey: 'periods',
       emptyText: 'No timetable periods are available.',
-      itemBuilder: (item) => _InfoTile(
-        icon: Icons.schedule_rounded,
-        title: '${item['day'] ?? ''} · ${item['subject'] ?? 'Subject'}',
-        subtitle:
+      itemBuilder: (item) => PressableCard(
+        borderRadius: 12,
+        child: ListTile(
+          leading: const CircleAvatar(
+            backgroundColor: Color(0x1FD79A21),
+            child: Icon(Icons.schedule_rounded, color: kNavy),
+          ),
+          title: Text(
+            '${item['day'] ?? ''} · ${item['subject'] ?? 'Subject'}',
+            style: const TextStyle(
+                color: kInk, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
             '${item['start_time'] ?? ''} – ${item['end_time'] ?? ''} · ${item['teacher'] ?? 'Teacher'}${item['venue'] == null ? '' : ' · ${item['venue']}'}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: kMuted, fontSize: 12),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: kMuted),
+        ),
       ),
     );
   }
@@ -223,11 +286,26 @@ class _StudentExams extends StatelessWidget {
       emptyText: 'No published CBT examinations.',
       itemBuilder: (item) {
         final attempt = item['attempt'] as Map<String, dynamic>?;
-        return _InfoTile(
-          icon: Icons.computer_rounded,
-          title: item['title']?.toString() ?? 'CBT Examination',
-          subtitle:
+        return PressableCard(
+          borderRadius: 12,
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0x1FD79A21),
+              child: Icon(Icons.computer_rounded, color: kNavy),
+            ),
+            title: Text(
+              item['title']?.toString() ?? 'CBT Examination',
+              style: const TextStyle(
+                  color: kInk, fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
               '${item['subject'] ?? 'Subject'} · ${item['duration_minutes'] ?? 0} minutes${attempt == null ? '' : ' · ${attempt['status']}'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: kMuted, fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: kMuted),
+          ),
         );
       },
     );
@@ -243,11 +321,26 @@ class _StudentResults extends StatelessWidget {
       endpoint: '/student/results',
       listKey: 'results',
       emptyText: 'No computed results are available yet.',
-      itemBuilder: (item) => _InfoTile(
-        icon: Icons.workspace_premium_outlined,
-        title: '${item['term'] ?? 'Term'} · ${item['session'] ?? ''}',
-        subtitle:
+      itemBuilder: (item) => PressableCard(
+        borderRadius: 12,
+        child: ListTile(
+          leading: const CircleAvatar(
+            backgroundColor: Color(0x1FD79A21),
+            child: Icon(Icons.workspace_premium_outlined, color: kNavy),
+          ),
+          title: Text(
+            '${item['term'] ?? 'Term'} · ${item['session'] ?? ''}',
+            style: const TextStyle(
+                color: kInk, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
             'Average ${item['average'] ?? 0}% · Position ${item['position'] ?? '—'} of ${item['class_size'] ?? '—'}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: kMuted, fontSize: 12),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: kMuted),
+        ),
       ),
     );
   }
@@ -278,21 +371,26 @@ class _StudentMore extends StatelessWidget {
         const Text('Student access · Personal records only',
             textAlign: TextAlign.center, style: TextStyle(color: kMuted)),
         const SizedBox(height: 28),
-        const _InfoTile(
-            icon: Icons.calendar_month_outlined,
-            title: 'Attendance',
-            subtitle: 'Your personal attendance record'),
-        const _InfoTile(
-            icon: Icons.badge_outlined,
-            title: 'Student ID',
-            subtitle: 'Your EduCore identity'),
-        const _InfoTile(
-            icon: Icons.notifications_outlined,
-            title: 'Announcements',
-            subtitle: 'Updates from your school'),
+        const _StudentMenuTile(
+          icon: Icons.calendar_month_outlined,
+          title: 'Attendance',
+          subtitle: 'Your personal attendance record',
+        ),
+        const _StudentMenuTile(
+          icon: Icons.badge_outlined,
+          title: 'Student ID',
+          subtitle: 'Your EduCore identity',
+        ),
+        const _StudentMenuTile(
+          icon: Icons.notifications_outlined,
+          title: 'Announcements',
+          subtitle: 'Updates from your school',
+        ),
         const SizedBox(height: 18),
         OutlinedButton.icon(
           onPressed: () async {
+            HapticHelper.heavy();
+            PushService.instance.unregisterToken();
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
@@ -348,7 +446,12 @@ class _EndpointListState extends State<_EndpointList> {
           child: ListView(
             padding: const EdgeInsets.all(14),
             children: items.isEmpty
-                ? [_StudentEmptyLine(widget.emptyText)]
+                ? [
+                    EmptyState(
+                      icon: Icons.inbox_outlined,
+                      title: widget.emptyText,
+                    )
+                  ]
                 : items
                     .map((item) =>
                         widget.itemBuilder(item as Map<String, dynamic>))
@@ -373,25 +476,16 @@ class _StudentFuture extends StatelessWidget {
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const SkeletonCard(count: 4);
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.cloud_off_rounded, color: kMuted, size: 46),
-                  const SizedBox(height: 12),
-                  Text(snapshot.error.toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: kMuted)),
-                  const SizedBox(height: 16),
-                  FilledButton(onPressed: onRetry, child: const Text('Retry')),
-                ],
-              ),
-            ),
+          return EmptyState(
+            icon: Icons.cloud_off_rounded,
+            title: 'Unable to load data',
+            subtitle: snapshot.error.toString(),
+            actionLabel: 'Retry',
+            onAction: onRetry,
+            iconColor: kRisk,
           );
         }
         return builder(snapshot.data ?? const {});
@@ -489,38 +583,31 @@ class _SectionTitle extends StatelessWidget {
               color: kInk, fontSize: 17, fontWeight: FontWeight.w800)));
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile(
-      {required this.icon, required this.title, required this.subtitle});
+class _StudentMenuTile extends StatelessWidget {
+  const _StudentMenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
   final IconData icon;
   final String title;
   final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+    return PressableCard(
+      borderRadius: 12,
       child: ListTile(
         leading: CircleAvatar(
-            backgroundColor: const Color(0x1FD79A21),
-            child: Icon(icon, color: kNavy)),
+          backgroundColor: const Color(0x1FD79A21),
+          child: Icon(icon, color: kNavy),
+        ),
         title: Text(title,
             style: const TextStyle(color: kInk, fontWeight: FontWeight.w700)),
         subtitle: Text(subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: kMuted, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right, color: kMuted),
       ),
     );
   }
-}
-
-class _StudentEmptyLine extends StatelessWidget {
-  const _StudentEmptyLine(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Text(text,
-          textAlign: TextAlign.center, style: const TextStyle(color: kMuted)));
 }

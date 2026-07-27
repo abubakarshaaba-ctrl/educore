@@ -1,9 +1,10 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
-import 'api_client.dart';
+import 'firebase_options.dart';
 import 'push_service.dart';
-import 'portal_router.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 
 // EduCore brand
 const kNavy = Color(0xFF071E45);
@@ -16,16 +17,23 @@ const kRisk = Color(0xFFB42318);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ApiClient.instance.restore();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Register background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // Initialize push notification service
   await PushService.instance.init();
-  if (ApiClient.instance.isLoggedIn) {
-    PushService.instance.registerForCurrentUser();
-  }
-  runApp(const EduCoreStaffApp());
+
+  runApp(const EduCoreApp());
 }
 
-class EduCoreStaffApp extends StatelessWidget {
-  const EduCoreStaffApp({super.key});
+class EduCoreApp extends StatelessWidget {
+  const EduCoreApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -96,9 +104,8 @@ class EduCoreStaffApp extends StatelessWidget {
           ),
         ),
       ),
-      home: ApiClient.instance.isLoggedIn
-          ? homeForCurrentSession()
-          : const LoginScreen(),
+      // Splash screen handles auth check and navigation
+      home: const SplashScreen(),
     );
   }
 }

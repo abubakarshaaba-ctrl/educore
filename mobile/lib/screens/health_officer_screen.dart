@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import '../push_service.dart';
 
 class HealthOfficerScreen extends StatefulWidget {
   const HealthOfficerScreen({super.key});
@@ -469,6 +470,7 @@ class _HealthMore extends StatelessWidget {
       const SizedBox(height: 18),
       OutlinedButton.icon(
           onPressed: () async {
+            PushService.instance.unregisterToken();
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(

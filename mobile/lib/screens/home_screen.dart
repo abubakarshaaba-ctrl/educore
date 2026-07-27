@@ -4,11 +4,16 @@ import '../api_client.dart';
 import '../main.dart';
 import 'attendance_screen.dart';
 import 'exam_duties_screen.dart';
+import 'empty_state.dart';
+import 'haptic_helper.dart';
 import 'id_card_screen.dart';
 import 'login_screen.dart';
+import '../push_service.dart';
 import 'messages_screen.dart';
 import 'payslip_screen.dart';
+import 'pressable_card.dart';
 import 'scores_screen.dart';
+import 'skeleton_loader.dart';
 import 'staff_attendance_screen.dart';
 import 'timetable_screen.dart';
 
@@ -91,7 +96,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: (i) {
+          HapticHelper.selection();
+          setState(() => _tab = i);
+        },
         destinations: tabs
             .map((tab) => NavigationDestination(
                   icon: Icon(tab.icon),
@@ -152,21 +160,26 @@ class _ClassesTabState extends State<_ClassesTab> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonCard(count: 5);
           }
           if (snap.hasError) {
-            return _ErrorRetry(
-              message: snap.error.toString(),
-              onRetry: () => setState(() => _future = _load()),
+            return EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Unable to load classes',
+              subtitle: snap.error.toString(),
+              actionLabel: 'Retry',
+              onAction: () => setState(() => _future = _load()),
+              iconColor: kRisk,
             );
           }
           final data = snap.data ?? const _StaffHomeData();
           final classes = data.classes;
           if (classes.isEmpty) {
-            return const _Empty(
+            return const EmptyState(
               icon: Icons.class_outlined,
-              text:
-                  'No classes assigned to you yet.\nAsk your school admin to assign you as a form tutor or subject teacher.',
+              title: 'No classes assigned yet',
+              subtitle:
+                  'Ask your school admin to assign you as a form tutor or subject teacher.',
             );
           }
           final uniqueArms = <int>{};
@@ -238,18 +251,27 @@ class _ClassesTabState extends State<_ClassesTab> {
               final classIndex = i - 3;
               final c = classes[classIndex] as Map<String, dynamic>;
               final isTutor = c['role'] == 'form_tutor';
-              return Card(
-                elevation: 0,
-                margin: const EdgeInsets.only(bottom: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFD8E0E8)),
-                ),
+              return PressableCard(
+                onTap: isTutor
+                    ? () {
+                        HapticHelper.tap();
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => AttendanceScreen(
+                            classArmId: c['id'] as int,
+                            className: c['name'] as String? ?? 'Class',
+                          ),
+                        ));
+                      }
+                    : null,
+                enabled: isTutor,
+                borderRadius: 12,
                 child: ListTile(
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   leading: CircleAvatar(
-                    backgroundColor: isTutor ? kNavy : kGold.withOpacity(.18),
+                    backgroundColor: isTutor
+                        ? kNavy
+                        : kGold.withValues(alpha: 0.18),
                     child: Icon(
                       isTutor ? Icons.star_rounded : Icons.menu_book_rounded,
                       color: isTutor ? kGold : kNavy,
@@ -266,14 +288,8 @@ class _ClassesTabState extends State<_ClassesTab> {
                         : '${(c['subject']?['name']) ?? 'Subject'} · ${c['students_count']} students',
                     style: const TextStyle(color: kMuted, fontSize: 12.5),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: kMuted),
-                  onTap: isTutor
-                      ? () => Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => AttendanceScreen(
-                              classArmId: c['id'] as int,
-                              className: c['name'] as String? ?? 'Class',
-                            ),
-                          ))
+                  trailing: isTutor
+                      ? const Icon(Icons.chevron_right, color: kMuted)
                       : null,
                 ),
               );
@@ -453,19 +469,24 @@ class _AnnouncementsTabState extends State<_AnnouncementsTab> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonCard(count: 4);
           }
           if (snap.hasError) {
-            return _ErrorRetry(
-              message: snap.error.toString(),
-              onRetry: () => setState(() => _future = _load()),
+            return EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Unable to load announcements',
+              subtitle: snap.error.toString(),
+              actionLabel: 'Retry',
+              onAction: () => setState(() => _future = _load()),
+              iconColor: kRisk,
             );
           }
           final items = snap.data ?? [];
           if (items.isEmpty) {
-            return const _Empty(
+            return const EmptyState(
               icon: Icons.campaign_outlined,
-              text: 'No announcements right now.',
+              title: 'No announcements right now',
+              subtitle: 'Check back later for school updates.',
             );
           }
           return ListView.separated(
@@ -476,16 +497,8 @@ class _AnnouncementsTabState extends State<_AnnouncementsTab> {
               final a = items[i] as Map<String, dynamic>;
               final urgent =
                   a['priority'] == 'high' || a['priority'] == 'urgent';
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: urgent
-                        ? const Color(0xFFFECDCA)
-                        : const Color(0xFFD8E0E8),
-                  ),
-                ),
+              return PressableCard(
+                borderRadius: 12,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -559,8 +572,11 @@ class _TimetableTabState extends State<_TimetableTab> {
                   icon: Icon(Icons.groups_rounded, size: 18)),
             ],
             selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
-            style: ButtonStyle(
+            onSelectionChanged: (s) {
+              HapticHelper.selection();
+              setState(() => _mode = s.first);
+            },
+            style: const ButtonStyle(
               visualDensity: VisualDensity.compact,
             ),
           ),
@@ -638,6 +654,8 @@ class _MoreTab extends StatelessWidget {
           icon: const Icon(Icons.logout_rounded),
           label: const Text('Sign out'),
           onPressed: () async {
+            HapticHelper.heavy();
+            PushService.instance.unregisterToken();
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(
@@ -653,16 +671,15 @@ class _MoreTab extends StatelessWidget {
 
   Widget _menuTile(BuildContext context, IconData icon, String title,
       String subtitle, Widget screen) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFD8E0E8)),
-      ),
+    return PressableCard(
+      onTap: () {
+        HapticHelper.tap();
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+      },
+      borderRadius: 12,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: kGold.withOpacity(.16),
+          backgroundColor: kGold.withValues(alpha: 0.16),
           child: Icon(icon, color: kNavy),
         ),
         title: Text(title,
@@ -670,8 +687,6 @@ class _MoreTab extends StatelessWidget {
         subtitle:
             Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12)),
         trailing: const Icon(Icons.chevron_right, color: kMuted),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => screen)),
       ),
     );
   }
@@ -690,47 +705,4 @@ class _AnnouncementsScreen extends StatelessWidget {
   }
 }
 
-// ── Shared bits ─────────────────────────────────────────────────────────
-class _Empty extends StatelessWidget {
-  const _Empty({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
 
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        const SizedBox(height: 120),
-        Icon(icon, size: 52, color: kMuted.withOpacity(.5)),
-        const SizedBox(height: 14),
-        Text(text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: kMuted, height: 1.5)),
-      ],
-    );
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  const _ErrorRetry({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(30),
-      children: [
-        const SizedBox(height: 90),
-        const Icon(Icons.wifi_off_rounded, size: 48, color: kMuted),
-        const SizedBox(height: 14),
-        Text(message,
-            textAlign: TextAlign.center, style: const TextStyle(color: kMuted)),
-        const SizedBox(height: 16),
-        Center(
-          child: FilledButton(onPressed: onRetry, child: const Text('Retry')),
-        ),
-      ],
-    );
-  }
-}

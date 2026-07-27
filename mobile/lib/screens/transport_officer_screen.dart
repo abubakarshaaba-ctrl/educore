@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import '../push_service.dart';
 
 class TransportOfficerScreen extends StatefulWidget {
   const TransportOfficerScreen({super.key});
@@ -414,6 +415,7 @@ class _OfficerProfile extends StatelessWidget {
       const SizedBox(height: 18),
       OutlinedButton.icon(
           onPressed: () async {
+            PushService.instance.unregisterToken();
             await ApiClient.instance.logout();
             if (context.mounted) {
               Navigator.of(context).pushAndRemoveUntil(

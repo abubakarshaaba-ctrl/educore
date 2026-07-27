@@ -6,7 +6,7 @@ void main() {
   testWidgets('signed-out app presents the staff login', (tester) async {
     SharedPreferences.setMockInitialValues({});
 
-    await tester.pumpWidget(const EduCoreStaffApp());
+    await tester.pumpWidget(const EduCoreApp());
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);
