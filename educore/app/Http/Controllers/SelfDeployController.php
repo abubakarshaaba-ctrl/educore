@@ -31,6 +31,7 @@ class SelfDeployController extends Controller
         'educore/bootstrap/providers.php',
         'educore/tools/',
         'educore/public/',
+        'brand/',
         '.htaccess',
         'index.php',
         '.user.ini',
