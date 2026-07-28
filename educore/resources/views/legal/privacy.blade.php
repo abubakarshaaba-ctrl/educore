@@ -34,10 +34,11 @@ a{color:inherit;text-decoration:none}
 .content h2{color:var(--navy);font-size:25px;letter-spacing:-.035em;line-height:1.25;margin:48px 0 15px;padding-top:8px}.content h3{color:var(--navy);font-size:16px;margin:27px 0 9px}.content p{color:var(--slate);font-size:13px;margin-bottom:15px}.content ul{margin:0 0 17px 20px}.content li{color:var(--slate);font-size:13px;margin-bottom:8px;padding-left:2px}.content li strong{color:var(--navy)}.content a{color:#A66C00;text-decoration:underline;text-decoration-color:rgba(166,108,0,.26)}.content a:hover{text-decoration-color:#A66C00}
 .notice{background:#FFF8E8;border:1px solid #F1D694;border-left:4px solid var(--gold);border-radius:11px;padding:18px 20px;margin:24px 0}.notice p{margin:0;font-size:12px}
 .table-wrap{width:100%;overflow-x:auto;margin:18px 0 26px;border:1px solid var(--line);border-radius:13px}.table-wrap table{width:100%;min-width:690px;border-collapse:collapse;font-size:11px}.table-wrap th,.table-wrap td{text-align:left;vertical-align:top;padding:11px 13px;border-bottom:1px solid var(--line)}.table-wrap tr:last-child td{border-bottom:0}.table-wrap th{background:var(--soft);color:var(--navy);text-transform:uppercase;letter-spacing:.06em;font-size:9px}.table-wrap td{color:var(--slate)}
-.contact-card{background:linear-gradient(145deg,#071E45,#0B326D);color:#fff;border-radius:18px;padding:27px;margin-top:20px;box-shadow:0 18px 45px rgba(7,30,69,.15)}.contact-card p,.contact-card li{color:rgba(255,255,255,.73)}.contact-card strong{color:#fff}.contact-card a{color:#F6CD65}.contact-card ul{margin-bottom:14px}
+.contact-card{background:linear-gradient(145deg,#071E45,#0B326D);color:#fff;border-radius:18px;padding:27px;margin-top:20px;box-shadow:0 18px 45px rgba(7,30,69,.15)}.contact-card p{color:rgba(255,255,255,.86)}.contact-card strong{color:#fff}.contact-card a{color:#FFE08A;text-decoration-color:rgba(255,224,138,.55)}.contact-card a:hover{color:#fff;text-decoration-color:#fff}
+.contact-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0!important;list-style:none}.content .contact-list li{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:12px;margin:0;padding:11px 13px;color:#fff;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:13px}.contact-copy{min-width:0}.content .contact-card .contact-copy strong{display:block;color:rgba(255,255,255,.72);font-size:9px;line-height:1.2;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}.contact-copy a{display:block;overflow-wrap:anywhere;font-size:12px;font-weight:800;line-height:1.4}.contact-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 6px 16px rgba(0,0,0,.14)}.contact-icon svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.contact-icon.email{background:#D79A21}.contact-icon.phone{background:#1479B8}.contact-icon.whatsapp{background:#169B58}.contact-icon.website{background:#087F8C}
 footer{background:var(--dark);color:rgba(255,255,255,.6);padding:38px 0;text-align:center}footer p{font-size:10px;margin:4px 0}footer a{color:var(--gold-light)}
 @media(max-width:900px){.nav-links,.nav-actions{display:none}.menu-toggle{display:grid}.legal-layout{grid-template-columns:1fr}.toc{display:none}}
-@media(max-width:620px){.container{width:min(100% - 28px,1160px)}.nav{height:68px}.mobile-menu{top:68px}.brand img{width:36px;height:36px}.hero{padding:118px 0 52px}.hero h1{font-size:42px}.hero p{font-size:14px}.legal-layout{padding:42px 0 76px}.meta{grid-template-columns:1fr}.content h2{font-size:22px;margin-top:38px}.contact-card{padding:22px 18px}}
+@media(max-width:620px){.container{width:min(100% - 28px,1160px)}.nav{height:68px}.mobile-menu{top:68px}.brand img{width:36px;height:36px}.hero{padding:118px 0 52px}.hero h1{font-size:42px}.hero p{font-size:14px}.legal-layout{padding:42px 0 76px}.meta{grid-template-columns:1fr}.content h2{font-size:22px;margin-top:38px}.contact-card{padding:22px 18px}.contact-list{grid-template-columns:1fr}.content .contact-list li{padding:11px}}
 </style>
 </head>
 <body>
@@ -206,12 +207,24 @@ footer{background:var(--dark);color:rgba(255,255,255,.6);padding:38px 0;text-ali
 
         <h2 id="contact">14. Contact and Complaints</h2>
         <div class="contact-card">
-            <p><strong>EduCore Education Technology</strong><br>Privacy and Support Desk<br>Lagos, Lagos State, Federal Republic of Nigeria</p>
-            <ul>
-                <li><strong>Email:</strong> <a href="mailto:support@educoreng.online?subject=Privacy%20Request">support@educoreng.online</a></li>
-                <li><strong>Telephone:</strong> <a href="tel:+2347065595768">07065595768</a></li>
-                <li><strong>WhatsApp:</strong> <a href="https://wa.me/2347065595768" target="_blank" rel="noopener">+2347065595768</a></li>
-                <li><strong>Website:</strong> <a href="https://educoreng.online">https://educoreng.online</a></li>
+            <p><strong>EduCore Education Technology</strong><br>Privacy and Support Desk<br>Abuja, FCT, Federal Republic of Nigeria</p>
+            <ul class="contact-list">
+                <li>
+                    <span class="contact-icon email" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></svg></span>
+                    <span class="contact-copy"><strong>Email</strong><a href="mailto:support@educoreng.online?subject=Privacy%20Request">support@educoreng.online</a></span>
+                </li>
+                <li>
+                    <span class="contact-icon phone" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.7 3h3l1.5 4.7-2.2 1.4a15.2 15.2 0 0 0 5.9 5.9l1.4-2.2 4.7 1.5v3a3 3 0 0 1-3 3A15 15 0 0 1 3.7 6a3 3 0 0 1 3-3Z"></path></svg></span>
+                    <span class="contact-copy"><strong>Telephone</strong><a href="tel:+2347065595768">07065595768</a></span>
+                </li>
+                <li>
+                    <span class="contact-icon whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"></path><path d="M8.3 7.8c.4 3.4 2.4 5.5 5.9 6l1.1-1.6-2.2-1-1 1a6.5 6.5 0 0 1-2.4-2.4l1-1-1-2.2-1.4 1.2Z"></path></svg></span>
+                    <span class="contact-copy"><strong>WhatsApp</strong><a href="https://wa.me/2347065595768" target="_blank" rel="noopener">+2347065595768</a></span>
+                </li>
+                <li>
+                    <span class="contact-icon website" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg></span>
+                    <span class="contact-copy"><strong>Website</strong><a href="https://educoreng.online">educoreng.online</a></span>
+                </li>
             </ul>
             <p>If you are not satisfied with our response, you may lodge a complaint with the <a href="https://ndpc.gov.ng" target="_blank" rel="noopener">Nigeria Data Protection Commission</a>.</p>
         </div>
@@ -220,7 +233,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.6);padding:38px 0;text-ali
 
 <footer>
     <div class="container">
-        <p>EduCore Education Technology &middot; Lagos, Lagos State, Nigeria &middot; <a href="mailto:support@educoreng.online">support@educoreng.online</a> &middot; <a href="tel:+2347065595768">07065595768</a></p>
+        <p>EduCore Education Technology &middot; Abuja, FCT, Nigeria &middot; <a href="mailto:support@educoreng.online">support@educoreng.online</a> &middot; <a href="tel:+2347065595768">07065595768</a></p>
         <p>&copy; {{ date('Y') }} EduCore. All rights reserved. &nbsp;|&nbsp; <a href="{{ route('legal.privacy') }}">Privacy Policy</a> &nbsp;|&nbsp; <a href="{{ route('legal.terms') }}">Terms of Service</a></p>
     </div>
 </footer>
