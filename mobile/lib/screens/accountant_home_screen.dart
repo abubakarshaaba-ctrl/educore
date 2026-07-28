@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'staff_attendance_screen.dart';
+import 'login_screen.dart';
 
 class AccountantHomeScreen extends StatefulWidget {
   const AccountantHomeScreen({super.key});
@@ -16,8 +17,18 @@ class _AccountantHomeScreenState extends State<AccountantHomeScreen> {
   Widget build(BuildContext context) {
     const titles = ['Finance', 'Invoices', 'Payroll', 'My Attendance'];
     return Scaffold(
-      appBar: AppBar(title: Text(titles[_tab]), actions: const [
-        Padding(
+      appBar: AppBar(title: Text(titles[_tab]), actions: [
+        IconButton(
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () async {
+              await ApiClient.instance.logout();
+              if (context.mounted)
+                Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false);
+            }),
+        const Padding(
             padding: EdgeInsets.only(right: 10),
             child: Chip(
                 label: Text('ACCOUNTANT',
@@ -81,8 +92,133 @@ class _FinanceOverviewState extends State<_FinanceOverview> {
               _moneyCard('Collected', s['collected'], kGood),
               _moneyCard('Outstanding', s['outstanding'], kGold),
               _moneyCard('Expenses', s['expenses'], kRisk),
+              const SizedBox(height: 18),
+              const Text('Prepare finance',
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800, color: kInk)),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                  onPressed: _prepareFees,
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Prepare fee bills')),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                  onPressed: _preparePayroll,
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text('Prepare payroll')),
             ]));
       });
+
+  Future<void> _prepareFees() async {
+    try {
+      final options =
+          await ApiClient.instance.get('/accountant/preparation-options');
+      final terms = options['terms'] as List<dynamic>? ?? const [];
+      final levels = options['class_levels'] as List<dynamic>? ?? const [];
+      int? termId = terms.isEmpty ? null : terms.first['id'] as int;
+      int? levelId = levels.isEmpty ? null : levels.first['id'] as int;
+      final data = await showDialog<Map<String, dynamic>>(
+          context: context,
+          builder: (dialogContext) => StatefulBuilder(
+              builder: (_, setDialog) => AlertDialog(
+                    title: const Text('Prepare fee bills'),
+                    content: Column(mainAxisSize: MainAxisSize.min, children: [
+                      DropdownButtonFormField<int>(
+                          value: termId,
+                          decoration: const InputDecoration(labelText: 'Term'),
+                          items: terms.map((raw) {
+                            final row = raw as Map;
+                            return DropdownMenuItem(
+                                value: row['id'] as int,
+                                child:
+                                    Text('${row['name']} · ${row['session']}'));
+                          }).toList(),
+                          onChanged: (value) =>
+                              setDialog(() => termId = value)),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<int>(
+                          value: levelId,
+                          decoration:
+                              const InputDecoration(labelText: 'Class level'),
+                          items: levels.map((raw) {
+                            final row = raw as Map;
+                            return DropdownMenuItem(
+                                value: row['id'] as int,
+                                child: Text(row['name'].toString()));
+                          }).toList(),
+                          onChanged: (value) =>
+                              setDialog(() => levelId = value)),
+                    ]),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext,
+                              {'term_id': termId, 'class_level_id': levelId}),
+                          child: const Text('Generate'))
+                    ],
+                  )));
+      if (data == null) return;
+      final response =
+          await ApiClient.instance.post('/accountant/fees/generate', data);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response['message'].toString()),
+            backgroundColor: kGood));
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString()), backgroundColor: kRisk));
+    }
+  }
+
+  Future<void> _preparePayroll() async {
+    final now = DateTime.now();
+    final title = TextEditingController(
+        text: '${_monthName(now.month)} ${now.year} Payroll');
+    final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Prepare payroll'),
+              content: TextField(
+                  controller: title,
+                  decoration:
+                      const InputDecoration(labelText: 'Payroll title')),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, {
+                          'title': title.text.trim(),
+                          'period_start': DateTime(now.year, now.month, 1)
+                              .toIso8601String()
+                              .split('T')
+                              .first,
+                          'period_end': DateTime(now.year, now.month + 1, 0)
+                              .toIso8601String()
+                              .split('T')
+                              .first
+                        }),
+                    child: const Text('Generate'))
+              ],
+            ));
+    title.dispose();
+    if (result == null) return;
+    try {
+      final response =
+          await ApiClient.instance.post('/accountant/payroll/generate', result);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(response['message'].toString()),
+            backgroundColor: kGood));
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString()), backgroundColor: kRisk));
+    }
+  }
 }
 
 class _InvoiceList extends StatefulWidget {
@@ -176,3 +312,17 @@ Widget _error(Object? error) => Center(
         child: Text(error.toString(),
             textAlign: TextAlign.center,
             style: const TextStyle(color: kRisk))));
+String _monthName(int month) => const [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ][month - 1];

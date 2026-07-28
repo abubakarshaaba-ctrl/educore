@@ -4,11 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
-use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\PlatformAgent;
+use App\Services\PricingService;
+use App\Services\TenantOnboardingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PlatformController extends Controller
 {
@@ -16,8 +22,10 @@ class PlatformController extends Controller
     {
         $this->guard($request);
 
-        $payments = DB::table('platform_payments')->where('status', 'confirmed');
-        $recentTenants = Tenant::with('activeSubscription.plan')->latest()->limit(8)->get()
+        $payments = Schema::hasTable('platform_payments')
+            ? DB::table('platform_payments')->where('status', 'confirmed')
+            : null;
+        $recentTenants = Tenant::withCount(['users', 'students'])->latest()->limit(8)->get()
             ->map(fn (Tenant $tenant) => $this->tenantData($tenant));
 
         return response()->json([
@@ -27,8 +35,8 @@ class PlatformController extends Controller
                 'active_schools' => Tenant::where('status', Tenant::STATUS_ACTIVE)->count(),
                 'students' => Student::withoutTenantScope()->count(),
                 'platform_users' => User::whereNotNull('tenant_id')->count(),
-                'monthly_revenue' => (float) (clone $payments)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount'),
-                'total_revenue' => (float) (clone $payments)->sum('amount'),
+                'monthly_revenue' => $payments ? (float) (clone $payments)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount') : 0,
+                'total_revenue' => $payments ? (float) (clone $payments)->sum('amount') : 0,
             ],
             'attention' => [
                 'pending' => Tenant::where('status', Tenant::STATUS_PENDING)->count(),
@@ -43,7 +51,7 @@ class PlatformController extends Controller
     public function tenants(Request $request)
     {
         $this->guard($request);
-        $query = Tenant::with(['activeSubscription.plan'])->withCount(['users', 'students'])->latest();
+        $query = Tenant::withCount(['users', 'students'])->latest();
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
@@ -58,6 +66,9 @@ class PlatformController extends Controller
     public function billing(Request $request)
     {
         $this->guard($request);
+        if (!Schema::hasTable('platform_payments')) {
+            return response()->json(['summary' => ['confirmed' => 0, 'pending' => 0, 'this_month' => 0], 'payments' => []]);
+        }
         $base = DB::table('platform_payments');
         $payments = (clone $base)->join('tenants', 'tenants.id', '=', 'platform_payments.tenant_id')
             ->select('platform_payments.*', 'tenants.name as school_name')
@@ -85,20 +96,84 @@ class PlatformController extends Controller
     public function plans(Request $request)
     {
         $this->guard($request);
-        $plans = SubscriptionPlan::withCount(['subscriptions as subscribers_count' => fn ($query) => $query->whereIn('status', ['active', 'trial'])])
-            ->orderBy('sort_order')->get()->map(fn (SubscriptionPlan $plan) => [
-                'id' => $plan->id,
-                'name' => $plan->name,
-                'slug' => $plan->slug,
-                'monthly_price' => (float) $plan->monthly_price,
-                'annual_price' => (float) $plan->annual_price,
-                'max_students' => $plan->max_students,
-                'max_staff' => $plan->max_staff,
-                'subscribers' => $plan->subscribers_count,
-                'active' => (bool) $plan->is_active,
-                'features' => $plan->features ?? [],
+        $plans = collect(PricingService::tiers())->values()->map(fn (array $tier, int $index) => [
+            'id' => $index + 1,
+            'name' => $tier['range'],
+            'rate' => $tier['rate'],
+            'cycle' => $tier['cycle'],
+            'active' => true,
+            'features' => ['All EduCore modules', 'Role-based access', 'Unlimited staff accounts'],
+        ]);
+        return response()->json([
+            'model' => 'Pay per active student',
+            'annual_discount_percent' => (int) round(PricingService::ANNUAL_DISCOUNT * 100),
+            'plans' => $plans,
+        ]);
+    }
+
+    public function updateTenant(Request $request, Tenant $tenant)
+    {
+        $this->guard($request);
+        $data = $request->validate([
+            'status' => ['sometimes', 'in:active,pending,suspended,subscription_expired'],
+            'students_capacity' => ['sometimes', 'integer', 'min:20', 'max:1000000'],
+            'subscription_expires_at' => ['sometimes', 'nullable', 'date'],
+        ]);
+        $tenant->update($data);
+        return response()->json(['message' => 'School account updated.', 'tenant' => $this->tenantData($tenant->fresh()->loadCount(['users', 'students']))]);
+    }
+
+    public function storeTenant(Request $request, TenantOnboardingService $onboarding)
+    {
+        $this->guard($request);
+        $request->merge(['slug' => Tenant::normalizeSlug($request->input('slug'))]);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'], 'slug' => Tenant::slugRules(),
+            'email' => ['required', 'email'], 'phone' => ['nullable', 'string', 'max:30'],
+            'subscription_expires_at' => ['required', 'date', 'after:today'],
+            'admin_name' => ['required', 'string', 'max:150'],
+            'admin_email' => ['required', 'email', 'unique:users,email'],
+            'admin_password' => ['required', 'string', 'min:8'],
+        ]);
+
+        $tenant = DB::transaction(function () use ($data, $onboarding) {
+            $tenant = Tenant::create([
+                'name' => $data['name'], 'slug' => $data['slug'], 'email' => $data['email'],
+                'phone' => $data['phone'] ?? null, 'status' => Tenant::STATUS_ACTIVE,
+                'subscription_expires_at' => $data['subscription_expires_at'],
+                'theme_primary' => '#071E45', 'theme_accent' => '#D79A21', 'theme_sidebar' => '#071E45',
             ]);
-        return response()->json(['plans' => $plans]);
+            $admin = User::create([
+                'tenant_id' => $tenant->id, 'name' => $data['admin_name'], 'email' => $data['admin_email'],
+                'password' => Hash::make($data['admin_password']), 'role' => 'admin', 'is_super_admin' => false,
+                'is_active' => true, 'employment_status' => User::STAFF_STATUS_ACTIVE,
+                'employment_started_at' => today(), 'status_changed_at' => now(),
+            ]);
+            $admin->assignRole('admin');
+            $onboarding->createProvisioningDefaults($tenant);
+            return $tenant;
+        });
+
+        return response()->json(['message' => 'School registered successfully.', 'tenant' => $this->tenantData($tenant->loadCount(['users', 'students']))], 201);
+    }
+
+    public function agents(Request $request)
+    {
+        $this->guard($request);
+        return response()->json(['agents'=>PlatformAgent::withCount('referrals')->latest()->limit(100)->get()->map(fn($agent)=>$this->agentData($agent))]);
+    }
+
+    public function storeAgent(Request $request)
+    {
+        $this->guard($request);$data=$request->validate(['name'=>['required','string','max:150'],'email'=>['required','email','unique:platform_agents,email'],'phone'=>['nullable','string','max:30'],'state'=>['nullable','string','max:100'],'commission_rate'=>['required','numeric','min:1','max:50']]);
+        $agent=PlatformAgent::create([...$data,'referral_code'=>strtoupper(Str::random(8)),'is_active'=>true]);
+        return response()->json(['message'=>'Agent registered.','agent'=>$this->agentData($agent)],201);
+    }
+
+    public function updateAgent(Request $request, PlatformAgent $agent)
+    {
+        $this->guard($request);$data=$request->validate(['name'=>['sometimes','string','max:150'],'phone'=>['nullable','string','max:30'],'state'=>['nullable','string','max:100'],'commission_rate'=>['sometimes','numeric','min:1','max:50'],'is_active'=>['sometimes','boolean']]);$agent->update($data);
+        return response()->json(['message'=>'Agent updated.','agent'=>$this->agentData($agent->fresh()->loadCount('referrals'))]);
     }
 
     private function guard(Request $request): void
@@ -113,10 +188,16 @@ class PlatformController extends Controller
             'name' => $tenant->name,
             'slug' => $tenant->slug,
             'status' => $tenant->status,
-            'plan' => $tenant->activeSubscription?->plan?->name ?? 'No active plan',
+            'plan' => PricingService::tierLabel((int) ($tenant->students_count ?? PricingService::activeStudentCount($tenant->id))),
+            'students_capacity' => PricingService::capacityFor($tenant),
             'subscription_expires_at' => $tenant->subscription_expires_at?->toDateString(),
             'users' => $tenant->users_count ?? $tenant->users()->count(),
             'students' => $tenant->students_count ?? $tenant->students()->count(),
         ];
+    }
+
+    private function agentData(PlatformAgent $agent): array
+    {
+        return ['id'=>$agent->id,'name'=>$agent->name,'email'=>$agent->email,'phone'=>$agent->phone,'state'=>$agent->state,'commission_rate'=>(float)$agent->commission_rate,'referral_code'=>$agent->referral_code,'active'=>(bool)$agent->is_active,'referrals'=>$agent->referrals_count??$agent->referrals()->count(),'earned'=>(float)$agent->total_earned,'paid'=>(float)$agent->total_paid];
     }
 }
