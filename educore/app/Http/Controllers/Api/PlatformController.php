@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\PlatformAgent;
 use App\Services\PricingService;
 use App\Services\TenantOnboardingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class PlatformController extends Controller
@@ -155,6 +157,25 @@ class PlatformController extends Controller
         return response()->json(['message' => 'School registered successfully.', 'tenant' => $this->tenantData($tenant->loadCount(['users', 'students']))], 201);
     }
 
+    public function agents(Request $request)
+    {
+        $this->guard($request);
+        return response()->json(['agents'=>PlatformAgent::withCount('referrals')->latest()->limit(100)->get()->map(fn($agent)=>$this->agentData($agent))]);
+    }
+
+    public function storeAgent(Request $request)
+    {
+        $this->guard($request);$data=$request->validate(['name'=>['required','string','max:150'],'email'=>['required','email','unique:platform_agents,email'],'phone'=>['nullable','string','max:30'],'state'=>['nullable','string','max:100'],'commission_rate'=>['required','numeric','min:1','max:50']]);
+        $agent=PlatformAgent::create([...$data,'referral_code'=>strtoupper(Str::random(8)),'is_active'=>true]);
+        return response()->json(['message'=>'Agent registered.','agent'=>$this->agentData($agent)],201);
+    }
+
+    public function updateAgent(Request $request, PlatformAgent $agent)
+    {
+        $this->guard($request);$data=$request->validate(['name'=>['sometimes','string','max:150'],'phone'=>['nullable','string','max:30'],'state'=>['nullable','string','max:100'],'commission_rate'=>['sometimes','numeric','min:1','max:50'],'is_active'=>['sometimes','boolean']]);$agent->update($data);
+        return response()->json(['message'=>'Agent updated.','agent'=>$this->agentData($agent->fresh()->loadCount('referrals'))]);
+    }
+
     private function guard(Request $request): void
     {
         abort_unless($request->user()?->isSuperAdmin(), 403, 'Platform Super Admin access required.');
@@ -173,5 +194,10 @@ class PlatformController extends Controller
             'users' => $tenant->users_count ?? $tenant->users()->count(),
             'students' => $tenant->students_count ?? $tenant->students()->count(),
         ];
+    }
+
+    private function agentData(PlatformAgent $agent): array
+    {
+        return ['id'=>$agent->id,'name'=>$agent->name,'email'=>$agent->email,'phone'=>$agent->phone,'state'=>$agent->state,'commission_rate'=>(float)$agent->commission_rate,'referral_code'=>$agent->referral_code,'active'=>(bool)$agent->is_active,'referrals'=>$agent->referrals_count??$agent->referrals()->count(),'earned'=>(float)$agent->total_earned,'paid'=>(float)$agent->total_paid];
     }
 }

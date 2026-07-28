@@ -33,15 +33,15 @@ class ApiClient {
   bool canAny(Iterable<String> requested) => requested.any(can);
 
   Map<String, String> get _headers => {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    if (_token != null) 'Authorization': 'Bearer $_token',
-  };
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
 
   /// Auth headers for loading images via Image.network from the API.
   Map<String, String> get imageHeaders => {
-    if (_token != null) 'Authorization': 'Bearer $_token',
-  };
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
 
   /// Absolute URL for an authenticated API resource (e.g. an image endpoint).
   String url(String path) => '$baseUrl$path';
@@ -84,6 +84,13 @@ class ApiClient {
     return _decode(
       await http.patch(uri, headers: _headers, body: jsonEncode(body)),
     );
+  }
+
+  Future<Map<String, dynamic>> put(
+      String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$baseUrl$path');
+    return _decode(
+        await http.put(uri, headers: _headers, body: jsonEncode(body)));
   }
 
   /// Upload a single file (multipart) to an authenticated endpoint.

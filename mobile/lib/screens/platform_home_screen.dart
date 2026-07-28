@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../main.dart';
 import 'login_screen.dart';
+import 'platform_agents_screen.dart';
 
 class PlatformHomeScreen extends StatefulWidget {
   const PlatformHomeScreen({super.key});
@@ -599,6 +600,16 @@ class _GovernanceScreen extends StatelessWidget {
           subtitle: 'Inspect confirmed and pending platform payments.',
           trailing: const Icon(Icons.chevron_right),
           onTap: () => onNavigate(2),
+        ),
+        _PlatformTile(
+          icon: Icons.handshake_outlined,
+          title: 'Manage agents',
+          subtitle:
+              'Register agents, set commission rates, and control access.',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const PlatformAgentsScreen(),
+          )),
         ),
         _PlatformTile(
           icon: Icons.layers_outlined,

@@ -6,7 +6,7 @@ import 'login_screen.dart';
 import 'admission_officer_screen.dart';
 import 'scores_screen.dart';
 import 'admin_management_screen.dart';
-import 'staff_attendance_screen.dart';
+import 'admin_staff_attendance_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -519,10 +519,12 @@ class _AdminMore extends StatelessWidget {
         _AdminTile(
           icon: Icons.badge_outlined,
           title: 'Staff attendance',
-          subtitle: 'Clock in and view your personal staff attendance.',
+          subtitle: 'View reports and configure attendance rules.',
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const StaffAttendanceScreen())),
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const AdminStaffAttendanceScreen())),
         ),
         _AdminTile(
           icon: Icons.how_to_reg_outlined,

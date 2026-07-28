@@ -108,11 +108,17 @@ Route::prefix('v1')->group(function () {
             Route::patch('classes/{classArm}', [AdminController::class, 'updateClass']);
             Route::post('subjects', [AdminController::class, 'storeSubject']);
             Route::patch('subjects/{subject}', [AdminController::class, 'updateSubject']);
+            Route::get('staff-attendance', [\App\Http\Controllers\Api\AdminStaffAttendanceController::class, 'index']);
+            Route::get('staff-attendance/report', [\App\Http\Controllers\Api\AdminStaffAttendanceController::class, 'report']);
+            Route::put('staff-attendance/settings', [\App\Http\Controllers\Api\AdminStaffAttendanceController::class, 'updateSettings']);
         });
 
         Route::prefix('accountant')->group(function () {
             Route::get('dashboard', [\App\Http\Controllers\Api\AccountantController::class, 'dashboard']);
             Route::get('payroll', [\App\Http\Controllers\Api\AccountantController::class, 'payroll']);
+            Route::get('preparation-options', [\App\Http\Controllers\Api\AccountantController::class, 'preparationOptions']);
+            Route::post('fees/generate', [\App\Http\Controllers\Api\AccountantController::class, 'generateFees']);
+            Route::post('payroll/generate', [\App\Http\Controllers\Api\AccountantController::class, 'generatePayroll']);
         });
 
         Route::prefix('platform')->group(function () {
@@ -122,6 +128,9 @@ Route::prefix('v1')->group(function () {
             Route::get('plans', [PlatformController::class, 'plans']);
             Route::patch('tenants/{tenant}', [PlatformController::class, 'updateTenant']);
             Route::post('tenants', [PlatformController::class, 'storeTenant']);
+            Route::get('agents', [PlatformController::class, 'agents']);
+            Route::post('agents', [PlatformController::class, 'storeAgent']);
+            Route::patch('agents/{agent}', [PlatformController::class, 'updateAgent']);
         });
 
         Route::prefix('admissions')->group(function () {
