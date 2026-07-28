@@ -130,19 +130,19 @@ body{font-family:var(--font);color:var(--navy);background:var(--white);line-heig
   linear-gradient(135deg,#061632 0%,#071E45 48%,#020817 100%);
   padding-top:118px}
 .hero::after{content:'';position:absolute;inset:auto -10% -34% -10%;height:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,.13),transparent 62%);filter:blur(8px);pointer-events:none}
-.hero-inner{width:min(1240px,100%);grid-template-columns:minmax(360px,.9fr) minmax(560px,1.1fr);gap:36px}
+.hero-inner{width:min(1280px,100%);grid-template-columns:minmax(360px,.78fr) minmax(640px,1.22fr);gap:24px}
 .hero-pill{box-shadow:inset 0 1px rgba(255,255,255,.2),0 14px 34px rgba(215,154,33,.12)}
 .hero h1{font-size:clamp(46px,6.8vw,88px);line-height:.95;text-wrap:balance}
 .hero-sub{color:rgba(255,255,255,.76);font-weight:500}
 .hero-actions{margin-bottom:26px}
 .hero-proof{padding:16px 0 8px;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.07)}
 .hero-stats{border-top:none;padding-top:20px}
-.hero-showcase{min-height:600px;perspective:1400px}
-.showcase-glow{position:absolute;right:8%;bottom:12px;width:70%;height:42%;background:radial-gradient(ellipse at center,rgba(215,154,33,.28),rgba(59,130,246,.13) 35%,transparent 70%);filter:blur(18px)}
-.desktop-mock{right:0;top:48px;width:min(760px,100%);border-radius:30px;border:1px solid rgba(255,255,255,.42);box-shadow:0 44px 110px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.08) inset;transform:perspective(1200px) rotateY(-10deg) rotateX(4deg) rotateZ(-1deg);background:linear-gradient(#fff,#F8FAFC)}
+.hero-showcase{min-height:640px;perspective:1600px}
+.showcase-glow{position:absolute;right:4%;bottom:0;width:78%;height:48%;background:radial-gradient(ellipse at center,rgba(215,154,33,.32),rgba(59,130,246,.16) 35%,transparent 70%);filter:blur(20px)}
+.desktop-mock{right:-10px;top:48px;width:min(820px,104%);border-radius:32px;border:1px solid rgba(255,255,255,.48);box-shadow:0 48px 120px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.08) inset;transform:perspective(1300px) rotateY(-11deg) rotateX(4deg) rotateZ(-1.2deg);background:linear-gradient(#fff,#F8FAFC)}
 .desktop-mock::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.35),transparent 24%,transparent 70%,rgba(7,30,69,.04));pointer-events:none}
 .dm-top{height:50px;background:linear-gradient(180deg,#fff,#F8FAFC)}
-.dm-shell{grid-template-columns:170px 1fr;min-height:430px}
+.dm-shell{grid-template-columns:170px 1fr;min-height:455px}
 .dm-side{background:linear-gradient(180deg,#071E45,#041229);padding:22px}
 .dm-nav div{height:32px;border-radius:10px}
 .dm-main{padding:24px;background:linear-gradient(180deg,#F8FAFC,#EEF3FA)}
@@ -150,14 +150,16 @@ body{font-family:var(--font);color:var(--navy);background:var(--white);line-heig
 .dm-chip{display:inline-flex;align-items:center;gap:6px;background:#FFF7DA;border-color:#F5C76A;color:#7A4B00;box-shadow:0 8px 24px rgba(215,154,33,.12)}
 .dm-chip::before{content:'\1F6E1';font-size:12px}
 .dm-kpis{gap:12px}.dm-kpi{border-radius:16px;box-shadow:0 10px 26px rgba(15,23,42,.06)}.dm-kpi strong{font-size:22px}.dm-kpi small{font-weight:700;color:#64748B}
+.dm-kpi::before{content:'';display:block;width:30px;height:30px;border-radius:10px;margin-bottom:8px;background:linear-gradient(135deg,#EEF4FF,#DBEAFE)}
+.dm-kpi:nth-child(2)::before{background:linear-gradient(135deg,#ECFDF3,#D1FAE5)}.dm-kpi:nth-child(3)::before{background:linear-gradient(135deg,#FFF7ED,#FED7AA)}.dm-kpi:nth-child(4)::before{background:linear-gradient(135deg,#FFF7DA,#FDE68A)}
 .dm-panel{border-radius:18px;box-shadow:0 14px 30px rgba(15,23,42,.06)}
 .dm-line{height:116px;background:linear-gradient(180deg,transparent 24%,#E2E8F0 25%,transparent 26%,transparent 49%,#E2E8F0 50%,transparent 51%,transparent 74%,#E2E8F0 75%,transparent 76%)}
 .dm-line::before{content:'';position:absolute;left:12px;right:12px;bottom:16px;height:78px;background:linear-gradient(115deg,transparent 0 8%,#D79A21 8% 12%,transparent 12% 24%,#2563EB 24% 28%,transparent 28% 40%,#D79A21 40% 44%,transparent 44% 56%,#2563EB 56% 60%,transparent 60% 72%,#D79A21 72% 76%,transparent 76%);opacity:.9}
 .dm-line::after{height:72px;background:linear-gradient(135deg,transparent 0 10%,rgba(20,89,200,.35) 10% 12%,transparent 12% 28%,rgba(20,89,200,.35) 28% 30%,transparent 30% 48%,rgba(20,89,200,.35) 48% 50%,transparent 50% 68%,rgba(20,89,200,.35) 68% 70%,transparent 70%)}
-.hero-phone{left:32px;bottom:10px;width:244px;border-radius:38px;background:linear-gradient(145deg,#0A0F1D,#111827);border:1px solid rgba(255,255,255,.22);padding:10px;box-shadow:0 35px 80px rgba(0,0,0,.55),0 0 0 6px rgba(255,255,255,.04),inset 0 0 0 2px rgba(255,255,255,.08);transform:rotate(-6deg) translateZ(50px)}
+.hero-phone{left:8px;bottom:8px;width:282px;border-radius:44px;background:linear-gradient(145deg,#05070D,#182033);border:1px solid rgba(255,255,255,.25);padding:11px;box-shadow:0 42px 90px rgba(0,0,0,.62),0 0 0 7px rgba(255,255,255,.04),inset 0 0 0 2px rgba(255,255,255,.09);transform:rotate(-6.5deg) translateZ(70px)}
 .hero-phone .phone-screen{border-radius:28px;aspect-ratio:9/18.5;background:#F8FAFC}
 .phone-notch{height:28px;width:72px;border-radius:0 0 18px 18px}
-.ps-header{padding:38px 16px 22px;background:linear-gradient(180deg,#071E45,#0A2A63)}
+.ps-header{padding:42px 16px 20px;background:linear-gradient(180deg,#071E45,#0A2A63)}
 .ps-header p{font-size:9px;letter-spacing:.02em}
 .ps-body{padding:14px}
 .ps-card{border:1px solid #E6ECF4;box-shadow:0 10px 20px rgba(15,23,42,.04);border-radius:14px}
@@ -167,7 +169,8 @@ body{font-family:var(--font);color:var(--navy);background:var(--white);line-heig
 .phone-chart::before{content:'';position:absolute;left:8px;right:8px;bottom:10px;height:32px;background:linear-gradient(135deg,transparent 0 8%,#D79A21 8% 13%,transparent 13% 28%,#16794B 28% 34%,transparent 34% 48%,#2563EB 48% 54%,transparent 54% 70%,#D79A21 70% 76%,transparent 76%)}
 .floating-card{position:absolute;z-index:4;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.65);border-radius:18px;box-shadow:0 22px 60px rgba(0,0,0,.24);padding:14px 16px;color:var(--navy)}
 .floating-card strong{display:block;font-size:14px}.floating-card small{display:block;font-size:10px;color:#64748B;margin-top:2px}.floating-card b{color:#16794B}
-.fc-fees{right:18px;bottom:74px}.fc-security{left:300px;top:8px}.fc-app{left:6px;top:42px}
+.fc-fees{right:16px;bottom:82px}.fc-security{left:316px;top:4px}.fc-app{left:24px;top:38px}
+.phone-ui-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.phone-avatar{width:28px;height:28px;border-radius:10px;background:#FFF7DA;display:grid;place-items:center;color:#D79A21;font-size:13px;font-weight:900}.phone-total{font-size:18px;font-weight:900;color:#071E45;line-height:1}.phone-total small{display:block;font-size:7px;color:#64748B;font-weight:700;margin-bottom:2px}.phone-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.phone-action{border-radius:12px;padding:10px;background:#fff;border:1px solid #E6ECF4;box-shadow:0 8px 18px rgba(15,23,42,.04)}.phone-action i{display:block;width:18px;height:18px;border-radius:6px;background:#D79A21;margin-bottom:6px}.phone-action:nth-child(2) i{background:#16794B}.phone-action span{display:block;font-size:7px;font-weight:900;color:#071E45}.phone-action small{display:block;font-size:6px;color:#94A3B8;margin-top:1px}
 .hp-badge{display:none}
 
 /* SECTIONS */
@@ -482,8 +485,10 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
                     <div class="phone-notch"></div>
                     <div class="ps-header"><img src="/brand/educore-icon.svg" alt=""><div class="mobile-dashboard-title">EduCore Mobile</div><span class="mobile-rbac">RBAC: Staff Portal</span></div>
                     <div class="ps-body">
+                        <div class="phone-ui-head"><div><div class="phone-total"><small>Today</small>92%</div></div><div class="phone-avatar">E</div></div>
                         <div class="ps-card"><div class="ps-card-title">Today</div><div class="ps-stat"><span class="ps-stat-label">Staff attendance</span><span class="ps-stat-val">Present</span></div><div class="ps-bar"><div class="ps-bar-fill" style="width:92%;background:#059669"></div></div></div>
                         <div class="ps-card"><div class="ps-card-title">Fee Collection</div><div class="phone-chart"></div></div>
+                        <div class="phone-action-grid"><div class="phone-action"><i></i><span>Scores</span><small>Enter results</small></div><div class="phone-action"><i></i><span>Attendance</span><small>Clock in</small></div></div>
                         <div class="ps-card"><div class="ps-card-title">Quick actions</div><div class="ps-list-item"><div class="ps-dot" style="background:var(--gold)"></div><div class="ps-text" style="width:80%"></div></div><div class="ps-list-item"><div class="ps-dot" style="background:#059669"></div><div class="ps-text" style="width:65%"></div></div></div>
                     </div>
                     <div class="ps-nav"><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">Home</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Fees</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div></div>
