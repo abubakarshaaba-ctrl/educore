@@ -123,6 +123,53 @@ body{font-family:var(--font);color:var(--navy);background:var(--white);line-heig
 .dm-panels{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}.dm-panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}.dm-panel h4{font-size:12px;color:var(--navy);margin-bottom:10px}.dm-line{height:90px;background:linear-gradient(180deg,transparent 24%,#E2E8F0 25%,transparent 26%,transparent 49%,#E2E8F0 50%,transparent 51%,transparent 74%,#E2E8F0 75%,transparent 76%);position:relative}.dm-line::after{content:'';position:absolute;left:0;right:0;bottom:18px;height:42px;background:linear-gradient(135deg,transparent 0 12%,#1459C8 13% 16%,transparent 17% 32%,#1459C8 33% 36%,transparent 37% 52%,#1459C8 53% 56%,transparent 57% 72%,#1459C8 73% 76%,transparent 77%);opacity:.9}.dm-ring{width:94px;height:94px;border-radius:50%;background:conic-gradient(#16A34A 0 82%,#F59E0B 82% 92%,#E5E7EB 92%);margin:auto;display:grid;place-items:center}.dm-ring span{width:58px;height:58px;border-radius:50%;background:#fff;display:grid;place-items:center;font-weight:900;color:var(--navy)}
 .hero-phone{position:absolute;left:8px;bottom:0;width:210px;border-radius:30px;background:#0B1220;border:3px solid #1F2937;padding:8px;box-shadow:0 28px 70px rgba(0,0,0,.45);transform:rotate(-4deg)}.hero-phone .phone-screen{aspect-ratio:9/18}.hp-badge{position:absolute;right:12px;bottom:30px;background:#fff;color:var(--navy);border-radius:14px;padding:14px 16px;box-shadow:0 18px 50px rgba(0,0,0,.24);font-size:12px;font-weight:800}.hp-badge small{display:block;color:var(--muted);font-size:9px;font-weight:600;margin-top:2px}
 
+/* PREMIUM HERO COMPOSITION */
+.hero{min-height:calc(100vh - 0px);background:
+  radial-gradient(circle at 12% 18%,rgba(215,154,33,.22),transparent 28%),
+  radial-gradient(circle at 78% 20%,rgba(37,99,235,.18),transparent 30%),
+  linear-gradient(135deg,#061632 0%,#071E45 48%,#020817 100%);
+  padding-top:118px}
+.hero::after{content:'';position:absolute;inset:auto -10% -34% -10%;height:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,.13),transparent 62%);filter:blur(8px);pointer-events:none}
+.hero-inner{width:min(1240px,100%);grid-template-columns:minmax(360px,.9fr) minmax(560px,1.1fr);gap:36px}
+.hero-pill{box-shadow:inset 0 1px rgba(255,255,255,.2),0 14px 34px rgba(215,154,33,.12)}
+.hero h1{font-size:clamp(46px,6.8vw,88px);line-height:.95;text-wrap:balance}
+.hero-sub{color:rgba(255,255,255,.76);font-weight:500}
+.hero-actions{margin-bottom:26px}
+.hero-proof{padding:16px 0 8px;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.07)}
+.hero-stats{border-top:none;padding-top:20px}
+.hero-showcase{min-height:600px;perspective:1400px}
+.showcase-glow{position:absolute;right:8%;bottom:12px;width:70%;height:42%;background:radial-gradient(ellipse at center,rgba(215,154,33,.28),rgba(59,130,246,.13) 35%,transparent 70%);filter:blur(18px)}
+.desktop-mock{right:0;top:48px;width:min(760px,100%);border-radius:30px;border:1px solid rgba(255,255,255,.42);box-shadow:0 44px 110px rgba(0,0,0,.42),0 0 0 1px rgba(255,255,255,.08) inset;transform:perspective(1200px) rotateY(-10deg) rotateX(4deg) rotateZ(-1deg);background:linear-gradient(#fff,#F8FAFC)}
+.desktop-mock::after{content:'';position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.35),transparent 24%,transparent 70%,rgba(7,30,69,.04));pointer-events:none}
+.dm-top{height:50px;background:linear-gradient(180deg,#fff,#F8FAFC)}
+.dm-shell{grid-template-columns:170px 1fr;min-height:430px}
+.dm-side{background:linear-gradient(180deg,#071E45,#041229);padding:22px}
+.dm-nav div{height:32px;border-radius:10px}
+.dm-main{padding:24px;background:linear-gradient(180deg,#F8FAFC,#EEF3FA)}
+.dm-head h3{font-size:24px;letter-spacing:-.04em}
+.dm-chip{display:inline-flex;align-items:center;gap:6px;background:#FFF7DA;border-color:#F5C76A;color:#7A4B00;box-shadow:0 8px 24px rgba(215,154,33,.12)}
+.dm-chip::before{content:'\1F6E1';font-size:12px}
+.dm-kpis{gap:12px}.dm-kpi{border-radius:16px;box-shadow:0 10px 26px rgba(15,23,42,.06)}.dm-kpi strong{font-size:22px}.dm-kpi small{font-weight:700;color:#64748B}
+.dm-panel{border-radius:18px;box-shadow:0 14px 30px rgba(15,23,42,.06)}
+.dm-line{height:116px;background:linear-gradient(180deg,transparent 24%,#E2E8F0 25%,transparent 26%,transparent 49%,#E2E8F0 50%,transparent 51%,transparent 74%,#E2E8F0 75%,transparent 76%)}
+.dm-line::before{content:'';position:absolute;left:12px;right:12px;bottom:16px;height:78px;background:linear-gradient(115deg,transparent 0 8%,#D79A21 8% 12%,transparent 12% 24%,#2563EB 24% 28%,transparent 28% 40%,#D79A21 40% 44%,transparent 44% 56%,#2563EB 56% 60%,transparent 60% 72%,#D79A21 72% 76%,transparent 76%);opacity:.9}
+.dm-line::after{height:72px;background:linear-gradient(135deg,transparent 0 10%,rgba(20,89,200,.35) 10% 12%,transparent 12% 28%,rgba(20,89,200,.35) 28% 30%,transparent 30% 48%,rgba(20,89,200,.35) 48% 50%,transparent 50% 68%,rgba(20,89,200,.35) 68% 70%,transparent 70%)}
+.hero-phone{left:32px;bottom:10px;width:244px;border-radius:38px;background:linear-gradient(145deg,#0A0F1D,#111827);border:1px solid rgba(255,255,255,.22);padding:10px;box-shadow:0 35px 80px rgba(0,0,0,.55),0 0 0 6px rgba(255,255,255,.04),inset 0 0 0 2px rgba(255,255,255,.08);transform:rotate(-6deg) translateZ(50px)}
+.hero-phone .phone-screen{border-radius:28px;aspect-ratio:9/18.5;background:#F8FAFC}
+.phone-notch{height:28px;width:72px;border-radius:0 0 18px 18px}
+.ps-header{padding:38px 16px 22px;background:linear-gradient(180deg,#071E45,#0A2A63)}
+.ps-header p{font-size:9px;letter-spacing:.02em}
+.ps-body{padding:14px}
+.ps-card{border:1px solid #E6ECF4;box-shadow:0 10px 20px rgba(15,23,42,.04);border-radius:14px}
+.mobile-dashboard-title{font-size:12px;font-weight:900;color:#fff;margin-top:5px}
+.mobile-rbac{display:inline-flex;margin-top:8px;padding:4px 8px;border-radius:999px;background:rgba(215,154,33,.18);color:#F2C35B;font-size:7px;font-weight:900;letter-spacing:.04em}
+.phone-chart{height:58px;border-radius:12px;background:linear-gradient(180deg,#fff,#F8FAFC);position:relative;overflow:hidden}
+.phone-chart::before{content:'';position:absolute;left:8px;right:8px;bottom:10px;height:32px;background:linear-gradient(135deg,transparent 0 8%,#D79A21 8% 13%,transparent 13% 28%,#16794B 28% 34%,transparent 34% 48%,#2563EB 48% 54%,transparent 54% 70%,#D79A21 70% 76%,transparent 76%)}
+.floating-card{position:absolute;z-index:4;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.65);border-radius:18px;box-shadow:0 22px 60px rgba(0,0,0,.24);padding:14px 16px;color:var(--navy)}
+.floating-card strong{display:block;font-size:14px}.floating-card small{display:block;font-size:10px;color:#64748B;margin-top:2px}.floating-card b{color:#16794B}
+.fc-fees{right:18px;bottom:74px}.fc-security{left:300px;top:8px}.fc-app{left:6px;top:42px}
+.hp-badge{display:none}
+
 /* SECTIONS */
 section{padding:100px 5vw}
 .slabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);margin-bottom:14px}
@@ -304,8 +351,9 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   .hero-copy .hero-stats{margin-left:auto;margin-right:auto}
   .hero-proof{justify-content:center}
   .hero-showcase{min-height:500px}
-  .desktop-mock{left:50%;right:auto;transform:translateX(-50%);width:min(680px,96vw)}
-  .hero-phone{left:calc(50% - 315px)}
+  .desktop-mock{left:50%;right:auto;transform:translateX(-50%) perspective(1200px) rotateX(3deg);width:min(720px,96vw)}
+  .hero-phone{left:calc(50% - 325px)}
+  .fc-security{left:calc(50% + 130px);top:18px}.fc-app{left:calc(50% - 350px)}.fc-fees{right:calc(50% - 350px)}
   .b-1{grid-column:span 12}.b-2{grid-column:span 12}
   .b-3,.b-4,.b-5{grid-column:span 4}
   .b-6,.b-7{grid-column:span 12}
@@ -317,13 +365,13 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   section{padding:72px 5vw}
   .nav-links,.nav-cta{display:none}
   .nav-toggle{display:flex}
-  .hero-showcase{min-height:560px}
+  .hero-showcase{min-height:600px}
   .dm-shell{grid-template-columns:1fr}
   .dm-side{display:none}
   .dm-kpis{grid-template-columns:repeat(2,1fr)}
   .dm-panels{grid-template-columns:1fr}
-  .hero-phone{left:50%;bottom:0;transform:translateX(-50%) rotate(-3deg);width:188px}
-  .hp-badge{right:50%;transform:translateX(88%);bottom:16px}
+  .hero-phone{left:50%;bottom:0;transform:translateX(-50%) rotate(-3deg);width:200px}
+  .floating-card{display:none}
   .b-3,.b-4,.b-5{grid-column:span 12}
   .bento{gap:12px}
   .fg{grid-template-columns:1fr}
@@ -336,11 +384,11 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   .hero-actions{flex-direction:column;align-items:center}
   .btn-lg{width:100%;max-width:340px;justify-content:center}
   .hero-proof{display:grid;grid-template-columns:1fr;justify-items:center}
-  .hero-showcase{min-height:520px}
+  .hero-showcase{min-height:540px}
   .desktop-mock{top:18px;border-radius:18px}
   .dm-main{padding:14px}
   .dm-kpis{gap:8px}.dm-kpi{padding:10px}.dm-kpi strong{font-size:16px}
-  .hero-phone{width:166px}
+  .hero-phone{width:174px}
   .hp-badge{display:none}
   .tier-row{grid-template-columns:1fr;text-align:left}.tier-cycle{text-align:left}
   .fb2{flex-direction:column;text-align:center}
@@ -414,6 +462,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
             </div>
         </div>
         <div class="hero-showcase" aria-hidden="true">
+            <div class="showcase-glow"></div>
             <div class="desktop-mock">
                 <div class="dm-top"><i></i><i></i><i></i></div>
                 <div class="dm-shell">
@@ -422,24 +471,27 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
                         <div class="dm-nav"><div>Dashboard</div><div>Admissions</div><div>Academics</div><div>Attendance</div><div>Fees</div><div>Payroll</div><div>Reports</div></div>
                     </div>
                     <div class="dm-main">
-                        <div class="dm-head"><h3>School Overview</h3><div class="dm-chip">RBAC: Admin Access</div></div>
+                        <div class="dm-head"><h3>School Command Centre</h3><div class="dm-chip">RBAC: Admin Access</div></div>
                         <div class="dm-kpis"><div class="dm-kpi"><small>Students</small><strong>1,248</strong></div><div class="dm-kpi"><small>Staff</small><strong>86</strong></div><div class="dm-kpi"><small>Classes</small><strong>48</strong></div><div class="dm-kpi"><small>Fees</small><strong>&#8358;24.5M</strong></div></div>
-                        <div class="dm-panels"><div class="dm-panel"><h4>Fee Collection Trend</h4><div class="dm-line"></div></div><div class="dm-panel"><h4>Attendance</h4><div class="dm-ring"><span>92%</span></div></div></div>
+                        <div class="dm-panels"><div class="dm-panel"><h4>Fee Collection Trend</h4><div class="dm-line"></div></div><div class="dm-panel"><h4>Attendance Pulse</h4><div class="dm-ring"><span>92%</span></div></div></div>
                     </div>
                 </div>
             </div>
             <div class="hero-phone">
                 <div class="phone-screen">
                     <div class="phone-notch"></div>
-                    <div class="ps-header"><img src="/brand/educore-icon.svg" alt=""><p>EduCore Mobile</p></div>
+                    <div class="ps-header"><img src="/brand/educore-icon.svg" alt=""><div class="mobile-dashboard-title">EduCore Mobile</div><span class="mobile-rbac">RBAC: Staff Portal</span></div>
                     <div class="ps-body">
                         <div class="ps-card"><div class="ps-card-title">Today</div><div class="ps-stat"><span class="ps-stat-label">Staff attendance</span><span class="ps-stat-val">Present</span></div><div class="ps-bar"><div class="ps-bar-fill" style="width:92%;background:#059669"></div></div></div>
+                        <div class="ps-card"><div class="ps-card-title">Fee Collection</div><div class="phone-chart"></div></div>
                         <div class="ps-card"><div class="ps-card-title">Quick actions</div><div class="ps-list-item"><div class="ps-dot" style="background:var(--gold)"></div><div class="ps-text" style="width:80%"></div></div><div class="ps-list-item"><div class="ps-dot" style="background:#059669"></div><div class="ps-text" style="width:65%"></div></div></div>
                     </div>
                     <div class="ps-nav"><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">Home</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Fees</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div></div>
                 </div>
             </div>
-            <div class="hp-badge">Android app<small>Staff, student & parent portals</small></div>
+            <div class="floating-card fc-app"><strong>Android app</strong><small>Staff, student & parent portals</small></div>
+            <div class="floating-card fc-security"><strong>Strict RBAC</strong><small>Every role sees only permitted tools</small></div>
+            <div class="floating-card fc-fees"><strong><b>&#8358;300</b> / student / term</strong><small>Free for the first 50 students</small></div>
         </div>
     </div>
 </section>
