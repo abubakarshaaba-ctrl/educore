@@ -37,6 +37,12 @@ class SelfDeployController extends Controller
         '.user.ini',
     ];
 
+    /** Files intentionally retired from the live tree after a successful sync. */
+    private const DEPRECATED_PATHS = [
+        'brand/educore-premium-landing.png',
+        'educore/public/brand/educore-premium-landing.png',
+    ];
+
     public function pull(Request $request)
     {
         $expected = (string) (config('app.deploy_token') ?: self::derivedToken());
@@ -116,6 +122,16 @@ class SelfDeployController extends Controller
             }
         }
 
+        // Shared-host copies do not prune removed source files. Delete only
+        // explicitly retired paths so obsolete public assets cannot linger.
+        $removed = 0;
+        foreach (self::DEPRECATED_PATHS as $path) {
+            $target = $docroot . '/' . $path;
+            if (is_file($target) && @unlink($target)) {
+                $removed++;
+            }
+        }
+
         // 4. Clear caches + run migrations
         foreach (glob(storage_path('framework/views') . '/*.php') ?: [] as $f) @unlink($f);
         foreach (['routes-v7.php', 'config.php', 'events.php'] as $f) @unlink(base_path('bootstrap/cache/' . $f));
@@ -142,6 +158,7 @@ class SelfDeployController extends Controller
         return response()->json([
             'ok'       => true,
             'copied'   => $copied,
+            'removed'  => $removed,
             'opcache_reset' => $opcacheReset,
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
