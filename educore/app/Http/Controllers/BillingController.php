@@ -67,10 +67,6 @@ class BillingController extends Controller
         // headroom for pending admissions) — never less than what's in use.
         $capacity = max($studentCount, (int) ($data['target_capacity'] ?? $studentCount));
 
-        if (PricingService::isCustomQuote($capacity)) {
-            return back()->withErrors(['plan' => 'That enrollment size qualifies for custom volume pricing — contact EduCore for a tailored quote instead of a self-service invoice.']);
-        }
-
         if (PricingService::isFree($capacity)) {
             return back()->withErrors(['plan' => 'Your current enrollment (' . $studentCount . ' students) falls under the free plan — no invoice needed.']);
         }

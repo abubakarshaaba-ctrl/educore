@@ -615,7 +615,7 @@ class _GovernanceScreen extends StatelessWidget {
         _PlatformTile(
           icon: Icons.layers_outlined,
           title: 'Pricing model',
-          subtitle: 'View current pay-per-student pricing tiers.',
+          subtitle: 'Free up to 50 students, then one per-student term rate.',
           trailing: const Icon(Icons.chevron_right),
           onTap: () => onNavigate(3),
         ),
@@ -761,7 +761,7 @@ class _SchoolTile extends StatelessWidget {
 
   Future<void> _manage(BuildContext context) async {
     final capacity = TextEditingController(
-      text: '${item['students_capacity'] ?? 20}',
+      text: '${item['students_capacity'] ?? 50}',
     );
     final status = await showModalBottomSheet<String>(
       context: context,

@@ -106,7 +106,7 @@ class PlatformController extends Controller
         ]);
         return response()->json([
             'model' => 'Pay per active student',
-            'annual_discount_percent' => (int) round(PricingService::ANNUAL_DISCOUNT * 100),
+            'annual_discount_percent' => 0,
             'plans' => $plans,
         ]);
     }
@@ -116,7 +116,7 @@ class PlatformController extends Controller
         $this->guard($request);
         $data = $request->validate([
             'status' => ['sometimes', 'in:active,pending,suspended,subscription_expired'],
-            'students_capacity' => ['sometimes', 'integer', 'min:20', 'max:1000000'],
+            'students_capacity' => ['sometimes', 'integer', 'min:' . PricingService::FREE_THRESHOLD, 'max:1000000'],
             'subscription_expires_at' => ['sometimes', 'nullable', 'date'],
         ]);
         $tenant->update($data);

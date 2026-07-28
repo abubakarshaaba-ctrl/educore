@@ -129,14 +129,14 @@ tr:hover td{background:#F8FAFC}
                     </select>
                 </div>
                 <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#475569">
-                    Pay-per-student pricing: free up to 20 students, ₦500/student (21–200), ₦400/student (201–500),
-                    custom quote beyond 500. The amount is computed automatically from the school's active
-                    enrollment unless you enter a custom amount below.
+                    Pay-per-student pricing: free up to 50 students, then &#8358;300 per active student per term.
+                    Every paid school gets all features. The amount is computed automatically from the school's
+                    active enrollment unless you enter a custom amount below.
                 </div>
                 <div class="fg"><label class="fl">Billing Cycle *</label>
                     <select name="billing_cycle" class="fc" required>
                         <option value="termly">Per term</option>
-                        <option value="annual">Full year (3 terms, 10% off)</option>
+                        <option value="annual">Full year (3 terms)</option>
                     </select>
                 </div>
                 <div class="fg">

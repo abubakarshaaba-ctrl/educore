@@ -157,7 +157,7 @@ class Tenant extends Model
             return true;
         }
 
-        // The free tier (≤20 students) never expires on the automatic
+        // The free tier (≤50 students) never expires on the automatic
         // date clock — matches the "free forever" pricing promise.
         if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
             return false;

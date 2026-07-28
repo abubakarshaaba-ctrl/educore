@@ -85,7 +85,7 @@
                             <label class="form-label">Subscription Expires <span>*</span></label>
                             <input type="date" name="subscription_expires_at" class="form-control"
                                    value="{{ old('subscription_expires_at', now()->addYear()->format('Y-m-d')) }}">
-                            <small style="color:var(--slate-light)">New schools start on the free tier (up to 20 students, no invoice needed). Generate an invoice from Billing &amp; Invoicing afterward to raise their paid capacity.</small>
+                            <small style="color:var(--slate-light)">New schools start on the free tier (up to 50 students, no invoice needed). Generate an invoice from Billing &amp; Invoicing afterward to raise their paid capacity.</small>
                         </div>
                     </div>
                 </div>

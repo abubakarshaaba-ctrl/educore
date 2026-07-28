@@ -130,7 +130,7 @@ class DashboardController extends Controller
         // ── Trial / Subscription Status ───────────────────────────────
         // Under the pay-per-student model there's no time-limited trial —
         // "trial" here means the school hasn't paid yet and is on the free
-        // tier (≤20 students). Still used to target platform broadcasts.
+        // tier (≤50 students). Still used to target platform broadcasts.
         $tenant = auth()->user()->tenant;
         $isOnTrial = \App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($tenantId));
         $trialDaysLeft = 0;

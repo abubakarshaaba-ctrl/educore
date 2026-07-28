@@ -88,11 +88,7 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
     <div style="padding:0 18px">
         @foreach(\App\Services\PricingService::tiers() as $tier)
         @php
-            $isCurrent = false;
-            if ($studentCount <= \App\Services\PricingService::FREE_THRESHOLD) $isCurrent = $loop->first;
-            elseif ($studentCount <= \App\Services\PricingService::TIER2_MAX) $isCurrent = $loop->iteration === 2;
-            elseif ($studentCount <= \App\Services\PricingService::TIER3_MAX) $isCurrent = $loop->iteration === 3;
-            else $isCurrent = $loop->last;
+            $isCurrent = \App\Services\PricingService::isFree($studentCount) ? $loop->first : $loop->iteration === 2;
         @endphp
         <div class="tier-row {{ $isCurrent ? 'current' : '' }}">
             <span>{{ $tier['range'] }}</span>
@@ -100,15 +96,7 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
         </div>
         @endforeach
     </div>
-
-    @if(\App\Services\PricingService::isCustomQuote($studentCount))
-        <div style="padding:20px;text-align:center">
-            <p style="font-size:13px;color:var(--slate);margin-bottom:12px">
-                Your school has {{ $studentCount }} active students — this qualifies for custom volume pricing.
-            </p>
-            <a href="mailto:support@educoreng.online" class="pay-btn" style="text-decoration:none">Contact EduCore for a Quote</a>
-        </div>
-    @elseif(\App\Services\PricingService::isFree($studentCount))
+    @if(\App\Services\PricingService::isFree($studentCount))
         <div style="padding:20px;text-align:center">
             <p style="font-size:13px;color:#059669;font-weight:700">
                 ✓ Your school ({{ $studentCount }} students) is on the free plan — no invoice needed.
@@ -118,7 +106,7 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
         <div class="amount-box">
             <div class="cycle-toggle" id="cycleToggle" style="margin-bottom:18px">
                 <button type="button" data-cycle="termly" class="active">Per term</button>
-                <button type="button" data-cycle="annual">Full year (10% off)</button>
+                <button type="button" data-cycle="annual">Full year (3 terms)</button>
             </div>
             <div class="amt" id="amtDisplay" data-termly="₦{{ number_format(\App\Services\PricingService::termlyAmount($studentCount)) }}" data-annual="₦{{ number_format(\App\Services\PricingService::annualAmount($studentCount)) }}">
                 ₦{{ number_format(\App\Services\PricingService::termlyAmount($studentCount)) }}

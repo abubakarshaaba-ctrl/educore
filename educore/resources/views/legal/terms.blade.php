@@ -158,7 +158,7 @@ footer a{color:var(--gold);text-decoration:none}
     <p>EduCore uses a per-student, per-term pricing model. Current pricing is available at <a href="{{ route('home') }}#pricing">educore.app/pricing</a>. We reserve the right to modify pricing with 30 days' notice.</p>
 
     <h3>4.2 Free Tier</h3>
-    <p>Schools with up to 20 students may use EduCore free of charge. The free tier includes all features with no restrictions.</p>
+    <p>Schools with up to 50 students may use EduCore free of charge. The free tier includes all features with no restrictions.</p>
 
     <h3>4.3 Billing</h3>
     <ul>

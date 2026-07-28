@@ -55,7 +55,7 @@ footer{text-align:center;padding:32px;color:#94A3B8;font-size:12px}
 
     <div class="cta-box">
         <div style="font-weight:700;font-size:16px">Ready to run your school on EduCore?</div>
-        <p style="color:#475569;font-size:13px;margin-top:6px">Free for schools up to 20 students — every feature included.</p>
+        <p style="color:#475569;font-size:13px;margin-top:6px">Free for schools up to 50 students — every feature included.</p>
         <a href="/get-started">Start Free Trial →</a>
     </div>
 </div>

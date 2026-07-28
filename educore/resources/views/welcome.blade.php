@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="EduCore is a complete school management platform for Nigerian K-12 schools — admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication in one system. Free for up to 20 students.">
+<meta name="description" content="EduCore is a complete school management platform for Nigerian K-12 schools — admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication in one system. Free for up to 50 students, then &#8358;300 per student per term.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#071E45">
 <meta name="author" content="EduCore">
@@ -19,7 +19,7 @@
 <meta property="og:site_name" content="EduCore">
 <meta property="og:locale" content="en_NG">
 <meta property="og:title" content="EduCore — School Management Platform for Nigerian Schools">
-<meta property="og:description" content="Admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication — unified in one platform built for Nigerian K-12 schools. Free for up to 20 students.">
+<meta property="og:description" content="Admissions, academics, attendance, fees, payroll, staff HR, exams and parent communication — unified in one platform built for Nigerian K-12 schools. Free for up to 50 students, then &#8358;300 per student per term.">
 <meta property="og:image" content="https://educoreng.online/brand/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -45,7 +45,7 @@
     "@@type": "Offer",
     "price": "0",
     "priceCurrency": "NGN",
-    "description": "Free for up to 20 students. Paid tiers scale per student per term."
+    "description": "Free for up to 50 students, then &#8358;300 per student per term. Every paid school gets all features."
   },
   "provider": {
     "@@type": "Organization",
@@ -104,6 +104,24 @@ body{font-family:var(--font);color:var(--navy);background:var(--white);line-heig
 .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:680px;width:100%;border-top:1px solid rgba(255,255,255,.08);padding-top:48px}
 .hnum{font-size:clamp(28px,4vw,42px);font-weight:900;color:var(--gold-light);line-height:1}
 .hlabel{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;font-weight:500}
+.hero-inner{position:relative;z-index:1;width:min(1180px,100%);display:grid;grid-template-columns:minmax(0,.86fr) minmax(420px,1.14fr);align-items:center;gap:48px;text-align:left}
+.hero-copy{max-width:620px}
+.hero-copy .hero-pill{margin-bottom:22px}
+.hero-copy h1{margin-left:0;margin-right:0}
+.hero-copy .hero-sub{margin-left:0;margin-right:0}
+.hero-copy .hero-actions{justify-content:flex-start;margin-bottom:30px}
+.hero-copy .hero-stats{max-width:520px;padding-top:28px}
+.hero-proof{display:flex;gap:16px;flex-wrap:wrap;color:rgba(255,255,255,.72);font-size:12px;font-weight:700}
+.hero-proof span{display:inline-flex;align-items:center;gap:8px}
+.hero-proof span::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.hero-showcase{position:relative;min-height:520px}
+.desktop-mock{position:absolute;right:0;top:24px;width:min(680px,100%);background:#fff;border:1px solid rgba(255,255,255,.38);border-radius:22px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.38);transform:perspective(1200px) rotateY(-7deg) rotateX(2deg)}
+.dm-top{height:42px;background:#F8FAFC;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 16px}.dm-top i{width:10px;height:10px;border-radius:50%;background:#CBD5E1}.dm-top i:first-child{background:#EF4444}.dm-top i:nth-child(2){background:#F59E0B}.dm-top i:nth-child(3){background:#22C55E}
+.dm-shell{display:grid;grid-template-columns:150px 1fr;min-height:390px}.dm-side{background:var(--navy);padding:18px;color:white}.dm-brand{display:flex;align-items:center;gap:8px;font-weight:900;margin-bottom:22px}.dm-brand img{width:28px;height:28px}.dm-nav{display:grid;gap:9px}.dm-nav div{height:28px;border-radius:8px;background:rgba(255,255,255,.08);font-size:10px;display:flex;align-items:center;padding:0 10px;color:rgba(255,255,255,.78)}.dm-nav div:first-child{background:rgba(215,154,33,.2);color:#fff}
+.dm-main{padding:20px;background:#F8FAFC}.dm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.dm-head h3{font-size:19px;color:var(--navy);margin:0}.dm-chip{font-size:10px;font-weight:800;color:var(--navy);background:#FEF3C7;border:1px solid #FDE68A;border-radius:999px;padding:6px 10px}
+.dm-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.dm-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px}.dm-kpi small{display:block;color:var(--muted);font-size:9px}.dm-kpi strong{display:block;color:var(--navy);font-size:18px;margin-top:4px}
+.dm-panels{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}.dm-panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}.dm-panel h4{font-size:12px;color:var(--navy);margin-bottom:10px}.dm-line{height:90px;background:linear-gradient(180deg,transparent 24%,#E2E8F0 25%,transparent 26%,transparent 49%,#E2E8F0 50%,transparent 51%,transparent 74%,#E2E8F0 75%,transparent 76%);position:relative}.dm-line::after{content:'';position:absolute;left:0;right:0;bottom:18px;height:42px;background:linear-gradient(135deg,transparent 0 12%,#1459C8 13% 16%,transparent 17% 32%,#1459C8 33% 36%,transparent 37% 52%,#1459C8 53% 56%,transparent 57% 72%,#1459C8 73% 76%,transparent 77%);opacity:.9}.dm-ring{width:94px;height:94px;border-radius:50%;background:conic-gradient(#16A34A 0 82%,#F59E0B 82% 92%,#E5E7EB 92%);margin:auto;display:grid;place-items:center}.dm-ring span{width:58px;height:58px;border-radius:50%;background:#fff;display:grid;place-items:center;font-weight:900;color:var(--navy)}
+.hero-phone{position:absolute;left:8px;bottom:0;width:210px;border-radius:30px;background:#0B1220;border:3px solid #1F2937;padding:8px;box-shadow:0 28px 70px rgba(0,0,0,.45);transform:rotate(-4deg)}.hero-phone .phone-screen{aspect-ratio:9/18}.hp-badge{position:absolute;right:12px;bottom:30px;background:#fff;color:var(--navy);border-radius:14px;padding:14px 16px;box-shadow:0 18px 50px rgba(0,0,0,.24);font-size:12px;font-weight:800}.hp-badge small{display:block;color:var(--muted);font-size:9px;font-weight:600;margin-top:2px}
 
 /* SECTIONS */
 section{padding:100px 5vw}
@@ -278,6 +296,16 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 
 /* RESPONSIVE */
 @media(max-width:1024px){
+  .hero{min-height:auto;text-align:center;padding-top:112px}
+  .hero-inner{grid-template-columns:1fr;text-align:center}
+  .hero-copy{max-width:760px;margin:0 auto}
+  .hero-copy .hero-sub,.hero-copy h1{margin-left:auto;margin-right:auto}
+  .hero-copy .hero-actions{justify-content:center}
+  .hero-copy .hero-stats{margin-left:auto;margin-right:auto}
+  .hero-proof{justify-content:center}
+  .hero-showcase{min-height:500px}
+  .desktop-mock{left:50%;right:auto;transform:translateX(-50%);width:min(680px,96vw)}
+  .hero-phone{left:calc(50% - 315px)}
   .b-1{grid-column:span 12}.b-2{grid-column:span 12}
   .b-3,.b-4,.b-5{grid-column:span 4}
   .b-6,.b-7{grid-column:span 12}
@@ -289,6 +317,13 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   section{padding:72px 5vw}
   .nav-links,.nav-cta{display:none}
   .nav-toggle{display:flex}
+  .hero-showcase{min-height:560px}
+  .dm-shell{grid-template-columns:1fr}
+  .dm-side{display:none}
+  .dm-kpis{grid-template-columns:repeat(2,1fr)}
+  .dm-panels{grid-template-columns:1fr}
+  .hero-phone{left:50%;bottom:0;transform:translateX(-50%) rotate(-3deg);width:188px}
+  .hp-badge{right:50%;transform:translateX(88%);bottom:16px}
   .b-3,.b-4,.b-5{grid-column:span 12}
   .bento{gap:12px}
   .fg{grid-template-columns:1fr}
@@ -296,9 +331,18 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
   .phone-grid{gap:16px}
 }
 @media(max-width:480px){
+  .hero{padding-left:18px;padding-right:18px}
   .hero-stats{grid-template-columns:1fr;gap:16px;padding-top:36px}
   .hero-actions{flex-direction:column;align-items:center}
   .btn-lg{width:100%;max-width:340px;justify-content:center}
+  .hero-proof{display:grid;grid-template-columns:1fr;justify-items:center}
+  .hero-showcase{min-height:520px}
+  .desktop-mock{top:18px;border-radius:18px}
+  .dm-main{padding:14px}
+  .dm-kpis{gap:8px}.dm-kpi{padding:10px}.dm-kpi strong{font-size:16px}
+  .hero-phone{width:166px}
+  .hp-badge{display:none}
+  .tier-row{grid-template-columns:1fr;text-align:left}.tier-cycle{text-align:left}
   .fb2{flex-direction:column;text-align:center}
   .phone-grid{flex-direction:column;align-items:center}
   .phone{width:200px}
@@ -319,6 +363,8 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
         <a href="#portals">Portals</a>
         <a href="#pricing">Pricing</a>
         <a href="#testimonials">Reviews</a>
+        <a href="#download">Download</a>
+        <a href="mailto:support@educoreng.online">Contact</a>
     </div>
     <div class="nav-cta">
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline">Login</a>
@@ -333,6 +379,8 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
     <a href="#portals" onclick="document.getElementById('nm').classList.remove('open')">Portals</a>
     <a href="#pricing" onclick="document.getElementById('nm').classList.remove('open')">Pricing</a>
     <a href="#testimonials" onclick="document.getElementById('nm').classList.remove('open')">Reviews</a>
+    <a href="#download" onclick="document.getElementById('nm').classList.remove('open')">Download</a>
+    <a href="mailto:support@educoreng.online" onclick="document.getElementById('nm').classList.remove('open')">Contact</a>
     <div class="nm-cta">
         <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline" style="justify-content:center">Login</a>
         <a href="{{ route('school.register') }}" class="btn btn-gold" style="justify-content:center">Get Started</a>
@@ -341,21 +389,58 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
 
 <section class="hero">
     <div class="hero-grid"></div>
-    <div class="hero-pill">&starf; Built for Nigerian K-12 Schools</div>
-    <h1>Run Your School<br><span>Smarter. Faster.</span><br>Better.</h1>
-    <p class="hero-sub">EduCore is the all-in-one school management platform &mdash; admissions, academics, fees, payroll, portals, and everything in between. One system, zero chaos.</p>
-    <div class="hero-actions">
-        <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
-        <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline btn-lg">School Login</a>
-        <a href="{{ route('app.download') }}" class="btn btn-outline btn-lg">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-            Download EduCore App
-        </a>
-    </div>
-    <div class="hero-stats">
-        <div><div class="hnum">500+</div><div class="hlabel">Schools Active</div></div>
-        <div><div class="hnum">47</div><div class="hlabel">Modules Built</div></div>
-        <div><div class="hnum">99.9%</div><div class="hlabel">Uptime SLA</div></div>
+    <div class="hero-inner">
+        <div class="hero-copy">
+            <div class="hero-pill">&starf; Built for Nigerian K-12 Schools</div>
+            <h1>EduCore <span>School ERP</span></h1>
+            <p class="hero-sub">Admissions, academics, attendance, fees, payroll, exams, staff HR, and parent communication in one platform built for Nigerian schools.</p>
+            <div class="hero-actions">
+                <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
+                <a href="{{ route('app.download') }}" class="btn btn-outline btn-lg">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                    Download Android App
+                </a>
+                <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-outline btn-lg">School Login</a>
+            </div>
+            <div class="hero-proof">
+                <span>Free for up to 50 students</span>
+                <span>&#8358;300 per student / term</span>
+                <span>All features included</span>
+            </div>
+            <div class="hero-stats">
+                <div><div class="hnum">{{ number_format($stats['schools'] ?: 500) }}+</div><div class="hlabel">Schools Active</div></div>
+                <div><div class="hnum">47</div><div class="hlabel">Modules Built</div></div>
+                <div><div class="hnum">99.9%</div><div class="hlabel">Uptime SLA</div></div>
+            </div>
+        </div>
+        <div class="hero-showcase" aria-hidden="true">
+            <div class="desktop-mock">
+                <div class="dm-top"><i></i><i></i><i></i></div>
+                <div class="dm-shell">
+                    <div class="dm-side">
+                        <div class="dm-brand"><img src="/brand/educore-icon.svg" alt=""> EduCore</div>
+                        <div class="dm-nav"><div>Dashboard</div><div>Admissions</div><div>Academics</div><div>Attendance</div><div>Fees</div><div>Payroll</div><div>Reports</div></div>
+                    </div>
+                    <div class="dm-main">
+                        <div class="dm-head"><h3>School Overview</h3><div class="dm-chip">RBAC: Admin Access</div></div>
+                        <div class="dm-kpis"><div class="dm-kpi"><small>Students</small><strong>1,248</strong></div><div class="dm-kpi"><small>Staff</small><strong>86</strong></div><div class="dm-kpi"><small>Classes</small><strong>48</strong></div><div class="dm-kpi"><small>Fees</small><strong>&#8358;24.5M</strong></div></div>
+                        <div class="dm-panels"><div class="dm-panel"><h4>Fee Collection Trend</h4><div class="dm-line"></div></div><div class="dm-panel"><h4>Attendance</h4><div class="dm-ring"><span>92%</span></div></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-phone">
+                <div class="phone-screen">
+                    <div class="phone-notch"></div>
+                    <div class="ps-header"><img src="/brand/educore-icon.svg" alt=""><p>EduCore Mobile</p></div>
+                    <div class="ps-body">
+                        <div class="ps-card"><div class="ps-card-title">Today</div><div class="ps-stat"><span class="ps-stat-label">Staff attendance</span><span class="ps-stat-val">Present</span></div><div class="ps-bar"><div class="ps-bar-fill" style="width:92%;background:#059669"></div></div></div>
+                        <div class="ps-card"><div class="ps-card-title">Quick actions</div><div class="ps-list-item"><div class="ps-dot" style="background:var(--gold)"></div><div class="ps-text" style="width:80%"></div></div><div class="ps-list-item"><div class="ps-dot" style="background:#059669"></div><div class="ps-text" style="width:65%"></div></div></div>
+                    </div>
+                    <div class="ps-nav"><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--gold)"></div><span class="ps-nav-label">Home</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">Fees</span></div><div class="ps-nav-item"><div class="ps-nav-dot" style="background:var(--border)"></div><span class="ps-nav-label">More</span></div></div>
+                </div>
+            </div>
+            <div class="hp-badge">Android app<small>Staff, student & parent portals</small></div>
+        </div>
     </div>
 </section>
 
@@ -612,7 +697,7 @@ footer{background:var(--navy-dark);color:rgba(255,255,255,.65);padding:64px 5vw 
         </div>
         @endforeach
     </div>
-    <p class="pricing-note">Billed per academic term to match how Nigerian schools collect fees — pay a full year (3 terms) upfront and save 10%. Schools above 500 students get a tailored volume quote.</p>
+    <p class="pricing-note">Billed per academic term to match how Nigerian schools collect fees. Every paid school gets all features for &#8358;300 per active student per term. No annual percentage discount and no hidden add-ons.</p>
     <div class="cta-acts" style="margin-top:32px">
         <a href="{{ route('school.register') }}" class="btn btn-gold btn-lg">Start Free Trial &rarr;</a>
     </div>

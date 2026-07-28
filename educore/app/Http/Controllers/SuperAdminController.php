@@ -134,7 +134,7 @@ class SuperAdminController extends Controller
                     'subdomain' => $tenant->subdomain,
                 ], request(), null, auth()->user());
 
-                // Pay-per-student capacity defaults to the free tier (20 students);
+                // Pay-per-student capacity defaults to the free tier;
                 // raise it afterward via Billing & Invoicing once the school pays.
                 $admin = User::create([
                     'tenant_id'  => $tenant->id,
@@ -643,16 +643,10 @@ class SuperAdminController extends Controller
             ->selectRaw('tenant_id, COUNT(*) as cnt')
             ->groupBy('tenant_id')
             ->pluck('cnt', 'tenant_id');
-
-        $tierCounts = collect(['Free (≤20 students)' => 0, '₦500/student tier' => 0, '₦400/student tier' => 0, 'Custom volume' => 0]);
+        $tierCounts = collect(['Free plan' => 0, 'Paid plan' => 0]);
         foreach ($tenants as $t) {
             $count = (int) ($studentCounts[$t->id] ?? 0);
-            $label = match (true) {
-                \App\Services\PricingService::isFree($count) => 'Free (≤20 students)',
-                $count <= \App\Services\PricingService::TIER2_MAX => '₦500/student tier',
-                $count <= \App\Services\PricingService::TIER3_MAX => '₦400/student tier',
-                default => 'Custom volume',
-            };
+            $label = \App\Services\PricingService::isFree($count) ? 'Free plan' : 'Paid plan';
             $tierCounts[$label]++;
         }
         $planDist = $tierCounts->map(fn ($count, $label) => (object) ['plan' => $label, 'count' => $count])->values();
