@@ -125,12 +125,13 @@ Route::prefix('v1')->group(function () {
             Route::post('payroll/generate', [\App\Http\Controllers\Api\AccountantController::class, 'generatePayroll']);
         });
 
-        Route::prefix('platform')->group(function () {
+        Route::middleware('super.admin')->prefix('platform')->group(function () {
             Route::get('dashboard', [PlatformController::class, 'dashboard']);
             Route::get('tenants', [PlatformController::class, 'tenants']);
             Route::get('billing', [PlatformController::class, 'billing']);
             Route::get('plans', [PlatformController::class, 'plans']);
             Route::patch('tenants/{tenant}', [PlatformController::class, 'updateTenant']);
+            Route::delete('tenants/{tenant}', [PlatformController::class, 'destroyTenant']);
             Route::post('tenants', [PlatformController::class, 'storeTenant']);
             Route::get('agents', [PlatformController::class, 'agents']);
             Route::post('agents', [PlatformController::class, 'storeAgent']);

@@ -38,8 +38,8 @@ td{padding:10pt 12pt;border-bottom:1pt solid #E2E8F0;font-size:11pt}
 <div class="header">
     <div>
         <div class="co-name">{{ $superSettings->get('platform_name', 'EduCore') }}</div>
-        <div class="co-sub">{{ $superSettings->get('platform_email', 'admin@enterprisesms.com') }}</div>
-        <div class="co-sub">{{ $superSettings->get('platform_address', '') }}</div>
+        <div class="co-sub">{{ $superSettings->get('support_email', 'support@educoreng.online') }}</div>
+        <div class="co-sub">{{ $superSettings->get('office_address', 'Abuja, FCT, Nigeria') }}</div>
     </div>
     <div>
         <div class="inv-title">INVOICE</div>
@@ -57,7 +57,11 @@ td{padding:10pt 12pt;border-bottom:1pt solid #E2E8F0;font-size:11pt}
     <div class="bill-box">
         <div class="bill-lbl">From</div>
         <div class="bill-name">{{ $superSettings->get('platform_name','EduCore') }}</div>
-        <div class="bill-detail">School Management Software Platform<br>{{ $superSettings->get('platform_email','') }}</div>
+        <div class="bill-detail">
+            School Management Software Platform<br>
+            {{ $superSettings->get('support_email', 'support@educoreng.online') }}<br>
+            {{ $superSettings->get('office_address', 'Abuja, FCT, Nigeria') }}
+        </div>
     </div>
     <div class="bill-box">
         <div class="bill-lbl">Billed To</div>
@@ -112,7 +116,7 @@ td{padding:10pt 12pt;border-bottom:1pt solid #E2E8F0;font-size:11pt}
 <div class="footer">
     <div>{{ $superSettings->get('platform_name','EduCore') }} · {{ $invoice->invoice_number }}</div>
     <div>Generated: {{ now()->format('d M Y') }}</div>
-    <div>{{ $superSettings->get('platform_email','') }}</div>
+    <div>{{ $superSettings->get('support_email', 'support@educoreng.online') }}</div>
 </div>
 </body>
 </html>

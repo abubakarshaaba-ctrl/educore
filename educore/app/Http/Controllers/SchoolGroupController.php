@@ -85,15 +85,31 @@ class SchoolGroupController extends Controller
     public function addMember(Request $request, $groupId)
     {
         $this->guard();
+        DB::table('school_groups')->where('id', $groupId)->firstOrFail();
+
         $data = $request->validate([
             'tenant_id' => ['required','exists:tenants,id'],
             'role'      => ['nullable','in:member,lead'],
         ]);
 
-        DB::table('school_group_members')->updateOrInsert(
-            ['group_id' => $groupId, 'tenant_id' => $data['tenant_id']],
-            ['role' => $data['role'] ?? 'member', 'created_at' => now(), 'updated_at' => now()]
-        );
+        $otherGroup = DB::table('school_group_members')
+            ->where('tenant_id', $data['tenant_id'])
+            ->where('group_id', '!=', $groupId)
+            ->exists();
+        if ($otherGroup) {
+            return back()->withErrors(['tenant_id' => 'This school already belongs to another school group. Remove it there first.']);
+        }
+
+        DB::transaction(function () use ($groupId, $data) {
+            if (($data['role'] ?? 'member') === 'lead') {
+                DB::table('school_group_members')->where('group_id', $groupId)->update(['role' => 'member', 'updated_at' => now()]);
+            }
+
+            DB::table('school_group_members')->updateOrInsert(
+                ['group_id' => $groupId, 'tenant_id' => $data['tenant_id']],
+                ['role' => $data['role'] ?? 'member', 'created_at' => now(), 'updated_at' => now()]
+            );
+        });
 
         return back()->with('success', 'School added to group.');
     }
@@ -102,10 +118,17 @@ class SchoolGroupController extends Controller
     public function removeMember($groupId, $tenantId)
     {
         $this->guard();
-        DB::table('school_group_members')
+        DB::table('school_groups')->where('id', $groupId)->firstOrFail();
+        $member = DB::table('school_group_members')
             ->where('group_id', $groupId)
             ->where('tenant_id', $tenantId)
-            ->delete();
+            ->firstOrFail();
+
+        if ($member->role === 'lead' && DB::table('school_group_members')->where('group_id', $groupId)->where('tenant_id', '!=', $tenantId)->exists()) {
+            return back()->withErrors(['group' => 'Choose another lead campus before removing the current lead.']);
+        }
+
+        DB::table('school_group_members')->where('id', $member->id)->delete();
 
         return back()->with('success', 'School removed from group.');
     }
@@ -119,12 +142,20 @@ class SchoolGroupController extends Controller
     public function setLead($groupId, $tenantId)
     {
         $this->guard();
-
-        DB::table('school_group_members')->where('group_id', $groupId)->update(['role' => 'member']);
-        DB::table('school_group_members')
+        DB::table('school_groups')->where('id', $groupId)->firstOrFail();
+        $isMember = DB::table('school_group_members')
             ->where('group_id', $groupId)
             ->where('tenant_id', $tenantId)
-            ->update(['role' => 'lead']);
+            ->exists();
+        abort_unless($isMember, 404, 'The selected school is not a member of this group.');
+
+        DB::transaction(function () use ($groupId, $tenantId) {
+            DB::table('school_group_members')->where('group_id', $groupId)->update(['role' => 'member', 'updated_at' => now()]);
+            DB::table('school_group_members')
+                ->where('group_id', $groupId)
+                ->where('tenant_id', $tenantId)
+                ->update(['role' => 'lead', 'updated_at' => now()]);
+        });
 
         return back()->with('success', "Lead campus updated \xe2\x80\x94 this school's subscription now governs the whole group.");
     }

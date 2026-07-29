@@ -33,6 +33,10 @@ class SupportController extends Controller
 
         $notices = DB::table('platform_broadcasts')
             ->whereIn('target', ['all', $tenantStatus])
+            ->where(function ($query) {
+                $query->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
             ->select(
                 'platform_broadcasts.*',
                 DB::raw("EXISTS(SELECT 1 FROM platform_broadcast_dismissals WHERE broadcast_id = platform_broadcasts.id AND tenant_id = {$tenantId}) as dismissed")

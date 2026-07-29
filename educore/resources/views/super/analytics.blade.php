@@ -21,8 +21,8 @@ tbody tr:last-child td{border-bottom:none}
 <div class="sg">
     <div class="sc"><div class="sv" style="color:var(--indigo)">{{ $tenants->count() }}</div><div class="sl">Total Schools</div></div>
     <div class="sc"><div class="sv" style="color:var(--emerald)">{{ $growth->sum('count') }}</div><div class="sl">Joined This Year</div></div>
-    <div class="sc"><div class="sv">{{ $planDist->sum('count') }}</div><div class="sl">Active Subs</div></div>
-    <div class="sc"><div class="sv">{{ optional($planDist->first())->plan ?? '—' }}</div><div class="sl">Top Plan</div></div>
+    <div class="sc"><div class="sv">{{ $activeSubscriptions }}</div><div class="sl">Active Schools</div></div>
+    <div class="sc"><div class="sv">{{ $topTierLabel }}</div><div class="sl">Largest Tier</div></div>
 </div>
 <div class="two">
 <div>

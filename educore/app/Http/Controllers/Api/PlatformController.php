@@ -7,6 +7,9 @@ use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\PlatformAgent;
+use App\Models\ApiToken;
+use App\Models\AuditLog;
+use App\Services\Auth\AuthAuditLogger;
 use App\Services\PricingService;
 use App\Services\TenantOnboardingService;
 use Illuminate\Http\Request;
@@ -111,16 +114,131 @@ class PlatformController extends Controller
         ]);
     }
 
-    public function updateTenant(Request $request, Tenant $tenant)
+    public function updateTenant(
+        Request $request,
+        Tenant $tenant,
+        TenantOnboardingService $onboarding,
+        AuthAuditLogger $audit
+    )
     {
         $this->guard($request);
+
+        if ($request->has('slug')) {
+            $request->merge(['slug' => Tenant::normalizeSlug($request->input('slug'))]);
+        }
+
+        $slugRules = collect(Tenant::slugRules($tenant->id))
+            ->reject(fn ($rule) => $rule === 'required')
+            ->prepend('sometimes')
+            ->all();
+
         $data = $request->validate([
-            'status' => ['sometimes', 'in:active,pending,suspended,subscription_expired'],
+            'name' => ['sometimes', 'string', 'max:150'],
+            'slug' => $slugRules,
+            'email' => ['sometimes', 'nullable', 'email', 'max:180'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'status' => ['sometimes', Rule::in([
+                Tenant::STATUS_ACTIVE,
+                Tenant::STATUS_PENDING,
+                Tenant::STATUS_SUSPENDED,
+                Tenant::STATUS_SUBSCRIPTION_EXPIRED,
+            ])],
             'students_capacity' => ['sometimes', 'integer', 'min:' . PricingService::FREE_THRESHOLD, 'max:1000000'],
             'subscription_expires_at' => ['sometimes', 'nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:500'],
         ]);
-        $tenant->update($data);
+
+        $reason = $data['reason'] ?? null;
+        unset($data['reason']);
+        $before = $tenant->only(array_keys($data));
+
+        if (($data['status'] ?? null) === Tenant::STATUS_ACTIVE && $tenant->status !== Tenant::STATUS_ACTIVE) {
+            $readiness = $onboarding->status($tenant);
+            $audit->recordForTenant(
+                $tenant,
+                $readiness->can_activate
+                    ? 'tenant.onboarding.activation_allowed'
+                    : 'tenant.onboarding.activation_overridden',
+                [
+                    'source' => 'platform_api',
+                    'blocking_items' => $readiness->blocking_items,
+                    'warning_count' => count($readiness->warning_items),
+                ],
+                $request,
+                $readiness->can_activate ? $reason : 'platform_super_admin_override',
+                $request->user()
+            );
+        }
+
+        DB::transaction(function () use ($tenant, $data, $before, $request, $reason) {
+            $tenant->update($data);
+
+            if (Schema::hasTable('audit_logs')) {
+                AuditLog::create([
+                    'tenant_id' => $tenant->id,
+                    'actor_user_id' => $request->user()->id,
+                    'auditable_type' => Tenant::class,
+                    'auditable_id' => $tenant->id,
+                    'action' => 'tenant.updated.via_api',
+                    'old_values' => $before,
+                    'new_values' => $tenant->fresh()->only(array_keys($data)),
+                    'reason' => $reason,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
+        });
+
         return response()->json(['message' => 'School account updated.', 'tenant' => $this->tenantData($tenant->fresh()->loadCount(['users', 'students']))]);
+    }
+
+    public function destroyTenant(Request $request, Tenant $tenant)
+    {
+        $this->guard($request);
+
+        $data = $request->validate([
+            'confirmation' => ['required', 'string', Rule::in([$tenant->name])],
+            'current_password' => ['required', 'string'],
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ]);
+
+        if (!Hash::check($data['current_password'], $request->user()->password)) {
+            return response()->json(['message' => 'Your current password is incorrect.'], 422);
+        }
+
+        DB::transaction(function () use ($tenant, $request, $data) {
+            $userIds = User::query()->where('tenant_id', $tenant->id)->pluck('id');
+
+            if ($userIds->isNotEmpty() && Schema::hasTable('api_tokens')) {
+                ApiToken::query()->whereIn('user_id', $userIds)->delete();
+            }
+
+            User::query()->where('tenant_id', $tenant->id)->update([
+                'is_active' => false,
+                'status_changed_at' => now(),
+            ]);
+
+            if (Schema::hasTable('audit_logs')) {
+                AuditLog::create([
+                    'tenant_id' => $tenant->id,
+                    'actor_user_id' => $request->user()->id,
+                    'auditable_type' => Tenant::class,
+                    'auditable_id' => $tenant->id,
+                    'action' => 'tenant.removed.via_api',
+                    'old_values' => ['name' => $tenant->name, 'slug' => $tenant->slug, 'status' => $tenant->status],
+                    'new_values' => ['status' => Tenant::STATUS_SUSPENDED, 'removed_at' => now()->toIso8601String()],
+                    'reason' => $data['reason'],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
+
+            $tenant->update(['status' => Tenant::STATUS_SUSPENDED]);
+            $tenant->delete();
+        });
+
+        return response()->json(['message' => 'School removed. Accounts and mobile sessions were disabled; records remain recoverable for audit.']);
     }
 
     public function storeTenant(Request $request, TenantOnboardingService $onboarding)
@@ -187,6 +305,9 @@ class PlatformController extends Controller
             'id' => $tenant->id,
             'name' => $tenant->name,
             'slug' => $tenant->slug,
+            'email' => $tenant->email,
+            'phone' => $tenant->phone,
+            'address' => $tenant->address,
             'status' => $tenant->status,
             'plan' => PricingService::tierLabel((int) ($tenant->students_count ?? PricingService::activeStudentCount($tenant->id))),
             'students_capacity' => PricingService::capacityFor($tenant),

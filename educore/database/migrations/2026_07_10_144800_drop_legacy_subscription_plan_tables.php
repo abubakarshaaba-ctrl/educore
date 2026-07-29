@@ -18,12 +18,20 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('platform_payments') && Schema::hasColumn('platform_payments', 'subscription_id')) {
-            Schema::table('platform_payments', function (Blueprint $table) {
-                $table->dropForeign('fk_ppay_sub');
-            });
+            // SQLite cannot drop a named foreign key in-place. Fresh SQLite
+            // databases contain no legacy subscription rows, so leaving this
+            // inert nullable column/constraint in place is safe; MySQL removes
+            // the FK before the historical subscription table is dropped.
+            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+                Schema::table('platform_payments', function (Blueprint $table) {
+                    $table->dropForeign('fk_ppay_sub');
+                });
+            }
         }
 
-        Schema::dropIfExists('tenant_subscriptions');
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            Schema::dropIfExists('tenant_subscriptions');
+        }
         Schema::dropIfExists('subscription_plans');
     }
 
@@ -47,29 +55,33 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('tenant_subscriptions', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('plan_id')->nullable();
-            $table->foreign('tenant_id', 'fk_tsub_tenant')->references('id')->on('tenants')->cascadeOnDelete();
-            $table->foreign('plan_id',   'fk_tsub_plan')->references('id')->on('subscription_plans')->nullOnDelete();
+        if (!Schema::hasTable('tenant_subscriptions')) {
+            Schema::create('tenant_subscriptions', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('tenant_id');
+                $table->unsignedBigInteger('plan_id')->nullable();
+                $table->foreign('tenant_id', 'fk_tsub_tenant')->references('id')->on('tenants')->cascadeOnDelete();
+                $table->foreign('plan_id',   'fk_tsub_plan')->references('id')->on('subscription_plans')->nullOnDelete();
 
-            $table->enum('status', ['active','expired','cancelled','trial'])->default('trial');
-            $table->enum('billing_cycle', ['monthly','annual'])->default('annual');
-            $table->decimal('amount_paid', 10, 2)->default(0);
-            $table->date('starts_at');
-            $table->date('expires_at');
-            $table->date('next_billing_date')->nullable();
-            $table->string('payment_reference')->nullable();
-            $table->string('payment_method')->nullable();
-            $table->text('notes')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->timestamps();
+                $table->enum('status', ['active','expired','cancelled','trial'])->default('trial');
+                $table->enum('billing_cycle', ['monthly','annual'])->default('annual');
+                $table->decimal('amount_paid', 10, 2)->default(0);
+                $table->date('starts_at');
+                $table->date('expires_at');
+                $table->date('next_billing_date')->nullable();
+                $table->string('payment_reference')->nullable();
+                $table->string('payment_method')->nullable();
+                $table->text('notes')->nullable();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
 
-            $table->index(['tenant_id', 'status'], 'idx_tsub_status');
-        });
+                $table->index(['tenant_id', 'status'], 'idx_tsub_status');
+            });
+        }
 
-        if (Schema::hasTable('platform_payments') && Schema::hasColumn('platform_payments', 'subscription_id')) {
+        if (Schema::getConnection()->getDriverName() !== 'sqlite'
+            && Schema::hasTable('platform_payments')
+            && Schema::hasColumn('platform_payments', 'subscription_id')) {
             Schema::table('platform_payments', function (Blueprint $table) {
                 $table->foreign('subscription_id', 'fk_ppay_sub')->references('id')->on('tenant_subscriptions')->nullOnDelete();
             });

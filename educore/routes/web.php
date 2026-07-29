@@ -1040,7 +1040,18 @@ Route::middleware('auth')->group(function () {
 });
 
 // â”€â”€ Super Admin Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tenant subscription checkout remains available to the owning school admin.
+// Keep it outside the Super Admin boundary while retaining authentication and
+// controller-level invoice ownership checks.
 Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->group(function () {
+    Route::get('billing/{invoice}/pay',      [SuperAdminController::class, 'tenantPayInitiate'])->name('billing.pay');
+    Route::get('billing/pay/callback',       [SuperAdminController::class, 'tenantPayCallback'])->name('billing.pay.callback');
+    Route::get('billing/pay/monnify/callback', [SuperAdminController::class, 'monnifyPayCallback'])->name('billing.pay.monnify.callback');
+    Route::get('billing/{invoice}/pay/monnify', [SuperAdminController::class, 'monnifyPayInitiate'])->name('billing.pay.monnify');
+    Route::post('stop-impersonating', [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
+});
+
+Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->name('super.')->group(function () {
     Route::get('/',              [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('tenants',        [SuperAdminController::class, 'tenants'])->name('tenants');
     Route::get('tenants/create', [SuperAdminController::class, 'createTenant'])->name('tenants.create');
@@ -1052,7 +1063,6 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::post('tenants/{tenant}/extend',   [SuperAdminController::class, 'extendTenant'])->name('tenant.extend');
     Route::delete('tenants/{tenant}',        [SuperAdminController::class, 'destroyTenant'])->name('tenant.destroy');
     Route::post('impersonate/{tenant}',      [SuperAdminController::class, 'impersonate'])->name('impersonate');
-    Route::post('stop-impersonating',        [SuperAdminController::class, 'stopImpersonating'])->name('stop-impersonating');
     Route::get('plans',          [SuperAdminController::class, 'plans'])->name('plans');
     Route::get('payments',       [SuperAdminController::class, 'payments'])->name('payments');
     Route::get('settings',               [SuperAdminController::class, 'settings'])->name('settings');
@@ -1064,12 +1074,6 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
     Route::post('send-renewals', [SuperAdminController::class, 'sendRenewalReminders'])->name('send-renewals');
 
     // â”€â”€ Tenant Self-Service Subscription Payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Schools can pay their own subscription online (no super admin needed)
-    Route::get('billing/{invoice}/pay',      [SuperAdminController::class, 'tenantPayInitiate'])->name('billing.pay');
-    Route::get('billing/pay/callback',       [SuperAdminController::class, 'tenantPayCallback'])->name('billing.pay.callback');
-    Route::get('billing/pay/monnify/callback', [SuperAdminController::class, 'monnifyPayCallback'])->name('billing.pay.monnify.callback');
-    Route::get('billing/{invoice}/pay/monnify', [SuperAdminController::class, 'monnifyPayInitiate'])->name('billing.pay.monnify');
-
     // â”€â”€ Billing & Invoicing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('billing',                  [SuperAdminController::class, 'billingInvoices'])->name('billing');
     Route::post('billing/generate',        [SuperAdminController::class, 'generateInvoice'])->name('billing.generate');

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use App\Models\AuditLog;
+use App\Models\ApiToken;
+use App\Models\PlatformSetting;
 use App\Models\StaffWorkHistory;
 use App\Models\Tenant;
 use App\Models\User;
@@ -321,14 +323,10 @@ class SuperAdminController extends Controller
             ], $request, null, auth()->user());
 
             if (!$status->can_activate) {
-                $audit->recordForTenant($tenant, 'tenant.onboarding.activation_denied', [
+                $audit->recordForTenant($tenant, 'tenant.onboarding.activation_overridden', [
                     'source' => 'super_tenant_edit',
                     'blocking_items' => $status->blocking_items,
-                ], $request, 'readiness_blocking_items', auth()->user());
-
-                return back()
-                    ->withInput()
-                    ->withErrors(['status' => 'This tenant cannot be activated until onboarding blocking items are resolved.']);
+                ], $request, 'platform_super_admin_override', auth()->user());
             }
         }
 
@@ -412,28 +410,54 @@ class SuperAdminController extends Controller
     // ═══════════════════════════════════════════════════════════════
     // DELETE TENANT
     // ═══════════════════════════════════════════════════════════════
-    public function destroyTenant(Tenant $tenant)
+    public function destroyTenant(Request $request, Tenant $tenant)
     {
         $this->guard();
 
-        DB::transaction(function () use ($tenant) {
-            // Delete all related data
-            DB::table('platform_payments')->where('tenant_id', $tenant->id)->delete();
-            DB::table('platform_invoices')->where('tenant_id', $tenant->id)->delete();
-            DB::table('audit_logs')->where('tenant_id', $tenant->id)->delete();
+        $validated = $request->validate([
+            'confirmation' => ['required', 'string', Rule::in([$tenant->name])],
+            'current_password' => ['required', 'string'],
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ], [
+            'confirmation.in' => 'Type the school name exactly to confirm removal.',
+        ]);
 
-            // Delete users belonging to this tenant (cascades model_has_roles via observer or manually)
-            $userIds = DB::table('users')->where('tenant_id', $tenant->id)->pluck('id');
-            if ($userIds->isNotEmpty()) {
-                DB::table('model_has_roles')->whereIn('model_id', $userIds)->where('model_type', 'App\\Models\\User')->delete();
+        if (!Hash::check($validated['current_password'], auth()->user()->password)) {
+            return back()->withErrors(['current_password' => 'Your current password is incorrect.']);
+        }
+
+        DB::transaction(function () use ($tenant, $request, $validated) {
+            $userIds = User::query()->where('tenant_id', $tenant->id)->pluck('id');
+
+            if ($userIds->isNotEmpty() && Schema::hasTable('api_tokens')) {
+                ApiToken::query()->whereIn('user_id', $userIds)->delete();
             }
-            DB::table('users')->where('tenant_id', $tenant->id)->delete();
 
-            // Hard delete the tenant (uses SoftDeletes, forceDelete removes permanently)
-            $tenant->forceDelete();
+            User::query()->where('tenant_id', $tenant->id)->update([
+                'is_active' => false,
+                'status_changed_at' => now(),
+            ]);
+
+            if (Schema::hasTable('audit_logs')) {
+                AuditLog::create([
+                    'tenant_id' => $tenant->id,
+                    'actor_user_id' => auth()->id(),
+                    'auditable_type' => Tenant::class,
+                    'auditable_id' => $tenant->id,
+                    'action' => 'tenant.removed',
+                    'old_values' => $tenant->only($this->tenantAuditFields()),
+                    'new_values' => ['status' => Tenant::STATUS_SUSPENDED, 'removed_at' => now()->toIso8601String()],
+                    'reason' => $validated['reason'],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+            }
+
+            $tenant->update(['status' => Tenant::STATUS_SUSPENDED]);
+            $tenant->delete();
         });
 
-        return redirect()->route('super.tenants')->with('success', 'School and all associated data have been permanently deleted.');
+        return redirect()->route('super.tenants')->with('success', 'School removed safely. Its accounts and mobile sessions were disabled, while records remain recoverable for audit purposes.');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -442,7 +466,10 @@ class SuperAdminController extends Controller
     public function toggleTenant(Request $request, Tenant $tenant, TenantOnboardingService $onboarding, AuthAuditLogger $audit)
     {
         $this->guard();
-        $request->validate(['status' => ['required', 'in:active,suspended,subscription_expired']]);
+        $request->validate([
+            'status' => ['required', Rule::in($this->tenantStatusValues())],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
 
         if ($request->status === Tenant::STATUS_ACTIVE) {
             $status = $onboarding->status($tenant);
@@ -451,21 +478,20 @@ class SuperAdminController extends Controller
                 'warning_count' => count($status->warning_items),
             ], $request, null, auth()->user());
 
-            if (!$status->can_activate) {
-                $audit->recordForTenant($tenant, 'tenant.onboarding.activation_denied', [
-                    'blocking_items' => $status->blocking_items,
-                ], $request, 'readiness_blocking_items', auth()->user());
-
-                return back()->withErrors(['status' => 'This tenant cannot be activated until onboarding blocking items are resolved.']);
-            }
-
-            $audit->recordForTenant($tenant, 'tenant.onboarding.activation_allowed', [
+            $audit->recordForTenant($tenant, $status->can_activate
+                ? 'tenant.onboarding.activation_allowed'
+                : 'tenant.onboarding.activation_overridden', [
                 'warning_count' => count($status->warning_items),
-            ], $request, null, auth()->user());
+                'blocking_items' => $status->blocking_items,
+            ], $request, $status->can_activate ? null : 'platform_super_admin_override', auth()->user());
         }
 
         $previousStatus = $tenant->status;
         $tenant->update(['status' => $request->status]);
+        $audit->recordForTenant($tenant, 'tenant.status_changed', [
+            'from' => $previousStatus,
+            'to' => $request->status,
+        ], $request, $request->input('reason'), auth()->user());
 
         if ($request->status === Tenant::STATUS_SUSPENDED && $previousStatus !== Tenant::STATUS_SUSPENDED) {
             try {
@@ -552,9 +578,28 @@ class SuperAdminController extends Controller
 
     public function stopImpersonating()
     {
-        $superAdminId = session('super_admin_id');
+        $superAdminId = (int) session('super_admin_id');
+        $impersonatingTenantId = (int) session('impersonating_tenant_id');
+        $user = auth()->user();
+        $superAdmin = User::query()
+            ->whereKey($superAdminId)
+            ->where('is_super_admin', true)
+            ->where('is_active', true)
+            ->first();
+
+        abort_unless(
+            $superAdmin
+            && $user
+            && !$user->isSuperAdmin()
+            && (int) $user->tenant_id === $impersonatingTenantId,
+            403,
+            'No verified Super Admin impersonation session was found.'
+        );
+
         session()->forget(['impersonating_tenant_id', 'super_admin_id']);
-        if ($superAdminId) auth()->loginUsingId($superAdminId);
+        auth()->login($superAdmin);
+        request()->session()->regenerate();
+
         return redirect()->route('super.dashboard');
     }
 
@@ -569,9 +614,7 @@ class SuperAdminController extends Controller
             'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live',
             'flutterwave_public_key', 'flutterwave_secret_key', 'flutterwave_is_live',
         ];
-        $settings = DB::table('platform_settings')
-            ->whereIn('key', $keys)
-            ->pluck('value', 'key');
+        $settings = collect(PlatformSetting::valuesFor($keys));
 
         return view('super.payment-gateways', compact('settings'));
     }
@@ -580,31 +623,38 @@ class SuperAdminController extends Controller
     {
         $this->guard();
 
-        $allowed = [
-            'paystack_public_key', 'paystack_secret_key', 'paystack_is_live',
-            'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live',
-            'flutterwave_public_key', 'flutterwave_secret_key', 'flutterwave_is_live',
-        ];
+        $validated = $request->validate([
+            'settings' => ['required', 'array:paystack_public_key,paystack_secret_key,paystack_is_live,monnify_api_key,monnify_secret_key,monnify_contract_code,monnify_is_live,flutterwave_public_key,flutterwave_secret_key,flutterwave_is_live'],
+            'settings.paystack_public_key' => ['nullable', 'string', 'max:255', 'regex:/^pk_(test|live)_[A-Za-z0-9]+$/'],
+            'settings.paystack_secret_key' => ['nullable', 'string', 'max:255', 'regex:/^sk_(test|live)_[A-Za-z0-9]+$/'],
+            'settings.monnify_api_key' => ['nullable', 'string', 'max:255'],
+            'settings.monnify_secret_key' => ['nullable', 'string', 'max:255'],
+            'settings.monnify_contract_code' => ['nullable', 'string', 'max:100'],
+            'settings.flutterwave_public_key' => ['nullable', 'string', 'max:255'],
+            'settings.flutterwave_secret_key' => ['nullable', 'string', 'max:255'],
+            'settings.paystack_is_live' => ['nullable', 'boolean'],
+            'settings.monnify_is_live' => ['nullable', 'boolean'],
+            'settings.flutterwave_is_live' => ['nullable', 'boolean'],
+        ]);
 
-        foreach ($request->input('settings', []) as $key => $value) {
-            if (!in_array($key, $allowed, true)) continue;
-            // Only update secret keys if a non-empty value was submitted (avoid wiping with blank)
-            if (in_array($key, ['paystack_secret_key', 'monnify_secret_key', 'flutterwave_secret_key'])
-                && ($value === '' || $value === null)) {
+        $secretKeys = PlatformSetting::SECRET_KEYS;
+        $values = $validated['settings'];
+        foreach ($values as $key => $value) {
+            if (in_array($key, $secretKeys, true) && blank($value)) {
                 continue;
             }
-            DB::table('platform_settings')->updateOrInsert(
-                ['key' => $key],
-                ['value' => $value ?? '', 'updated_at' => now()]
+
+            PlatformSetting::setValue(
+                $key,
+                $value ?? '',
+                in_array($key, $secretKeys, true) ? 'encrypted' : (str_ends_with($key, '_is_live') ? 'boolean' : 'string'),
+                'payments',
+                Str::headline($key)
             );
         }
 
-        // Handle checkboxes (unchecked = not submitted = set to 0)
         foreach (['paystack_is_live', 'monnify_is_live', 'flutterwave_is_live'] as $flag) {
-            DB::table('platform_settings')->updateOrInsert(
-                ['key' => $flag],
-                ['value' => $request->has("settings.{$flag}") ? '1' : '0', 'updated_at' => now()]
-            );
+            PlatformSetting::setValue($flag, $request->boolean("settings.{$flag}"), 'boolean', 'payments', Str::headline($flag));
         }
 
         return back()->with('success', 'Payment gateway settings saved successfully.');
@@ -626,13 +676,46 @@ class SuperAdminController extends Controller
     public function saveSettings(Request $request)
     {
         $this->guard();
-        foreach ($request->settings ?? [] as $key => $value) {
-            DB::table('platform_settings')->updateOrInsert(
-                ['key' => $key],
-                ['value' => $value, 'updated_at' => now()]
-            );
+
+        $validated = $request->validate([
+            'settings' => ['required', 'array:platform_name,support_email,support_phone,support_whatsapp,support_website,office_address,trial_days,grace_period_days,default_sms_gateway,sms_sender_id,maintenance_mode'],
+            'settings.platform_name' => ['required', 'string', 'max:100'],
+            'settings.support_email' => ['required', 'email', 'max:180'],
+            'settings.support_phone' => ['required', 'string', 'max:30'],
+            'settings.support_whatsapp' => ['required', 'string', 'max:30'],
+            'settings.support_website' => ['required', 'url:http,https', 'max:200'],
+            'settings.office_address' => ['required', 'string', 'max:255'],
+            'settings.trial_days' => ['required', 'integer', 'min:0', 'max:365'],
+            'settings.grace_period_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'settings.default_sms_gateway' => ['required', Rule::in(['termii', 'africas_talking', 'twilio'])],
+            'settings.sms_sender_id' => ['required', 'string', 'min:3', 'max:11', 'regex:/^[A-Za-z0-9 ]+$/'],
+            'settings.maintenance_mode' => ['required', 'boolean'],
+        ]);
+
+        $definitions = $this->platformSettingDefinitions();
+        foreach ($validated['settings'] as $key => $value) {
+            $definition = $definitions[$key];
+            PlatformSetting::setValue($key, $value, $definition['type'], $definition['group'], $definition['label']);
         }
-        return back()->with('success', 'Settings saved.');
+
+        return back()->with('success', 'Platform operations settings saved and applied.');
+    }
+
+    private function platformSettingDefinitions(): array
+    {
+        return [
+            'platform_name' => ['type' => 'string', 'group' => 'general', 'label' => 'Platform Name'],
+            'support_email' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support Email'],
+            'support_phone' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support Phone'],
+            'support_whatsapp' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support WhatsApp'],
+            'support_website' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support Website'],
+            'office_address' => ['type' => 'string', 'group' => 'contact', 'label' => 'Office Address'],
+            'trial_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Initial Subscription Window'],
+            'grace_period_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Grace Period'],
+            'default_sms_gateway' => ['type' => 'string', 'group' => 'notifications', 'label' => 'Default SMS Gateway'],
+            'sms_sender_id' => ['type' => 'string', 'group' => 'notifications', 'label' => 'SMS Sender ID'],
+            'maintenance_mode' => ['type' => 'boolean', 'group' => 'system', 'label' => 'Maintenance Mode'],
+        ];
     }
 
     // ── Super Admin Analytics ─────────────────────────────────────
@@ -641,9 +724,21 @@ class SuperAdminController extends Controller
         $this->guard();
         $tenants = \App\Models\Tenant::withCount(['users'])->latest()->get();
 
-        $growth = \App\Models\Tenant::selectRaw('MONTH(created_at) as month, YEAR(created_at) as year, COUNT(*) as count')
-            ->whereYear('created_at', date('Y'))
-            ->groupBy('year','month')->orderBy('year')->orderBy('month')->get();
+        $currentYear = (int) now()->year;
+        $growth = \App\Models\Tenant::query()
+            ->whereBetween('created_at', [
+                now()->copy()->startOfYear(),
+                now()->copy()->endOfYear(),
+            ])
+            ->get(['created_at'])
+            ->groupBy(fn ($tenant) => (int) $tenant->created_at->month)
+            ->map(fn ($items, $month) => (object) [
+                'month' => (int) $month,
+                'year' => $currentYear,
+                'count' => $items->count(),
+            ])
+            ->sortBy('month')
+            ->values();
 
         // Distribution across the pay-per-student pricing tiers, in place of
         // the old fixed-plan distribution — there are no more plan tiers,
@@ -660,8 +755,17 @@ class SuperAdminController extends Controller
             $tierCounts[$label]++;
         }
         $planDist = $tierCounts->map(fn ($count, $label) => (object) ['plan' => $label, 'count' => $count])->values();
+        $activeSubscriptions = $tenants->where('status', \App\Models\Tenant::STATUS_ACTIVE)->count();
+        $topTier = $planDist->sortByDesc('count')->first();
+        $topTierLabel = $topTier && $topTier->count > 0 ? $topTier->plan : '—';
 
-        return view('super.analytics', compact('tenants', 'growth', 'planDist'));
+        return view('super.analytics', compact(
+            'tenants',
+            'growth',
+            'planDist',
+            'activeSubscriptions',
+            'topTierLabel'
+        ));
     }
 
     // ── Send Renewal Reminders ────────────────────────────────────
@@ -785,35 +889,53 @@ class SuperAdminController extends Controller
     public function markInvoicePaid(Request $request, $invoiceId)
     {
         $this->guard();
-        $data = $request->validate([
-            'payment_method' => ['required','string'],
-            'payment_ref'    => ['nullable','string'],
-        ]);
-
         $invoice = DB::table('platform_invoices')->find($invoiceId);
         if (!$invoice) abort(404);
+        if ($invoice->status === 'paid') {
+            return back()->with('success', 'This invoice was already paid. No duplicate payment was recorded.');
+        }
 
-        DB::table('platform_invoices')->where('id',$invoiceId)->update([
-            'status'         => 'paid',
-            'paid_at'        => now(),
-            'payment_method' => $data['payment_method'],
-            'payment_ref'    => $data['payment_ref'],
-            'updated_at'     => now(),
+        $data = $request->validate([
+            'payment_method' => ['required', Rule::in(['bank_transfer', 'card', 'cash', 'pos', 'other'])],
+            'payment_ref' => ['nullable', 'string', 'max:100', Rule::unique('platform_payments', 'reference')],
         ]);
 
-        // Record in platform_payments too
-        DB::table('platform_payments')->insert([
-            'tenant_id'       => $invoice->tenant_id,
-            'reference'       => $data['payment_ref'] ?? 'PAY-'.strtoupper(Str::random(8)),
-            'amount'          => $invoice->amount,
-            'status'          => 'confirmed',
-            'payment_method'  => $data['payment_method'],
-            'description'     => 'Invoice '.$invoice->invoice_number.' payment',
-            'confirmed_by'    => auth()->id(),
-            'paid_at'         => now(),
-            'created_at'      => now(),
-            'updated_at'      => now(),
-        ]);
+        $paymentReference = $data['payment_ref'] ?: 'PAY-'.strtoupper(Str::random(12));
+        $processed = false;
+
+        DB::transaction(function () use ($invoiceId, $invoice, $data, $paymentReference, &$processed) {
+            $locked = DB::table('platform_invoices')->where('id', $invoiceId)->lockForUpdate()->first();
+            if (!$locked || $locked->status === 'paid') {
+                return;
+            }
+
+            DB::table('platform_invoices')->where('id',$invoiceId)->update([
+                'status'         => 'paid',
+                'paid_at'        => now(),
+                'payment_method' => $data['payment_method'],
+                'payment_ref'    => $paymentReference,
+                'updated_at'     => now(),
+            ]);
+
+            DB::table('platform_payments')->insert([
+                'reference' => $paymentReference,
+                'tenant_id' => $invoice->tenant_id,
+                'amount' => $invoice->amount,
+                'currency' => 'NGN',
+                'status' => 'confirmed',
+                'payment_method' => $data['payment_method'],
+                'description' => 'Invoice '.$invoice->invoice_number.' payment',
+                'confirmed_by' => auth()->id(),
+                'paid_at' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]);
+            $processed = true;
+        });
+
+        if (!$processed) {
+            return back()->with('success', 'This invoice was already paid. No duplicate payment was recorded.');
+        }
 
         // Extend tenant subscription
         $tenant = Tenant::find($invoice->tenant_id);
@@ -874,12 +996,10 @@ class SuperAdminController extends Controller
         }
 
         // Platform-level gateway keys (stored in platform_settings key-value)
-        $keys = DB::table('platform_settings')
-            ->whereIn('key', [
-                'paystack_public_key', 'paystack_secret_key', 'paystack_is_live',
-                'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live',
-            ])
-            ->pluck('value', 'key');
+        $keys = PlatformSetting::valuesFor([
+            'paystack_public_key', 'paystack_secret_key', 'paystack_is_live',
+            'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live',
+        ]);
 
         $publicKey       = $keys['paystack_public_key'] ?? null;
         $paystackEnabled = !empty($publicKey);
@@ -912,28 +1032,33 @@ class SuperAdminController extends Controller
     {
         $reference = $request->get('reference');
         $invoice   = DB::table('platform_invoices')->where('payment_reference', $reference)->first();
+        $returnRoute = $request->user()?->isSuperAdmin() ? 'super.billing' : 'billing.subscription';
 
         if (!$invoice) {
-            return redirect()->route('super.billing')->withErrors(['error' => 'Payment reference not found.']);
+            return redirect()->route($returnRoute)->withErrors(['error' => 'Payment reference not found.']);
         }
+        $this->guardTenantInvoiceAccess($request, $invoice);
 
         // Verify with Paystack using platform keys
-        $secretKey = optional(DB::table('platform_settings')->where('key','paystack_secret_key')->first())->value;
+        $secretKey = PlatformSetting::valueFor('paystack_secret_key');
         $verified  = false;
 
         if ($secretKey) {
             $response = \Illuminate\Support\Facades\Http::withToken($secretKey)
                 ->get("https://api.paystack.co/transaction/verify/{$reference}");
-            $verified = $response->successful() && $response->json('data.status') === 'success';
+            $verified = $response->successful()
+                && $response->json('data.status') === 'success'
+                && strtoupper((string) $response->json('data.currency')) === 'NGN'
+                && (int) $response->json('data.amount') === (int) round(((float) $invoice->amount) * 100);
         }
 
         if ($verified) {
             $tenant = $this->creditInvoicePayment($invoice, $reference, 'paystack_online');
-            return redirect()->route('super.billing')
+            return redirect()->route($returnRoute)
                 ->with('success', "Payment confirmed! {$tenant->name} subscription extended to {$tenant->subscription_expires_at->format('d M Y')}.");
         }
 
-        return redirect()->route('super.billing')
+        return redirect()->route($returnRoute)
             ->withErrors(['error' => 'Payment could not be verified. Please try again or contact support.']);
     }
 
@@ -943,30 +1068,42 @@ class SuperAdminController extends Controller
      */
     private function creditInvoicePayment($invoice, string $reference, string $method): Tenant
     {
-        $existingPayment = DB::table('platform_payments')
-            ->where('invoice_id', $invoice->id)
-            ->where('tenant_id', $invoice->tenant_id)
-            ->exists();
+        $settled = DB::transaction(function () use ($invoice, $reference, $method) {
+            $locked = DB::table('platform_invoices')->where('id', $invoice->id)->lockForUpdate()->first();
+            if (!$locked || $locked->status === 'paid' || DB::table('platform_payments')->where('reference', $reference)->exists()) {
+                return false;
+            }
 
-        if ($existingPayment) {
-            return Tenant::find($invoice->tenant_id);
-        }
+            DB::table('platform_invoices')->where('id', $invoice->id)
+                ->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'payment_method' => $method,
+                    'payment_ref' => $reference,
+                    'updated_at' => now(),
+                ]);
 
-        DB::table('platform_invoices')->where('id', $invoice->id)
-            ->update(['status' => 'paid', 'paid_at' => now(), 'updated_at' => now()]);
+            DB::table('platform_payments')->insert([
+                'tenant_id'  => $invoice->tenant_id,
+                'amount'     => $invoice->amount,
+                'reference'  => $reference,
+                'currency'   => 'NGN',
+                'payment_method' => $method,
+                'description' => 'Invoice '.$invoice->invoice_number.' online payment',
+                'status'     => 'confirmed',
+                'paid_at'    => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        DB::table('platform_payments')->insert([
-            'tenant_id'  => $invoice->tenant_id,
-            'invoice_id' => $invoice->id,
-            'amount'     => $invoice->amount,
-            'reference'  => $reference,
-            'method'     => $method,
-            'status'     => 'success',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            return true;
+        });
 
         $tenant = Tenant::find($invoice->tenant_id);
+        if (!$settled) {
+            return $tenant;
+        }
+
         $days   = match ($invoice->billing_cycle) {
             'annual' => 365,
             'termly' => 112, // one academic term (~16 weeks)
@@ -1009,9 +1146,12 @@ class SuperAdminController extends Controller
      */
     private function monnifyConfig(): ?object
     {
-        $s = DB::table('platform_settings')
-            ->whereIn('key', ['monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live'])
-            ->pluck('value', 'key');
+        $s = PlatformSetting::valuesFor([
+            'monnify_api_key',
+            'monnify_secret_key',
+            'monnify_contract_code',
+            'monnify_is_live',
+        ]);
 
         if (empty($s['monnify_api_key']) || empty($s['monnify_secret_key']) || empty($s['monnify_contract_code'])) {
             return null;
@@ -1094,12 +1234,14 @@ class SuperAdminController extends Controller
     {
         $reference = $request->get('paymentReference') ?: $request->get('reference');
         $invoice   = DB::table('platform_invoices')->where('payment_reference', $reference)->first();
+        $returnRoute = $request->user()?->isSuperAdmin() ? 'super.billing' : 'billing.subscription';
 
         if (!$invoice) {
-            return redirect()->route('super.billing')->withErrors(['error' => 'Payment reference not found.']);
+            return redirect()->route($returnRoute)->withErrors(['error' => 'Payment reference not found.']);
         }
+        $this->guardTenantInvoiceAccess($request, $invoice);
         if ($invoice->status === 'paid') {
-            return redirect()->route('super.billing')->with('success', 'Payment already confirmed.');
+            return redirect()->route($returnRoute)->with('success', 'Payment already confirmed.');
         }
 
         $cfg      = $this->monnifyConfig();
@@ -1108,17 +1250,34 @@ class SuperAdminController extends Controller
         if ($cfg && ($token = $this->monnifyToken($cfg))) {
             $query = \Illuminate\Support\Facades\Http::withToken($token)
                 ->get("{$cfg->base}/api/v1/merchant/transactions/query", ['paymentReference' => $reference]);
-            $verified = $query->successful() && $query->json('responseBody.paymentStatus') === 'PAID';
+            $reportedAmount = (float) ($query->json('responseBody.amountPaid')
+                ?? $query->json('responseBody.amount')
+                ?? 0);
+            $verified = $query->successful()
+                && $query->json('responseBody.paymentStatus') === 'PAID'
+                && strtoupper((string) $query->json('responseBody.currencyCode')) === 'NGN'
+                && $reportedAmount >= (float) $invoice->amount;
         }
 
         if ($verified) {
             $tenant = $this->creditInvoicePayment($invoice, $reference, 'monnify_online');
-            return redirect()->route('super.billing')
+            return redirect()->route($returnRoute)
                 ->with('success', "Payment confirmed! {$tenant->name} subscription extended to {$tenant->subscription_expires_at->format('d M Y')}.");
         }
 
-        return redirect()->route('super.billing')
+        return redirect()->route($returnRoute)
             ->withErrors(['error' => 'Payment could not be verified yet. If you completed payment, please refresh in a moment.']);
+    }
+
+    private function guardTenantInvoiceAccess(Request $request, object $invoice): void
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user && ($user->isSuperAdmin() || (int) $user->tenant_id === (int) $invoice->tenant_id),
+            403,
+            'You cannot access another school’s subscription payment.'
+        );
     }
 
     // ── Support Tickets (school → super admin) ────────────────────

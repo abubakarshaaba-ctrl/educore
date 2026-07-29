@@ -47,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'student.portal' => \App\Http\Middleware\StudentPortalAccess::class,
             'parent.portal'  => \App\Http\Middleware\ParentPortalAccess::class,
             '2fa'            => \App\Http\Middleware\RequireTwoFactor::class,
+            'super.admin'    => \App\Http\Middleware\EnsureSuperAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

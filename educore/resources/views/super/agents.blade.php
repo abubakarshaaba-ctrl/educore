@@ -300,7 +300,7 @@ tbody tr:hover td{background:#F8FAFC}
                 <div class="summary-list">
                     @foreach([
                         ['Default Rate', $settings['default_commission_rate'].'%'],
-                        ['Bonus', $settings['bonus_threshold'].' referrals → ₦'.number_format($settings['bonus_amount'])],
+                        ['Bonus Rate', $settings['bonus_threshold'].' referrals → '.$settings['bonus_amount'].'%'],
                         ['Auto-Approve', $settings['auto_approve'] ? 'Yes' : 'Manual review'],
                         ['Payment Cycle', ucfirst($settings['payment_cycle'])],
                         ['Min Payout', '₦'.number_format($settings['min_payout'])],

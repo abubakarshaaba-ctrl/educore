@@ -17,6 +17,7 @@
     .btn-sm { padding:5px 10px;font-size:11px; }
     .btn-success { background:var(--emerald);color:white; }
     .btn-warning { background:var(--amber);color:white; }
+    .btn-danger { background:#B42318;color:white; }
     .card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
     table { width:100%;border-collapse:collapse; }
     thead th { font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:0.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border); }
@@ -85,6 +86,7 @@
                 </td>
                 <td>
                     <div class="action-group">
+                        <a href="{{ route('super.tenant.show', $tenant) }}" class="btn btn-sm btn-ghost">View</a>
                         <a href="{{ route('super.tenant.edit', $tenant) }}" class="btn btn-sm btn-ghost">Edit</a>
                         <form method="POST" action="{{ route('super.impersonate', $tenant) }}" style="display:inline">
                             @csrf
@@ -94,9 +96,11 @@
                             @csrf @method('PATCH')
                             @if($tenant->status === 'active')
                                 <input type="hidden" name="status" value="suspended">
+                                <input type="hidden" name="reason" value="Suspended from the Platform Super Admin school list.">
                                 <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Suspend this school?')">Suspend</button>
                             @else
                                 <input type="hidden" name="status" value="active">
+                                <input type="hidden" name="reason" value="Activated from the Platform Super Admin school list.">
                                 <button type="submit" class="btn btn-sm btn-success">Activate</button>
                             @endif
                         </form>

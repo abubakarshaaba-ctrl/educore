@@ -91,7 +91,16 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
 }
 .super-overlay.open { display:block; }
 
-.page-content { padding:24px; flex:1; }
+.page-content { padding:24px; flex:1; width:100%; max-width:1680px; margin:0 auto; }
+.page-content > * { max-width:100%; }
+.page-content img, .page-content video, .page-content canvas { max-width:100%; height:auto; }
+.page-content form { max-width:100%; }
+.page-content .card, .page-content .settings-card { max-width:100%; }
+.page-content button, .page-content a, .super-hamburger { -webkit-tap-highlight-color:transparent; }
+.page-content button:focus-visible, .page-content a:focus-visible, .page-content input:focus-visible,
+.page-content select:focus-visible, .page-content textarea:focus-visible, .super-hamburger:focus-visible {
+    outline:3px solid rgba(215,154,33,.35); outline-offset:2px;
+}
 
 .alert-success { background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:12px 16px; font-size:13px; color:#059669; margin-bottom:16px; }
 .alert-error   { background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:12px 16px; font-size:13px; color:#DC2626; margin-bottom:16px; }
@@ -106,6 +115,16 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
     .topbar { padding:0 14px; gap:10px; }
     .topbar-title { font-size:13.5px; }
     .super-pill { white-space:nowrap; }
+    .topbar-right { min-width:0; }
+    .page-content .page-header,
+    .page-content .header-row,
+    .page-content .toolbar,
+    .page-content .filter-row { flex-wrap:wrap; gap:10px; }
+    .page-content .filters { align-items:stretch; }
+    .page-content .filter-group,
+    .page-content .filter-control { width:100%; min-width:0; }
+    .page-content .action-group { min-width:180px; }
+    .page-content .btn { min-height:38px; justify-content:center; }
     .two, .fr { grid-template-columns:1fr; }
     /* Stack inline flex space-between page headers on phones */
     .page-content > div[style*="justify-content:space-between"],
@@ -116,7 +135,11 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
 }
 @media(max-width:480px) {
     .page-content { padding:10px; }
-    .super-pill { padding:4px 8px; font-size:10px; }
+    .super-pill { display:none; }
+    .topbar { min-height:56px; height:auto; padding-top:8px; padding-bottom:8px; }
+    .page-content .page-header { align-items:stretch!important; }
+    .page-content .page-header > *,
+    .page-content .page-header .btn { width:100%; }
 }
 /* Shared responsive utilities (mirrors app.blade.php global styles) */
 .tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
@@ -126,14 +149,28 @@ table { width:100%; border-collapse:collapse; }
 .fr   { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
 @media(max-width:1024px){.stats-row{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}}
+@media(max-width:900px){
+    .page-content .two,.page-content .two-col,.page-content .pg,.page-content .pg-grid,
+    .page-content .settings-grid,.page-content .split,.page-content .layout-grid {
+        grid-template-columns:1fr!important;
+    }
+    .page-content .sg,.page-content .kpi,.page-content .stat-row {
+        grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+}
 @media(max-width:640px){
     .two,.fr{grid-template-columns:1fr}.stats-row{grid-template-columns:1fr 1fr}
     .page-content [style*="grid-template-columns"]{grid-template-columns:1fr!important}
     .page-content [style*="min-width"],.page-content [style*="width:"]{max-width:100%}
     .page-content [style*="min-width"]{min-width:0!important}
     .page-content input,.page-content select,.page-content textarea,.page-content img,.page-content canvas,.page-content svg{max-width:100%}
+    .page-content .sg,.page-content .kpi,.page-content .stat-row,.page-content .stats-row{grid-template-columns:1fr!important}
+    .page-content [style*="justify-content:space-between"],
+    .page-content [style*="justify-content: space-between"]{flex-wrap:wrap}
+    .responsive-table{margin-left:0;margin-right:0}
 }
-.responsive-table{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.responsive-table{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.responsive-table table{min-width:560px}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:#065F46;margin-bottom:16px}
 .alert-e{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:12px 16px;font-size:13px;color:#991B1B;margin-bottom:16px}
     </style>
@@ -216,6 +253,14 @@ table { width:100%; border-collapse:collapse; }
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
             Agents
         </a>
+        <a href="{{ route('super.support') }}" class="nav-item {{ request()->routeIs('super.support*') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C6.48 1 2 5.03 2 10v7c0 1.1.9 2 2 2h3v-8H4v-1c0-3.87 3.58-7 8-7s8 3.13 8 7v1h-3v8h3v1h-8v2h7c1.66 0 3-1.34 3-3v-9c0-4.97-4.48-9-10-9z"/></svg>
+            Support Inbox
+        </a>
+        <a href="{{ route('super.broadcasts') }}" class="nav-item {{ request()->routeIs('super.broadcasts*') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05A4.49 4.49 0 0 0 16.5 12zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            Platform Broadcasts
+        </a>
     </div>
 
     <div class="sidebar-footer">
@@ -242,7 +287,7 @@ table { width:100%; border-collapse:collapse; }
 
 <div class="main">
     <header class="topbar">
-        <button class="super-hamburger" onclick="toggleSuperSidebar()" aria-label="Menu">
+        <button class="super-hamburger" id="superMenuButton" onclick="toggleSuperSidebar()" aria-label="Open navigation" aria-controls="superSidebar" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
         </button>
         <div class="topbar-title">@yield('page-title', 'Platform Dashboard')</div>
@@ -266,15 +311,27 @@ table { width:100%; border-collapse:collapse; }
 function toggleSuperSidebar() {
     var s = document.getElementById('superSidebar');
     var o = document.getElementById('superOverlay');
+    var b = document.getElementById('superMenuButton');
     s.classList.toggle('open');
     o.classList.toggle('open');
+    b.setAttribute('aria-expanded', s.classList.contains('open') ? 'true' : 'false');
+    b.setAttribute('aria-label', s.classList.contains('open') ? 'Close navigation' : 'Open navigation');
     document.body.style.overflow = s.classList.contains('open') ? 'hidden' : '';
 }
 function closeSuperSidebar() {
     document.getElementById('superSidebar').classList.remove('open');
     document.getElementById('superOverlay').classList.remove('open');
+    var b = document.getElementById('superMenuButton');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-label', 'Open navigation');
     document.body.style.overflow = '';
 }
+document.addEventListener('keydown', function(event){
+    if(event.key === 'Escape') closeSuperSidebar();
+});
+window.addEventListener('resize', function(){
+    if(window.innerWidth > 768) closeSuperSidebar();
+});
 document.querySelectorAll('.page-content table').forEach(function(table){
     if(table.closest('.tbl,.table-wrap,.responsive-table'))return;
     var wrapper=document.createElement('div');

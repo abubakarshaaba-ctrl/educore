@@ -18,7 +18,7 @@ tbody tr:last-child td{border-bottom:none}
 .btn-p{background:var(--indigo);color:white}.btn-sm{padding:4px 10px;font-size:11px}.btn-ghost{background:white;color:var(--midnight);border:1px solid var(--border)}
 .btn[disabled]{opacity:.55;cursor:not-allowed}
 .badge{display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
-.b-active{background:#ECFDF5;color:var(--emerald)}.b-expired{background:#FEF2F2;color:var(--crimson)}.b-trial{background:#FFFBEB;color:var(--amber)}
+.b-active{background:#ECFDF5;color:var(--emerald)}.b-suspended,.b-subscription_expired{background:#FEF2F2;color:var(--crimson)}.b-pending{background:#EFF6FF;color:#2563EB}
 .back{font-size:13px;color:var(--indigo);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:16px}
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
 .fl{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.05em}
@@ -30,6 +30,10 @@ tbody tr:last-child td{border-bottom:none}
 .check-blocking{background:#FEF2F2;color:var(--crimson)}
 .check-warning{background:#FFFBEB;color:#92400E}
 .check-complete{background:#ECFDF5;color:var(--emerald)}
+.danger-card{border-color:#FECACA}
+.danger-card .ch{background:#FFF7F7;color:#B42318}
+.danger-copy{font-size:12px;color:#667085;line-height:1.55;margin-bottom:12px}
+.danger-btn{width:100%;justify-content:center;background:#B42318;color:white}
 @media(max-width:768px){.pg{grid-template-columns:1fr}}
 </style>
 @endpush
@@ -73,7 +77,8 @@ tbody tr:last-child td{border-bottom:none}
         <form method="POST" action="{{ route('super.tenant.toggle',$tenant) }}">
           @csrf @method('PATCH')
           <input type="hidden" name="status" value="{{ $tenant->status === 'active' ? 'suspended' : 'active' }}">
-          <button type="submit" class="btn {{ $tenant->status === 'active' ? 'btn-ghost':'btn-p' }}" style="width:100%;justify-content:center" {{ $tenant->status !== 'active' && !$onboardingStatus->can_activate ? 'disabled' : '' }}>
+          <input type="hidden" name="reason" value="{{ $tenant->status === 'active' ? 'Suspended from the Platform Super Admin school profile.' : 'Activated from the Platform Super Admin school profile.' }}">
+          <button type="submit" class="btn {{ $tenant->status === 'active' ? 'btn-ghost':'btn-p' }}" style="width:100%;justify-content:center">
             {{ $tenant->status === 'active' ? 'Suspend School':'Activate School' }}
           </button>
         </form>
@@ -99,6 +104,27 @@ tbody tr:last-child td{border-bottom:none}
           <div class="check-item check-warning">{{ $item }}</div>
         @endforeach
       </div>
+    </div>
+
+    <div class="card danger-card">
+      <div class="ch">Remove School</div>
+      <form method="POST" action="{{ route('super.tenant.destroy', $tenant) }}" style="padding:16px" onsubmit="return confirm('Remove this school and immediately disable all of its accounts and mobile sessions?')">
+        @csrf @method('DELETE')
+        <div class="danger-copy">This safely removes the school from the active platform, disables its users, and revokes mobile sessions. Records remain recoverable for audit and legal retention.</div>
+        <div class="fg">
+          <label class="fl">Reason for removal</label>
+          <textarea class="fc" name="reason" rows="3" minlength="10" maxlength="500" required>{{ old('reason') }}</textarea>
+        </div>
+        <div class="fg">
+          <label class="fl">Type “{{ $tenant->name }}”</label>
+          <input class="fc" type="text" name="confirmation" autocomplete="off" required>
+        </div>
+        <div class="fg">
+          <label class="fl">Your current password</label>
+          <input class="fc" type="password" name="current_password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn danger-btn">Remove School</button>
+      </form>
     </div>
   </div>
 

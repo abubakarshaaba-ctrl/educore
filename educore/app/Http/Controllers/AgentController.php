@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 use App\Models\AgentPayout;
 use App\Models\PlatformAgent;
 use App\Models\AgentReferral;
+use App\Models\PlatformSetting;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class AgentController extends Controller
 {
@@ -83,8 +84,21 @@ class AgentController extends Controller
     {
         $this->guard();
 
-        $referral->update(['status' => 'approved']);
-        $referral->agent->increment('total_earned', $referral->commission_amount);
+        $approved = DB::transaction(function () use ($referral) {
+            $locked = AgentReferral::query()->whereKey($referral->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status !== 'pending') {
+                return false;
+            }
+
+            $locked->update(['status' => 'approved']);
+            PlatformAgent::query()->whereKey($locked->agent_id)->increment('total_earned', $locked->commission_amount);
+
+            return true;
+        });
+
+        if (!$approved) {
+            return back()->withErrors(['commission' => 'This commission has already been reviewed. No duplicate credit was added.']);
+        }
         return back()->with('success', 'Commission approved.');
     }
 
@@ -96,11 +110,31 @@ class AgentController extends Controller
             'amount' => ['required', 'numeric', 'min:1'],
             'note'   => ['nullable', 'string', 'max:255'],
         ]);
-        $max = $agent->unpaidBalance();
-        if ($data['amount'] > $max) {
-            return back()->withErrors(['amount' => "Cannot pay more than unpaid balance of ₦" . number_format($max)]);
+        $result = DB::transaction(function () use ($agent, $data) {
+            $locked = PlatformAgent::query()->whereKey($agent->id)->lockForUpdate()->firstOrFail();
+            $max = $locked->unpaidBalance();
+            if ($data['amount'] > $max) {
+                return $max;
+            }
+
+            $locked->increment('total_paid', $data['amount']);
+            AgentPayout::create([
+                'agent_id' => $locked->id,
+                'amount' => $data['amount'],
+                'reference' => 'PAYOUT-' . strtoupper(Str::random(12)),
+                'bank_name' => $locked->bank_name,
+                'account_number' => $locked->bank_account_number,
+                'status' => 'paid',
+                'note' => $data['note'] ?? 'Recorded manually by Platform Super Admin.',
+                'processed_by' => auth()->id(),
+            ]);
+
+            return true;
+        });
+
+        if ($result !== true) {
+            return back()->withErrors(['amount' => 'Cannot pay more than unpaid balance of NGN ' . number_format($result)]);
         }
-        $agent->increment('total_paid', $data['amount']);
         return back()->with('success', '₦' . number_format($data['amount']) . ' recorded as paid to ' . $agent->name . '.');
     }
 
@@ -149,7 +183,7 @@ class AgentController extends Controller
         if (!$agent || !$agent->is_active) return;
 
         // Get programme settings to check bonus rate
-        $settings = \Illuminate\Support\Facades\Cache::get('agent_settings', [
+        $settings = PlatformSetting::valueFor('agent_programme_settings', [
             'bonus_threshold' => 5,
             'bonus_amount'    => 0, // bonus_amount stores bonus % rate
         ]);
@@ -171,37 +205,25 @@ class AgentController extends Controller
         }
 
         $commission = round($saleAmount * ($applicableRate / 100), 2);
+        $autoApprove = (bool) ($settings['auto_approve'] ?? false);
 
-        $referral = \App\Models\AgentReferral::create([
+        \App\Models\AgentReferral::create([
             'agent_id'          => $agent->id,
             'tenant_id'         => $tenantId,
             'sale_amount'       => $saleAmount,
             'commission_amount' => $commission,
-            'status'            => 'approved',
+            'status'            => $autoApprove ? 'approved' : 'pending',
             'sale_date'         => now()->toDateString(),
-            'notes'             => "Auto-credited on subscription payment. {$rateNote}.",
+            'notes'             => ($autoApprove ? 'Auto-approved' : 'Awaiting Platform Super Admin review') . " after subscription payment. {$rateNote}.",
         ]);
 
-        $payoutReference = 'PAYOUT-' . strtoupper(Str::random(10));
-        $payoutStatus = $agent->bank_account_number ? 'paid' : 'pending';
-
-        AgentPayout::create([
-            'agent_id'       => $agent->id,
-            'amount'         => $commission,
-            'reference'      => $payoutReference,
-            'bank_name'      => $agent->bank_name,
-            'account_number' => $agent->bank_account_number,
-            'status'         => $payoutStatus,
-            'note'           => "Auto-remitted from school subscription payment. {$rateNote}.",
-            'processed_by'   => auth()->id(),
-        ]);
-
-        if ($payoutStatus === 'paid') {
-            $referral->update(['status' => 'paid']);
-            $agent->increment('total_paid', $commission);
+        if (!$autoApprove) {
+            return;
         }
 
-        // Instantly credit the agent's earned balance
+        // Approval credits earnings only. A bank account on file is not proof
+        // that money was transferred; payouts remain a separately recorded
+        // Super Admin action with a durable AgentPayout audit record.
         $agent->increment('total_earned', $commission);
     }
 
@@ -221,7 +243,7 @@ class AgentController extends Controller
         $data = $request->validate([
             'default_commission_rate' => ['required', 'numeric', 'min:1', 'max:50'],
             'bonus_threshold'         => ['nullable', 'numeric', 'min:0'],
-            'bonus_amount'            => ['nullable', 'numeric', 'min:0'],
+            'bonus_amount'            => ['nullable', 'numeric', 'min:0', 'max:50'],
             'auto_approve'            => ['boolean'],
             'payment_cycle'           => ['required', 'in:weekly,monthly,manual'],
             'min_payout'              => ['nullable', 'numeric', 'min:0'],
@@ -229,21 +251,28 @@ class AgentController extends Controller
             'programme_description'   => ['nullable', 'string'],
             'terms_text'              => ['nullable', 'string'],
         ]);
-        Cache::put('agent_settings', $data, now()->addYears(10));
+        $data['auto_approve'] = $request->boolean('auto_approve');
+        PlatformSetting::setValue(
+            'agent_programme_settings',
+            $data,
+            'json',
+            'agents',
+            'Agent Programme Settings'
+        );
         return back()->with('success', 'Agent programme settings saved.');
     }
 
     private function getSettings(): array
     {
-        return Cache::get('agent_settings', [
+        return PlatformSetting::valueFor('agent_programme_settings', [
             'default_commission_rate' => 10,
             'bonus_threshold'         => 5,
-            'bonus_amount'            => 5000,
+            'bonus_amount'            => 15,
             'auto_approve'            => false,
             'payment_cycle'           => 'monthly',
             'min_payout'              => 5000,
-            'programme_name'          => 'Enterprise SMS Referral Programme',
-            'programme_description'   => 'Earn commission for every school you refer that subscribes to Enterprise SMS.',
+            'programme_name'          => 'EduCore School Referral Programme',
+            'programme_description'   => 'Earn commission when a school you refer pays for its EduCore termly or annual student subscription.',
             'terms_text'              => '',
         ]);
     }
