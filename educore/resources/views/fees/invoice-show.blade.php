@@ -50,6 +50,7 @@
     .btn-primary { background: var(--indigo); color: white; width: 100%; justify-content: center; }
     .btn-primary:hover { background: #1D4ED8; }
     .btn-success { background: var(--emerald); color: white; }
+    .btn-print { background: #071E45; color: white; }
 
     .alert-success { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--emerald); margin-bottom: 16px; }
 
@@ -59,6 +60,12 @@
     .txn-meta { font-size: 11px; color: var(--slate-light); margin-top: 2px; }
 
     @media(max-width:1024px) { .invoice-grid { grid-template-columns: 1fr; } }
+    @media(max-width:600px) {
+        .invoice-meta { grid-template-columns:1fr; gap:12px; }
+        .card-header,.card-body { padding:14px; }
+        .txn-row { align-items:flex-start; gap:10px; }
+        .txn-amount { white-space:nowrap; }
+    }
 </style>
 @endpush
 
@@ -78,7 +85,14 @@
     <div>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">{{ $invoice->invoice_number }}</span>
+                <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+                    <span class="card-title">{{ $invoice->invoice_number }}</span>
+                    @if($invoice->amount_paid > 0)
+                    <a href="{{ route('fees.invoices.print', $invoice) }}" target="_blank" rel="noopener" class="btn btn-print" style="padding:6px 10px;font-size:11px">
+                        Print Invoice
+                    </a>
+                    @endif
+                </div>
                 @if($invoice->status === 'paid')
                     <span class="badge badge-success">Paid</span>
                 @elseif($invoice->status === 'partially_paid')

@@ -568,6 +568,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('invoices',                   [FeeController::class, 'invoices'])->name('invoices');
         Route::post('invoices/generate',         [FeeController::class, 'generateInvoices'])->name('invoices.generate');
         Route::get('invoices/{invoice}',         [FeeController::class, 'showInvoice'])->name('invoices.show');
+        Route::get('invoices/{invoice}/print',   [FeeController::class, 'printInvoice'])->name('invoices.print');
         Route::post('payment/{invoice}',         [FeeController::class, 'recordPayment'])->name('payment.record');
     });
 
@@ -890,14 +891,6 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::patch('{visitor}/checkout', [\App\Http\Controllers\VisitorLogController::class, 'checkOut'])->name('checkout');
     });
 
-    // -- External Exam Body Registration (WAEC/NECO/NABTEB/JAMB) ----------------
-    Route::prefix('exam-bodies')->name('exam-bodies.')->group(function () {
-        Route::get('/',           [\App\Http\Controllers\ExamBodyRegistrationController::class, 'index'])->name('index');
-        Route::post('/',          [\App\Http\Controllers\ExamBodyRegistrationController::class, 'store'])->name('store');
-        Route::patch('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'update'])->name('update');
-        Route::delete('{registration}', [\App\Http\Controllers\ExamBodyRegistrationController::class, 'destroy'])->name('destroy');
-    });
-
     // -- Boarding / Hostel Management --------------------------------------------
     Route::prefix('hostels')->name('hostels.')->group(function () {
         Route::get('/',                 [\App\Http\Controllers\HostelController::class, 'index'])->name('index');
@@ -906,7 +899,6 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('{hostel}/rooms',    [\App\Http\Controllers\HostelController::class, 'roomsFor'])->name('rooms.for');
         Route::post('allocate',         [\App\Http\Controllers\HostelController::class, 'allocate'])->name('allocate');
         Route::patch('allocations/{allocation}/vacate', [\App\Http\Controllers\HostelController::class, 'vacate'])->name('vacate');
-        Route::patch('allocations/{allocation}/fee-paid', [\App\Http\Controllers\HostelController::class, 'markFeePaid'])->name('fee-paid');
     });
 
     // -- Staff Leave Management ---------------------------------------------------

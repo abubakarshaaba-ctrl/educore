@@ -17,18 +17,42 @@ class LessonAiService
 
     public function generateNerdcPlan(array $data): array
     {
-        return $this->callAi($this->buildNerdcPrompt($data));
+        try {
+            return $this->callAi($this->buildNerdcPrompt($data));
+        } catch (\Throwable $e) {
+            Log::error('LessonAI: all providers failed; using the built-in NERDC planner.', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->fallbackNerdcPlan($data);
+        }
     }
 
     public function generateBritishPlan(array $data): array
     {
-        return $this->callAi($this->buildBritishPrompt($data));
+        try {
+            return $this->callAi($this->buildBritishPrompt($data));
+        } catch (\Throwable $e) {
+            Log::error('LessonAI: all providers failed; using the built-in British planner.', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->fallbackBritishPlan($data);
+        }
     }
 
     public function generateStudentNotes(\App\Models\LessonPlan $plan): string
     {
-        $prompt = $this->buildNotesPrompt($plan);
-        return $this->callAiHtml($prompt);
+        try {
+            return $this->callAiHtml($this->buildNotesPrompt($plan));
+        } catch (\Throwable $e) {
+            Log::error('LessonAI: student notes providers failed; using built-in notes.', [
+                'lesson_plan_id' => $plan->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->fallbackStudentNotes($plan);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -113,14 +137,20 @@ PROMPT;
         $all = [
             'groq'       => (bool) config('services.groq.key'),
             'openrouter' => (bool) config('services.openrouter.key'),
-            'ollama'     => true, // no key needed; will fail at connection time if not running
+            'ollama'     => (bool) config('services.ollama.enabled'),
             'gemini'     => (bool) config('services.gemini.key'),
             'anthropic'  => (bool) config('services.anthropic.key'),
         ];
 
-        $primary   = config('services.ai_provider', 'groq');
-        $fallbacks = array_keys(array_filter($all));
-        return array_unique(array_merge([$primary], $fallbacks));
+        $primary = config('services.ai_provider', 'gemini');
+        $enabled = array_keys(array_filter($all));
+
+        if (in_array($primary, $enabled, true)) {
+            $enabled = array_values(array_diff($enabled, [$primary]));
+            array_unshift($enabled, $primary);
+        }
+
+        return $enabled;
     }
 
     private function callAi(string $prompt): array
@@ -363,7 +393,8 @@ PROMPT;
         $key = config('services.gemini.key');
         if (!$key) throw new \RuntimeException('GEMINI_API_KEY not configured.');
         $isNew = str_starts_with($key, 'AQ.');
-        $url   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent'
+        $model = config('services.gemini.model', 'gemini-2.0-flash-lite');
+        $url   = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent"
             . ($isNew ? '' : "?key={$key}");
         $http = Http::timeout(60);
         if ($isNew) $http = $http->withHeaders(['x-goog-api-key' => $key]);
@@ -448,5 +479,69 @@ PROMPT;
             }
         }
         return implode("\n", $lines);
+    }
+
+    private function fallbackNerdcPlan(array $data): array
+    {
+        $subject = trim((string) ($data['subject'] ?? 'the subject'));
+        $class = trim((string) ($data['class_level'] ?? 'the class'));
+        $topic = trim((string) ($data['topic'] ?? 'the selected topic'));
+        $subtopic = trim((string) ($data['subtopic'] ?? 'the key concepts'));
+        $duration = (int) ($data['duration_minutes'] ?? 40);
+
+        return [
+            'previous_knowledge' => "Students have encountered ideas related to {$topic} in earlier {$subject} lessons and everyday situations.",
+            'entry_behaviour' => 'Students can recall relevant prior concepts, listen to explanations, observe examples and record key points.',
+            'behavioural_objectives' => "By the end of this lesson, students should be able to:\n1. Define {$topic} correctly.\n2. Identify the main features of {$subtopic}.\n3. Explain {$topic} using a relevant example.\n4. Apply the lesson to a short classroom task.",
+            'instructional_materials' => "- Relevant {$subject} textbook\n- Whiteboard and markers\n- Topic chart, real object or locally available teaching aid\n- Student exercise books",
+            'reference_materials' => "1. Current NERDC {$subject} curriculum for {$class}.\n2. A school-approved {$subject} textbook and teacher's guide.",
+            'set_induction' => "The teacher presents a familiar situation connected to {$topic} and asks students what they notice. Responses are linked to the lesson objectives.",
+            'presentation' => "STEP I: Meaning of {$topic}\nTEACHER'S ACTIVITY: Introduce the topic, explain the key terms and check prior knowledge.\nSTUDENTS' ACTIVITY: Listen, respond to questions and write the definition.\n\nSTEP II: {$subtopic}\nTEACHER'S ACTIVITY: Model the concept with clear examples and a suitable teaching aid.\nSTUDENTS' ACTIVITY: Observe, discuss the examples and ask questions.\n\nSTEP III: Guided Practice\nTEACHER'S ACTIVITY: Lead a short practice task, correct misconceptions and summarise the main points within the {$duration}-minute lesson.\nSTUDENTS' ACTIVITY: Complete the task, compare answers and explain their reasoning.",
+            'class_activity' => "Students work individually or in small groups to identify and explain examples of {$topic}. They record two examples and share one answer with the class.",
+            'evaluation' => "1. What is {$topic}?\n2. State two important facts about {$subtopic}.\n3. Give one correct example.\n4. Explain why the topic is important.\n5. Apply the idea to a new situation provided by the teacher.",
+            'assignment' => "1. Write a short note on {$topic}.\n2. Give three relevant examples.\n3. Complete the related textbook exercise. Submit next class.",
+            'conclusion' => 'The teacher revisits the objectives, corrects remaining misconceptions and summarises the essential points. Students state one new thing they learned before the next lesson is introduced.',
+        ];
+    }
+
+    private function fallbackBritishPlan(array $data): array
+    {
+        $topic = trim((string) ($data['topic'] ?? 'the selected topic'));
+        $subtopic = trim((string) ($data['subtopic'] ?? 'its key concepts'));
+
+        return [
+            'learning_objectives' => "Understand {$topic}; describe {$subtopic}; apply the learning accurately to a new example.",
+            'success_criteria' => "WALT: understand and apply {$topic}.\nEmerging: identify the main idea.\nDeveloping: explain it with an example.\nSecuring: apply it independently and justify the answer.",
+            'starter_activity' => 'Use a short retrieval question and a familiar example to uncover prior knowledge. Invite paired discussion before sharing responses.',
+            'presentation' => 'Introduce key vocabulary, model the central concept step by step, check understanding with targeted questions, then complete one worked example together.',
+            'class_activity' => 'Students complete a scaffolded task before moving to independent practice. Early finishers tackle an extension that requires explanation and evaluation.',
+            'differentiation' => 'Provide vocabulary prompts, worked examples and paired support for learners who need scaffolding. Use deeper reasoning and transfer questions to stretch confident learners.',
+            'plenary' => 'Use a three-question exit ticket: define the concept, apply it once, and identify one point that still needs clarification.',
+            'assessment_for_learning' => 'Use cold-call questions, mini checks during modelling, peer explanation and the exit ticket to decide the next teaching step.',
+            'assignment' => "Complete a short consolidation exercise on {$topic} and prepare one real-life example for discussion in the next lesson.",
+        ];
+    }
+
+    private function fallbackStudentNotes(\App\Models\LessonPlan $plan): string
+    {
+        $subject = e($plan->subject->name ?? 'Subject');
+        $topic = e($plan->topic ?: 'Lesson Topic');
+        $subtopic = e($plan->subtopic ?: 'Key Concepts');
+        $presentation = nl2br(e($plan->presentation ?: 'Review the teacher-led explanation and worked examples from the lesson.'));
+        $objectives = nl2br(e($plan->behavioural_objectives ?: $plan->learning_objectives ?: 'Understand and apply the key ideas in this topic.'));
+
+        return <<<HTML
+<h2>{$topic}</h2>
+<div style="background:#EFF6FF;border-left:4px solid #2563EB;padding:12px 16px;margin:12px 0;border-radius:4px"><strong>Subject:</strong> {$subject}<br><strong>Focus:</strong> {$subtopic}</div>
+<h2>Learning Objectives</h2>
+<p>{$objectives}</p>
+<h2>Lesson Explanation</h2>
+<p>{$presentation}</p>
+<h2>Summary of Key Points</h2>
+<ul><li>Define the principal terms accurately.</li><li>Explain the main idea in your own words.</li><li>Study the worked examples from class.</li><li>Apply the concept to a new situation.</li></ul>
+<h2>Revision Questions</h2>
+<div class="exam-question"><strong>Question 1:</strong> Define {$topic}.<br><em>Answer:</em> Use the definition and key terms recorded during the lesson.</div>
+<div class="exam-question"><strong>Question 2:</strong> Explain one practical example of {$topic}.<br><em>Answer:</em> State the example, identify the concept and explain the connection.</div>
+HTML;
     }
 }

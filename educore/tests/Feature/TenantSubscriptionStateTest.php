@@ -13,7 +13,7 @@ use Tests\TestCase;
 class TenantSubscriptionStateTest extends TestCase
 {
     /** Comfortably inside the paid tier, so "active" fixtures aren't accidentally free-tier. */
-    private const PAID_TIER_STUDENTS = 25;
+    private const PAID_TIER_STUDENTS = 55;
 
     protected function setUp(): void
     {

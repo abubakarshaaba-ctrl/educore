@@ -191,7 +191,12 @@ table { width:100%; border-collapse:collapse; }
         flex-direction:column !important;
         align-items:flex-start !important;
     }
+    .p-content [style*="grid-template-columns"] { grid-template-columns:1fr !important; }
+    .p-content [style*="min-width"], .p-content [style*="width:"] { max-width:100%; }
+    .p-content [style*="min-width"] { min-width:0 !important; }
+    .p-content input,.p-content select,.p-content textarea,.p-content img,.p-content canvas,.p-content svg { max-width:100%; }
 }
+.responsive-table { width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch; }
 @media (max-width:380px) {
     .p-content { padding:8px; }
 }
@@ -272,6 +277,13 @@ document.querySelectorAll('.p-nav-item').forEach(function(el) {
     el.addEventListener('click', function() {
         if (window.innerWidth <= 768) closePortalSidebar();
     });
+});
+document.querySelectorAll('.p-content table').forEach(function(table) {
+    if (table.closest('.tbl, .table-wrap, .responsive-table')) return;
+    var wrapper = document.createElement('div');
+    wrapper.className = 'responsive-table';
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
 });
 </script>
 </body>

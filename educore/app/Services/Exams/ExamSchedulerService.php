@@ -76,13 +76,24 @@ class ExamSchedulerService
      */
     public function generateSupervision(ExamPeriod $period): array
     {
-        $staffPool = $period->staffPool;
+        $period->unsetRelation('staffPool');
+        $staffPool = $period->staffPool()
+            ->where('users.is_active', true)
+            ->orderBy('users.name')
+            ->get();
         if ($staffPool->isEmpty()) {
-            throw new \RuntimeException('No staff selected for the supervision pool.');
+            throw new \RuntimeException('No active staff selected for the supervision pool.');
         }
 
         $entries = $period->entries()->with('examSession')->orderBy('exam_date')->get()
-            ->sortBy(fn ($e) => $e->exam_date->toDateString() . '-' . $e->examSession->sort_order);
+            ->filter(fn ($entry) => $entry->examSession !== null)
+            ->sortBy(fn ($entry) => sprintf(
+                '%s-%05d-%010d',
+                $entry->exam_date->toDateString(),
+                $entry->examSession->sort_order,
+                $entry->id,
+            ))
+            ->values();
 
         if ($entries->isEmpty()) {
             throw new \RuntimeException('Build the timetable before planning supervision.');
@@ -112,8 +123,14 @@ class ExamSchedulerService
                 $avoid = $ownTeacherMap[$entry->subject_id] ?? [];
 
                 $candidate = $staffPool
-                    ->reject(fn ($u) => in_array($u->id, $busyHere, true))
-                    ->sortBy(fn ($u) => [in_array($u->id, $avoid, true) ? 1 : 0, $counts[$u->id]])
+                    ->reject(fn ($user) => in_array($user->id, $busyHere, true))
+                    ->sort(function ($left, $right) use ($avoid, $counts) {
+                        $leftOwn = in_array($left->id, $avoid, true) ? 1 : 0;
+                        $rightOwn = in_array($right->id, $avoid, true) ? 1 : 0;
+
+                        return [$leftOwn, $counts[$left->id], mb_strtolower($left->name), $left->id]
+                            <=> [$rightOwn, $counts[$right->id], mb_strtolower($right->name), $right->id];
+                    })
                     ->first();
 
                 if (!$candidate) {
@@ -130,7 +147,9 @@ class ExamSchedulerService
                 $busy[$slotKey][] = $candidate->id;
             }
 
-            $period->update(['status' => 'supervision_planned']);
+            if ($entries->count() > count($unassigned)) {
+                $period->update(['status' => 'supervision_planned']);
+            }
         });
 
         return ['assigned' => $entries->count() - count($unassigned), 'unassigned' => count($unassigned)];

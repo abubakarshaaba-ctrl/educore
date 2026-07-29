@@ -31,6 +31,13 @@ class Admission extends BaseTenantModel
         'guardian_relationship',
         'guardian_occupation',
         'guardian_address',
+        'academic_year',
+        'passport_photo',
+        'birth_certificate',
+        'last_report_card',
+        'portal_token',
+        'portal_email_verified',
+        'source',
         'status',
         'notes',
         'application_date',
@@ -38,7 +45,7 @@ class Admission extends BaseTenantModel
         'decision_date',
         'enrolled_as_student_id',
         'payment_reference', 'payment_status',
-        'interview_date', 'interview_notes',
+        'interview_date', 'interview_score', 'interview_notes',
         'offer_letter_sent', 'offer_sent_at',
     ];
 

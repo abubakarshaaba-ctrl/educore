@@ -35,6 +35,21 @@ class TenantUrlGenerator
         return $this->url($tenant, '/apply');
     }
 
+    public function admissionForm(Tenant $tenant): string
+    {
+        return $this->url($tenant, '/apply/form');
+    }
+
+    public function admissionStatus(Tenant $tenant): string
+    {
+        return $this->url($tenant, '/apply/status');
+    }
+
+    public function admissionSuccess(Tenant $tenant, string $applicationNumber): string
+    {
+        return $this->url($tenant, '/apply/success/' . rawurlencode($applicationNumber));
+    }
+
     public function accountStatus(Tenant $tenant): string
     {
         return $this->url($tenant, '/account-status');

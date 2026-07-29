@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Schema;
 
 class PlatformSetting extends Model
 {
@@ -30,6 +31,10 @@ class PlatformSetting extends Model
 
     public static function valueFor(string $key, mixed $default = null): mixed
     {
+        if (!Schema::hasTable((new static)->getTable())) {
+            return $default;
+        }
+
         $setting = self::query()->where('key', $key)->first();
 
         return $setting ? $setting->typed_value : $default;
@@ -37,6 +42,10 @@ class PlatformSetting extends Model
 
     public static function valuesFor(array $keys): array
     {
+        if (!Schema::hasTable((new static)->getTable())) {
+            return [];
+        }
+
         return self::query()
             ->whereIn('key', $keys)
             ->get()

@@ -3,20 +3,33 @@
 @section('builder-title', $bank->name)
 @section('builder-subtitle', optional($bank->subject)->name . ' · ' . optional($bank->classLevel)->name)
 @section('builder-bar-right')
-    <span class="builder-pill">📚 {{ $questions->total() }} question{{ $questions->total() === 1 ? '' : 's' }}</span>
-    <button type="button" class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="openAddQuestionModal()">➕ Add Question</button>
+    <span class="builder-pill">{{ $questions->total() }} question{{ $questions->total() === 1 ? '' : 's' }}</span>
+    <button type="button" class="builder-action builder-action-primary" onclick="openAddQuestionModal()">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add Question
+    </button>
     <form method="POST" action="{{ route('cbt.banks.reshuffle', $bank) }}"
           onsubmit="return confirm('Reshuffle the order of all questions in this bank?')" style="display:inline">
         @csrf
-        <button type="submit" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">🔀 Reshuffle</button>
+        <button type="submit" class="builder-action">
+            <svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>Reshuffle
+        </button>
     </form>
-    <a href="{{ route('cbt.banks.edit', $bank) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">✏️ Edit Bank</a>
-    <a href="{{ route('cbt.bulk-upload', $bank) }}" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;background:rgba(255,255,255,.08);color:white;border-color:rgba(255,255,255,.2)">⬆ Bulk Import</a>
+    <a href="{{ route('cbt.banks.edit', $bank) }}" class="builder-action">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>Edit Bank
+    </a>
+    <a href="{{ route('cbt.bulk-upload', $bank) }}" class="builder-action">
+        <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Bulk Import
+    </a>
 @endsection
 
 @push('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
+.builder-action{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(255,255,255,.08);color:white;font:700 11px/1 inherit;text-decoration:none;cursor:pointer;white-space:nowrap;transition:.15s ease}
+.builder-action:hover{background:rgba(255,255,255,.16);transform:translateY(-1px)}
+.builder-action svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.builder-action-primary{background:var(--brand-gold);border-color:var(--brand-gold);color:#071E45}
+.builder-action-primary:hover{background:var(--brand-gold-l)}
 .breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px}
 .breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
 /* Full-height split workspace — each pane scrolls independently, no page scroll */

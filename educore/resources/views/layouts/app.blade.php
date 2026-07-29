@@ -531,6 +531,32 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
         /* Shrink headings */
         h1 { font-size: 20px !important; }
         h2 { font-size: 17px !important; }
+
+        /* Legacy pages often declare fixed inline grids. Collapse those
+           declarations at phone width without changing their desktop layout. */
+        .page-content [style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
+        .page-content [style*="min-width"],
+        .page-content [style*="width:"] {
+            max-width: 100%;
+        }
+        .page-content [style*="min-width"] { min-width:0 !important; }
+        .page-content input,
+        .page-content select,
+        .page-content textarea,
+        .page-content img,
+        .page-content canvas,
+        .page-content svg {
+            max-width: 100%;
+        }
+    }
+
+    .responsive-table {
+        width:100%;
+        max-width:100%;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
     }
 
     @media (max-width: 380px) {
@@ -687,6 +713,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const isVisible = itemTop >= sidebar.scrollTop && itemTop + itemH <= sidebar.scrollTop + sidebarH;
         if (!isVisible) sidebar.scrollTop = itemTop - (sidebarH / 2) + (itemH / 2);
     }
+
+    document.querySelectorAll('.page-content table').forEach(function (table) {
+        if (table.closest('.tbl, .table-wrap, .responsive-table')) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'responsive-table';
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+    });
 });
 </script>
 </body>

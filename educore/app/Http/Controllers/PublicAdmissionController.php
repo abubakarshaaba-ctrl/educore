@@ -8,6 +8,7 @@ use App\Models\ClassLevel;
 use App\Models\Tenant;
 use App\Models\NotificationQueue;
 use App\Services\Payments\GatewayPaymentVerifier;
+use App\Services\TenantUrlGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,10 @@ use Illuminate\Support\Facades\Storage;
  */
 class PublicAdmissionController extends Controller
 {
+    public function __construct(private readonly TenantUrlGenerator $tenantUrls)
+    {
+    }
+
     // ── Find tenant from slug ────────────────────────────────────────
     private function getTenant(string $slug): Tenant
     {
@@ -59,7 +64,7 @@ class PublicAdmissionController extends Controller
                     ?? new AdmissionPortalSetting(['is_open' => true]);
 
         if (!$settings->isCurrentlyOpen()) {
-            return redirect()->route('portal.landing', $slug)
+            return redirect()->away($this->tenantUrls->apply($tenant))
                 ->with('error', 'The admissions portal is currently closed.');
         }
 
@@ -148,7 +153,7 @@ class PublicAdmissionController extends Controller
                 'tenant_id' => $tenant->id,
                 'channel'   => 'sms',
                 'recipient' => $data['guardian_phone'],
-                'body'      => "Dear {$data['guardian_name']}, your application for {$data['first_name']} {$data['last_name']} to {$tenant->name} has been received. Application No: {$appNumber}. Track status at: " . route('portal.status.form', $slug),
+                'body'      => "Dear {$data['guardian_name']}, your application for {$data['first_name']} {$data['last_name']} to {$tenant->name} has been received. Application No: {$appNumber}. Track status at: " . $this->tenantUrls->admissionStatus($tenant),
                 'gateway'   => 'termii',
                 'status'    => 'pending',
             ]);
@@ -187,7 +192,7 @@ class PublicAdmissionController extends Controller
                 ],
                 smsBody: "Dear {$data['guardian_name']}, your application for {$data['first_name']} {$data['last_name']} to {$tenant->name} has been received. App No: {$appNumber}.",
                 actionLabel: 'Track Application',
-                actionUrl: route('portal.status.form', $slug),
+                actionUrl: $this->tenantUrls->admissionStatus($tenant),
                 schoolName: $tenant->name,
             );
         } catch (\Throwable $e) {
@@ -230,7 +235,7 @@ class PublicAdmissionController extends Controller
             }
         }
 
-        return redirect()->route('portal.success', [$slug, $appNumber])
+        return redirect()->away($this->tenantUrls->admissionSuccess($tenant, $appNumber))
             ->with('success', 'Application submitted successfully!');
     }
 
@@ -282,11 +287,11 @@ class PublicAdmissionController extends Controller
 
         if ($verified) {
             $admission->update(['payment_status' => 'paid']);
-            return redirect()->route('portal.success', [$slug, $admission->application_number])
+            return redirect()->away($this->tenantUrls->admissionSuccess($tenant, $admission->application_number))
                 ->with('success', 'Application fee paid! Your application is now complete.');
         }
 
-        return redirect()->route('portal.status.form', $slug)
+        return redirect()->away($this->tenantUrls->admissionStatus($tenant))
             ->withErrors(['error' => 'Payment could not be verified. Please contact the school.']);
     }
 
@@ -382,7 +387,7 @@ class PublicAdmissionController extends Controller
         $applications = Admission::where('source', 'portal')
             ->latest()->paginate(25);
         $settings = AdmissionPortalSetting::where('tenant_id', auth()->user()->tenant_id)->first();
-        $portalUrl = route('portal.landing', auth()->user()->tenant?->slug ?? 'school');
+        $portalUrl = $this->tenantUrls->apply(auth()->user()->tenant);
         $portalStats = [
             'pending'     => Admission::where('source','portal')->where('status','pending')->count(),
             'shortlisted' => Admission::where('source','portal')->where('status','shortlisted')->count(),

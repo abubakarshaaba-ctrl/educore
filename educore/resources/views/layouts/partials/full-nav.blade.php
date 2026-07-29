@@ -115,6 +115,8 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
             <span class="nav-label">Alumni</span>
         </a>
+        @endif
+        @if($u->canAccessModule('hostels'))
         <a href="{{ route('hostels.index') }}" class="nav-item {{ request()->routeIs('hostels.*') ? 'active' : '' }}" data-tip="Boarding / Hostel">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
             <span class="nav-label">Boarding / Hostel</span>
@@ -197,10 +199,6 @@
         <a href="{{ route('cbt.banks') }}" class="nav-item {{ request()->routeIs('cbt.*') ? 'active' : '' }}" data-tip="CBT Exams">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
             <span class="nav-label">CBT Exams</span>
-        </a>
-        <a href="{{ route('exam-bodies.index') }}" class="nav-item {{ request()->routeIs('exam-bodies.*') ? 'active' : '' }}" data-tip="WAEC/NECO/JAMB Registration">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-            <span class="nav-label">Exam Body Registration</span>
         </a>
         @endif
     </div>

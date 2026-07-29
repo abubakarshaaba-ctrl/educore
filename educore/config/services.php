@@ -39,7 +39,8 @@ return [
     'ai_provider' => env('AI_PROVIDER', 'gemini'),
 
     'gemini' => [
-        'key' => env('GEMINI_API_KEY'),
+        'key'   => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
     ],
 
     'anthropic' => [
@@ -58,8 +59,9 @@ return [
     ],
 
     'ollama' => [
-        'host'  => env('OLLAMA_HOST', 'http://localhost:11434'),
-        'model' => env('OLLAMA_MODEL', 'llama3'),
+        'enabled' => (bool) env('OLLAMA_HOST'),
+        'host'    => env('OLLAMA_HOST', 'http://localhost:11434'),
+        'model'   => env('OLLAMA_MODEL', 'llama3'),
     ],
 
     'fcm' => [

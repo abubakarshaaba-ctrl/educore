@@ -100,6 +100,12 @@ class TenantHostResolutionTest extends TestCase
 
         $this->assertSame('http://local-school.educore.test/login', $urls->login($local));
         $this->assertSame('http://school.local.test/apply', $urls->apply($custom));
+        $this->assertSame('http://school.local.test/apply/form', $urls->admissionForm($custom));
+        $this->assertSame('http://school.local.test/apply/status', $urls->admissionStatus($custom));
+        $this->assertSame(
+            'http://school.local.test/apply/success/APP-2026-001',
+            $urls->admissionSuccess($custom, 'APP-2026-001')
+        );
     }
 
     private function resolver(): TenantHostResolver

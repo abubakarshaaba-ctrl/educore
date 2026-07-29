@@ -31,7 +31,7 @@ class CertificateController extends Controller
             'remarks'          => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $student = Student::findOrFail($data['student_id']);
+        $student = Student::with('currentClassArm.classLevel')->findOrFail($data['student_id']);
         $tenant  = auth()->user()->tenant;
         $serial  = strtoupper(Str::random(3)) . '-' . now()->format('Ymd') . '-' . strtoupper(Str::random(4));
 
@@ -50,7 +50,7 @@ class CertificateController extends Controller
             'remarks'     => $data['remarks'] ?? null,
             'serial'      => $serial,
             'issuedAt'    => $issuance->issued_at,
-        ]);
+        ])->setPaper('a4', 'portrait');
 
         $label = str_replace('_', '-', $data['certificate_type']);
         return $pdf->download("{$label}-{$student->admission_number}.pdf");

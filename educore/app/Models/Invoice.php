@@ -37,7 +37,7 @@ class Invoice extends BaseTenantModel
 
     public function getBalanceAttribute(): float
     {
-        return $this->total_amount - $this->amount_paid;
+        return max(0, $this->total_amount - $this->amount_paid);
     }
 
     public function isPaid(): bool { return $this->status === 'paid'; }

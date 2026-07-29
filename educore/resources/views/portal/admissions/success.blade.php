@@ -40,8 +40,8 @@ p{font-size:15px;color:#64748B;margin-bottom:20px;line-height:1.6}
         You can check your application status at any time using your application number.
     </div>
 
-    <a href="{{ route('portal.status.form', $tenant->slug) }}" class="btn btn-primary">Check Status Later</a>
-    <a href="{{ route('portal.landing', $tenant->slug) }}" class="btn btn-outline">Back to Portal</a>
+    <a href="{{ url('/apply/status') }}" class="btn btn-primary">Check Status Later</a>
+    <a href="{{ url('/apply') }}" class="btn btn-outline">Back to Portal</a>
 
     <div class="sms-note">
         Screenshot or write down your application number: <strong>{{ $admission->application_number }}</strong>

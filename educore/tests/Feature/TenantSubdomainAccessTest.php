@@ -68,6 +68,16 @@ class TenantSubdomainAccessTest extends TestCase
             ->assertSee('Bluerayy Academy');
     }
 
+    public function test_admission_status_form_posts_to_the_current_tenant_host(): void
+    {
+        $this->tenantFixture('Bluerayy Academy', 'bluerayy');
+
+        $this->get('http://bluerayy.educore.test/apply/status')
+            ->assertOk()
+            ->assertSee('action="http://bluerayy.educore.test/apply/status"', false)
+            ->assertDontSee('_apply_stub', false);
+    }
+
     public function test_unknown_subdomain_gets_generic_unavailable_page(): void
     {
         $this->get('http://missing.educore.test/')
@@ -75,7 +85,7 @@ class TenantSubdomainAccessTest extends TestCase
             ->assertSee('This school portal is currently unavailable');
     }
 
-    public function test_expired_tenant_host_login_is_unavailable_but_account_status_loads_for_authenticated_user(): void
+    public function test_expired_tenant_host_uses_unified_login_and_account_status_loads_for_authenticated_user(): void
     {
         $tenant = $this->tenantFixture('Expired School', 'expired', [
             'subscription_expires_at' => now()->subDay()->toDateString(),
@@ -83,8 +93,7 @@ class TenantSubdomainAccessTest extends TestCase
         $user = $this->staffFixture($tenant, 'admin@expired.test');
 
         $this->get('http://expired.educore.test/login')
-            ->assertStatus(404)
-            ->assertSee('This school portal is currently unavailable');
+            ->assertRedirect(rtrim(config('app.url'), '/') . '/login');
 
         $this->actingAs($user)
             ->get('http://expired.educore.test/account-status')
@@ -149,6 +158,8 @@ class TenantSubdomainAccessTest extends TestCase
             'class_levels',
             'audit_logs',
             'school_settings',
+            'platform_settings',
+            'students',
             'users',
             'tenants',
         ] as $table) {
@@ -198,6 +209,17 @@ class TenantSubdomainAccessTest extends TestCase
             $table->softDeletes();
         });
 
+        Schema::create('students', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('admission_number')->nullable();
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
         Schema::create('school_settings', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -219,6 +241,16 @@ class TenantSubdomainAccessTest extends TestCase
             $table->text('reason')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('platform_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
+            $table->string('type')->default('string');
+            $table->string('group')->default('general');
+            $table->string('label')->nullable();
             $table->timestamps();
         });
     }

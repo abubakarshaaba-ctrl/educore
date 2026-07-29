@@ -231,6 +231,7 @@ class FeeController extends Controller
     // ---------------------------------------------------------------
     public function showInvoice(Invoice $invoice)
     {
+        $this->loadInvoice($invoice);
         $invPlan        = null;
         $availablePlans = collect();
 
@@ -246,6 +247,30 @@ class FeeController extends Controller
         }
 
         return view('fees.invoice-show', compact('invoice', 'invPlan', 'availablePlans'));
+    }
+
+    public function printInvoice(Invoice $invoice)
+    {
+        $this->loadInvoice($invoice);
+
+        return view('fees.invoice-print', [
+            'invoice' => $invoice,
+            'tenant' => auth()->user()->tenant,
+        ]);
+    }
+
+    private function loadInvoice(Invoice $invoice): void
+    {
+        $invoice->load([
+            'student.currentClassArm.classLevel',
+            'term.session',
+            'session',
+            'items.feeCategory',
+            'transactions' => fn ($query) => $query
+                ->where('status', 'success')
+                ->orderBy('paid_at')
+                ->orderBy('id'),
+        ]);
     }
 
     // ---------------------------------------------------------------

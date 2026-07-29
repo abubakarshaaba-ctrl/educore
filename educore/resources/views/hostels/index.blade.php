@@ -21,11 +21,15 @@ th{padding:9px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);fon
 td{padding:10px 14px;border-bottom:1px solid var(--border)}
 tr:last-child td{border:none}
 .badge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:capitalize}
-.b-paid{background:#ECFDF5;color:#059669}.b-unpaid{background:#FFFBEB;color:#D97706}
 .hostel-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
 .mini{font-size:11px;color:#94A3B8}
 .room-chip{display:inline-flex;padding:3px 9px;font-size:11px;border-radius:20px;background:#F1F5F9;color:#475569;margin:3px 4px 0 0}
 @media(max-width:1000px){.two{grid-template-columns:1fr}}
+@media(max-width:600px){
+    .cb{padding:14px}.fr{grid-template-columns:1fr}
+    .room-form{flex-wrap:wrap}.room-form .fc{max-width:none!important;flex:1 1 110px}
+    .room-form .btn{flex:1 1 100%;justify-content:center}
+}
 </style>
 @endpush
 @section('content')
@@ -74,7 +78,7 @@ tr:last-child td{border:none}
                         <span class="mini">No rooms yet.</span>
                         @endforelse
                     </div>
-                    <form method="POST" action="{{ route('hostels.rooms.store', $h) }}" style="display:flex;gap:6px;margin-top:10px">
+                    <form method="POST" action="{{ route('hostels.rooms.store', $h) }}" class="room-form" style="display:flex;gap:6px;margin-top:10px">
                         @csrf
                         <input type="text" name="room_number" class="fc" placeholder="Room no." style="max-width:100px" required>
                         <input type="number" name="capacity" class="fc" placeholder="Capacity" style="max-width:100px" min="1" value="4" required>
@@ -113,7 +117,9 @@ tr:last-child td{border:none}
                             </select>
                         </div>
                     </div>
-                    <div class="fg"><label class="fl">Boarding Fee (₦)</label><input type="number" step="0.01" name="boarding_fee_amount" class="fc"></div>
+                    <div style="padding:10px 12px;margin-bottom:12px;border-radius:8px;background:#EFF6FF;color:#1E3A8A;font-size:12px;line-height:1.5">
+                        Room allocation is managed here. Boarding charges, invoices and payments are managed separately in the Finance module by authorised finance staff.
+                    </div>
                     <button type="submit" class="btn btn-p">Allocate Room</button>
                 </form>
             </div>
@@ -122,27 +128,21 @@ tr:last-child td{border:none}
         <div class="card">
             <div class="ch">Current Allocations</div>
             <div style="overflow-x:auto"><table>
-                <thead><tr><th>Student</th><th>Hostel / Room</th><th>Fee</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Student</th><th>Hostel / Room</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                 @forelse($allocations as $a)
                 <tr>
                     <td>{{ optional($a->student)->full_name }}</td>
                     <td>{{ optional($a->hostel)->name }} / {{ optional($a->room)->room_number }}</td>
-                    <td>₦{{ number_format($a->boarding_fee_amount, 2) }}
-                        <span class="badge b-{{ $a->boarding_fee_status }}">{{ ucfirst($a->boarding_fee_status) }}</span>
-                    </td>
                     <td>{{ ucfirst($a->status) }}</td>
                     <td>
                         <div style="display:flex;gap:5px">
-                        @if($a->boarding_fee_status === 'unpaid')
-                        <form method="POST" action="{{ route('hostels.fee-paid', $a) }}">@csrf @method('PATCH')<button class="btn btn-g">Mark Paid</button></form>
-                        @endif
                         <form method="POST" action="{{ route('hostels.vacate', $a) }}" onsubmit="return confirm('Vacate this student?')">@csrf @method('PATCH')<button class="btn btn-danger">Vacate</button></form>
                         </div>
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" style="text-align:center;padding:30px;color:#94A3B8">No active allocations.</td></tr>
+                <tr><td colspan="4" style="text-align:center;padding:30px;color:#94A3B8">No active allocations.</td></tr>
                 @endforelse
                 </tbody>
             </table></div>

@@ -93,7 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     @endif
 
-    <a href="{{ route('portal.landing', $tenant->slug) }}" class="btn btn-outline">Back to Portal</a>
+    <a href="{{ url('/apply') }}" class="btn btn-outline">Back to Portal</a>
     @if($tenant->phone)<p style="text-align:center;font-size:13px;color:#94A3B8;margin-top:12px">Questions? Call: <strong>{{ $tenant->phone }}</strong></p>@endif
 </div>
 </body>

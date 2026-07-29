@@ -41,6 +41,9 @@ class SelfDeployController extends Controller
     private const DEPRECATED_PATHS = [
         'brand/educore-premium-landing.png',
         'educore/public/brand/educore-premium-landing.png',
+        'educore/app/Http/Controllers/ExamBodyRegistrationController.php',
+        'educore/app/Models/ExamBodyRegistration.php',
+        'educore/resources/views/exam-bodies/index.blade.php',
     ];
 
     public function pull(Request $request)
@@ -192,7 +195,9 @@ class SelfDeployController extends Controller
             } else {
                 // Skip files that are byte-identical in size — avoids re-copying
                 // large unchanged binaries (e.g. the APK) on every deploy.
-                if (is_file($target) && filesize($target) === $item->getSize()) {
+                if (is_file($target)
+                    && filesize($target) === $item->getSize()
+                    && hash_file('sha256', $target) === hash_file('sha256', $item->getPathname())) {
                     continue;
                 }
                 @mkdir(dirname($target), 0755, true);

@@ -141,7 +141,7 @@ class AdmissionController extends Controller
                 [$line, 'Application number: ' . $admission->application_number],
                 smsBody: "Dear {$admission->guardian_name}, {$line}",
                 actionLabel: 'Track Application',
-                actionUrl: route('portal.status.form', $tenant->slug),
+                actionUrl: app(\App\Services\TenantUrlGenerator::class)->admissionStatus($tenant),
                 schoolName: $tenant->name,
                 replyToEmail: $tenant->email,
             );
@@ -261,7 +261,7 @@ class AdmissionController extends Controller
                 ],
                 smsBody: "Dear {$admission->guardian_name}, {$name} has been scheduled for an interview on {$dateLabel}. Please arrive 15 minutes early. {$tenant->name}",
                 actionLabel: 'Track Application',
-                actionUrl: route('portal.status.form', $tenant->slug),
+                actionUrl: app(\App\Services\TenantUrlGenerator::class)->admissionStatus($tenant),
                 schoolName: $tenant->name,
                 replyToEmail: $tenant->email,
             );
@@ -298,7 +298,7 @@ class AdmissionController extends Controller
         ]);
         $pdfContent = $pdf->output();
 
-        $statusUrl = route('portal.status.form', $tenant->slug);
+        $statusUrl = app(\App\Services\TenantUrlGenerator::class)->admissionStatus($tenant);
 
         if ($admission->guardian_email) {
             try {

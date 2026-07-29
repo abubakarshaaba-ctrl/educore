@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Student;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * The single, system-wide pricing model: every tenant gets full feature
@@ -59,6 +60,10 @@ class PricingService
 
     public static function activeStudentCount(int $tenantId): int
     {
+        if (!Schema::hasTable((new Student)->getTable())) {
+            return 0;
+        }
+
         return Student::withoutTenantScope()
             ->where('tenant_id', $tenantId)
             ->where('status', Student::STATUS_ACTIVE)

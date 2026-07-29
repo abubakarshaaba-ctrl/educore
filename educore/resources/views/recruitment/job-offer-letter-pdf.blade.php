@@ -2,44 +2,42 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<style>
-@page { margin: 60px 70px; }
-body{font-family:'DejaVu Sans',sans-serif;color:#1E293B;line-height:1.8;font-size:13px}
-.title{text-align:center;font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin:6px 0 26px;color:#071E45}
-.ref{text-align:right;font-size:10px;color:#94A3B8;margin-bottom:10px}
-.body-text{font-size:13.5px;text-align:justify;margin-bottom:16px;white-space:pre-line}
-.body-text b{color:#071E45}
-.details{margin:20px 0;padding:14px;background:#F8FAFC;border-left:3px solid #D79A21;font-size:12.5px}
-.details div{margin-bottom:4px}
-.sign-row{display:flex;justify-content:space-between;margin-top:70px}
-.sign-box{width:220px;text-align:center;border-top:1px solid #1E293B;padding-top:6px;font-size:11px}
-.date-line{margin-top:40px;font-size:12px}
-</style>
+@include('pdf.partials.premium-offer-style')
 </head>
 <body>
-@include('pdf.partials.letterhead', ['tenant' => $tenant])
-
-<div class="ref">Ref: JOB-{{ $applicant->id }} &middot; Issued {{ now()->format('d M Y') }}</div>
-<div class="title">Job Offer Letter</div>
-
-<div class="body-text">{{ $intro }}</div>
-
-<div class="body-text">{{ $body }}</div>
-
-<div class="details">
-    <div><strong>Candidate:</strong> {{ $applicant->name }}</div>
-    <div><strong>Position:</strong> {{ $applicant->jobPosting->title }}</div>
-    @if($applicant->jobPosting->department)<div><strong>Department:</strong> {{ $applicant->jobPosting->department }}</div>@endif
-    @if($applicant->phone)<div><strong>Contact:</strong> {{ $applicant->phone }}</div>@endif
-</div>
-
-<div class="body-text">{{ $closing }}</div>
-
-<div class="date-line">Date issued: {{ now()->format('d F Y') }}</div>
-
-<div class="sign-row">
-    <div class="sign-box">{{ $signatory1 }}</div>
-    <div class="sign-box">{{ $signatory2 }}</div>
-</div>
+@php $logoFile = $tenant->logo_path ? storage_path('app/public/'.$tenant->logo_path) : null; @endphp
+<div class="paper"><div class="paper-inner">
+    <table class="letter-head"><tr>
+        <td class="letter-logo-cell">
+            @if($logoFile && file_exists($logoFile))<img class="letter-logo" src="{{ $logoFile }}">@else<div class="letter-logo-fallback">{{ strtoupper(substr($tenant->name,0,1)) }}</div>@endif
+        </td>
+        <td>
+            <div class="letter-school">{{ $tenant->name }}</div>
+            @if($tenant->motto)<div class="letter-motto">“{{ $tenant->motto }}”</div>@endif
+            <div class="letter-meta">{{ $tenant->address }}@if($tenant->phone) · {{ $tenant->phone }}@endif @if($tenant->email) · {{ $tenant->email }}@endif</div>
+        </td>
+    </tr></table>
+    <table class="ref-row"><tr><td><strong>REF:</strong> HR/OFFER/{{ str_pad($applicant->id,5,'0',STR_PAD_LEFT) }}</td><td><strong>DATE:</strong> {{ now()->format('d F Y') }}</td></tr></table>
+    <div class="document-title"><span>Offer of Employment</span></div>
+    <div class="recipient"><strong>{{ $applicant->name }}</strong><br>{{ $applicant->email }}@if($applicant->phone)<br>{{ $applicant->phone }}@endif</div>
+    <div class="salutation">Dear {{ $applicant->name }},</div>
+    <div class="body-text">{{ $intro }}</div>
+    <div class="body-text">{{ $body }}</div>
+    <table class="offer-details">
+        <tr><td>Candidate</td><td><strong>{{ $applicant->name }}</strong></td></tr>
+        <tr><td>Position</td><td>{{ $applicant->jobPosting?->title }}</td></tr>
+        @if($applicant->jobPosting?->department)<tr><td>Department</td><td>{{ $applicant->jobPosting->department }}</td></tr>@endif
+        <tr><td>Employment Status</td><td>Offer issued — subject to acceptance and pre-employment verification</td></tr>
+        <tr><td>Reporting Location</td><td>{{ $tenant->address ?: $tenant->name }}</td></tr>
+    </table>
+    <div class="body-text">{{ $closing }}</div>
+    <div class="acceptance-note"><strong>Acceptance:</strong> Please sign and return a copy of this letter within the period stated in the offer. Your appointment remains subject to verification of credentials and the school’s employment policies.</div>
+    <table class="sign-table"><tr>
+        <td><div class="sign-line">{{ $signatory1 }}</div></td>
+        <td class="seal-cell"><div class="seal">Official<br>School Seal</div></td>
+        <td><div class="sign-line">{{ $signatory2 }}</div></td>
+    </tr></table>
+    <div class="letter-footer">Confidential employment correspondence of {{ $tenant->name }} · Generated securely by EduCore School ERP</div>
+</div></div>
 </body>
 </html>

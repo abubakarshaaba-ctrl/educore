@@ -162,7 +162,9 @@ class ExamPeriodController extends Controller
         $period->load(['term', 'examSessions', 'classLevels', 'staffPool',
             'entries.classLevel', 'entries.subject', 'entries.examSession', 'entries.supervisors.user']);
 
-        $entriesByDate = $period->entries->sortBy(fn ($e) => $e->exam_date->toDateString() . '-' . $e->examSession->sort_order)
+        $entriesByDate = $period->entries
+            ->filter(fn ($entry) => $entry->examSession !== null)
+            ->sortBy(fn ($entry) => sprintf('%s-%05d-%010d', $entry->exam_date->toDateString(), $entry->examSession->sort_order, $entry->id))
             ->groupBy(fn ($e) => $e->exam_date->toDateString());
 
         $staff = User::activeStaff($this->tenantId())->orderBy('name')->get();

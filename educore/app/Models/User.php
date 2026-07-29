@@ -242,6 +242,7 @@ class User extends Authenticatable
         'health'                 => ['health'],
         'library'                => ['library'],
         'transport'              => ['transport'],
+        'hostels'                => ['hostels'],
 
         // ── Annual School Census ──────────────────────────────────────
         'asc'                    => ['asc'],
@@ -666,7 +667,7 @@ class User extends Authenticatable
 
         // ── Hostel Minder ──────────────────────────────────────────────
         'hostel_minder' => [
-            'dashboard','students','health',
+            'dashboard','students','health','hostels',
             'messages','notifications.view','calendar.view',
             'staff-attendance.self','profile',
         ],
@@ -1275,6 +1276,8 @@ class User extends Authenticatable
         if (($feature = $this->featureForModule($module)) && !$this->canUseFeature($feature)) {
             return false;
         }
+        if ($this->hasDeniedPermission($module)) return false;
+        if ($this->hasGrantedPermission($module)) return true;
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
         return in_array('*', $allowed, true) || in_array($module, $allowed, true);
     }

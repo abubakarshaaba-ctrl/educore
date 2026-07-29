@@ -8,13 +8,12 @@ class HostelAllocation extends BaseTenantModel
 {
     protected $fillable = [
         'tenant_id', 'student_id', 'hostel_id', 'room_id', 'session_id',
-        'boarding_fee_amount', 'boarding_fee_status', 'allocated_at', 'vacated_at', 'status',
+        'allocated_at', 'vacated_at', 'status',
     ];
 
     protected function casts(): array
     {
         return [
-            'boarding_fee_amount' => 'decimal:2',
             'allocated_at' => 'date',
             'vacated_at' => 'date',
         ];

@@ -59,7 +59,7 @@ input[type="file"]{padding:7px 12px;font-size:13px}
         <h1>{{ $tenant->name }}</h1>
         <p>Online Application Form @if($settings->academic_year)— {{ $settings->academic_year }}@endif</p>
     </div>
-    <a href="{{ route('portal.landing', $tenant->slug) }}" class="back">&#8592; Back</a>
+    <a href="{{ url('/apply') }}" class="back">&#8592; Back</a>
 </div>
 
 <div class="container">
@@ -77,7 +77,7 @@ input[type="file"]{padding:7px 12px;font-size:13px}
 </div>
 @endif
 
-<form method="POST" action="{{ route('portal.submit', $tenant->slug) }}" enctype="multipart/form-data">
+<form method="POST" action="{{ url('/apply/submit') }}" enctype="multipart/form-data">
 @csrf
 
 {{-- STUDENT INFO --}}

@@ -19,6 +19,13 @@
 [data-curriculum="british"] .british-only { display:block; }
 /* Compact Plan Details grid inputs */
 .lp-card .fc { font-size:12px; padding:7px 10px; }
+.lp-details-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px; }
+@media(max-width:900px){.lp-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:600px){
+    .lp-card{padding:14px;}
+    .lp-details-grid{grid-template-columns:1fr;gap:10px;}
+    .ai-btn{width:100%;justify-content:center;}
+}
 </style>
 @endpush
 
@@ -41,7 +48,7 @@
         {{-- Meta --}}
         <div class="lp-card">
             <div class="lp-section-title">Plan Details</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <div class="lp-details-grid">
                 <div>
                     <label class="fl">Subject <span style="color:var(--crimson)">*</span></label>
                     <select name="subject_id" id="subjectSel" class="fc" required>
@@ -143,7 +150,7 @@
                         <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;color:#7C3AED"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/></svg>
                         AI-Powered Generation
                     </div>
-                    <p style="font-size:12px;color:#5B21B6;margin-top:3px">Powered by Groq AI (free) with OpenRouter fallback — fills all sections automatically based on your topic and class.</p>
+                    <p style="font-size:12px;color:#5B21B6;margin-top:3px">Creates a complete editable draft from your topic and class, with a reliable built-in planner if the AI service is temporarily unavailable.</p>
                 </div>
                 <button type="button" class="ai-btn" id="generateBtn" onclick="generateWithAI()">
                     <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px"><path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/></svg>
