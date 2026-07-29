@@ -25,11 +25,6 @@
 @push('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
-.builder-action{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(255,255,255,.08);color:white;font:700 11px/1 inherit;text-decoration:none;cursor:pointer;white-space:nowrap;transition:.15s ease}
-.builder-action:hover{background:rgba(255,255,255,.16);transform:translateY(-1px)}
-.builder-action svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.builder-action-primary{background:var(--brand-gold);border-color:var(--brand-gold);color:#071E45}
-.builder-action-primary:hover{background:var(--brand-gold-l)}
 .breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px}
 .breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
 /* Full-height split workspace — each pane scrolls independently, no page scroll */

@@ -6,6 +6,7 @@ use App\Models\ClassArmSubject;
 use App\Models\ExamPeriod;
 use App\Models\ExamSupervisor;
 use App\Models\ExamTimetableEntry;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -81,8 +82,22 @@ class ExamSchedulerService
             ->where('users.is_active', true)
             ->orderBy('users.name')
             ->get();
+        $autoSelected = false;
         if ($staffPool->isEmpty()) {
-            throw new \RuntimeException('No active staff selected for the supervision pool.');
+            $staffPool = User::activeStaff((int) $period->tenant_id)
+                ->orderBy('users.name')
+                ->get();
+
+            if ($staffPool->isEmpty()) {
+                throw new \RuntimeException('No active school staff are available for exam supervision.');
+            }
+
+            $period->staffPool()->sync(
+                $staffPool->mapWithKeys(fn (User $user) => [
+                    $user->id => ['tenant_id' => (int) $period->tenant_id],
+                ])
+            );
+            $autoSelected = true;
         }
 
         $entries = $period->entries()->with('examSession')->orderBy('exam_date')->get()
@@ -152,6 +167,11 @@ class ExamSchedulerService
             }
         });
 
-        return ['assigned' => $entries->count() - count($unassigned), 'unassigned' => count($unassigned)];
+        return [
+            'assigned' => $entries->count() - count($unassigned),
+            'unassigned' => count($unassigned),
+            'pool_size' => $staffPool->count(),
+            'auto_selected' => $autoSelected,
+        ];
     }
 }

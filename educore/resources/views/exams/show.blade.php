@@ -16,6 +16,11 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
 .chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;max-height:320px;overflow-y:auto;padding:4px}
 .chip{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px}
 .chip input{accent-color:var(--indigo)}
+.pool-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.pool-summary{font-size:12px;color:var(--slate-light)}
+.pool-actions{display:flex;gap:7px;flex-wrap:wrap}
+.pool-action{border:1px solid var(--border);background:#fff;color:var(--midnight);border-radius:7px;padding:6px 10px;font:700 11px/1 inherit;cursor:pointer}
+.pool-action:hover{border-color:var(--indigo);color:var(--indigo)}
 </style>
 @endpush
 
@@ -87,10 +92,19 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
     <div class="cb">
         <form method="POST" action="{{ route('exams.staff-pool.save', $period) }}">
             @csrf
+            <div class="pool-toolbar">
+                <div class="pool-summary">
+                    Choose active staff, or generate immediately and EduCore will use all {{ $staff->count() }} active staff automatically.
+                </div>
+                <div class="pool-actions">
+                    <button type="button" class="pool-action" onclick="setSupervisionPool(true)">Select all active staff</button>
+                    <button type="button" class="pool-action" onclick="setSupervisionPool(false)">Clear selection</button>
+                </div>
+            </div>
             <div class="chip-grid">
                 @foreach($staff as $s)
                 <label class="chip">
-                    <input type="checkbox" name="user_ids[]" value="{{ $s->id }}"
+                    <input type="checkbox" name="user_ids[]" value="{{ $s->id }}" data-supervision-staff
                         {{ $period->staffPool->contains('id', $s->id) ? 'checked' : '' }}>
                     {{ $s->name }} <span style="color:var(--slate-light)">({{ $s->roleLabel() }})</span>
                 </label>
@@ -143,3 +157,13 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+function setSupervisionPool(checked) {
+    document.querySelectorAll('[data-supervision-staff]').forEach(function (input) {
+        input.checked = checked;
+    });
+}
+</script>
+@endpush

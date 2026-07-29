@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\Student;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -60,12 +61,15 @@ class MessagingController extends Controller
             'body'      => $data['body'],
         ]);
 
+        app(PushNotificationService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
+
         return redirect()->route('messages.thread', $thread)
             ->with('success', 'Message sent.');
     }
 
     public function thread(MessageThread $thread)
     {
+        $this->authorizeThread($thread);
         $thread->load(['student', 'initiator', 'replies.sender']);
 
         // Mark all unread replies as read
@@ -79,6 +83,9 @@ class MessagingController extends Controller
 
     public function reply(Request $request, MessageThread $thread)
     {
+        $this->authorizeThread($thread);
+        abort_if($thread->status !== 'open', 422, 'This thread has been closed.');
+
         $data = $request->validate(['body' => ['required', 'string']]);
 
         MessageThreadReply::create([
@@ -87,12 +94,24 @@ class MessagingController extends Controller
             'body'      => $data['body'],
         ]);
 
+        app(PushNotificationService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
+
         return back()->with('success', 'Reply sent.');
     }
 
     public function close(MessageThread $thread)
     {
+        $this->authorizeThread($thread);
         $thread->update(['status' => 'closed']);
         return back()->with('success', 'Thread closed.');
+    }
+
+    private function authorizeThread(MessageThread $thread): void
+    {
+        $user = auth()->user();
+        $isParticipant = (int) $thread->initiated_by === (int) $user->id
+            || $thread->replies()->where('sender_id', $user->id)->exists();
+
+        abort_unless($isParticipant || $user->canManage('messages'), 403, 'You are not a participant in this conversation.');
     }
 }

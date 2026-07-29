@@ -264,7 +264,8 @@ class _ParentDashboardState extends State<_ParentDashboard> {
                   return _ParentTile(
                       icon: Icons.campaign_outlined,
                       title: notice['title']?.toString() ?? 'Announcement',
-                      subtitle: notice['body']?.toString() ?? '');
+                      subtitle: notice['body']?.toString() ?? '',
+                      onTap: () => _showAnnouncement(context, notice));
                 }),
             ],
           ),
@@ -306,7 +307,8 @@ class _ParentNotices extends StatelessWidget {
             return _ParentTile(
                 icon: Icons.campaign_outlined,
                 title: notice['title']?.toString() ?? 'Announcement',
-                subtitle: notice['body']?.toString() ?? '');
+                subtitle: notice['body']?.toString() ?? '',
+                onTap: () => _showAnnouncement(context, notice));
           }),
         ]);
       },
@@ -524,14 +526,19 @@ class _ParentHeading extends StatelessWidget {
 
 class _ParentTile extends StatelessWidget {
   const _ParentTile(
-      {required this.icon, required this.title, required this.subtitle});
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      this.onTap});
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Card(
         margin: const EdgeInsets.only(bottom: 10),
         child: ListTile(
+          onTap: onTap,
           leading: CircleAvatar(
               backgroundColor: const Color(0x1FD79A21),
               child: Icon(icon, color: kNavy)),
@@ -541,6 +548,141 @@ class _ParentTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: kMuted, fontSize: 12)),
+          trailing: onTap == null
+              ? null
+              : const Icon(Icons.chevron_right_rounded, color: kMuted),
+        ),
+      );
+}
+
+void _showAnnouncement(
+    BuildContext context, Map<String, dynamic> announcement) {
+  final title = announcement['title']?.toString() ?? 'School announcement';
+  final body = announcement['body']?.toString() ?? '';
+  final priority = announcement['priority']?.toString() ?? 'normal';
+  final published = announcement['publish_date']?.toString();
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => DraggableScrollableSheet(
+      initialChildSize: 0.62,
+      minChildSize: 0.42,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        ),
+        child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD8E0E8),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0x1FD79A21),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.campaign_rounded, color: kNavy),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: kInk,
+                          fontSize: 20,
+                          height: 1.25,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _AnnouncementBadge(
+                            label: priority.toUpperCase(),
+                            urgent: priority == 'urgent',
+                          ),
+                          if (published != null && published.isNotEmpty)
+                            _AnnouncementBadge(label: published),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            const SizedBox(height: 22),
+            SelectableText(
+              body.isEmpty ? 'No additional information was provided.' : body,
+              style: const TextStyle(
+                color: kInk,
+                fontSize: 15,
+                height: 1.65,
+              ),
+            ),
+            const SizedBox(height: 28),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(sheetContext),
+              icon: const Icon(Icons.done_rounded),
+              label: const Text('I have read this'),
+              style: FilledButton.styleFrom(
+                backgroundColor: kNavy,
+                minimumSize: const Size.fromHeight(50),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _AnnouncementBadge extends StatelessWidget {
+  const _AnnouncementBadge({required this.label, this.urgent = false});
+  final String label;
+  final bool urgent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: urgent ? const Color(0xFFFFE9E7) : const Color(0xFFF4F7FB),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: urgent ? kRisk : kMuted,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       );
 }

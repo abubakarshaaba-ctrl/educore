@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import 'api_client.dart';
 
@@ -15,7 +16,9 @@ class PushService {
   PushService._();
   static final PushService instance = PushService._();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
   String? _currentToken;
 
   /// Current FCM token (may be null if not yet retrieved).
@@ -34,7 +37,8 @@ class PushService {
         provisional: false,
       );
 
-      debugPrint('PushService: Permission status = ${settings.authorizationStatus}');
+      debugPrint(
+          'PushService: Permission status = ${settings.authorizationStatus}');
 
       // Get initial token
       _currentToken = await _messaging.getToken();
@@ -56,7 +60,8 @@ class PushService {
       // Check if app was opened from a terminated state via notification
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
-        debugPrint('PushService: App opened from terminated state via notification');
+        debugPrint(
+            'PushService: App opened from terminated state via notification');
         _handleMessageOpenedApp(initialMessage);
       }
     } catch (e) {
@@ -95,9 +100,10 @@ class PushService {
     }
 
     try {
-      final platform = defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
-      await ApiClient.instance.post('/devices/register', {
-        'fcm_token': token,
+      final platform =
+          defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+      await ApiClient.instance.post('/push/register', {
+        'token': token,
         'platform': platform,
       });
       debugPrint('PushService: Token registered with backend');
@@ -111,8 +117,8 @@ class PushService {
     if (_currentToken == null) return;
 
     try {
-      await ApiClient.instance.post('/devices/unregister', {
-        'fcm_token': _currentToken,
+      await ApiClient.instance.post('/push/unregister', {
+        'token': _currentToken,
       });
       debugPrint('PushService: Token unregistered');
     } catch (e) {
@@ -122,14 +128,52 @@ class PushService {
 
   /// Handle messages received while the app is in the foreground.
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('PushService: Foreground message received: ${message.messageId}');
+    debugPrint(
+        'PushService: Foreground message received: ${message.messageId}');
     debugPrint('PushService: Title: ${message.notification?.title}');
     debugPrint('PushService: Body: ${message.notification?.body}');
     debugPrint('PushService: Data: ${message.data}');
 
-    // You can show an in-app notification banner here
-    // For now, we just log it. A future enhancement would be to show
-    // a custom snackbar or overlay notification.
+    final notification = message.notification;
+    if (notification == null) return;
+
+    final messenger = scaffoldMessengerKey.currentState;
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF071E45),
+          duration: const Duration(seconds: 7),
+          content: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.notifications_active_rounded,
+                  color: Color(0xFFD79A21)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification.title ?? 'EduCore notification',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w800),
+                    ),
+                    if ((notification.body ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(notification.body!,
+                          style: const TextStyle(
+                              color: Color(0xFFD9E2F0), fontSize: 12.5)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 
   /// Handle when user taps on a notification to open the app.

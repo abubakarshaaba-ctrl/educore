@@ -71,6 +71,10 @@ Route::prefix('v1')->group(function () {
         // Push notification device registration (FCM)
         Route::post('push/register',   [\App\Http\Controllers\Api\PushController::class, 'registerToken']);
         Route::post('push/unregister', [\App\Http\Controllers\Api\PushController::class, 'unregisterToken']);
+        // Compatibility for app builds released before the canonical push
+        // endpoint was aligned. Keep these while older installations update.
+        Route::post('devices/register',   [\App\Http\Controllers\Api\PushController::class, 'registerToken']);
+        Route::post('devices/unregister', [\App\Http\Controllers\Api\PushController::class, 'unregisterToken']);
 
         // Messages (student-linked / internal threads this staff member is party to)
         Route::get('messages',                [\App\Http\Controllers\Api\MessageController::class, 'index']);

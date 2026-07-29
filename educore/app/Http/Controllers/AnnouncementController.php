@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Announcement;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 
 class AnnouncementController extends Controller
@@ -35,7 +36,10 @@ class AnnouncementController extends Controller
         ]);
         $data['created_by']   = auth()->id();
         $data['is_published'] = $request->boolean('is_published', true);
-        Announcement::create($data);
+        $announcement = Announcement::create($data);
+        if ($announcement->is_published) {
+            app(PushNotificationService::class)->notifyAnnouncementPublished($announcement);
+        }
         return back()->with('success', 'Announcement published.');
     }
 
@@ -48,6 +52,9 @@ class AnnouncementController extends Controller
     public function toggle(Announcement $announcement)
     {
         $announcement->update(['is_published' => !$announcement->is_published]);
+        if ($announcement->is_published) {
+            app(PushNotificationService::class)->notifyAnnouncementPublished($announcement);
+        }
         return back()->with('success', 'Announcement status updated.');
     }
 }

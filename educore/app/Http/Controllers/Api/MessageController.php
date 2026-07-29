@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\User;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 
 class MessageController extends Controller
@@ -15,10 +16,14 @@ class MessageController extends Controller
     {
         $userId = $request->user()->id;
 
-        $threads = MessageThread::where(function ($q) use ($userId) {
+        $studentId = $request->user()->student?->id;
+        $participantScope = function ($q) use ($userId, $studentId) {
                 $q->where('initiated_by', $userId)
-                  ->orWhereHas('replies', fn ($r) => $r->where('sender_id', $userId));
-            })
+                  ->orWhereHas('replies', fn ($r) => $r->where('sender_id', $userId))
+                  ->when($studentId, fn ($query) => $query->orWhere('student_id', $studentId));
+            };
+
+        $threads = MessageThread::where($participantScope)
             ->with(['student', 'initiator', 'replies' => fn ($q) => $q->latest()->limit(1)])
             ->latest()
             ->paginate(20);
@@ -44,9 +49,10 @@ class MessageController extends Controller
 
         return response()->json([
             'threads'      => $items,
-            'unread_total' => MessageThread::whereHas('replies', fn ($q) =>
-                $q->where('is_read', false)->where('sender_id', '!=', $userId)
-            )->count(),
+            'unread_total' => MessageThread::where($participantScope)
+                ->whereHas('replies', fn ($q) =>
+                    $q->where('is_read', false)->where('sender_id', '!=', $userId)
+                )->count(),
             'current_page' => $threads->currentPage(),
             'last_page'    => $threads->lastPage(),
         ]);
@@ -56,12 +62,7 @@ class MessageController extends Controller
     public function show(Request $request, MessageThread $thread)
     {
         $user = $request->user();
-        abort_unless(
-            (int) $thread->initiated_by === (int) $user->id
-                || $thread->replies()->where('sender_id', $user->id)->exists(),
-            403,
-            'You are not a participant in this conversation.'
-        );
+        $this->authorizeThread($thread, $user);
 
         $thread->load(['student', 'initiator', 'replies.sender']);
 
@@ -91,12 +92,7 @@ class MessageController extends Controller
     public function reply(Request $request, MessageThread $thread)
     {
         $user = $request->user();
-        abort_unless(
-            (int) $thread->initiated_by === (int) $user->id
-                || $thread->replies()->where('sender_id', $user->id)->exists(),
-            403,
-            'You are not a participant in this conversation.'
-        );
+        $this->authorizeThread($thread, $user);
         abort_if($thread->status !== 'open', 422, 'This thread has been closed.');
 
         $data = $request->validate(['body' => ['required', 'string']]);
@@ -108,6 +104,8 @@ class MessageController extends Controller
             'body'      => $data['body'],
         ]);
 
+        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+
         return response()->json([
             'reply' => [
                 'id'          => $reply->id,
@@ -118,5 +116,20 @@ class MessageController extends Controller
                 'created_at'  => $reply->created_at?->toIso8601String(),
             ],
         ], 201);
+    }
+
+    private function authorizeThread(MessageThread $thread, User $user): void
+    {
+        $isConcernedStudent = $user->isStudent()
+            && (int) optional($user->student)->id === (int) $thread->student_id;
+
+        abort_unless(
+            (int) $thread->initiated_by === (int) $user->id
+                || $thread->replies()->where('sender_id', $user->id)->exists()
+                || $isConcernedStudent
+                || $user->canManage('messages'),
+            403,
+            'You are not a participant in this conversation.'
+        );
     }
 }

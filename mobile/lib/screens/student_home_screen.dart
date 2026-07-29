@@ -5,6 +5,7 @@ import '../main.dart';
 import 'empty_state.dart';
 import 'haptic_helper.dart';
 import 'login_screen.dart';
+import 'messages_screen.dart';
 import '../push_service.dart';
 import 'pressable_card.dart';
 import 'skeleton_loader.dart';
@@ -191,11 +192,9 @@ class _StudentDashboardState extends State<_StudentDashboard> {
                       ),
                       subtitle: Text(
                         '${exam['subject'] ?? 'Subject'} · ${exam['duration_minutes'] ?? 0} minutes',
-                        style:
-                            const TextStyle(color: kMuted, fontSize: 12),
+                        style: const TextStyle(color: kMuted, fontSize: 12),
                       ),
-                      trailing:
-                          const Icon(Icons.chevron_right, color: kMuted),
+                      trailing: const Icon(Icons.chevron_right, color: kMuted),
                     ),
                   );
                 }),
@@ -215,8 +214,7 @@ class _StudentDashboardState extends State<_StudentDashboard> {
                     child: ListTile(
                       leading: const CircleAvatar(
                         backgroundColor: Color(0x1FD79A21),
-                        child:
-                            Icon(Icons.campaign_outlined, color: kNavy),
+                        child: Icon(Icons.campaign_outlined, color: kNavy),
                       ),
                       title: Text(
                         notice['title']?.toString() ?? 'Announcement',
@@ -227,8 +225,7 @@ class _StudentDashboardState extends State<_StudentDashboard> {
                         notice['body']?.toString() ?? '',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(color: kMuted, fontSize: 12),
+                        style: const TextStyle(color: kMuted, fontSize: 12),
                       ),
                     ),
                   );
@@ -259,8 +256,7 @@ class _StudentTimetable extends StatelessWidget {
           ),
           title: Text(
             '${item['day'] ?? ''} · ${item['subject'] ?? 'Subject'}',
-            style: const TextStyle(
-                color: kInk, fontWeight: FontWeight.w700),
+            style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
           ),
           subtitle: Text(
             '${item['start_time'] ?? ''} – ${item['end_time'] ?? ''} · ${item['teacher'] ?? 'Teacher'}${item['venue'] == null ? '' : ' · ${item['venue']}'}',
@@ -295,8 +291,7 @@ class _StudentExams extends StatelessWidget {
             ),
             title: Text(
               item['title']?.toString() ?? 'CBT Examination',
-              style: const TextStyle(
-                  color: kInk, fontWeight: FontWeight.w700),
+              style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
               '${item['subject'] ?? 'Subject'} · ${item['duration_minutes'] ?? 0} minutes${attempt == null ? '' : ' · ${attempt['status']}'}',
@@ -330,8 +325,7 @@ class _StudentResults extends StatelessWidget {
           ),
           title: Text(
             '${item['term'] ?? 'Term'} · ${item['session'] ?? ''}',
-            style: const TextStyle(
-                color: kInk, fontWeight: FontWeight.w700),
+            style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
           ),
           subtitle: Text(
             'Average ${item['average'] ?? 0}% · Position ${item['position'] ?? '—'} of ${item['class_size'] ?? '—'}',
@@ -385,6 +379,14 @@ class _StudentMore extends StatelessWidget {
           icon: Icons.notifications_outlined,
           title: 'Announcements',
           subtitle: 'Updates from your school',
+        ),
+        _StudentMenuTile(
+          icon: Icons.forum_outlined,
+          title: 'Messages',
+          subtitle: 'Read and reply to messages about you',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MessagesScreen()),
+          ),
         ),
         const SizedBox(height: 18),
         OutlinedButton.icon(
@@ -588,24 +590,27 @@ class _StudentMenuTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return PressableCard(
       borderRadius: 12,
       child: ListTile(
+        onTap: onTap,
         leading: CircleAvatar(
           backgroundColor: const Color(0x1FD79A21),
           child: Icon(icon, color: kNavy),
         ),
         title: Text(title,
             style: const TextStyle(color: kInk, fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(color: kMuted, fontSize: 12)),
+        subtitle:
+            Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12)),
         trailing: const Icon(Icons.chevron_right, color: kMuted),
       ),
     );

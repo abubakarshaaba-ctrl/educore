@@ -11,6 +11,10 @@ class PushController extends Controller
     /** Register/refresh this device's FCM token for the signed-in user. */
     public function registerToken(Request $request)
     {
+        if (!$request->filled('token') && $request->filled('fcm_token')) {
+            $request->merge(['token' => $request->input('fcm_token')]);
+        }
+
         $data = $request->validate([
             'token'    => ['required', 'string', 'max:255'],
             'platform' => ['nullable', 'string', 'max:20'],
@@ -30,6 +34,10 @@ class PushController extends Controller
 
     public function unregisterToken(Request $request)
     {
+        if (!$request->filled('token') && $request->filled('fcm_token')) {
+            $request->merge(['token' => $request->input('fcm_token')]);
+        }
+
         $data = $request->validate(['token' => ['required', 'string']]);
         DeviceToken::where('token', $data['token'])->where('user_id', $request->user()->id)->delete();
 

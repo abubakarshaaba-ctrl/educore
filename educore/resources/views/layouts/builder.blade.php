@@ -28,7 +28,7 @@
     --border:      #E4E8EF;
     --bg:          #F4F6FA;
     --white:       #FFFFFF;
-    --builder-bar-h: 78px;
+    --builder-bar-h: 92px;
 }
 
 html, body {
@@ -43,45 +43,82 @@ html, body {
 .builder-bar {
     height: var(--builder-bar-h);
     background:
-        radial-gradient(circle at 75% -80%, rgba(215,154,33,.27), transparent 42%),
-        linear-gradient(115deg, #04132D 0%, var(--midnight) 64%, #0A2C61 100%);
+        radial-gradient(circle at 82% -70%, rgba(215,154,33,.22), transparent 38%),
+        linear-gradient(118deg, #031229 0%, var(--midnight) 58%, #092B5F 100%);
     color: white;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
-    border-bottom: 3px solid var(--brand-gold);
-    box-shadow: 0 8px 24px rgba(7,30,69,.22);
+    gap: 24px;
+    padding: 0 28px;
+    border-bottom: 2px solid var(--brand-gold);
+    box-shadow: 0 10px 30px rgba(7,30,69,.18);
     position: relative;
     z-index: 10;
 }
-.builder-bar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.builder-bar::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    opacity:.14;
+    background-image:
+        linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+    background-size:36px 36px;
+    mask-image:linear-gradient(90deg, transparent, black 55%, black);
+}
+.builder-bar-left { display: flex; align-items: center; gap: 18px; min-width: 0; position:relative; z-index:1; }
 .builder-brand {
-    display:flex;align-items:center;gap:9px;padding-right:16px;
+    display:flex;align-items:center;gap:10px;padding-right:18px;
     border-right:1px solid rgba(255,255,255,.16);flex-shrink:0;
 }
-.builder-brand img{width:36px;height:36px;border-radius:9px;display:block}
+.builder-brand img{width:42px;height:42px;border-radius:11px;display:block;box-shadow:0 7px 18px rgba(0,0,0,.2)}
 .builder-brand-copy{line-height:1.1}
-.builder-brand-name{font-size:13px;font-weight:800;color:white}
+.builder-brand-name{font-size:15px;font-weight:850;color:white;letter-spacing:-.02em}
 .builder-brand-name span{color:var(--brand-gold-l)}
-.builder-brand-kicker{font-size:8px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.12em;margin-top:3px}
+.builder-brand-kicker{font-size:8px;color:rgba(255,255,255,.58);text-transform:uppercase;letter-spacing:.16em;margin-top:4px}
 .builder-exit {
     display: inline-flex; align-items: center; gap: 6px;
-    color: rgba(255,255,255,.75); text-decoration: none; font-size: 13px;
-    font-weight: 700; padding: 8px 10px; border-radius: 9px;
-    transition: background 150ms;
+    color: rgba(255,255,255,.78); text-decoration: none; font-size: 12px;
+    font-weight: 750; padding: 9px 11px; border-radius: 10px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.055);
+    transition: background 150ms, border-color 150ms, transform 150ms;
     flex-shrink: 0;
 }
-.builder-exit:hover { background: rgba(255,255,255,.1); color: white; }
+.builder-exit:hover { background: rgba(255,255,255,.12); border-color:rgba(255,255,255,.24); color: white; transform:translateY(-1px); }
 .builder-title-wrap { min-width: 0; }
-.builder-title { font-size: 16px; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing:-.02em; }
-.builder-subtitle { font-size: 11px; color: rgba(255,255,255,.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top:3px; }
-.builder-bar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.builder-pill {
-    font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 20px;
-    background: rgba(215,154,33,.18); color: var(--brand-gold-l);
-    border: 1px solid rgba(215,154,33,.35); white-space: nowrap;
+.builder-eyebrow{font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--brand-gold-l);margin-bottom:4px}
+.builder-title { font-size: 17px; font-weight: 850; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing:-.025em; }
+.builder-subtitle { font-size: 11px; color: rgba(255,255,255,.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top:4px; }
+.builder-bar-right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    position:relative;z-index:1;padding:7px;
+    border:1px solid rgba(255,255,255,.11);border-radius:14px;
+    background:rgba(2,13,31,.24);backdrop-filter:blur(8px);
 }
+.builder-pill {
+    display:inline-flex;align-items:center;gap:6px;
+    font-size: 10.5px; font-weight: 750; padding: 7px 10px; border-radius: 9px;
+    background: rgba(215,154,33,.14); color: #FFE09A;
+    border: 1px solid rgba(215,154,33,.3); white-space: nowrap;
+}
+.builder-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--brand-gold-l);box-shadow:0 0 0 3px rgba(242,195,91,.13)}
+.builder-action{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    min-height:36px;padding:8px 11px;border:1px solid rgba(255,255,255,.17);
+    border-radius:9px;background:rgba(255,255,255,.075);color:white;
+    font:750 11px/1 inherit;text-decoration:none;cursor:pointer;white-space:nowrap;
+    transition:background 150ms,border-color 150ms,transform 150ms,box-shadow 150ms;
+}
+.builder-action:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3);transform:translateY(-1px)}
+.builder-action svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.builder-action-primary{
+    background:linear-gradient(135deg,#F0B32D,var(--brand-gold));border-color:#F1BB43;color:#071E45;
+    box-shadow:0 7px 16px rgba(215,154,33,.2)
+}
+.builder-action-primary:hover{background:linear-gradient(135deg,#F5C553,#E4A51C);border-color:#F5CA68;box-shadow:0 9px 20px rgba(215,154,33,.27)}
 
 /* ── Main workspace — fills remaining viewport height ───────────────── */
 .builder-body {
@@ -93,12 +130,13 @@ html, body {
     .builder-brand-copy{display:none}
     .builder-brand{padding-right:10px}
     .builder-bar{padding:0 14px}
+    .builder-action{padding:8px 9px}
 }
 @media(max-width:820px){
-    :root{--builder-bar-h:132px}
+    :root{--builder-bar-h:148px}
     .builder-bar{height:var(--builder-bar-h);align-items:flex-start;flex-wrap:wrap;padding-top:12px;padding-bottom:10px;gap:8px}
-    .builder-bar-left{width:100%;height:42px}
-    .builder-bar-right{width:100%;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
+    .builder-bar-left{width:100%;height:54px}
+    .builder-bar-right{width:100%;overflow-x:auto;padding:7px;scrollbar-width:none}
     .builder-bar-right::-webkit-scrollbar{display:none}
     .builder-title{font-size:14px}
 }
@@ -107,8 +145,8 @@ html, body {
     .builder-exit span{display:none}
 }
 
-@stack('styles')
     </style>
+    @stack('styles')
 </head>
 <body class="builder-mode">
 
@@ -126,6 +164,7 @@ html, body {
             <span>Exit Builder</span>
         </a>
         <div class="builder-title-wrap">
+            <div class="builder-eyebrow">Question bank workspace</div>
             <div class="builder-title">@yield('builder-title', 'Question Builder')</div>
             <div class="builder-subtitle">@yield('builder-subtitle', '')</div>
         </div>

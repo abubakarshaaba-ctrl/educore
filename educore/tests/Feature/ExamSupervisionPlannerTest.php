@@ -39,9 +39,9 @@ class ExamSupervisionPlannerTest extends TestCase
     public function test_supervision_plan_uses_active_staff_avoids_double_booking_and_reports_shortage(): void
     {
         DB::table('users')->insert([
-            ['id' => 1, 'tenant_id' => 1, 'name' => 'Alice Teacher', 'is_active' => true],
-            ['id' => 2, 'tenant_id' => 1, 'name' => 'Bob Teacher', 'is_active' => true],
-            ['id' => 3, 'tenant_id' => 1, 'name' => 'Inactive Teacher', 'is_active' => false],
+            ['id' => 1, 'tenant_id' => 1, 'name' => 'Alice Teacher', 'role' => 'subject_teacher', 'is_super_admin' => false, 'is_active' => true],
+            ['id' => 2, 'tenant_id' => 1, 'name' => 'Bob Teacher', 'role' => 'subject_teacher', 'is_super_admin' => false, 'is_active' => true],
+            ['id' => 3, 'tenant_id' => 1, 'name' => 'Inactive Teacher', 'role' => 'subject_teacher', 'is_super_admin' => false, 'is_active' => false],
         ]);
 
         $period = ExamPeriod::create([
@@ -96,12 +96,61 @@ class ExamSupervisionPlannerTest extends TestCase
 
         $result = app(ExamSchedulerService::class)->generateSupervision($period);
 
-        $this->assertSame(['assigned' => 2, 'unassigned' => 1], $result);
+        $this->assertSame([
+            'assigned' => 2,
+            'unassigned' => 1,
+            'pool_size' => 2,
+            'auto_selected' => false,
+        ], $result);
         $this->assertSame(2, ExamSupervisor::count());
         $this->assertSame(2, ExamSupervisor::where('exam_timetable_entry_id', $entries[0]->id)->value('user_id'));
         $this->assertSame(1, ExamSupervisor::where('exam_timetable_entry_id', $entries[1]->id)->value('user_id'));
         $this->assertFalse(ExamSupervisor::where('user_id', 3)->exists());
         $this->assertSame('supervision_planned', $period->fresh()->status);
+    }
+
+    public function test_supervision_plan_automatically_uses_active_staff_when_pool_is_empty(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'tenant_id' => 1, 'name' => 'Available Staff', 'role' => 'admin', 'is_super_admin' => false, 'is_active' => true],
+            ['id' => 2, 'tenant_id' => 1, 'name' => 'Parent Account', 'role' => 'parent', 'is_super_admin' => false, 'is_active' => true],
+            ['id' => 3, 'tenant_id' => 2, 'name' => 'Other School Staff', 'role' => 'admin', 'is_super_admin' => false, 'is_active' => true],
+        ]);
+
+        $period = ExamPeriod::create([
+            'tenant_id' => 1,
+            'term_id' => 1,
+            'title' => 'Term Examination',
+            'start_date' => '2026-07-20',
+            'end_date' => '2026-07-20',
+            'status' => 'timetabled',
+        ]);
+        $level = ClassLevel::create(['tenant_id' => 1, 'name' => 'Basic 7']);
+        $session = ExamSession::create([
+            'tenant_id' => 1,
+            'exam_period_id' => $period->id,
+            'name' => 'Morning',
+            'start_time' => '09:00',
+            'end_time' => '11:00',
+            'sort_order' => 1,
+        ]);
+        $period->classLevels()->attach($level->id, ['tenant_id' => 1]);
+        ExamTimetableEntry::create([
+            'tenant_id' => 1,
+            'exam_period_id' => $period->id,
+            'class_level_id' => $level->id,
+            'subject_id' => 10,
+            'exam_date' => '2026-07-20',
+            'exam_session_id' => $session->id,
+        ]);
+
+        $result = app(ExamSchedulerService::class)->generateSupervision($period);
+
+        $this->assertSame(1, $result['assigned']);
+        $this->assertSame(1, $result['pool_size']);
+        $this->assertTrue($result['auto_selected']);
+        $this->assertSame([1], $period->staffPool()->pluck('users.id')->all());
+        $this->assertSame(1, ExamSupervisor::value('user_id'));
     }
 
     private function rebuildSchema(): void
@@ -125,7 +174,10 @@ class ExamSupervisionPlannerTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->string('name');
+            $table->string('role');
+            $table->boolean('is_super_admin')->default(false);
             $table->boolean('is_active')->default(true);
+            $table->string('employment_status')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

@@ -40,6 +40,7 @@ class EduCoreApp extends StatelessWidget {
     return MaterialApp(
       title: 'EduCore',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: PushService.instance.scaffoldMessengerKey,
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: kPage,
@@ -59,7 +60,7 @@ class EduCoreApp extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        cardTheme: CardThemeData(
+        cardTheme: const CardThemeData(
           color: Colors.white,
           elevation: 0,
           margin: EdgeInsets.zero,

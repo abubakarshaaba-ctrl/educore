@@ -65,8 +65,9 @@ return [
     ],
 
     'fcm' => [
-        'project_id'  => env('FCM_PROJECT_ID'),
+        'project_id'  => env('FCM_PROJECT_ID', 'educore-35d95'),
         'credentials' => env('FCM_CREDENTIALS_PATH', storage_path('app/firebase-service-account.json')),
+        'credentials_json' => env('FCM_CREDENTIALS_JSON'),
     ],
 
 ];

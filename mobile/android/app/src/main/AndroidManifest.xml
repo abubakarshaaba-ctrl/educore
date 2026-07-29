@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Internet: API calls to educoreng.online -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required for visible notifications on Android 13 and newer. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Camera: QR clock-in scanning -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -8,12 +10,13 @@
     <!-- Location: geo-fenced staff clock-in (only requested when the school enables it) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-feature android:name="android.hardware.camera" android:required="false"/>
-    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
         android:label="EduCore"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="educore_updates" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

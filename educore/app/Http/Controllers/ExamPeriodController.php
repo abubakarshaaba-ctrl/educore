@@ -201,9 +201,21 @@ class ExamPeriodController extends Controller
         ]);
 
         $tid = $this->tenantId();
-        $period->staffPool()->sync(collect($data['user_ids'])->mapWithKeys(fn ($id) => [$id => ['tenant_id' => $tid]]));
+        $eligibleIds = User::activeStaff($tid)
+            ->whereIn('id', $data['user_ids'])
+            ->pluck('id');
 
-        return back()->with('success', 'Supervision staff pool saved (' . count($data['user_ids']) . ' staff).');
+        if ($eligibleIds->count() !== collect($data['user_ids'])->unique()->count()) {
+            return back()->withErrors([
+                'user_ids' => 'The supervision pool may contain active school staff only.',
+            ])->withInput();
+        }
+
+        $period->staffPool()->sync(
+            $eligibleIds->mapWithKeys(fn ($id) => [$id => ['tenant_id' => $tid]])
+        );
+
+        return back()->with('success', 'Supervision staff pool saved (' . $eligibleIds->count() . ' staff).');
     }
 
     public function generateSupervision(ExamPeriod $period, ExamSchedulerService $scheduler)
@@ -219,6 +231,9 @@ class ExamPeriodController extends Controller
         }
 
         $msg = "Supervision plan generated: {$result['assigned']} sittings assigned.";
+        if ($result['auto_selected']) {
+            $msg .= " {$result['pool_size']} active staff were automatically added to the supervision pool.";
+        }
         if ($result['unassigned'] > 0) {
             $msg .= " {$result['unassigned']} sitting(s) had no available supervisor — add more staff to the pool.";
         }

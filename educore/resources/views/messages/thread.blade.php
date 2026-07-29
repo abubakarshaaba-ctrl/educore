@@ -39,7 +39,7 @@
         <div class="ch">Thread Info</div>
         <div class="info-row"><span class="ik">Student</span><span class="iv">{{ optional($thread->student)->full_name }}</span></div>
         <div class="info-row"><span class="ik">Adm No</span><span class="iv" style="font-size:11px">{{ optional($thread->student)->admission_number }}</span></div>
-        <div class="info-row"><span class="ik">Class</span><span class="iv" style="font-size:11px">{{ optional(optional($thread->student)->currentClassArm)->optional(classLevel)->name }} {{ optional(optional($thread->student)->currentClassArm)->name }}</span></div>
+        <div class="info-row"><span class="ik">Class</span><span class="iv" style="font-size:11px">{{ data_get($thread, 'student.currentClassArm.classLevel.name', 'Not assigned') }} {{ data_get($thread, 'student.currentClassArm.name') }}</span></div>
         <div class="info-row"><span class="ik">Started by</span><span class="iv" style="font-size:11px">{{ optional($thread->initiator)->name }}</span></div>
         <div class="info-row"><span class="ik">Status</span><span class="iv">{{ ucfirst($thread->status) }}</span></div>
         @if($thread->status === 'open')
