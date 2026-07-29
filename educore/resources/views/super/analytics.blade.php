@@ -15,6 +15,8 @@ tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
 tbody tr:last-child td{border-bottom:none}
 .bar{background:#F1F5F9;border-radius:4px;height:8px;overflow:hidden}
 .bar-fill{height:8px;border-radius:4px;background:var(--indigo)}
+@media(max-width:900px){.sg{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}}
+@media(max-width:520px){.sg{grid-template-columns:1fr 1fr;gap:10px}.sc{padding:13px}.sv{font-size:22px}.tbl{overflow-x:auto}.tbl table{min-width:430px}}
 </style>
 @endpush
 @section('content')
@@ -33,11 +35,14 @@ tbody tr:last-child td{border-bottom:none}
         <tbody>
         @foreach($growth as $g)
         <tr>
-            <td>{{ \Carbon\Carbon::create($g->year,$g->month)->format('M Y') }}</td>
+            <td>{{ \Carbon\Carbon::create($g->year,$g->month,1)->format('M Y') }}</td>
             <td style="font-weight:700">{{ $g->count }}</td>
             <td><div class="bar"><div class="bar-fill" style="width:{{ min($g->count*20,100) }}%"></div></div></td>
         </tr>
         @endforeach
+        @if($growth->isEmpty())
+        <tr><td colspan="3" style="text-align:center;color:var(--slate-light);padding:22px">No new schools have joined this year.</td></tr>
+        @endif
         </tbody>
     </table></div>
 </div>

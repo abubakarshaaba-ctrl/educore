@@ -174,6 +174,7 @@ class AdmissionController extends Controller
                 'gender'               => $admission->gender,
                 'religion'             => $admission->religion,
                 'state_of_origin'      => $admission->state_of_origin,
+                'lga_of_origin'        => $admission->lga_of_origin,
                 'current_class_arm_id' => $classArmId,
                 'status'               => 'active',
                 'admission_date'       => now(),

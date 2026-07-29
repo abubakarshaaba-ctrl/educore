@@ -52,6 +52,8 @@
         <div class="info-row"><span class="ik">Gender</span><span class="iv">{{ ucfirst($admission->gender) }}</span></div>
         <div class="info-row"><span class="ik">Religion</span><span class="iv">{{ $admission->religion ?? '—' }}</span></div>
         <div class="info-row"><span class="ik">State</span><span class="iv">{{ $admission->state_of_origin ?? '—' }}</span></div>
+        <div class="info-row"><span class="ik">LGA</span><span class="iv">{{ $admission->lga_of_origin ?? '—' }}</span></div>
+        <div class="info-row"><span class="ik">Beginner</span><span class="iv">{{ $admission->is_beginner ? 'Yes' : 'No' }}</span></div>
         <div class="info-row"><span class="ik">For Class</span><span class="iv">{{ optional($admission->applyingForClassLevel)->name ?? '—' }}</span></div>
         <div class="info-row"><span class="ik">Prev School</span><span class="iv" style="font-size:12px">{{ $admission->previous_school ?? '—' }}</span></div>
       </div>

@@ -12,6 +12,7 @@ use App\Services\TenantUrlGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 /**
  * PUBLIC Admissions Portal — NO AUTH REQUIRED
@@ -72,10 +73,8 @@ class PublicAdmissionController extends Controller
             ->where('tenant_id', $tenant->id)
             ->orderBy('name')->get();
 
-        $nigerianStates = $this->nigerianStates();
-
         return view('portal.admissions.apply',
-            compact('tenant', 'settings', 'classLevels', 'nigerianStates'));
+            compact('tenant', 'settings', 'classLevels'));
     }
 
     // ── Submit Application ───────────────────────────────────────────
@@ -89,6 +88,7 @@ class PublicAdmissionController extends Controller
             return back()->withErrors(['error' => 'Admissions are currently closed.']);
         }
 
+        $isBeginner = $request->boolean('is_beginner');
         $data = $request->validate([
             'first_name'                  => ['required','string','max:80'],
             'last_name'                   => ['required','string','max:80'],
@@ -96,12 +96,23 @@ class PublicAdmissionController extends Controller
             'date_of_birth'               => ['required','date','before:today'],
             'gender'                      => ['required','in:male,female'],
             'religion'                    => ['nullable','string','max:50'],
-            'state_of_origin'             => ['nullable','string','max:50'],
+            'state_of_origin'             => ['nullable','string','max:50', Rule::in(array_keys(\App\Data\NigeriaGeo::all()))],
+            'lga_of_origin'               => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::in(\App\Data\NigeriaGeo::all()[$request->input('state_of_origin')]['lgas'] ?? []),
+            ],
+            'is_beginner'                 => ['required','boolean'],
             'nationality'                 => ['nullable','string','max:50'],
             'address'                     => ['required','string','max:300'],
-            'applying_for_class_level_id' => ['required','integer'],
-            'previous_school'             => ['nullable','string','max:200'],
-            'previous_class'              => ['nullable','string','max:50'],
+            'applying_for_class_level_id' => [
+                'required',
+                'integer',
+                Rule::exists('class_levels', 'id')->where(fn ($query) => $query->where('tenant_id', $tenant->id)),
+            ],
+            'previous_school'             => ['exclude_if:is_beginner,1', Rule::requiredIf(!$isBeginner), 'string','max:200'],
+            'previous_class'              => ['exclude_if:is_beginner,1', 'nullable','string','max:50'],
             'guardian_name'               => ['required','string','max:120'],
             'guardian_phone'              => ['required','string','max:20'],
             'guardian_email'              => ['nullable','email','max:120'],
@@ -110,17 +121,31 @@ class PublicAdmissionController extends Controller
             'guardian_address'            => ['nullable','string','max:300'],
             'academic_year'               => ['nullable','string','max:20'],
             // Documents
-            'passport_photo'              => ['nullable','image','max:2048'],
-            'birth_certificate'           => ['nullable','file','mimes:pdf,jpg,jpeg,png','max:4096'],
-            'last_report_card'            => ['nullable','file','mimes:pdf,jpg,jpeg,png','max:4096'],
+            'passport_photo'              => [Rule::requiredIf((bool) $settings->require_passport), 'nullable','image','max:2048'],
+            'birth_certificate'           => [Rule::requiredIf((bool) $settings->require_birth_cert), 'nullable','file','mimes:pdf,jpg,jpeg,png','max:4096'],
+            'nin_document'                => ['nullable','file','mimes:pdf,jpg,jpeg,png','max:4096'],
+            'last_report_card'            => ['exclude_if:is_beginner,1', Rule::requiredIf(!$isBeginner), 'file','mimes:pdf,jpg,jpeg,png','max:4096'],
+            'transfer_letter'             => ['exclude_if:is_beginner,1', Rule::requiredIf(!$isBeginner), 'file','mimes:pdf,jpg,jpeg,png','max:4096'],
         ]);
+
+        $documentTypes = [
+            'passport_photo',
+            'birth_certificate',
+            'nin_document',
+            'last_report_card',
+            'transfer_letter',
+        ];
+        $recordData = $data;
+        foreach ($documentTypes as $documentType) {
+            unset($recordData[$documentType]);
+        }
 
         // Generate unique application number
         $appNumber = 'APP-' . strtoupper($slug) . '-' . date('Y') . '-' . strtoupper(Str::random(6));
         $token     = Str::random(32);
 
         $admission = Admission::withoutTenantScope()->create([
-            ...$data,
+            ...$recordData,
             'tenant_id'          => $tenant->id,
             'application_number' => $appNumber,
             'portal_token'       => $token,
@@ -132,8 +157,7 @@ class PublicAdmissionController extends Controller
         ]);
 
         // Store uploaded documents
-        $docTypes = ['passport_photo', 'birth_certificate', 'last_report_card'];
-        foreach ($docTypes as $docType) {
+        foreach ($documentTypes as $docType) {
             if ($request->hasFile($docType)) {
                 $file = $request->file($docType);
                 $path = $file->store("admissions/{$tenant->id}/{$admission->id}", 'public');
@@ -398,14 +422,4 @@ class PublicAdmissionController extends Controller
             compact('applications', 'settings', 'portalUrl', 'portalStats'));
     }
 
-    private function nigerianStates(): array
-    {
-        return [
-            'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa',
-            'Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti',
-            'Enugu','FCT','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina',
-            'Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo',
-            'Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara',
-        ];
-    }
 }

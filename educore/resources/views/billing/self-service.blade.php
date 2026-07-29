@@ -27,6 +27,13 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
 .amount-box .sub{font-size:12px;color:var(--slate-light);margin-top:4px}
 .pay-btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 28px;border:none;border-radius:8px;background:var(--indigo);color:#fff;font-weight:700;font-size:13px;font-family:inherit;cursor:pointer;margin-top:16px}
 .pay-btn:hover{filter:brightness(1.06)}
+.pay-btn:disabled{background:#CBD5E1;color:#64748B;cursor:not-allowed;filter:none}
+.estimate-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,.75fr);gap:22px;align-items:center;padding:24px}
+.estimate-copy h2{font-size:18px;color:var(--midnight);margin-bottom:7px}.estimate-copy p{font-size:12px;line-height:1.65;color:var(--slate)}
+.estimate-field{margin-top:16px}.estimate-field label{display:block;font-size:11px;font-weight:800;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.estimate-field input{width:100%;padding:12px 13px;border:1px solid var(--border);border-radius:9px;background:#F8FAFC;font:600 14px inherit;outline:0}.estimate-field input:focus{background:#fff;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.estimate-result{background:linear-gradient(145deg,#071E45,#123D70);color:#fff;border-radius:14px;padding:22px;text-align:center}.estimate-result .amt{font-size:32px;font-weight:900}.estimate-result .sub{color:#CBD5E1;font-size:11px;line-height:1.5;margin-top:5px}
+@media(max-width:760px){.estimate-grid{grid-template-columns:1fr;padding:18px}.estimate-result{padding:18px}.amount-box{padding:16px}.bcard table{min-width:680px}}
 </style>
 @endpush
 
@@ -96,38 +103,31 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
         </div>
         @endforeach
     </div>
-    @if(\App\Services\PricingService::isFree($studentCount))
-        <div style="padding:20px;text-align:center">
-            <p style="font-size:13px;color:#059669;font-weight:700">
-                ✓ Your school ({{ $studentCount }} students) is on the free plan — no invoice needed.
-            </p>
-        </div>
-    @else
-        <div class="amount-box">
-            <div class="cycle-toggle" id="cycleToggle" style="margin-bottom:18px">
-                <button type="button" data-cycle="termly" class="active">Per term</button>
-                <button type="button" data-cycle="annual">Full year (3 terms)</button>
-            </div>
-            <div class="amt" id="amtDisplay" data-termly="₦{{ number_format(\App\Services\PricingService::termlyAmount($studentCount)) }}" data-annual="₦{{ number_format(\App\Services\PricingService::annualAmount($studentCount)) }}">
-                ₦{{ number_format(\App\Services\PricingService::termlyAmount($studentCount)) }}
-            </div>
-            <div class="sub">{{ $studentCount }} active students × {{ \App\Services\PricingService::tierLabel($studentCount) }}</div>
-
-            <form method="POST" action="{{ route('billing.generate-invoice') }}" style="max-width:340px;margin:0 auto">
-                @csrf
-                <input type="hidden" name="billing_cycle" id="cycleInput" value="termly">
-                <div style="text-align:left;margin:18px 0 6px">
-                    <label style="font-size:11px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em">
-                        Capacity to purchase (optional headroom)
-                    </label>
-                    <input type="number" name="target_capacity" class="fc" min="{{ $studentCount }}" placeholder="Defaults to current: {{ $studentCount }}"
-                           style="padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;width:100%;margin-top:6px">
-                    <div style="font-size:11px;color:var(--slate-light);margin-top:4px">Buy ahead of your current enrollment to leave room for pending admissions — the final amount reflects the capacity you request here.</div>
+    <form method="POST" action="{{ route('billing.generate-invoice') }}" id="estimateForm">
+        @csrf
+        <input type="hidden" name="billing_cycle" id="cycleInput" value="{{ old('billing_cycle', 'termly') }}">
+        <div class="estimate-grid">
+            <div class="estimate-copy">
+                <h2>Plan for your next enrollment</h2>
+                <p>Enter the number of students you anticipate for the coming term. EduCore calculates the payable amount immediately. Enrollment up to 50 students remains free; above 50, the rate is &#8358;300 per student per term.</p>
+                <div class="estimate-field">
+                    <label for="anticipatedEnrollment">Anticipated enrollment</label>
+                    <input type="number" id="anticipatedEnrollment" name="anticipated_enrollment" min="{{ max(1, $studentCount) }}" max="1000000" required value="{{ old('anticipated_enrollment', max($studentCount, $capacity)) }}" inputmode="numeric">
+                    <div style="font-size:11px;color:var(--slate-light);margin-top:5px">Current active enrollment: {{ number_format($studentCount) }} students. Your estimate cannot be below this figure.</div>
                 </div>
-                <button type="submit" class="pay-btn">Generate Invoice &amp; Pay</button>
-            </form>
+                <div class="cycle-toggle" id="cycleToggle" style="margin-top:16px">
+                    <button type="button" data-cycle="termly" class="active">Per term</button>
+                    <button type="button" data-cycle="annual">Full year (3 terms)</button>
+                </div>
+            </div>
+            <div class="estimate-result">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#F2D58E;font-weight:800">Estimated payment</div>
+                <div class="amt" id="amtDisplay">&#8358;0</div>
+                <div class="sub" id="estimateDescription">Up to 50 students is free.</div>
+                <button type="submit" class="pay-btn" id="paymentButton">Continue to Payment</button>
+            </div>
         </div>
-    @endif
+    </form>
 </div>
 
 <div class="bcard">
@@ -152,13 +152,15 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
             </td>
             <td><span class="badge b-{{ $inv->status }}">{{ ucfirst($inv->status) }}</span></td>
             <td>
-                @if($inv->status !== 'paid' && $gatewayConfigured)
+                @if($inv->status !== 'paid' && $paymentConfigured && (float) $inv->amount > 0)
                 <a href="{{ route('super.billing.pay', $inv->id) }}"
                    style="display:inline-flex;align-items:center;gap:4px;padding:6px 14px;background:#2563EB;color:white;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none">
                     💳 Pay Now
                 </a>
+                @elseif($inv->status !== 'paid' && (float) $inv->amount <= 0)
+                <span style="font-size:11px;color:#D97706">Recalculate above</span>
                 @elseif($inv->status !== 'paid')
-                <span style="font-size:11px;color:#94A3B8">Contact support</span>
+                <span style="font-size:11px;color:#94A3B8">Payment setup pending</span>
                 @else
                 <span style="font-size:12px;color:#059669;font-weight:600">✓ Paid</span>
                 @endif
@@ -177,16 +179,35 @@ td{padding:11px 14px;border-bottom:1px solid #F8FAFC;color:var(--midnight)}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var toggle = document.getElementById('cycleToggle');
-    if (!toggle) return;
+    var enrollment = document.getElementById('anticipatedEnrollment');
+    var amount = document.getElementById('amtDisplay');
+    var description = document.getElementById('estimateDescription');
+    var paymentButton = document.getElementById('paymentButton');
+    var cycleInput = document.getElementById('cycleInput');
+    if (!toggle || !enrollment || !amount) return;
+
+    function updateEstimate() {
+        var count = Math.max(0, parseInt(enrollment.value || '0', 10));
+        var terms = cycleInput.value === 'annual' ? 3 : 1;
+        var payable = count <= 50 ? 0 : count * 300 * terms;
+        amount.textContent = '\u20A6' + payable.toLocaleString('en-NG');
+        paymentButton.disabled = payable === 0;
+        paymentButton.textContent = payable === 0 ? 'No Payment Required' : 'Continue to Payment';
+        description.textContent = payable === 0
+            ? 'Up to 50 students is covered by the free plan.'
+            : count.toLocaleString('en-NG') + ' students \u00D7 \u20A6300 \u00D7 ' + terms + (terms === 1 ? ' term' : ' terms');
+    }
+
     toggle.querySelectorAll('button').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var cycle = btn.getAttribute('data-cycle');
             toggle.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b === btn); });
-            var amt = document.getElementById('amtDisplay');
-            amt.textContent = amt.getAttribute('data-' + cycle);
-            document.getElementById('cycleInput').value = cycle;
+            cycleInput.value = cycle;
+            updateEstimate();
         });
     });
+    enrollment.addEventListener('input', updateEstimate);
+    updateEstimate();
 });
 </script>
 @endpush

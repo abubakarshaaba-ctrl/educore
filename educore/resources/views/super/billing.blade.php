@@ -129,9 +129,9 @@ tr:hover td{background:#F8FAFC}
                     </select>
                 </div>
                 <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#475569">
-                    Pay-per-student pricing: free up to 50 students, then &#8358;300 per active student per term.
-                    Every paid school gets all features. The amount is computed automatically from the school's
-                    active enrollment unless you enter a custom amount below.
+                    Pay-per-student pricing: free up to 50 students, then &#8358;300 per anticipated student per term.
+                    Every paid school gets all features. Enter the anticipated enrollment below and EduCore
+                    calculates the invoice amount automatically.
                 </div>
                 <div class="fg"><label class="fl">Billing Cycle *</label>
                     <select name="billing_cycle" class="fc" required>
@@ -140,12 +140,8 @@ tr:hover td{background:#F8FAFC}
                     </select>
                 </div>
                 <div class="fg">
-                    <label class="fl">Custom Amount (₦) — only for 500+ students</label>
-                    <input type="number" name="custom_amount" class="fc" min="0" step="0.01" placeholder="Leave blank for automatic pricing">
-                </div>
-                <div class="fg">
-                    <label class="fl">Grant Capacity (students) — optional</label>
-                    <input type="number" name="capacity" class="fc" min="1" placeholder="Defaults to current enrollment">
+                    <label class="fl">Anticipated Enrollment (students) *</label>
+                    <input type="number" name="capacity" class="fc" min="1" required placeholder="Expected number of students">
                 </div>
                 <div class="fg"><label class="fl">Due Date *</label>
                     <input type="date" name="due_date" class="fc" required value="{{ now()->addDays(14)->format('Y-m-d') }}">
@@ -154,7 +150,7 @@ tr:hover td{background:#F8FAFC}
                     <textarea name="notes" class="fc" rows="2" placeholder="Optional note..."></textarea>
                 </div>
                 <button type="submit" class="btn btn-p" style="width:100%;justify-content:center">🧾 Generate Invoice</button>
-                <p style="font-size:11px;color:#94A3B8;margin-top:8px">The invoice amount is computed automatically from the school's active enrollment, except for schools past 500 students, where you enter the negotiated custom amount.</p>
+                <p style="font-size:11px;color:#94A3B8;margin-top:8px">The invoice amount is computed from anticipated enrollment. Paid capacity activates only after the invoice is verified as paid.</p>
             </form>
             </div>
         </div>

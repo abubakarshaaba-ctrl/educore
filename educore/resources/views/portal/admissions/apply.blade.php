@@ -102,7 +102,7 @@ input[type="file"]{padding:7px 12px;font-size:13px}
                 </select>
             </div>
         </div>
-        <div class="row">
+        <div class="row3">
             <div class="fg"><label>Religion</label>
                 <select name="religion">
                     <option value="">Select</option>
@@ -112,11 +112,16 @@ input[type="file"]{padding:7px 12px;font-size:13px}
                 </select>
             </div>
             <div class="fg"><label>State of Origin</label>
-                <select name="state_of_origin">
+                <select name="state_of_origin" id="stateOfOrigin" onchange="updateOriginLgas(this.value)">
                     <option value="">Select state</option>
-                    @foreach($nigerianStates as $state)
+                    @foreach(array_keys(\App\Data\NigeriaGeo::all()) as $state)
                     <option value="{{ $state }}" {{ old('state_of_origin')===$state?'selected':'' }}>{{ $state }}</option>
                     @endforeach
+                </select>
+            </div>
+            <div class="fg"><label>LGA of Origin</label>
+                <select name="lga_of_origin" id="lgaOfOrigin" data-selected="{{ old('lga_of_origin') }}">
+                    <option value="">Select state first</option>
                 </select>
             </div>
         </div>
@@ -135,8 +140,17 @@ input[type="file"]{padding:7px 12px;font-size:13px}
                 <input type="text" name="academic_year" value="{{ old('academic_year', $settings->academic_year) }}" placeholder="e.g. 2025/2026">
             </div>
         </div>
-        <div class="row">
-            <div class="fg"><label>Previous School</label><input type="text" name="previous_school" value="{{ old('previous_school') }}" placeholder="Last school attended"></div>
+        <div class="fg">
+            <label>Is the applicant a beginner? <span>*</span></label>
+            <select name="is_beginner" id="isBeginner" required>
+                <option value="">Select an answer</option>
+                <option value="1" {{ old('is_beginner')==='1'?'selected':'' }}>Yes — this is the applicant's first school enrollment</option>
+                <option value="0" {{ old('is_beginner')==='0'?'selected':'' }}>No — the applicant attended another school</option>
+            </select>
+            <span class="req">Previous-school details and transfer documents are not required for beginners.</span>
+        </div>
+        <div class="row" id="previousSchoolFields">
+            <div class="fg"><label>Previous School <span>*</span></label><input type="text" id="previousSchool" name="previous_school" value="{{ old('previous_school') }}" placeholder="Last school attended"></div>
             <div class="fg"><label>Previous Class</label><input type="text" name="previous_class" value="{{ old('previous_class') }}" placeholder="e.g. Primary 5, JSS2"></div>
         </div>
     </div>
@@ -178,7 +192,6 @@ input[type="file"]{padding:7px 12px;font-size:13px}
 </div>
 
 {{-- DOCUMENTS --}}
-@if($settings->require_passport || $settings->require_birth_cert || $settings->require_report_card)
 <div class="card">
     <div class="card-header">
         <div class="num">3</div>
@@ -199,16 +212,25 @@ input[type="file"]{padding:7px 12px;font-size:13px}
             <span class="req">PDF or image, max 4MB.</span>
         </div>
         @endif
-        @if($settings->require_report_card)
         <div class="fg">
-            <label>Last School Report Card @if($settings->require_report_card)<span>*</span>@endif</label>
-            <input type="file" name="last_report_card" accept=".pdf,.jpg,.jpeg,.png" @if($settings->require_report_card) required @endif>
-            <span class="req">PDF or image, max 4MB. Most recent term result.</span>
+            <label>NIN Document</label>
+            <input type="file" name="nin_document" accept=".pdf,.jpg,.jpeg,.png">
+            <span class="req">Optional NIN slip or card. PDF or image, max 4MB.</span>
         </div>
-        @endif
+        <div id="previousSchoolDocuments">
+            <div class="fg">
+                <label>Last School Report Card <span>*</span></label>
+                <input type="file" name="last_report_card" id="lastReportCard" accept=".pdf,.jpg,.jpeg,.png">
+                <span class="req">Required for applicants who previously attended a school. PDF or image, max 4MB.</span>
+            </div>
+            <div class="fg">
+                <label>Transfer Letter <span>*</span></label>
+                <input type="file" name="transfer_letter" id="transferLetter" accept=".pdf,.jpg,.jpeg,.png">
+                <span class="req">Required for applicants transferring from another school. PDF or image, max 4MB.</span>
+            </div>
+        </div>
     </div>
 </div>
-@endif
 
 <div class="submit-bar">
     <div style="font-size:13px;color:#64748B">
@@ -219,5 +241,49 @@ input[type="file"]{padding:7px 12px;font-size:13px}
 </form>
 
 </div>
+<script>
+var nigeriaGeo = @json(\App\Data\NigeriaGeo::all());
+
+function updateOriginLgas(state) {
+    var select = document.getElementById('lgaOfOrigin');
+    var selected = select.dataset.selected || '';
+    var lgas = nigeriaGeo[state] ? nigeriaGeo[state].lgas : [];
+    select.innerHTML = '<option value="">' + (state ? 'Select LGA' : 'Select state first') + '</option>';
+    lgas.forEach(function (lga) {
+        var option = document.createElement('option');
+        option.value = lga;
+        option.textContent = lga;
+        option.selected = lga === selected;
+        select.appendChild(option);
+    });
+    select.dataset.selected = '';
+}
+
+function updateBeginnerFields() {
+    var value = document.getElementById('isBeginner').value;
+    var isBeginner = value === '1';
+    var priorFields = document.getElementById('previousSchoolFields');
+    var priorDocuments = document.getElementById('previousSchoolDocuments');
+    priorFields.style.display = isBeginner ? 'none' : '';
+    priorDocuments.style.display = isBeginner ? 'none' : '';
+    priorFields.querySelectorAll('input').forEach(function (input) {
+        input.disabled = isBeginner;
+    });
+    document.getElementById('previousSchool').required = value === '0';
+    ['lastReportCard', 'transferLetter'].forEach(function (id) {
+        var input = document.getElementById(id);
+        input.disabled = isBeginner;
+        input.required = value === '0';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    var state = document.getElementById('stateOfOrigin');
+    var beginner = document.getElementById('isBeginner');
+    updateOriginLgas(state.value);
+    updateBeginnerFields();
+    beginner.addEventListener('change', updateBeginnerFields);
+});
+</script>
 </body>
 </html>

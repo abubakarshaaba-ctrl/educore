@@ -1045,6 +1045,7 @@ Route::middleware('auth')->group(function () {
 // controller-level invoice ownership checks.
 Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->group(function () {
     Route::get('billing/{invoice}/pay',      [SuperAdminController::class, 'tenantPayInitiate'])->name('billing.pay');
+    Route::post('billing/{invoice}/bank-transfer', [\App\Http\Controllers\BillingController::class, 'submitBankTransfer'])->name('billing.bank-transfer');
     Route::get('billing/pay/callback',       [SuperAdminController::class, 'tenantPayCallback'])->name('billing.pay.callback');
     Route::get('billing/pay/monnify/callback', [SuperAdminController::class, 'monnifyPayCallback'])->name('billing.pay.monnify.callback');
     Route::get('billing/{invoice}/pay/monnify', [SuperAdminController::class, 'monnifyPayInitiate'])->name('billing.pay.monnify');

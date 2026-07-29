@@ -107,6 +107,23 @@
         </div>
 
         <div class="settings-section">
+            <div class="section-title">Bank transfer collection account</div>
+            <div class="form-hint" style="margin-bottom:12px">When all three fields are supplied, schools can choose bank transfer during subscription checkout. A submitted transfer remains pending until a Platform Super Admin verifies and marks the invoice paid.</div>
+            <div class="form-group">
+                <label class="form-label">Bank Name</label>
+                <input class="form-control" type="text" name="settings[bank_transfer_bank_name]" value="{{ old('settings.bank_transfer_bank_name', $val('bank_transfer_bank_name')) }}" placeholder="e.g. First Bank">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Account Name</label>
+                <input class="form-control" type="text" name="settings[bank_transfer_account_name]" value="{{ old('settings.bank_transfer_account_name', $val('bank_transfer_account_name')) }}" placeholder="EduCore Education Technology">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Account Number</label>
+                <input class="form-control" type="text" inputmode="numeric" name="settings[bank_transfer_account_number]" value="{{ old('settings.bank_transfer_account_number', $val('bank_transfer_account_number')) }}" maxlength="30" placeholder="Collection account number">
+            </div>
+        </div>
+
+        <div class="settings-section">
             <div class="section-title">Notifications</div>
             <div class="form-group">
                 <label class="form-label">Default SMS Gateway</label>

@@ -678,7 +678,7 @@ class SuperAdminController extends Controller
         $this->guard();
 
         $validated = $request->validate([
-            'settings' => ['required', 'array:platform_name,support_email,support_phone,support_whatsapp,support_website,office_address,trial_days,grace_period_days,default_sms_gateway,sms_sender_id,maintenance_mode'],
+            'settings' => ['required', 'array:platform_name,support_email,support_phone,support_whatsapp,support_website,office_address,trial_days,grace_period_days,bank_transfer_bank_name,bank_transfer_account_name,bank_transfer_account_number,default_sms_gateway,sms_sender_id,maintenance_mode'],
             'settings.platform_name' => ['required', 'string', 'max:100'],
             'settings.support_email' => ['required', 'email', 'max:180'],
             'settings.support_phone' => ['required', 'string', 'max:30'],
@@ -687,6 +687,9 @@ class SuperAdminController extends Controller
             'settings.office_address' => ['required', 'string', 'max:255'],
             'settings.trial_days' => ['required', 'integer', 'min:0', 'max:365'],
             'settings.grace_period_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'settings.bank_transfer_bank_name' => ['nullable', 'required_with:settings.bank_transfer_account_name,settings.bank_transfer_account_number', 'string', 'max:120'],
+            'settings.bank_transfer_account_name' => ['nullable', 'required_with:settings.bank_transfer_bank_name,settings.bank_transfer_account_number', 'string', 'max:160'],
+            'settings.bank_transfer_account_number' => ['nullable', 'required_with:settings.bank_transfer_bank_name,settings.bank_transfer_account_name', 'string', 'max:30', 'regex:/^[0-9]+$/'],
             'settings.default_sms_gateway' => ['required', Rule::in(['termii', 'africas_talking', 'twilio'])],
             'settings.sms_sender_id' => ['required', 'string', 'min:3', 'max:11', 'regex:/^[A-Za-z0-9 ]+$/'],
             'settings.maintenance_mode' => ['required', 'boolean'],
@@ -712,6 +715,9 @@ class SuperAdminController extends Controller
             'office_address' => ['type' => 'string', 'group' => 'contact', 'label' => 'Office Address'],
             'trial_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Initial Subscription Window'],
             'grace_period_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Grace Period'],
+            'bank_transfer_bank_name' => ['type' => 'string', 'group' => 'payments', 'label' => 'Bank Transfer Bank Name'],
+            'bank_transfer_account_name' => ['type' => 'string', 'group' => 'payments', 'label' => 'Bank Transfer Account Name'],
+            'bank_transfer_account_number' => ['type' => 'string', 'group' => 'payments', 'label' => 'Bank Transfer Account Number'],
             'default_sms_gateway' => ['type' => 'string', 'group' => 'notifications', 'label' => 'Default SMS Gateway'],
             'sms_sender_id' => ['type' => 'string', 'group' => 'notifications', 'label' => 'SMS Sender ID'],
             'maintenance_mode' => ['type' => 'boolean', 'group' => 'system', 'label' => 'Maintenance Mode'],
@@ -722,10 +728,11 @@ class SuperAdminController extends Controller
     public function analytics()
     {
         $this->guard();
-        $tenants = \App\Models\Tenant::withCount(['users'])->latest()->get();
+        $tenants = \App\Models\Tenant::query()->latest('id')->get();
 
         $currentYear = (int) now()->year;
         $growth = \App\Models\Tenant::query()
+            ->whereNotNull('created_at')
             ->whereBetween('created_at', [
                 now()->copy()->startOfYear(),
                 now()->copy()->endOfYear(),
@@ -743,21 +750,30 @@ class SuperAdminController extends Controller
         // Distribution across the pay-per-student pricing tiers, in place of
         // the old fixed-plan distribution — there are no more plan tiers,
         // just where each school's active enrollment falls on PricingService.
-        $studentCounts = \App\Models\Student::withoutTenantScope()
-            ->where('status', \App\Models\Student::STATUS_ACTIVE)
-            ->selectRaw('tenant_id, COUNT(*) as cnt')
-            ->groupBy('tenant_id')
-            ->pluck('cnt', 'tenant_id');
+        $studentCounts = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('students')) {
+            $students = DB::table('students');
+            if (\Illuminate\Support\Facades\Schema::hasColumn('students', 'status')) {
+                $students->where('status', \App\Models\Student::STATUS_ACTIVE);
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('students', 'deleted_at')) {
+                $students->whereNull('deleted_at');
+            }
+            $studentCounts = $students
+                ->selectRaw('tenant_id, COUNT(*) as cnt')
+                ->groupBy('tenant_id')
+                ->pluck('cnt', 'tenant_id');
+        }
         $tierCounts = collect(['Free plan' => 0, 'Paid plan' => 0]);
         foreach ($tenants as $t) {
             $count = (int) ($studentCounts[$t->id] ?? 0);
             $label = \App\Services\PricingService::isFree($count) ? 'Free plan' : 'Paid plan';
-            $tierCounts[$label]++;
+            $tierCounts->put($label, (int) $tierCounts->get($label, 0) + 1);
         }
         $planDist = $tierCounts->map(fn ($count, $label) => (object) ['plan' => $label, 'count' => $count])->values();
         $activeSubscriptions = $tenants->where('status', \App\Models\Tenant::STATUS_ACTIVE)->count();
         $topTier = $planDist->sortByDesc('count')->first();
-        $topTierLabel = $topTier && $topTier->count > 0 ? $topTier->plan : '—';
+        $topTierLabel = $topTier && $topTier->count > 0 ? $topTier->plan : 'None';
 
         return view('super.analytics', compact(
             'tenants',
@@ -843,29 +859,26 @@ class SuperAdminController extends Controller
         $data = $request->validate([
             'tenant_id'      => ['required','exists:tenants,id'],
             'billing_cycle'  => ['required','in:termly,annual'],
-            'custom_amount'  => ['nullable','numeric','min:0'],
-            'capacity'       => ['nullable','integer','min:1'],
+            'capacity'       => ['required','integer','min:1','max:1000000'],
             'due_date'       => ['required','date'],
             'notes'          => ['nullable','string'],
         ]);
 
         $tenant       = Tenant::findOrFail($data['tenant_id']);
         $studentCount = \App\Services\PricingService::activeStudentCount($tenant->id);
-        $isCustom     = \App\Services\PricingService::isCustomQuote($studentCount);
 
-        if ($isCustom) {
-            $request->validate(['custom_amount' => ['required','numeric','min:0']]);
-            $amount = (float) $data['custom_amount'];
-        } else {
-            $amount = $data['billing_cycle'] === 'annual'
-                ? \App\Services\PricingService::annualAmount($studentCount)
-                : \App\Services\PricingService::termlyAmount($studentCount);
+        // Anticipated enrollment is the billable capacity. It may be above
+        // current enrollment for planned admissions, but never below it.
+        $capacity = max($studentCount, (int) ($data['capacity'] ?? $studentCount));
+        $amount = $data['billing_cycle'] === 'annual'
+            ? \App\Services\PricingService::annualAmount($capacity)
+            : \App\Services\PricingService::termlyAmount($capacity);
+
+        if (\App\Services\PricingService::isFree($capacity)) {
+            return back()->withErrors([
+                'capacity' => "Anticipated enrollment of {$capacity} students is covered by the free plan. No invoice is required.",
+            ])->withInput();
         }
-
-        // Capacity this invoice pays for — defaults to current enrollment,
-        // but a super admin can grant headroom above that (e.g. a negotiated
-        // custom-volume deal for planned growth).
-        $capacity = $data['capacity'] ?? $studentCount;
 
         $ref = 'INV-'.strtoupper(Str::random(8));
 
@@ -878,7 +891,7 @@ class SuperAdminController extends Controller
             'billing_cycle'  => $data['billing_cycle'],
             'status'         => 'pending',
             'due_date'       => $data['due_date'],
-            'notes'          => $data['notes'] ?: ($studentCount . ' active students'),
+            'notes'          => $data['notes'] ?: ($capacity . ' anticipated students'),
             'created_at'     => now(),
             'updated_at'     => now(),
         ]);
@@ -994,11 +1007,15 @@ class SuperAdminController extends Controller
         if ($invoice->status === 'paid') {
             return back()->withErrors(['error' => 'This invoice is already paid.']);
         }
+        if ((float) $invoice->amount <= 0) {
+            return back()->withErrors(['error' => 'This legacy invoice has no payable amount. Enter the anticipated enrollment on the Subscription page to recalculate it.']);
+        }
 
         // Platform-level gateway keys (stored in platform_settings key-value)
         $keys = PlatformSetting::valuesFor([
             'paystack_public_key', 'paystack_secret_key', 'paystack_is_live',
             'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code', 'monnify_is_live',
+            'bank_transfer_bank_name', 'bank_transfer_account_name', 'bank_transfer_account_number',
         ]);
 
         $publicKey       = $keys['paystack_public_key'] ?? null;
@@ -1006,14 +1023,22 @@ class SuperAdminController extends Controller
         $monnifyEnabled  = !empty($keys['monnify_api_key'])
             && !empty($keys['monnify_secret_key'])
             && !empty($keys['monnify_contract_code']);
+        $bankTransferEnabled = !empty($keys['bank_transfer_bank_name'])
+            && !empty($keys['bank_transfer_account_name'])
+            && !empty($keys['bank_transfer_account_number']);
 
-        if (!$paystackEnabled && !$monnifyEnabled) {
-            return back()->withErrors(['error' => 'Online payment is not configured. Add Paystack or Monnify credentials in Super Admin → Settings.']);
+        if (!$paystackEnabled && !$monnifyEnabled && !$bankTransferEnabled) {
+            return back()->withErrors(['error' => 'No payment method is configured. Add a collection bank account or payment gateway in Platform Settings.']);
         }
 
         $settings  = (object) [
             'paystack_public_key' => $publicKey,
             'paystack_secret_key' => $keys['paystack_secret_key'] ?? null,
+        ];
+        $bankTransfer = (object) [
+            'bank_name' => $keys['bank_transfer_bank_name'] ?? null,
+            'account_name' => $keys['bank_transfer_account_name'] ?? null,
+            'account_number' => $keys['bank_transfer_account_number'] ?? null,
         ];
 
         $tenant    = Tenant::find($invoice->tenant_id);
@@ -1025,7 +1050,10 @@ class SuperAdminController extends Controller
         DB::table('platform_invoices')->where('id', $invoiceId)
             ->update(['payment_reference' => $reference, 'updated_at' => now()]);
 
-        return view('super.pay-subscription', compact('invoice', 'tenant', 'reference', 'amount', 'email', 'settings', 'paystackEnabled', 'monnifyEnabled'));
+        return view('super.pay-subscription', compact(
+            'invoice', 'tenant', 'reference', 'amount', 'email', 'settings',
+            'paystackEnabled', 'monnifyEnabled', 'bankTransferEnabled', 'bankTransfer'
+        ));
     }
 
     public function tenantPayCallback(\Illuminate\Http\Request $request)

@@ -255,6 +255,13 @@ class SuperAdminTenantEditTest extends TestCase
     public function test_current_platform_operations_pages_render_without_database_specific_sql(): void
     {
         $super = $this->superAdmin();
+        DB::table('tenants')->insert([
+            'name' => 'Legacy School',
+            'slug' => 'legacy-school',
+            'status' => Tenant::STATUS_ACTIVE,
+            'created_at' => null,
+            'updated_at' => null,
+        ]);
 
         $this->actingAs($super)
             ->get(route('super.analytics'))
@@ -269,6 +276,69 @@ class SuperAdminTenantEditTest extends TestCase
         $this->get(route('super.broadcasts'))
             ->assertOk()
             ->assertSee('Broadcasts to Schools');
+    }
+
+    public function test_school_can_estimate_enrollment_and_repair_a_zero_value_invoice(): void
+    {
+        $tenant = $this->tenantFixture('Billing School', 'billing-school');
+        $admin = $this->tenantAdmin($tenant);
+        DB::table('platform_invoices')->insert([
+            'tenant_id' => $tenant->id,
+            'invoice_number' => 'INV-ZERO-LEGACY',
+            'amount' => 0,
+            'student_count' => 700,
+            'status' => 'pending',
+            'billing_cycle' => 'termly',
+            'due_date' => now()->addDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('billing.generate-invoice'), [
+                'billing_cycle' => 'termly',
+                'anticipated_enrollment' => 700,
+            ])
+            ->assertRedirect(route('super.billing.pay', DB::table('platform_invoices')->value('id')));
+
+        $this->assertDatabaseHas('platform_invoices', [
+            'tenant_id' => $tenant->id,
+            'invoice_number' => 'INV-ZERO-LEGACY',
+            'student_count' => 700,
+            'amount' => 210000,
+        ]);
+    }
+
+    public function test_school_can_submit_its_own_bank_transfer_reference_only(): void
+    {
+        $owner = $this->tenantFixture('Billing Owner', 'billing-owner');
+        $other = $this->tenantFixture('Other Billing School', 'other-billing-school');
+        $invoiceId = DB::table('platform_invoices')->insertGetId([
+            'tenant_id' => $owner->id,
+            'invoice_number' => 'INV-BANK-1',
+            'amount' => 36000,
+            'student_count' => 120,
+            'status' => 'pending',
+            'billing_cycle' => 'termly',
+            'due_date' => now()->addDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->tenantAdmin($other))
+            ->post(route('super.billing.bank-transfer', $invoiceId), ['transfer_reference' => 'ATTACK-REF'])
+            ->assertForbidden();
+
+        $this->actingAs($this->tenantAdmin($owner))
+            ->post(route('super.billing.bank-transfer', $invoiceId), ['transfer_reference' => 'BANK-REF-100'])
+            ->assertRedirect(route('billing.subscription'));
+
+        $this->assertDatabaseHas('platform_invoices', [
+            'id' => $invoiceId,
+            'status' => 'pending',
+            'payment_method' => 'bank_transfer',
+            'payment_ref' => 'BANK-REF-100',
+        ]);
     }
 
     public function test_agent_commission_approval_never_claims_an_unverified_bank_payout(): void
@@ -447,6 +517,7 @@ class SuperAdminTenantEditTest extends TestCase
             $table->string('email')->nullable();
             $table->string('status')->default(Tenant::STATUS_PENDING);
             $table->date('subscription_expires_at')->nullable();
+            $table->unsignedInteger('students_capacity')->nullable();
             $table->string('theme_primary', 20)->nullable();
             $table->string('theme_accent', 20)->nullable();
             $table->string('theme_sidebar', 20)->nullable();
@@ -531,6 +602,7 @@ class SuperAdminTenantEditTest extends TestCase
         Schema::create('platform_invoices', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('plan_id')->nullable();
             $table->string('invoice_number')->unique();
             $table->decimal('amount', 12, 2);
             $table->string('status')->default('pending');

@@ -68,6 +68,20 @@ class TenantSubdomainAccessTest extends TestCase
             ->assertSee('Bluerayy Academy');
     }
 
+    public function test_admission_form_includes_origin_beginner_and_transfer_documents(): void
+    {
+        $tenant = $this->tenantFixture('Bluerayy Academy', 'bluerayy');
+        $this->classLevel($tenant);
+
+        $this->get('http://bluerayy.educore.test/apply/form')
+            ->assertOk()
+            ->assertSee('name="lga_of_origin"', false)
+            ->assertSee('name="is_beginner"', false)
+            ->assertSee('name="nin_document"', false)
+            ->assertSee('name="transfer_letter"', false)
+            ->assertSee('Previous-school details and transfer documents are not required for beginners.');
+    }
+
     public function test_admission_status_form_posts_to_the_current_tenant_host(): void
     {
         $this->tenantFixture('Bluerayy Academy', 'bluerayy');

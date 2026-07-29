@@ -21,6 +21,8 @@ class Admission extends BaseTenantModel
         'religion',
         'nationality',
         'state_of_origin',
+        'lga_of_origin',
+        'is_beginner',
         'address',
         'applying_for_class_level_id',
         'previous_school',
@@ -47,6 +49,13 @@ class Admission extends BaseTenantModel
         'payment_reference', 'payment_status',
         'interview_date', 'interview_score', 'interview_notes',
         'offer_letter_sent', 'offer_sent_at',
+    ];
+
+    protected $casts = [
+        'is_beginner' => 'boolean',
+        'portal_email_verified' => 'boolean',
+        'offer_letter_sent' => 'boolean',
+        'offer_sent_at' => 'datetime',
     ];
 
     public function applyingForClassLevel()
