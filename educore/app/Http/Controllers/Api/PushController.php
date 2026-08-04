@@ -16,7 +16,7 @@ class PushController extends Controller
         }
 
         $data = $request->validate([
-            'token'    => ['required', 'string', 'max:255'],
+            'token'    => ['required', 'string', 'max:512'],
             'platform' => ['nullable', 'string', 'max:20'],
         ]);
 

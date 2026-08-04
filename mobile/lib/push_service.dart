@@ -1,8 +1,10 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'firebase_options.dart';
 
 /// Firebase Cloud Messaging service for EduCore mobile app.
 ///
@@ -197,6 +199,11 @@ class PushService {
 /// This MUST be a top-level function (not a method or closure).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   debugPrint('PushService: Background message received: ${message.messageId}');
   debugPrint('PushService: Title: ${message.notification?.title}');
   debugPrint('PushService: Body: ${message.notification?.body}');

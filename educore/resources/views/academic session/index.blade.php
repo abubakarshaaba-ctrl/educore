@@ -5,7 +5,7 @@
 <style>
 /* ── Layout ──────────────────────────────────────────────────────── */
 .ac-banner{background:linear-gradient(135deg,var(--midnight) 0%,#1a3a6b 100%);border-radius:14px;padding:20px 24px;color:white;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@@media(max-width:640px){.ac-banner{grid-template-columns:1fr}}
+@media(max-width:640px){.ac-banner{grid-template-columns:1fr;padding:16px}.ac-banner h2{font-size:18px}}
 .ac-status-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.65;margin-bottom:4px}
 .ac-status-value{font-size:18px;font-weight:800;line-height:1.2}
 .ac-status-sub{font-size:11px;opacity:.65;margin-top:3px}
@@ -13,7 +13,7 @@
 .ac-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
 .ac-term-column{display:contents}
 .ac-terms-card{grid-column:1/-1}
-@@media(max-width:900px){.ac-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.ac-grid{grid-template-columns:1fr}}
 .ac-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .ac-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between}
 .ac-card-title{font-size:14px;font-weight:800;color:var(--midnight)}
@@ -43,6 +43,12 @@
 .edit-row.open{display:table-row}
 .edit-row td{padding:10px;background:#F0F4FF;border-top:1px solid #BFDBFE}
 .edit-inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media(max-width:640px){
+    .ac-form .fg-row{grid-template-columns:1fr}
+    .ac-card-head{align-items:flex-start;gap:8px;flex-wrap:wrap}
+    .edit-inline-form>*{flex:1 1 150px;min-width:0!important}
+    .ac-actions{min-width:150px}
+}
 .edit-inline-form input{padding:7px 10px;border:1.5px solid #BFDBFE;border-radius:7px;font-size:12px;font-family:inherit;outline:none;background:white}
 .edit-inline-form input:focus{border-color:var(--indigo)}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:#065F46;margin-bottom:16px}

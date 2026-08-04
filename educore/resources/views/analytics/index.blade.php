@@ -10,7 +10,8 @@
 .sc{background:white;border:1px solid var(--border);border-radius:12px;padding:16px 18px}
 .sv{font-size:26px;font-weight:800;letter-spacing:-0.03em}
 .sl{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.two>*{min-width:0}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .ch{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight)}
 table{width:100%;border-collapse:collapse}
@@ -23,6 +24,7 @@ tbody tr:hover td{background:#F8FAFC}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
 .bg{background:#ECFDF5;color:var(--emerald)}.ba{background:#FFFBEB;color:var(--amber)}.br{background:#FEF2F2;color:var(--crimson)}
 @media(max-width:1024px){.sg{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+@media(max-width:520px){.sg{grid-template-columns:1fr}.quick-links{display:grid;grid-template-columns:1fr}.ql{justify-content:center}}
 </style>
 @endpush
 @section('content')

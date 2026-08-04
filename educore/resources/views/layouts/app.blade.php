@@ -198,7 +198,7 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
    MAIN AREA
 ═══════════════════════════════════════════════ */
 .main {
-    margin-left:var(--nav-w); min-height:100vh; display:flex; flex-direction:column;
+    margin-left:var(--nav-w); min-height:100vh; min-width:0; display:flex; flex-direction:column;
     transition: margin-left 280ms cubic-bezier(0.4,0,0.2,1);
 }
 .main.sidebar-collapsed { margin-left: var(--nav-w-collapsed); }
@@ -239,7 +239,8 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
 .exit-btn:hover { background:#FEF3C7; }
 
 /* Page content */
-.page-content { padding:24px; flex:1; max-width:1600px; width:100%; }
+.page-content { padding:24px; flex:1; max-width:1600px; width:100%; min-width:0; }
+.page-content > * { min-width:0; max-width:100%; }
 .tenant-access-banner {
     display:flex;
     align-items:center;
@@ -557,6 +558,7 @@ body { font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:var(--bg
         max-width:100%;
         overflow-x:auto;
         -webkit-overflow-scrolling:touch;
+        overscroll-behavior-inline:contain;
     }
 
     @media (max-width: 380px) {

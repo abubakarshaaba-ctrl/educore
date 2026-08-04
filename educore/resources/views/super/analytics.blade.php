@@ -6,7 +6,8 @@
 .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .sc{background:white;border:1px solid var(--border);border-radius:12px;padding:16px 18px}
 .sv{font-size:26px;font-weight:800;letter-spacing:-0.03em}.sl{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.two>*{min-width:0}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .ch{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight)}
 table{width:100%;border-collapse:collapse}
@@ -16,7 +17,7 @@ tbody tr:last-child td{border-bottom:none}
 .bar{background:#F1F5F9;border-radius:4px;height:8px;overflow:hidden}
 .bar-fill{height:8px;border-radius:4px;background:var(--indigo)}
 @media(max-width:900px){.sg{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}}
-@media(max-width:520px){.sg{grid-template-columns:1fr 1fr;gap:10px}.sc{padding:13px}.sv{font-size:22px}.tbl{overflow-x:auto}.tbl table{min-width:430px}}
+@media(max-width:520px){.sg{grid-template-columns:1fr;gap:10px}.sc{padding:13px}.sv{font-size:22px}.tbl{overflow-x:auto}.tbl table{min-width:430px}}
 </style>
 @endpush
 @section('content')

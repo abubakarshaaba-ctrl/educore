@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\TimetablePeriod;
+use App\Services\MobileReportCardService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -103,26 +104,52 @@ class StudentController extends Controller
         ]);
     }
 
-    public function results(Request $request)
+    public function results(Request $request, MobileReportCardService $reports)
     {
         $student = $this->student($request);
-        $summaries = TermlySummary::with(['term.session'])
-            ->where('student_id', $student->id)
-            ->latest('computed_at')
-            ->get()
-            ->map(fn (TermlySummary $summary) => [
-                'id' => $summary->id,
-                'term' => $summary->term?->name,
-                'session' => $summary->term?->session?->name,
-                'average' => $summary->final_average,
-                'position' => $summary->position_in_class,
-                'class_size' => $summary->total_students_in_class,
-                'subjects_offered' => $summary->subjects_offered,
-                'subjects_failed' => $summary->subjects_failed,
-                'promotion_status' => $summary->promotion_status,
-            ]);
+        return response()->json([
+            'student' => $this->studentPayload($student->loadMissing('currentClassArm.classLevel')),
+            'results' => $reports->forStudent($student),
+        ]);
+    }
 
-        return response()->json(['results' => $summaries]);
+    public function attendance(Request $request)
+    {
+        $student = $this->student($request);
+        $terms = Term::with('session')->latest('start_date')->get();
+        $term = $request->filled('term_id')
+            ? $terms->firstWhere('id', $request->integer('term_id'))
+            : ($terms->firstWhere('is_current', true) ?? $terms->first());
+
+        if ($request->filled('term_id')) {
+            abort_unless($term, 422, 'The selected term is not available for this school.');
+        }
+
+        $records = AttendanceRecord::where('student_id', $student->id)
+            ->when($term, fn ($query) => $query->where('term_id', $term->id))
+            ->orderByDesc('attendance_date')
+            ->limit(150)
+            ->get(['attendance_date', 'status', 'remark']);
+
+        return response()->json([
+            'student' => $this->studentPayload($student->loadMissing('currentClassArm.classLevel')),
+            'terms' => $terms->map(fn (Term $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'session' => $item->session?->name,
+            ])->values(),
+            'selected_term_id' => $term?->id,
+            'records' => $records,
+            'stats' => [
+                'total' => $records->count(),
+                'present' => $records->where('status', 'present')->count(),
+                'absent' => $records->where('status', 'absent')->count(),
+                'late' => $records->where('status', 'late')->count(),
+                'rate' => $records->isNotEmpty()
+                    ? round(($records->whereIn('status', ['present', 'late'])->count() / $records->count()) * 100, 1)
+                    : 0,
+            ],
+        ]);
     }
 
     public function exams(Request $request)

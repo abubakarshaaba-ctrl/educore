@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
+use App\Services\MobileReportCardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -84,34 +85,29 @@ class ParentController extends Controller
         return response()->json(['invoices' => $invoices]);
     }
 
-    public function results(Request $request)
+    public function results(Request $request, MobileReportCardService $reports)
     {
         [, , $student] = $this->context($request);
-        $results = $student
-            ? TermlySummary::with(['term.session'])
-                ->where('student_id', $student->id)
-                ->latest('computed_at')
-                ->get()
-                ->map(fn (TermlySummary $summary) => [
-                    'id' => $summary->id,
-                    'term' => $summary->term?->name,
-                    'session' => $summary->term?->session?->name,
-                    'average' => $summary->final_average,
-                    'position' => $summary->position_in_class,
-                    'class_size' => $summary->total_students_in_class,
-                    'subjects_offered' => $summary->subjects_offered,
-                    'subjects_failed' => $summary->subjects_failed,
-                    'promotion_status' => $summary->promotion_status,
-                ])
-            : collect();
+        $results = $student ? $reports->forStudent($student) : collect();
 
-        return response()->json(['results' => $results]);
+        return response()->json([
+            'student' => $student ? $this->studentPayload($student) : null,
+            'results' => $results,
+        ]);
     }
 
     public function attendance(Request $request)
     {
         [, , $student] = $this->context($request);
-        $term = Term::where('is_current', true)->first();
+        $terms = Term::with('session')->latest('start_date')->get();
+        $term = $request->filled('term_id')
+            ? $terms->firstWhere('id', $request->integer('term_id'))
+            : ($terms->firstWhere('is_current', true) ?? $terms->first());
+
+        if ($request->filled('term_id')) {
+            abort_unless($term, 422, 'The selected term is not available for this school.');
+        }
+
         $records = $student
             ? AttendanceRecord::where('student_id', $student->id)
                 ->when($term, fn ($query) => $query->where('term_id', $term->id))
@@ -121,12 +117,22 @@ class ParentController extends Controller
             : collect();
 
         return response()->json([
+            'student' => $student ? $this->studentPayload($student) : null,
+            'terms' => $terms->map(fn (Term $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'session' => $item->session?->name,
+            ])->values(),
+            'selected_term_id' => $term?->id,
             'records' => $records,
             'stats' => [
                 'total' => $records->count(),
                 'present' => $records->where('status', 'present')->count(),
                 'absent' => $records->where('status', 'absent')->count(),
                 'late' => $records->where('status', 'late')->count(),
+                'rate' => $records->isNotEmpty()
+                    ? round(($records->whereIn('status', ['present', 'late'])->count() / $records->count()) * 100, 1)
+                    : 0,
             ],
         ]);
     }

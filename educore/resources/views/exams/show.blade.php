@@ -94,7 +94,7 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
             @csrf
             <div class="pool-toolbar">
                 <div class="pool-summary">
-                    Choose active staff, or generate immediately and EduCore will use all {{ $staff->count() }} active staff automatically.
+                    Choose the active staff who may supervise this examination. The generator will use only the checked staff.
                 </div>
                 <div class="pool-actions">
                     <button type="button" class="pool-action" onclick="setSupervisionPool(true)">Select all active staff</button>
@@ -119,8 +119,11 @@ table.tt td{padding:8px 10px;border:1px solid var(--border)}
 <div class="card">
     <div class="ch" style="display:flex;justify-content:space-between;align-items:center">
         <span>Supervision Plan</span>
-        <form method="POST" action="{{ route('exams.supervision.generate', $period) }}" onsubmit="return confirm('This will (re)assign supervisors. Continue?')">
+        <form method="POST" action="{{ route('exams.supervision.generate', $period) }}" id="supervision-generate-form"
+              onsubmit="return prepareSupervisionGeneration(event)">
             @csrf
+            <input type="hidden" name="pool_submitted" value="1">
+            <div id="supervision-selected-staff"></div>
             <button type="submit" class="btn btn-primary btn-sm" {{ $period->entries->isEmpty() ? 'disabled' : '' }}>Generate Supervision Plan</button>
         </form>
     </div>
@@ -164,6 +167,31 @@ function setSupervisionPool(checked) {
     document.querySelectorAll('[data-supervision-staff]').forEach(function (input) {
         input.checked = checked;
     });
+}
+
+function prepareSupervisionGeneration(event) {
+    const selected = Array.from(document.querySelectorAll('[data-supervision-staff]:checked'));
+    if (!selected.length) {
+        event.preventDefault();
+        window.alert('Select at least one active staff member for supervision.');
+        return false;
+    }
+
+    if (!window.confirm('Generate the supervision plan using only the selected staff?')) {
+        event.preventDefault();
+        return false;
+    }
+
+    const target = document.getElementById('supervision-selected-staff');
+    target.replaceChildren();
+    selected.forEach(function (source) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'user_ids[]';
+        hidden.value = source.value;
+        target.appendChild(hidden);
+    });
+    return true;
 }
 </script>
 @endpush

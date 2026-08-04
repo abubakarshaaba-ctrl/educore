@@ -2,224 +2,130 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Staff ID Card — {{ $staff->name }}</title>
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;background:#F1F5F9;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:28px 20px;gap:18px}
-
-.ctrl{display:flex;align-items:center;gap:10px;background:white;border:1px solid #E2E8F0;border-radius:10px;padding:12px 20px;flex-wrap:wrap}
-.ctrl h2{font-size:14px;font-weight:700;color:#1E293B;margin-right:8px}
-.btn{padding:8px 16px;font-size:12px;font-weight:700;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 150ms}
-.btn-primary{background:var(--brand-gold,#D79A21);color:#071E45}
-.btn-ghost{background:#F1F5F9;color:#475569;border:1px solid #E2E8F0}
-.btn-proxy{background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE}
-.btn-proxy:hover{background:#2563EB;color:white}
-
-/* ID Card — CR80: 85.6 × 54mm → 338 × 213px at 100dpi */
-.card-wrap{display:flex;flex-direction:column;align-items:center;gap:20px}
-.face-label{font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.1em}
-
-/* ── FRONT ─────────────────────────────────────────── */
-.id-card{width:338px;height:213px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.18);position:relative;background:white;page-break-inside:avoid;display:flex;flex-direction:column}
-
-.ch{
-    padding:9px 12px 8px;
-    display:flex;align-items:center;justify-content:space-between;
-    background:var(--brand-navy,#071E45);
-    flex-shrink:0;
-}
-.ch-left{}
-.school-name{font-size:10px;font-weight:800;color:white;letter-spacing:.07em;text-transform:uppercase;line-height:1.3}
-.school-tag{font-size:7px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
-
-/* QR — top right corner of the card */
-.qr-corner{
-    position:absolute;
-    top:7px;right:10px;
-    display:flex;flex-direction:column;align-items:center;gap:2px;
-}
-.qr-corner img{width:52px;height:52px;border:1.5px solid rgba(255,255,255,.25);border-radius:5px;background:white;padding:2px}
-.qr-corner-label{font-size:6px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.06em;text-transform:uppercase}
-
-/* Body */
-.cb{flex:1;display:flex;padding:10px 12px;gap:11px;align-items:flex-start;overflow:hidden}
-
-/* Passport photo — rectangular */
-.photo-wrap{flex-shrink:0;width:68px}
-.staff-photo{
-    width:68px;height:88px;
-    object-fit:cover;object-position:top;
-    border:2px solid #E2E8F0;
-    background:#F1F5F9;
-    display:block;
-    /* rectangular — no border-radius */
-}
-.staff-photo-init{
-    width:68px;height:88px;
-    background:var(--brand-navy,#071E45);
-    display:flex;align-items:center;justify-content:center;
-    font-size:26px;font-weight:900;color:white;
-    border:2px solid rgba(7,30,69,.3);
-    letter-spacing:-.02em;
-}
-
-/* Staff info */
-.si{flex:1;min-width:0;padding-top:2px}
-.si-name{font-size:15px;font-weight:900;color:var(--brand-navy,#071E45);letter-spacing:-.03em;line-height:1.15;margin-bottom:4px}
-.si-role{font-size:9px;font-weight:800;color:var(--brand-gold,#D79A21);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px}
-.si-id{display:inline-flex;align-items:center;gap:3px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:4px;padding:2px 7px;font-size:9px;font-weight:700;color:#475569;font-family:monospace;letter-spacing:.07em;margin-bottom:5px}
-.si-dept{font-size:9px;color:#94A3B8;font-weight:500}
-
-/* Footer */
-.cf{background:#0F172A;padding:5px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.cf-left{font-size:7px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase}
-.cf-right{font-size:7px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:.04em}
-
-/* Accent stripe */
-.accent-stripe{height:3px;background:var(--brand-gold,#D79A21);flex-shrink:0}
-
-/* ── BACK ──────────────────────────────────────────── */
-.card-back{width:338px;height:213px;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.18);background:var(--brand-navy,#071E45);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 20px;gap:8px;page-break-inside:avoid}
-.back-qr-wrap{background:white;border-radius:10px;padding:9px 9px 6px;display:inline-flex;flex-direction:column;align-items:center;gap:4px}
-.back-qr-img{width:96px;height:96px}
-.back-qr-lbl{font-size:7px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.08em;text-align:center}
-.back-inst{text-align:center}
-.back-inst p{font-size:8px;color:rgba(255,255,255,.5);line-height:1.7}
-.back-inst strong{color:rgba(255,255,255,.85);font-weight:700}
-
-/* Proxy clockin button (screen only) */
-.proxy-section{background:white;border:1px solid #E2E8F0;border-radius:10px;padding:14px 18px;max-width:338px;width:100%;text-align:center}
-.proxy-title{font-size:13px;font-weight:700;color:#1E293B;margin-bottom:4px}
-.proxy-desc{font-size:11px;color:#64748B;margin-bottom:12px;line-height:1.5}
-
-@media print{
-    body{background:white;padding:0}
-    .ctrl,.face-label,.proxy-section{display:none!important}
-    .card-wrap{gap:0}
-    .id-card,.card-back{box-shadow:none;width:85.6mm;height:54mm;border-radius:4mm;margin:0}
-    .id-card{page-break-after:always}
-    @page{size:A4;margin:12mm}
-}
+:root{--navy:#071E45;--navy-2:#0B326F;--gold:#D79A21;--gold-soft:#F6D88E;--ink:#101828;--muted:#667085;--line:#DCE3EC}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#EEF2F7;color:var(--ink);font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;min-height:100vh;padding:26px}
+.toolbar{max-width:780px;margin:0 auto 22px;padding:13px 16px;background:#fff;border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 10px 30px rgba(7,30,69,.08)}
+.toolbar-copy strong{display:block;color:var(--navy);font-size:14px}.toolbar-copy span{font-size:11px;color:var(--muted)}
+.toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:9px 14px;font:700 12px/1 inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}.btn-primary{background:var(--gold);color:var(--navy)}.btn-light{background:#F8FAFC;color:var(--navy);border:1px solid var(--line)}
+.cards{display:flex;justify-content:center;align-items:flex-start;gap:34px;flex-wrap:wrap}
+.card-unit{display:flex;flex-direction:column;align-items:center;gap:8px}.side-label{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#98A2B3}
+.staff-card{width:324px;height:516px;border-radius:23px;overflow:hidden;position:relative;background:#fff;box-shadow:0 20px 52px rgba(7,30,69,.22);border:1px solid rgba(7,30,69,.10)}
+.slot{position:absolute;z-index:9;left:50%;top:15px;transform:translateX(-50%);width:78px;height:19px;background:#F8FAFC;border-radius:12px;box-shadow:inset 0 2px 6px rgba(7,30,69,.18)}
+.front-head{height:174px;padding:48px 26px 0;text-align:center;color:white;position:relative;background:linear-gradient(145deg,var(--navy),#04142F)}
+.front-head::before{content:"";position:absolute;inset:0;background-image:linear-gradient(30deg,transparent 48%,rgba(255,255,255,.035) 49%,rgba(255,255,255,.035) 51%,transparent 52%),linear-gradient(150deg,transparent 48%,rgba(255,255,255,.03) 49%,rgba(255,255,255,.03) 51%,transparent 52%);background-size:58px 58px}
+.school-title{position:relative;font-family:Georgia,serif;font-size:25px;font-weight:800;line-height:1.05;letter-spacing:.04em;text-transform:uppercase}.school-motto{position:relative;margin-top:5px;color:var(--gold-soft);font-size:9px;font-weight:700;letter-spacing:.06em}
+.front-head::after{content:"";position:absolute;left:-12px;right:-12px;bottom:-23px;height:52px;background:#fff;border-top:7px solid var(--gold);transform:skewY(-6deg)}
+.portrait-shell{position:absolute;z-index:4;top:133px;left:50%;transform:translateX(-50%);width:150px;height:150px;border-radius:50%;padding:7px;background:white;border:3px solid var(--navy);box-shadow:0 8px 18px rgba(7,30,69,.18)}
+.portrait{width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:top;background:#E9EDF3}
+.portrait-fallback{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:linear-gradient(150deg,#D5DAE2,#AEB5BF);color:white;font-size:52px;font-weight:900}
+.front-body{padding:116px 25px 65px;text-align:center;height:342px;position:relative}
+.staff-name{color:var(--navy);font-size:22px;line-height:1.08;font-weight:900;text-transform:uppercase;letter-spacing:.015em}.staff-role{color:var(--gold);margin-top:5px;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+.name-rule{width:156px;height:1px;background:var(--navy);margin:9px auto 13px;position:relative}.name-rule::after{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:var(--gold);border:3px solid #fff;left:50%;top:50%;transform:translate(-50%,-50%)}
+.identity-list{text-align:left;display:grid;gap:9px}.identity-row{display:grid;grid-template-columns:33px 1fr;gap:10px;align-items:center}.identity-icon{width:31px;height:31px;border-radius:9px;background:var(--navy);display:grid;place-items:center;color:var(--gold);font-size:15px}.identity-label{font-size:8px;font-weight:900;color:var(--navy);letter-spacing:.08em;text-transform:uppercase}.identity-value{margin-top:1px;font-size:11px;color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.front-foot{position:absolute;left:0;right:0;bottom:0;height:51px;display:grid;place-items:center;color:white;background:linear-gradient(90deg,var(--navy),var(--navy-2));border-top:5px solid var(--gold);font-size:15px;font-weight:900;letter-spacing:.34em;padding-left:.34em}
+.back{background:linear-gradient(145deg,#fff,#F4F6F9)}
+.back::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 58%,rgba(7,30,69,.025) 58%)}
+.back-brand{position:relative;padding:48px 24px 0;text-align:center;z-index:2}.back-logo{width:54px;height:54px;object-fit:contain}.back-school{font-family:Georgia,serif;color:var(--navy);font-size:22px;font-weight:800;text-transform:uppercase;line-height:1.05}.gold-rule{width:150px;height:2px;background:var(--gold);margin:8px auto 12px;position:relative}.gold-rule::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--gold);left:50%;top:50%;transform:translate(-50%,-50%);border:3px solid white}
+.qr-box{position:relative;z-index:3;width:154px;height:154px;margin:0 auto;padding:10px;background:white;border:3px solid var(--navy);border-radius:14px;box-shadow:0 6px 18px rgba(7,30,69,.12)}.qr-box img{width:100%;height:100%;display:block}.qr-fallback{width:100%;height:100%;display:grid;place-items:center;color:var(--muted);font-size:10px;text-align:center}
+.scan-copy{position:relative;z-index:3;text-align:center;margin-top:8px;color:var(--navy);font-size:11px;font-weight:700}.scan-copy strong{display:block;color:var(--gold);font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.return-panel{position:absolute;z-index:2;left:0;right:0;bottom:0;height:158px;padding:28px 28px 15px;color:white;text-align:center;background:linear-gradient(135deg,var(--navy),#04142F);clip-path:polygon(0 13%,50% 0,100% 13%,100% 100%,0 100%);border-top:0}
+.return-panel::before{content:"";position:absolute;left:0;right:0;top:5px;height:5px;background:var(--gold);clip-path:polygon(0 60%,50% 0,100% 60%,100% 100%,0 100%)}
+.return-label{font-size:9px;color:#D5DFEC}.return-school{font-size:12px;font-weight:900;margin:2px 0}.return-address{font-size:9px;color:#C6D1E0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contacts{display:grid;gap:3px;margin-top:8px;text-align:left}.contact{font-size:8.5px;color:#F4F7FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.contact b{color:var(--gold);display:inline-block;width:18px;text-align:center}.property{border-top:1px solid rgba(255,255,255,.32);margin-top:8px;padding-top:6px;font-size:7px;color:#C6D1E0;line-height:1.35}
+@media(max-width:720px){body{padding:14px 10px}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions,.toolbar-actions>*{width:100%}.cards{gap:22px}.staff-card{width:min(324px,calc(100vw - 24px));height:auto;aspect-ratio:324/516}.front-head{height:33.72%}.front-body{height:66.28%}}
+@media print{body{background:#fff;padding:0}.toolbar,.side-label{display:none!important}.cards{gap:12mm;align-items:flex-start}.staff-card{box-shadow:none;width:54mm;height:86mm;border-radius:4mm}.card-unit{break-inside:avoid}@page{size:A4 landscape;margin:12mm}}
 </style>
 </head>
 <body>
-
-{{-- Controls --}}
-<div class="ctrl">
-    <h2>Staff ID Card — {{ $staff->name }}</h2>
-    <button onclick="window.print()" class="btn btn-primary">🖨 Print Card</button>
-    <a href="{{ route('staff-attendance.my') }}" class="btn btn-ghost">← Back</a>
-</div>
-
-<div class="card-wrap">
-
-{{-- FRONT --}}
-<div class="face-label">FRONT</div>
-<div class="id-card">
-
-    {{-- Gold accent stripe at top --}}
-    <div class="accent-stripe"></div>
-
-    {{-- Header --}}
-    <div class="ch">
-        <div class="ch-left">
-            <div class="school-name">{{ optional(auth()->user()->tenant)->name ?? 'School Name' }}</div>
-            <div class="school-tag">Staff Identification Card</div>
-        </div>
-        {{-- Logo top-left of header --}}
-        <img src="/brand/educore-icon.svg" style="width:22px;height:22px;border-radius:4px;opacity:.9">
+@php
+    $tenant = $staff->tenant;
+    $schoolName = $tenant?->name ?? 'EduCore School';
+    $motto = $tenant?->motto ?: 'Excellence through education';
+    $department = $staff->department_name ?: 'School Administration';
+    $joinDate = optional($staff->employment_started_at ?? $staff->created_at)->format('d M Y');
+    $logo = $tenant?->logo_path
+        ? asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->logo_path, '/')))
+        : '/brand/educore-icon.svg';
+    $website = parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online';
+@endphp
+<div class="toolbar">
+    <div class="toolbar-copy"><strong>{{ $staff->name }} — staff identity card</strong><span>Print the front and back at CR80 portrait size.</span></div>
+    <div class="toolbar-actions">
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print card</button>
+        <a href="{{ route('staff-attendance.my') }}" class="btn btn-light">Back to attendance</a>
     </div>
-
-    {{-- QR code fixed top-right (absolute) — overlays the header area from outside --}}
-    <div style="position:relative;flex:1;overflow:hidden">
-        {{-- QR badge pinned to top-right --}}
-        <div style="position:absolute;top:6px;right:8px;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px">
-            <div style="background:white;border:1.5px solid #E2E8F0;border-radius:6px;padding:3px">
-                @if($qrBase64)
-                <img src="{{ $qrBase64 }}" alt="Clock-in QR" style="width:54px;height:54px;display:block">
-                @else
-                <div id="qr-front" style="width:54px;height:54px"></div>
-                @endif
-            </div>
-            <span style="font-size:6px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em">Scan to clock in</span>
-        </div>
-
-        {{-- Body --}}
-        <div class="cb">
-            {{-- Rectangular passport photo --}}
-            <div class="photo-wrap">
+</div>
+<main class="cards">
+    <section class="card-unit">
+        <div class="side-label">Front</div>
+        <article class="staff-card front">
+            <div class="slot"></div>
+            <header class="front-head">
+                <div class="school-title">{{ $schoolName }}</div>
+                <div class="school-motto">{{ $motto }}</div>
+            </header>
+            <div class="portrait-shell">
                 @if($staff->passport_photo)
-                    <img src="{{ Storage::url($staff->passport_photo) }}" class="staff-photo" alt="{{ $staff->name }}">
+                    <img class="portrait" src="{{ Storage::url($staff->passport_photo) }}" alt="{{ $staff->name }}">
                 @else
-                    <div class="staff-photo-init">{{ strtoupper(substr($staff->name,0,1)) }}</div>
+                    <div class="portrait-fallback">{{ strtoupper(substr($staff->name,0,1)) }}</div>
                 @endif
             </div>
-
-            {{-- Staff info --}}
-            <div class="si">
-                <div class="si-name">{{ $staff->name }}</div>
-                <div class="si-role">{{ $staff->roleLabel() }}</div>
-                @if($staff->staff_id)
-                <div class="si-id">ID · {{ $staff->staff_id }}</div>
-                @endif
-                @if($staff->department ?? null)
-                <div class="si-dept">{{ $staff->department }}</div>
+            <div class="front-body">
+                <div class="staff-name">{{ $staff->name }}</div>
+                <div class="staff-role">{{ $staff->roleLabel() }}</div>
+                <div class="name-rule"></div>
+                <div class="identity-list">
+                    <div class="identity-row"><div class="identity-icon">▣</div><div><div class="identity-label">Staff ID</div><div class="identity-value">{{ $staff->staff_id ?: 'STAFF-' . str_pad($staff->id, 4, '0', STR_PAD_LEFT) }}</div></div></div>
+                    <div class="identity-row"><div class="identity-icon">◆</div><div><div class="identity-label">Department</div><div class="identity-value">{{ $department }}</div></div></div>
+                    <div class="identity-row"><div class="identity-icon">▦</div><div><div class="identity-label">Date of joining</div><div class="identity-value">{{ $joinDate }}</div></div></div>
+                </div>
+            </div>
+            <footer class="front-foot">STAFF</footer>
+        </article>
+    </section>
+    <section class="card-unit">
+        <div class="side-label">Back</div>
+        <article class="staff-card back">
+            <div class="slot"></div>
+            <header class="back-brand">
+                <img class="back-logo" src="{{ $logo }}" alt="">
+                <div class="back-school">{{ $schoolName }}</div>
+                <div class="gold-rule"></div>
+            </header>
+            <div class="qr-box">
+                @if($qrBase64)
+                    <img src="{{ $qrBase64 }}" alt="Staff attendance QR code">
+                @else
+                    <div id="qr-back" class="qr-fallback">Attendance QR code</div>
                 @endif
             </div>
-        </div>
-    </div>
-
-    {{-- Footer --}}
-    <div class="cf">
-        <div class="cf-left">EduCore</div>
-        <div class="cf-right">Staff Digital Attendance</div>
-    </div>
-</div>
-
-{{-- BACK --}}
-<div class="face-label" style="margin-top:6px">BACK</div>
-<div class="card-back">
-    <div class="back-qr-wrap">
-        @if($qrBase64)
-        <img src="{{ $qrBase64 }}" class="back-qr-img" alt="Clock-in QR">
-        @else
-        <div id="qr-back" class="back-qr-img" style="display:flex;align-items:center;justify-content:center"></div>
-        @endif
-        <div class="back-qr-lbl">Scan to Clock In / Out</div>
-    </div>
-    <div class="back-inst">
-        <p>Open <strong>EduCore</strong> on your phone<br>
-        and scan this QR code to record your attendance.<br>
-        <strong>Keep this card safe — do not share.</strong></p>
-    </div>
-</div>
-
-{{-- Secure colleague clock-in entry point (screen only — not printed) --}}
-<div class="proxy-section">
-    <div class="proxy-title">Clock In a Colleague</div>
-    <div class="proxy-desc">
-        Return to My Attendance to capture a live photo, scan the staff ID card,
-        and complete PIN or OTP verification.
-    </div>
-    <a href="{{ route('staff-attendance.my') }}" class="btn btn-proxy"
-       style="width:100%;justify-content:center;padding:10px">
-        Open Secure Clock-In Flow
-    </a>
-</div>
-
-</div>
+            <div class="scan-copy">Scan this QR code for<strong>Staff attendance</strong></div>
+            <div class="return-panel">
+                <div class="return-label">If found, please return to:</div>
+                <div class="return-school">{{ $schoolName }}</div>
+                <div class="return-address">{{ $tenant?->address ?: 'School administration office' }}</div>
+                <div class="contacts">
+                    <div class="contact"><b>☎</b>{{ $tenant?->phone ?: 'Contact the school office' }}</div>
+                    <div class="contact"><b>✉</b>{{ $tenant?->email ?: $staff->email }}</div>
+                    <div class="contact"><b>●</b>{{ $website }}</div>
+                </div>
+                <div class="property">This card is the property of {{ $schoolName }}. It must be returned on request or at the end of employment.</div>
+            </div>
+        </article>
+    </section>
+</main>
 @if(!$qrBase64)
 <script>
 (function(){
-    var url = {{ json_encode($url ?? '') }};
-    if(!url) return;
-    // Use Google Charts QR API as reliable fallback (public, no key needed)
-    var src = 'https://chart.googleapis.com/chart?cht=qr&chl=' + encodeURIComponent(url) + '&choe=UTF-8';
-    var front = document.getElementById('qr-front');
-    var back  = document.getElementById('qr-back');
-    if(front){ front.innerHTML = '<img src="'+src+'&chs=54x54" style="width:54px;height:54px;display:block">'; }
-    if(back) { back.innerHTML  = '<img src="'+src+'&chs=96x96"  style="width:96px;height:96px;display:block">'; }
+    const target=document.getElementById('qr-back');
+    const url={{ json_encode($url ?? '') }};
+    if(target&&url){target.innerHTML='<img src="https://chart.googleapis.com/chart?cht=qr&chs=220x220&choe=UTF-8&chl='+encodeURIComponent(url)+'" alt="Attendance QR">';}
 })();
 </script>
 @endif

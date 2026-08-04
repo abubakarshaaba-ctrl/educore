@@ -87,6 +87,7 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard', [StudentController::class, 'dashboard']);
             Route::get('timetable', [StudentController::class, 'timetable']);
             Route::get('results', [StudentController::class, 'results']);
+            Route::get('attendance', [StudentController::class, 'attendance']);
             Route::get('exams', [StudentController::class, 'exams']);
         });
 

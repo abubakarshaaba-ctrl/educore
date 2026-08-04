@@ -62,7 +62,11 @@ class ApiClient {
     String path, [
     Map<String, String>? query,
   ]) async {
-    final uri = Uri.parse('$baseUrl$path').replace(queryParameters: query);
+    final parsed = Uri.parse('$baseUrl$path');
+    final uri = parsed.replace(queryParameters: {
+      ...parsed.queryParameters,
+      ...?query,
+    });
     return _decode(await http.get(uri, headers: _headers));
   }
 

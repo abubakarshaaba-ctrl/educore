@@ -3,7 +3,8 @@
 @section('page-title','School Expenses')
 @push('styles')
 <style>
-.page-grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
+.page-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px}
+.page-grid>*{min-width:0}
 .sg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .sc{background:white;border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
 .sv{font-size:20px;font-weight:800;letter-spacing:-0.02em}
@@ -26,6 +27,7 @@ tbody tr:last-child td{border-bottom:none}
 .cat-badge{display:inline-flex;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#F1F5F9;color:var(--slate);text-transform:capitalize}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:14px}
 @media(max-width:1024px){.sg{grid-template-columns:repeat(2,1fr)}.page-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.sg{grid-template-columns:1fr}.kc,.sc{min-width:0}}
 </style>
 @endpush
 @section('content')

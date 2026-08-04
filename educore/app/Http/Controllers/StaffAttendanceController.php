@@ -773,6 +773,7 @@ class StaffAttendanceController extends Controller
     public function idCard(\App\Models\User $staff)
     {
         $staff = User::activeStaff(auth()->user()->tenant_id)
+            ->with('tenant')
             ->whereKey($staff->id)
             ->firstOrFail();
 

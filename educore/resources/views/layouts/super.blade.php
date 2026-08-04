@@ -68,7 +68,7 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
 .badge-blue  { background:#EFF6FF; color:#2563EB; }
 .badge-gold  { background:var(--indigo-bg); color:var(--indigo); }
 
-.main { margin-left:var(--nav-w); min-height:100vh; display:flex; flex-direction:column; }
+.main { margin-left:var(--nav-w); min-height:100vh; min-width:0; display:flex; flex-direction:column; }
 .topbar {
     height:56px; background:white; border-bottom:1px solid var(--border);
     display:flex; align-items:center; justify-content:space-between; padding:0 24px;
@@ -92,7 +92,7 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
 .super-overlay.open { display:block; }
 
 .page-content { padding:24px; flex:1; width:100%; max-width:1680px; margin:0 auto; }
-.page-content > * { max-width:100%; }
+.page-content > * { min-width:0; max-width:100%; }
 .page-content img, .page-content video, .page-content canvas { max-width:100%; height:auto; }
 .page-content form { max-width:100%; }
 .page-content .card, .page-content .settings-card { max-width:100%; }

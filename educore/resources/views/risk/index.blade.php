@@ -5,6 +5,7 @@
 @push('styles')
 <style>
 .risk-grid { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+.risk-grid>*{min-width:0}
 .card { background:white; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
 .card-head { padding:13px 18px; border-bottom:1px solid var(--border); background:#F8FAFC;
     display:flex; align-items:center; justify-content:space-between; }
@@ -80,6 +81,12 @@
 .empty-icon  { font-size:40px; margin-bottom:12px; }
 
 @media(max-width:960px){ .risk-grid { grid-template-columns:1fr; } .risk-summary { grid-template-columns:repeat(3,1fr); } }
+@media(max-width:600px){
+    .risk-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .filter-bar>*{flex:1 1 100%;min-width:0}
+    .filter-group select,.filter-group input{width:100%;min-width:0}
+    .card-head{align-items:flex-start;gap:8px;flex-wrap:wrap}
+}
 </style>
 @endpush
 

@@ -25,7 +25,7 @@ class StudentMessageAccessTest extends TestCase
             $this->markTestSkipped('Student message tests require sqlite :memory:.');
         }
 
-        foreach (['message_thread_replies', 'message_threads', 'students', 'users'] as $table) {
+        foreach (['message_thread_replies', 'message_threads', 'guardian_student', 'guardians', 'students', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -51,12 +51,31 @@ class StudentMessageAccessTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+        Schema::create('guardians', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('relationship')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        Schema::create('guardian_student', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('guardian_id');
+            $table->unsignedBigInteger('student_id');
+            $table->boolean('is_primary_contact')->default(false);
+            $table->timestamps();
+        });
         Schema::create('message_threads', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('student_id');
             $table->string('subject');
             $table->unsignedBigInteger('initiated_by');
+            $table->unsignedBigInteger('recipient_id')->nullable();
             $table->string('status')->default('open');
             $table->timestamps();
         });
@@ -164,5 +183,70 @@ class StudentMessageAccessTest extends TestCase
 
         $this->expectException(HttpException::class);
         app(MessageController::class)->show($request, $thread);
+    }
+
+    public function test_linked_parent_can_list_open_and_reply_to_their_childs_thread(): void
+    {
+        DB::table('users')->insert([
+            ['id' => 1, 'tenant_id' => 1, 'name' => 'School Admin', 'role' => 'admin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'tenant_id' => 1, 'name' => 'Linked Parent', 'role' => 'parent', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('students')->insert([
+            'id' => 10,
+            'tenant_id' => 1,
+            'first_name' => 'Linked',
+            'last_name' => 'Child',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('guardians')->insert([
+            'id' => 20,
+            'tenant_id' => 1,
+            'user_id' => 2,
+            'first_name' => 'Linked',
+            'last_name' => 'Parent',
+            'relationship' => 'Parent',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('guardian_student')->insert([
+            'tenant_id' => 1,
+            'guardian_id' => 20,
+            'student_id' => 10,
+            'is_primary_contact' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $thread = MessageThread::create([
+            'tenant_id' => 1,
+            'student_id' => 10,
+            'subject' => 'Academic concern',
+            'initiated_by' => 1,
+        ]);
+        MessageThreadReply::create([
+            'tenant_id' => 1,
+            'thread_id' => $thread->id,
+            'sender_id' => 1,
+            'body' => 'Please discuss this with your child.',
+        ]);
+
+        $parent = User::findOrFail(2);
+        $request = Request::create('/api/v1/messages', 'GET');
+        $request->setUserResolver(fn () => $parent);
+        $controller = app(MessageController::class);
+
+        $index = $controller->index($request)->getData(true);
+        $this->assertSame($thread->id, $index['threads'][0]['id']);
+
+        $show = $controller->show($request, $thread)->getData(true);
+        $this->assertSame('Academic concern', $show['thread']['subject']);
+
+        $replyRequest = Request::create("/api/v1/messages/{$thread->id}/reply", 'POST', [
+            'body' => 'Thank you, I have received this.',
+        ]);
+        $replyRequest->setUserResolver(fn () => $parent);
+        $this->assertSame(201, $controller->reply($replyRequest, $thread->refresh())->status());
     }
 }

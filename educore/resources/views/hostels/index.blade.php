@@ -29,6 +29,8 @@ tr:last-child td{border:none}
     .cb{padding:14px}.fr{grid-template-columns:1fr}
     .room-form{flex-wrap:wrap}.room-form .fc{max-width:none!important;flex:1 1 110px}
     .room-form .btn{flex:1 1 100%;justify-content:center}
+    .ch{align-items:flex-start!important;gap:8px;flex-wrap:wrap}
+    .two>*{min-width:0}
 }
 </style>
 @endpush

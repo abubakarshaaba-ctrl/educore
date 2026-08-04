@@ -31,6 +31,8 @@ class StaffCardController extends Controller
             'name'        => $user->name,
             'staff_id'    => $user->staff_id,
             'role'        => $user->roleLabel() ?? 'Staff',
+            'department'  => $user->department_name ?? null,
+            'date_joined' => optional($user->employment_started_at ?? $user->created_at)->format('d M Y'),
             'email'       => $user->email,
             'phone'       => $user->phone,
             // has_photo drives the app; it streams the image from photo_file
@@ -42,7 +44,11 @@ class StaffCardController extends Controller
             'school'      => [
                 'name'  => $tenant?->name,
                 'logo'  => $logo,
+                'motto' => $tenant?->motto,
                 'address' => $tenant?->address,
+                'phone' => $tenant?->phone,
+                'email' => $tenant?->email,
+                'website' => parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online',
             ],
         ]);
     }

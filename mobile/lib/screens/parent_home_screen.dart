@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../api_client.dart';
 import '../main.dart';
+import 'learner_attendance_screen.dart';
 import 'login_screen.dart';
+import 'messages_screen.dart';
+import 'report_breakdown_screen.dart';
 import '../push_service.dart';
 
 class ParentHomeScreen extends StatefulWidget {
@@ -60,7 +63,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                   '${item['term'] ?? ''} · ${_money(item['balance'])} outstanding · ${item['status'] ?? ''}',
             ),
           ),
-          _ParentNotices(key: ValueKey('notices-$_childId'), childId: _childId),
+          const MessagesScreen(),
           _ParentList(
             key: ValueKey('results-$_childId'),
             endpoint: '/parent/results$_childQuery',
@@ -73,7 +76,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                   'Average ${item['average'] ?? 0}% · Position ${item['position'] ?? '—'} of ${item['class_size'] ?? '—'}',
             ),
           ),
-          const _ParentMore(),
+          _ParentMore(childId: _childId),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -284,7 +287,7 @@ class _ParentDashboardState extends State<_ParentDashboard> {
 }
 
 class _ParentNotices extends StatelessWidget {
-  const _ParentNotices({super.key, required this.childId});
+  const _ParentNotices({required this.childId});
   final int? childId;
 
   @override
@@ -360,10 +363,19 @@ class _ParentListState extends State<_ParentList> {
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: kMuted)))
                     ]
-                  : items
-                      .map((item) =>
-                          widget.itemBuilder(item as Map<String, dynamic>))
-                      .toList(),
+                  : items.map((rawItem) {
+                      final item = rawItem as Map<String, dynamic>;
+                      final tile = widget.itemBuilder(item);
+                      if (widget.listKey != 'results') return tile;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => ReportBreakdownScreen(report: item),
+                        )),
+                        child: tile,
+                      );
+                    }).toList(),
             ),
           );
         },
@@ -405,7 +417,8 @@ class _ParentFuture extends StatelessWidget {
 }
 
 class _ParentMore extends StatelessWidget {
-  const _ParentMore();
+  const _ParentMore({required this.childId});
+  final int? childId;
   @override
   Widget build(BuildContext context) {
     final user = ApiClient.instance.user ?? const <String, dynamic>{};
@@ -422,14 +435,34 @@ class _ParentMore extends StatelessWidget {
       const Text('Parent access · Linked children only',
           textAlign: TextAlign.center, style: TextStyle(color: kMuted)),
       const SizedBox(height: 28),
-      const _ParentTile(
+      _ParentTile(
           icon: Icons.fact_check_outlined,
           title: 'Attendance',
-          subtitle: 'Attendance records for your linked children'),
-      const _ParentTile(
+          subtitle: 'Attendance records for your linked children',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => LearnerAttendanceScreen(
+                  endpoint:
+                      '/parent/attendance${childId == null ? '' : '?child_id=$childId'}',
+                  title: 'Child attendance',
+                ),
+              ))),
+      _ParentTile(
+          icon: Icons.forum_outlined,
+          title: 'Student messages',
+          subtitle: 'Messages concerning your linked children',
+          onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MessagesScreen()),
+              )),
+      _ParentTile(
           icon: Icons.notifications_outlined,
           title: 'Announcements',
-          subtitle: 'School news and important notices'),
+          subtitle: 'School news and important notices',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('Announcements')),
+                  body: _ParentNotices(childId: childId),
+                ),
+              ))),
       const SizedBox(height: 18),
       OutlinedButton.icon(
         onPressed: () async {

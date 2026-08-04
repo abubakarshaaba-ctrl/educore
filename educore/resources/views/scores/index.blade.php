@@ -10,6 +10,7 @@
     
     .selector-card { background:white;border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,0.05); }
     .pg-split { display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start; }
+    .pg-split>*{min-width:0}
     @media(max-width:900px) { .pg-split { grid-template-columns:1fr; } }
     .selector-title { font-size:17px;font-weight:700;color:var(--midnight);margin-bottom:6px;letter-spacing:-0.02em; }
     .selector-sub { font-size:13px;color:var(--slate);margin-bottom:24px; }
@@ -23,7 +24,12 @@
     .btn-primary { background:var(--indigo);color:white; }
     .btn-primary:hover { background:#1D4ED8; }
     .info-box { background:var(--indigo-bg);border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--indigo);margin-top:20px; }
-    @media(max-width:640px){.form-grid{grid-template-columns:1fr}}
+    @media(max-width:640px){
+        .form-grid{grid-template-columns:1fr}
+        .page-tabs{flex-wrap:nowrap;overflow-x:auto;width:100%}
+        .page-tabs a{white-space:nowrap}
+        .btn{width:100%;justify-content:center}
+    }
 </style>
 @endpush
 

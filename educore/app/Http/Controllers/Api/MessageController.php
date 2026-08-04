@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Guardian;
 use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\User;
@@ -14,13 +15,23 @@ class MessageController extends Controller
     /** Threads this staff member is party to (initiated, or has replied to). */
     public function index(Request $request)
     {
-        $userId = $request->user()->id;
+        $user = $request->user();
+        $userId = $user->id;
 
-        $studentId = $request->user()->student?->id;
-        $participantScope = function ($q) use ($userId, $studentId) {
+        $studentId = $user->student?->id;
+        $guardian = $user->isParent()
+            ? Guardian::where('tenant_id', $user->tenant_id)->where('user_id', $user->id)->first()
+            : null;
+        $guardianStudentIds = $guardian
+            ? $guardian->students()->pluck('students.id')
+            : collect();
+        $participantScope = function ($q) use ($userId, $studentId, $guardianStudentIds) {
                 $q->where('initiated_by', $userId)
                   ->orWhereHas('replies', fn ($r) => $r->where('sender_id', $userId))
-                  ->when($studentId, fn ($query) => $query->orWhere('student_id', $studentId));
+                  ->when($studentId, fn ($query) => $query->orWhere('student_id', $studentId))
+                  ->when($guardianStudentIds->isNotEmpty(), fn ($query) =>
+                      $query->orWhereIn('student_id', $guardianStudentIds)
+                  );
             };
 
         $threads = MessageThread::where($participantScope)
@@ -122,11 +133,18 @@ class MessageController extends Controller
     {
         $isConcernedStudent = $user->isStudent()
             && (int) optional($user->student)->id === (int) $thread->student_id;
+        $guardian = $user->isParent()
+            ? Guardian::where('tenant_id', $user->tenant_id)->where('user_id', $user->id)->first()
+            : null;
+        $isConcernedParent = $guardian
+            && $thread->student_id
+            && $guardian->students()->whereKey($thread->student_id)->exists();
 
         abort_unless(
             (int) $thread->initiated_by === (int) $user->id
                 || $thread->replies()->where('sender_id', $user->id)->exists()
                 || $isConcernedStudent
+                || $isConcernedParent
                 || $user->canManage('messages'),
             403,
             'You are not a participant in this conversation.'

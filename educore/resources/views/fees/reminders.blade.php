@@ -3,10 +3,9 @@
 @section('page-title','Fee Reminder System')
 @push('styles')
 <style>
-.pg{display:grid;grid-template-columns:1fr 380px;gap:20px}
+.pg{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:20px}
+.pg>*{min-width:0}
 .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
-@media(max-width:768px){.sg{grid-template-columns:1fr 1fr}}
-@media(max-width:480px){.sg{grid-template-columns:1fr}}
 .sc{background:white;border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
 .sv{font-size:22px;font-weight:800;letter-spacing:-0.02em}.sl{font-size:10px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
@@ -24,6 +23,11 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover td{background:#F8FAFC}
 .chk{width:14px;height:14px;cursor:pointer;accent-color:var(--indigo)}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:14px}
 @media(max-width:1024px){.pg{grid-template-columns:1fr}.sg{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:768px){.sg{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){
+    .sg{grid-template-columns:1fr}
+    .ch{align-items:flex-start!important;gap:8px;flex-wrap:wrap}
+}
 </style>
 @endpush
 @section('content')

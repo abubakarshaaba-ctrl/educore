@@ -4,9 +4,11 @@ import '../api_client.dart';
 import '../main.dart';
 import 'empty_state.dart';
 import 'haptic_helper.dart';
+import 'learner_attendance_screen.dart';
 import 'login_screen.dart';
 import 'messages_screen.dart';
 import '../push_service.dart';
+import 'report_breakdown_screen.dart';
 import 'pressable_card.dart';
 import 'skeleton_loader.dart';
 
@@ -365,10 +367,16 @@ class _StudentMore extends StatelessWidget {
         const Text('Student access · Personal records only',
             textAlign: TextAlign.center, style: TextStyle(color: kMuted)),
         const SizedBox(height: 28),
-        const _StudentMenuTile(
+        _StudentMenuTile(
           icon: Icons.calendar_month_outlined,
           title: 'Attendance',
           subtitle: 'Your personal attendance record',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const LearnerAttendanceScreen(
+              endpoint: '/student/attendance',
+              title: 'My attendance',
+            ),
+          )),
         ),
         const _StudentMenuTile(
           icon: Icons.badge_outlined,
@@ -454,10 +462,20 @@ class _EndpointListState extends State<_EndpointList> {
                       title: widget.emptyText,
                     )
                   ]
-                : items
-                    .map((item) =>
-                        widget.itemBuilder(item as Map<String, dynamic>))
-                    .toList(),
+                : items.map((rawItem) {
+                    final item = rawItem as Map<String, dynamic>;
+                    final tile = widget.itemBuilder(item);
+                    if (widget.listKey != 'results') return tile;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ReportBreakdownScreen(report: item),
+                        ),
+                      ),
+                      child: tile,
+                    );
+                  }).toList(),
           ),
         );
       },

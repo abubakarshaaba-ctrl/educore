@@ -221,6 +221,35 @@ class ExamPeriodController extends Controller
     public function generateSupervision(ExamPeriod $period, ExamSchedulerService $scheduler)
     {
         $this->guard();
+
+        // The checkboxes visible beside the Generate button are the source of
+        // truth for this run. This prevents a previously saved (or automatic)
+        // pool from silently replacing the administrator's current selection.
+        if (request()->boolean('pool_submitted')) {
+            $data = request()->validate([
+                'user_ids'   => ['required', 'array', 'min:1'],
+                'user_ids.*' => [Rule::exists('users', 'id')->where('tenant_id', $this->tenantId())],
+            ], [
+                'user_ids.required' => 'Select at least one active staff member for supervision.',
+            ]);
+
+            $eligibleIds = User::activeStaff($this->tenantId())
+                ->whereIn('id', $data['user_ids'])
+                ->pluck('id');
+
+            if ($eligibleIds->count() !== collect($data['user_ids'])->unique()->count()) {
+                return back()->withErrors([
+                    'user_ids' => 'The supervision pool may contain active school staff only.',
+                ])->withInput();
+            }
+
+            $period->staffPool()->sync(
+                $eligibleIds->mapWithKeys(fn ($id) => [
+                    $id => ['tenant_id' => $this->tenantId()],
+                ])
+            );
+        }
+
         try {
             $result = $scheduler->generateSupervision($period);
         } catch (\RuntimeException $e) {

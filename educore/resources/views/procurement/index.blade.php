@@ -6,7 +6,8 @@
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .ch{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight)}
 .cb{padding:18px}
-.two{display:grid;grid-template-columns:340px 1fr;gap:16px}
+.two{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:16px}
+.two>*{min-width:0}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
 .fl{font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.05em}
@@ -26,6 +27,13 @@ tr:last-child td{border:none}
 .b-approved{background:#EFF6FF;color:#2563EB}.b-received{background:#ECFDF5;color:#059669}.b-cancelled{background:#FEF2F2;color:#DC2626}
 .mini{font-size:11px;color:#94A3B8}
 @media(max-width:1000px){.two{grid-template-columns:1fr}}
+@media(max-width:640px){
+    .fr{grid-template-columns:1fr}
+    .item-row{grid-template-columns:1fr 1fr}
+    .item-row>*:first-child{grid-column:1/-1}
+    .item-row button{width:100%;justify-content:center}
+    .ch{align-items:flex-start;gap:8px;flex-wrap:wrap}
+}
 </style>
 @endpush
 @section('content')

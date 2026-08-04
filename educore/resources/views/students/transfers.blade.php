@@ -4,7 +4,8 @@
 @push('styles')
 <style>
 .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.pg{display:grid;grid-template-columns:1fr 360px;gap:16px}
+.pg{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:16px}
+.pg>*{min-width:0}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
 .ch{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight)}
 .cb{padding:16px}
@@ -24,7 +25,12 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover td{background:#F8FAFC}
 .tab.on{background:var(--indigo);color:white;border-color:var(--indigo)}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:14px}
 .info-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;font-size:12.5px;color:var(--indigo);margin-bottom:16px}
-@media(max-width:768px){.pg{grid-template-columns:1fr}}
+@media(max-width:900px){.pg{grid-template-columns:1fr}}
+@media(max-width:600px){
+    .ph{align-items:flex-start}
+    .tabs{overflow-x:auto;max-width:100%}
+    .tabs a{white-space:nowrap}
+}
 </style>
 @endpush
 @section('content')
