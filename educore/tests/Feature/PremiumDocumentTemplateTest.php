@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Admission;
-use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\JobApplicant;
 use App\Models\JobPosting;
@@ -14,40 +13,10 @@ use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\Term;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class PremiumDocumentTemplateTest extends TestCase
 {
-    public function test_certificate_template_renders_as_a_pdf(): void
-    {
-        $level = new ClassLevel(['name' => 'Senior Secondary School 3']);
-        $arm = new ClassArm(['name' => 'Gold']);
-        $arm->setRelation('classLevel', $level);
-
-        $student = new Student([
-            'first_name' => 'Amina',
-            'middle_name' => 'Grace',
-            'last_name' => 'Okafor',
-            'admission_number' => 'EDU/2021/0042',
-            'admission_date' => '2021-09-13',
-            'graduation_date' => '2026-07-24',
-        ]);
-        $student->setRelation('currentClassArm', $arm);
-
-        $pdf = Pdf::loadView('certificates.certificate-pdf', [
-            'student' => $student,
-            'tenant' => $this->tenant(),
-            'type' => 'testimonial',
-            'remarks' => 'A disciplined learner who served the school community with distinction.',
-            'serial' => 'EDU-20260724-0042',
-            'issuedAt' => Carbon::parse('2026-07-24'),
-        ])->setPaper('a4', 'portrait')->output();
-
-        $this->assertStringStartsWith('%PDF', $pdf);
-        $this->assertGreaterThan(15_000, strlen($pdf));
-    }
-
     public function test_admission_offer_template_renders_as_a_pdf(): void
     {
         $level = new ClassLevel(['name' => 'Basic 7']);

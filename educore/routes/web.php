@@ -844,12 +844,6 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::delete('{record}',    [\App\Http\Controllers\DisciplineController::class, 'destroy'])->name('destroy');
     });
 
-    // -- Certificates & Testimonials ------------------------------------------
-    Route::prefix('certificates')->name('certificates.')->group(function () {
-        Route::get('/',        [\App\Http\Controllers\CertificateController::class, 'index'])->name('index');
-        Route::post('generate',[\App\Http\Controllers\CertificateController::class, 'generate'])->name('generate');
-    });
-
     // -- Alumni ----------------------------------------------------------------
     Route::prefix('alumni')->name('alumni.')->group(function () {
         Route::get('/',                   [\App\Http\Controllers\AlumniController::class, 'index'])->name('index');

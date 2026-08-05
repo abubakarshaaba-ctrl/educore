@@ -32,6 +32,11 @@ class StaffDeduction extends BaseTenantModel
         return $this->belongsTo(PayrollDeductionTemplate::class, 'payroll_deduction_template_id');
     }
 
+    public function disciplinaryAction()
+    {
+        return $this->hasOne(StaffDisciplinaryAction::class, 'staff_deduction_id');
+    }
+
     /**
      * The amount this deduction contributes for a given gross salary.
      * Uses the custom override if set, otherwise falls back to the template's

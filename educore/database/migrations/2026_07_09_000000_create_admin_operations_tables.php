@@ -41,19 +41,6 @@ return new class extends Migration {
             $table->index('tenant_id');
         });
 
-        // ── Certificate issuance audit log ──────────────────────────────
-        Schema::create('certificate_issuances', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('student_id');
-            $table->enum('certificate_type', ['leaving_certificate', 'testimonial', 'transfer_certificate']);
-            $table->string('serial_number', 60)->unique();
-            $table->unsignedBigInteger('issued_by')->nullable();
-            $table->timestamp('issued_at')->nullable();
-            $table->timestamps();
-            $table->index(['tenant_id', 'student_id']);
-        });
-
         // ── Scholarships / bursaries / fee waivers ──────────────────────
         Schema::create('scholarships', function (Blueprint $table) {
             $table->id();
@@ -176,7 +163,6 @@ return new class extends Migration {
         Schema::dropIfExists('purchase_orders');
         Schema::dropIfExists('vendors');
         Schema::dropIfExists('scholarships');
-        Schema::dropIfExists('certificate_issuances');
         Schema::dropIfExists('alumni_profiles');
         Schema::dropIfExists('discipline_records');
     }

@@ -59,6 +59,9 @@ class StaffDisciplinaryController extends Controller
             'offence_type'           => $data['offence_type'],
             'offence_description'    => $data['offence_description'] ?? null,
             'action_type'            => $data['action_type'],
+            'amount'                 => $data['action_type'] === 'surcharge'
+                ? (float) $data['amount']
+                : null,
             'suspension_start_date'  => $data['suspension_start_date'] ?? null,
             'suspension_end_date'    => $data['suspension_end_date'] ?? null,
             'effective_date'         => $data['effective_date'],

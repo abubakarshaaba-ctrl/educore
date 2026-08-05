@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -17,19 +19,24 @@ const kRisk = Color(0xFFB42318);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Register background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // Initialize push notification service
-  await PushService.instance.init();
-
   runApp(const EduCoreApp());
+
+  // Optional notification services must never block the first application
+  // frame. Firebase/network/plugin failures should disable notifications only.
+  unawaited(_initializeOptionalServices());
+}
+
+Future<void> _initializeOptionalServices() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await PushService.instance.init();
+  } catch (error, stackTrace) {
+    debugPrint('EduCore optional service initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 }
 
 class EduCoreApp extends StatelessWidget {

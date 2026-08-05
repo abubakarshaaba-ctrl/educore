@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -69,12 +71,17 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2600));
     if (!mounted) return;
 
-    await ApiClient.instance.restore();
+    try {
+      await ApiClient.instance.restore();
+    } catch (_) {
+      // Local storage/plugin failures should fall back to login rather than
+      // leaving the splash screen visible forever.
+    }
     final isLoggedIn = ApiClient.instance.isLoggedIn;
 
     // Register for push notifications if logged in
     if (isLoggedIn) {
-      PushService.instance.registerForCurrentUser();
+      unawaited(PushService.instance.registerForCurrentUser());
     }
 
     if (!mounted) return;
@@ -191,7 +198,8 @@ class _SplashScreenState extends State<SplashScreen>
                               borderRadius: BorderRadius.circular(28),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFD79A21).withValues(alpha: 0.3),
+                                  color: const Color(0xFFD79A21)
+                                      .withValues(alpha: 0.3),
                                   blurRadius: 40,
                                   spreadRadius: 8,
                                 ),
@@ -295,7 +303,8 @@ class _SplashScreenState extends State<SplashScreen>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: const Color(0xFFD79A21).withValues(alpha: 0.7),
+                            color:
+                                const Color(0xFFD79A21).withValues(alpha: 0.7),
                           ),
                         ),
                       );

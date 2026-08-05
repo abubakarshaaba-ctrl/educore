@@ -27,7 +27,8 @@ class StaffDisciplinaryAction extends BaseTenantModel
     protected $fillable = [
         'tenant_id', 'staff_id', 'offence_type', 'offence_description', 'action_type',
         'amount', 'suspension_start_date', 'suspension_end_date', 'effective_date',
-        'staff_deduction_id', 'status', 'recorded_by', 'notes',
+        'staff_deduction_id', 'applied_payroll_item_id', 'applied_at',
+        'status', 'recorded_by', 'notes',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class StaffDisciplinaryAction extends BaseTenantModel
             'suspension_end_date'   => 'date',
             'effective_date'        => 'date',
             'amount'                => 'float',
+            'applied_at'            => 'datetime',
         ];
     }
 
@@ -53,6 +55,11 @@ class StaffDisciplinaryAction extends BaseTenantModel
     public function staffDeduction()
     {
         return $this->belongsTo(StaffDeduction::class);
+    }
+
+    public function appliedPayrollItem()
+    {
+        return $this->belongsTo(PayrollItem::class, 'applied_payroll_item_id');
     }
 
     public function isFinanceLinked(): bool

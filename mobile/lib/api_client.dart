@@ -18,14 +18,20 @@ class ApiClient {
   bool get isLoggedIn => _token != null;
 
   Future<void> restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
-    final u = prefs.getString('user');
-    final s = prefs.getString('school');
-    final p = prefs.getStringList('permissions');
-    if (u != null) user = jsonDecode(u) as Map<String, dynamic>;
-    if (s != null) school = jsonDecode(s) as Map<String, dynamic>;
-    permissions = (p ?? const <String>[]).toSet();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('token');
+      final u = prefs.getString('user');
+      final s = prefs.getString('school');
+      final p = prefs.getStringList('permissions');
+      if (u != null) user = jsonDecode(u) as Map<String, dynamic>;
+      if (s != null) school = jsonDecode(s) as Map<String, dynamic>;
+      permissions = (p ?? const <String>[]).toSet();
+    } catch (_) {
+      // An older/corrupted persisted session must not strand the app on the
+      // splash screen after an upgrade. Reset it and return to login safely.
+      await _clearSession();
+    }
   }
 
   bool can(String permission) => permissions.contains(permission);

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\PayrollDeductionTemplate;
 use App\Models\PayrollRoleTemplate;
 use App\Models\StaffDeduction;
+use App\Models\StaffDisciplinaryAction;
 use App\Models\PayrollTaxBand;
 use App\Services\PayrollTaxService;
 use Illuminate\Http\Request;
@@ -68,7 +69,23 @@ class PayrollController extends Controller
             $staffDedsById = StaffDeduction::where('tenant_id', $tenantId)
                 ->whereIn('staff_id', $staffIds)
                 ->where('is_active', true)
+                ->whereDoesntHave('disciplinaryAction')
                 ->with('template')
+                ->get()
+                ->groupBy('staff_id');
+
+            // A disciplinary surcharge or withheld-pay action is a one-off
+            // deduction. It enters the first payroll ending on/after its
+            // effective date and is marked consumed with that payroll item.
+            $disciplinaryByStaff = StaffDisciplinaryAction::where('tenant_id', $tenantId)
+                ->whereIn('staff_id', $staffIds)
+                ->whereIn('action_type', StaffDisciplinaryAction::FINANCE_ACTIONS)
+                ->where('status', 'active')
+                ->whereNull('applied_payroll_item_id')
+                ->whereNotNull('amount')
+                ->where('amount', '>', 0)
+                ->whereDate('effective_date', '<=', $data['period_end'])
+                ->lockForUpdate()
                 ->get()
                 ->groupBy('staff_id');
 
@@ -101,11 +118,20 @@ class PayrollController extends Controller
                     $otherDed += $amt;
                     $breakdown[] = ['label' => $sd->label(), 'amount' => round($amt, 2)];
                 }
+                foreach ($disciplinaryByStaff->get($s->staff_id, collect()) as $disciplinaryAction) {
+                    $amount = round((float) $disciplinaryAction->amount, 2);
+                    $otherDed += $amount;
+                    $breakdown[] = [
+                        'label' => 'Disciplinary deduction: ' . $disciplinaryAction->actionLabel()
+                            . ' - ' . $disciplinaryAction->offenceLabel(),
+                        'amount' => $amount,
+                    ];
+                }
 
                 $totalD = $tax + $pension + $otherDed;
                 $net    = $gross - $totalD;
 
-                PayrollItem::create([
+                $payrollItem = PayrollItem::create([
                     'tenant_id'          => $tenantId,
                     'payroll_period_id'  => $period->id,
                     'staff_id'           => $s->staff_id,
@@ -124,6 +150,13 @@ class PayrollController extends Controller
                     'account_number'     => $s->account_number,
                     'account_name'       => $s->account_name,
                 ]);
+                foreach ($disciplinaryByStaff->get($s->staff_id, collect()) as $disciplinaryAction) {
+                    $disciplinaryAction->update([
+                        'applied_payroll_item_id' => $payrollItem->id,
+                        'applied_at' => now(),
+                    ]);
+                    $disciplinaryAction->staffDeduction?->update(['is_active' => false]);
+                }
                 $totalGross += $gross; $totalDed += $totalD; $totalNet += $net;
             }
 

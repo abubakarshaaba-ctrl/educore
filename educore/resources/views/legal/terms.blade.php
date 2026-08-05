@@ -119,7 +119,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.6);padding:38px 0;text-ali
         <p>Depending on role, configuration, and availability, the Service may include:</p>
         <ul>
             <li>school onboarding, records, classes, subjects, sessions, terms, admissions, transfers, promotion, alumni, and portal accounts;</li>
-            <li>student and staff attendance, timetables, lesson planning, scores, gradebooks, exams, CBT, report cards, certificates, conduct, and academic reporting;</li>
+            <li>student and staff attendance, timetables, lesson planning, scores, gradebooks, exams, CBT, report cards, conduct, and academic reporting;</li>
             <li>fee structures, bills, invoices, parent payments, receipts, expenses, accounting reports, staff salary settings, payroll, and payslips;</li>
             <li>staff HR, leave, announcements, messages, notifications, reminders, identity cards, and document or photograph uploads;</li>
             <li>restricted health records and health visits, transport routes, vehicles, drivers, manifests, and student transport assignments;</li>

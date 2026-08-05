@@ -107,10 +107,6 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-8-3zm-1 14-4-4 1.41-1.41L11 13.17l4.59-4.58L17 10l-6 6z"/></svg>
             <span class="nav-label">Discipline & Conduct</span>
         </a>
-        <a href="{{ route('certificates.index') }}" class="nav-item {{ request()->routeIs('certificates.*') ? 'active' : '' }}" data-tip="Certificates">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-8-3zm0 4.5c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 11c-1.86 0-3.5-.94-4.5-2.37.06-1.5 3-2.33 4.5-2.33s4.44.83 4.5 2.33c-1 1.43-2.64 2.37-4.5 2.37z"/></svg>
-            <span class="nav-label">Certificates</span>
-        </a>
         <a href="{{ route('alumni.index') }}" class="nav-item {{ request()->routeIs('alumni.*') ? 'active' : '' }}" data-tip="Alumni">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
             <span class="nav-label">Alumni</span>

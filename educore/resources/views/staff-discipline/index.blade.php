@@ -126,8 +126,12 @@ tr:last-child td{border:none}
                     @if($a->action_type === 'suspension_without_pay' && $a->suspension_start_date)
                         <div>{{ $a->suspension_start_date->format('d M') }} – {{ $a->suspension_end_date->format('d M Y') }}</div>
                     @endif
-                    @if($a->staffDeduction)
-                        <div>{{ $a->staffDeduction->is_active ? '⏳ Applying to payroll' : '✓ Applied / stopped' }}</div>
+                    @if($a->applied_payroll_item_id)
+                        <div>Applied to payroll{{ $a->applied_at ? ' on '.$a->applied_at->format('d M Y') : '' }}</div>
+                    @elseif($a->staffDeduction?->is_active)
+                        <div>Pending next eligible payroll</div>
+                    @else
+                        <div>Deduction stopped</div>
                     @endif
                 @elseif($a->isEmploymentExit())
                     Employment ended
