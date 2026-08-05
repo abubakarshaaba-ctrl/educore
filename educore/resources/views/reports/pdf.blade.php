@@ -46,6 +46,19 @@
         ?? data_get($summary, 'promoted_to')
         ?? data_get($summary, 'next_class_name')
         ?? null;
+    $authorizedSignatureData = null;
+    if ($tenant?->authorized_signature_path) {
+        try {
+            $signatureDisk = \Illuminate\Support\Facades\Storage::disk('public');
+            if ($signatureDisk->exists($tenant->authorized_signature_path)) {
+                $signatureMime = $signatureDisk->mimeType($tenant->authorized_signature_path) ?: 'image/png';
+                $authorizedSignatureData = 'data:' . $signatureMime . ';base64,'
+                    . base64_encode($signatureDisk->get($tenant->authorized_signature_path));
+            }
+        } catch (\Throwable $e) {
+            $authorizedSignatureData = null;
+        }
+    }
 
     $logoAbsPath = null;
     if (!empty($tenant->logo_path)) {
@@ -193,6 +206,9 @@ table { border-collapse: collapse; }
 .remarks td:last-child { border-right: 0; }
 .remark-title { padding: 3pt 5pt; background: #f3f6f9; border-bottom: 0.3pt solid #c4ced8; color: #243b53; font-size: 6.5pt; font-weight: 700; text-transform: uppercase; }
 .remark-body { min-height: 29pt; padding: 5pt 6pt; font-size: 7.5pt; line-height: 1.45; }
+.report-signature { margin-top: 3pt; text-align: right; }
+.report-signature img { display: inline-block; width: auto; max-width: 82pt; height: 22pt; object-fit: contain; }
+.report-signature-label { display: block; margin-top: 1pt; color: #52606d; font-size: 5.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4pt; }
 .footer {
     width: 559pt;
     margin-top: 0;
@@ -438,7 +454,7 @@ table { border-collapse: collapse; }
 <table class="remarks">
 <tr>
 <td><div class="remark-title">Form Teacher's Comment</div><div class="remark-body">{{ $summary->form_tutor_remark ?: '................................................................................................................' }}</div></td>
-<td><div class="remark-title">Principal's Comment</div><div class="remark-body">{{ $summary->principal_remark ?: '................................................................................................................' }}</div></td>
+<td><div class="remark-title">Principal's Comment</div><div class="remark-body">{{ $summary->principal_remark ?: '................................................................................................................' }}@if($authorizedSignatureData)<div class="report-signature"><img src="{{ $authorizedSignatureData }}" alt="Authorized signature"><span class="report-signature-label">Authorized signature</span></div>@endif</div></td>
 </tr>
 </table>
 

@@ -20,6 +20,8 @@
 .btn-p{background:var(--indigo);color:white}
 .logo-circle{width:76px;height:76px;border-radius:50%;background:var(--indigo);color:white;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);overflow:hidden}
 .logo-circle img{width:100%;height:100%;object-fit:cover}
+.signature-preview{width:210px;height:82px;border:1px dashed var(--border);border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden}
+.signature-preview img{max-width:100%;max-height:100%;object-fit:contain}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:14px}
 @media(max-width:768px){.sg{grid-template-columns:1fr}.snav{position:relative}.fr{grid-template-columns:1fr}}
 </style>
@@ -53,6 +55,7 @@
   <div class="snav">
     <a href="#gen" class="sn on">General Info</a>
     <a href="#logo" class="sn">Logo</a>
+    <a href="#signature" class="sn">Authorized Signature</a>
     <a href="#contact" class="sn">Contact</a>
     <div style="border-top:1px solid var(--border);margin:6px 0;padding-top:6px">
       <a href="{{ route('settings.grading') }}" class="sn">Grading System</a>
@@ -97,6 +100,28 @@
         </div>
       </div>
     </div>
+    <div class="card" id="signature">
+      <div class="ch">Authorized Signature</div>
+      <div class="cb" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <div class="signature-preview" id="signaturePreviewWrap">
+          @if($tenant->authorized_signature_path)
+            <img id="signaturePreviewImg" src="{{ asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->authorized_signature_path, '/'))) }}" alt="Authorized signature">
+          @else
+            <span id="signaturePlaceholder" style="font-size:11px;color:var(--slate-light)">No signature uploaded</span>
+          @endif
+        </div>
+        <div style="flex:1;min-width:240px">
+          <div class="fg" style="margin:0">
+            <label class="fl">Upload Principal / Authorized Signature</label>
+            <input type="file" name="authorized_signature" accept="image/png,image/jpeg,image/webp" class="fc" style="padding:5px" id="signatureFileInput">
+          </div>
+          <div style="font-size:11px;color:var(--slate-light);margin-top:3px">Use a tightly cropped PNG with a transparent or white background. Maximum 2MB. This appears on staff ID cards and report cards.</div>
+          @if($tenant->authorized_signature_path)
+          <div style="font-size:11px;color:var(--emerald);margin-top:4px">Signature uploaded</div>
+          @endif
+        </div>
+      </div>
+    </div>
     <div class="card" id="contact">
       <div class="ch">Contact Details</div>
       <div class="cb">
@@ -133,6 +158,24 @@ document.getElementById('logoFileInput').addEventListener('change', function(e) 
             img = document.createElement('img');
             img.id = 'logoPreviewImg';
             wrap.appendChild(img);
+        }
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+document.getElementById('signatureFileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const placeholder = document.getElementById('signaturePlaceholder');
+        if (placeholder) placeholder.remove();
+        let img = document.getElementById('signaturePreviewImg');
+        if (!img) {
+            img = document.createElement('img');
+            img.id = 'signaturePreviewImg';
+            img.alt = 'Authorized signature preview';
+            document.getElementById('signaturePreviewWrap').appendChild(img);
         }
         img.src = ev.target.result;
     };

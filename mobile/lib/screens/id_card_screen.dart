@@ -192,7 +192,7 @@ class _StaffCardFront extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: Container(
-                    color: Colors.white,
+                    color: const Color(0xFFFFFCF5),
                     child: CustomPaint(painter: _WatermarkPainter()),
                   ),
                 ),
@@ -208,7 +208,7 @@ class _StaffCardFront extends StatelessWidget {
                           EdgeInsets.fromLTRB(22, width * .13, 22, width * .08),
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [kNavy, Color(0xFF04142F)],
+                          colors: [Color(0xFFFFFDF8), Color(0xFFF7F0DF)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -222,7 +222,7 @@ class _StaffCardFront extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: kNavy,
                               fontFamily: 'serif',
                               height: 1.02,
                               fontSize: width * .069,
@@ -238,7 +238,7 @@ class _StaffCardFront extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: const Color(0xFFF6D88E),
+                              color: const Color(0xFF8A5A00),
                               fontSize: width * .027,
                               fontWeight: FontWeight.w700,
                             ),
@@ -259,10 +259,10 @@ class _StaffCardFront extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: constraints.maxHeight * .225,
-                  left: width * .275,
-                  width: width * .45,
-                  height: width * .45,
+                  top: constraints.maxHeight * .215,
+                  left: width * .31,
+                  width: width * .38,
+                  height: width * .44,
                   child: _Portrait(data: data),
                 ),
                 Positioned(
@@ -377,8 +377,6 @@ class _StaffCardBack extends StatelessWidget {
                   top: width * .14,
                   child: Column(
                     children: [
-                      _SchoolLogo(school: school, size: width * .15),
-                      const SizedBox(height: 5),
                       Text(
                         (school['name']?.toString() ?? 'EduCore School')
                             .toUpperCase(),
@@ -432,12 +430,12 @@ class _StaffCardBack extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  height: constraints.maxHeight * .315,
+                  height: constraints.maxHeight * .35,
                   child: ClipPath(
                     clipper: _ChevronTopClipper(),
                     child: Container(
                       padding: EdgeInsets.fromLTRB(
-                          width * .10, width * .12, width * .10, width * .04),
+                          width * .10, width * .105, width * .10, width * .035),
                       decoration: const BoxDecoration(
                         gradient:
                             LinearGradient(colors: [kNavy, Color(0xFF04142F)]),
@@ -477,6 +475,31 @@ class _StaffCardBack extends StatelessWidget {
                               icon: Icons.language_outlined,
                               value: school['website']?.toString()),
                           const Spacer(),
+                          if (school['has_signature'] == true) ...[
+                            SizedBox(
+                              height: width * .065,
+                              child: Image.network(
+                                ApiClient.instance.url(
+                                  '/id-card/signature-file?v=${school['signature_version'] ?? ''}',
+                                ),
+                                headers: ApiClient.instance.imageHeaders,
+                                fit: BoxFit.contain,
+                                color: Colors.white,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            ),
+                            Text(
+                              'AUTHORIZED SIGNATURE',
+                              style: TextStyle(
+                                color: kGold,
+                                fontSize: width * .016,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: .7,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                          ],
                           Container(height: 1, color: Colors.white24),
                           const SizedBox(height: 5),
                           Text(
@@ -536,14 +559,15 @@ class _Portrait extends StatelessWidget {
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: kNavy, width: 3),
         boxShadow: const [
           BoxShadow(
               color: Color(0x30071E45), blurRadius: 12, offset: Offset(0, 5)),
         ],
       ),
-      child: ClipOval(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(7),
         child: hasPhoto
             ? Image.network(
                 ApiClient.instance.url('/id-card/photo-file?v=$version'),
@@ -640,29 +664,6 @@ class _ContactLine extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SchoolLogo extends StatelessWidget {
-  const _SchoolLogo({required this.school, required this.size});
-  final Map<String, dynamic> school;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final logo = school['logo']?.toString();
-    return SizedBox(
-      width: size,
-      height: size,
-      child: logo == null || logo.isEmpty
-          ? Image.asset('assets/icon/educore-icon.png',
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.school_rounded, color: kNavy))
-          : Image.network(logo,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.school_rounded, color: kNavy)),
     );
   }
 }

@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SchoolSetting;
+use Illuminate\Support\Facades\Storage;
 
 class SchoolSettingController extends Controller
 {
@@ -24,6 +25,7 @@ class SchoolSettingController extends Controller
             'email'         => ['nullable', 'email'],
             'website'       => ['nullable', 'url'],
             'logo'          => ['nullable', 'image', 'max:2048'],
+            'authorized_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -33,6 +35,17 @@ class SchoolSettingController extends Controller
                 \Illuminate\Support\Facades\Storage::disk('public')->delete($tenant->logo_path);
             }
             $tenant->update(['logo_path' => $path]); // store clean relative path e.g. logos/1/abc.png
+        }
+
+        if ($request->hasFile('authorized_signature')) {
+            $path = $request->file('authorized_signature')
+                ->store("signatures/{$tenant->id}", 'public');
+
+            if ($tenant->authorized_signature_path && $tenant->authorized_signature_path !== $path) {
+                Storage::disk('public')->delete($tenant->authorized_signature_path);
+            }
+
+            $tenant->update(['authorized_signature_path' => $path]);
         }
 
         $tenant->update([

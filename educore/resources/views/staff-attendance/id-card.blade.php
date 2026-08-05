@@ -14,29 +14,30 @@ body{margin:0;background:#EEF2F7;color:var(--ink);font-family:"Plus Jakarta Sans
 .toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:9px 14px;font:700 12px/1 inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}.btn-primary{background:var(--gold);color:var(--navy)}.btn-light{background:#F8FAFC;color:var(--navy);border:1px solid var(--line)}
 .cards{display:flex;justify-content:center;align-items:flex-start;gap:34px;flex-wrap:wrap}
 .card-unit{display:flex;flex-direction:column;align-items:center;gap:8px}.side-label{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#98A2B3}
-.staff-card{width:324px;height:516px;border-radius:23px;overflow:hidden;position:relative;background:#fff;box-shadow:0 20px 52px rgba(7,30,69,.22);border:1px solid rgba(7,30,69,.10)}
+.staff-card{width:324px;height:516px;border-radius:23px;overflow:hidden;position:relative;background:#FFFCF5;box-shadow:0 20px 52px rgba(7,30,69,.22);border:3px solid var(--gold)}
+.staff-card::after{content:"";position:absolute;inset:8px;border:1px solid rgba(7,30,69,.38);border-radius:14px;pointer-events:none;z-index:8}
 .slot{position:absolute;z-index:9;left:50%;top:15px;transform:translateX(-50%);width:78px;height:19px;background:#F8FAFC;border-radius:12px;box-shadow:inset 0 2px 6px rgba(7,30,69,.18)}
-.front-head{height:158px;padding:47px 24px 0;text-align:center;color:white;position:relative;background:linear-gradient(145deg,var(--navy),#04142F)}
-.front-head::before{content:"";position:absolute;inset:0;background-image:linear-gradient(30deg,transparent 48%,rgba(255,255,255,.035) 49%,rgba(255,255,255,.035) 51%,transparent 52%),linear-gradient(150deg,transparent 48%,rgba(255,255,255,.03) 49%,rgba(255,255,255,.03) 51%,transparent 52%);background-size:58px 58px}
-.school-title{position:relative;font-size:22px;font-weight:900;line-height:1.02;letter-spacing:.025em;text-transform:uppercase;max-height:45px;overflow:hidden}.school-motto{position:relative;margin-top:6px;color:var(--gold-soft);font-size:9px;font-weight:700;letter-spacing:.045em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.front-head::after{content:"";position:absolute;left:-12px;right:-12px;bottom:-23px;height:52px;background:#fff;border-top:7px solid var(--gold);transform:skewY(-6deg)}
-.portrait-shell{position:absolute;z-index:4;top:124px;left:50%;transform:translateX(-50%);width:132px;height:132px;border-radius:50%;padding:6px;background:white;border:3px solid var(--navy);box-shadow:0 8px 18px rgba(7,30,69,.18)}
-.portrait{width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:top;background:#E9EDF3}
-.portrait-fallback{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:linear-gradient(150deg,#D5DAE2,#AEB5BF);color:white;font-size:52px;font-weight:900}
-.front-body{padding:104px 25px 61px;text-align:center;height:358px;position:relative}
+.front-head{height:154px;padding:43px 24px 0;text-align:center;color:var(--navy);position:relative;background:linear-gradient(145deg,#FFFDF8,#F7F0DF)}
+.front-head::before{content:"";position:absolute;inset:0;background-image:repeating-radial-gradient(ellipse at 50% 15%,transparent 0 15px,rgba(7,30,69,.035) 16px 17px);background-size:100% 100%}
+.school-title{position:relative;font-family:Georgia,serif;font-size:23px;font-weight:900;line-height:1.02;letter-spacing:.05em;text-transform:uppercase;max-height:47px;overflow:hidden}.school-motto{position:relative;margin-top:6px;color:#8A5A00;font-size:9px;font-weight:700;letter-spacing:.045em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.front-head::after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:5px;background:linear-gradient(90deg,var(--navy),var(--gold),var(--navy))}
+.portrait-shell{position:absolute;z-index:4;top:119px;left:50%;transform:translateX(-50%);width:128px;height:145px;border-radius:12px;padding:5px;background:white;border:2px solid var(--gold);box-shadow:0 8px 18px rgba(7,30,69,.18)}
+.portrait{width:100%;height:100%;border-radius:7px;object-fit:cover;object-position:top;background:#E9EDF3}
+.portrait-fallback{width:100%;height:100%;border-radius:7px;display:grid;place-items:center;background:linear-gradient(150deg,#D5DAE2,#AEB5BF);color:white;font-size:52px;font-weight:900}
+.front-body{padding:115px 25px 61px;text-align:center;height:362px;position:relative;background:#FFFCF5}
 .staff-name{color:var(--navy);font-size:19px;line-height:1.08;font-weight:900;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.staff-role{color:var(--gold);margin-top:5px;font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.11em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .name-rule{width:142px;height:1px;background:var(--navy);margin:8px auto 11px;position:relative}.name-rule::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--gold);border:3px solid #fff;left:50%;top:50%;transform:translate(-50%,-50%)}
 .identity-list{text-align:left;display:grid;gap:7px}.identity-row{display:grid;grid-template-columns:31px 1fr;gap:9px;align-items:center}.identity-icon{width:29px;height:29px;border-radius:8px;background:var(--navy);display:grid;place-items:center;color:var(--gold);font-size:7px;font-weight:900;letter-spacing:-.02em}.identity-label{font-size:7.5px;font-weight:900;color:var(--navy);letter-spacing:.08em;text-transform:uppercase}.identity-value{margin-top:1px;font-size:10.5px;color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .front-foot{position:absolute;left:0;right:0;bottom:0;height:51px;display:grid;place-items:center;color:white;background:linear-gradient(90deg,var(--navy),var(--navy-2));border-top:5px solid var(--gold);font-size:15px;font-weight:900;letter-spacing:.34em;padding-left:.34em}
-.back{background:linear-gradient(145deg,#fff,#F4F6F9)}
+.back{background:linear-gradient(145deg,#FFFDF8,#F7F0DF)}
 .back::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 58%,rgba(7,30,69,.025) 58%)}
-.back-brand{position:relative;padding:45px 24px 0;text-align:center;z-index:2}.back-logo{width:45px;height:45px;object-fit:contain}.back-school{color:var(--navy);font-size:19px;font-weight:900;text-transform:uppercase;line-height:1.02;max-height:39px;overflow:hidden}.gold-rule{width:132px;height:2px;background:var(--gold);margin:7px auto 10px;position:relative}.gold-rule::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--gold);left:50%;top:50%;transform:translate(-50%,-50%);border:3px solid white}
+.back-brand{position:relative;padding:47px 24px 0;text-align:center;z-index:2}.back-school{color:var(--navy);font-family:Georgia,serif;font-size:20px;font-weight:900;text-transform:uppercase;line-height:1.02;max-height:41px;overflow:hidden}.gold-rule{width:132px;height:2px;background:var(--gold);margin:8px auto 10px;position:relative}.gold-rule::after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--gold);left:50%;top:50%;transform:translate(-50%,-50%);border:3px solid white}
 .qr-box{position:relative;z-index:3;width:130px;height:130px;margin:0 auto;padding:8px;background:white;border:3px solid var(--navy);border-radius:13px;box-shadow:0 6px 18px rgba(7,30,69,.12)}.qr-box img{width:100%;height:100%;display:block}.qr-fallback{width:100%;height:100%;display:grid;place-items:center;color:var(--muted);font-size:10px;text-align:center}
 .scan-copy{position:relative;z-index:3;text-align:center;margin-top:7px;color:var(--navy);font-size:9.5px;font-weight:700;line-height:1.3}.scan-copy strong{display:block;color:var(--gold);font-size:11px;letter-spacing:.05em;text-transform:uppercase}
-.return-panel{position:absolute;z-index:2;left:0;right:0;bottom:0;height:151px;padding:27px 27px 13px;color:white;text-align:center;background:linear-gradient(135deg,var(--navy),#04142F);clip-path:polygon(0 13%,50% 0,100% 13%,100% 100%,0 100%);border-top:0}
+.return-panel{position:absolute;z-index:2;left:0;right:0;bottom:0;height:164px;padding:24px 27px 12px;color:white;text-align:center;background:linear-gradient(135deg,var(--navy),#04142F);clip-path:polygon(0 10%,50% 0,100% 10%,100% 100%,0 100%);border-top:0}
 .return-panel::before{content:"";position:absolute;left:0;right:0;top:5px;height:5px;background:var(--gold);clip-path:polygon(0 60%,50% 0,100% 60%,100% 100%,0 100%)}
 .return-label{font-size:8.5px;color:#D5DFEC}.return-school{font-size:11.5px;font-weight:900;margin:2px 0}.return-address{font-size:8.5px;color:#C6D1E0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.contacts{display:grid;gap:2px;margin-top:6px;text-align:left}.contact{font-size:8px;color:#F4F7FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.contact b{color:var(--gold);display:inline-block;width:25px;text-align:left;font-size:6.5px;letter-spacing:.02em}.property{border-top:1px solid rgba(255,255,255,.32);margin-top:6px;padding-top:5px;font-size:6.8px;color:#C6D1E0;line-height:1.3}
+.contacts{display:grid;gap:1px;margin-top:4px;text-align:left}.contact{font-size:7.5px;color:#F4F7FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.contact b{color:var(--gold);display:inline-block;width:25px;text-align:left;font-size:6.2px;letter-spacing:.02em}.signature-block{height:28px;margin-top:3px;display:flex;align-items:flex-end;justify-content:center}.signature-block img{max-width:105px;max-height:28px;object-fit:contain;filter:brightness(0) invert(1)}.signature-label{font-size:6px;color:var(--gold);text-transform:uppercase;letter-spacing:.09em}.property{border-top:1px solid rgba(255,255,255,.32);margin-top:3px;padding-top:3px;font-size:6.3px;color:#C6D1E0;line-height:1.2}
 @media(max-width:720px){body{padding:14px 10px}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions,.toolbar-actions>*{width:100%}.cards{gap:22px}.staff-card{width:min(324px,calc(100vw - 24px));height:auto;aspect-ratio:324/516}.front-head{height:33.72%}.front-body{height:66.28%}}
 @media print{body{background:#fff;padding:0}.toolbar,.side-label{display:none!important}.cards{gap:12mm;align-items:flex-start}.staff-card{box-shadow:none;width:54mm;height:86mm;border-radius:4mm}.card-unit{break-inside:avoid}@page{size:A4 landscape;margin:12mm}}
 </style>
@@ -48,9 +49,9 @@ body{margin:0;background:#EEF2F7;color:var(--ink);font-family:"Plus Jakarta Sans
     $motto = $tenant?->motto ?: 'Excellence through education';
     $department = $staff->department_name ?: 'School Administration';
     $joinDate = optional($staff->employment_started_at ?? $staff->created_at)->format('d M Y');
-    $logo = $tenant?->logo_path
-        ? asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->logo_path, '/')))
-        : '/brand/educore-icon.svg';
+    $signature = $tenant?->authorized_signature_path
+        ? asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->authorized_signature_path, '/')))
+        : null;
     $website = parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online';
 @endphp
 <div class="toolbar">
@@ -94,7 +95,6 @@ body{margin:0;background:#EEF2F7;color:var(--ink);font-family:"Plus Jakarta Sans
         <article class="staff-card back">
             <div class="slot"></div>
             <header class="back-brand">
-                <img class="back-logo" src="{{ $logo }}" alt="">
                 <div class="back-school">{{ $schoolName }}</div>
                 <div class="gold-rule"></div>
             </header>
@@ -115,6 +115,10 @@ body{margin:0;background:#EEF2F7;color:var(--ink);font-family:"Plus Jakarta Sans
                     <div class="contact"><b>MAIL</b>{{ $tenant?->email ?: $staff->email }}</div>
                     <div class="contact"><b>WEB</b>{{ $website }}</div>
                 </div>
+                @if($signature)
+                <div class="signature-block"><img src="{{ $signature }}" alt="Authorized signature"></div>
+                <div class="signature-label">Authorized signature</div>
+                @endif
                 <div class="property">This card is the property of {{ $schoolName }}. It must be returned on request or at the end of employment.</div>
             </div>
         </article>

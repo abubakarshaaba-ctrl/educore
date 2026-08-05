@@ -51,6 +51,7 @@ class Tenant extends Model
         'slug',
         'subdomain',
         'logo_path',
+        'authorized_signature_path',
         'motto',
         'address',
         'phone',

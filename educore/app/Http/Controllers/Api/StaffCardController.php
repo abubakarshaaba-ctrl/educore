@@ -19,13 +19,10 @@ class StaffCardController extends Controller
         $user   = $request->user();
         $tenant = $user->tenant;
 
-        $logo = null;
-        if (!empty($tenant->logo_path)) {
-            $logo = asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->logo_path, '/')));
-        }
-
         $hasPhoto = $user->passport_photo
             && Storage::disk('public')->exists($user->passport_photo);
+        $hasSignature = $tenant?->authorized_signature_path
+            && Storage::disk('public')->exists($tenant->authorized_signature_path);
 
         return response()->json([
             'name'        => $user->name,
@@ -43,12 +40,15 @@ class StaffCardController extends Controller
             'qr_payload'  => $user->personalQrPayload(),
             'school'      => [
                 'name'  => $tenant?->name,
-                'logo'  => $logo,
                 'motto' => $tenant?->motto,
                 'address' => $tenant?->address,
                 'phone' => $tenant?->phone,
                 'email' => $tenant?->email,
                 'website' => parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online',
+                'has_signature' => (bool) $hasSignature,
+                'signature_version' => $hasSignature
+                    ? substr(md5($tenant->authorized_signature_path), 0, 10)
+                    : null,
             ],
         ]);
     }
@@ -63,6 +63,21 @@ class StaffCardController extends Controller
         }
 
         return Storage::disk('public')->response($user->passport_photo, null, [
+            'Cache-Control' => 'no-cache, private',
+        ]);
+    }
+
+    /** Stream the issuing school's authorized signature to authenticated staff. */
+    public function signatureFile(Request $request)
+    {
+        $tenant = $request->user()->tenant;
+        $path = $tenant?->authorized_signature_path;
+
+        if (!$path || !Storage::disk('public')->exists($path)) {
+            abort(404, 'No authorized signature on file.');
+        }
+
+        return Storage::disk('public')->response($path, null, [
             'Cache-Control' => 'no-cache, private',
         ]);
     }

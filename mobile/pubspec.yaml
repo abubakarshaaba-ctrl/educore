@@ -1,7 +1,7 @@
 name: educore_mobile
 description: EduCore unified school management for administrators, staff, students, and parents.
 publish_to: "none"
-version: 1.0.10+11
+version: 1.0.11+12
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
