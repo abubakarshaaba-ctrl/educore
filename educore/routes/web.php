@@ -398,6 +398,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::get('/',             [StaffController::class, 'index'])->name('index');
     Route::get('create',        [StaffController::class, 'create'])->name('create');
     Route::post('/',            [StaffController::class, 'store'])->name('store');
+    Route::get('id-cards/download-all', [\App\Http\Controllers\StaffAttendanceController::class, 'downloadAllIdCards'])->name('id-cards.download-all');
     Route::get('archive',       [StaffArchiveController::class, 'index'])->middleware('can:staff.archive.view')->name('archive.index');
     Route::get('archive/export', [StaffArchiveController::class, 'export'])->middleware('can:staff.archive.export')->name('archive.export');
     Route::get('archive/{staff}', [StaffArchiveController::class, 'show'])->middleware('can:staff.archive.view')->name('archive.show');
@@ -410,6 +411,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::post('{staff}/reinstate', [StaffLifecycleController::class, 'reinstate'])->middleware('can:staff.reinstate')->name('reinstate');
     Route::get('{staff}/work-history', [StaffWorkHistoryController::class, 'index'])->middleware('can:staff.work-history.view')->name('work-history.index');
     Route::post('{staff}/work-history', [StaffWorkHistoryController::class, 'store'])->middleware(['can:staff.work-history.manage', 'can:staff.work-history.approve'])->name('work-history.store');
+    Route::get('{staff}/id-card/download', [\App\Http\Controllers\StaffAttendanceController::class, 'downloadIdCard'])->name('id-card.download');
     Route::get('{staff}/edit',  [StaffController::class, 'edit'])->name('edit');
     Route::get('{staff}',       [StaffController::class, 'show'])->name('show');
     Route::put('{staff}',       [StaffController::class, 'update'])->name('update');

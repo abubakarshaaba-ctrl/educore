@@ -7,10 +7,12 @@ use App\Models\StaffOfflineClockIn;
 use App\Models\StaffProxyRequest;
 use App\Models\User;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class StaffAttendanceController extends Controller
@@ -786,6 +788,71 @@ class StaffAttendanceController extends Controller
 
         $url = $qrUrl;
         return view('staff-attendance.id-card', compact('staff', 'qrBase64', 'qrPayload', 'settings', 'url'));
+    }
+
+    public function downloadIdCard(User $staff)
+    {
+        $this->ensureSchoolAdmin();
+        $staff = User::activeStaff(auth()->user()->tenant_id)
+            ->with(['tenant', 'currentWorkHistory'])
+            ->whereKey($staff->id)
+            ->firstOrFail();
+
+        $cards = collect([$this->pdfCardData($staff)]);
+        $filename = 'staff-id-' . str($staff->staff_id ?: $staff->name)->slug() . '.pdf';
+
+        return Pdf::loadView('staff-attendance.id-cards-pdf', compact('cards'))
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
+    }
+
+    public function downloadAllIdCards()
+    {
+        $this->ensureSchoolAdmin();
+        $staff = User::activeStaff(auth()->user()->tenant_id)
+            ->with(['tenant', 'currentWorkHistory'])
+            ->orderBy('name')
+            ->get();
+
+        abort_if($staff->isEmpty(), 404, 'There are no active staff ID cards to download.');
+
+        $cards = $staff->map(fn (User $member) => $this->pdfCardData($member));
+
+        return Pdf::loadView('staff-attendance.id-cards-pdf', compact('cards'))
+            ->setPaper('a4', 'landscape')
+            ->download('all-staff-id-cards-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function ensureSchoolAdmin(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403, 'Only the school administrator can download staff ID cards.');
+    }
+
+    private function pdfCardData(User $staff): array
+    {
+        $tenant = $staff->tenant;
+        $payload = $staff->personalQrPayload();
+        $qrUrl = route('staff-attendance.my') . '?qr_token=' . urlencode($payload);
+
+        return [
+            'staff' => $staff,
+            'tenant' => $tenant,
+            'qr' => $this->buildQrBase64($qrUrl, 220),
+            'photo' => $this->publicImageData($staff->passport_photo),
+            'signature' => $this->publicImageData($tenant?->authorized_signature_path),
+            'department' => $staff->department_name ?: $staff->currentWorkHistory?->department_name ?: 'School Administration',
+            'joined' => optional($staff->employment_started_at ?? $staff->created_at)->format('d M Y'),
+            'website' => parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online',
+        ];
+    }
+
+    private function publicImageData(?string $path): ?string
+    {
+        if (!$path) return null;
+        $path = preg_replace('#^storage/#', '', ltrim($path, '/'));
+        if (!Storage::disk('public')->exists($path)) return null;
+        $mime = Storage::disk('public')->mimeType($path) ?: 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('public')->get($path));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────

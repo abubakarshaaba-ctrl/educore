@@ -60,6 +60,11 @@
 <div class="page-header">
     <h1>Staff ({{ $staff->total() }})</h1>
     <div style="display:flex;gap:8px;align-items:center">
+        @if(auth()->user()->isAdmin())
+        <a href="{{ route('staff.id-cards.download-all') }}" class="btn btn-ghost">
+            Download all ID cards
+        </a>
+        @endif
         @can('staff.archive.view')
         <a href="{{ route('staff.archive.index') }}" class="btn btn-ghost">
             Staff Archive

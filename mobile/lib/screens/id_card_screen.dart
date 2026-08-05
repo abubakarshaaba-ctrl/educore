@@ -178,8 +178,8 @@ class _IdCardScreenState extends State<IdCardScreen> {
       );
 }
 
-class _StaffCardFront extends StatelessWidget {
-  const _StaffCardFront({required this.data, required this.school});
+class _LegacyStaffCardFront extends StatelessWidget {
+  const _LegacyStaffCardFront({required this.data, required this.school});
   final Map<String, dynamic> data;
   final Map<String, dynamic> school;
 
@@ -348,8 +348,8 @@ class _StaffCardFront extends StatelessWidget {
       );
 }
 
-class _StaffCardBack extends StatelessWidget {
-  const _StaffCardBack({required this.data, required this.school});
+class _LegacyStaffCardBack extends StatelessWidget {
+  const _LegacyStaffCardBack({required this.data, required this.school});
   final Map<String, dynamic> data;
   final Map<String, dynamic> school;
 
@@ -525,6 +525,380 @@ class _StaffCardBack extends StatelessWidget {
       );
 }
 
+class _StaffCardFront extends StatelessWidget {
+  const _StaffCardFront({required this.data, required this.school});
+  final Map<String, dynamic> data;
+  final Map<String, dynamic> school;
+
+  @override
+  Widget build(BuildContext context) => _CardShell(
+        child: LayoutBuilder(builder: (context, box) {
+          final w = box.maxWidth;
+          final h = box.maxHeight;
+          return Stack(children: [
+            const Positioned.fill(
+              child: ColoredBox(color: Color(0xFFFBF7EE)),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: h * .235,
+              child: CustomPaint(
+                painter: _HeritageHeaderPainter(),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(w * .14, h * .079, w * .14, 0),
+                  child: Column(children: [
+                    Text(
+                      (school['name']?.toString() ?? 'EduCore School')
+                          .toUpperCase(),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'serif',
+                        fontSize: w * .064,
+                        height: .92,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                    SizedBox(height: w * .016),
+                    Text(
+                      school['motto']?.toString().isNotEmpty == true
+                          ? school['motto'].toString()
+                          : 'Excellence through education',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFFE2C478),
+                        fontFamily: 'serif',
+                        fontStyle: FontStyle.italic,
+                        fontSize: w * .024,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+            Positioned(
+              top: h * .208,
+              left: w * .25,
+              width: w * .50,
+              height: h * .385,
+              child: _Portrait(data: data),
+            ),
+            Positioned(
+              top: h * .612,
+              left: w * .07,
+              right: w * .07,
+              child: Column(children: [
+                Text(
+                  (data['name']?.toString() ?? 'Staff Name').toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: const Color(0xFF17233A),
+                    fontFamily: 'serif',
+                    fontSize: w * .061,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .8,
+                  ),
+                ),
+                SizedBox(height: w * .012),
+                Text(
+                  (data['role']?.toString() ?? 'Staff').toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFF741E2D),
+                    fontSize: w * .026,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+                SizedBox(height: h * .026),
+                _HeritageDetailRow(
+                    label: 'Staff ID',
+                    value: data['staff_id']?.toString() ?? '—'),
+                _HeritageDetailRow(
+                    label: 'Department',
+                    value: data['department']?.toString() ??
+                        'School Administration'),
+                _HeritageDetailRow(
+                    label: 'Joined',
+                    value: data['date_joined']?.toString() ?? '—'),
+              ]),
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 48,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFF741E2D),
+                  border: Border(
+                      top: BorderSide(color: Color(0xFFC9A04E), width: 3)),
+                ),
+                child: Center(
+                    child: Text('S T A F F',
+                        style: TextStyle(
+                            color: Color(0xFFE7C674),
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4))),
+              ),
+            ),
+            const Positioned.fill(
+                child: IgnorePointer(
+                    child: CustomPaint(painter: _HeritageFramePainter()))),
+          ]);
+        }),
+      );
+}
+
+class _StaffCardBack extends StatelessWidget {
+  const _StaffCardBack({required this.data, required this.school});
+  final Map<String, dynamic> data;
+  final Map<String, dynamic> school;
+
+  @override
+  Widget build(BuildContext context) => _CardShell(
+        child: LayoutBuilder(builder: (context, box) {
+          final w = box.maxWidth;
+          final h = box.maxHeight;
+          return Stack(children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0xFFFBF7EE))),
+            Positioned(
+              top: h * .085,
+              left: w * .10,
+              right: w * .10,
+              child: Text(
+                (school['name']?.toString() ?? 'EduCore School').toUpperCase(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: const Color(0xFF17233A),
+                    fontFamily: 'serif',
+                    fontSize: w * .064,
+                    height: .92,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.6),
+              ),
+            ),
+            Positioned(
+                top: h * .215,
+                left: w * .32,
+                right: w * .32,
+                child: const _HeritageOrnament()),
+            Positioned(
+              top: h * .27,
+              left: w * .29,
+              width: w * .42,
+              height: w * .42,
+              child: Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    border:
+                        Border.all(color: const Color(0xFF172A47), width: 2)),
+                child: QrImageView(
+                    data: data['qr_payload']?.toString() ?? '',
+                    padding: EdgeInsets.zero),
+              ),
+            ),
+            Positioned(
+                top: h * .552,
+                left: 20,
+                right: 20,
+                child: Text('Scan for staff attendance',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: const Color(0xFF741E2D),
+                        fontFamily: 'serif',
+                        fontStyle: FontStyle.italic,
+                        fontSize: w * .028))),
+            Positioned(
+              top: h * .61,
+              left: w * .10,
+              right: w * .10,
+              child: Column(children: [
+                Text('If found, please return to:',
+                    style: TextStyle(fontFamily: 'serif', fontSize: w * .024)),
+                Text(school['name']?.toString() ?? 'School office',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: w * .031,
+                        fontWeight: FontWeight.w900)),
+                Text(
+                    school['address']?.toString() ??
+                        'School administration office',
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: w * .021, height: 1.25)),
+                SizedBox(height: w * .01),
+                Text(
+                    [school['phone'], school['email']]
+                        .where((v) => v?.toString().isNotEmpty == true)
+                        .join('\n'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: w * .020, height: 1.25)),
+              ]),
+            ),
+            Positioned(
+                top: h * .78,
+                left: w * .10,
+                right: w * .10,
+                child: Text(
+                    'THIS CARD IS THE PROPERTY OF THE ISSUING SCHOOL.\nPLEASE RETURN UPON REQUEST.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: const Color(0xFF741E2D),
+                        fontSize: w * .018,
+                        height: 1.3,
+                        fontWeight: FontWeight.w900))),
+            if (school['has_signature'] == true)
+              Positioned(
+                  bottom: h * .065,
+                  left: w * .30,
+                  right: w * .30,
+                  height: h * .075,
+                  child: Image.network(
+                      ApiClient.instance.url(
+                          '/id-card/signature-file?v=${school['signature_version'] ?? ''}'),
+                      headers: ApiClient.instance.imageHeaders,
+                      fit: BoxFit.contain,
+                      color: const Color(0xFF17233A),
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink())),
+            Positioned(
+                bottom: h * .038,
+                left: w * .26,
+                right: w * .26,
+                child: Column(children: [
+                  Container(height: 1, color: const Color(0xFF9D7A3B)),
+                  SizedBox(height: w * .008),
+                  Text('Authorized Signature',
+                      style: TextStyle(
+                          fontFamily: 'serif',
+                          fontStyle: FontStyle.italic,
+                          fontSize: w * .021))
+                ])),
+            const Positioned.fill(
+                child: IgnorePointer(
+                    child: CustomPaint(
+                        painter: _HeritageFramePainter(doubleFrame: true)))),
+          ]);
+        }),
+      );
+}
+
+class _HeritageDetailRow extends StatelessWidget {
+  const _HeritageDetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 30,
+        decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFD1B57E)))),
+        child: Row(children: [
+          SizedBox(
+              width: 90,
+              child: Text(label.toUpperCase(),
+                  style: const TextStyle(
+                      color: Color(0xFF741E2D),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .7))),
+          Container(width: 1, color: const Color(0xFFD1B57E)),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Color(0xFF17233A),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600))),
+        ]),
+      );
+}
+
+class _HeritageOrnament extends StatelessWidget {
+  const _HeritageOrnament();
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Expanded(child: Container(height: 1, color: const Color(0xFFC9A04E))),
+        const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 5),
+            child: Text('◆',
+                style: TextStyle(color: Color(0xFFC9A04E), fontSize: 10))),
+        Expanded(child: Container(height: 1, color: const Color(0xFFC9A04E)))
+      ]);
+}
+
+class _HeritageHeaderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+        Offset.zero & size, Paint()..color = const Color(0xFF10233D));
+    final wine = Paint()..color = const Color(0xFF741E2D);
+    canvas.drawPath(
+        Path()
+          ..moveTo(0, 0)
+          ..lineTo(size.width * .28, size.height)
+          ..lineTo(0, size.height)
+          ..close(),
+        wine);
+    canvas.drawPath(
+        Path()
+          ..moveTo(size.width, 0)
+          ..lineTo(size.width * .72, size.height)
+          ..lineTo(size.width, size.height)
+          ..close(),
+        wine);
+    final gold = Paint()
+      ..color = const Color(0xFFC9A04E)
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(0, 0), Offset(size.width * .29, size.height), gold);
+    canvas.drawLine(
+        Offset(size.width, 0), Offset(size.width * .71, size.height), gold);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HeritageFramePainter extends CustomPainter {
+  const _HeritageFramePainter({this.doubleFrame = false});
+  final bool doubleFrame;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFC9A04E)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTWH(10, 10, size.width - 20, size.height - 20),
+            const Radius.circular(9)),
+        paint);
+    if (doubleFrame)
+      canvas.drawRect(
+          Rect.fromLTWH(17, 17, size.width - 34, size.height - 34), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeritageFramePainter oldDelegate) => false;
+}
+
 class _CardShell extends StatelessWidget {
   const _CardShell({required this.child});
   final Widget child;
@@ -533,9 +907,9 @@ class _CardShell extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0x26071E45)),
+          color: const Color(0xFFFBF7EE),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFC9A04E), width: 2),
           boxShadow: const [
             BoxShadow(
                 color: Color(0x32071E45),
@@ -559,15 +933,15 @@ class _Portrait extends StatelessWidget {
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kNavy, width: 3),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: const Color(0xFFB98D38), width: 2),
         boxShadow: const [
           BoxShadow(
               color: Color(0x30071E45), blurRadius: 12, offset: Offset(0, 5)),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(1),
         child: hasPhoto
             ? Image.network(
                 ApiClient.instance.url('/id-card/photo-file?v=$version'),

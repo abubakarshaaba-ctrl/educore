@@ -78,6 +78,11 @@
                 <div class="info-row"><span class="info-key">Joined</span><span class="info-val">{{ $staff->created_at->format('d M Y') }}</span></div>
             </div>
             <div style="padding:12px 20px;border-top:1px solid var(--border)">
+                @if(auth()->user()->isAdmin())
+                <a href="{{ route('staff.id-card.download', $staff) }}" class="btn btn-ghost" style="width:100%;justify-content:center;margin-bottom:8px">
+                    Download staff ID card
+                </a>
+                @endif
                 @if(auth()->user()->canManage('staff'))
                 <a href="{{ route('staff.permissions', $staff) }}"
                    style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;margin-bottom:8px">

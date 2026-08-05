@@ -12,11 +12,42 @@ use App\Models\PaymentTransaction;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\Term;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Tests\TestCase;
 
 class PremiumDocumentTemplateTest extends TestCase
 {
+    public function test_heritage_staff_id_card_template_renders_as_a_pdf(): void
+    {
+        $tenant = $this->tenant();
+        $staff = new User([
+            'name' => 'Haruna Abubakar',
+            'email' => 'haruna@example.test',
+            'role' => 'admin',
+            'staff_id' => 'STAFF-0002',
+            'employment_started_at' => '2026-06-14',
+        ]);
+        $staff->id = 2;
+        $staff->setRelation('tenant', $tenant);
+
+        $pdf = Pdf::loadView('staff-attendance.id-cards-pdf', [
+            'cards' => collect([[
+                'staff' => $staff,
+                'tenant' => $tenant,
+                'qr' => null,
+                'photo' => null,
+                'signature' => null,
+                'department' => 'School Administration',
+                'joined' => '14 Jun 2026',
+                'website' => 'educoreng.online',
+            ]]),
+        ])->setPaper('a4', 'landscape')->output();
+
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertGreaterThan(10_000, strlen($pdf));
+    }
+
     public function test_admission_offer_template_renders_as_a_pdf(): void
     {
         $level = new ClassLevel(['name' => 'Basic 7']);
