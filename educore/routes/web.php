@@ -217,6 +217,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('/', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('store');
         Route::post('requests/{migrationRequest}/school-approve', [\App\Http\Controllers\DataMigrationController::class, 'schoolApprove'])->name('school-approve');
         Route::post('requests/{migrationRequest}/reject', [\App\Http\Controllers\DataMigrationController::class, 'reject'])->name('reject');
+        Route::post('{migration}/ingest', [\App\Http\Controllers\DataMigrationController::class, 'ingest'])->name('ingest');
         Route::get('{migration}', [\App\Http\Controllers\DataMigrationController::class, 'show'])->name('show');
     });
 
@@ -1060,9 +1061,11 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
 Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->name('super.')->group(function () {
     Route::get('/',              [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'index'])->name('migrations.index');
+    Route::post('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('migrations.store');
     Route::get('data-migrations/{migration}', [\App\Http\Controllers\DataMigrationController::class, 'show'])->name('migrations.show');
     Route::post('data-migration-requests/{migrationRequest}/approve', [\App\Http\Controllers\DataMigrationController::class, 'platformApprove'])->name('migrations.approve');
     Route::post('data-migration-requests/{migrationRequest}/reject', [\App\Http\Controllers\DataMigrationController::class, 'reject'])->name('migrations.reject');
+    Route::post('data-migrations/{migration}/ingest', [\App\Http\Controllers\DataMigrationController::class, 'ingest'])->name('migrations.ingest');
     Route::get('tenants',        [SuperAdminController::class, 'tenants'])->name('tenants');
     Route::get('tenants/create', [SuperAdminController::class, 'createTenant'])->name('tenants.create');
     Route::post('tenants',       [SuperAdminController::class, 'storeTenant'])->name('tenants.store');

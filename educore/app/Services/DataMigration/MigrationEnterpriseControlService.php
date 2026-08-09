@@ -22,7 +22,9 @@ class MigrationEnterpriseControlService
 
     public function request(DataMigration $migration, User $actor, string $justification, array $dataScope): MigrationRequest
     {
-        $this->requireTenantAdmin($actor, $migration->tenant_id);
+        if (! $actor->isMigrationAdmin()) {
+            $this->requireTenantAdmin($actor, $migration->tenant_id);
+        }
 
         if (trim($justification) === '' || $dataScope === []) {
             throw new InvalidArgumentException('A business justification and explicit data scope are required.');

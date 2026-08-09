@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\DataMigration;
 use App\Models\MigrationRequest as EnterpriseMigrationRequest;
 use App\Models\Tenant;
+use App\Services\DataMigration\ImmutableSourceStorage;
 use App\Services\DataMigration\MigrationBatchService;
 use App\Services\DataMigration\MigrationEnterpriseControlService;
 use App\Services\DataMigration\MigrationEnterpriseDashboardService;
+use App\Services\DataMigration\MigrationIngestionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -37,32 +39,62 @@ class DataMigrationController extends Controller
         ]);
     }
 
-    public function store(Request $request, MigrationBatchService $batches, MigrationEnterpriseControlService $controls): RedirectResponse
+    public function store(Request $request, MigrationBatchService $batches, MigrationEnterpriseControlService $controls, ImmutableSourceStorage $storage): RedirectResponse
     {
         $actor = $request->user();
-        abort_unless($actor->isAdmin() && $actor->tenant_id, 403);
+        $platform = $actor->isSuperAdmin();
+        abort_unless($platform || ($actor->isAdmin() && $actor->tenant_id), 403);
         $data = $request->validate([
+            'tenant_id' => [$platform ? 'required' : 'nullable', 'integer', 'exists:tenants,id'],
             'direction' => ['required', 'in:inbound,outbound'],
             'migration_type' => ['required', 'in:full_migration,standard_import,full_export,selective_export'],
-            'source_system' => ['nullable', 'string', 'max:120'],
+            'source_platform' => ['required', 'string', 'max:120'],
+            'source_system_other' => ['nullable', 'string', 'max:120'],
             'destination_system' => ['nullable', 'string', 'max:120'],
             'business_justification' => ['required', 'string', 'min:20', 'max:2000'],
             'data_scope' => ['required', 'array', 'min:1'],
             'data_scope.*' => ['string', 'in:students,guardians,staff,academics,attendance,finance,configuration'],
+            'source_files' => ['required', 'array', 'min:1', 'max:20'],
+            'source_files.*' => ['required', 'file', 'max:524288'],
         ]);
 
-        $tenant = Tenant::query()->findOrFail($actor->tenant_id);
+        $tenant = Tenant::query()->findOrFail($platform ? $data['tenant_id'] : $actor->tenant_id);
+        $sourceSystem = $data['source_platform'] === 'other'
+            ? trim((string) ($data['source_system_other'] ?? ''))
+            : $data['source_platform'];
+        if ($sourceSystem === '') {
+            return back()->withErrors(['source_system_other' => 'Enter the source platform name.'])->withInput();
+        }
         $migration = $batches->create(
             $tenant,
             $actor,
             $data['direction'],
             $data['migration_type'],
-            $data['source_system'] ?? null,
+            $sourceSystem,
             $data['destination_system'] ?? 'EduCore',
         );
+        foreach ($request->file('source_files', []) as $sourceFile) {
+            $storage->preserve($migration, $sourceFile, $actor);
+        }
         $controls->request($migration, $actor, $data['business_justification'], $data['data_scope']);
 
-        return redirect()->route('migrations.show', $migration)->with('success', 'Migration request created and submitted for school approval.');
+        $route = $platform ? 'super.migrations.show' : 'migrations.show';
+
+        return redirect()->route($route, $migration)->with('success', 'Source files uploaded securely. Inspect and stage the batch, then complete the approval workflow.');
+    }
+
+    public function ingest(Request $request, DataMigration $migration, MigrationIngestionService $ingestion): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor->isSuperAdmin() || ($actor->isAdmin() && (int) $actor->tenant_id === (int) $migration->tenant_id), 403);
+
+        try {
+            $ingestion->ingest($migration, $actor);
+        } catch (\Throwable $exception) {
+            return back()->withErrors(['ingestion' => $exception->getMessage()]);
+        }
+
+        return back()->with('success', 'Files inspected successfully and source rows staged for mapping.');
     }
 
     public function schoolApprove(Request $request, EnterpriseMigrationRequest $migrationRequest, MigrationEnterpriseControlService $controls): RedirectResponse
@@ -95,7 +127,7 @@ class DataMigrationController extends Controller
 
         return view('data-migrations.show', [
             'platform' => $platform,
-            'migration' => $migration->load('tenant:id,name'),
+            'migration' => $migration->load(['tenant:id,name', 'files', 'datasets']),
             'report' => $dashboard->report($migration, $request->user()),
             'migrationRequest' => EnterpriseMigrationRequest::query()->where('migration_id', $migration->id)->first(),
         ]);
