@@ -24,8 +24,8 @@ class DataMigrationManagementUiTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Migration Center')
-            ->assertSee('Start a migration')
-            ->assertSee('Source files or migration package')
+            ->assertSee('Start new migration')
+            ->assertSee('Upload source exports or ZIP package')
             ->assertSee('Migration batches');
     }
 
@@ -40,7 +40,7 @@ class DataMigrationManagementUiTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Migration Control')
-            ->assertSee('Platform oversight')
+            ->assertSee('Institution oversight')
             ->assertSee('All institutions')
             ->assertSee('Destination institution')
             ->assertSee('Source platform');
