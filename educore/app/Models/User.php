@@ -766,7 +766,7 @@ class User extends Authenticatable
         'role', 'phone', 'staff_id', 'student_id', 'attendance_pin', 'qr_secret',
         'date_of_birth', 'gender', 'address', 'passport_photo',
         'qualification', 'qualifications',
-        'is_super_admin', 'is_active', 'last_login_at',
+        'is_super_admin', 'is_migration_admin', 'is_active', 'last_login_at',
         'employment_status', 'employment_started_at', 'employment_ended_at',
         'status_changed_at', 'exit_reason',
         'two_factor_secret', 'two_factor_confirmed_at',
@@ -809,6 +809,7 @@ class User extends Authenticatable
             'password'                => 'hashed',
             'two_factor_secret'       => 'encrypted',
             'is_super_admin'          => 'boolean',
+            'is_migration_admin'      => 'boolean',
             'is_active'               => 'boolean',
         ];
     }
@@ -1089,6 +1090,7 @@ class User extends Authenticatable
     // ── Role helpers ──────────────────────────────────────────────────
     public function isSuperAdmin(): bool     { return (bool) $this->is_super_admin; }
     public function isAdmin(): bool          { return $this->roleKey() === 'admin'; }
+    public function isMigrationAdmin(): bool { return $this->isSuperAdmin() || (bool) $this->is_migration_admin; }
     public function isPrincipal(): bool      { return $this->roleKey() === 'principal'; }
     public function isAdmissionOfficer(): bool { return $this->roleKey() === 'admission_officer'; }
     public function isTeacher(): bool        { return in_array($this->roleKey(), self::ROLES_TEACHING, true); }
