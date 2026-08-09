@@ -201,6 +201,10 @@ table { width:100%; border-collapse:collapse; }
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
             Platform Dashboard
         </a>
+        <a href="{{ route('super.migrations.index') }}" class="nav-item {{ request()->routeIs('super.migrations.*') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11l-3.5-3.5L16 2l6 6-6 6-1.5-1.5L18 9H7V7zm10 10H6l3.5 3.5L8 22l-6-6 6-6 1.5 1.5L6 15h11v2z"/></svg>
+            Migration Control
+        </a>
     </div>
 
     <div class="nav-section">

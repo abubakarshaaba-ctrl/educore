@@ -32,6 +32,16 @@
         @endif
     </div>
 
+    @if(auth()->user()->isAdmin())
+    <div class="nav-section">
+        <div class="nav-section-label">Data Operations</div>
+        <a href="{{ route('migrations.index') }}" class="nav-item {{ request()->routeIs('migrations.*') ? 'active' : '' }}" data-tip="Migration Center">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11l-3.5-3.5L16 2l6 6-6 6-1.5-1.5L18 9H7V7zm10 10H6l3.5 3.5L8 22l-6-6 6-6 1.5 1.5L6 15h11v2z"/></svg>
+            <span class="nav-label">Migration Center</span>
+        </a>
+    </div>
+    @endif
+
     {{-- ACADEMICS --}}
     @php $u = auth()->user(); @endphp
     @if($u->canAccessModule('students') || $u->canAccessModule('staff') || $u->canAccessModule('classes') || $u->canAccessModule('academic-cycle') || $u->canAccessModule('subjects') || $u->canAccessModule('curriculum') || $u->canAccessModule('attendance') || $u->canAccessModule('timetable') || $u->canAccessModule('skills'))

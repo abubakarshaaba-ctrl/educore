@@ -211,6 +211,15 @@ Route::middleware(['auth', 'active.account', 'tenant'])->group(function () {
     Route::get('account-status', [TenantAccountStatusController::class, 'show'])->name('tenant.account-status');
 });
 
+Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class])
+    ->prefix('data-migrations')->name('migrations.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DataMigrationController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('store');
+        Route::post('requests/{migrationRequest}/school-approve', [\App\Http\Controllers\DataMigrationController::class, 'schoolApprove'])->name('school-approve');
+        Route::post('requests/{migrationRequest}/reject', [\App\Http\Controllers\DataMigrationController::class, 'reject'])->name('reject');
+        Route::get('{migration}', [\App\Http\Controllers\DataMigrationController::class, 'show'])->name('show');
+    });
+
 // â”€â”€ Onboarding wizard removed â€” each step now lives in its own module â”€â”€â”€â”€â”€â”€
 // These routes are kept for backward compatibility (e.g. old bookmarks, the
 // middleware that redirects incomplete tenants). Each one redirects to the
@@ -1050,6 +1059,10 @@ Route::middleware(['auth', 'active.account'])->prefix('super')->name('super.')->
 
 Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->name('super.')->group(function () {
     Route::get('/',              [SuperAdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'index'])->name('migrations.index');
+    Route::get('data-migrations/{migration}', [\App\Http\Controllers\DataMigrationController::class, 'show'])->name('migrations.show');
+    Route::post('data-migration-requests/{migrationRequest}/approve', [\App\Http\Controllers\DataMigrationController::class, 'platformApprove'])->name('migrations.approve');
+    Route::post('data-migration-requests/{migrationRequest}/reject', [\App\Http\Controllers\DataMigrationController::class, 'reject'])->name('migrations.reject');
     Route::get('tenants',        [SuperAdminController::class, 'tenants'])->name('tenants');
     Route::get('tenants/create', [SuperAdminController::class, 'createTenant'])->name('tenants.create');
     Route::post('tenants',       [SuperAdminController::class, 'storeTenant'])->name('tenants.store');
