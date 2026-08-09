@@ -205,6 +205,10 @@ table { width:100%; border-collapse:collapse; }
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11l-3.5-3.5L16 2l6 6-6 6-1.5-1.5L18 9H7V7zm10 10H6l3.5 3.5L8 22l-6-6 6-6 1.5 1.5L6 15h11v2z"/></svg>
             Migration Control
         </a>
+        <a href="{{ route('super.curriculum-sources.index') }}" class="nav-item {{ request()->routeIs('super.curriculum-sources.*') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm2 5h8V5H6v2zm0 4h8V9H6v2zm0 4h6v-2H6v2zM20 6h2v14a2 2 0 0 1-2 2h-1.18c.75-.84 1.18-1.89 1.18-3V6z"/></svg>
+            Curriculum Intelligence
+        </a>
     </div>
 
     <div class="nav-section">

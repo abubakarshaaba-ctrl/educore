@@ -13,6 +13,7 @@
             </p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if($revision && $revision->status !== 'approved')<form method="POST" action="{{ route('lesson-planner.approve-note',$lessonPlan) }}">@csrf<button class="btn btn-primary">Approve Note</button></form>@endif
             <a href="{{ route('lesson-planner.print-notes', $lessonPlan) }}" target="_blank" class="btn btn-secondary">
                 🖨 Print Notes
             </a>
@@ -30,10 +31,18 @@
             <div style="font-size:12px;color:#6D28D9">
                 {{ $lessonPlan->subject->name }} &middot; {{ $lessonPlan->classLevel->name }}
                 &middot; {{ $lessonPlan->topic }}
-                @if($lessonPlan->isNerdc()) &middot; NERDC / WAEC / NECO Aligned @else &middot; UK National Curriculum @endif
+                &middot; Revision {{ $revision->revision ?? 'Legacy' }} &middot; {{ ucfirst($revision->depth ?? $lessonPlan->note_depth ?? 'standard') }} depth
             </div>
         </div>
     </div>
+
+    @if($validation)
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><b>Curriculum validation</b><div style="font-size:12px;color:#64748b">Plan coverage: {{ $validation->plan_coverage }}. Alignment appears only where approved source evidence was retrieved.</div></div><span style="padding:5px 11px;border-radius:999px;background:{{ $validation->status==='pass'?'#dcfce7':'#fef3c7' }};color:{{ $validation->status==='pass'?'#166534':'#92400e' }}">{{ strtoupper($validation->status) }}</span></div>
+        @if($validation->missing_plan_items)<ul style="margin:12px 0 0;color:#9a3412">@foreach($validation->missing_plan_items as $item)<li>{{ $item }}</li>@endforeach</ul><button onclick="regenerateMissing()" id="missingBtn" class="btn btn-secondary" style="margin-top:10px">Regenerate missing content</button>@endif
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">@foreach($validation->authority_alignment ?? [] as $authority=>$alignment)<span style="font-size:11px;background:#f1f5f9;padding:4px 8px;border-radius:999px">{{ $authority }}: {{ $alignment }}</span>@endforeach</div>
+    </div>
+    @endif
 
     {{-- Status message --}}
     <div id="notesStatus" style="display:none;margin-bottom:16px;padding:14px 18px;border-radius:var(--radius);font-size:14px"></div>
@@ -97,6 +106,7 @@ function generateStudentNotes() {
         btn.textContent = '✨ Regenerate Notes';
     });
 }
+function regenerateMissing(){const b=document.getElementById('missingBtn');b.disabled=true;b.textContent='Generating missing sections...';fetch('{{ route('lesson-planner.regenerate-missing',$lessonPlan) }}',{method:'POST',headers:{'X-CSRF-TOKEN':'{{ csrf_token() }}','Accept':'application/json'}}).then(r=>r.json()).then(d=>{if(d.success){location.reload();}else{b.disabled=false;b.textContent=d.message||'Try again';}});}
 </script>
 @endpush
 @endsection

@@ -127,6 +127,10 @@
                     <input type="date" name="plan_date" class="fc"
                            value="{{ old('plan_date', isset($lessonPlan) ? $lessonPlan->plan_date?->format('Y-m-d') : '') }}">
                 </div>
+                <div><label class="fl">Lesson</label><input type="text" name="lesson_number" id="lessonNumberInp" class="fc" value="{{ old('lesson_number', $lessonPlan->lesson_number ?? '') }}" placeholder="e.g. Lesson 1"></div>
+                <div><label class="fl">Time</label><input type="text" name="lesson_time" id="lessonTimeInp" class="fc" value="{{ old('lesson_time', $lessonPlan->lesson_time ?? '') }}" placeholder="e.g. 10:20 am"></div>
+                <div><label class="fl">Average Age</label><input type="text" name="average_age" id="averageAgeInp" class="fc" value="{{ old('average_age', $lessonPlan->average_age ?? '') }}" placeholder="e.g. 16 years"></div>
+                <div><label class="fl">Sex</label><select name="sex" id="sexInp" class="fc">@foreach(['Mixed','Male','Female'] as $sex)<option value="{{ $sex }}" @selected(old('sex',$lessonPlan->sex ?? 'Mixed')===$sex)>{{ $sex }}</option>@endforeach</select></div>
                 <div>
                     <label class="fl">Duration (minutes)</label>
                     <input type="number" name="duration_minutes" id="durationInp" class="fc" min="10" max="300"
@@ -136,7 +140,7 @@
                     <label class="fl">Status</label>
                     <select name="status" class="fc">
                         <option value="draft" {{ old('status', $lessonPlan->status ?? 'draft') === 'draft' ? 'selected' : '' }}>Draft</option>
-                        <option value="published" {{ old('status', $lessonPlan->status ?? '') === 'published' ? 'selected' : '' }}>Published</option>
+                        <option value="published" {{ old('status', $lessonPlan->status ?? '') === 'published' ? 'selected' : '' }}>Approved</option>
                     </select>
                 </div>
             </div>
@@ -171,15 +175,15 @@
             <div class="nerdc-only">
 
                 <div class="lp-card">
-                    <div class="lp-section-title">1. Previous Knowledge</div>
-                    <div class="lp-section-hint">What students already know from previous lessons that directly relates to this topic.</div>
-                    <textarea name="previous_knowledge" id="f_previous_knowledge" class="lp-textarea" placeholder="e.g. Students have been taught the structure of the cell, plant and animal cells, and cell organelles...">{{ old('previous_knowledge', $lessonPlan->previous_knowledge ?? '') }}</textarea>
+                    <div class="lp-section-title">1. Entry Behaviour</div>
+                    <div class="lp-section-hint">The observable prerequisite ability or readiness students possess before this lesson.</div>
+                    <textarea name="entry_behaviour" id="f_entry_behaviour" class="lp-textarea" placeholder="e.g. Students can identify examples of reproduction and state that fertilisation involves male and female gametes.">{{ old('entry_behaviour', $lessonPlan->entry_behaviour ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">2. Entry Behaviour</div>
-                    <div class="lp-section-hint">Prior knowledge and skills a student must already have before this lesson.</div>
-                    <textarea name="entry_behaviour" id="f_entry_behaviour" class="lp-textarea" placeholder="e.g. Students should be able to identify parts of a plant cell and explain the concept of energy...">{{ old('entry_behaviour', $lessonPlan->entry_behaviour ?? '') }}</textarea>
+                    <div class="lp-section-title">2. Previous / Background Knowledge</div>
+                    <div class="lp-section-hint">Related concepts students were previously taught. Keep this separate from entry behaviour.</div>
+                    <textarea name="previous_knowledge" id="f_previous_knowledge" class="lp-textarea" placeholder="e.g. Students were previously taught plant and animal reproduction and the functions of reproductive cells.">{{ old('previous_knowledge', $lessonPlan->previous_knowledge ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
@@ -300,6 +304,7 @@
         </div>{{-- /planSections --}}
 
         <input type="hidden" name="ai_generated" id="aiGeneratedFlag" value="{{ old('ai_generated', $lessonPlan->ai_generated ?? '0') ? '1' : '0' }}">
+        <input type="hidden" name="structured_plan_json" id="structuredPlanJson" value="{{ old('structured_plan_json', isset($lessonPlan) && $lessonPlan->structured_plan ? json_encode($lessonPlan->structured_plan) : '') }}">
 
         <div style="display:flex;gap:12px;margin-top:8px;padding-top:16px;border-top:1px solid var(--border)">
             <button type="submit" name="status" value="draft" class="btn btn-secondary">Save as Draft</button>
@@ -334,6 +339,10 @@ async function generateWithAI() {
     const curriculum = curriculumSel.value;
     const duration   = document.getElementById('durationInp').value;
     const week       = document.getElementById('weekInp')?.value ?? '';
+    const lesson_number = document.getElementById('lessonNumberInp')?.value ?? '';
+    const lesson_time = document.getElementById('lessonTimeInp')?.value ?? '';
+    const average_age = document.getElementById('averageAgeInp')?.value ?? '';
+    const sex = document.getElementById('sexInp')?.value ?? 'Mixed';
 
     if (!subject || !classLevel || !topic) {
         err.textContent = 'Please fill in Subject, Class Level, and Topic before generating.';
@@ -356,7 +365,7 @@ async function generateWithAI() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ subject, class_level: classLevel, topic, subtopic, curriculum_type: curriculum, section, duration_minutes: duration, week, term: '' }),
+            body: JSON.stringify({ subject, class_level: classLevel, topic, subtopic, curriculum_type: curriculum, section, duration_minutes: duration, week, term: '', lesson_number, lesson_time, average_age, sex }),
         });
 
         const json = await res.json();
@@ -364,6 +373,7 @@ async function generateWithAI() {
 
         // Fill in the fields
         Object.entries(json.data).forEach(([key, val]) => {
+            if (key === 'structured_plan') { document.getElementById('structuredPlanJson').value = JSON.stringify(val); return; }
             const el = document.getElementById('f_' + key) ?? document.getElementById('f_' + key + '_british');
             if (el) el.value = val;
         });

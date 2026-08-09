@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\LessonAiProvider;
+use App\Services\Ai\GroqLessonProvider;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\PlatformAgent;
@@ -27,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(LessonAiProvider::class, GroqLessonProvider::class);
         //
     }
 
