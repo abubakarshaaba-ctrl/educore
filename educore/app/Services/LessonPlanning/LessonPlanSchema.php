@@ -9,6 +9,21 @@ class LessonPlanSchema
 {
     public function validate(array $data): array
     {
+        // JSON providers commonly encode human-readable scalar fields as
+        // numbers (for example 40 instead of "40 minutes"). These values are
+        // semantically valid, so canonicalise them before strict validation.
+        foreach (['class', 'subject', 'week', 'lesson', 'topic', 'time', 'duration', 'average_age', 'sex'] as $field) {
+            if (array_key_exists($field, $data) && is_scalar($data[$field])) {
+                $data[$field] = trim((string) $data[$field]);
+            }
+        }
+
+        // An explicit null reference list means the provider found no safe
+        // references. Preserve that meaning as an empty list; never invent one.
+        if (array_key_exists('references', $data) && $data['references'] === null) {
+            $data['references'] = [];
+        }
+
         return Validator::make($data, [
             'class' => 'required|string|max:120', 'subject' => 'required|string|max:120', 'week' => 'nullable',
             'lesson' => 'required|string|max:120', 'topic' => 'required|string|max:255', 'sub_topics' => 'required|array|min:1',

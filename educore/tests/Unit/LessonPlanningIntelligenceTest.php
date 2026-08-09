@@ -32,6 +32,23 @@ class LessonPlanningIntelligenceTest extends TestCase
         $this->assertStringNotContainsString('<script', app(StructuredNoteRenderer::class)->toHtml(array_replace($note,['overview'=>'<script>alert(1)</script>'])));
     }
 
+    public function test_plan_schema_normalises_numeric_ai_metadata_without_rejecting_the_draft(): void
+    {
+        $plan = app(LessonPlanSchema::class)->validate([
+            'class'=>12,'subject'=>'Biology','week'=>4,'lesson'=>1,'topic'=>'Genetics','sub_topics'=>['Mendelian inheritance'],
+            'time'=>1020,'duration'=>40,'average_age'=>16,'sex'=>'Mixed','entry_behaviour'=>'Students can identify inherited traits.',
+            'previous_background_knowledge'=>'Students were taught genes and chromosomes.','behavioural_objectives'=>['Explain Mendelian inheritance'],
+            'instructional_resources'=>['Trait chart'],'introduction'=>'Review familiar family traits.',
+            'presentation'=>[['step'=>1,'title'=>'Inheritance','activities'=>['Teacher guides students to examine the chart.']]],
+            'evaluation'=>['Explain inheritance.'],'assignment'=>'List three inherited traits.','references'=>null,
+        ]);
+
+        $this->assertSame('40', $plan['duration']);
+        $this->assertSame('16', $plan['average_age']);
+        $this->assertSame('1', $plan['lesson']);
+        $this->assertSame([], $plan['references']);
+    }
+
     public function test_validation_reports_uncovered_plan_items_without_fake_percentages(): void
     {
         $plan = new LessonPlan(['subtopic'=>"Metamorphosis in insects\nFormation of seeds and fruits",'behavioural_objectives'=>"Explain metamorphosis\nDescribe fruit formation"]);
