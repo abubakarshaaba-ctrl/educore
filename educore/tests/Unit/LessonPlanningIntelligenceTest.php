@@ -63,6 +63,7 @@ class LessonPlanningIntelligenceTest extends TestCase
     {
         $keys = array_keys(LessonPlan::nerdcSections());
         $this->assertLessThan(array_search('previous_knowledge',$keys,true), array_search('entry_behaviour',$keys,true));
+        $this->assertSame(['entry_behaviour','previous_knowledge','behavioural_objectives','instructional_materials','set_induction','presentation','evaluation','assignment','reference_materials'], $keys);
     }
 
     private function note(): array

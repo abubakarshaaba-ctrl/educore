@@ -5,6 +5,13 @@
 <style>
 .lp-card { background:white;border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px; }
 .lp-section-title { font-size:13px;font-weight:700;color:var(--midnight);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--brand-gold); }
+.nerdc-only { display:flex; flex-direction:column; }
+.nerdc-only > .lp-card:nth-child(5) { order:9; }
+.nerdc-only > .lp-card:nth-child(6) { order:5; }
+.nerdc-only > .lp-card:nth-child(7) { order:6; }
+.nerdc-only > .lp-card:nth-child(8), .nerdc-only > .lp-card:nth-child(11) { display:none; }
+.nerdc-only > .lp-card:nth-child(9) { order:7; }
+.nerdc-only > .lp-card:nth-child(10) { order:8; }
 .lp-section-hint { font-size:12px;color:var(--slate-light);margin-bottom:8px;font-style:italic; }
 .lp-textarea { width:100%;min-height:120px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;line-height:1.6;color:var(--slate);transition:border-color .15s; }
 .lp-textarea:focus { outline:none;border-color:var(--brand-gold);box-shadow:0 0 0 3px rgba(215,154,33,.15); }
@@ -175,43 +182,43 @@
             <div class="nerdc-only">
 
                 <div class="lp-card">
-                    <div class="lp-section-title">1. Entry Behaviour</div>
+                    <div class="lp-section-title">Entry Behaviour</div>
                     <div class="lp-section-hint">The observable prerequisite ability or readiness students possess before this lesson.</div>
                     <textarea name="entry_behaviour" id="f_entry_behaviour" class="lp-textarea" placeholder="e.g. Students can identify examples of reproduction and state that fertilisation involves male and female gametes.">{{ old('entry_behaviour', $lessonPlan->entry_behaviour ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">2. Previous / Background Knowledge</div>
+                    <div class="lp-section-title">Previous / Background Knowledge</div>
                     <div class="lp-section-hint">Related concepts students were previously taught. Keep this separate from entry behaviour.</div>
                     <textarea name="previous_knowledge" id="f_previous_knowledge" class="lp-textarea" placeholder="e.g. Students were previously taught plant and animal reproduction and the functions of reproductive cells.">{{ old('previous_knowledge', $lessonPlan->previous_knowledge ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">3. Behavioural Objectives</div>
+                    <div class="lp-section-title">Behavioural Objectives</div>
                     <div class="lp-section-hint">By the end of this lesson, students should be able to… (Use Bloom's Taxonomy verbs: identify, describe, explain, demonstrate, compare, analyse)</div>
                     <textarea name="behavioural_objectives" id="f_behavioural_objectives" class="lp-textarea" placeholder="By the end of this lesson, students should be able to:&#10;1. Define photosynthesis&#10;2. State the conditions necessary for photosynthesis&#10;3. Write the chemical equation for photosynthesis">{{ old('behavioural_objectives', $lessonPlan->behavioural_objectives ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">4. Instructional Materials</div>
+                    <div class="lp-section-title">Instructional Resources</div>
                     <div class="lp-section-hint">Teaching aids, charts, specimens, models, digital resources you will use.</div>
                     <textarea name="instructional_materials" id="f_instructional_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. Chart showing process of photosynthesis, green leaves, test tubes, iodine solution, whiteboard, markers...">{{ old('instructional_materials', $lessonPlan->instructional_materials ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">5. Reference Materials</div>
+                    <div class="lp-section-title">Reference</div>
                     <div class="lp-section-hint">NERDC-approved textbooks, Ministry of Education guides, and curriculum documents.</div>
                     <textarea name="reference_materials" id="f_reference_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. New General Biology for Senior Secondary Schools by Stone &amp; Cozen (Longman), NERDC Biology Curriculum SS2...">{{ old('reference_materials', $lessonPlan->reference_materials ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">6. Introduction / Set Induction</div>
+                    <div class="lp-section-title">Introduction</div>
                     <div class="lp-section-hint">A 2–3 minute activity or question to capture students' interest and connect to prior knowledge.</div>
                     <textarea name="set_induction" id="f_set_induction" class="lp-textarea" placeholder="e.g. Teacher asks: Why do plants placed in the dark lose their green colour? Students brainstorm responses...">{{ old('set_induction', $lessonPlan->set_induction ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">7. Presentation / Development</div>
+                    <div class="lp-section-title">Presentation</div>
                     <div class="lp-section-hint">Divide into Stage I (Introduction), Stage II (Development), Stage III (Consolidation). List Teacher's Activity and Students' Activity for each stage.</div>
                     <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:240px" placeholder="STAGE I — Introduction (5 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE II — Development (25 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE III — Consolidation (10 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...">{{ old('presentation', $lessonPlan->presentation ?? '') }}</textarea>
                 </div>
@@ -223,13 +230,13 @@
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">9. Evaluation</div>
+                    <div class="lp-section-title">Evaluation</div>
                     <div class="lp-section-hint">4–5 questions to assess student understanding at the end of the lesson.</div>
                     <textarea name="evaluation" id="f_evaluation" class="lp-textarea" placeholder="1. Define photosynthesis.&#10;2. State three conditions necessary for photosynthesis.&#10;3. Write the word equation for photosynthesis.&#10;4. Why do plants kept in the dark turn yellow?&#10;5. What is the role of chlorophyll in photosynthesis?">{{ old('evaluation', $lessonPlan->evaluation ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">10. Assignment / Homework</div>
+                    <div class="lp-section-title">Assignment</div>
                     <div class="lp-section-hint">Specific take-home task that reinforces the lesson.</div>
                     <textarea name="assignment" id="f_assignment" class="lp-textarea" style="min-height:90px" placeholder="e.g. Draw and label a diagram showing the process of photosynthesis. List five importance of photosynthesis to plants and animals.">{{ old('assignment', $lessonPlan->assignment ?? '') }}</textarea>
                 </div>

@@ -26,7 +26,14 @@ class StructuredLessonPlanService
             'behavioural_objectives'=>"At the end of the lesson, students should be able to:\n".collect($plan['behavioural_objectives'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),
             'instructional_materials'=>collect($plan['instructional_resources'])->map(fn($v)=>'- '.$v)->implode("\n"),
             'reference_materials'=>collect($plan['references'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),'set_induction'=>$plan['introduction'],
-            'presentation'=>collect($plan['presentation'])->map(fn($step)=>'STEP '.$step['step'].': '.$step['title']."\n".implode("\n",$step['activities']))->implode("\n\n"),
+            'presentation'=>collect($plan['presentation'])->map(fn($step)=>'STEP '.$this->roman((int)$step['step']).': '.$step['title']."\n".implode("\n",$step['activities']))->implode("\n\n"),
             'evaluation'=>collect($plan['evaluation'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),'assignment'=>$plan['assignment'],'structured_plan'=>$plan];
+    }
+
+    private function roman(int $number): string
+    {
+        $map = [10=>'X',9=>'IX',5=>'V',4=>'IV',1=>'I']; $result = '';
+        foreach ($map as $value=>$numeral) while ($number >= $value) { $result .= $numeral; $number -= $value; }
+        return $result ?: 'I';
     }
 }
