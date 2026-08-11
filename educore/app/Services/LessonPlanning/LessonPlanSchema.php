@@ -24,19 +24,32 @@ class LessonPlanSchema
             $data['references'] = [];
         }
 
-        return Validator::make($data, [
+        $validator = Validator::make($data, [
             'class' => 'required|string|max:120', 'subject' => 'required|string|max:120', 'week' => 'nullable',
             'lesson' => 'required|string|max:120', 'topic' => 'required|string|max:255', 'sub_topics' => 'required|array|min:1',
             'sub_topics.*' => 'required|string', 'time' => 'nullable|string|max:50', 'duration' => 'required|string|max:50',
-            'average_age' => 'nullable|string|max:50', 'sex' => 'required|string|max:50', 'entry_behaviour' => 'required|string',
-            'previous_background_knowledge' => 'required|string', 'behavioural_objectives' => 'required|array|min:1',
-            'behavioural_objectives.*' => 'required|string', 'instructional_resources' => 'required|array|min:1',
-            'instructional_resources.*' => 'required|string', 'introduction' => 'required|string',
+            'average_age' => 'nullable|string|max:50', 'sex' => 'required|string|max:50', 'entry_behaviour' => 'required|string|min:20',
+            'previous_background_knowledge' => 'required|string|min:20', 'behavioural_objectives' => 'required|array|min:3|max:8',
+            'behavioural_objectives.*' => 'required|string|min:12', 'instructional_resources' => 'required|array|min:2',
+            'instructional_resources.*' => 'required|string', 'introduction' => 'required|string|min:40',
             'presentation' => 'required|array|min:1', 'presentation.*.step' => 'required|integer|min:1',
-            'presentation.*.title' => 'required|string', 'presentation.*.activities' => 'required|array|min:1',
-            'presentation.*.activities.*' => 'required|string', 'evaluation' => 'required|array|min:1',
-            'evaluation.*' => 'required|string', 'assignment' => 'required|string', 'references' => 'present|array',
-        ])->validate();
+            'presentation.*.title' => 'required|string|min:3', 'presentation.*.activities' => 'required|array|min:3|max:6',
+            'presentation.*.activities.*' => 'required|string|min:25', 'evaluation' => 'required|array|min:3|max:10',
+            'evaluation.*' => 'required|string|min:8', 'assignment' => 'required|string|min:10', 'references' => 'present|array',
+        ]);
+
+        $validator->after(function ($validator) use ($data) {
+            $subtopics = count($data['sub_topics'] ?? []);
+            $steps = count($data['presentation'] ?? []);
+            if ($subtopics > 0 && $steps < $subtopics) {
+                $validator->errors()->add('presentation', "The lesson presentation must include a complete teaching step for each of the {$subtopics} subtopics.");
+            }
+            if ($subtopics > 0 && count($data['behavioural_objectives'] ?? []) < $subtopics) {
+                $validator->errors()->add('behavioural_objectives', 'The behavioural objectives do not cover every lesson subtopic.');
+            }
+        });
+
+        return $validator->validate();
     }
 
     public function jsonSchema(): array

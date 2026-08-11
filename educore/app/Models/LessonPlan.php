@@ -54,12 +54,14 @@ class LessonPlan extends BaseTenantModel
             'entry_behaviour'         => 'Entry Behaviour',
             'previous_knowledge'      => 'Previous / Background Knowledge',
             'behavioural_objectives'  => 'Behavioural Objectives',
-            'instructional_materials' => 'Instructional Resources',
-            'set_induction'           => 'Introduction',
-            'presentation'            => 'Presentation',
+            'instructional_materials' => 'Instructional Materials',
+            'reference_materials'     => 'Reference Materials',
+            'set_induction'           => 'Introduction / Set Induction',
+            'presentation'            => 'Presentation / Development',
+            'class_activity'          => 'Class Activity / Students\' Activity',
             'evaluation'              => 'Evaluation',
-            'assignment'              => 'Assignment',
-            'reference_materials'     => 'Reference',
+            'assignment'              => 'Assignment / Homework',
+            'conclusion'              => 'Conclusion / Summary',
         ];
     }
 

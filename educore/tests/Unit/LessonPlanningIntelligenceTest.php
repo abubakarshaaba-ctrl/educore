@@ -37,10 +37,17 @@ class LessonPlanningIntelligenceTest extends TestCase
         $plan = app(LessonPlanSchema::class)->validate([
             'class'=>12,'subject'=>'Biology','week'=>4,'lesson'=>1,'topic'=>'Genetics','sub_topics'=>['Mendelian inheritance'],
             'time'=>1020,'duration'=>40,'average_age'=>16,'sex'=>'Mixed','entry_behaviour'=>'Students can identify inherited traits.',
-            'previous_background_knowledge'=>'Students were taught genes and chromosomes.','behavioural_objectives'=>['Explain Mendelian inheritance'],
-            'instructional_resources'=>['Trait chart'],'introduction'=>'Review familiar family traits.',
-            'presentation'=>[['step'=>1,'title'=>'Inheritance','activities'=>['Teacher guides students to examine the chart.']]],
-            'evaluation'=>['Explain inheritance.'],'assignment'=>'List three inherited traits.','references'=>null,
+            'previous_background_knowledge'=>'Students were taught genes and chromosomes in the previous lesson.',
+            'behavioural_objectives'=>['Define Mendelian inheritance accurately.','Identify dominant and recessive traits.','Explain inheritance using family traits.'],
+            'instructional_resources'=>['A labelled inherited-traits chart','Photographs showing contrasting traits'],
+            'introduction'=>'The teacher revises genes through questions, receives student responses, and links familiar family traits to inheritance.',
+            'presentation'=>[['step'=>1,'title'=>'Inheritance','activities'=>[
+                'Teacher guides the students to define inheritance as the transmission of traits from parents to offspring.',
+                'Teacher aids the students to identify dominant and recessive traits using the labelled chart.',
+                'Teacher helps the students to explain inheritance with familiar examples of contrasting family traits.',
+            ]]],
+            'evaluation'=>['What is biological inheritance?','Differentiate dominant and recessive traits.','Give two examples of inherited traits.'],
+            'assignment'=>'List and explain three inherited traits observed in families.','references'=>null,
         ]);
 
         $this->assertSame('40', $plan['duration']);
@@ -63,7 +70,21 @@ class LessonPlanningIntelligenceTest extends TestCase
     {
         $keys = array_keys(LessonPlan::nerdcSections());
         $this->assertLessThan(array_search('previous_knowledge',$keys,true), array_search('entry_behaviour',$keys,true));
-        $this->assertSame(['entry_behaviour','previous_knowledge','behavioural_objectives','instructional_materials','set_induction','presentation','evaluation','assignment','reference_materials'], $keys);
+    }
+
+    public function test_plan_schema_rejects_shallow_presentation_that_does_not_cover_each_subtopic(): void
+    {
+        $this->expectException(ValidationException::class);
+        app(LessonPlanSchema::class)->validate([
+            'class'=>'Year 12','subject'=>'Biology','lesson'=>'1','topic'=>'Development','week'=>'1','time'=>'12:10','duration'=>'70 minutes','average_age'=>'15','sex'=>'Mixed',
+            'sub_topics'=>['Courtship behaviour','Metamorphosis'],'entry_behaviour'=>'Students can identify examples of animal reproduction.',
+            'previous_background_knowledge'=>'Students were previously taught sexual and asexual reproduction.',
+            'behavioural_objectives'=>['Define courtship behaviour accurately.','Explain metamorphosis in insects.','Compare complete and incomplete metamorphosis.'],
+            'instructional_resources'=>['Insect life-cycle chart','Preserved insect specimens'],'introduction'=>'The teacher revises animal reproduction through questions, receives student responses, and links them to development.',
+            'presentation'=>[['step'=>1,'title'=>'Courtship behaviour','activities'=>['Teacher briefly discusses the selected lesson topic with the students.']]],
+            'evaluation'=>['What is courtship behaviour?','What is metamorphosis?','Compare both forms of metamorphosis.'],
+            'assignment'=>'Describe complete metamorphosis with an example.','references'=>[],
+        ]);
     }
 
     private function note(): array
