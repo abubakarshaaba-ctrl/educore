@@ -6,6 +6,7 @@ use App\Models\CurriculumFragment;
 use App\Models\CurriculumSource;
 use App\Models\LessonPlan;
 use App\Services\Curriculum\CurriculumRetrievalService;
+use App\Services\LessonPlanning\LessonNoteValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,6 +45,16 @@ class CurriculumGroundingTest extends TestCase
         $this->assertTrue(\Schema::hasColumn('lesson_plans','entry_behaviour'));
         $this->assertTrue(\Schema::hasColumn('lesson_plans','structured_plan'));
         $this->assertTrue(\Schema::hasTable('lesson_note_revisions'));
+    }
+
+    public function test_nerdc_plan_without_retrieved_evidence_is_not_reported_as_pass_aligned(): void
+    {
+        $plan=new LessonPlan(['curriculum_type'=>'nerdc','topic'=>'Introduction to Biology','subtopic'=>'Branches of Biology','behavioural_objectives'=>'1. Define Biology']);
+        $note=['sections'=>[['heading'=>'Biology','content_blocks'=>[['type'=>'paragraph','content'=>'Biology is the scientific study of living organisms.']]]]];
+        $result=app(LessonNoteValidationService::class)->validate($plan,$note,[]);
+        $this->assertSame('revise',$result['status']);
+        $this->assertSame('NOT_RETRIEVED',$result['authority_alignment']['NERDC']);
+        $this->assertNotEmpty($result['missing_curriculum_items']);
     }
 
     private function source(?int $tenantId, string $authority, bool $active, string $review, string $version, ?string $effectiveTo = null): CurriculumSource

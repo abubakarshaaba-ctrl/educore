@@ -89,9 +89,19 @@ class LessonPlanningIntelligenceTest extends TestCase
     public function test_note_schema_normalises_provider_content_block_aliases(): void
     {
         $note=$this->note();
-        $note['sections'][0]['content_blocks'][0]=['type'=>'list','items'=>['Egg','Larva','Pupa','Adult']];
+        $note['sections'][0]['content_blocks'][0]=['type'=>'list','items'=>array_fill(0,20,'Complete metamorphosis proceeds through a distinct developmental stage with specialised structure and function.')];
         $validated=app(LessonNoteSchema::class)->validate($note);
         $this->assertSame('bullets',$validated['sections'][0]['content_blocks'][0]['type']);
+    }
+
+    public function test_note_schema_rejects_heading_only_notes(): void
+    {
+        $this->expectException(ValidationException::class);
+        $note=$this->note();
+        $note['sections']=[['heading'=>'What is Biology?','subheading'=>'Definition and Branches','content_blocks'=>[
+            ['type'=>'paragraph','content'=>''],
+        ]]];
+        app(LessonNoteSchema::class)->validate($note);
     }
 
     public function test_plan_schema_rejects_shallow_presentation_that_does_not_cover_each_subtopic(): void
@@ -133,7 +143,7 @@ class LessonPlanningIntelligenceTest extends TestCase
     {
         return ['title'=>'Development of new organisms','overview'=>'Metamorphosis explains developmental change.',
             'sections'=>[['heading'=>'Metamorphosis in insects','subheading'=>null,'content_blocks'=>[
-                ['type'=>'paragraph','content'=>'Complete metamorphosis has egg, larva, pupa and adult stages.'],
+                ['type'=>'paragraph','content'=>str_repeat('Complete metamorphosis is a biological developmental process with egg, larva, pupa and adult stages. The larva feeds and grows, while the pupa undergoes extensive reorganisation before the reproductive adult emerges. This pattern occurs in houseflies, mosquitoes and butterflies and differs from incomplete metamorphosis because a true pupal stage is present. ', 4)],
                 ['type'=>'diagram','title'=>'Complete metamorphosis','labels'=>['egg','larva','pupa','adult']],
             ]]],'key_examination_points'=>['Distinguish complete and incomplete metamorphosis.'],
             'review_questions'=>['objective'=>['Which stage follows larva?'],'structured'=>[],'application'=>[]],

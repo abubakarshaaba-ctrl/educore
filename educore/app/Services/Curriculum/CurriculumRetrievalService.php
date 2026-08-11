@@ -11,8 +11,10 @@ class CurriculumRetrievalService
     public function forLessonPlan(LessonPlan $plan, int $limit = 18): Collection
     {
         $tenantId = (int) $plan->tenant_id;
-        $terms = collect(array_filter(array_merge([$plan->topic], preg_split('/[,;\n]+/', (string) $plan->subtopic))))
-            ->map(fn ($term) => trim((string) $term))->filter()->take(8);
+        $phrases=collect(array_filter(array_merge([$plan->topic],preg_split('/[,;\n]+/',(string)$plan->subtopic))))->map(fn($v)=>trim((string)$v))->filter();
+        $terms=$phrases->flatMap(fn($phrase)=>array_merge([$phrase],preg_split('/\W+/u',$phrase,-1,PREG_SPLIT_NO_EMPTY)?:[]))
+            ->map(fn($term)=>trim((string)$term))->filter(fn($term)=>mb_strlen($term)>=4)
+            ->reject(fn($term)=>in_array(mb_strtolower($term),['introduction','meaning','lesson','topic','biology','science'],true))->unique()->take(16);
 
         return CurriculumFragment::query()->with('source:id,tenant_id,authority,title,version,is_official,is_active,review_status')
             ->whereHas('source', fn ($q) => $q->where('is_active', true)->where('review_status', 'approved')

@@ -9,6 +9,7 @@ use App\Models\LessonNoteValidation;
 use App\Models\LessonPlan;
 use App\Services\Curriculum\CurriculumRetrievalService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class GroundedLessonNoteService
 {
@@ -25,7 +26,16 @@ class GroundedLessonNoteService
         $started = hrtime(true); $usage = null; $failure = null;
         try {
             $usage = $this->provider->generateStructured($this->prompts->noteSystem(), $this->prompts->noteUser($plan, $context, $depth, $onlyItems), $this->schema->jsonSchema(), $depth === 'detailed' ? 6000 : ($depth === 'concise' ? 2600 : 4200));
-            $content = $this->schema->validate($usage['data']);
+            try {
+                $content = $this->schema->validate($usage['data']);
+            } catch (ValidationException $validation) {
+                $repairPrompt=$this->prompts->noteUser($plan,$context,$depth,$onlyItems)
+                    ."\nThe previous note was empty, shallow or structurally invalid. Rewrite the COMPLETE note with substantive learner-ready content. Do not return headings without explanations. Validation issues="
+                    .json_encode($validation->errors(),JSON_UNESCAPED_UNICODE)
+                    ."\nPREVIOUS_DRAFT=".json_encode($usage['data'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                $usage=$this->provider->generateStructured($this->prompts->noteSystem(),$repairPrompt,$this->schema->jsonSchema(),$depth==='detailed'?6500:4800);
+                $content=$this->schema->validate($usage['data']);
+            }
             $content['source_trace'] = $this->verifiedTrace($content['source_trace'] ?? [], $context);
             if ($onlyItems && ($previous = $plan->noteRevisions()->latest('revision')->first())) $content = $this->mergeMissing($previous->content, $content);
             $validation = $this->validator->validate($plan, $content, $context);

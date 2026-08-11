@@ -23,7 +23,7 @@ class StructuredNoteRenderer
     private function block(array $block): string
     {
         return match ($block['type'] ?? '') {
-            'paragraph' => '<p>'.nl2br(e($block['content'] ?? '')).'</p>',
+            'paragraph' => '<p>'.nl2br(e($block['content'] ?? $block['text'] ?? $block['description'] ?? '')).'</p>',
             'bullets' => '<ul>'.$this->items($block['items'] ?? []).'</ul>',
             'table' => $this->table($block),
             'worked_example' => '<div class="exam-question"><strong>'.e($block['title'] ?? 'Worked Example').'</strong><p>'.e($block['problem'] ?? '').'</p><p><em>Solution:</em> '.nl2br(e($block['solution'] ?? '')).'</p></div>',

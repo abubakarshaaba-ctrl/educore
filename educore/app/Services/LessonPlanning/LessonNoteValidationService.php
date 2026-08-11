@@ -16,9 +16,13 @@ class LessonNoteValidationService
         $missing = $missingSubtopics->map(fn ($v) => "Subtopic: {$v}")->merge($missingObjectives->map(fn ($v) => "Objective: {$v}"))->values()->all();
         $authorities = collect($context)->groupBy('authority')->map(fn ($items) => $items->isNotEmpty() ? 'SUBSTANTIAL' : 'INSUFFICIENT')->all();
         foreach (['NERDC','WAEC','NECO','JAMB'] as $authority) $authorities[$authority] ??= 'NOT_APPLICABLE';
+        $missingNerdc = $plan->isNerdc() && ! collect($context)->contains(fn($item)=>($item['authority']??null)==='NERDC');
+        if($missingNerdc) $authorities['NERDC']='NOT_RETRIEVED';
+        $curriculumMissing=$missingNerdc?['No approved NERDC curriculum fragment matched this subject, class and topic.']:[];
+        $needsRevision=(bool)$missing || $missingNerdc;
 
-        return ['status' => $missing ? 'revise' : 'pass', 'plan_coverage' => $missing ? 'PARTIAL' : 'FULL',
-            'authority_alignment' => $authorities, 'missing_plan_items' => $missing, 'missing_curriculum_items' => [],
+        return ['status' => $needsRevision ? 'revise' : 'pass', 'plan_coverage' => $missing ? 'PARTIAL' : 'FULL',
+            'authority_alignment' => $authorities, 'missing_plan_items' => $missing, 'missing_curriculum_items' => $curriculumMissing,
             'factual_concerns' => $context ? [] : ['No approved curriculum evidence matched this lesson. Alignment claims are disabled pending teacher review.'],
             'suggested_additions' => $missing];
     }
