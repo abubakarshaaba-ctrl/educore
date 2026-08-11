@@ -199,45 +199,33 @@
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">5. Reference Materials</div>
-                    <div class="lp-section-hint">NERDC-approved textbooks, Ministry of Education guides, and curriculum documents.</div>
-                    <textarea name="reference_materials" id="f_reference_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. New General Biology for Senior Secondary Schools by Stone &amp; Cozen (Longman), NERDC Biology Curriculum SS2...">{{ old('reference_materials', $lessonPlan->reference_materials ?? '') }}</textarea>
-                </div>
-
-                <div class="lp-card">
-                    <div class="lp-section-title">6. Introduction / Set Induction</div>
+                    <div class="lp-section-title">5. Introduction</div>
                     <div class="lp-section-hint">A 2–3 minute activity or question to capture students' interest and connect to prior knowledge.</div>
                     <textarea name="set_induction" id="f_set_induction" class="lp-textarea" placeholder="e.g. Teacher asks: Why do plants placed in the dark lose their green colour? Students brainstorm responses...">{{ old('set_induction', $lessonPlan->set_induction ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">7. Presentation / Development</div>
-                    <div class="lp-section-hint">Divide into Stage I (Introduction), Stage II (Development), Stage III (Consolidation). List Teacher's Activity and Students' Activity for each stage.</div>
-                    <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:240px" placeholder="STAGE I — Introduction (5 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE II — Development (25 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...&#10;&#10;STAGE III — Consolidation (10 min)&#10;Teacher's Activity: ...&#10;Students' Activity: ...">{{ old('presentation', $lessonPlan->presentation ?? '') }}</textarea>
+                    <div class="lp-section-title">6. Presentation</div>
+                    <div class="lp-section-hint">Each step must align with its corresponding behavioural objective(s). Keep teacher activity and the resulting students' activity inside the same step.</div>
+                    <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:300px" placeholder="STEP I: Courtship Behaviour in Animals (Objectives 1-2)&#10;TEACHER'S ACTIVITY:&#10;• Teacher guides students to define...&#10;STUDENTS' ACTIVITY:&#10;• Students define and give examples...">{{ old('presentation', isset($lessonPlan) ? $lessonPlan->sectionValue('presentation') : '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">8. Class Activity / Students' Activity</div>
-                    <div class="lp-section-hint">Specific hands-on tasks, group work, experiments, or exercises students will carry out.</div>
-                    <textarea name="class_activity" id="f_class_activity" class="lp-textarea" placeholder="e.g. In groups of 4, students will carry out the starch test on leaves kept in light and dark conditions. Each group records observations in their notebooks...">{{ old('class_activity', $lessonPlan->class_activity ?? '') }}</textarea>
-                </div>
-
-                <div class="lp-card">
-                    <div class="lp-section-title">9. Evaluation</div>
+                    <div class="lp-section-title">7. Evaluation</div>
                     <div class="lp-section-hint">4–5 questions to assess student understanding at the end of the lesson.</div>
                     <textarea name="evaluation" id="f_evaluation" class="lp-textarea" placeholder="1. Define photosynthesis.&#10;2. State three conditions necessary for photosynthesis.&#10;3. Write the word equation for photosynthesis.&#10;4. Why do plants kept in the dark turn yellow?&#10;5. What is the role of chlorophyll in photosynthesis?">{{ old('evaluation', $lessonPlan->evaluation ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">10. Assignment / Homework</div>
+                    <div class="lp-section-title">8. Assignment</div>
                     <div class="lp-section-hint">Specific take-home task that reinforces the lesson.</div>
                     <textarea name="assignment" id="f_assignment" class="lp-textarea" style="min-height:90px" placeholder="e.g. Draw and label a diagram showing the process of photosynthesis. List five importance of photosynthesis to plants and animals.">{{ old('assignment', $lessonPlan->assignment ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">11. Conclusion / Summary</div>
-                    <div class="lp-section-hint">How the teacher wraps up — key points recap, link to next lesson.</div>
-                    <textarea name="conclusion" id="f_conclusion" class="lp-textarea" style="min-height:90px" placeholder="e.g. Teacher summarises the main points: photosynthesis occurs in the chloroplast, requires sunlight, water, and CO₂, and produces glucose and oxygen. Preview: next lesson will cover factors affecting the rate of photosynthesis.">{{ old('conclusion', $lessonPlan->conclusion ?? '') }}</textarea>
+                    <div class="lp-section-title">9. Reference</div>
+                    <div class="lp-section-hint">Only verified curriculum documents or approved textbooks actually used for the lesson.</div>
+                    <textarea name="reference_materials" id="f_reference_materials" class="lp-textarea" style="min-height:80px" placeholder="Author(s). Title, chapter and pages used.">{{ old('reference_materials', $lessonPlan->reference_materials ?? '') }}</textarea>
                 </div>
 
             </div>{{-- /nerdc-only --}}

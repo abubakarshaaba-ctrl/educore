@@ -41,11 +41,11 @@ class LessonPlanningIntelligenceTest extends TestCase
             'behavioural_objectives'=>['Define Mendelian inheritance accurately.','Identify dominant and recessive traits.','Explain inheritance using family traits.'],
             'instructional_resources'=>['A labelled inherited-traits chart','Photographs showing contrasting traits'],
             'introduction'=>'The teacher revises genes through questions, receives student responses, and links familiar family traits to inheritance.',
-            'presentation'=>[['step'=>1,'title'=>'Inheritance','activities'=>[
+            'presentation'=>[['step'=>1,'objective_numbers'=>[1,2,3],'title'=>'Mendelian inheritance','teacher_activities'=>[
                 'Teacher guides the students to define inheritance as the transmission of traits from parents to offspring.',
                 'Teacher aids the students to identify dominant and recessive traits using the labelled chart.',
                 'Teacher helps the students to explain inheritance with familiar examples of contrasting family traits.',
-            ]]],
+            ],'student_activities'=>['Students define inheritance, classify the illustrated traits and explain one inherited family trait.']]],
             'evaluation'=>['What is biological inheritance?','Differentiate dominant and recessive traits.','Give two examples of inherited traits.'],
             'assignment'=>'List and explain three inherited traits observed in families.','references'=>null,
         ]);
@@ -70,6 +70,28 @@ class LessonPlanningIntelligenceTest extends TestCase
     {
         $keys = array_keys(LessonPlan::nerdcSections());
         $this->assertLessThan(array_search('previous_knowledge',$keys,true), array_search('entry_behaviour',$keys,true));
+        $this->assertNotContains('class_activity', $keys);
+        $this->assertNotContains('conclusion', $keys);
+        $this->assertSame('reference_materials', array_key_last(LessonPlan::nerdcSections()));
+    }
+
+    public function test_structured_presentation_is_available_to_screen_and_pdf_when_legacy_text_is_empty(): void
+    {
+        $plan=new LessonPlan(['presentation'=>null,'structured_plan'=>['presentation'=>[[
+            'step'=>1,'objective_numbers'=>[1,2],'title'=>'Courtship Behaviour in Animals',
+            'teacher_activities'=>['Teacher guides students to define courtship behaviour.'],
+            'student_activities'=>['Students define courtship behaviour and give an example.'],
+        ]]]]);
+        $this->assertStringContainsString('Objective 1, Objective 2', $plan->sectionValue('presentation'));
+        $this->assertStringContainsString("STUDENTS' ACTIVITY", $plan->sectionValue('presentation'));
+    }
+
+    public function test_note_schema_normalises_provider_content_block_aliases(): void
+    {
+        $note=$this->note();
+        $note['sections'][0]['content_blocks'][0]=['type'=>'list','items'=>['Egg','Larva','Pupa','Adult']];
+        $validated=app(LessonNoteSchema::class)->validate($note);
+        $this->assertSame('bullets',$validated['sections'][0]['content_blocks'][0]['type']);
     }
 
     public function test_plan_schema_rejects_shallow_presentation_that_does_not_cover_each_subtopic(): void

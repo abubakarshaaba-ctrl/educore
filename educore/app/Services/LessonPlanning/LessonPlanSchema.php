@@ -33,20 +33,23 @@ class LessonPlanSchema
             'behavioural_objectives.*' => 'required|string|min:12', 'instructional_resources' => 'required|array|min:2',
             'instructional_resources.*' => 'required|string', 'introduction' => 'required|string|min:40',
             'presentation' => 'required|array|min:1', 'presentation.*.step' => 'required|integer|min:1',
-            'presentation.*.title' => 'required|string|min:3', 'presentation.*.activities' => 'required|array|min:3|max:6',
-            'presentation.*.activities.*' => 'required|string|min:25', 'evaluation' => 'required|array|min:3|max:10',
+            'presentation.*.objective_numbers' => 'required|array|min:1', 'presentation.*.objective_numbers.*' => 'required|integer|min:1',
+            'presentation.*.title' => 'required|string|min:3', 'presentation.*.teacher_activities' => 'required|array|min:3|max:6',
+            'presentation.*.teacher_activities.*' => 'required|string|min:25', 'presentation.*.student_activities' => 'required|array|min:1|max:4',
+            'presentation.*.student_activities.*' => 'required|string|min:12', 'evaluation' => 'required|array|min:3|max:10',
             'evaluation.*' => 'required|string|min:8', 'assignment' => 'required|string|min:10', 'references' => 'present|array',
         ]);
 
         $validator->after(function ($validator) use ($data) {
             $subtopics = count($data['sub_topics'] ?? []);
-            $steps = count($data['presentation'] ?? []);
-            if ($subtopics > 0 && $steps < $subtopics) {
-                $validator->errors()->add('presentation', "The lesson presentation must include a complete teaching step for each of the {$subtopics} subtopics.");
-            }
-            if ($subtopics > 0 && count($data['behavioural_objectives'] ?? []) < $subtopics) {
+            $objectiveCount = count($data['behavioural_objectives'] ?? []);
+            if ($subtopics > 0 && $objectiveCount < $subtopics) {
                 $validator->errors()->add('behavioural_objectives', 'The behavioural objectives do not cover every lesson subtopic.');
             }
+            $mapped=[];
+            foreach($data['presentation']??[] as $step) foreach($step['objective_numbers']??[] as $number) $mapped[]=(int)$number;
+            sort($mapped); $expected=$objectiveCount?range(1,$objectiveCount):[];
+            if($mapped!==$expected) $validator->errors()->add('presentation','Presentation steps must map every behavioural objective exactly once and in objective order.');
 
             $measurableVerbs = 'define|identify|list|state|describe|explain|distinguish|differentiate|classify|calculate|solve|demonstrate|construct|draw|label|analyse|compare|evaluate|apply|outline|mention|name';
             foreach ($data['behavioural_objectives'] ?? [] as $index => $objective) {
@@ -64,7 +67,7 @@ class LessonPlanSchema
                 if ($expected !== '' && ! $matched) {
                     $validator->errors()->add("presentation.{$index}.title", 'The step title must clearly identify its assigned subtopic.');
                 }
-                foreach ($step['activities'] ?? [] as $activityIndex => $activity) {
+                foreach ($step['teacher_activities'] ?? [] as $activityIndex => $activity) {
                     if (preg_match($generic, (string) $activity)) {
                         $validator->errors()->add("presentation.{$index}.activities.{$activityIndex}", 'Replace generic teaching instructions with the actual concept, process, example or worked procedure.');
                     }

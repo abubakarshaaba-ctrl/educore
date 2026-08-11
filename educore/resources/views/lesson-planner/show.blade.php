@@ -102,12 +102,13 @@
     {{-- Sections --}}
     @php $sections = $lessonPlan->sections(); $i = 1; @endphp
     @foreach($sections as $field => $label)
-    @if($lessonPlan->$field)
+    @php $sectionValue = $lessonPlan->sectionValue($field); @endphp
+    @if($sectionValue)
     <div style="background:white;border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--brand-gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--brand-gold)">
             {{ $i++ }}. {{ $label }}
         </div>
-        <div style="font-size:14px;color:var(--slate);line-height:1.8;white-space:pre-wrap">{{ $lessonPlan->$field }}</div>
+        <div style="font-size:14px;color:var(--slate);line-height:1.8;white-space:pre-wrap">{{ $sectionValue }}</div>
     </div>
     @endif
     @endforeach

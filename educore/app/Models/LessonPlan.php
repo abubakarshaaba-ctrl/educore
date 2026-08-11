@@ -54,14 +54,12 @@ class LessonPlan extends BaseTenantModel
             'entry_behaviour'         => 'Entry Behaviour',
             'previous_knowledge'      => 'Previous / Background Knowledge',
             'behavioural_objectives'  => 'Behavioural Objectives',
-            'instructional_materials' => 'Instructional Materials',
-            'reference_materials'     => 'Reference Materials',
-            'set_induction'           => 'Introduction / Set Induction',
-            'presentation'            => 'Presentation / Development',
-            'class_activity'          => 'Class Activity / Students\' Activity',
+            'instructional_materials' => 'Instructional Resources',
+            'set_induction'           => 'Introduction',
+            'presentation'            => 'Presentation',
             'evaluation'              => 'Evaluation',
-            'assignment'              => 'Assignment / Homework',
-            'conclusion'              => 'Conclusion / Summary',
+            'assignment'              => 'Assignment',
+            'reference_materials'     => 'Reference',
         ];
     }
 
@@ -83,5 +81,18 @@ class LessonPlan extends BaseTenantModel
     public function sections(): array
     {
         return $this->isNerdc() ? self::nerdcSections() : self::britishSections();
+    }
+
+    public function sectionValue(string $field): ?string
+    {
+        if ($field !== 'presentation' || filled($this->presentation)) return $this->{$field};
+        $steps=$this->structured_plan['presentation']??[];
+        if(!$steps) return null;
+        return collect($steps)->map(function($step){
+            $objectives=collect($step['objective_numbers']??[])->map(fn($n)=>'Objective '.$n)->implode(', ');
+            $teachers=$step['teacher_activities']??$step['activities']??[]; $students=$step['student_activities']??[];
+            return 'STEP '.($step['step']??'').': '.($step['title']??'').($objectives?" ({$objectives})":'')."\nTEACHER'S ACTIVITY:\n".
+                collect($teachers)->map(fn($v)=>'• '.$v)->implode("\n").($students?"\nSTUDENTS' ACTIVITY:\n".collect($students)->map(fn($v)=>'• '.$v)->implode("\n"):'');
+        })->implode("\n\n");
     }
 }

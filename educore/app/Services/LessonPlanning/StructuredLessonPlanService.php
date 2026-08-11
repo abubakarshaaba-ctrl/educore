@@ -21,8 +21,8 @@ CONTENT STANDARD:
 - Write 3-6 measurable behavioural objectives using observable verbs. Collectively cover every subtopic.
 - Select concrete, topic-appropriate instructional resources.
 - The introduction must show the teacher revising relevant previous learning through questions, students responding, and the teacher linking those responses to the new lesson.
-- Create at least one presentation step for EACH subtopic, in the same order as sub_topics. A step title must name its subtopic.
-- Every presentation step must contain 3-5 complete, academically meaningful teacher actions. Use the institutional teaching style naturally: "Teacher guides the students to...", "Teacher aids the students to...", "Teacher helps the students to...", "Teacher demonstrates...", or equivalent. State the actual definitions, classifications, processes, examples, comparisons or worked procedures to be taught; do not merely promise to teach them.
+- Number the objectives. Create presentation steps in objective order. Every step must declare objective_numbers and teach exactly those objectives; every objective must be mapped once, while closely related consecutive objectives may share one step as in the approved institutional specimen.
+- A step title must name the concept in its mapped objective(s). Every step must contain 3-5 complete teacher_activities and 1-3 corresponding student_activities. Use "Teacher guides...", "Teacher aids...", "Teacher helps..." naturally and state the actual definitions, classifications, processes, examples, comparisons or worked procedures. Student activities must state the observable response, practice or demonstration resulting from those teacher actions.
 - Evaluation questions must directly assess the stated objectives and cover all substantive subtopics. Assignment must extend the same lesson scope.
 - Use Nigerian English, age-appropriate examples and inclusive learner participation. Build each step as teacher activity followed by the expected learner response or practice, even though both are stored in the activities list.
 - Sequence the lesson from prerequisite recall to explanation/modelling, guided practice, independent practice and formative assessment. Do not claim that learners already know the new lesson content.
@@ -30,7 +30,7 @@ CONTENT STANDARD:
 - References may contain only sources supplied in the request or verified curriculum context. Return [] when no verified reference is supplied; never invent titles, authors or page numbers.
 PROMPT;
         $prompt = 'Create a lesson plan using this specification: '.json_encode($input, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
-            .' Required keys: class, subject, week, lesson, topic, sub_topics[], time, duration, average_age, sex, entry_behaviour, previous_background_knowledge, behavioural_objectives[], instructional_resources[], introduction, presentation[{step,title,activities[]}], evaluation[], assignment, references[]. The presentation array must contain at least one full step per subtopic and preserve subtopic order.';
+            .' Required keys: class, subject, week, lesson, topic, sub_topics[], time, duration, average_age, sex, entry_behaviour, previous_background_knowledge, behavioural_objectives[], instructional_resources[], introduction, presentation[{step,objective_numbers[],title,teacher_activities[],student_activities[]}], evaluation[], assignment, references[]. Preserve objective and subtopic order.';
         $started=hrtime(true);$result=null;$failure=null;
         try {
             $result=$this->provider->generateStructured($system,$prompt,$this->schema->jsonSchema(),3200);
@@ -54,7 +54,13 @@ PROMPT;
             'behavioural_objectives'=>"At the end of the lesson, students should be able to:\n".collect($plan['behavioural_objectives'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),
             'instructional_materials'=>collect($plan['instructional_resources'])->map(fn($v)=>'- '.$v)->implode("\n"),
             'reference_materials'=>collect($plan['references'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),'set_induction'=>$plan['introduction'],
-            'presentation'=>collect($plan['presentation'])->map(fn($step)=>'STEP '.$step['step'].': '.$step['title']."\n".implode("\n",$step['activities']))->implode("\n\n"),
+            'presentation'=>collect($plan['presentation'])->map(function($step){
+                $objectives=collect($step['objective_numbers']??[])->map(fn($n)=>'Objective '.$n)->implode(', ');
+                $teachers=$step['teacher_activities']??$step['activities']??[];
+                $students=$step['student_activities']??[];
+                return 'STEP '.$step['step'].': '.$step['title'].($objectives?" ({$objectives})":'')."\nTEACHER'S ACTIVITY:\n".collect($teachers)->map(fn($v)=>'• '.$v)->implode("\n")
+                    .($students?"\nSTUDENTS' ACTIVITY:\n".collect($students)->map(fn($v)=>'• '.$v)->implode("\n"):'');
+            })->implode("\n\n"),
             'evaluation'=>collect($plan['evaluation'])->map(fn($v,$i)=>($i+1).'. '.$v)->implode("\n"),'assignment'=>$plan['assignment'],'structured_plan'=>$plan];
     }
 }

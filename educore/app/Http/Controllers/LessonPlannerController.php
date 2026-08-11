@@ -92,6 +92,7 @@ class LessonPlannerController extends Controller
         $data['teacher_id'] = Auth::id();
 
         if (!empty($data['structured_plan_json'])) $data['structured_plan'] = json_decode($data['structured_plan_json'], true);
+        if (($data['curriculum_type'] ?? null) === 'nerdc') { $data['class_activity']=null; $data['conclusion']=null; }
         unset($data['structured_plan_json']);
         if (($data['status'] ?? 'draft') === 'published') { $data['approved_at'] = now(); $data['approved_by'] = Auth::id(); }
         $plan = LessonPlan::create($data);
@@ -159,6 +160,7 @@ class LessonPlannerController extends Controller
         ]);
 
         if (!empty($data['structured_plan_json'])) $data['structured_plan'] = json_decode($data['structured_plan_json'], true);
+        if (($data['curriculum_type'] ?? null) === 'nerdc') { $data['class_activity']=null; $data['conclusion']=null; }
         unset($data['structured_plan_json']);
         if (($data['status'] ?? 'draft') === 'published' && ! $lessonPlan->approved_at) { $data['approved_at'] = now(); $data['approved_by'] = Auth::id(); }
         if (($data['status'] ?? 'draft') === 'draft') { $data['approved_at'] = null; $data['approved_by'] = null; }

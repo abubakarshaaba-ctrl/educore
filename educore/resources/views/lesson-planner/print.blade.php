@@ -59,12 +59,20 @@ body { font-family: Arial, Helvetica, sans-serif; font-size:12pt; color:#000; ba
     </tr>
 </table>
 
+@if($lessonPlan->isNerdc())
+<table class="meta-table">
+    <tr><td>Lesson</td><td>{{ $lessonPlan->lesson_number ?: '1' }}</td><td><b>Time</b></td><td>{{ $lessonPlan->lesson_time ?: '-' }}</td></tr>
+    <tr><td>Average Age</td><td>{{ $lessonPlan->average_age ?: '-' }}</td><td><b>Sex</b></td><td>{{ $lessonPlan->sex ?: 'Mixed' }}</td></tr>
+</table>
+@endif
+
 @php $sections = $lessonPlan->sections(); $i = 1; @endphp
 @foreach($sections as $field => $label)
-@if($lessonPlan->$field)
+@php $sectionValue = $lessonPlan->sectionValue($field); @endphp
+@if($sectionValue)
 <div class="section">
     <div class="section-title">{{ $i++ }}. {{ $label }}</div>
-    <div class="section-body">{{ $lessonPlan->$field }}</div>
+    <div class="section-body">{{ $sectionValue }}</div>
 </div>
 @endif
 @endforeach
