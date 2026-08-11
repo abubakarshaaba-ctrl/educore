@@ -8,12 +8,13 @@ use App\Models\LessonNoteRevision;
 use App\Models\LessonNoteValidation;
 use App\Models\LessonPlan;
 use App\Services\Curriculum\CurriculumRetrievalService;
+use App\Services\Curriculum\WebLessonResearchService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class GroundedLessonNoteService
 {
-    public function __construct(private LessonAiProvider $provider, private CurriculumRetrievalService $retrieval,
+    public function __construct(private LessonAiProvider $provider, private CurriculumRetrievalService $retrieval, private WebLessonResearchService $webResearch,
         private LessonPromptFactory $prompts, private LessonNoteSchema $schema, private LessonNoteValidationService $validator,
         private StructuredNoteRenderer $renderer) {}
 
@@ -22,7 +23,9 @@ class GroundedLessonNoteService
         if (! $plan->isPublished() && ! $plan->approved_at) throw new \DomainException('Approve the lesson plan before generating its lesson note.');
         $plan->loadMissing(['subject', 'classLevel']);
         $fragments = $this->retrieval->forLessonPlan($plan);
-        $context = $this->retrieval->compactContext($fragments);
+        $curriculumContext = $this->retrieval->compactContext($fragments);
+        $webContext = $this->webResearch->forLessonPlan($plan);
+        $context = array_merge($curriculumContext,$webContext);
         $started = hrtime(true); $usage = null; $failure = null;
         try {
             $usage = $this->provider->generateStructured($this->prompts->noteSystem(), $this->prompts->noteUser($plan, $context, $depth, $onlyItems), $this->schema->jsonSchema(), $depth === 'detailed' ? 6000 : ($depth === 'concise' ? 2600 : 4200));
@@ -60,11 +63,11 @@ class GroundedLessonNoteService
 
     private function verifiedTrace(array $trace, array $context): array
     {
-        $allowed = collect($context)->keyBy('fragment_id');
+        $allowed = collect($context)->keyBy(fn($item)=>(string)($item['fragment_id']??$item['evidence_id']??''));
         return collect($trace)->map(function ($item) use ($allowed) {
-            $id = is_array($item) ? ($item['fragment_id'] ?? null) : null;
+            $id = is_array($item) ? ($item['fragment_id'] ?? $item['evidence_id'] ?? null) : null;
             return $id && $allowed->has($id) ? $allowed->get($id) : null;
-        })->filter()->unique('fragment_id')->values()->all();
+        })->filter()->unique(fn($item)=>$item['fragment_id']??$item['evidence_id']??null)->values()->all();
     }
 
     private function mergeMissing(array $existing, array $generated): array

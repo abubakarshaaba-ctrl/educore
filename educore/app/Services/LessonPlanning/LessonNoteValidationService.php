@@ -21,9 +21,10 @@ class LessonNoteValidationService
         $curriculumMissing=$missingNerdc?['No approved NERDC curriculum fragment matched this subject, class and topic.']:[];
         $needsRevision=(bool)$missing || $missingNerdc;
 
+        $hasAuthoritative=collect($context)->contains(fn($item)=>($item['source_type']??null)!=='web_reference');
         return ['status' => $needsRevision ? 'revise' : 'pass', 'plan_coverage' => $missing ? 'PARTIAL' : 'FULL',
             'authority_alignment' => $authorities, 'missing_plan_items' => $missing, 'missing_curriculum_items' => $curriculumMissing,
-            'factual_concerns' => $context ? [] : ['No approved curriculum evidence matched this lesson. Alignment claims are disabled pending teacher review.'],
+            'factual_concerns' => $hasAuthoritative ? [] : ['No approved curriculum evidence matched this lesson. Web evidence is supplementary; alignment claims remain disabled pending teacher review.'],
             'suggested_additions' => $missing];
     }
 

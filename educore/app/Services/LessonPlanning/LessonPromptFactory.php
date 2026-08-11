@@ -31,9 +31,12 @@ PROMPT;
             'instructional_resources' => $plan->instructional_materials, 'duration_minutes' => $plan->duration_minutes,
             'presentation' => $plan->presentation, 'depth' => $depth,
         ];
+        $curriculum=collect($context)->where('source_type','!=','web_reference')->values()->all();
+        $web=collect($context)->where('source_type','web_reference')->values()->all();
         return "Generate a structured lesson note.\nAPPROVED_PLAN=".json_encode($specification, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
-            ."\nCURRICULUM_EVIDENCE=".json_encode($context, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
+            ."\nAUTHORITATIVE_CURRICULUM_EVIDENCE=".json_encode($curriculum, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
+            ."\nSUPPLEMENTARY_WEB_EVIDENCE=".json_encode($web, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
             .($onlyItems ? "\nGENERATE_ONLY_MISSING_ITEMS=".json_encode($onlyItems, JSON_UNESCAPED_UNICODE) : '')
-            .'\nRequired JSON keys: title, overview, sections[{heading,subheading,content_blocks[{type,content|items|headers|rows|title|problem|solution|labels,placement_after_section}]}], key_examination_points[], review_questions{objective[],structured[],application[]}, summary, source_trace[]. Source trace may contain only supplied fragment IDs and locators.';
+            .'\nRequired JSON keys: title, overview, sections[{heading,subheading,content_blocks[{type,content|items|headers|rows|title|problem|solution|labels,placement_after_section}]}], key_examination_points[], review_questions{objective[],structured[],application[]}, summary, source_trace[]. Source trace may contain only supplied fragment_id or evidence_id values. Web evidence is supplementary and must never be described as NERDC alignment.';
     }
 }
