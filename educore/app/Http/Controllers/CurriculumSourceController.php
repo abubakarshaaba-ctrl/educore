@@ -29,13 +29,18 @@ class CurriculumSourceController extends Controller
         $platform = auth()->user()->isSuperAdmin(); $tenantId = $platform ? null : (int) auth()->user()->tenant_id;
         $this->authoriseManager($platform);
         $data = $request->validate([
-            'authority'=>['required',Rule::in(['NERDC','WAEC','NECO','JAMB','SCHOOL','TEXTBOOK','OTHER'])], 'source_type'=>'required|string|max:50',
+            'authority'=>['required',Rule::in(['NERDC','WAEC','NECO','JAMB','SCHOOL','TEXTBOOK','OTHER'])],
+            'source_type'=>['required',Rule::in(['curriculum_document','teacher_guide','assessment_syllabus','approved_textbook','school_scheme'])],
             'title'=>'required|string|max:255','version'=>'required|string|max:80','publication_year'=>'nullable|integer|min:1900|max:'.(date('Y')+1),
+            'publisher'=>'nullable|string|max:255','authors'=>'nullable|string|max:255','isbn'=>'nullable|string|max:32',
             'education_level'=>'nullable|string|max:80','subject_id'=>'nullable|integer','class_level_id'=>'nullable|integer',
             'topic'=>'required|string|max:255','subtopic'=>'nullable|string|max:255','source_reference'=>'nullable|string|max:255',
+            'approval_reference'=>'nullable|required_if:authority,TEXTBOOK|string|max:255',
+            'rights_status'=>['required',Rule::in(['public_official','licensed','institution_authorised'])],
             'source_file'=>'required|file|max:15360|mimes:txt,csv,docx','is_official'=>'nullable|boolean',
         ]);
         if (! $platform && in_array($data['authority'], ['NERDC','WAEC','NECO','JAMB'], true)) $data['authority'] = 'SCHOOL';
+        if ($data['authority'] === 'TEXTBOOK') $data['source_type'] = 'approved_textbook';
         $this->assertAcademicScope($data, $tenantId, $platform);
         $upload = $request->file('source_file'); $checksum = hash_file('sha256', $upload->getRealPath());
         $text = $this->extract($upload->getRealPath(), strtolower($upload->getClientOriginalExtension()));
@@ -46,6 +51,8 @@ class CurriculumSourceController extends Controller
             $source = CurriculumSource::create(['tenant_id'=>$tenantId,'subject_id'=>$data['subject_id']??null,'class_level_id'=>$data['class_level_id']??null,
                 'authority'=>$data['authority'],'source_type'=>$data['source_type'],'title'=>$data['title'],'education_level'=>$data['education_level']??null,
                 'version'=>$data['version'],'publication_year'=>$data['publication_year']??null,'source_reference'=>$data['source_reference']??null,
+                'publisher'=>$data['publisher']??null,'authors'=>$data['authors']??null,'isbn'=>$data['isbn']??null,
+                'approval_reference'=>$data['approval_reference']??null,'rights_status'=>$data['rights_status'],
                 'source_file_path'=>$path,'checksum'=>$checksum,'is_official'=>$platform && (bool)($data['is_official']??false),'is_active'=>false,
                 'review_status'=>'pending','created_by'=>auth()->id(),'metadata'=>['original_name'=>request()->file('source_file')->getClientOriginalName()]]);
             foreach ($this->chunks($text) as $sequence => $chunk) CurriculumFragment::create(['curriculum_source_id'=>$source->id,

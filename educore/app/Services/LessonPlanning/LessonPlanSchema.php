@@ -47,6 +47,29 @@ class LessonPlanSchema
             if ($subtopics > 0 && count($data['behavioural_objectives'] ?? []) < $subtopics) {
                 $validator->errors()->add('behavioural_objectives', 'The behavioural objectives do not cover every lesson subtopic.');
             }
+
+            $measurableVerbs = 'define|identify|list|state|describe|explain|distinguish|differentiate|classify|calculate|solve|demonstrate|construct|draw|label|analyse|compare|evaluate|apply|outline|mention|name';
+            foreach ($data['behavioural_objectives'] ?? [] as $index => $objective) {
+                if (! preg_match('/\b('.$measurableVerbs.')\b/i', (string) $objective)) {
+                    $validator->errors()->add("behavioural_objectives.{$index}", 'Use an observable, measurable behavioural verb.');
+                }
+            }
+
+            $generic = '/\b(discuss the topic|explain key concepts|teach the students|provide examples|give examples|cover the topic)\b/i';
+            foreach ($data['presentation'] ?? [] as $index => $step) {
+                $title = mb_strtolower((string) ($step['title'] ?? ''));
+                $expected = mb_strtolower((string) (($data['sub_topics'] ?? [])[$index] ?? ''));
+                $keywords = preg_split('/\W+/u', $expected, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                $matched = collect($keywords)->contains(fn ($word) => mb_strlen($word) > 3 && str_contains($title, $word));
+                if ($expected !== '' && ! $matched) {
+                    $validator->errors()->add("presentation.{$index}.title", 'The step title must clearly identify its assigned subtopic.');
+                }
+                foreach ($step['activities'] ?? [] as $activityIndex => $activity) {
+                    if (preg_match($generic, (string) $activity)) {
+                        $validator->errors()->add("presentation.{$index}.activities.{$activityIndex}", 'Replace generic teaching instructions with the actual concept, process, example or worked procedure.');
+                    }
+                }
+            }
         });
 
         return $validator->validate();

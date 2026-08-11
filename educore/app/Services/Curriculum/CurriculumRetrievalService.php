@@ -23,7 +23,7 @@ class CurriculumRetrievalService
             ->where(fn ($q) => $q->whereNull('class_level_id')->orWhere('class_level_id', $plan->class_level_id))
             ->where(function ($query) use ($terms) {
                 foreach ($terms as $term) $query->orWhere('topic', 'like', "%{$term}%")->orWhere('subtopic', 'like', "%{$term}%")->orWhere('content', 'like', "%{$term}%");
-            })->orderByRaw("CASE WHEN EXISTS (SELECT 1 FROM curriculum_sources cs WHERE cs.id = curriculum_fragments.curriculum_source_id AND cs.authority = 'NERDC') THEN 0 ELSE 1 END")
+            })->orderByRaw("CASE WHEN EXISTS (SELECT 1 FROM curriculum_sources cs WHERE cs.id = curriculum_fragments.curriculum_source_id AND cs.authority = 'NERDC') THEN 0 WHEN EXISTS (SELECT 1 FROM curriculum_sources cs WHERE cs.id = curriculum_fragments.curriculum_source_id AND cs.authority IN ('WAEC','NECO','JAMB')) THEN 1 WHEN EXISTS (SELECT 1 FROM curriculum_sources cs WHERE cs.id = curriculum_fragments.curriculum_source_id AND cs.authority = 'TEXTBOOK' AND cs.is_official = 1) THEN 2 WHEN EXISTS (SELECT 1 FROM curriculum_sources cs WHERE cs.id = curriculum_fragments.curriculum_source_id AND cs.authority = 'SCHOOL') THEN 3 ELSE 4 END")
             ->orderBy('sequence')->limit($limit)->get();
     }
 
@@ -32,6 +32,8 @@ class CurriculumRetrievalService
         return $fragments->map(fn ($fragment) => [
             'fragment_id' => $fragment->id, 'authority' => $fragment->source->authority,
             'source' => $fragment->source->title, 'version' => $fragment->source->version,
+            'source_type' => $fragment->source->source_type,
+            'approval_status' => $fragment->source->is_official ? 'verified' : 'school-reviewed',
             'topic' => $fragment->topic, 'subtopic' => $fragment->subtopic,
             'requirement' => $fragment->learning_expectation ?: $fragment->content,
             'locator' => $fragment->source_locator,

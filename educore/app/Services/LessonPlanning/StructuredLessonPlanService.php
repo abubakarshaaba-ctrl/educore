@@ -24,6 +24,9 @@ CONTENT STANDARD:
 - Create at least one presentation step for EACH subtopic, in the same order as sub_topics. A step title must name its subtopic.
 - Every presentation step must contain 3-5 complete, academically meaningful teacher actions. Use the institutional teaching style naturally: "Teacher guides the students to...", "Teacher aids the students to...", "Teacher helps the students to...", "Teacher demonstrates...", or equivalent. State the actual definitions, classifications, processes, examples, comparisons or worked procedures to be taught; do not merely promise to teach them.
 - Evaluation questions must directly assess the stated objectives and cover all substantive subtopics. Assignment must extend the same lesson scope.
+- Use Nigerian English, age-appropriate examples and inclusive learner participation. Build each step as teacher activity followed by the expected learner response or practice, even though both are stored in the activities list.
+- Sequence the lesson from prerequisite recall to explanation/modelling, guided practice, independent practice and formative assessment. Do not claim that learners already know the new lesson content.
+- Make the lesson feasible within the supplied duration. Do not invent experiments, equipment or local circumstances that were not supplied or are unsafe.
 - References may contain only sources supplied in the request or verified curriculum context. Return [] when no verified reference is supplied; never invent titles, authors or page numbers.
 PROMPT;
         $prompt = 'Create a lesson plan using this specification: '.json_encode($input, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)

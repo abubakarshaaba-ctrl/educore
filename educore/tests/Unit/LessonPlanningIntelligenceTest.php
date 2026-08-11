@@ -87,6 +87,26 @@ class LessonPlanningIntelligenceTest extends TestCase
         ]);
     }
 
+    public function test_plan_schema_rejects_non_measurable_objectives_and_generic_teaching_filler(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        app(\App\Services\LessonPlanning\LessonPlanSchema::class)->validate([
+            'class'=>'SS 1','subject'=>'Biology','lesson'=>'1','topic'=>'The cell','sub_topics'=>['Cell structure'],
+            'duration'=>'40 minutes','sex'=>'Mixed','entry_behaviour'=>'Learners can identify common living things around them.',
+            'previous_background_knowledge'=>'Learners previously studied the characteristics of living things.',
+            'behavioural_objectives'=>['Understand cells very well','Know the parts of a cell','Appreciate cell structure'],
+            'instructional_resources'=>['Cell chart','Onion epidermal slide'],'introduction'=>'Teacher revises living things through questions, receives learner responses and links them to cells.',
+            'presentation'=>[['step'=>1,'title'=>'Cell structure','activities'=>[
+                'Teacher will discuss the topic with all the students in the classroom.',
+                'Teacher will explain key concepts and ask the learners to listen carefully.',
+                'Teacher will provide examples before learners copy their class notes.',
+            ]]],
+            'evaluation'=>['Define a cell.','Name two cell parts.','State one function of the nucleus.'],
+            'assignment'=>'Draw and label a typical plant cell.','references'=>[],
+        ]);
+    }
+
     private function note(): array
     {
         return ['title'=>'Development of new organisms','overview'=>'Metamorphosis explains developmental change.',
