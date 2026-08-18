@@ -1064,6 +1064,8 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
     Route::get('/',              [SuperAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'index'])->name('migrations.index');
     Route::get('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'index'])->name('curriculum-sources.index');
+    Route::get('curriculum-sources/import', [\App\Http\Controllers\CurriculumSourceController::class, 'create'])->name('curriculum-sources.create');
+    Route::get('curriculum-sources/topics', [\App\Http\Controllers\CurriculumSourceController::class, 'topics'])->name('curriculum-sources.topics.index');
     Route::post('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'store'])->name('curriculum-sources.store');
     Route::post('curriculum-sources/{curriculumSource}/activate', [\App\Http\Controllers\CurriculumSourceController::class, 'activate'])->name('curriculum-sources.activate');
     Route::post('curriculum-sources/{curriculumSource}/deactivate', [\App\Http\Controllers\CurriculumSourceController::class, 'deactivate'])->name('curriculum-sources.deactivate');

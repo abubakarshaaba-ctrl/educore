@@ -22,9 +22,36 @@ class CurriculumSourceController extends Controller
         if ($request->filled('search')) $query->where(fn ($q) => $q->where('title', 'like', '%'.$request->search.'%')->orWhere('cleaned_text', 'like', '%'.$request->search.'%'));
         $sources = $query->latest()->paginate(20)->withQueryString();
         $imports = RepositoryImport::latest()->take(10)->get();
-        $subjects = Subject::orderBy('name')->get(); $classLevels = ClassLevel::orderBy('order_index')->get();
         $analytics = ['resources'=>CurriculumSource::whereNull('tenant_id')->count(),'indexed'=>CurriculumSource::whereNull('tenant_id')->where('index_status','indexed')->count(),'failed'=>CurriculumSource::whereNull('tenant_id')->where('extraction_status','failed')->count(),'review'=>CurriculumSource::whereNull('tenant_id')->where('needs_review',true)->count(),'imports'=>RepositoryImport::count()];
-        return view('curriculum-sources.index', compact('sources','imports','subjects','classLevels','analytics'));
+        return view('curriculum-sources.index', compact('sources','imports','analytics'));
+    }
+
+    public function create()
+    {
+        $this->guard();
+
+        $subjects = Subject::orderBy('name')->get();
+        $classLevels = ClassLevel::orderBy('order_index')->get();
+
+        return view('curriculum-sources.import', compact('subjects', 'classLevels'));
+    }
+
+    public function topics(Request $request)
+    {
+        $this->guard();
+
+        $query = CurriculumTopic::query();
+        if ($request->filled('search')) {
+            $query->where('topic', 'like', '%'.$request->search.'%');
+        }
+
+        $topics = $query->latest()->paginate(20)->withQueryString();
+        $subjects = Subject::orderBy('name')->get();
+        $classLevels = ClassLevel::orderBy('order_index')->get();
+        $subjectNames = $subjects->pluck('name', 'id');
+        $classLevelNames = $classLevels->pluck('name', 'id');
+
+        return view('curriculum-sources.topics', compact('topics', 'subjects', 'classLevels', 'subjectNames', 'classLevelNames'));
     }
 
     public function store(Request $request, AcademicRepositoryIngestionService $service)
@@ -40,7 +67,7 @@ class CurriculumSourceController extends Controller
         ]);
         $data['column_mapping'] = ($data['column_mapping_json'] ?? null) ? json_decode($data['column_mapping_json'], true) : [];
         foreach ($request->file('source_files') as $file) $service->ingest($file, $data, auth()->id());
-        return back()->with('success', 'Repository archive received and indexed. Review the import summary before activating resources.');
+        return redirect()->route('super.curriculum-sources.index')->with('success', 'Archive imported.');
     }
 
     public function activate(CurriculumSource $curriculumSource) { $this->guard(); abort_unless($curriculumSource->tenant_id===null,403); abort_if($curriculumSource->extraction_status!=='extracted',422,'A resource with failed extraction cannot be activated.'); $curriculumSource->update(['review_status'=>'approved','is_active'=>true,'needs_review'=>false,'reviewed_by'=>auth()->id(),'reviewed_at'=>now()]); return back()->with('success','Resource activated and available to lesson generation.'); }
