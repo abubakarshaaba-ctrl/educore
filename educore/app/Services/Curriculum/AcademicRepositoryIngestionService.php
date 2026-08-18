@@ -162,8 +162,9 @@ class AcademicRepositoryIngestionService
         $duplicate = CurriculumSource::whereNull('tenant_id')->where('checksum', $checksum)->first();
 
         if ($duplicate) {
+            $this->organiseDuplicate($duplicate, $meta);
             $import->increment('duplicates');
-            $this->item($import, $relativePath, 'duplicate', 'Matching checksum already exists.', $duplicate->id, $meta['metadata'] ?? []);
+            $this->item($import, $relativePath, 'duplicate', 'Matching resource was retained and organised.', $duplicate->id, $meta['metadata'] ?? []);
             return;
         }
 
@@ -245,6 +246,62 @@ class AcademicRepositoryIngestionService
             $source->id,
             $meta['metadata'] ?? []
         );
+    }
+
+    /**
+     * Bring legacy flat uploads into the repository hierarchy when the same
+     * file is encountered in a later archive. The resource remains singular.
+     */
+    private function organiseDuplicate(CurriculumSource $source, array $meta, ?string $replacementPath = null): void
+    {
+        $incomingMetadata = $meta['metadata'] ?? [];
+        $metadata = array_filter(
+            array_merge($source->metadata ?? [], $incomingMetadata),
+            fn ($value) => $value !== null && $value !== ''
+        );
+
+        $updates = ['metadata' => $metadata];
+        foreach ([
+            'subject_id' => 'subject_id',
+            'class_level_id' => 'curriculum_level_id',
+            'source_class_level_id' => 'source_class_level_id',
+            'curriculum_level_id' => 'curriculum_level_id',
+            'term_id' => 'term_id',
+            'week_number' => 'week_number',
+        ] as $sourceField => $metaField) {
+            if ($source->{$sourceField} === null && !empty($meta[$metaField])) {
+                $updates[$sourceField] = $meta[$metaField];
+            }
+        }
+
+        $disk = Storage::disk('local');
+        if ($replacementPath && $disk->exists($replacementPath)) {
+            $updates['source_file_path'] = $replacementPath;
+            $updates['file_size'] = $disk->size($replacementPath);
+        }
+
+        $extension = strtolower(pathinfo($source->original_filename ?: $source->source_file_path, PATHINFO_EXTENSION));
+        $hierarchy = $incomingMetadata['storage_hierarchy'] ?? null;
+        if (!$replacementPath && $source->source_file_path && $hierarchy && in_array($extension, ['docx', 'doc', 'pdf', 'xlsx', 'xls'], true)) {
+            $safeTitle = Str::limit(Str::slug(pathinfo($source->original_filename, PATHINFO_FILENAME)), 90, '');
+            $storedName = substr((string) $source->checksum, 0, 12).'-'.($safeTitle ?: 'resource').'.'.$extension;
+            $target = 'academic-repository/originals/'.$hierarchy.'/'.$storedName;
+            $current = str_replace('\\', '/', $source->source_file_path);
+
+            if ($current !== $target && $disk->exists($current) && !$disk->exists($target)) {
+                $disk->move($current, $target);
+            }
+
+            if ($disk->exists($target)) {
+                $targetChecksum = hash_file('sha256', $disk->path($target));
+                if (hash_equals((string) $source->checksum, (string) $targetChecksum)) {
+                    $updates['source_file_path'] = $target;
+                    $updates['file_size'] = $disk->size($target);
+                }
+            }
+        }
+
+        $source->update($updates);
     }
 
     private function zip(UploadedFile $file, array $meta, int $actor, RepositoryImport $import): void
@@ -335,8 +392,13 @@ class AcademicRepositoryIngestionService
             }
 
             $checksum = hash('sha256', $values['content']);
-            if (CurriculumSource::whereNull('tenant_id')->where('checksum', $checksum)->exists()) {
+            $duplicate = CurriculumSource::whereNull('tenant_id')->where('checksum', $checksum)->first();
+            if ($duplicate) {
+                $rowMeta = $meta;
+                $rowMeta['metadata'] = array_filter(array_merge($meta['metadata'] ?? [], ['spreadsheet_row' => $rowNumber + 2]));
+                $this->organiseDuplicate($duplicate, $rowMeta, $stored);
                 $import->increment('duplicates');
+                $this->item($import, $name.' row '.($rowNumber + 2), 'duplicate', 'Matching resource was retained and organised.', $duplicate->id, $rowMeta['metadata']);
                 continue;
             }
 
