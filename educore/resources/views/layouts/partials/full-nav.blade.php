@@ -80,12 +80,6 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
             <span class="nav-label">Curriculum</span>
         </a>
-        @if(in_array($u->role, ['admin','academic_administrator'], true))
-        <a href="{{ route('curriculum-sources.index') }}" class="nav-item {{ request()->routeIs('curriculum-sources.*') ? 'active' : '' }}" data-tip="Curriculum Sources">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm2 5h8V5H6v2zm0 4h8V9H6v2zm0 4h6v-2H6v2zM20 6h2v14a2 2 0 0 1-2 2h-1.18c.75-.84 1.18-1.89 1.18-3V6z"/></svg>
-            <span class="nav-label">Curriculum Sources</span>
-        </a>
-        @endif
         @endif
         @if($u->canAccessModule('subjects'))
         <a href="{{ route('subjects.index') }}" class="nav-item {{ request()->routeIs('subjects.*') ? 'active' : '' }}" data-tip="Subjects">

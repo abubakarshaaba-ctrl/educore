@@ -63,7 +63,7 @@
                     @error('subject_id')<span style="color:var(--crimson);font-size:12px">{{ $message }}</span>@enderror
                 </div>
                 <div>
-                    <label class="fl">Class Level <span style="color:var(--crimson)">*</span></label>
+                    <label class="fl">Teaching Class <span style="color:var(--crimson)">*</span></label>
                     <select name="class_level_id" id="classLevelSel" class="fc" required>
                         <option value="">Select class</option>
                         @foreach($classLevels as $cl)
@@ -75,6 +75,8 @@
                     </select>
                     @error('class_level_id')<span style="color:var(--crimson);font-size:12px">{{ $message }}</span>@enderror
                 </div>
+                <div><label class="fl">Curriculum Origin Level</label><select name="curriculum_level_id" id="curriculumLevelSel" class="fc"><option value="">Same as Teaching Class</option>@foreach($classLevels as $cl)<option value="{{$cl->id}}" @selected(old('curriculum_level_id',$lessonPlan->curriculum_level_id??'')==$cl->id)>{{$cl->name}}</option>@endforeach</select><small>The level where this topic officially belongs.</small></div>
+                <div><label class="fl">Delivery Type</label><select name="delivery_type" id="deliveryTypeSel" class="fc">@foreach(['regular'=>'Regular','carry_forward'=>'Carry Forward','remedial'=>'Remedial','revision'=>'Revision','enrichment'=>'Enrichment'] as $v=>$l)<option value="{{$v}}" @selected(old('delivery_type',$lessonPlan->delivery_type??'regular')===$v)>{{$l}}</option>@endforeach</select></div>
                 <div>
                     <label class="fl">Class Arm</label>
                     <select name="class_arm_id" class="fc">
@@ -140,7 +142,7 @@
                     <label class="fl">Status</label>
                     <select name="status" class="fc">
                         <option value="draft" {{ old('status', $lessonPlan->status ?? 'draft') === 'draft' ? 'selected' : '' }}>Draft</option>
-                        <option value="published" {{ old('status', $lessonPlan->status ?? '') === 'published' ? 'selected' : '' }}>Approved</option>
+                        <option value="published" {{ old('status', $lessonPlan->status ?? '') === 'published' ? 'selected' : '' }}>Published</option>
                     </select>
                 </div>
             </div>
@@ -175,55 +177,49 @@
             <div class="nerdc-only">
 
                 <div class="lp-card">
-                    <div class="lp-section-title">1. Entry Behaviour</div>
-                    <div class="lp-section-hint">The observable prerequisite ability or readiness students possess before this lesson.</div>
-                    <textarea name="entry_behaviour" id="f_entry_behaviour" class="lp-textarea" placeholder="e.g. Students can identify examples of reproduction and state that fertilisation involves male and female gametes.">{{ old('entry_behaviour', $lessonPlan->entry_behaviour ?? '') }}</textarea>
-                </div>
-
-                <div class="lp-card">
-                    <div class="lp-section-title">2. Previous / Background Knowledge</div>
-                    <div class="lp-section-hint">Related concepts students were previously taught. Keep this separate from entry behaviour.</div>
+                    <div class="lp-section-title">1. Previous / Background Knowledge</div>
+                    <div class="lp-section-hint">Related concepts students were previously taught.</div>
                     <textarea name="previous_knowledge" id="f_previous_knowledge" class="lp-textarea" placeholder="e.g. Students were previously taught plant and animal reproduction and the functions of reproductive cells.">{{ old('previous_knowledge', $lessonPlan->previous_knowledge ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">3. Behavioural Objectives</div>
+                    <div class="lp-section-title">2. Behavioural Objectives</div>
                     <div class="lp-section-hint">By the end of this lesson, students should be able to… (Use Bloom's Taxonomy verbs: identify, describe, explain, demonstrate, compare, analyse)</div>
                     <textarea name="behavioural_objectives" id="f_behavioural_objectives" class="lp-textarea" placeholder="By the end of this lesson, students should be able to:&#10;1. Define photosynthesis&#10;2. State the conditions necessary for photosynthesis&#10;3. Write the chemical equation for photosynthesis">{{ old('behavioural_objectives', $lessonPlan->behavioural_objectives ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">4. Instructional Materials</div>
+                    <div class="lp-section-title">3. Instructional Materials</div>
                     <div class="lp-section-hint">Teaching aids, charts, specimens, models, digital resources you will use.</div>
                     <textarea name="instructional_materials" id="f_instructional_materials" class="lp-textarea" style="min-height:80px" placeholder="e.g. Chart showing process of photosynthesis, green leaves, test tubes, iodine solution, whiteboard, markers...">{{ old('instructional_materials', $lessonPlan->instructional_materials ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">5. Introduction</div>
+                    <div class="lp-section-title">4. Introduction</div>
                     <div class="lp-section-hint">A 2–3 minute activity or question to capture students' interest and connect to prior knowledge.</div>
                     <textarea name="set_induction" id="f_set_induction" class="lp-textarea" placeholder="e.g. Teacher asks: Why do plants placed in the dark lose their green colour? Students brainstorm responses...">{{ old('set_induction', $lessonPlan->set_induction ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">6. Presentation</div>
+                    <div class="lp-section-title">5. Presentation</div>
                     <div class="lp-section-hint">Each step must align with its corresponding behavioural objective(s). Keep teacher activity and the resulting students' activity inside the same step.</div>
                     <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:300px" placeholder="STEP I: Courtship Behaviour in Animals (Objectives 1-2)&#10;TEACHER'S ACTIVITY:&#10;• Teacher guides students to define...&#10;STUDENTS' ACTIVITY:&#10;• Students define and give examples...">{{ old('presentation', isset($lessonPlan) ? $lessonPlan->sectionValue('presentation') : '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">7. Evaluation</div>
+                    <div class="lp-section-title">6. Evaluation</div>
                     <div class="lp-section-hint">4–5 questions to assess student understanding at the end of the lesson.</div>
                     <textarea name="evaluation" id="f_evaluation" class="lp-textarea" placeholder="1. Define photosynthesis.&#10;2. State three conditions necessary for photosynthesis.&#10;3. Write the word equation for photosynthesis.&#10;4. Why do plants kept in the dark turn yellow?&#10;5. What is the role of chlorophyll in photosynthesis?">{{ old('evaluation', $lessonPlan->evaluation ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">8. Assignment</div>
+                    <div class="lp-section-title">7. Assignment</div>
                     <div class="lp-section-hint">Specific take-home task that reinforces the lesson.</div>
                     <textarea name="assignment" id="f_assignment" class="lp-textarea" style="min-height:90px" placeholder="e.g. Draw and label a diagram showing the process of photosynthesis. List five importance of photosynthesis to plants and animals.">{{ old('assignment', $lessonPlan->assignment ?? '') }}</textarea>
                 </div>
 
                 <div class="lp-card">
-                    <div class="lp-section-title">9. Reference</div>
+                    <div class="lp-section-title">8. Reference</div>
                     <div class="lp-section-hint">Only verified curriculum documents or approved textbooks actually used for the lesson.</div>
                     <textarea name="reference_materials" id="f_reference_materials" class="lp-textarea" style="min-height:80px" placeholder="Author(s). Title, chapter and pages used.">{{ old('reference_materials', $lessonPlan->reference_materials ?? '') }}</textarea>
                 </div>
@@ -353,7 +349,7 @@ async function generateWithAI() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ subject, class_level: classLevel, topic, subtopic, curriculum_type: curriculum, section, duration_minutes: duration, week, term: '', lesson_number, lesson_time, average_age, sex }),
+            body: JSON.stringify({ subject, subject_id: document.getElementById('subjectSel').value, class_level: classLevel, teaching_class_id: document.getElementById('classLevelSel').value, curriculum_level_id: document.getElementById('curriculumLevelSel').value || document.getElementById('classLevelSel').value, delivery_type: document.getElementById('deliveryTypeSel').value, topic, subtopic, curriculum_type: curriculum, section, duration_minutes: duration, week, term: '', lesson_number, lesson_time, average_age, sex }),
         });
 
         const json = await res.json();

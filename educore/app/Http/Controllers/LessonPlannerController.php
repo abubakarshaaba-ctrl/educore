@@ -10,6 +10,9 @@ use App\Models\Term;
 use App\Services\LessonAiService;
 use App\Services\LessonPlanning\GroundedLessonNoteService;
 use App\Services\LessonPlanning\StructuredLessonPlanService;
+use App\Services\Curriculum\CurriculumRetrievalService;
+use App\Models\CurriculumTopic;
+use App\Models\LessonPlanSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -45,7 +48,7 @@ class LessonPlannerController extends Controller
         $classArms   = ClassArm::with('classLevel')->orderBy('name')->get();
         $terms       = Term::orderByDesc('id')->take(9)->get();
 
-        return view('lesson-planner.create', compact('subjects', 'classLevels', 'classArms', 'terms'));
+        $curriculumTopics=CurriculumTopic::where('status','active')->get();return view('lesson-planner.create', compact('subjects', 'classLevels', 'classArms', 'terms','curriculumTopics'));
     }
 
     public function store(Request $request)
@@ -56,6 +59,7 @@ class LessonPlannerController extends Controller
             'class_arm_id'     => 'nullable|exists:class_arms,id',
             'term_id'          => 'nullable|exists:terms,id',
             'curriculum_type'  => 'required|in:nerdc,british',
+            'curriculum_level_id'=>'nullable|exists:class_levels,id','delivery_type'=>'required|in:regular,carry_forward,remedial,revision,enrichment',
             'topic'            => 'required|string|max:255',
             'subtopic'         => 'nullable|string|max:255',
             'week_number'      => 'nullable|integer|min:1|max:52',
@@ -68,7 +72,6 @@ class LessonPlannerController extends Controller
             'status'           => 'required|in:draft,published',
             // NERDC sections
             'previous_knowledge'      => 'nullable|string',
-            'entry_behaviour'         => 'nullable|string',
             'behavioural_objectives'  => 'nullable|string',
             'instructional_materials' => 'nullable|string',
             'reference_materials'     => 'nullable|string',
@@ -94,8 +97,9 @@ class LessonPlannerController extends Controller
         if (!empty($data['structured_plan_json'])) $data['structured_plan'] = json_decode($data['structured_plan_json'], true);
         if (($data['curriculum_type'] ?? null) === 'nerdc') { $data['class_activity']=null; $data['conclusion']=null; }
         unset($data['structured_plan_json']);
-        if (($data['status'] ?? 'draft') === 'published') { $data['approved_at'] = now(); $data['approved_by'] = Auth::id(); }
+        if (($data['status'] ?? 'draft') === 'published') $data['published_at'] = now();
         $plan = LessonPlan::create($data);
+        $this->recordRepositorySources($plan);
 
         return redirect()->route('lesson-planner.show', $plan)
             ->with('success', 'Lesson plan saved successfully.');
@@ -116,7 +120,7 @@ class LessonPlannerController extends Controller
         $classArms   = ClassArm::with('classLevel')->orderBy('name')->get();
         $terms       = Term::orderByDesc('id')->take(9)->get();
 
-        return view('lesson-planner.create', compact('lessonPlan', 'subjects', 'classLevels', 'classArms', 'terms'));
+        $curriculumTopics=CurriculumTopic::where('status','active')->get();return view('lesson-planner.create', compact('lessonPlan', 'subjects', 'classLevels', 'classArms', 'terms','curriculumTopics'));
     }
 
     public function update(Request $request, LessonPlan $lessonPlan)
@@ -129,6 +133,7 @@ class LessonPlannerController extends Controller
             'class_arm_id'     => 'nullable|exists:class_arms,id',
             'term_id'          => 'nullable|exists:terms,id',
             'curriculum_type'  => 'required|in:nerdc,british',
+            'curriculum_level_id'=>'nullable|exists:class_levels,id','delivery_type'=>'required|in:regular,carry_forward,remedial,revision,enrichment',
             'topic'            => 'required|string|max:255',
             'subtopic'         => 'nullable|string|max:255',
             'week_number'      => 'nullable|integer|min:1|max:52',
@@ -140,7 +145,6 @@ class LessonPlannerController extends Controller
             'duration_minutes' => 'required|integer|min:10|max:300',
             'status'           => 'required|in:draft,published',
             'previous_knowledge'      => 'nullable|string',
-            'entry_behaviour'         => 'nullable|string',
             'behavioural_objectives'  => 'nullable|string',
             'instructional_materials' => 'nullable|string',
             'reference_materials'     => 'nullable|string',
@@ -162,9 +166,11 @@ class LessonPlannerController extends Controller
         if (!empty($data['structured_plan_json'])) $data['structured_plan'] = json_decode($data['structured_plan_json'], true);
         if (($data['curriculum_type'] ?? null) === 'nerdc') { $data['class_activity']=null; $data['conclusion']=null; }
         unset($data['structured_plan_json']);
-        if (($data['status'] ?? 'draft') === 'published' && ! $lessonPlan->approved_at) { $data['approved_at'] = now(); $data['approved_by'] = Auth::id(); }
-        if (($data['status'] ?? 'draft') === 'draft') { $data['approved_at'] = null; $data['approved_by'] = null; }
+        if (($data['status'] ?? 'draft') === 'published' && ! $lessonPlan->published_at) $data['published_at'] = now();
+        if (($data['status'] ?? 'draft') === 'draft') $data['published_at'] = null;
         $lessonPlan->update($data);
+        $lessonPlan->repositorySources()->delete();
+        $this->recordRepositorySources($lessonPlan);
 
         return redirect()->route('lesson-planner.show', $lessonPlan)
             ->with('success', 'Lesson plan updated successfully.');
@@ -179,7 +185,7 @@ class LessonPlannerController extends Controller
     }
 
     // Ajax: generate content via AI
-    public function generate(Request $request, StructuredLessonPlanService $structuredService)
+    public function generate(Request $request, StructuredLessonPlanService $structuredService, CurriculumRetrievalService $retrieval)
     {
         $request->validate([
             'subject'         => 'required|string',
@@ -191,6 +197,7 @@ class LessonPlannerController extends Controller
             'term'            => 'nullable|string',
             'week'            => 'nullable|string',
             'duration_minutes'=> 'nullable|integer',
+            'subject_id'=>'required|integer','teaching_class_id'=>'required|integer','curriculum_level_id'=>'nullable|integer','delivery_type'=>'required|in:regular,carry_forward,remedial,revision,enrichment',
         ]);
 
         try {
@@ -202,11 +209,15 @@ class LessonPlannerController extends Controller
             if ($request->curriculum_type === 'british') {
                 $result = app(LessonAiService::class)->generateBritishPlan($data);
             } else {
+                $probe=new LessonPlan(['tenant_id'=>auth()->user()->tenant_id,'subject_id'=>$request->subject_id,'class_level_id'=>$request->teaching_class_id,'curriculum_level_id'=>$request->curriculum_level_id,'topic'=>$request->topic,'subtopic'=>$request->subtopic]);
+                $context=$retrieval->compactContext($retrieval->forLessonPlan($probe));
                 $structured = $structuredService->generate(array_merge($data, [
                     'lesson'=>$request->input('lesson_number','1'),'time'=>$request->input('lesson_time',''),
-                    'average_age'=>$request->input('average_age',''),'sex'=>$request->input('sex','Mixed'),
+                    'average_age'=>$request->input('average_age',''),'sex'=>$request->input('sex','Mixed'),'curriculum_origin'=>$request->curriculum_level_id,
+                    'delivery_type'=>$request->delivery_type,'repository_context'=>$context,
                 ]));
                 $result = $structuredService->legacyFields($structured);
+                $result['structured_plan']['repository_context'] = $context;
             }
 
             return response()->json(['success' => true, 'data' => $result]);
@@ -239,13 +250,6 @@ class LessonPlannerController extends Controller
         }
     }
 
-    public function approve(LessonPlan $lessonPlan)
-    {
-        $this->authorise($lessonPlan);
-        $lessonPlan->update(['status' => 'published', 'approved_at' => now(), 'approved_by' => Auth::id()]);
-        return back()->with('success', 'Lesson plan approved. Curriculum-grounded lesson notes can now be generated.');
-    }
-
     public function regenerateMissing(LessonPlan $lessonPlan, GroundedLessonNoteService $service)
     {
         $this->authorise($lessonPlan);
@@ -258,12 +262,14 @@ class LessonPlannerController extends Controller
         } catch (\Throwable $e) { return response()->json(['success'=>false,'message'=>$e->getMessage()], 422); }
     }
 
-    public function approveNote(LessonPlan $lessonPlan)
+    public function updateNote(Request $request, LessonPlan $lessonPlan)
     {
-        $this->authorise($lessonPlan);
-        $revision=$lessonPlan->noteRevisions()->latest('revision')->firstOrFail();
-        $revision->update(['status'=>'approved','approved_by'=>Auth::id(),'approved_at'=>now()]);
-        return back()->with('success','Lesson note approved. This revision is preserved for printing and audit.');
+        $this->authorise($lessonPlan);$data=$request->validate(['note_text'=>'required|string|min:100','note_status'=>'required|in:draft,published']);
+        $revision=$lessonPlan->noteRevisions()->latest('revision')->firstOrFail();$content=$revision->content;
+        // Manual editing remains available without converting a rich, structured note into an invalid schema.
+        $content['sections']=[['heading'=>$lessonPlan->topic,'subheading'=>null,'content_blocks'=>[['type'=>'paragraph','content'=>$data['note_text']]]]];
+        $revision->update(['content'=>$content,'status'=>$data['note_status'],'teacher_edited'=>true]);
+        $lessonPlan->update(['lesson_notes'=>'<h2>'.e($lessonPlan->topic).'</h2><p>'.nl2br(e($data['note_text'])).'</p>']);return back()->with('success','Student note saved as '.$data['note_status'].'.');
     }
 
     // Student notes view
@@ -289,6 +295,21 @@ class LessonPlannerController extends Controller
         $user = Auth::user();
         if (!$user->isSuperAdmin() && $plan->teacher_id !== $user->id) {
             abort(403);
+        }
+    }
+
+    private function recordRepositorySources(LessonPlan $plan): void
+    {
+        foreach (($plan->structured_plan['repository_context'] ?? []) as $rank => $source) {
+            if (!empty($source['fragment_id'])) {
+                LessonPlanSource::create([
+                    'lesson_plan_id' => $plan->id,
+                    'curriculum_source_id' => $source['source_id'] ?? 0,
+                    'curriculum_fragment_id' => $source['fragment_id'],
+                    'rank' => $rank + 1,
+                    'generation_type' => 'lesson_plan',
+                ]);
+            }
         }
     }
 }

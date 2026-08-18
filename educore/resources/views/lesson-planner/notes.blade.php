@@ -13,7 +13,7 @@
             </p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-            @if($revision && $revision->status !== 'approved')<form method="POST" action="{{ route('lesson-planner.approve-note',$lessonPlan) }}">@csrf<button class="btn btn-primary">Approve Note</button></form>@endif
+            @if($revision)<button class="btn btn-primary" type="button" onclick="document.getElementById('noteEditor').hidden=false">Edit Note</button>@endif
             <a href="{{ route('lesson-planner.print-notes', $lessonPlan) }}" target="_blank" class="btn btn-secondary">
                 🖨 Print Notes
             </a>
@@ -22,6 +22,7 @@
             </button>
         </div>
     </div>
+    @if($revision)<form id="noteEditor" hidden method="POST" action="{{route('lesson-planner.notes.update',$lessonPlan)}}" style="background:#fff;border:1px solid var(--border);padding:18px;border-radius:12px;margin-bottom:18px">@csrf @method('PUT')<h3>Edit Student Note</h3><p style="font-size:13px;color:var(--slate-light)">Make corrections before publishing or downloading.</p><textarea name="note_text" style="width:100%;min-height:420px;padding:12px;border:1px solid var(--border);border-radius:8px">{{strip_tags(str_replace(['</p>','</h2>','</h3>','</li>'],["\n\n","\n\n","\n","\n"],$lessonPlan->lesson_notes))}}</textarea><div style="margin-top:10px;display:flex;gap:8px"><button name="note_status" value="draft" class="btn btn-secondary">Save Draft</button><button name="note_status" value="published" class="btn btn-primary">Publish Note</button></div></form>@endif
 
     {{-- Notes meta banner --}}
     <div style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);border:1px solid #C4B5FD;border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px">

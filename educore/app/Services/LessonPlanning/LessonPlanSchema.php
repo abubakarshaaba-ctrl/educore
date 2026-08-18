@@ -28,7 +28,7 @@ class LessonPlanSchema
             'class' => 'required|string|max:120', 'subject' => 'required|string|max:120', 'week' => 'nullable',
             'lesson' => 'required|string|max:120', 'topic' => 'required|string|max:255', 'sub_topics' => 'required|array|min:1',
             'sub_topics.*' => 'required|string', 'time' => 'nullable|string|max:50', 'duration' => 'required|string|max:50',
-            'average_age' => 'nullable|string|max:50', 'sex' => 'required|string|max:50', 'entry_behaviour' => 'required|string|min:20',
+            'average_age' => 'nullable|string|max:50', 'sex' => 'required|string|max:50',
             'previous_background_knowledge' => 'required|string|min:20', 'behavioural_objectives' => 'required|array|min:3|max:8',
             'behavioural_objectives.*' => 'required|string|min:12', 'instructional_resources' => 'required|array|min:2',
             'instructional_resources.*' => 'required|string', 'introduction' => 'required|string|min:40',
@@ -80,6 +80,6 @@ class LessonPlanSchema
 
     public function jsonSchema(): array
     {
-        return ['type' => 'object', 'required' => ['class','subject','lesson','topic','sub_topics','duration','sex','entry_behaviour','previous_background_knowledge','behavioural_objectives','instructional_resources','introduction','presentation','evaluation','assignment','references']];
+        return ['type'=>'object','required'=>['class','subject','lesson','topic','sub_topics','duration','sex','previous_background_knowledge','behavioural_objectives','instructional_resources','introduction','presentation','evaluation','assignment','references']];
     }
 }

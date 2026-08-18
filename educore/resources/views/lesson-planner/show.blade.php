@@ -24,9 +24,7 @@
                 📖 View Student Notes
             </a>
             @endif
-            @if(!$lessonPlan->isPublished() && !$lessonPlan->approved_at)
-            <form method="POST" action="{{ route('lesson-planner.approve', $lessonPlan) }}">@csrf<button class="btn btn-primary">Approve Plan</button></form>
-            @else
+            @if($lessonPlan->isPublished())
             <button id="generateNotesBtn" onclick="generateStudentNotes()" class="btn btn-primary" style="background:linear-gradient(135deg,#059669,#047857);border:none">
                 ✨ {{ $lessonPlan->lesson_notes ? 'Regenerate' : 'Generate' }} Student Notes
             </button>
@@ -85,7 +83,7 @@
                 <div style="font-size:11px;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;font-weight:600">Status</div>
                 <div style="margin-top:4px">
                     @if($lessonPlan->isPublished())
-                    <span class="badge-success" style="font-size:12px">Approved</span>
+                    <span class="badge-success" style="font-size:12px">Published</span>
                     @else
                     <span style="font-size:12px;background:#F1F5F9;color:var(--slate);padding:3px 10px;border-radius:20px">Draft</span>
                     @endif

@@ -27,7 +27,7 @@ PROMPT;
             'class' => $plan->classLevel->name, 'subject' => $plan->subject->name, 'topic' => $plan->topic,
             'subtopics' => preg_split('/[,;\n]+/', (string) $plan->subtopic),
             'behavioural_objectives' => preg_split('/\r?\n/', (string) ($plan->behavioural_objectives ?: $plan->learning_objectives)),
-            'entry_behaviour' => $plan->entry_behaviour, 'previous_background_knowledge' => $plan->previous_knowledge,
+            'previous_background_knowledge' => $plan->previous_knowledge,
             'instructional_resources' => $plan->instructional_materials, 'duration_minutes' => $plan->duration_minutes,
             'presentation' => $plan->presentation, 'depth' => $depth,
         ];

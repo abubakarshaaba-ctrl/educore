@@ -635,16 +635,10 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::delete('/{lessonPlan}',                 [\App\Http\Controllers\LessonPlannerController::class, 'destroy'])->name('destroy');
         Route::get('/{lessonPlan}/print',              [\App\Http\Controllers\LessonPlannerController::class, 'print'])->name('print');
         Route::post('/{lessonPlan}/generate-notes',    [\App\Http\Controllers\LessonPlannerController::class, 'generateNotes'])->name('generate-notes');
-        Route::post('/{lessonPlan}/approve',           [\App\Http\Controllers\LessonPlannerController::class, 'approve'])->name('approve');
         Route::post('/{lessonPlan}/notes/regenerate-missing', [\App\Http\Controllers\LessonPlannerController::class, 'regenerateMissing'])->name('regenerate-missing');
-        Route::post('/{lessonPlan}/notes/approve', [\App\Http\Controllers\LessonPlannerController::class, 'approveNote'])->name('approve-note');
+        Route::put('/{lessonPlan}/notes', [\App\Http\Controllers\LessonPlannerController::class, 'updateNote'])->name('notes.update');
         Route::get('/{lessonPlan}/notes',              [\App\Http\Controllers\LessonPlannerController::class, 'notes'])->name('notes');
         Route::get('/{lessonPlan}/notes/print',        [\App\Http\Controllers\LessonPlannerController::class, 'printNotes'])->name('print-notes');
-    });
-    Route::prefix('curriculum-sources')->name('curriculum-sources.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\CurriculumSourceController::class, 'index'])->name('index');
-        Route::post('/', [\App\Http\Controllers\CurriculumSourceController::class, 'store'])->name('store');
-        Route::post('/{curriculumSource}/activate', [\App\Http\Controllers\CurriculumSourceController::class, 'activate'])->name('activate');
     });
 
     // â”€â”€ Timetable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1072,6 +1066,9 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
     Route::get('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'index'])->name('curriculum-sources.index');
     Route::post('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'store'])->name('curriculum-sources.store');
     Route::post('curriculum-sources/{curriculumSource}/activate', [\App\Http\Controllers\CurriculumSourceController::class, 'activate'])->name('curriculum-sources.activate');
+    Route::post('curriculum-sources/{curriculumSource}/deactivate', [\App\Http\Controllers\CurriculumSourceController::class, 'deactivate'])->name('curriculum-sources.deactivate');
+    Route::delete('curriculum-sources/{curriculumSource}', [\App\Http\Controllers\CurriculumSourceController::class, 'destroy'])->name('curriculum-sources.destroy');
+    Route::post('curriculum-sources/topics', [\App\Http\Controllers\CurriculumSourceController::class, 'topic'])->name('curriculum-sources.topics.store');
     Route::post('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('migrations.store');
     Route::get('data-migrations/{migration}', [\App\Http\Controllers\DataMigrationController::class, 'show'])->name('migrations.show');
     Route::post('data-migration-requests/{migrationRequest}/approve', [\App\Http\Controllers\DataMigrationController::class, 'platformApprove'])->name('migrations.approve');

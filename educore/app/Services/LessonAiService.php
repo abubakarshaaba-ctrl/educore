@@ -78,7 +78,6 @@ CRITICAL RULES — READ BEFORE WRITING:
 
 FIELD INSTRUCTIONS:
 - previous_knowledge: 1-2 sentences on what was taught last lesson, linking to this topic.
-- entry_behaviour: 1-2 sentences on assumed prior knowledge students must already have.
 - behavioural_objectives: "By the end of this lesson, students should be able to:[NL]1. [verb] ...[NL]2. [verb] ...[NL]3. [verb] ...[NL]4. [verb] ..." (Bloom verbs: define, identify, explain, state, describe, calculate, draw)
 - instructional_materials: Short bullet list separated by [NL]. e.g. "- Chart showing ...[NL]- Specimens of ...[NL]- Textbook ..."
 - reference_materials: 2 Nigerian textbooks with author, title, pages. Separate with [NL].
@@ -90,7 +89,7 @@ FIELD INSTRUCTIONS:
 - conclusion: 2 sentences — teacher summarises key points and previews next lesson.
 
 Return exactly this structure (fill in the dots):
-{"previous_knowledge":"...","entry_behaviour":"...","behavioural_objectives":"...","instructional_materials":"...","reference_materials":"...","set_induction":"...","presentation":"...","class_activity":"...","evaluation":"...","assignment":"...","conclusion":"..."}
+{"previous_knowledge":"...","behavioural_objectives":"...","instructional_materials":"...","reference_materials":"...","set_induction":"...","presentation":"...","class_activity":"...","evaluation":"...","assignment":"...","conclusion":"..."}
 PROMPT;
     }
 
@@ -491,7 +490,6 @@ PROMPT;
 
         return [
             'previous_knowledge' => "Students have encountered ideas related to {$topic} in earlier {$subject} lessons and everyday situations.",
-            'entry_behaviour' => 'Students can recall relevant prior concepts, listen to explanations, observe examples and record key points.',
             'behavioural_objectives' => "By the end of this lesson, students should be able to:\n1. Define {$topic} correctly.\n2. Identify the main features of {$subtopic}.\n3. Explain {$topic} using a relevant example.\n4. Apply the lesson to a short classroom task.",
             'instructional_materials' => "- Relevant {$subject} textbook\n- Whiteboard and markers\n- Topic chart, real object or locally available teaching aid\n- Student exercise books",
             'reference_materials' => "1. Current NERDC {$subject} curriculum for {$class}.\n2. A school-approved {$subject} textbook and teacher's guide.",

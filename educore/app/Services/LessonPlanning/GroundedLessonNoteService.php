@@ -20,7 +20,7 @@ class GroundedLessonNoteService
 
     public function generate(LessonPlan $plan, int $userId, string $depth = 'standard', ?array $onlyItems = null): LessonNoteRevision
     {
-        if (! $plan->isPublished() && ! $plan->approved_at) throw new \DomainException('Approve the lesson plan before generating its lesson note.');
+        if (! $plan->isPublished()) throw new \DomainException('Publish the lesson plan before generating its student note.');
         $plan->loadMissing(['subject', 'classLevel']);
         $fragments = $this->retrieval->forLessonPlan($plan);
         $curriculumContext = $this->retrieval->compactContext($fragments);

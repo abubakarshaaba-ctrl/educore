@@ -14,7 +14,7 @@ class CurriculumSource extends Model
 
     protected function casts(): array
     {
-        return ['is_official' => 'boolean', 'is_active' => 'boolean', 'effective_from' => 'date', 'effective_to' => 'date', 'reviewed_at' => 'datetime', 'metadata' => 'array'];
+        return ['is_official'=>'boolean','is_active'=>'boolean','needs_review'=>'boolean','effective_from'=>'date','effective_to'=>'date','reviewed_at'=>'datetime','archived_at'=>'datetime','metadata'=>'array'];
     }
 
     public function fragments(): HasMany { return $this->hasMany(CurriculumFragment::class); }
