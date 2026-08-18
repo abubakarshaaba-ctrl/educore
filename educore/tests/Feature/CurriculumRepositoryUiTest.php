@@ -39,6 +39,8 @@ class CurriculumRepositoryUiTest extends TestCase
         $this->assertStringContainsString('name="source_files[]"', $import);
         $this->assertStringContainsString('id="uploadProgress"', $import);
         $this->assertStringContainsString("route('super.curriculum-sources.store')", $import);
+        $this->assertStringContainsString('value="lesson_note"', $import);
+        $this->assertStringContainsString('Class → Subject → Term', $import);
         $this->assertStringNotContainsString('name="subtopics_text"', $import);
         $this->assertStringContainsString('name="subtopics_text"', $topics);
         $this->assertStringContainsString("route('super.curriculum-sources.topics.store')", $topics);

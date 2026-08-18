@@ -18,22 +18,49 @@ class CurriculumSourceController extends Controller
     public function index(Request $request)
     {
         $this->guard();
+
         $query = CurriculumSource::whereNull('tenant_id')->withCount('fragments');
-        if ($request->filled('search')) $query->where(fn ($q) => $q->where('title', 'like', '%'.$request->search.'%')->orWhere('cleaned_text', 'like', '%'.$request->search.'%'));
+
+        if ($request->filled('search')) {
+            $search = '%'.$request->string('search')->trim().'%';
+            $query->where(fn ($q) => $q
+                ->where('title', 'like', $search)
+                ->orWhere('original_filename', 'like', $search)
+                ->orWhere('cleaned_text', 'like', $search));
+        }
+
+        foreach (['class_label' => 'class', 'subject_label' => 'subject', 'term_label' => 'term'] as $metadataKey => $filter) {
+            if ($request->filled($filter)) {
+                $query->where("metadata->{$metadataKey}", $request->string($filter)->toString());
+            }
+        }
+
         $sources = $query->latest()->paginate(20)->withQueryString();
-        $imports = RepositoryImport::latest()->take(10)->get();
-        $analytics = ['resources'=>CurriculumSource::whereNull('tenant_id')->count(),'indexed'=>CurriculumSource::whereNull('tenant_id')->where('index_status','indexed')->count(),'failed'=>CurriculumSource::whereNull('tenant_id')->where('extraction_status','failed')->count(),'review'=>CurriculumSource::whereNull('tenant_id')->where('needs_review',true)->count(),'imports'=>RepositoryImport::count()];
-        return view('curriculum-sources.index', compact('sources','imports','analytics'));
+
+        $repository = CurriculumSource::whereNull('tenant_id');
+        $analytics = [
+            'resources' => (clone $repository)->count(),
+            'indexed' => (clone $repository)->where('index_status', 'indexed')->count(),
+            'failed' => (clone $repository)->where('extraction_status', 'failed')->count(),
+            'review' => (clone $repository)->where('needs_review', true)->count(),
+            'imports' => RepositoryImport::count(),
+        ];
+
+        $metadata = (clone $repository)->get(['metadata'])->pluck('metadata')->filter();
+        $folders = [
+            'classes' => $metadata->pluck('class_label')->filter()->unique()->sort()->values(),
+            'subjects' => $metadata->pluck('subject_label')->filter()->unique()->sort()->values(),
+            'terms' => $metadata->pluck('term_label')->filter()->unique()->sort()->values(),
+        ];
+
+        return view('curriculum-sources.index', compact('sources', 'analytics', 'folders'));
     }
 
     public function create()
     {
         $this->guard();
 
-        $subjects = Subject::orderBy('name')->get();
-        $classLevels = ClassLevel::orderBy('order_index')->get();
-
-        return view('curriculum-sources.import', compact('subjects', 'classLevels'));
+        return view('curriculum-sources.import');
     }
 
     public function topics(Request $request)
@@ -46,8 +73,8 @@ class CurriculumSourceController extends Controller
         }
 
         $topics = $query->latest()->paginate(20)->withQueryString();
-        $subjects = Subject::orderBy('name')->get();
-        $classLevels = ClassLevel::orderBy('order_index')->get();
+        $subjects = Subject::orderBy('name')->get()->unique(fn ($subject) => mb_strtolower($subject->name))->values();
+        $classLevels = ClassLevel::orderBy('order_index')->get()->unique(fn ($level) => mb_strtolower($level->name))->values();
         $subjectNames = $subjects->pluck('name', 'id');
         $classLevelNames = $classLevels->pluck('name', 'id');
 
