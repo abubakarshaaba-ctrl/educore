@@ -47,6 +47,7 @@
 <div class="page-tabs">
     <a href="{{ route('cbt.banks') }}" class="page-tab">Question Banks</a>
     <a href="{{ route('cbt.exams') }}" class="page-tab active">Exams</a>
+    @if(auth()->user()->isSuperAdmin() || auth()->user()->isAdmin())<a href="{{ route('cbt.retakes') }}" class="page-tab">Retake Control</a>@endif
     @if(auth()->user()->isSuperAdmin() || auth()->user()->isAdmin())
     <a href="{{ route('cbt.lan') }}" class="page-tab">📡 LAN Mode</a>
     @endif
@@ -72,6 +73,7 @@
                     <span>❓ {{ $exam->total_questions }} questions</span>
                 </div>
                 <div class="exam-actions">
+                    <a href="{{ route('cbt.exams.builder', $exam) }}" class="btn btn-indigo">Section Builder</a>
                     <a href="{{ route('cbt.results', $exam) }}" class="btn btn-ghost">View Results</a>
                     @if($exam->status === 'draft')
                         <form method="POST" action="{{ route('cbt.publish', $exam) }}" style="display:inline">
@@ -237,6 +239,12 @@
                         <label class="form-label">Scheduled End</label>
                         <input type="datetime-local" name="scheduled_end" class="form-control" value="{{ old('scheduled_end') }}">
                     </div>
+                </div>
+                <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:14px">
+                    <div style="font-size:11px;font-weight:800;color:var(--midnight);margin-bottom:9px">EXAM INTEGRITY</div>
+                    <label style="display:block;font-size:11px;color:var(--slate);margin-bottom:8px"><input type="checkbox" name="malpractice_enabled" value="1" checked> Enable integrity monitoring</label>
+                    <div class="form-grid"><div class="form-group"><label class="form-label">Focus-loss action</label><select class="form-control" name="focus_loss_policy"><option value="submit">Submit attempt</option><option value="warn">Warn and log</option><option value="log">Log only</option></select></div><div class="form-group"><label class="form-label">Allowed losses</label><input class="form-control" type="number" name="max_focus_losses" value="0" min="0"></div></div>
+                    <label style="display:block;font-size:11px;color:var(--slate)"><input type="checkbox" name="require_fullscreen" value="1"> Require full-screen mode</label>
                 </div>
                 <button type="submit" class="btn btn-primary">Create Exam</button>
             </form>

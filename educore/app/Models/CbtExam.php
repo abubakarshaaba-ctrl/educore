@@ -17,6 +17,8 @@ class CbtExam extends BaseTenantModel
         'scheduled_start', 'scheduled_end', 'shuffle_questions', 'shuffle_options', 'status',
         'assessment_type_id',
         'lan_sync_token', 'lan_exported_at',
+        'created_by', 'malpractice_enabled', 'focus_loss_policy', 'max_focus_losses',
+        'require_fullscreen', 'retake_policy', 'strict_marks_validation',
     ];
 
     protected function casts(): array
@@ -32,6 +34,10 @@ class CbtExam extends BaseTenantModel
             'section_objective_marks'  => 'float',
             'section_theory_count'     => 'integer',
             'section_theory_marks'     => 'float',
+            'malpractice_enabled'       => 'boolean',
+            'max_focus_losses'          => 'integer',
+            'require_fullscreen'        => 'boolean',
+            'strict_marks_validation'   => 'boolean',
         ];
     }
 
@@ -41,6 +47,10 @@ class CbtExam extends BaseTenantModel
     public function classArm(): BelongsTo { return $this->belongsTo(ClassArm::class); }
     public function studentSessions(): HasMany { return $this->hasMany(CbtStudentSession::class); }
     public function assessmentType(): BelongsTo { return $this->belongsTo(AssessmentType::class); }
+    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function sections(): HasMany { return $this->hasMany(CbtExamSection::class)->orderBy('display_order'); }
+    public function retakeAuthorizations(): HasMany { return $this->hasMany(CbtRetakeAuthorization::class); }
+    public function integrityEvents(): HasMany { return $this->hasMany(CbtIntegrityEvent::class); }
 
     public function getExamDateAttribute(): mixed
     {
@@ -62,6 +72,15 @@ class CbtExam extends BaseTenantModel
     public function questions()
     {
         return CbtQuestion::where('question_bank_id', $this->question_bank_id);
+    }
+
+    public function configuredQuestions()
+    {
+        return CbtQuestion::query()
+            ->join('cbt_exam_section_questions', 'cbt_questions.id', '=', 'cbt_exam_section_questions.cbt_question_id')
+            ->where('cbt_exam_section_questions.cbt_exam_id', $this->id)
+            ->select('cbt_questions.*')
+            ->orderBy('cbt_exam_section_questions.display_order');
     }
 
     public function isActive(): bool { return $this->status === 'active'; }

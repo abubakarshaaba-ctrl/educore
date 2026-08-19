@@ -43,14 +43,18 @@ class ObjectiveScoreResolver
     {
         $session = CbtStudentSession::where('cbt_exam_id', $exam->id)
             ->where('student_id', $student->id)
-            ->whereIn('status', ['submitted', 'graded'])
+            ->where('is_authorized_attempt', true)
+            ->whereNotIn('status', ['invalidated', 'cancelled'])
+            ->whereNotNull('grading_completed_at')
+            ->orderByDesc('attempt_number')
             ->first();
 
-        if (!$session || !$exam->total_marks || $exam->total_marks <= 0) {
+        $maximum = (float) ($session?->maximum_score ?: $exam->total_marks);
+        if (!$session || $maximum <= 0) {
             return null;
         }
 
-        $scaled = ($session->score / $exam->total_marks) * $assessmentType->objective_max;
+        $scaled = ((float) ($session->raw_score ?? $session->score) / $maximum) * $assessmentType->objective_max;
 
         return round(max(0, min($scaled, $assessmentType->objective_max)), 1);
     }

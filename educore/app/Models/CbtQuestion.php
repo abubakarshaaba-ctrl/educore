@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Models\BaseTenantModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -47,6 +49,8 @@ class CbtQuestion extends BaseTenantModel
         // Essay / short answer
         'word_limit',
         'model_answer',
+        'parent_question_id', 'level', 'sequence', 'numbering_style', 'reference_code',
+        'is_instruction_only', 'requires_answer', 'scoring_method',
     ];
 
     protected function casts(): array
@@ -56,6 +60,10 @@ class CbtQuestion extends BaseTenantModel
             'marks'      => 'float',
             'difficulty' => 'integer',
             'word_limit' => 'integer',
+            'level' => 'integer',
+            'sequence' => 'integer',
+            'is_instruction_only' => 'boolean',
+            'requires_answer' => 'boolean',
         ];
     }
 
@@ -69,6 +77,16 @@ class CbtQuestion extends BaseTenantModel
     {
         return $this->belongsTo(CbtQuestionBank::class, 'question_bank_id');
     }
+
+    public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_question_id'); }
+    public function children(): HasMany { return $this->hasMany(self::class, 'parent_question_id')->orderBy('sequence'); }
+    public function sections(): BelongsToMany
+    {
+        return $this->belongsToMany(CbtExamSection::class, 'cbt_exam_section_questions')
+            ->withPivot(['display_order', 'marks_override'])->withTimestamps();
+    }
+
+    public function countsForMarks(): bool { return ! $this->is_instruction_only && $this->requires_answer; }
 
     // ── Helpers ───────────────────────────────────────────────────────
     public function isMcq(): bool         { return $this->type === 'mcq'; }
@@ -108,6 +126,11 @@ class CbtQuestion extends BaseTenantModel
     public function isCorrect(string $studentAnswer): bool
     {
         if (!$this->isAutoGraded()) return false;
+
+        if ($this->isFillBlank()) {
+            $normalise = fn (string $value) => preg_replace('/\s+/', ' ', mb_strtolower(trim($value)));
+            return $normalise($studentAnswer) === $normalise((string) $this->model_answer);
+        }
 
         $correct = strtolower(trim(
             $this->correct_answer_letter

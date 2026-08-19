@@ -20,6 +20,8 @@ class Score extends BaseTenantModel
         'theory_score',
         'cbt_exam_id',
         'entered_at',
+        'score_source', 'source_reference_type', 'source_reference_id',
+        'is_source_locked', 'source_synced_at',
     ];
 
     protected function casts(): array
@@ -29,6 +31,8 @@ class Score extends BaseTenantModel
             'objective_score' => 'float',
             'theory_score'    => 'float',
             'entered_at'      => 'datetime',
+            'is_source_locked'=> 'boolean',
+            'source_synced_at'=> 'datetime',
         ];
     }
 

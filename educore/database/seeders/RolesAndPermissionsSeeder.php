@@ -56,7 +56,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'timetable.manage',         // admin configures timetable
 
             // CBT
-            'cbt.view', 'cbt.manage',
+            'cbt.view', 'cbt.manage', 'cbt.view_attempts', 'cbt.score_manual_sections',
+            'cbt.view_integrity_events', 'cbt.authorize_retake',
 
             // Fees
             'fees.view', 'fees.manage',
@@ -100,7 +101,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'skills.view', 'skills.enter',
             'attendance.view', 'attendance.mark',
             'timetable.view', 'timetable.manage',
-            'cbt.view', 'cbt.manage',
+            'cbt.view', 'cbt.manage', 'cbt.view_attempts', 'cbt.score_manual_sections',
+            'cbt.view_integrity_events', 'cbt.authorize_retake',
             'fees.view', 'fees.manage',
             'health.view', 'health.manage',
             'transport.view', 'transport.manage',
@@ -123,7 +125,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'skills.view', 'skills.enter',
             'attendance.view', 'attendance.mark',
             'timetable.view', 'timetable.manage',
-            'cbt.view', 'cbt.manage',
+            'cbt.view', 'cbt.manage', 'cbt.view_attempts', 'cbt.score_manual_sections',
+            'cbt.view_integrity_events', 'cbt.authorize_retake',
             'notifications.send',
         ]);
 
@@ -142,7 +145,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'skills.view', 'skills.enter',
             'attendance.view', 'attendance.mark',
             'timetable.view',
-            'cbt.view',
+            'cbt.view', 'cbt.view_attempts', 'cbt.view_integrity_events',
         ]);
 
         // Form Teacher — teacher remark, class timetable, attendance for own class
@@ -167,7 +170,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'reports.view',
             'attendance.view', 'attendance.mark',
             'timetable.view.own',
-            'cbt.view', 'cbt.manage',
+            'cbt.view', 'cbt.manage', 'cbt.view_attempts', 'cbt.score_manual_sections', 'cbt.view_integrity_events',
         ]);
 
         // Teacher (legacy - full teacher access)
@@ -179,7 +182,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'reports.view', 'reports.pdf',
             'attendance.view', 'attendance.mark',
             'timetable.view.own',
-            'cbt.view', 'cbt.manage',
+            'cbt.view', 'cbt.manage', 'cbt.view_attempts', 'cbt.score_manual_sections', 'cbt.view_integrity_events',
         ]);
 
         // Accountant — fees only

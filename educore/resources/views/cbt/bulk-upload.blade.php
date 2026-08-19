@@ -1,59 +1,29 @@
 @extends('layouts.app')
-@section('title','Bulk Upload Questions')
-@section('page-title','Bulk Upload Questions')
-
+@section('title','Import CBT Questions')
+@section('page-title','CBT Question Import')
 @push('styles')
 <style>
-.card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;width:100%}
-.card-head{padding:13px 20px;border-bottom:1px solid var(--border);background:#F8FAFC}
-.card-title{font-size:13px;font-weight:700}
-.card-body{padding:24px}
-.drop-zone{border:2px dashed #CBD5E1;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 200ms;background:#F8FAFC}
-.drop-zone:hover{border-color:var(--indigo);background:#EFF6FF}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border:none;border-radius:8px;cursor:pointer;transition:all 150ms}
-.btn-primary{background:var(--indigo);color:white}
-.btn-ghost{background:#F1F5F9;color:var(--slate);border:1px solid var(--border)}
-.alert-success{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:12px 16px;font-size:13px;color:#059669;margin-bottom:16px}
-.alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:12px 16px;font-size:13px;color:#DC2626;margin-bottom:16px}
+.import-shell{max-width:1120px;margin:auto}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px}.page-head h1{font-size:22px;color:var(--midnight);margin:0 0 4px}.muted{font-size:12px;color:var(--slate)}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;padding:9px 13px;font:700 12px inherit;text-decoration:none;cursor:pointer}.btn-primary{background:var(--indigo);color:#fff}.btn-light{background:#fff;color:var(--midnight);border:1px solid var(--border)}.btn-success{background:var(--emerald);color:#fff}.grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}.card{background:#fff;border:1px solid var(--border);border-radius:13px;box-shadow:0 1px 4px rgba(15,23,42,.05)}.card-head{padding:16px 18px;border-bottom:1px solid var(--border)}.card-head strong{font-size:14px;color:var(--midnight)}.card-body{padding:18px}.field{margin-bottom:14px}.field label{display:block;font-size:11px;font-weight:700;color:var(--midnight);margin-bottom:6px}.field select{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 11px;background:#fff;color:var(--midnight);font:inherit;font-size:12px}.drop{border:1.5px dashed #93B4DA;border-radius:12px;background:#F8FBFF;padding:38px 20px;text-align:center;cursor:pointer}.drop strong{display:block;font-size:14px;color:var(--midnight);margin:8px}.drop span{font-size:11px;color:var(--slate)}.file-input{display:none}.step{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #EEF2F7}.step:last-child{border:0}.step-no{width:24px;height:24px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:grid;place-items:center;font-size:10px;font-weight:800}.step strong{font-size:11px;color:var(--midnight);display:block}.step span{font-size:10px;color:var(--slate)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.alert{padding:11px 13px;border-radius:8px;font-size:12px;margin-bottom:14px}.alert-error{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.metric{border:1px solid var(--border);border-radius:9px;padding:10px}.metric b{display:block;font-size:17px;color:var(--midnight)}.metric span{font-size:10px;color:var(--slate)}.marks{font-size:11px;color:var(--slate);margin:-3px 0 13px}.preview{overflow-x:auto}.preview table{width:100%;border-collapse:collapse;min-width:760px}.preview th,.preview td{padding:9px;border-bottom:1px solid var(--border);font-size:11px;text-align:left}.preview th{background:#F8FAFC;color:var(--slate)}.good{color:#047857;font-weight:700}.bad{color:#B91C1C;font-weight:700}@media(max-width:850px){.grid{grid-template-columns:1fr}.page-head{display:block}.page-head .actions{margin-top:10px}.summary{grid-template-columns:repeat(3,1fr)}}@media(max-width:540px){.card-body{padding:14px}.drop{padding:28px 12px}.actions .btn{flex:1}.summary{grid-template-columns:repeat(2,1fr)}}
 </style>
 @endpush
-
 @section('content')
-<div style="margin-bottom:16px;display:flex;gap:10px">
-    <a href="{{ route('cbt.banks') }}" class="btn btn-ghost" style="padding:7px 14px;font-size:12px">← Question Banks</a>
-    <a href="{{ route('cbt.bulk-template') }}" class="btn btn-ghost" style="padding:7px 14px;font-size:12px">⬇ Download Template</a>
-</div>
-
-@if(session('success'))<div class="alert-success">✓ {{ session('success') }}</div>@endif
-@if(session('errors_list'))
-<div class="alert-error">
-    <strong>{{ count(session('errors_list')) }} errors:</strong>
-    <ul style="margin:6px 0 0 16px">@foreach(session('errors_list') as $e)<li>{{ $e }}</li>@endforeach</ul>
-</div>
-@endif
-
-<div class="card">
-    <div class="card-head"><span class="card-title">📥 Bulk Upload Questions to: {{ $bank->name }}</span></div>
-    <div class="card-body">
-        <form method="POST" action="{{ route('cbt.bulk-import', $bank) }}" enctype="multipart/form-data">
-            @csrf
-            <div class="drop-zone" onclick="document.getElementById('qFile').click()">
-                <div style="font-size:36px;margin-bottom:10px">📋</div>
-                <div style="font-size:15px;font-weight:700" id="qFileLabel">Drop CSV file here or click to browse</div>
-                <div style="font-size:13px;color:var(--slate-light);margin-top:4px">CSV format only &nbsp;·&nbsp; Max 5MB</div>
-                <input type="file" id="qFile" name="file" accept=".csv,.txt" style="display:none" required
-                       onchange="document.getElementById('qFileLabel').textContent = this.files[0]?.name">
-            </div>
-
-            <div style="margin:16px 0;padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:12px;color:#92400E">
-                <strong>CSV columns:</strong> type (mcq/essay/short_answer/fill_blank/true_false), question_text,
-                option_a, option_b, option_c, option_d, correct_option (a/b/c/d), explanation, difficulty (1-3), marks, model_answer (for essay)
-            </div>
-
-            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
-                ⚡ Import Questions
-            </button>
-        </form>
-    </div>
-</div>
+<div class="import-shell"><div class="page-head"><div><h1>Import questions</h1><div class="muted">{{ $bank->name }} · {{ $bank->subject->name ?? '' }}</div></div><div class="actions"><a class="btn btn-light" href="{{ route('cbt.questions',$bank) }}">Back to bank</a><a class="btn btn-light" href="{{ route('cbt.bulk-template',['format'=>'csv']) }}">CSV template</a><a class="btn btn-primary" href="{{ route('cbt.bulk-template') }}">Excel template</a></div></div>
+@if($errors->any())<div class="alert alert-error">{{ $errors->first() }}</div>@endif
+@if($batch)
+<div class="card"><div class="card-head"><strong>Import preview</strong> <span class="muted">· {{ $batch->row_count }} rows · {{ $batch->original_name }}</span></div><div class="card-body">
+@php
+  $previewRows=collect($batch->rows??[]);$objectiveCount=$previewRows->whereIn('type',['mcq','true_false','fill_blank'])->count();$groupCount=$previewRows->where('is_instruction_only',true)->count();
+  $marksBySection=$previewRows->reject(fn($row)=>$row['is_instruction_only'])->groupBy(fn($row)=>$row['section_code']?:'Bank')->map(fn($rows)=>$rows->sum(fn($row)=>(float)$row['marks']));
+@endphp
+<div class="summary"><div class="metric"><b>{{ $previewRows->pluck('section_code')->filter()->unique()->count() }}</b><span>Sections</span></div><div class="metric"><b>{{ $previewRows->count() }}</b><span>Rows</span></div><div class="metric"><b>{{ $objectiveCount }}</b><span>Objective</span></div><div class="metric"><b>{{ $previewRows->count()-$objectiveCount-$groupCount }}</b><span>Theory</span></div><div class="metric"><b>{{ $groupCount }}</b><span>Groups</span></div></div>
+@if($batch->exam)<div class="marks"><strong>Target exam:</strong> {{ $batch->exam->title }}</div>@endif
+@if($marksBySection->isNotEmpty())<div class="marks"><strong>Imported leaf marks:</strong> @foreach($marksBySection as $code=>$marks) {{ $code }} {{ number_format($marks,2) }}{{ !$loop->last?' · ':'' }} @endforeach</div>@endif
+@if($batch->validation_errors)<div class="alert alert-error"><strong>Import blocked.</strong><ul>@foreach($batch->validation_errors as $error)<li>{{ $error }}</li>@endforeach</ul></div>@else<div class="alert" style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46">Validation passed. All rows will be imported together; no partial import is possible.</div>@endif
+<div class="preview"><table><thead><tr><th>Section</th><th>Ref.</th><th>Parent</th><th>Level</th><th>Type</th><th>Question</th><th>Marks</th><th>Scoring</th></tr></thead><tbody>@foreach(array_slice($batch->rows??[],0,50) as $row)<tr><td>{{ $row['section_code']?:'—' }}</td><td>{{ $row['reference'] }}</td><td>{{ $row['parent_reference'] ?: '—' }}</td><td>{{ $row['question_level'] }}</td><td>{{ $row['type'] }}</td><td>{{ Str::limit($row['question_text'],90) }}</td><td>{{ $row['marks'] }}</td><td>{{ $row['scoring_method'] ?: 'By type' }}</td></tr>@endforeach</tbody></table></div>
+<div class="actions"><a class="btn btn-light" href="{{ route('cbt.bulk-upload',$bank) }}">Choose another file</a>@if(!$batch->validation_errors && $batch->status==='preview')<form method="POST" action="{{ route('cbt.bulk-import.confirm',[$bank,$batch]) }}">@csrf<button class="btn btn-success">Confirm import</button></form>@endif</div>
+</div></div>
+@else
+<div class="grid"><div class="card"><div class="card-head"><strong>Select CSV or Excel file</strong></div><div class="card-body"><form method="POST" enctype="multipart/form-data" action="{{ route('cbt.bulk-import',$bank) }}" id="uploadForm">@csrf<div class="field"><label for="exam_id">Import destination</label><select id="exam_id" name="exam_id"><option value="">Question bank only</option>@foreach($exams as $exam)<option value="{{ $exam->id }}" @selected(old('exam_id')==$exam->id)>{{ $exam->title }} · {{ $exam->sections->pluck('code')->join(', ') }}</option>@endforeach</select></div><label class="drop" for="file"><div style="font-size:30px">⇧</div><strong id="fileName">Drop a file here or browse</strong><span>CSV, XLSX or XLS · Maximum 10 MB</span></label><input class="file-input" id="file" name="file" type="file" accept=".csv,.xlsx,.xls" required><button class="btn btn-primary" style="width:100%;margin-top:14px">Validate and preview</button></form></div></div><aside class="card"><div class="card-head"><strong>Import process</strong></div><div class="card-body"><div class="step"><span class="step-no">1</span><div><strong>Use the template</strong><span>Reference fields preserve hierarchy.</span></div></div><div class="step"><span class="step-no">2</span><div><strong>Preview validation</strong><span>Every row is checked before writing.</span></div></div><div class="step"><span class="step-no">3</span><div><strong>Confirm once</strong><span>The import commits in one transaction.</span></div></div></div></aside></div>
+@endif</div>
 @endsection
+@push('scripts')<script>document.getElementById('file')?.addEventListener('change',e=>document.getElementById('fileName').textContent=e.target.files[0]?.name||'Drop a file here or browse');</script>@endpush

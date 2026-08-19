@@ -172,14 +172,16 @@ class ScoreController extends Controller
         // Keyed as [student_id][assessment_type_id] => score value
         $existingScores = [];
         $existingTheory = [];
+        $scoreRecords = [];
         if ($students->isNotEmpty() && $assessmentTypes->isNotEmpty()) {
             Score::whereIn('student_id', $students->pluck('id'))
                  ->where('subject_id', $subject->id)
                  ->where('term_id', $term->id)
                  ->get()
-                 ->each(function ($score) use (&$existingScores, &$existingTheory) {
+                 ->each(function ($score) use (&$existingScores, &$existingTheory, &$scoreRecords) {
                      $existingScores[$score->student_id][$score->assessment_type_id] = $score->score;
                      $existingTheory[$score->student_id][$score->assessment_type_id] = $score->theory_score;
+                     $scoreRecords[$score->student_id][$score->assessment_type_id] = $score;
                  });
         }
 
@@ -213,7 +215,7 @@ class ScoreController extends Controller
             'classArm', 'subject', 'term',
             'students', 'assessmentTypes',
             'existingScores', 'existingTheory', 'studentTotals',
-            'objectiveScores', 'objectiveExamMissing'
+            'objectiveScores', 'objectiveExamMissing', 'scoreRecords'
         ));
     }
 
@@ -234,6 +236,9 @@ class ScoreController extends Controller
         $tenantId = auth()->user()->tenant_id;
 
         $this->assertTeachesClassSubject(auth()->user(), $classArm->id, (int) $request->subject_id);
+        $published = \App\Models\ReportCardPublication::where('class_arm_id', $classArm->id)
+            ->where('term_id', $term->id)->where('status', 'published')->exists();
+        abort_if($published, 423, 'These results are published and locked. Unpublish the report cards before changing scores.');
         $allowedStudentIds = Student::where('current_class_arm_id', $classArm->id)
             ->where('status', Student::STATUS_ACTIVE)
             ->pluck('id')
@@ -257,6 +262,13 @@ class ScoreController extends Controller
 
                     $at = AssessmentType::find($assessmentTypeId);
                     if (!$at) continue;
+
+                    $lockedSource = Score::where('student_id', $studentId)
+                        ->where('subject_id', $request->subject_id)
+                        ->where('assessment_type_id', $assessmentTypeId)
+                        ->where('term_id', $request->term_id)
+                        ->where('is_source_locked', true)->exists();
+                    if ($lockedSource) continue;
 
                     if ($at->isSplit()) {
                         // The submitted value is the manually-marked theory

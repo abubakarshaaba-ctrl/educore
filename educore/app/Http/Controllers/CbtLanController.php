@@ -32,7 +32,7 @@ class CbtLanController extends Controller
     private const TABLES = [
         'tenants', 'academic_sessions', 'terms', 'class_levels', 'class_arms',
         'subjects', 'assessment_types', 'cbt_question_banks', 'cbt_questions',
-        'users', 'students', 'cbt_exams',
+        'users', 'students', 'cbt_exams', 'cbt_exam_sections', 'cbt_exam_section_questions',
     ];
 
     private function authorize404(): void
@@ -97,13 +97,15 @@ class CbtLanController extends Controller
         $rows['cbt_questions']      = DB::table('cbt_questions')->where('question_bank_id', $bank->id)->get();
         $rows['users']              = DB::table('users')->whereIn('id', $userIds)->get();
         $rows['students']           = DB::table('students')->whereIn('id', $studentIds)->get();
-        $rows['cbt_exams']          = DB::table('cbt_exams')->where('id', $exam->id)->get();
+        $rows['cbt_exams']          = DB::table('cbt_exams')->where('id', $exam->id)->get()->map(function ($row) { $row->created_by = null; return $row; });
+        $rows['cbt_exam_sections']  = DB::table('cbt_exam_sections')->where('cbt_exam_id', $exam->id)->get()->map(function ($row) { $row->created_by = null; return $row; });
+        $rows['cbt_exam_section_questions'] = DB::table('cbt_exam_section_questions')->where('cbt_exam_id', $exam->id)->get();
 
         $token = Crypt::encryptString($tenantId . '|' . $exam->id . '|' . now()->addDays(90)->timestamp);
         $exam->update(['lan_sync_token' => $token, 'lan_exported_at' => now()]);
 
         $payload = [
-            'package_version' => 1,
+            'package_version' => 2,
             'exam_id'         => $exam->id,
             'tenant_id'       => $tenantId,
             'sync_token'      => $token,
@@ -170,6 +172,10 @@ class CbtLanController extends Controller
                 'sessions' => $sessions->map(fn ($s) => [
                     'id'             => $s->id,
                     'student_id'     => $s->student_id,
+                    'attempt_number' => $s->attempt_number,
+                    'is_authorized_attempt' => $s->is_authorized_attempt,
+                    'integrity_acknowledged_at' => optional($s->integrity_acknowledged_at)->toIso8601String(),
+                    'focus_loss_count' => $s->focus_loss_count,
                     'question_order' => $s->question_order,
                     'answers'        => $s->answers,
                     'essay_answers'  => $s->essay_answers,
@@ -177,8 +183,14 @@ class CbtLanController extends Controller
                     'started_at'     => optional($s->started_at)->toIso8601String(),
                     'submitted_at'   => optional($s->submitted_at)->toIso8601String(),
                     'score'          => $s->score,
+                    'raw_score'      => $s->raw_score,
+                    'maximum_score'  => $s->maximum_score,
                     'percentage'     => $s->percentage,
                     'status'         => $s->status,
+                    'submission_reason' => $s->submission_reason,
+                    'grading_completed_at' => optional($s->grading_completed_at)->toIso8601String(),
+                    'section_attempts' => DB::table('cbt_section_attempts')->where('cbt_student_session_id', $s->id)->get()->map(fn ($row) => (array) $row)->all(),
+                    'question_scores' => DB::table('cbt_question_scores')->where('cbt_student_session_id', $s->id)->get()->map(fn ($row) => (array) $row)->all(),
                 ])->values(),
             ]);
         } catch (\Throwable $e) {
@@ -227,6 +239,7 @@ class CbtLanController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('cbt_exam_id', $examId)
                 ->where('student_id', $incoming['student_id'])
+                ->where('attempt_number', (int) ($incoming['attempt_number'] ?? 1))
                 ->first();
 
             if ($existing && $existing->isFinal()) {
@@ -240,6 +253,10 @@ class CbtLanController extends Controller
                 'tenant_id'          => $tenantId,
                 'cbt_exam_id'        => $examId,
                 'student_id'         => $incoming['student_id'],
+                'attempt_number'     => (int) ($incoming['attempt_number'] ?? 1),
+                'is_authorized_attempt' => (bool) ($incoming['is_authorized_attempt'] ?? true),
+                'integrity_acknowledged_at' => $incoming['integrity_acknowledged_at'] ?? null,
+                'focus_loss_count'   => (int) ($incoming['focus_loss_count'] ?? 0),
                 'question_order'     => $incoming['question_order'] ?? [],
                 'answers'            => $incoming['answers'] ?? [],
                 'essay_answers'      => $incoming['essay_answers'] ?? [],
@@ -247,16 +264,42 @@ class CbtLanController extends Controller
                 'started_at'         => $incoming['started_at'] ?? null,
                 'submitted_at'       => $incoming['submitted_at'] ?? null,
                 'score'              => $incoming['score'] ?? null,
+                'raw_score'          => $incoming['raw_score'] ?? $incoming['score'] ?? null,
+                'maximum_score'      => $incoming['maximum_score'] ?? $exam->total_marks,
                 'percentage'         => $incoming['percentage'] ?? null,
                 'status'             => $incoming['status'] ?? 'submitted',
+                'submission_reason'  => $incoming['submission_reason'] ?? 'lan_sync',
+                'grading_completed_at' => $incoming['grading_completed_at'] ?? null,
                 'last_synced_at'     => now(),
             ];
 
             if ($existing) {
                 $existing->update($data);
+                $cloudSession = $existing->fresh();
             } else {
-                CbtStudentSession::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->create($data);
+                $cloudSession = CbtStudentSession::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->create($data);
             }
+
+            foreach ((array) ($incoming['section_attempts'] ?? []) as $row) {
+                unset($row['id']);
+                $row['tenant_id'] = $tenantId;
+                $row['cbt_student_session_id'] = $cloudSession->id;
+                \App\Models\CbtSectionAttempt::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->updateOrCreate([
+                    'cbt_student_session_id' => $cloudSession->id,
+                    'cbt_exam_section_id' => $row['cbt_exam_section_id'],
+                ], $row);
+            }
+            foreach ((array) ($incoming['question_scores'] ?? []) as $row) {
+                unset($row['id']);
+                $row['tenant_id'] = $tenantId;
+                $row['cbt_student_session_id'] = $cloudSession->id;
+                $row['scored_by'] = null;
+                \App\Models\CbtQuestionScore::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)->updateOrCreate([
+                    'cbt_student_session_id' => $cloudSession->id,
+                    'cbt_question_id' => $row['cbt_question_id'],
+                ], $row);
+            }
+            if ($cloudSession->grading_completed_at) app(\App\Services\Cbt\CbtResultSyncService::class)->sync($cloudSession);
 
             $accepted[] = $incoming['id'];
         }

@@ -1,117 +1,19 @@
 @extends('layouts.app')
-@section('title', 'Exam Results')
-@section('page-title', 'CBT Results')
-
+@section('title','CBT Results')
+@section('page-title','CBT Results')
 @push('styles')
 <style>
-    .breadcrumb { display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px; }
-    .breadcrumb a { color:var(--indigo);text-decoration:none;font-weight:500; }
-    .breadcrumb svg { width:14px;height:14px; }
-    .stats-grid { display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px; }
-    .stat { background:white;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center; }
-    .stat-val { font-size:22px;font-weight:700;color:var(--midnight);letter-spacing:-0.02em; }
-    .stat-lbl { font-size:10px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:0.05em;margin-top:3px; }
-    .card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
-    table { width:100%;border-collapse:collapse; }
-    thead th { font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:0.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border); }
-    tbody td { padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--midnight); }
-    tbody tr:last-child td { border-bottom:none; }
-    tbody tr:hover td { background:#F8FAFC; }
-    .badge { display:inline-flex;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px; }
-    .badge-success { background:#ECFDF5;color:var(--emerald); }
-    .badge-warning { background:#FFFBEB;color:var(--amber); }
-    .badge-error   { background:#FEF2F2;color:var(--crimson); }
-    .progress-wrap { width:80px;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:6px; }
-    .progress-fill { height:100%;border-radius:3px; }
-    .empty-state { text-align:center;padding:50px;color:var(--slate-light); }
-    .empty-state h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:6px; }
-    @media(max-width:1024px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
+.shell{max-width:1400px;margin:auto}.head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}.head h1{font-size:22px;color:var(--midnight);margin:0 0 4px}.muted{font-size:11px;color:var(--slate)}.actions{display:flex;gap:7px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;padding:9px 12px;font:700 11px inherit;text-decoration:none;cursor:pointer}.btn-primary{background:var(--indigo);color:#fff}.btn-light{background:#fff;color:var(--midnight);border:1px solid var(--border)}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:14px}.stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px}.stat strong{font-size:18px;color:var(--midnight);display:block}.stat span{font-size:9px;color:var(--slate);text-transform:uppercase}.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}.toolbar{display:flex;gap:8px;padding:13px;border-bottom:1px solid var(--border)}.control{border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:inherit;font-size:11px;background:#F8FAFC}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:1000px}th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;font-size:11px}th{background:#F8FAFC;color:var(--slate);font-size:9px;text-transform:uppercase;letter-spacing:.04em}.status{display:inline-flex;padding:3px 8px;border-radius:20px;background:#F1F5F9;color:var(--slate);font-weight:700}.pending{color:#B45309}.active-result{color:#047857;font-weight:700}.details{background:#F8FAFC}.breakdown{display:grid;grid-template-columns:1fr 1fr;gap:14px}.panel{background:#fff;border:1px solid var(--border);border-radius:9px;padding:12px}.panel h3{font-size:12px;margin:0 0 8px;color:var(--midnight)}.manual-row{display:flex;gap:8px;align-items:center;border-top:1px solid #EEF2F7;padding:8px 0}.manual-row span{flex:1}.manual-row input{width:70px}.alert{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;padding:10px;border-radius:8px;margin-bottom:12px;font-size:11px}.empty{text-align:center;padding:35px;color:var(--slate)}@media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.head{display:block}.actions{margin-top:10px}.breakdown{grid-template-columns:1fr}.toolbar{flex-wrap:wrap}}@media print{.actions,.toolbar,.layout-sidebar,.app-sidebar{display:none!important}.card{border:0}.details{display:table-row!important}}
 </style>
 @endpush
-
 @section('content')
-<div class="breadcrumb">
-    <a href="{{ route('cbt.exams') }}">Exams</a>
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-    {{ optional($exam)->title ?? 'Results' }}
-</div>
-
-@if($exams->count())
-<div class="card" style="padding:14px 16px;margin-bottom:16px">
-    <label style="display:block;font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Select Exam</label>
-    <select onchange="if(this.value) location.href=this.value" style="width:100%;max-width:420px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit">
-        @foreach($exams as $item)
-            <option value="{{ route('cbt.results', $item) }}" {{ $exam && $item->id === $exam->id ? 'selected' : '' }}>
-                {{ $item->title }}
-            </option>
-        @endforeach
-    </select>
-</div>
-@endif
-
-<div class="stats-grid">
-    <div class="stat"><div class="stat-val">{{ $stats['total'] }}</div><div class="stat-lbl">Total Students</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--emerald)">{{ $stats['submitted'] }}</div><div class="stat-lbl">Submitted</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--indigo)">{{ round($stats['avg_score'], 1) }}%</div><div class="stat-lbl">Class Average</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--emerald)">{{ $stats['highest'] }}%</div><div class="stat-lbl">Highest</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--crimson)">{{ $stats['lowest'] }}%</div><div class="stat-lbl">Lowest</div></div>
-</div>
-
-<div class="card">
-    @if($sessions->count())
-    <div class="tbl"><table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Student</th>
-                <th>Score</th>
-                <th>Percentage</th>
-                <th>Status</th>
-                <th>Submitted At</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($sessions as $i => $session)
-            @php
-                $percentage = $session->display_percentage;
-                $totalMarks = $session->total_possible_marks ?: ($exam?->total_marks ?? 0);
-            @endphp
-            <tr>
-                <td style="color:var(--slate-light)">{{ $i + 1 }}</td>
-                <td><strong>{{ $session->student->full_name }}</strong></td>
-                <td>{{ $session->score ?? '—' }} / {{ $totalMarks }}</td>
-                <td>
-                    @if($percentage !== null)
-                        <strong style="color:{{ $percentage >= 50 ? 'var(--emerald)' : 'var(--crimson)' }}">
-                            {{ $percentage }}%
-                        </strong>
-                        <span class="progress-wrap">
-                            <span class="progress-fill" style="width:{{ min($percentage, 100) }}%;background:{{ $percentage >= 50 ? 'var(--emerald)' : 'var(--crimson)' }}"></span>
-                        </span>
-                    @else —
-                    @endif
-                </td>
-                <td>
-                    @if($session->status === 'graded')
-                        <span class="badge badge-success">Graded</span>
-                    @elseif($session->status === 'submitted')
-                        <span class="badge badge-warning">Submitted</span>
-                    @elseif($session->status === 'in_progress')
-                        <span class="badge badge-warning">In Progress</span>
-                    @else
-                        <span class="badge badge-error">{{ ucfirst(str_replace('_', ' ', $session->status)) }}</span>
-                    @endif
-                </td>
-                <td style="font-size:12px;color:var(--slate)">{{ optional($session->submitted_at)->format('d M Y, g:ia') ?? '—' }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table></div>
-    @else
-    <div class="empty-state">
-        <h3>No submissions yet</h3>
-        <p>Students haven't taken this exam yet.</p>
-    </div>
-    @endif
-</div>
+<div class="shell">@if(session('success'))<div class="alert">{{ session('success') }}</div>@endif
+<div class="head"><div><h1>{{ $exam?->title ?? 'CBT results' }}</h1><div class="muted">{{ $exam?->questionBank?->subject?->name }} · {{ $exam?->classArm?->classLevel?->name }} {{ $exam?->classArm?->name }} · Dynamic section report</div></div><div class="actions"><a class="btn btn-light" href="{{ route('cbt.exams') }}">Exams</a><a class="btn btn-light" href="{{ route('cbt.retakes') }}">Retake control</a>@if($exam)<a class="btn btn-light" href="{{ route('cbt.results.export',['exam'=>$exam,'format'=>'csv'] + request()->only(['student','status','attempt_number'])) }}">CSV</a><a class="btn btn-light" href="{{ route('cbt.results.export',['exam'=>$exam,'format'=>'pdf'] + request()->only(['student','status','attempt_number'])) }}">PDF</a><button class="btn btn-primary" onclick="window.print()">Print</button>@endif</div></div>
+<div class="stats"><div class="stat"><strong>{{ $stats['total'] }}</strong><span>Attempts</span></div><div class="stat"><strong>{{ $stats['submitted'] }}</strong><span>Final</span></div><div class="stat"><strong>{{ $stats['avg_score'] }}%</strong><span>Average</span></div><div class="stat"><strong>{{ $stats['highest'] }}%</strong><span>Highest</span></div><div class="stat"><strong>{{ $stats['lowest'] }}%</strong><span>Lowest</span></div></div>
+<div class="card"><form class="toolbar" method="GET"><select class="control" onchange="if(this.value)location.href=this.value">@foreach($exams as $item)<option value="{{ route('cbt.results',$item) }}" @selected($exam&&$item->id===$exam->id)>{{ $item->title }}</option>@endforeach</select><input class="control" name="student" value="{{ request('student') }}" placeholder="Student or admission no."><select class="control" name="status"><option value="">All statuses</option>@foreach(['in_progress','submitted','auto_submitted','graded','invalidated','cancelled'] as $status)<option value="{{ $status }}" @selected(request('status')===$status)>{{ ucfirst(str_replace('_',' ',$status)) }}</option>@endforeach</select><input class="control" type="number" min="1" name="attempt_number" value="{{ request('attempt_number') }}" placeholder="Attempt"><button class="btn btn-primary">Filter</button><span class="muted" style="align-self:center">Pending manual sections are not counted as zero.</span></form>
+@if($sessions->count())<div class="table-wrap"><table><thead><tr><th>Student</th><th>Attempt</th>@foreach($exam->sections as $section)<th>{{ $section->code }} · {{ $section->name }}</th>@endforeach<th>Total</th><th>Status</th><th>Integrity</th><th></th></tr></thead><tbody>
+@foreach($sessions as $session)<tr id="attempt-{{ $session->id }}"><td><strong>{{ $session->student->full_name }}</strong><div class="muted">{{ $session->student->admission_number }}</div></td><td>#{{ $session->attempt_number }} @if($session->is_active_result)<div class="active-result">Active result</div>@endif</td>@foreach($exam->sections as $section)@php $sectionAttempt=$session->sectionAttempts->firstWhere('cbt_exam_section_id',$section->id); @endphp<td class="{{ !$sectionAttempt||$sectionAttempt->status!=='scored'?'pending':'' }}">{{ $sectionAttempt&&$sectionAttempt->status==='scored'?$sectionAttempt->raw_score.'/'.$sectionAttempt->maximum_score:'Pending' }}</td>@endforeach<td>{{ $session->raw_score===null?'Pending':$session->raw_score.'/'.$session->maximum_score }}<div class="muted">{{ $session->percentage===null?'':number_format($session->percentage,1).'%' }}</div></td><td><span class="status">{{ str_replace('_',' ',$session->status) }}</span></td><td>{{ $session->integrityEvents->count() }} event(s)</td><td><button class="btn btn-light" type="button" onclick="document.getElementById('detail{{ $session->id }}').toggleAttribute('hidden')">Breakdown</button></td></tr>
+<tr id="detail{{ $session->id }}" class="details" hidden><td colspan="{{ 6+$exam->sections->count() }}"><div class="breakdown"><div class="panel"><h3>Section and integrity record</h3>@foreach($exam->sections as $section)@php $sa=$session->sectionAttempts->firstWhere('cbt_exam_section_id',$section->id); @endphp<div class="manual-row"><span>{{ $section->name }}</span><b>{{ $sa&&$sa->status==='scored'?$sa->raw_score.'/'.$sa->maximum_score:'Awaiting scoring' }}</b></div>@endforeach<div class="manual-row"><span>Focus loss / integrity events</span><b>{{ $session->focus_loss_count }} / {{ $session->integrityEvents->count() }}</b></div><div class="manual-row"><span>Submission reason</span><b>{{ str_replace('_',' ',$session->submission_reason ?: 'student submit') }}</b></div></div>
+<div class="panel"><h3>Manual scoring</h3>@php $pendingScores=$session->questionScores->where('status','pending'); @endphp @if($pendingScores->count())<form method="POST" action="{{ route('cbt.grade-essay',$session) }}">@csrf @foreach($pendingScores as $questionScore)<div class="manual-row"><span>{{ Str::limit($questionScore->question->question_text,100) }}<div class="muted">Max {{ $questionScore->maximum_score }}</div></span><input class="control" type="number" name="manual_scores[{{ $questionScore->cbt_question_id }}]" min="0" max="{{ $questionScore->maximum_score }}" step=".25" required></div>@endforeach<button class="btn btn-primary" style="margin-top:8px">Complete scoring</button></form>@else<div class="muted">No manual response is pending.</div>@endif</div></div></td></tr>
+@endforeach</tbody></table></div>@else<div class="empty">No attempts have been recorded for this exam.</div>@endif</div></div>
 @endsection

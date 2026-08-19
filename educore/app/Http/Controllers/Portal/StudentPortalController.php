@@ -278,10 +278,13 @@ class StudentPortalController extends Controller
         // Student sessions for each exam
         $sessions = CbtStudentSession::where('student_id', $student->id)
             ->whereIn('cbt_exam_id', $exams->pluck('id'))
-            ->get()
-            ->keyBy('cbt_exam_id');
+            ->orderByDesc('attempt_number')->get()
+            ->groupBy('cbt_exam_id')->map->first();
+        $retakeExamIds = \App\Models\CbtRetakeAuthorization::where('student_id', $student->id)
+            ->whereIn('cbt_exam_id', $exams->pluck('id'))->whereNull('used_at')->whereNull('revoked_at')
+            ->pluck('cbt_exam_id')->map(fn ($id) => (int) $id)->all();
 
-        return view('portal.student.exams', compact('student', 'exams', 'sessions'));
+        return view('portal.student.exams', compact('student', 'exams', 'sessions', 'retakeExamIds'));
     }
 
     // ── Subjects ─────────────────────────────────────────────────────

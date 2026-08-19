@@ -27,7 +27,7 @@
                     @if($sess->status === 'graded')
                         @php $pct = $sess->display_percentage ?? 0; @endphp
                         <span class="badge b-g">{{ $pct }}% — Graded</span>
-                    @elseif($sess->status === 'submitted')
+                    @elseif(in_array($sess->status,['submitted','auto_submitted']))
                         <span class="badge b-a">Submitted</span>
                     @else
                         <span class="badge b-b">In Progress</span>
@@ -39,6 +39,8 @@
             <td>
                 @if(!$sess)
                     <a href="{{ route('cbt.exams.start', $exam) }}" class="btn btn-primary" style="padding:5px 12px;font-size:12px">Start Exam</a>
+                @elseif($sess->isFinal() && in_array($exam->id,$retakeExamIds,true))
+                    <a href="{{ route('cbt.exams.start', $exam) }}" class="btn btn-primary" style="padding:5px 12px;font-size:12px">Begin Authorized Retake</a>
                 @elseif($sess->isFinal())
                     <span style="font-size:12px;color:var(--muted)">Completed</span>
                 @else

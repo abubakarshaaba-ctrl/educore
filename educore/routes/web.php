@@ -555,13 +555,32 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('bulk-template',                  [CbtController::class, 'bulkUploadTemplate'])->name('bulk-template');
         Route::get('banks/{bank}/bulk-upload',       [CbtController::class, 'bulkUploadPage'])->name('bulk-upload');
         Route::post('banks/{bank}/bulk-import',      [CbtController::class, 'bulkImport'])->name('bulk-import');
+        Route::post('banks/{bank}/bulk-import/{batch}/confirm', [CbtController::class, 'confirmBulkImport'])->name('bulk-import.confirm');
         // â”€â”€ Exams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Route::get('exams',                          [CbtController::class, 'exams'])->name('exams');
         Route::post('exams',                         [CbtController::class, 'storeExam'])->name('exams.store');
         Route::post('exams/{exam}/close',            [CbtController::class, 'closeExam'])->name('close');
         Route::post('exams/{exam}/publish',          [CbtController::class, 'publishExam'])->name('publish');
+        Route::put('exams/{exam}/security',          [CbtController::class, 'updateSecurity'])->name('exams.security');
+        Route::get('exams/{exam}/builder',           [\App\Http\Controllers\CbtExamSectionController::class, 'builder'])->name('exams.builder');
+        Route::post('exams/{exam}/sections',         [\App\Http\Controllers\CbtExamSectionController::class, 'store'])->name('sections.store');
+        Route::post('exams/{exam}/sections/reorder', [\App\Http\Controllers\CbtExamSectionController::class, 'reorder'])->name('sections.reorder');
+        Route::put('sections/{section}',             [\App\Http\Controllers\CbtExamSectionController::class, 'update'])->name('sections.update');
+        Route::delete('sections/{section}',          [\App\Http\Controllers\CbtExamSectionController::class, 'destroy'])->name('sections.destroy');
+        Route::post('sections/{section}/duplicate',  [\App\Http\Controllers\CbtExamSectionController::class, 'duplicate'])->name('sections.duplicate');
+        Route::post('sections/{section}/questions',  [\App\Http\Controllers\CbtExamSectionController::class, 'attachQuestion'])->name('sections.questions.attach');
+        Route::post('sections/{section}/questions/create', [\App\Http\Controllers\CbtExamSectionController::class, 'createQuestion'])->name('sections.questions.create');
+        Route::post('sections/{section}/questions/reorder', [\App\Http\Controllers\CbtExamSectionController::class, 'reorderQuestions'])->name('sections.questions.reorder');
+        Route::post('sections/{section}/questions/{question}/duplicate', [\App\Http\Controllers\CbtExamSectionController::class, 'duplicateQuestion'])->name('sections.questions.duplicate');
+        Route::put('sections/{section}/questions/{question}', [\App\Http\Controllers\CbtExamSectionController::class, 'updateQuestion'])->name('sections.questions.update');
+        Route::delete('sections/{section}/questions/{question}', [\App\Http\Controllers\CbtExamSectionController::class, 'removeQuestion'])->name('sections.questions.remove');
         Route::get('results/{exam?}',                [CbtController::class, 'results'])->name('results');
         Route::post('session/{session}/grade-essay', [CbtController::class, 'gradeEssay'])->name('grade-essay');
+        Route::get('exams/{exam}/results/{format}',  [\App\Http\Controllers\CbtReportController::class, 'export'])->whereIn('format', ['csv', 'pdf'])->name('results.export');
+        Route::get('retakes',                        [\App\Http\Controllers\CbtRetakeController::class, 'index'])->name('retakes');
+        Route::post('exams/{exam}/students/{student}/retake', [\App\Http\Controllers\CbtRetakeController::class, 'authorizeRetake'])->name('retakes.authorize');
+        Route::post('retakes/{authorization}/revoke', [\App\Http\Controllers\CbtRetakeController::class, 'revoke'])->name('retakes.revoke');
+        Route::post('attempts/{session}/invalidate', [\App\Http\Controllers\CbtRetakeController::class, 'invalidate'])->name('attempts.invalidate');
         // ── LAN deployment (offline exam-taking) ────────────────────────
         Route::get('lan',                            [\App\Http\Controllers\CbtLanController::class, 'dashboard'])->name('lan');
         Route::get('exams/{exam}/lan-export',         [\App\Http\Controllers\CbtLanController::class, 'exportPackage'])->name('lan.export');
@@ -1217,7 +1236,10 @@ Route::post('agent/register', [\App\Http\Controllers\AgentPortalController::clas
 // â”€â”€ CBT Exam Routes (accessible to students AND staff) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Route::middleware(['auth', 'active.account', \App\Http\Middleware\IdentifyTenant::class])->group(function () {
     Route::get('cbt/exams/{exam}/start',          [\App\Http\Controllers\CbtController::class, 'startExam'])->name('cbt.exams.start');
+    Route::post('cbt/exams/{exam}/begin',         [\App\Http\Controllers\CbtController::class, 'beginExam'])->name('cbt.exams.begin');
     Route::post('cbt/session/{session}/submit',   [\App\Http\Controllers\CbtController::class, 'submitExam'])->name('cbt.session.submit');
+    Route::post('cbt/session/{session}/autosave', [\App\Http\Controllers\CbtAttemptController::class, 'autosave'])->name('cbt.session.autosave');
+    Route::post('cbt/session/{session}/integrity',[\App\Http\Controllers\CbtAttemptController::class, 'integrity'])->name('cbt.session.integrity');
 });
 
 // â”€â”€ Public Admissions Portal stubs (subdomain handles the real routes) â”€â”€â”€â”€

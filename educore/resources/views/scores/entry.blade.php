@@ -73,6 +73,8 @@
     .split-theory-input:focus { border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
     .split-theory-input.has-value { background:#ECFDF5;border-color:#A7F3D0;color:var(--emerald); }
     .split-total { font-size:10.5px;color:var(--slate-light); }
+    .source-score { display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border:1px solid #BFDBFE;border-radius:7px;background:#EFF6FF;color:#1D4ED8;font-weight:700;text-decoration:none;white-space:nowrap; }
+    .source-score:hover { background:#DBEAFE; }
 
     .total-val { font-size:15px; }
     .total-green { color:var(--emerald); }
@@ -167,7 +169,15 @@
                     </td>
 
                     @foreach($assessmentTypes as $at)
-                    @if($at->isSplit())
+                    @php $sourceRecord = $scoreRecords[$student->id][$at->id] ?? null; @endphp
+                    @if($sourceRecord?->is_source_locked && $sourceRecord?->score_source === 'cbt')
+                        <td class="score-col">
+                            <a class="source-score" href="{{ route('cbt.results', $sourceRecord->cbt_exam_id) }}#attempt-{{ $sourceRecord->source_reference_id }}" title="Open the CBT attempt and section breakdown">
+                                <span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}
+                            </a>
+                            <span class="max-label">View breakdown</span>
+                        </td>
+                    @elseif($at->isSplit())
                         @php
                             $obj = $objectiveScores[$student->id][$at->id] ?? null;
                             $theoryVal = $existingTheory[$student->id][$at->id] ?? '';

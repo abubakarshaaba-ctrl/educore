@@ -166,8 +166,8 @@ class StudentController extends Controller
 
         $sessions = CbtStudentSession::where('student_id', $student->id)
             ->whereIn('cbt_exam_id', $exams->pluck('id'))
-            ->get()
-            ->keyBy('cbt_exam_id');
+            ->orderByDesc('attempt_number')->get()
+            ->groupBy('cbt_exam_id')->map->first();
 
         return response()->json([
             'exams' => $exams->map(function (CbtExam $exam) use ($sessions) {
@@ -175,7 +175,10 @@ class StudentController extends Controller
                 $session = $sessions->get($exam->id);
                 $payload['attempt'] = $session ? [
                     'status' => $session->status,
-                    'score' => $session->score,
+                    'score' => $session->raw_score ?? $session->score,
+                    'maximum_score' => $session->maximum_score,
+                    'attempt_number' => $session->attempt_number,
+                    'is_active_result' => $session->is_active_result,
                     'submitted_at' => $session->submitted_at,
                 ] : null;
                 return $payload;
@@ -228,6 +231,10 @@ class StudentController extends Controller
             'scheduled_start' => $exam->scheduled_start,
             'scheduled_end' => $exam->scheduled_end,
             'status' => $exam->status,
+            'sections' => $exam->sections()->where('is_active', true)->orderBy('display_order')->get()->map(fn ($section) => [
+                'id' => $section->id, 'code' => $section->code, 'name' => $section->name,
+                'answer_mode' => $section->answer_mode, 'max_marks' => $section->max_marks,
+            ])->values(),
         ];
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\CbtExam;
+use App\Models\CbtImportBatch;
+use App\Models\CbtIntegrityEvent;
 use App\Models\CbtQuestion;
 use App\Models\CbtQuestionBank;
 use App\Models\CbtStudentSession;
@@ -11,10 +13,18 @@ use App\Models\ClassLevel;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
+use App\Services\Cbt\CbtExamConfigurationService;
+use App\Services\Cbt\CbtQuestionImportService;
+use App\Services\Cbt\CbtSubmissionService;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class CbtController extends Controller
 {
@@ -94,47 +104,7 @@ class CbtController extends Controller
 
     private function examQuestionIds(CbtExam $exam): array
     {
-        $objectiveTypes = ['mcq', 'true_false', 'fill_blank'];
-        $theoryTypes    = ['essay', 'short_answer'];
-
-        $objCount    = (int) ($exam->section_objective_count ?? 0);
-        $theoryCount = (int) ($exam->section_theory_count ?? 0);
-
-        // Legacy exams (created before sections) — just draw total_questions randomly.
-        if ($objCount === 0 && $theoryCount === 0) {
-            return CbtQuestion::where('question_bank_id', $exam->question_bank_id)
-                ->inRandomOrder()
-                ->limit($exam->total_questions)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-        }
-
-        $ids = collect();
-
-        // Section A — objective questions
-        if ($objCount > 0) {
-            $objIds = CbtQuestion::where('question_bank_id', $exam->question_bank_id)
-                ->whereIn('type', $objectiveTypes)
-                ->inRandomOrder()
-                ->limit($objCount)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id);
-            $ids = $ids->merge($objIds);
-        }
-
-        // Section B — theory/essay questions
-        if ($theoryCount > 0) {
-            $theoryIds = CbtQuestion::where('question_bank_id', $exam->question_bank_id)
-                ->whereIn('type', $theoryTypes)
-                ->inRandomOrder()
-                ->limit($theoryCount)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id);
-            $ids = $ids->merge($theoryIds);
-        }
-
-        return $ids->all();
+        return app(CbtExamConfigurationService::class)->questionIdsForAttempt($exam);
     }
 
     private function calculateSessionScore(Collection $questions, array $answers, ?CbtExam $exam = null): array
@@ -452,6 +422,10 @@ class CbtController extends Controller
             // Feeds the objective score into this report-card assessment
             // type on the score entry sheet (optional).
             'assessment_type_id'      => ['nullable', 'exists:assessment_types,id'],
+            'malpractice_enabled'     => ['nullable', 'boolean'],
+            'focus_loss_policy'       => ['nullable', 'in:submit,warn,log'],
+            'max_focus_losses'        => ['nullable', 'integer', 'min:0', 'max:20'],
+            'require_fullscreen'      => ['nullable', 'boolean'],
         ]);
 
         $objCount    = (int)   ($validated['section_objective_count'] ?? 0);
@@ -514,7 +488,7 @@ class CbtController extends Controller
 
         $created = 0;
         foreach ($arms as $arm) {
-            CbtExam::create([
+            $exam = CbtExam::create([
                 'title'                   => $arms->count() > 1 ? "{$validated['title']} — " . (optional($arm->classLevel)->name ?? '') . " {$arm->name}" : $validated['title'],
                 'question_bank_id'        => $validated['question_bank_id'],
                 'class_arm_id'            => $arm->id,
@@ -532,30 +506,62 @@ class CbtController extends Controller
                 'shuffle_questions'       => true,
                 'shuffle_options'         => true,
                 'status'                  => 'draft',
+                'created_by'              => auth()->id(),
+                'malpractice_enabled'     => $request->boolean('malpractice_enabled', true),
+                'focus_loss_policy'       => $validated['focus_loss_policy'] ?? 'submit',
+                'max_focus_losses'        => $validated['max_focus_losses'] ?? 0,
+                'require_fullscreen'      => $request->boolean('require_fullscreen'),
+                'retake_policy'           => 'latest_valid_authorized_attempt',
+                'strict_marks_validation' => true,
             ]);
+            app(CbtExamConfigurationService::class)->createDefaultSections($exam, $objCount, $objMarks, $theoryCount, $theoryMarks, auth()->id());
             $created++;
         }
 
         $msg = $created === 1 ? 'Exam created successfully.' : "{$created} exams created — one per class arm.";
-        return back()->with('success', $msg);
+        return $created === 1
+            ? redirect()->route('cbt.exams.builder', $exam)->with('success', $msg.' Review sections and marks before publication.')
+            : back()->with('success', $msg);
     }
 
     public function publishExam(CbtExam $exam)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403, 'You can only manage exams for subjects you teach.');
+        abort_unless($exam->status === 'draft', 422, 'Only draft exams can be published.');
+        $validationErrors = app(CbtExamConfigurationService::class)->publicationErrors($exam);
+        if ($validationErrors) return back()->withErrors(['publish' => implode(' ', $validationErrors)]);
         $exam->update(['status' => 'published']);
+        \App\Models\AuditLog::create(['tenant_id' => $exam->tenant_id, 'actor_user_id' => auth()->id(), 'auditable_type' => CbtExam::class, 'auditable_id' => $exam->id, 'action' => 'cbt.exam.published', 'new_values' => ['status' => 'published']]);
         return back()->with('success', 'Exam published. Students can now access it.');
     }
 
     public function closeExam(CbtExam $exam)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403, 'You can only manage exams for subjects you teach.');
+        abort_unless(in_array($exam->status, ['published', 'active'], true), 422, 'Only a published exam can be closed.');
         $exam->update(['status' => 'closed']);
+        \App\Models\AuditLog::create(['tenant_id' => $exam->tenant_id, 'actor_user_id' => auth()->id(), 'auditable_type' => CbtExam::class, 'auditable_id' => $exam->id, 'action' => 'cbt.exam.closed', 'new_values' => ['status' => 'closed']]);
+        CbtStudentSession::where('cbt_exam_id', $exam->id)->whereNotNull('grading_completed_at')
+            ->get()->each(fn (CbtStudentSession $attempt) => app(\App\Services\Cbt\CbtResultSyncService::class)->sync($attempt));
         return back()->with('success', 'Exam closed. No more submissions allowed.');
     }
 
+    public function updateSecurity(Request $request, CbtExam $exam)
+    {
+        abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403);
+        abort_unless($exam->status === 'draft', 422, 'Security settings are locked after publication.');
+        $data = $request->validate([
+            'focus_loss_policy' => ['required', 'in:submit,warn,log'],
+            'max_focus_losses' => ['required', 'integer', 'min:0', 'max:20'],
+            'malpractice_enabled' => ['nullable', 'boolean'], 'require_fullscreen' => ['nullable', 'boolean'],
+        ]);
+        $exam->update($data + ['malpractice_enabled' => $request->boolean('malpractice_enabled'), 'require_fullscreen' => $request->boolean('require_fullscreen')]);
+        \App\Models\AuditLog::create(['tenant_id' => $exam->tenant_id, 'actor_user_id' => auth()->id(), 'auditable_type' => CbtExam::class, 'auditable_id' => $exam->id, 'action' => 'cbt.exam.security_updated', 'new_values' => $exam->only(['malpractice_enabled', 'focus_loss_policy', 'max_focus_losses', 'require_fullscreen'])]);
+        return back()->with('success', 'Exam security settings updated.');
+    }
+
     // ── Results ───────────────────────────────────────────────────────
-    public function results(?CbtExam $exam = null)
+    public function results(Request $request, ?CbtExam $exam = null)
     {
         $this->authorizeCbtStaffAccess();
         $user = Auth::user();
@@ -582,12 +588,14 @@ class CbtController extends Controller
         ];
 
         if ($exam) {
-            $exam->loadMissing(['questionBank.subject', 'classArm.classLevel', 'term']);
+            $exam->loadMissing(['questionBank.subject', 'classArm.classLevel', 'term', 'sections']);
 
-            $sessions = CbtStudentSession::with(['student', 'exam.questionBank.subject'])
+            $sessions = CbtStudentSession::with(['student', 'exam.questionBank.subject', 'sectionAttempts.section', 'questionScores.question', 'integrityEvents', 'retakeAuthorization'])
                 ->where('cbt_exam_id', $exam->id)
-                ->latest()
-                ->get();
+                ->when($request->filled('student'), fn ($q) => $q->whereHas('student', fn ($student) => $student->where(fn ($name) => $name->where('first_name', 'like', '%'.$request->student.'%')->orWhere('last_name', 'like', '%'.$request->student.'%')->orWhere('admission_number', 'like', '%'.$request->student.'%'))))
+                ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+                ->when($request->filled('attempt_number'), fn ($q) => $q->where('attempt_number', $request->integer('attempt_number')))
+                ->latest()->get();
 
             $percentages = $sessions
                 ->map(fn (CbtStudentSession $session) => $session->display_percentage)
@@ -621,34 +629,13 @@ class CbtController extends Controller
                     ->with('info', 'This exam is not currently available.');
             }
 
-            $existing = CbtStudentSession::where('cbt_exam_id', $exam->id)
-                ->where('student_id', $student->id)->first();
-
-            if ($existing && $existing->isFinal()) {
-                return redirect()->route('student.portal.exams')
-                    ->with('info', 'You have already submitted this exam.');
+            $existing = CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->where('status', 'in_progress')->latest('attempt_number')->first();
+            if (! $existing || ! $existing->integrity_acknowledged_at) {
+                $hasPriorAttempt = CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->whereIn('status', CbtStudentSession::FINAL_STATUSES)->exists();
+                $retake = $exam->retakeAuthorizations()->where('student_id', $student->id)->whereNull('used_at')->whereNull('revoked_at')->latest()->first();
+                if ($hasPriorAttempt && ! $retake) return redirect()->route('student.portal.exams')->with('info', 'You have already completed this exam. A school administrator must authorize any retake.');
+                return view('cbt.acknowledge', compact('exam', 'existing', 'retake'));
             }
-
-            if (!$existing) {
-                $questionIds = $this->examQuestionIds($exam);
-
-                if (empty($questionIds)) {
-                    return redirect()->route('student.portal.exams')
-                        ->withErrors(['error' => 'This exam has no available questions yet.']);
-                }
-
-                $existing = CbtStudentSession::create([
-                    'tenant_id'      => $student->tenant_id,
-                    'cbt_exam_id'    => $exam->id,
-                    'student_id'     => $student->id,
-                    'question_order' => $questionIds,
-                    'answers'        => [],
-                    'essay_answers'  => [],
-                    'started_at'     => now(),
-                    'status'         => 'in_progress',
-                ]);
-            }
-
             $questions = $this->orderedQuestions($existing->questionIds());
         } else {
             $this->authorizeCbtStaffAccess();
@@ -656,12 +643,61 @@ class CbtController extends Controller
             $questions = $this->orderedQuestions($this->examQuestionIds($exam));
             $existing = null;
         }
+        $sectionPayload = app(CbtExamConfigurationService::class)->sectionPayload($exam, $questions);
+        return view('cbt.take', compact('exam', 'questions', 'existing', 'sectionPayload'));
+    }
 
-        return view('cbt.take', compact('exam', 'questions', 'existing'));
+    public function beginExam(Request $request, CbtExam $exam)
+    {
+        abort_unless(Auth::user()?->isStudent(), 403);
+        $request->validate(['integrity_acknowledged' => ['accepted']]);
+        $student = $this->studentForCurrentUser();
+        abort_unless($this->studentCanTakeExam($student, $exam) && $exam->status === 'published', 403);
+        if ($exam->scheduled_start && now()->lt($exam->scheduled_start)) return back()->withErrors(['exam' => 'This exam has not started yet.']);
+        if ($exam->scheduled_end && now()->gte($exam->scheduled_end)) return back()->withErrors(['exam' => 'This exam window has closed.']);
+
+        $session = DB::transaction(function () use ($exam, $student) {
+            $active = CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->where('status', 'in_progress')->lockForUpdate()->first();
+            if ($active) {
+                $active->update(['integrity_acknowledged_at' => now(), 'started_at' => $active->started_at ?: now()]);
+                return $active;
+            }
+            $lastAttempt = (int) CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->lockForUpdate()->max('attempt_number');
+            $authorization = null;
+            if ($lastAttempt > 0) {
+                $authorization = $exam->retakeAuthorizations()->where('student_id', $student->id)->where('attempt_number', $lastAttempt + 1)->whereNull('used_at')->whereNull('revoked_at')->lockForUpdate()->first();
+                abort_unless($authorization, 403, 'A retake has not been authorized.');
+            }
+            $questionIds = $this->examQuestionIds($exam);
+            abort_if(empty($questionIds), 422, 'This exam has no configured questions.');
+            $session = CbtStudentSession::create([
+                'tenant_id' => $student->tenant_id, 'cbt_exam_id' => $exam->id, 'student_id' => $student->id,
+                'attempt_number' => $lastAttempt + 1, 'is_authorized_attempt' => $lastAttempt === 0 || (bool) $authorization,
+                'retake_authorization_id' => $authorization?->id, 'question_order' => $questionIds,
+                'answers' => [], 'essay_answers' => [], 'started_at' => now(), 'integrity_acknowledged_at' => now(), 'status' => 'in_progress',
+            ]);
+            $authorization?->update(['used_at' => now()]);
+            return $session;
+        });
+        CbtIntegrityEvent::firstOrCreate(
+            ['cbt_student_session_id' => $session->id, 'event_type' => 'exam_started'],
+            ['tenant_id' => $session->tenant_id, 'cbt_exam_id' => $session->cbt_exam_id, 'student_id' => $session->student_id,
+                'event_uuid' => (string) Str::uuid(), 'severity' => 'info', 'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(), 'metadata' => ['attempt_number' => $session->attempt_number], 'occurred_at' => now()]
+        );
+        if ($session->attempt_number > 1) {
+            CbtIntegrityEvent::firstOrCreate(
+                ['cbt_student_session_id' => $session->id, 'event_type' => 'new_attempt_created'],
+                ['tenant_id' => $session->tenant_id, 'cbt_exam_id' => $session->cbt_exam_id, 'student_id' => $session->student_id,
+                    'event_uuid' => (string) Str::uuid(), 'severity' => 'info', 'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(), 'metadata' => ['attempt_number' => $session->attempt_number, 'retake_authorization_id' => $session->retake_authorization_id], 'occurred_at' => now()]
+            );
+        }
+        return redirect()->route('cbt.exams.start', $exam);
     }
 
     // ── Submit Exam ───────────────────────────────────────────────────
-    public function submitExam(Request $request, CbtStudentSession $session)
+    public function submitExam(Request $request, CbtStudentSession $session, CbtSubmissionService $submission)
     {
         $user = Auth::user();
 
@@ -671,40 +707,14 @@ class CbtController extends Controller
 
         abort_unless((int) $session->student_id === (int) $student->id, 403, 'You are not allowed to submit this session.');
 
-        if ($session->isFinal()) {
-            return redirect()->route('student.portal.exams')
-                ->with('info', 'This exam has already been submitted.');
-        }
+        abort_if($session->isFinal(), 409, 'This exam has already been submitted and its answers are locked.');
 
-        if (!$session->isInProgress()) {
-            return redirect()->route('student.portal.exams')
-                ->with('info', 'This exam session is no longer active.');
-        }
+        abort_unless($session->isInProgress(), 409, 'This exam session is no longer active.');
 
-        $answers      = (array) $request->input('answers', []);
-        $essayAnswers = (array) $request->input('essay_answers', []);
-        $questions    = $session->resolvedQuestions();
-
-        if ($questions->isEmpty()) {
-            return redirect()->route('student.portal.exams')
-                ->withErrors(['error' => 'This exam session has no questions to submit.']);
-        }
-
-        $score = $this->calculateSessionScore($questions, $answers, $session->exam);
-        $newStatus = $score['has_manual'] ? 'submitted' : 'graded';
-
-        $session->update([
-            'answers'       => $answers,
-            'essay_answers' => $essayAnswers,
-            'score'         => $score['auto_score'],
-            'percentage'    => $score['percentage'],
-            'submitted_at'  => now(),
-            'status'        => $newStatus,
-        ]);
-
-        $msg = $score['has_manual']
-            ? "Exam submitted! Auto score: {$score['correct']}/{$score['auto_total']}. Essays await manual marking."
-            : "Exam submitted! Score: {$score['auto_score']}/{$score['total_marks']} ({$score['percentage']}%)";
+        $session = $submission->submit($session, (array) $request->input('answers', []), (array) $request->input('essay_answers', []));
+        $msg = $session->isFullyScored()
+            ? "Exam submitted. Final score: {$session->raw_score}/{$session->maximum_score} ({$session->percentage}%)."
+            : 'Exam submitted. The final result will be available after manual scoring is completed.';
 
         return redirect()->route('student.portal.dashboard')->with('success', $msg);
     }
@@ -713,97 +723,65 @@ class CbtController extends Controller
     public function bulkUploadPage(CbtQuestionBank $bank)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $bank), 403, 'You can only manage question banks for subjects you teach.');
-        return view('cbt.bulk-upload', compact('bank'));
+        $batch = request()->filled('batch')
+            ? CbtImportBatch::where('question_bank_id', $bank->id)->whereKey(request()->integer('batch'))->first()
+            : null;
+        $exams = CbtExam::where('question_bank_id', $bank->id)->where('status', 'draft')->with('sections')->latest()->get();
+        return view('cbt.bulk-upload', compact('bank', 'batch', 'exams'));
     }
 
-    public function bulkUploadTemplate()
+    public function bulkUploadTemplate(Request $request)
     {
-        $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="cbt_questions_template.csv"',
+        $rows = [CbtQuestionImportService::HEADERS,
+            ['A','Objective','1','','1','single_choice','What is the capital of Nigeria?','Lagos','Abuja','Kano','Ibadan','B','2','automatic','online','1','','yes','','Abuja is Nigeria’s capital.','1'],
+            ['B','Theory','1','','1','theory_group','Read the passage and answer the questions that follow.','','','','','','0','manual','online','1','Answer all parts.','yes','','','2'],
+            ['B','Theory','1a','1','2','theory','State the central idea of the passage.','','','','','','5','manual','online','2','','yes','A concise statement of the central idea.','','2'],
         ];
-        $rows = [
-            ['type','question_text','option_a','option_b','option_c','option_d','correct_option','explanation','difficulty','marks','model_answer'],
-            ['mcq','What is the capital of Nigeria?','Lagos','Abuja','Kano','Ibadan','b','Abuja became capital in 1991','1','1',''],
-            ['true_false','The sun rises from the west','True','False','','','b','The sun rises from the east','1','1',''],
-            ['essay','Explain the process of photosynthesis in plants.','','','','','','','2','5','Photosynthesis is the process...'],
-            ['short_answer','Name the longest river in Africa','','','','','','','1','2','River Nile'],
-            ['fill_blank','The process of water turning to vapour is called _____.','','','','','evaporation','','1','1',''],
-        ];
-        $cb = function() use ($rows) {
-            $h = fopen('php://output','w');
-            foreach ($rows as $r) fputcsv($h, $r);
-            fclose($h);
-        };
-        return response()->stream($cb, 200, $headers);
+        if ($request->query('format') === 'csv') {
+            return response()->streamDownload(function () use ($rows) { $h = fopen('php://output', 'w'); foreach ($rows as $row) fputcsv($h, $row); fclose($h); }, 'cbt_questions_template.csv', ['Content-Type' => 'text/csv']);
+        }
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Questions')->fromArray($rows);
+        $sheet->freezePane('A2');
+        $sheet->getStyle('A1:U1')->getFont()->setBold(true);
+        $instructions = $spreadsheet->createSheet();
+        $instructions->setTitle('Instructions')->fromArray([
+            ['Field', 'Requirement'],
+            ['section_code', 'Required when importing directly into a draft exam. Must match an existing section code.'],
+            ['question_no', 'Required and unique within its section.'],
+            ['parent_question_no', 'Use the parent question_no from the same section; leave blank for a top-level question.'],
+            ['question_level', 'Top-level = 1; each child increases the level by one.'],
+            ['question_type', 'single_choice, true_false, fill_blank, short_answer, theory, or theory_group.'],
+            ['marks', 'Enter marks on the lowest assessable parts. Instruction/theory_group rows must be 0.'],
+            ['scoring_method', 'automatic or manual. Paper-answer questions must be manual.'],
+            ['answer_mode', 'online, paper, or hybrid; must match the selected exam section.'],
+        ]);
+        $instructions->getStyle('A1:B1')->getFont()->setBold(true);
+        $path = tempnam(sys_get_temp_dir(), 'cbt-template-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        return response()->download($path, 'cbt_questions_template.xlsx')->deleteFileAfterSend(true);
     }
 
-    public function bulkImport(Request $request, CbtQuestionBank $bank)
+    public function bulkImport(Request $request, CbtQuestionBank $bank, CbtQuestionImportService $importer)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $bank), 403, 'You can only manage question banks for subjects you teach.');
-        $request->validate(['file' => ['required','file','mimes:csv,txt','max:5120']]);
-        $path = $request->file('file')->getRealPath();
-        $rows = []; $headers = null;
-        if (($h = fopen($path,'r')) !== false) {
-            while (($d = fgetcsv($h)) !== false) {
-                if (!$headers) { $headers = array_map('strtolower', array_map('trim', $d)); continue; }
-                if (count($d) >= 2) $rows[] = array_combine($headers, array_pad($d, count($headers), ''));
-            }
-            fclose($h);
-        }
+        $data = $request->validate(['file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:10240'], 'exam_id' => ['nullable', Rule::exists('cbt_exams', 'id')->where('question_bank_id', $bank->id)->where('tenant_id', $bank->tenant_id)]]);
+        $exam = ! empty($data['exam_id']) ? CbtExam::findOrFail($data['exam_id']) : null;
+        $batch = $importer->preview($bank, $request->file('file'), auth()->id(), $exam);
+        return redirect()->route('cbt.bulk-upload', ['bank' => $bank, 'batch' => $batch->id]);
+    }
 
-        $validTypes = ['mcq','essay','short_answer','fill_blank','true_false'];
-        $imported = 0; $skipped = 0; $errors = [];
-
-        foreach ($rows as $i => $row) {
-            $rowNum = $i + 2;
-            $text   = trim($row['question_text'] ?? $row['question'] ?? '');
-            if (!$text) { $errors[] = "Row {$rowNum}: question_text required — skipped."; $skipped++; continue; }
-
-            $type = strtolower(trim($row['type'] ?? 'mcq'));
-            if (!in_array($type, $validTypes)) $type = 'mcq';
-
-            $correctLetter = strtolower(trim($row['correct_option'] ?? ''));
-            if (!in_array($correctLetter, ['a','b','c','d'])) $correctLetter = null;
-
-            if ($type === 'mcq' && !$correctLetter) {
-                $errors[] = "Row {$rowNum}: MCQ missing correct_option — defaulted to 'a'.";
-                $correctLetter = 'a';
-            }
-            if ($type === 'true_false' && !$correctLetter) {
-                $errors[] = "Row {$rowNum}: true_false missing correct_option (a=True, b=False) — defaulted to 'a'.";
-                $correctLetter = 'a';
-            }
-
-            try {
-                CbtQuestion::create([
-                    'question_bank_id'     => $bank->id,
-                    'type'                 => $type,
-                    'question_text'        => $text,
-                    'option_a'             => trim($row['option_a'] ?? '') ?: ($type === 'true_false' ? 'True'  : null),
-                    'option_b'             => trim($row['option_b'] ?? '') ?: ($type === 'true_false' ? 'False' : null),
-                    'option_c'             => trim($row['option_c'] ?? '') ?: null,
-                    'option_d'             => trim($row['option_d'] ?? '') ?: null,
-                    'correct_answer_letter'=> $correctLetter,
-                    'correct_option'       => null,
-                    'explanation'          => trim($row['explanation'] ?? '') ?: null,
-                    'difficulty'           => max(1, min(3, (int)($row['difficulty'] ?? 1))),
-                    'marks'                => max(0.5, (float)($row['marks'] ?? 1)),
-                    'model_answer'         => trim($row['model_answer'] ?? '') ?: null,
-                ]);
-                $imported++;
-            } catch (\Exception $e) {
-                $errors[] = "Row {$rowNum}: " . $e->getMessage(); $skipped++;
-            }
-        }
-
-        return back()
-            ->with('success', "{$imported} question(s) imported into '{$bank->name}'." . ($skipped ? " {$skipped} skipped." : ''))
-            ->with('errors_list', $errors);
+    public function confirmBulkImport(CbtQuestionBank $bank, CbtImportBatch $batch, CbtQuestionImportService $importer)
+    {
+        abort_unless($this->teacherTeachesBank(Auth::user(), $bank) && (int) $batch->question_bank_id === (int) $bank->id, 403);
+        $count = $importer->import($batch);
+        \App\Models\AuditLog::create(['tenant_id' => $bank->tenant_id, 'actor_user_id' => auth()->id(), 'auditable_type' => CbtQuestionBank::class, 'auditable_id' => $bank->id, 'action' => 'cbt.questions.imported', 'new_values' => ['batch_id' => $batch->id, 'count' => $count, 'file' => $batch->original_name]]);
+        return redirect()->route('cbt.questions', $bank)->with('success', "{$count} questions imported transactionally.");
     }
 
     // ── Essay Grading ─────────────────────────────────────────────────
-    public function gradeEssay(Request $request, CbtStudentSession $session)
+    public function gradeEssay(Request $request, CbtStudentSession $session, CbtSubmissionService $submission)
     {
         $this->authorizeCbtStaffAccess();
         $user = Auth::user();
@@ -812,28 +790,18 @@ class CbtController extends Controller
             abort(403, 'You can only grade essays for subjects you teach.');
         }
 
-        if (!in_array($session->status, ['submitted', 'graded'], true)) {
+        if (!in_array($session->status, ['submitted', 'graded', 'auto_submitted'], true)) {
             return back()->with('info', 'Only submitted CBT sessions can be graded.');
         }
+        abort_if(
+            \App\Models\ReportCardPublication::where('class_arm_id', $exam->class_arm_id)
+                ->where('term_id', $exam->term_id)->where('status', 'published')->exists(),
+            423,
+            'These results are published and locked. Unpublish the report cards before changing CBT marks.'
+        );
 
-        $data = $request->validate([
-            'manual_scores'   => ['required','array'],
-            'manual_scores.*' => ['numeric','min:0'],
-        ]);
-        $autoScore   = $session->score ?? 0;
-        $manualTotal = array_sum($data['manual_scores']);
-        $allQ        = $session->resolvedQuestions();
-        $totalMax    = $allQ->sum(fn($q) => $q->marks ?? 1);
-        $totalScore  = $autoScore + $manualTotal;
-        $percentage  = $totalMax > 0 ? round(($totalScore / $totalMax) * 100, 1) : 0;
-
-        $session->update([
-            'manual_scores' => $data['manual_scores'],
-            'marked_by'     => auth()->id(),
-            'score'         => $totalScore,
-            'percentage'    => $percentage,
-            'status'        => 'graded',
-        ]);
-        return back()->with('success', "Essay graded. Total: {$totalScore}/{$totalMax} ({$percentage}%)");
+        $data = $request->validate(['manual_scores' => ['required','array'], 'manual_scores.*' => ['numeric','min:0']]);
+        $graded = $submission->grade($session, $data['manual_scores'], auth()->id());
+        return back()->with('success', "Manual scoring completed. Total: {$graded->raw_score}/{$graded->maximum_score} ({$graded->percentage}%)");
     }
 }
