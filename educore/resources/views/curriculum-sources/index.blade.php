@@ -54,7 +54,9 @@
         </article>
     </section>
 
-    @php($hasFilters = request()->filled('class') || request()->filled('subject') || request()->filled('term'))
+    @php
+        $hasFilters = request()->filled('class') || request()->filled('subject') || request()->filled('term');
+    @endphp
     <form method="GET" action="{{ route('super.curriculum-sources.index') }}" class="repo-card" id="repositoryFilterForm">
         <div class="repo-toolbar">
             <label class="repo-search">
@@ -75,21 +77,27 @@
                     <label for="resourceClass">Class folder</label>
                     <select id="resourceClass" name="class">
                         <option value="">All classes</option>
-                        @foreach($folders['classes'] as $folder)<option value="{{ $folder }}" @selected(request('class') === $folder)>{{ $folder }}</option>@endforeach
+                        @foreach($folders['classes'] as $folder)
+                            <option value="{{ $folder }}" @selected(request('class') === $folder)>{{ $folder }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="repo-field">
                     <label for="resourceSubject">Subject folder</label>
                     <select id="resourceSubject" name="subject">
                         <option value="">All subjects</option>
-                        @foreach($folders['subjects'] as $folder)<option value="{{ $folder }}" @selected(request('subject') === $folder)>{{ $folder }}</option>@endforeach
+                        @foreach($folders['subjects'] as $folder)
+                            <option value="{{ $folder }}" @selected(request('subject') === $folder)>{{ $folder }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="repo-field">
                     <label for="resourceTerm">Term folder</label>
                     <select id="resourceTerm" name="term">
                         <option value="">All terms</option>
-                        @foreach($folders['terms'] as $folder)<option value="{{ $folder }}" @selected(request('term') === $folder)>{{ $folder }}</option>@endforeach
+                        @foreach($folders['terms'] as $folder)
+                            <option value="{{ $folder }}" @selected(request('term') === $folder)>{{ $folder }}</option>
+                        @endforeach
                     </select>
                 </div>
             </div>
@@ -105,7 +113,11 @@
 
         @forelse($sources as $source)
             @php
-                $meta = $source->metadata ?? [];
+                $meta = $source->metadata;
+                if (is_string($meta)) {
+                    $meta = json_decode($meta, true);
+                }
+                $meta = is_array($meta) ? $meta : [];
                 $extension = strtoupper(pathinfo($source->original_filename ?? '', PATHINFO_EXTENSION) ?: 'FILE');
                 $classLabel = $meta['class_label'] ?? 'Unmapped class';
                 $subjectLabel = $meta['subject_label'] ?? 'Unmapped subject';

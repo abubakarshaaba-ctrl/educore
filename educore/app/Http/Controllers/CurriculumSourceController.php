@@ -46,7 +46,18 @@ class CurriculumSourceController extends Controller
             'imports' => RepositoryImport::count(),
         ];
 
-        $metadata = (clone $repository)->get(['metadata'])->pluck('metadata')->filter();
+        $metadata = (clone $repository)->get(['metadata'])->pluck('metadata')->map(function ($value) {
+            if (is_array($value)) {
+                return $value;
+            }
+
+            if (is_string($value)) {
+                $decoded = json_decode($value, true);
+                return is_array($decoded) ? $decoded : [];
+            }
+
+            return [];
+        })->filter();
         $folders = [
             'classes' => $metadata->pluck('class_label')->filter()->unique()->sort()->values(),
             'subjects' => $metadata->pluck('subject_label')->filter()->unique()->sort()->values(),

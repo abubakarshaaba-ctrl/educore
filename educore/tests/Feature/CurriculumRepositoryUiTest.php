@@ -2,11 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\CurriculumSource;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class CurriculumRepositoryUiTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_repository_workflows_have_three_dedicated_pages(): void
     {
         $indexRoute = Route::getRoutes()->getByName('super.curriculum-sources.index');
@@ -45,5 +50,25 @@ class CurriculumRepositoryUiTest extends TestCase
         $this->assertStringContainsString('name="subtopics_text"', $topics);
         $this->assertStringContainsString("route('super.curriculum-sources.topics.store')", $topics);
         $this->assertStringNotContainsString('name="source_files[]"', $topics);
+    }
+
+    public function test_repository_index_handles_legacy_string_metadata(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true]);
+        CurriculumSource::create([
+            'tenant_id' => null,
+            'authority' => 'OTHER',
+            'source_type' => 'lesson_note',
+            'title' => 'Legacy lesson note',
+            'version' => '2026',
+            'original_filename' => 'legacy-note.docx',
+            'created_by' => $admin->id,
+            'metadata' => '{"format":"docx"}',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('super.curriculum-sources.index'))
+            ->assertOk()
+            ->assertSee('Legacy lesson note');
     }
 }
