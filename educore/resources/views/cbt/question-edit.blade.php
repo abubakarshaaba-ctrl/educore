@@ -27,6 +27,7 @@
 .alert-e{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--crimson);margin-bottom:14px}
 .hint{font-size:11px;color:var(--slate-light);margin-top:4px}
 .img-preview{max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px}
+.structure-grid{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:12px}.check-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.check-row label{font-size:12px;color:var(--slate);display:flex;align-items:center;gap:6px;cursor:pointer}
 /* Rich text editor */
 .editor-toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:#F8FAFC;border:1.5px solid var(--border);border-bottom:none;border-radius:8px 8px 0 0}
 .ed-btn{padding:4px 8px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:5px;background:white;cursor:pointer;color:var(--slate);transition:all 120ms}
@@ -34,7 +35,7 @@
 .ed-sep{width:1px;background:var(--border);margin:2px 4px}
 .editor-area{width:100%;min-height:120px;padding:12px;font-size:14px;font-family:inherit;border:1.5px solid var(--border);border-top:none;border-radius:0 0 8px 8px;outline:none;line-height:1.65;color:var(--midnight)}
 .editor-area:focus{border-color:var(--indigo)}
-@media(max-width:600px){.two{grid-template-columns:1fr}}
+@media(max-width:700px){.two,.structure-grid{grid-template-columns:1fr}}
 .sci-toolbar{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:0;padding:6px;background:#F0F4FF;border-radius:8px 8px 0 0;border:1.5px solid #BFDBFE;border-bottom:none}
 .sci-btn{padding:3px 8px;font-size:11px;border:1px solid #BFDBFE;border-radius:5px;background:white;cursor:pointer;font-family:inherit;color:#1E40AF;font-weight:600}
 .sci-btn:hover{background:var(--indigo);color:white}.sci-btn.sci-math{border-color:#7C3AED;color:#7C3AED}.sci-btn.sci-math:hover{background:#7C3AED;color:white}
@@ -73,6 +74,21 @@
 <form method="POST" action="{{ route('cbt.questions.update', $q) }}" enctype="multipart/form-data" id="qForm">
 @csrf @method('PUT')
 <input type="hidden" name="type" id="qType" value="{{ old('type', $q->type ?? 'mcq') }}">
+
+<div class="card">
+    <div class="ch">Question structure & automatic numbering</div>
+    <div class="cb">
+        <div class="structure-grid">
+            <div class="fg"><label class="fl">Parent question</label><select name="parent_question_id" class="fc"><option value="">Top level question</option>@foreach($parentQuestions as $parent)<option value="{{ $parent->id }}" @selected((string) old('parent_question_id', $q->parent_question_id) === (string) $parent->id)>{{ $parent->display_path }} · {{ Str::limit($parent->question_text, 70) }}</option>@endforeach</select><div class="hint">Changing the parent updates this question's level automatically.</div></div>
+            <div class="fg"><label class="fl">Numbering</label><select name="numbering_style" class="fc">@foreach(['auto'=>'Automatic by level','decimal'=>'1, 2, 3','lower_alpha'=>'a, b, c','lower_roman'=>'i, ii, iii','upper_alpha'=>'A, B, C','upper_roman'=>'I, II, III'] as $value=>$label)<option value="{{ $value }}" @selected(old('numbering_style', $q->numbering_style) === $value)>{{ $label }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Scoring</label><select name="scoring_method" id="scoringMethod" class="fc"><option value="automatic" @selected(old('scoring_method', $q->scoring_method) === 'automatic')>Automatic</option><option value="manual" @selected(old('scoring_method', $q->scoring_method) === 'manual')>Manual</option><option value="mixed" @selected(old('scoring_method', $q->scoring_method) === 'mixed')>Mixed</option></select></div>
+        </div>
+        <div class="two">
+            <div class="fg"><label class="fl">Reference code</label><input class="fc" name="reference_code" value="{{ old('reference_code', $q->reference_code) }}" placeholder="e.g. Q1a"></div>
+            <div class="check-row"><label><input type="checkbox" name="is_instruction_only" id="instructionOnly" value="1" @checked(old('is_instruction_only', $q->is_instruction_only)) onchange="syncStructureMode()"> Parent heading / instruction only</label><label><input type="hidden" name="requires_answer" value="0"><input type="checkbox" name="requires_answer" id="requiresAnswer" value="1" @checked(old('requires_answer', $q->requires_answer))> Requires student answer</label></div>
+        </div>
+    </div>
+</div>
 
 {{-- Type + Marks + Difficulty --}}
 <div class="card">
@@ -146,7 +162,7 @@
 
         <div class="two">
             <div class="fg"><label class="fl">Marks</label>
-                <input name="marks" type="number" step="0.5" min="0.5" class="fc" value="{{ old('marks', $q->marks ?? 1) }}">
+                <input name="marks" id="questionMarks" type="number" step="0.25" min="0" class="fc" value="{{ old('marks', $q->marks ?? 1) }}">
             </div>
             <div class="fg"><label class="fl">Difficulty</label>
                 <select name="difficulty" class="fc">
@@ -273,14 +289,23 @@ var SECTIONS = {
 function setType(type) {
     document.getElementById('qType').value = type;
     document.querySelectorAll('.type-tab').forEach(function(b) { b.classList.toggle('active', b.dataset.type === type); });
+    syncStructureMode();
+}
+function syncStructureMode() {
+    var type = document.getElementById('qType').value || 'mcq';
+    var instruction = !!document.getElementById('instructionOnly')?.checked;
     ['mcqSection','tfSection','essaySection'].forEach(function(id) { document.getElementById(id).style.display='none'; });
-    (SECTIONS[type]||['mcqSection']).forEach(function(id) { document.getElementById(id).style.display=''; });
+    if (!instruction) (SECTIONS[type]||['mcqSection']).forEach(function(id) { document.getElementById(id).style.display=''; });
     var wlg = document.getElementById('wordLimitGroup');
-    if (wlg) wlg.style.display = type === 'essay' ? '' : 'none';
-    document.querySelectorAll('[name^="option_"]').forEach(function(el,i) { el.required = type === 'mcq' && i < 2; });
+    if (wlg) wlg.style.display = !instruction && type === 'essay' ? '' : 'none';
+    document.querySelectorAll('[name^="option_"]').forEach(function(el,i) { el.required = !instruction && type === 'mcq' && i < 2; });
     document.querySelectorAll('[name="correct_answer_letter"]').forEach(function(el) {
-        el.required = ['mcq','true_false'].includes(type);
+        el.required = !instruction && ['mcq','true_false'].includes(type);
     });
+    var answer = document.getElementById('requiresAnswer');
+    var marks = document.getElementById('questionMarks');
+    if (answer) { answer.disabled = instruction; answer.checked = !instruction; }
+    if (marks && instruction) marks.value = 0;
 }
 setType(document.getElementById('qType').value || 'mcq');
 

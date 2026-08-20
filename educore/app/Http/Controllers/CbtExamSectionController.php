@@ -7,19 +7,25 @@ use App\Models\CbtExam;
 use App\Models\CbtExamSection;
 use App\Models\CbtQuestion;
 use App\Services\Cbt\CbtExamConfigurationService;
+use App\Services\Cbt\CbtQuestionNumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class CbtExamSectionController extends Controller
 {
-    public function __construct(private readonly CbtExamConfigurationService $configuration) {}
+    public function __construct(
+        private readonly CbtExamConfigurationService $configuration,
+        private readonly CbtQuestionNumberingService $numbering,
+    ) {}
 
     public function builder(CbtExam $exam)
     {
         $this->authorizeExam($exam);
         $exam->load(['sections.questions.parent', 'questionBank.subject', 'classArm.classLevel']);
-        $availableQuestions = $exam->questionBank->questions()->with('parent')->orderBy('sequence')->orderBy('id')->get();
+        $availableQuestions = $this->numbering->number(
+            $exam->questionBank->questions()->with('parent')->orderBy('sequence')->orderBy('id')->get()
+        );
         $publicationErrors = $this->configuration->publicationErrors($exam);
         return view('cbt.builder', compact('exam', 'availableQuestions', 'publicationErrors'));
     }
@@ -99,12 +105,32 @@ class CbtExamSectionController extends Controller
             'question_id' => ['required', Rule::exists('cbt_questions', 'id')->where('question_bank_id', $section->exam->question_bank_id)],
             'marks_override' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $section->questions()->syncWithoutDetaching([$data['question_id'] => [
-            'tenant_id' => $section->tenant_id, 'cbt_exam_id' => $section->cbt_exam_id,
-            'display_order' => $section->questions()->count() + 1, 'marks_override' => $data['marks_override'] ?? null,
-        ]]);
+        $selected = CbtQuestion::findOrFail($data['question_id']);
+        $branchIds = collect();
+        $ancestor = $selected->parent;
+        while ($ancestor) {
+            $branchIds->prepend($ancestor->id);
+            $ancestor = $ancestor->parent;
+        }
+        $collectDescendants = function (CbtQuestion $question) use (&$collectDescendants, $branchIds) {
+            $branchIds->push($question->id);
+            foreach ($question->children()->orderBy('sequence')->get() as $child) $collectDescendants($child);
+        };
+        $collectDescendants($selected);
+
+        $displayOrder = $section->questions()->count();
+        foreach ($branchIds->unique() as $questionId) {
+            if ($section->questions()->whereKey($questionId)->exists()) continue;
+            $displayOrder++;
+            $section->questions()->attach($questionId, [
+                'tenant_id' => $section->tenant_id,
+                'cbt_exam_id' => $section->cbt_exam_id,
+                'display_order' => $displayOrder,
+                'marks_override' => (int) $questionId === (int) $selected->id ? ($data['marks_override'] ?? null) : null,
+            ]);
+        }
         $this->configuration->recalculateExamTotals($section->exam);
-        return back()->with('success', 'Question added to section.');
+        return back()->with('success', 'Question hierarchy added to the section.');
     }
 
     public function createQuestion(Request $request, CbtExamSection $section)

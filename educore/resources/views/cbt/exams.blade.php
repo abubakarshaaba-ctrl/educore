@@ -39,7 +39,13 @@
     .badge-active    { background:#ECFDF5;color:var(--emerald); }
     .badge-closed    { background:#FEF2F2;color:var(--crimson); }
     .empty-state { text-align:center;padding:40px;color:var(--slate-light);font-size:13px; }
+    .workflow-note { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px; }
+    .workflow-step { position:relative;padding:12px;border:1px solid #DCE5F2;border-radius:10px;background:linear-gradient(145deg,#FFFFFF,#F7FAFF); }
+    .workflow-step strong { display:block;font-size:12px;color:var(--midnight);margin:5px 0 3px; }
+    .workflow-step span { font-size:10px;color:var(--slate);line-height:1.45;display:block; }
+    .step-number { width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:var(--indigo);color:white;font-size:11px;font-weight:800; }
     @media(max-width:1024px) { .two-col { grid-template-columns:1fr; } }
+    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; } }
 </style>
 @endpush
 
@@ -108,7 +114,7 @@
                     <select name="question_bank_id" class="form-control">
                         <option value="">Select bank</option>
                         @foreach($banks as $bank)
-                            <option value="{{ $bank->id }}" {{ old('question_bank_id') == $bank->id ? 'selected' : '' }}>
+                            <option value="{{ $bank->id }}" {{ (string) old('question_bank_id', request('bank')) === (string) $bank->id ? 'selected' : '' }}>
                                 {{ $bank->name }} ({{ $bank->questions()->count() }} questions)
                             </option>
                         @endforeach
@@ -144,86 +150,24 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Feeds Score Entry Assessment <span style="font-weight:400;color:var(--slate-light)">(optional)</span></label>
+                    <label class="form-label">Score Entry Examination Component <span style="font-weight:400;color:var(--slate-light)">(optional)</span></label>
                     <select name="assessment_type_id" class="form-control">
                         <option value="">— Not linked (regular CBT only) —</option>
                         @foreach($assessmentTypes as $at)
                             <option value="{{ $at->id }}" {{ old('assessment_type_id') == $at->id ? 'selected' : '' }}>
                                 {{ optional($at->term)->name }} — {{ $at->name }}
-                                @if($at->isSplit()) (Obj {{ $at->objective_max }} + Theory {{ $at->theory_max }}) @endif
+                                — {{ number_format((float) $at->weight_percentage, 0) }} marks
                             </option>
                         @endforeach
                     </select>
                     <div style="font-size:10px;color:var(--slate-light);margin-top:3px">
-                        If the score entry sheet has an Objective+Theory assessment (e.g. "Exam"), tag this CBT to it
-                        so its results auto-fill the objective column for teachers.
+                        The completed multi-section CBT aggregate is converted to this configured maximum and synchronized to Score Entry.
                     </div>
                 </div>
-                {{-- ── Section Configuration ──────────────────────────────────── --}}
-                <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
-                    <div style="font-size:12px;font-weight:800;color:var(--midnight);margin-bottom:12px;letter-spacing:.03em">EXAM SECTIONS</div>
-
-                    {{-- Section A: Objectives --}}
-                    <div style="background:white;border:1px solid #BFDBFE;border-radius:8px;padding:12px;margin-bottom:10px">
-                        <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">
-                            📝 Section A — Objective Questions <span style="font-weight:400;color:#64748B">(MCQ, True/False, Fill-in-Blank)</span>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                            <div class="form-group">
-                                <label class="form-label">Number of Questions</label>
-                                <input type="number" name="section_objective_count" class="form-control"
-                                       value="{{ old('section_objective_count', 30) }}" min="0"
-                                       placeholder="0 = skip section A"
-                                       oninput="updateTotals()">
-                                <div style="font-size:10px;color:var(--slate-light);margin-top:3px">Set 0 to skip this section</div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Marks per Question</label>
-                                <input type="number" name="section_objective_marks" class="form-control"
-                                       value="{{ old('section_objective_marks', 1) }}" min="0.25" step="0.25"
-                                       oninput="updateTotals()">
-                                <div style="font-size:10px;color:var(--slate-light);margin-top:3px">e.g. 1 or 2 marks each</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Section B: Theory --}}
-                    <div style="background:white;border:1px solid #A7F3D0;border-radius:8px;padding:12px;margin-bottom:12px">
-                        <div style="font-size:12px;font-weight:700;color:#059669;margin-bottom:10px">
-                            ✍️ Section B — Theory / Essay Questions <span style="font-weight:400;color:#64748B">(Short Answer, Essay)</span>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                            <div class="form-group">
-                                <label class="form-label">Number of Questions</label>
-                                <input type="number" name="section_theory_count" class="form-control"
-                                       value="{{ old('section_theory_count', 0) }}" min="0"
-                                       placeholder="0 = skip section B"
-                                       oninput="updateTotals()">
-                                <div style="font-size:10px;color:var(--slate-light);margin-top:3px">Set 0 to skip this section</div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Marks per Question</label>
-                                <input type="number" name="section_theory_marks" class="form-control"
-                                       value="{{ old('section_theory_marks', 5) }}" min="0.25" step="0.25"
-                                       oninput="updateTotals()">
-                                <div style="font-size:10px;color:var(--slate-light);margin-top:3px">e.g. 5 or 10 marks each</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Live totals preview --}}
-                    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px;display:flex;gap:16px;flex-wrap:wrap">
-                        <div style="font-size:12px;color:#1D4ED8">
-                            Total questions: <strong id="totalQPreview">30</strong>
-                        </div>
-                        <div style="font-size:12px;color:#1D4ED8">
-                            Total marks: <strong id="totalMPreview">30</strong>
-                        </div>
-                        <div style="font-size:12px;color:#64748B;margin-left:auto">
-                            Sec A: <span id="secAPreview">30 × 1 = 30</span> &nbsp;|&nbsp;
-                            Sec B: <span id="secBPreview">0 × 5 = 0</span>
-                        </div>
-                    </div>
+                <div class="workflow-note" aria-label="Dynamic exam workflow">
+                    <div class="workflow-step"><div class="step-number">1</div><strong>Create draft</strong><span>Save the examination details.</span></div>
+                    <div class="workflow-step"><div class="step-number">2</div><strong>Build sections</strong><span>Add any number of objective, theory, essay, practical or other sections.</span></div>
+                    <div class="workflow-step"><div class="step-number">3</div><strong>Validate & publish</strong><span>Assign questions and confirm every section's marks.</span></div>
                 </div>
 
                 <div class="form-group">
@@ -251,21 +195,4 @@
         </div>
     </div>
 </div>
-@push('scripts')
-<script>
-function updateTotals() {
-    const objN  = parseInt(document.querySelector('[name=section_objective_count]').value) || 0;
-    const objM  = parseFloat(document.querySelector('[name=section_objective_marks]').value) || 0;
-    const theN  = parseInt(document.querySelector('[name=section_theory_count]').value) || 0;
-    const theM  = parseFloat(document.querySelector('[name=section_theory_marks]').value) || 0;
-    const totalQ = objN + theN;
-    const totalM = (objN * objM) + (theN * theM);
-    document.getElementById('totalQPreview').textContent = totalQ;
-    document.getElementById('totalMPreview').textContent = Math.round(totalM * 100) / 100;
-    document.getElementById('secAPreview').textContent   = `${objN} × ${objM} = ${Math.round(objN * objM * 100)/100}`;
-    document.getElementById('secBPreview').textContent   = `${theN} × ${theM} = ${Math.round(theN * theM * 100)/100}`;
-}
-document.addEventListener('DOMContentLoaded', updateTotals);
-</script>
-@endpush
 @endsection

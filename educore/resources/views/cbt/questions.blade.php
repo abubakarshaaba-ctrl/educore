@@ -1,7 +1,7 @@
 @extends('layouts.builder')
 @section('title','Manage Questions — '.$bank->name)
 @section('builder-title', $bank->name)
-@section('builder-subtitle', optional($bank->subject)->name . ' · ' . optional($bank->classLevel)->name)
+@section('builder-subtitle', optional($bank->subject)->name . ' · ' . optional($bank->classLevel)->name . ' · Objective and hierarchical theory questions')
 @section('builder-bar-right')
     <span class="builder-pill">{{ $questions->total() }} question{{ $questions->total() === 1 ? '' : 's' }}</span>
     <button type="button" class="builder-action builder-action-primary" onclick="openAddQuestionModal()">
@@ -85,7 +85,7 @@
 /* Add Question Modal */
 .aq-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:8000;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
 .aq-modal-bg.open{display:flex}
-.aq-modal{background:white;border-radius:14px;width:min(720px,95vw);max-height:calc(100vh - 60px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.aq-modal{background:white;border-radius:14px;width:min(880px,95vw);max-height:calc(100vh - 60px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .aq-modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1}
 .aq-modal-body{padding:20px}
 .sci-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
@@ -119,6 +119,14 @@
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px}
 .alert-e{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px}
 .marks-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.structure-panel{padding:14px;border:1px solid #D9E4F2;border-radius:10px;background:linear-gradient(145deg,#F8FBFF,#FFFFFF);margin-bottom:16px}
+.structure-title{font-size:11px;font-weight:800;color:var(--midnight);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.structure-grid{display:grid;grid-template-columns:1.35fr .8fr .8fr;gap:10px}
+.check-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:8px}.check-row label{font-size:12px;color:var(--slate);display:flex;align-items:center;gap:6px;cursor:pointer}
+.q-card{position:relative;margin-left:min(calc(var(--question-level, 0) * 26px), 104px)}
+.q-card:before{content:"";position:absolute;left:-14px;top:0;bottom:0;width:3px;border-radius:4px;background:var(--hierarchy-color,#DCE6F3)}
+.hierarchy-badge{font-size:10px;font-weight:750;padding:2px 7px;border-radius:20px;background:#EEF4FC;color:#174F9E}
+@media(max-width:700px){.structure-grid{grid-template-columns:1fr}.q-card{margin-left:min(calc(var(--question-level, 0) * 12px), 36px)}}
 </style>
 @endpush
 
@@ -144,13 +152,14 @@
             @php
                 [$tbg, $tclr] = $q->typeBadgeColor();
             @endphp
-            <div class="q-card">
+            <div class="q-card" style="--question-level:{{ $q->display_level ?? 0 }};--hierarchy-color:{{ ($q->display_level ?? 0) ? '#D79A21' : '#DCE6F3' }}">
                 <div class="q-num">
-                    <span>{{ $loop->iteration }}.</span>
+                    <span>{{ $q->display_path ?? $q->display_number ?? $loop->iteration }}.</span>
                     <span class="type-badge" style="background:{{ $tbg }};color:{{ $tclr }}">{{ $q->typeLabel() }}</span>
                     <span class="diff-badge diff-{{ $q->difficulty }}">
                         {{ ['','Easy','Medium','Hard'][$q->difficulty ?? 1] }}
                     </span>
+                    @if($q->is_instruction_only)<span class="hierarchy-badge">Parent / instruction</span>@elseif($q->parent_question_id)<span class="hierarchy-badge">Sub-question</span>@endif
                     <span style="font-size:10px;color:var(--slate-light);margin-left:auto">
                         {{ $q->marks ?? 1 }} mark{{ ($q->marks ?? 1) != 1 ? 's':'' }}
                     </span>
@@ -191,10 +200,12 @@
                     @if($q->explanation)
                     <span style="font-size:11px;color:var(--slate-light)">💡 {{ Str::limit($q->explanation, 80) }}</span>
                     @endif
-                    <div style="display:flex;gap:6px;margin-left:auto">
+                    <div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap">
+                        <button type="button" class="btn" onclick="openAddChild({{ $q->id }})" style="padding:4px 10px;font-size:11px;background:#FFFBEB;color:#9A6700;border:1px solid #F6D88A">+ Add part</button>
+                        <form method="POST" action="{{ route('cbt.questions.duplicate', [$bank, $q]) }}">@csrf<button type="submit" class="btn" style="padding:4px 10px;font-size:11px;background:#F8FAFC;color:var(--slate);border:1px solid var(--border)">Duplicate branch</button></form>
                         <a href="{{ route('cbt.questions.edit', $q) }}" class="btn" style="padding:4px 10px;font-size:11px;background:#EFF6FF;color:var(--indigo);border:1px solid #BFDBFE">✏️ Edit</a>
                         <form method="POST" action="{{ route('cbt.questions.destroy', $q) }}"
-                              onsubmit="return confirm('Delete this question?')">
+                              onsubmit="return confirm('Delete this question and every sub-question below it?')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-danger">Delete</button>
                         </form>
@@ -238,6 +249,19 @@
             <form method="POST" action="{{ route('cbt.questions.store', $bank) }}" id="qForm" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="type" id="qType" value="{{ old('type','mcq') }}">
+
+                <section class="structure-panel">
+                    <div class="structure-title">Question structure & numbering</div>
+                    <div class="structure-grid">
+                        <div class="form-group"><label class="form-label">Parent question</label><select class="form-control" name="parent_question_id" id="parentQuestion"><option value="">Top level question</option>@foreach($parentQuestions as $parent)<option value="{{ $parent->id }}" @selected((string) old('parent_question_id') === (string) $parent->id)>{{ $parent->display_path }} · {{ Str::limit($parent->question_text, 70) }}</option>@endforeach</select><div class="hint">Choose a parent to create (a), (i), or a deeper part automatically.</div></div>
+                        <div class="form-group"><label class="form-label">Numbering</label><select class="form-control" name="numbering_style"><option value="auto">Automatic by level</option><option value="decimal">1, 2, 3</option><option value="lower_alpha">a, b, c</option><option value="lower_roman">i, ii, iii</option><option value="upper_alpha">A, B, C</option><option value="upper_roman">I, II, III</option></select></div>
+                        <div class="form-group"><label class="form-label">Scoring</label><select class="form-control" name="scoring_method" id="scoringMethod"><option value="automatic">Automatic</option><option value="manual">Manual</option><option value="mixed">Mixed</option></select></div>
+                    </div>
+                    <div class="structure-grid" style="grid-template-columns:1fr 2fr">
+                        <div class="form-group"><label class="form-label">Reference code</label><input class="form-control" name="reference_code" value="{{ old('reference_code') }}" placeholder="e.g. Q1a"></div>
+                        <div class="check-row"><label><input type="checkbox" name="is_instruction_only" id="instructionOnly" value="1" @checked(old('is_instruction_only')) onchange="syncStructureMode()"> Parent heading / instruction only</label><label><input type="hidden" name="requires_answer" value="0"><input type="checkbox" name="requires_answer" id="requiresAnswer" value="1" @checked(old('requires_answer', true))> Requires student answer</label></div>
+                    </div>
+                </section>
 
                 <div class="form-group">
                     <label class="form-label">Question Text *</label>
@@ -343,7 +367,7 @@
                 <div class="marks-row">
                     <div class="form-group">
                         <label class="form-label">Marks</label>
-                        <input name="marks" type="number" step="0.5" min="0.5"
+                        <input name="marks" id="questionMarks" type="number" step="0.25" min="0"
                                class="form-control" value="{{ old('marks',1) }}">
                     </div>
                     <div class="form-group">
@@ -518,6 +542,14 @@ function renderListMath() {
 /* ── Add Question Modal ── */
 function openAddQuestionModal() { document.getElementById('addQuestionModal').classList.add('open'); }
 function closeAddQuestionModal() { document.getElementById('addQuestionModal').classList.remove('open'); }
+function openAddChild(parentId) {
+    var parent = document.getElementById('parentQuestion');
+    if (parent) parent.value = String(parentId);
+    setType('essay');
+    document.getElementById('scoringMethod').value = 'manual';
+    openAddQuestionModal();
+    setTimeout(function(){ document.getElementById('qText').focus(); }, 80);
+}
 
 /* ── Science Modal ── */
 var _sciMode = 'inline';
@@ -591,11 +623,21 @@ function setType(type) {
             (type==='true_false'&&t.textContent.trim()==='True / False')
         );
     });
+    syncStructureMode();
+}
+function syncStructureMode() {
+    var type = document.getElementById('qType').value || 'mcq';
+    var instruction = !!document.getElementById('instructionOnly')?.checked;
     ['mcqSection','tfSection','essaySection','fillSection'].forEach(function(id){ document.getElementById(id).style.display='none'; });
-    (sects[type]||['mcqSection']).forEach(function(id){ document.getElementById(id).style.display=''; });
-    var isMcq = type==='mcq';
-    document.querySelectorAll('input[name^="option_"]').forEach(function(el,i){ el.required=isMcq&&i<2; });
-    document.querySelectorAll('input[name="correct_answer_letter"]').forEach(function(el){ el.required=['mcq','true_false'].includes(type); });
+    if (!instruction) (sects[type]||['mcqSection']).forEach(function(id){ document.getElementById(id).style.display=''; });
+    document.querySelectorAll('input[name^="option_"]').forEach(function(el,i){ el.required=!instruction&&type==='mcq'&&i<2; });
+    document.querySelectorAll('input[name="correct_answer_letter"]').forEach(function(el){ el.required=!instruction&&['mcq','true_false'].includes(type); });
+    var answer = document.getElementById('requiresAnswer');
+    var marks = document.getElementById('questionMarks');
+    if (answer) { answer.disabled = instruction; answer.checked = !instruction; }
+    if (marks && instruction) marks.value = 0;
+    var scoring = document.getElementById('scoringMethod');
+    if (scoring && !instruction) scoring.value = ['mcq','true_false','fill_blank'].includes(type) ? 'automatic' : 'manual';
 }
 setType(document.getElementById('qType').value || 'mcq');
 </script>

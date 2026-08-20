@@ -66,6 +66,72 @@ class CbtRestructuringTest extends TestCase
         $this->assertNotEmpty($service->publicationErrors($exam->fresh()));
     }
 
+    public function test_exam_creation_opens_an_empty_dynamic_builder_without_legacy_a_b_sections(): void
+    {
+        [, $bank] = $this->exam();
+
+        $response = $this->post(route('cbt.exams.store'), [
+            'title' => 'Dynamic Biology Examination',
+            'question_bank_id' => $bank->id,
+            'target' => 'arm:'.$this->ids['arm'],
+            'term_id' => $this->ids['term'],
+            'duration_minutes' => 90,
+            'assessment_type_id' => $this->ids['assessment'],
+            'malpractice_enabled' => '1',
+            'focus_loss_policy' => 'submit',
+            'max_focus_losses' => 0,
+            // Obsolete fields must no longer recreate the former fixed model.
+            'section_objective_count' => 30,
+            'section_theory_count' => 5,
+        ]);
+
+        $created = CbtExam::where('title', 'Dynamic Biology Examination')->firstOrFail();
+        $response->assertRedirect(route('cbt.exams.builder', $created));
+        $this->assertSame(0, $created->sections()->count());
+        $this->assertSame(0, (int) $created->total_questions);
+        $this->assertSame(0.0, (float) $created->total_marks);
+    }
+
+    public function test_bank_builder_creates_numbered_parent_and_child_questions_and_attaches_the_branch(): void
+    {
+        [$exam, $bank] = $this->exam();
+        $section = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Theory', 'code' => 'T', 'display_order' => 1, 'section_type' => 'theory', 'scoring_method' => 'manual', 'answer_mode' => 'online', 'max_marks' => 5, 'is_required' => true, 'is_active' => true]);
+
+        $this->post(route('cbt.questions.store', $bank), [
+            'type' => 'essay', 'question_text' => 'Answer all parts.', 'marks' => 0,
+            'is_instruction_only' => '1', 'requires_answer' => '0',
+            'numbering_style' => 'auto', 'scoring_method' => 'manual',
+        ])->assertRedirect();
+        $parent = CbtQuestion::where('question_text', 'Answer all parts.')->firstOrFail();
+
+        $this->post(route('cbt.questions.store', $bank), [
+            'type' => 'short_answer', 'question_text' => 'State one characteristic.', 'marks' => 5,
+            'parent_question_id' => $parent->id, 'requires_answer' => '1',
+            'numbering_style' => 'auto', 'scoring_method' => 'manual',
+        ])->assertRedirect();
+        $child = CbtQuestion::where('question_text', 'State one characteristic.')->firstOrFail();
+
+        $this->assertSame($parent->id, $child->parent_question_id);
+        $this->assertSame(1, $child->level);
+        $this->post(route('cbt.sections.questions.attach', $section), ['question_id' => $parent->id])->assertRedirect();
+        $this->assertSame(2, $section->questions()->count());
+    }
+
+    public function test_updated_bank_and_question_builder_pages_render_the_dynamic_workflow(): void
+    {
+        [, $bank] = $this->exam();
+
+        $this->get(route('cbt.banks'))
+            ->assertOk()
+            ->assertSee('Question Bank Workspace')
+            ->assertSeeText('Exams & Sections', false);
+
+        $this->get(route('cbt.questions', $bank))
+            ->assertOk()
+            ->assertSeeText('Question structure & numbering', false)
+            ->assertSee('Parent heading / instruction only');
+    }
+
     public function test_hierarchical_numbering_uses_decimal_alpha_roman_and_upper_alpha_levels(): void
     {
         [, $bank] = $this->exam();

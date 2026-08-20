@@ -551,6 +551,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::put('questions/{q}',                  [CbtController::class, 'updateQuestion'])->name('questions.update');
         Route::delete('questions/{q}',               [CbtController::class, 'destroyQuestion'])->name('questions.destroy');
         Route::post('banks/{bank}/reshuffle',        [CbtController::class, 'reshuffleBank'])->name('banks.reshuffle');
+        Route::post('banks/{bank}/questions/{q}/duplicate', [CbtController::class, 'duplicateQuestionBranch'])->name('questions.duplicate');
         // â”€â”€ Bulk Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Route::get('bulk-template',                  [CbtController::class, 'bulkUploadTemplate'])->name('bulk-template');
         Route::get('banks/{bank}/bulk-upload',       [CbtController::class, 'bulkUploadPage'])->name('bulk-upload');

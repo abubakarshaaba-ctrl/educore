@@ -15,7 +15,9 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Services\Cbt\CbtExamConfigurationService;
 use App\Services\Cbt\CbtQuestionImportService;
+use App\Services\Cbt\CbtQuestionNumberingService;
 use App\Services\Cbt\CbtSubmissionService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -153,7 +155,9 @@ class CbtController extends Controller
     public function banks()
     {
         $user        = Auth::user();
-        $banksQuery  = CbtQuestionBank::with(['subject', 'classLevel'])->latest();
+        $banksQuery  = CbtQuestionBank::with(['subject', 'classLevel'])
+            ->withCount(['questions', 'exams'])
+            ->latest();
         if (!$this->hasFullCbtAccess($user)) {
             $banksQuery->whereIn('subject_id', $this->teacherSubjectIds($user));
         }
@@ -247,9 +251,24 @@ class CbtController extends Controller
     public function questions(CbtQuestionBank $bank)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $bank), 403, 'You can only manage question banks for subjects you teach.');
-        $questions = CbtQuestion::where('question_bank_id', $bank->id)
-                        ->latest()->paginate(25);
-        return view('cbt.questions', compact('bank', 'questions'));
+        $numbered = app(CbtQuestionNumberingService::class)->number(
+            CbtQuestion::where('question_bank_id', $bank->id)
+                ->with('parent')
+                ->orderBy('sequence')
+                ->orderBy('id')
+                ->get()
+        );
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $perPage = 50;
+        $questions = new LengthAwarePaginator(
+            $numbered->forPage($page, $perPage)->values(),
+            $numbered->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+        $parentQuestions = $numbered;
+        return view('cbt.questions', compact('bank', 'questions', 'parentQuestions'));
     }
 
     public function storeQuestion(Request $request, CbtQuestionBank $bank)
@@ -275,14 +294,17 @@ class CbtController extends Controller
         abort_unless($this->teacherTeachesBank(Auth::user(), $bank), 403, 'You can only manage question banks for subjects you teach.');
         $subjects    = Subject::where('is_active', true)->get();
         $classLevels = ClassLevel::orderBy('order_index')->get();
-        return view('cbt.question-edit', compact('q', 'bank', 'subjects', 'classLevels'));
+        $parentQuestions = app(CbtQuestionNumberingService::class)->number(
+            $bank->questions()->where('id', '!=', $q->id)->orderBy('sequence')->orderBy('id')->get()
+        );
+        return view('cbt.question-edit', compact('q', 'bank', 'subjects', 'classLevels', 'parentQuestions'));
     }
 
     public function updateQuestion(Request $request, CbtQuestion $q)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $q->questionBank), 403, 'You can only manage question banks for subjects you teach.');
         $type = $request->input('type', $q->type ?? 'mcq');
-        [$rules, $payload] = $this->questionRulesAndPayload($request, $type, $q->question_bank_id);
+        [$rules, $payload] = $this->questionRulesAndPayload($request, $type, $q->question_bank_id, $q);
         $request->validate($rules);
 
         // Handle image upload
@@ -306,9 +328,36 @@ class CbtController extends Controller
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $q->questionBank), 403, 'You can only manage question banks for subjects you teach.');
         $bankId = $q->question_bank_id;
-        if ($q->image_path) Storage::disk('public')->delete($q->image_path);
-        $q->delete();
-        return redirect()->route('cbt.questions', $bankId)->with('success', 'Question deleted.');
+        DB::transaction(function () use ($q) {
+            $remove = function (CbtQuestion $question) use (&$remove) {
+                foreach ($question->children()->get() as $child) $remove($child);
+                if ($question->image_path) Storage::disk('public')->delete($question->image_path);
+                $question->delete();
+            };
+            $remove($q);
+        });
+        return redirect()->route('cbt.questions', $bankId)->with('success', 'Question branch deleted.');
+    }
+
+    public function duplicateQuestionBranch(CbtQuestionBank $bank, CbtQuestion $q)
+    {
+        abort_unless((int) $q->question_bank_id === (int) $bank->id, 404);
+        abort_unless($this->teacherTeachesBank(Auth::user(), $bank), 403, 'You can only manage question banks for subjects you teach.');
+
+        DB::transaction(function () use ($q, $bank) {
+            $clone = function (CbtQuestion $source, ?int $parentId) use (&$clone, $bank) {
+                $copy = $source->replicate();
+                $copy->parent_question_id = $parentId;
+                $copy->sequence = $bank->questions()->where('parent_question_id', $parentId)->max('sequence') + 1;
+                $copy->reference_code = $source->reference_code ? $source->reference_code.'-copy' : null;
+                $copy->save();
+                foreach ($source->children()->orderBy('sequence')->get() as $child) $clone($child, $copy->id);
+                return $copy;
+            };
+            $clone($q, $q->parent_question_id);
+        });
+
+        return back()->with('success', 'Question branch duplicated.');
     }
 
     /**
@@ -329,39 +378,89 @@ class CbtController extends Controller
     }
 
     // ── Shared validation + payload builder ───────────────────────────
-    private function questionRulesAndPayload(Request $request, string $type, int $bankId): array
+    private function questionRulesAndPayload(Request $request, string $type, int $bankId, ?CbtQuestion $existing = null): array
     {
+        $instructionOnly = $request->boolean('is_instruction_only');
         $rules = [
             'type'          => ['required', 'in:mcq,essay,short_answer,fill_blank,true_false'],
             'question_text' => ['required', 'string'],
             'difficulty'    => ['nullable', 'integer', 'min:1', 'max:3'],
-            'marks'         => ['nullable', 'numeric', 'min:0.5'],
+            'marks'         => ['nullable', 'numeric', 'min:0'],
             'explanation'   => ['nullable', 'string'],
             'image'         => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp,svg', 'max:4096'],
+            'parent_question_id' => [
+                'nullable',
+                Rule::exists('cbt_questions', 'id')->where('question_bank_id', $bankId),
+                Rule::notIn(array_filter([$existing?->id])),
+            ],
+            'numbering_style' => ['nullable', 'in:auto,decimal,lower_alpha,upper_alpha,lower_roman,upper_roman'],
+            'reference_code' => ['nullable', 'string', 'max:80'],
+            'scoring_method' => ['nullable', 'in:automatic,manual,mixed'],
+            'is_instruction_only' => ['nullable', 'boolean'],
+            'requires_answer' => ['nullable', 'boolean'],
         ];
 
-        if ($type === 'mcq') {
+        if (!$instructionOnly && $type === 'mcq') {
             $rules['option_a']             = ['required', 'string'];
             $rules['option_b']             = ['required', 'string'];
             $rules['option_c']             = ['nullable', 'string'];
             $rules['option_d']             = ['nullable', 'string'];
             $rules['correct_answer_letter']= ['required', 'in:a,b,c,d'];
-        } elseif ($type === 'true_false') {
+        } elseif (!$instructionOnly && $type === 'true_false') {
             $rules['correct_answer_letter']= ['required', 'in:a,b'];
-        } elseif ($type === 'essay') {
+        } elseif (!$instructionOnly && $type === 'essay') {
             $rules['model_answer'] = ['nullable', 'string'];
             $rules['word_limit']   = ['nullable', 'integer', 'min:10'];
-        } elseif (in_array($type, ['short_answer', 'fill_blank'])) {
+        } elseif (!$instructionOnly && in_array($type, ['short_answer', 'fill_blank'])) {
             $rules['model_answer'] = ['nullable', 'string'];
         }
 
         $v = $request->all();
+        $parentId = array_key_exists('parent_question_id', $v)
+            ? ($v['parent_question_id'] ?: null)
+            : $existing?->parent_question_id;
+        $parent = $parentId
+            ? CbtQuestion::where('question_bank_id', $bankId)->findOrFail($parentId)
+            : null;
+
+        if ($existing && $parent && $this->questionIsWithinBranch($parent, $existing)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'parent_question_id' => 'A question cannot be moved below one of its own sub-questions.',
+            ]);
+        }
+
+        $sameParent = $existing && (int) ($existing->parent_question_id ?: 0) === (int) ($parentId ?: 0);
+        $sequence = $sameParent
+            ? $existing->sequence
+            : CbtQuestion::where('question_bank_id', $bankId)
+                ->where('parent_question_id', $parentId)
+                ->max('sequence') + 1;
+        $requiresAnswer = !$instructionOnly && (
+            $request->has('requires_answer') ? $request->boolean('requires_answer') : true
+        );
+        $marks = $instructionOnly ? 0 : (float) ($v['marks'] ?? $existing?->marks ?? 1);
+        if ($requiresAnswer && $marks <= 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'marks' => 'An answerable question must carry more than zero marks.',
+            ]);
+        }
+
         $payload = [
             'question_bank_id'     => $bankId,
+            'parent_question_id'   => $parentId,
+            'level'                => $parent ? $parent->level + 1 : 0,
+            'sequence'             => $sequence,
+            'numbering_style'      => $v['numbering_style'] ?? $existing?->numbering_style ?? 'auto',
+            'reference_code'       => $v['reference_code'] ?? $existing?->reference_code,
+            'is_instruction_only'  => $instructionOnly,
+            'requires_answer'      => $requiresAnswer,
+            'scoring_method'       => $instructionOnly
+                ? 'manual'
+                : ($v['scoring_method'] ?? ($type === 'mcq' || $type === 'true_false' || $type === 'fill_blank' ? 'automatic' : 'manual')),
             'type'                 => $type,
             'question_text'        => $v['question_text'],
             'difficulty'           => $v['difficulty'] ?? 1,
-            'marks'                => $v['marks'] ?? 1,
+            'marks'                => $marks,
             'explanation'          => $v['explanation'] ?? null,
             'option_a'             => $v['option_a'] ?? ($type === 'true_false' ? 'True'  : null),
             'option_b'             => $v['option_b'] ?? ($type === 'true_false' ? 'False' : null),
@@ -374,6 +473,16 @@ class CbtController extends Controller
         ];
 
         return [$rules, $payload];
+    }
+
+    private function questionIsWithinBranch(CbtQuestion $candidate, CbtQuestion $branchRoot): bool
+    {
+        $current = $candidate;
+        while ($current) {
+            if ((int) $current->id === (int) $branchRoot->id) return true;
+            $current = $current->parent;
+        }
+        return false;
     }
 
     // ── Exams ─────────────────────────────────────────────────────────
@@ -413,14 +522,7 @@ class CbtController extends Controller
             'duration_minutes'        => ['required', 'integer', 'min:5'],
             'scheduled_start'         => ['nullable', 'date'],
             'scheduled_end'           => ['nullable', 'date', 'after:scheduled_start'],
-            // Section A — Objective questions (MCQ, True/False, Fill-in-Blank)
-            'section_objective_count' => ['nullable', 'integer', 'min:0'],
-            'section_objective_marks' => ['nullable', 'numeric', 'min:0.25'],
-            // Section B — Theory / Short Answer / Essay
-            'section_theory_count'    => ['nullable', 'integer', 'min:0'],
-            'section_theory_marks'    => ['nullable', 'numeric', 'min:0.25'],
-            // Feeds the objective score into this report-card assessment
-            // type on the score entry sheet (optional).
+            // Receives the weighted aggregate of all completed CBT sections.
             'assessment_type_id'      => ['nullable', 'exists:assessment_types,id'],
             'malpractice_enabled'     => ['nullable', 'boolean'],
             'focus_loss_policy'       => ['nullable', 'in:submit,warn,log'],
@@ -428,39 +530,9 @@ class CbtController extends Controller
             'require_fullscreen'      => ['nullable', 'boolean'],
         ]);
 
-        $objCount    = (int)   ($validated['section_objective_count'] ?? 0);
-        $objMarks    = (float) ($validated['section_objective_marks'] ?? 1.0);
-        $theoryCount = (int)   ($validated['section_theory_count']    ?? 0);
-        $theoryMarks = (float) ($validated['section_theory_marks']    ?? 5.0);
-
-        if ($objCount === 0 && $theoryCount === 0) {
-            return back()->withErrors(['section_objective_count' => 'Please set at least one objective or theory question for this exam.']);
-        }
-
         $user = Auth::user();
         $bank = CbtQuestionBank::findOrFail($validated['question_bank_id']);
         abort_unless($this->teacherTeachesBank($user, $bank), 403, 'You can only create exams for subjects you teach.');
-
-        // Validate objective stock
-        if ($objCount > 0) {
-            $availObj = CbtQuestion::where('question_bank_id', $validated['question_bank_id'])
-                ->whereIn('type', ['mcq', 'true_false', 'fill_blank'])->count();
-            if ($objCount > $availObj) {
-                return back()->withErrors(['section_objective_count' => "Only {$availObj} objective question(s) in this bank. Reduce Section A count."]);
-            }
-        }
-
-        // Validate theory stock
-        if ($theoryCount > 0) {
-            $availTheory = CbtQuestion::where('question_bank_id', $validated['question_bank_id'])
-                ->whereIn('type', ['essay', 'short_answer'])->count();
-            if ($theoryCount > $availTheory) {
-                return back()->withErrors(['section_theory_count' => "Only {$availTheory} theory question(s) in this bank. Reduce Section B count."]);
-            }
-        }
-
-        $totalQuestions = $objCount + $theoryCount;
-        $totalMarks     = round(($objCount * $objMarks) + ($theoryCount * $theoryMarks), 2);
 
         [$type, $id] = array_pad(explode(':', $validated['target'], 2), 2, null);
 
@@ -494,12 +566,13 @@ class CbtController extends Controller
                 'class_arm_id'            => $arm->id,
                 'term_id'                 => $validated['term_id'],
                 'assessment_type_id'      => $validated['assessment_type_id'] ?? null,
-                'total_questions'         => $totalQuestions,
-                'total_marks'             => $totalMarks,
-                'section_objective_count' => $objCount,
-                'section_objective_marks' => $objMarks,
-                'section_theory_count'    => $theoryCount,
-                'section_theory_marks'    => $theoryMarks,
+                'total_questions'         => 0,
+                'total_marks'             => 0,
+                // Retained only as a compatibility bridge for pre-upgrade records.
+                'section_objective_count' => 0,
+                'section_objective_marks' => 1,
+                'section_theory_count'    => 0,
+                'section_theory_marks'    => 1,
                 'duration_minutes'        => $validated['duration_minutes'],
                 'scheduled_start'         => $validated['scheduled_start'] ?? null,
                 'scheduled_end'           => $validated['scheduled_end'] ?? null,
@@ -514,11 +587,12 @@ class CbtController extends Controller
                 'retake_policy'           => 'latest_valid_authorized_attempt',
                 'strict_marks_validation' => true,
             ]);
-            app(CbtExamConfigurationService::class)->createDefaultSections($exam, $objCount, $objMarks, $theoryCount, $theoryMarks, auth()->id());
             $created++;
         }
 
-        $msg = $created === 1 ? 'Exam created successfully.' : "{$created} exams created — one per class arm.";
+        $msg = $created === 1
+            ? 'Exam created. Add the required sections and questions in the dynamic builder.'
+            : "{$created} exam drafts created — one per class arm. Open each draft to configure its sections.";
         return $created === 1
             ? redirect()->route('cbt.exams.builder', $exam)->with('success', $msg.' Review sections and marks before publication.')
             : back()->with('success', $msg);
