@@ -107,10 +107,6 @@
 .sci-insert-btn{width:100%;padding:10px;background:var(--indigo);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px}
 .sci-insert-btn:hover{background:#1D4ED8}
 .type-badge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}
-.diff-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#F1F5F9;color:#64748B}
-.diff-1{background:#ECFDF5;color:#059669}
-.diff-2{background:#FFFBEB;color:#D97706}
-.diff-3{background:#FEF2F2;color:#DC2626}
 .essay-answer{background:#F5F3FF;border-radius:6px;padding:8px 12px;font-size:12px;color:#6D28D9;margin-top:6px}
 .hint{font-size:11px;color:var(--slate-light);margin-top:4px}
 .type-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
@@ -118,7 +114,6 @@
 .type-tab.active{background:var(--indigo);border-color:var(--indigo);color:white}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px}
 .alert-e{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px}
-.marks-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .structure-panel{padding:14px;border:1px solid #D9E4F2;border-radius:10px;background:linear-gradient(145deg,#F8FBFF,#FFFFFF);margin-bottom:16px}
 .structure-title{font-size:11px;font-weight:800;color:var(--midnight);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
 .structure-grid{display:grid;grid-template-columns:1.35fr .8fr .8fr;gap:10px}
@@ -156,9 +151,6 @@
                 <div class="q-num">
                     <span>{{ $q->display_path ?? $q->display_number ?? $loop->iteration }}.</span>
                     <span class="type-badge" style="background:{{ $tbg }};color:{{ $tclr }}">{{ $q->typeLabel() }}</span>
-                    <span class="diff-badge diff-{{ $q->difficulty }}">
-                        {{ ['','Easy','Medium','Hard'][$q->difficulty ?? 1] }}
-                    </span>
                     @if($q->is_instruction_only)<span class="hierarchy-badge">Parent / instruction</span>@elseif($q->parent_question_id)<span class="hierarchy-badge">Sub-question</span>@endif
                     <span style="font-size:10px;color:var(--slate-light);margin-left:auto">
                         {{ $q->marks ?? 1 }} mark{{ ($q->marks ?? 1) != 1 ? 's':'' }}
@@ -197,9 +189,6 @@
                 @endif
 
                 <div class="q-meta" style="margin-top:8px">
-                    @if($q->explanation)
-                    <span style="font-size:11px;color:var(--slate-light)">💡 {{ Str::limit($q->explanation, 80) }}</span>
-                    @endif
                     <div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap">
                         <button type="button" class="btn" onclick="openAddChild({{ $q->id }})" style="padding:4px 10px;font-size:11px;background:#FFFBEB;color:#9A6700;border:1px solid #F6D88A">+ Add part</button>
                         <form method="POST" action="{{ route('cbt.questions.duplicate', [$bank, $q]) }}">@csrf<button type="submit" class="btn" style="padding:4px 10px;font-size:11px;background:#F8FAFC;color:var(--slate);border:1px solid var(--border)">Duplicate branch</button></form>
@@ -364,25 +353,10 @@
                 </div>
 
                 {{-- Common fields --}}
-                <div class="marks-row">
-                    <div class="form-group">
-                        <label class="form-label">Marks</label>
-                        <input name="marks" id="questionMarks" type="number" step="0.25" min="0"
-                               class="form-control" value="{{ old('marks',1) }}">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Difficulty</label>
-                        <select name="difficulty" class="form-control">
-                            <option value="1" {{ old('difficulty') == 1 ? 'selected':'' }}>Easy</option>
-                            <option value="2" {{ old('difficulty',2) == 2 ? 'selected':'' }}>Medium</option>
-                            <option value="3" {{ old('difficulty') == 3 ? 'selected':'' }}>Hard</option>
-                        </select>
-                    </div>
-                </div>
                 <div class="form-group">
-                    <label class="form-label">Explanation (optional)</label>
-                    <textarea name="explanation" class="form-control" rows="2"
-                              placeholder="Why is this the correct answer?">{{ old('explanation') }}</textarea>
+                    <label class="form-label">Marks</label>
+                    <input name="marks" id="questionMarks" type="number" step="0.25" min="0"
+                           class="form-control" value="{{ old('marks',1) }}">
                 </div>
                 <button type="submit" class="btn btn-primary">➕ Add Question</button>
             </form>

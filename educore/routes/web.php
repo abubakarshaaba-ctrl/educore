@@ -539,6 +539,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::prefix('cbt')->name('cbt.')->group(function () {
         // â”€â”€ Question Banks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Route::get('banks',                          [CbtController::class, 'banks'])->name('banks');
+        Route::get('banks/create',                   [CbtController::class, 'createBank'])->name('banks.create');
         Route::post('banks',                         [CbtController::class, 'storeBank'])->name('banks.store');
         Route::get('banks/{bank}',                   [CbtController::class, 'showBank'])->name('banks.show');
         Route::get('banks/{bank}/edit',              [CbtController::class, 'editBank'])->name('banks.edit');

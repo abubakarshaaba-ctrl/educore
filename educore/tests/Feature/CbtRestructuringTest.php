@@ -124,12 +124,20 @@ class CbtRestructuringTest extends TestCase
         $this->get(route('cbt.banks'))
             ->assertOk()
             ->assertSee('Question Bank Workspace')
-            ->assertSeeText('Exams & Sections', false);
+            ->assertSeeText('Exams & Sections', false)
+            ->assertDontSee('Create question bank');
+
+        $this->get(route('cbt.banks.create'))
+            ->assertOk()
+            ->assertSee('New question bank')
+            ->assertSee('Create question bank');
 
         $this->get(route('cbt.questions', $bank))
             ->assertOk()
             ->assertSeeText('Question structure & numbering', false)
-            ->assertSee('Parent heading / instruction only');
+            ->assertSee('Parent heading / instruction only')
+            ->assertDontSee('Difficulty')
+            ->assertDontSee('Explanation (optional)');
     }
 
     public function test_hierarchical_numbering_uses_decimal_alpha_roman_and_upper_alpha_levels(): void
@@ -183,7 +191,7 @@ class CbtRestructuringTest extends TestCase
         $required = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Required', 'code' => 'A', 'display_order' => 1, 'section_type' => 'objective', 'scoring_method' => 'automatic', 'answer_mode' => 'online', 'max_marks' => 10, 'is_required' => true, 'is_active' => true]);
         $optional = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Optional', 'code' => 'B', 'display_order' => 2, 'section_type' => 'theory', 'scoring_method' => 'manual', 'answer_mode' => 'online', 'max_marks' => 5, 'is_required' => false, 'is_active' => true]);
         $auto = $this->question($bank, 'Required question', 'mcq', 10); $auto->update(['option_a' => 'Correct', 'option_b' => 'Wrong', 'correct_answer_letter' => 'a']);
-        $manual = $this->question($bank, 'Optional explanation', 'essay', 5);
+        $manual = $this->question($bank, 'Optional response', 'essay', 5);
         $required->questions()->attach($auto->id, ['tenant_id' => $this->ids['tenant'], 'cbt_exam_id' => $exam->id, 'display_order' => 1, 'marks_override' => 10]);
         $optional->questions()->attach($manual->id, ['tenant_id' => $this->ids['tenant'], 'cbt_exam_id' => $exam->id, 'display_order' => 1, 'marks_override' => 5]);
         $result = app(CbtSubmissionService::class)->submit($this->attempt($exam, [$auto->id, $manual->id]), [$auto->id => 'a']);
@@ -253,8 +261,8 @@ class CbtRestructuringTest extends TestCase
         [, $bank] = $this->exam();
         $csv = implode("\n", [
             implode(',', CbtQuestionImportService::HEADERS),
-            'B,Theory,Q1,,1,theory_group,"Read and answer",,,,,,0,manual,online,1,"Answer all parts",yes,,,1',
-            'B,Theory,Q1a,Q1,2,short_answer,"State one point",,,,,,5,manual,online,2,,yes,"A point",,1',
+            'B,Theory,Q1,,1,theory_group,"Read and answer",,,,,,0,manual,online,1,"Answer all parts",yes,',
+            'B,Theory,Q1a,Q1,2,short_answer,"State one point",,,,,,5,manual,online,2,,yes,"A point"',
         ]);
         $batch = app(CbtQuestionImportService::class)->preview($bank, UploadedFile::fake()->createWithContent('questions.csv', $csv), $this->admin->id);
         $this->assertSame('preview', $batch->status);
@@ -270,13 +278,33 @@ class CbtRestructuringTest extends TestCase
         [, $bank] = $this->exam();
         $csv = implode("\n", [
             implode(',', CbtQuestionImportService::HEADERS),
-            'A,Objective,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,,,1',
-            'B,Theory,1,,1,theory,"Explain the answer",,,,,,5,manual,online,1,,yes,"A clear explanation",,1',
+            'A,Objective,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,',
+            'B,Theory,1,,1,theory,"Explain the answer",,,,,,5,manual,online,1,,yes,"A clear answer"',
         ]);
         $batch = app(CbtQuestionImportService::class)->preview($bank, UploadedFile::fake()->createWithContent('sections.csv', $csv), $this->admin->id);
         $this->assertSame('preview', $batch->status);
         $this->assertSame(2, app(CbtQuestionImportService::class)->import($batch));
         $this->assertSame(2, CbtQuestion::where('reference_code', '1')->count());
+    }
+
+    public function test_sectionless_import_separates_objective_and_theory_numbering(): void
+    {
+        [, $bank] = $this->exam();
+        $csv = implode("\n", [
+            implode(',', CbtQuestionImportService::HEADERS),
+            ',,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,',
+            ',,1,,1,theory_group,"Answer the theory parts",,,,,,0,manual,online,1,,yes,',
+            ',,1a,1,2,theory,"Explain the answer",,,,,,5,manual,online,2,,yes,"A clear answer"',
+        ]);
+
+        $batch = app(CbtQuestionImportService::class)->preview($bank, UploadedFile::fake()->createWithContent('sectionless.csv', $csv), $this->admin->id);
+
+        $this->assertSame('preview', $batch->status);
+        $this->assertSame([], $batch->validation_errors);
+        $this->assertSame(3, app(CbtQuestionImportService::class)->import($batch));
+        $this->assertSame(2, CbtQuestion::where('reference_code', '1')->count());
+        $theoryParent = CbtQuestion::where('reference_code', '1')->where('type', 'essay')->firstOrFail();
+        $this->assertSame($theoryParent->id, CbtQuestion::where('reference_code', '1a')->firstOrFail()->parent_question_id);
     }
 
     public function test_validated_import_can_attach_sections_directly_to_a_draft_exam(): void
@@ -286,8 +314,8 @@ class CbtRestructuringTest extends TestCase
         $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Theory', 'code' => 'B', 'display_order' => 2, 'section_type' => 'theory', 'scoring_method' => 'manual', 'answer_mode' => 'paper', 'max_marks' => 5, 'is_required' => true, 'is_active' => true]);
         $csv = implode("\n", [
             implode(',', CbtQuestionImportService::HEADERS),
-            'A,Objective,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,,,1',
-            'B,Theory,1,,1,theory,"Explain the answer",,,,,,5,manual,paper,1,,yes,"A clear explanation",,1',
+            'A,Objective,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,',
+            'B,Theory,1,,1,theory,"Explain the answer",,,,,,5,manual,paper,1,,yes,"A clear answer"',
         ]);
         $batch = app(CbtQuestionImportService::class)->preview($bank, UploadedFile::fake()->createWithContent('exam.csv', $csv), $this->admin->id, $exam);
         $this->assertSame('preview', $batch->status);
@@ -305,7 +333,7 @@ class CbtRestructuringTest extends TestCase
 
     private function question(CbtQuestionBank $bank, string $text, string $type, float $marks, ?CbtQuestion $parent = null, bool $instruction = false): CbtQuestion
     {
-        return CbtQuestion::create(['tenant_id' => $this->ids['tenant'], 'question_bank_id' => $bank->id, 'parent_question_id' => $parent?->id, 'level' => $parent ? $parent->level + 1 : 0, 'sequence' => 1, 'numbering_style' => 'auto', 'type' => $type, 'question_text' => $text, 'marks' => $marks, 'difficulty' => 1, 'is_instruction_only' => $instruction, 'requires_answer' => ! $instruction]);
+        return CbtQuestion::create(['tenant_id' => $this->ids['tenant'], 'question_bank_id' => $bank->id, 'parent_question_id' => $parent?->id, 'level' => $parent ? $parent->level + 1 : 0, 'sequence' => 1, 'numbering_style' => 'auto', 'type' => $type, 'question_text' => $text, 'marks' => $marks, 'is_instruction_only' => $instruction, 'requires_answer' => ! $instruction]);
     }
 
     private function attempt(CbtExam $exam, array $questionIds): CbtStudentSession

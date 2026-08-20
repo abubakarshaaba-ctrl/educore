@@ -16,7 +16,7 @@ class CbtQuestionImportService
         'section_code', 'section_name', 'question_no', 'parent_question_no', 'question_level',
         'question_type', 'question_text', 'option_a', 'option_b', 'option_c', 'option_d',
         'correct_option', 'marks', 'scoring_method', 'answer_mode', 'display_order',
-        'instructions', 'is_required', 'model_answer', 'explanation', 'difficulty',
+        'instructions', 'is_required', 'model_answer',
     ];
 
     public function preview(CbtQuestionBank $bank, UploadedFile $file, int $userId, ?CbtExam $exam = null): CbtImportBatch
@@ -62,7 +62,6 @@ class CbtQuestionImportService
                         'numbering_style' => 'auto', 'is_instruction_only' => $instruction,
                         'requires_answer' => ! $instruction,
                         'model_answer' => $row['model_answer'] ?: ($row['type'] === 'fill_blank' ? ($row['correct_answer'] ?: null) : null),
-                        'explanation' => $row['explanation'] ?: null, 'difficulty' => (int) $row['difficulty'],
                     ]);
                     $created[$key] = $question;
                     if ($exam) {
@@ -110,8 +109,16 @@ class CbtQuestionImportService
             };
             $marks = $value(['marks'], '1');
             $group = $rawType === 'theory_group' || (is_numeric($marks) && (float) $marks === 0.0 && $value(['parent_question_no', 'parent_reference']) === '');
+            $sectionCode = strtoupper($value(['section_code']));
+            $importScope = $sectionCode !== ''
+                ? $sectionCode
+                : (in_array($type, ['mcq', 'true_false', 'fill_blank'], true) ? 'AUTO' : 'MANUAL');
             return [
-                'section_code' => strtoupper($value(['section_code'])), 'section_name' => $value(['section_name']),
+                'section_code' => $sectionCode, 'section_name' => $value(['section_name']),
+                'import_scope' => $importScope,
+                'scope_label' => $sectionCode !== ''
+                    ? ($value(['section_name']) ?: $sectionCode)
+                    : ($importScope === 'AUTO' ? 'Automatic' : 'Manual / theory'),
                 'reference' => $value(['question_no', 'reference'], 'Q'.($index + 1)),
                 'parent_reference' => $value(['parent_question_no', 'parent_reference']),
                 'question_level' => $value(['question_level', 'level'], '1'), 'type' => $type,
@@ -124,8 +131,7 @@ class CbtQuestionImportService
                 'display_order' => $value(['display_order', 'sequence'], (string) ($index + 1)),
                 'instructions' => $value(['instructions']), 'is_required' => strtolower($value(['is_required'], 'yes')),
                 'is_instruction_only' => $group || $this->bool($value(['is_instruction_only'])),
-                'model_answer' => $value(['model_answer']), 'explanation' => $value(['explanation']),
-                'difficulty' => $value(['difficulty'], '1'),
+                'model_answer' => $value(['model_answer']),
             ];
         })->all();
     }
@@ -153,7 +159,6 @@ class CbtQuestionImportService
             if (! is_numeric($row['marks']) || (float) $row['marks'] < 0) $errors[] = "Row {$line} · marks: must be zero or greater.";
             if (! ctype_digit((string) $row['question_level']) || (int) $row['question_level'] < 1) $errors[] = "Row {$line} · question_level: must be a positive integer.";
             if (! ctype_digit((string) $row['display_order']) || (int) $row['display_order'] < 1) $errors[] = "Row {$line} · display_order: must be a positive integer.";
-            if (! in_array((int) $row['difficulty'], [1, 2, 3], true)) $errors[] = "Row {$line} · difficulty: must be 1, 2 or 3.";
             if ($row['parent_reference'] !== '' && ! $keys->contains($parentKey)) $errors[] = "Row {$line} · parent_question_no: '{$row['parent_reference']}' does not exist in section {$row['section_code']}.";
             if ($row['parent_reference'] !== '' && $parentKey === $key) $errors[] = "Row {$line} · parent_question_no: a question cannot be its own parent.";
             if (in_array($row['type'], ['mcq', 'true_false'], true) && ! in_array($row['correct_answer'], ['a', 'b', 'c', 'd'], true)) $errors[] = "Row {$line} · correct_option: use A, B, C or D.";
@@ -209,6 +214,14 @@ class CbtQuestionImportService
 
     private function rowKey(array $row, ?string $reference = null): string
     {
-        return strtoupper(trim((string) ($row['section_code'] ?? ''))).'|'.trim((string) ($reference ?? $row['reference'] ?? ''));
+        $scope = trim((string) ($row['section_code'] ?? ''));
+        if ($scope === '') {
+            $scope = trim((string) ($row['import_scope'] ?? ''));
+        }
+        if ($scope === '') {
+            $scope = in_array(($row['type'] ?? ''), ['mcq', 'true_false', 'fill_blank'], true) ? 'AUTO' : 'MANUAL';
+        }
+
+        return strtoupper($scope).'|'.trim((string) ($reference ?? $row['reference'] ?? ''));
     }
 }

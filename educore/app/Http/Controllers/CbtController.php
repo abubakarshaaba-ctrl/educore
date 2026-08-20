@@ -162,11 +162,17 @@ class CbtController extends Controller
             $banksQuery->whereIn('subject_id', $this->teacherSubjectIds($user));
         }
         $banks       = $banksQuery->get();
+        return view('cbt.banks', compact('banks'));
+    }
+
+    public function createBank()
+    {
+        $user = Auth::user();
         $subjects    = $this->hasFullCbtAccess($user)
             ? Subject::where('is_active', true)->get()
             : Subject::whereIn('id', $this->teacherSubjectIds($user))->where('is_active', true)->get();
         $classLevels = ClassLevel::orderBy('order_index')->get();
-        return view('cbt.banks', compact('banks', 'subjects', 'classLevels'));
+        return view('cbt.bank-create', compact('subjects', 'classLevels'));
     }
 
     public function storeBank(Request $request)
@@ -183,8 +189,8 @@ class CbtController extends Controller
             abort(403, 'You can only create question banks for subjects you teach.');
         }
 
-        CbtQuestionBank::create($validated);
-        return back()->with('success', 'Question bank created.');
+        $bank = CbtQuestionBank::create($validated);
+        return redirect()->route('cbt.questions', $bank)->with('success', 'Question bank created. Add its first question.');
     }
 
     public function editBank(CbtQuestionBank $bank)
@@ -384,9 +390,7 @@ class CbtController extends Controller
         $rules = [
             'type'          => ['required', 'in:mcq,essay,short_answer,fill_blank,true_false'],
             'question_text' => ['required', 'string'],
-            'difficulty'    => ['nullable', 'integer', 'min:1', 'max:3'],
             'marks'         => ['nullable', 'numeric', 'min:0'],
-            'explanation'   => ['nullable', 'string'],
             'image'         => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp,svg', 'max:4096'],
             'parent_question_id' => [
                 'nullable',
@@ -459,9 +463,7 @@ class CbtController extends Controller
                 : ($v['scoring_method'] ?? ($type === 'mcq' || $type === 'true_false' || $type === 'fill_blank' ? 'automatic' : 'manual')),
             'type'                 => $type,
             'question_text'        => $v['question_text'],
-            'difficulty'           => $v['difficulty'] ?? 1,
             'marks'                => $marks,
-            'explanation'          => $v['explanation'] ?? null,
             'option_a'             => $v['option_a'] ?? ($type === 'true_false' ? 'True'  : null),
             'option_b'             => $v['option_b'] ?? ($type === 'true_false' ? 'False' : null),
             'option_c'             => $v['option_c'] ?? null,
@@ -807,9 +809,9 @@ class CbtController extends Controller
     public function bulkUploadTemplate(Request $request)
     {
         $rows = [CbtQuestionImportService::HEADERS,
-            ['A','Objective','1','','1','single_choice','What is the capital of Nigeria?','Lagos','Abuja','Kano','Ibadan','B','2','automatic','online','1','','yes','','Abuja is Nigeria’s capital.','1'],
-            ['B','Theory','1','','1','theory_group','Read the passage and answer the questions that follow.','','','','','','0','manual','online','1','Answer all parts.','yes','','','2'],
-            ['B','Theory','1a','1','2','theory','State the central idea of the passage.','','','','','','5','manual','online','2','','yes','A concise statement of the central idea.','','2'],
+            ['A','Objective','1','','1','single_choice','What is the capital of Nigeria?','Lagos','Abuja','Kano','Ibadan','B','2','automatic','online','1','','yes',''],
+            ['B','Theory','1','','1','theory_group','Read the passage and answer the questions that follow.','','','','','','0','manual','online','1','Answer all parts.','yes',''],
+            ['B','Theory','1a','1','2','theory','State the central idea of the passage.','','','','','','5','manual','online','2','','yes','A concise statement of the central idea.'],
         ];
         if ($request->query('format') === 'csv') {
             return response()->streamDownload(function () use ($rows) { $h = fopen('php://output', 'w'); foreach ($rows as $row) fputcsv($h, $row); fclose($h); }, 'cbt_questions_template.csv', ['Content-Type' => 'text/csv']);
@@ -818,7 +820,7 @@ class CbtController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Questions')->fromArray($rows);
         $sheet->freezePane('A2');
-        $sheet->getStyle('A1:U1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:S1')->getFont()->setBold(true);
         $instructions = $spreadsheet->createSheet();
         $instructions->setTitle('Instructions')->fromArray([
             ['Field', 'Requirement'],

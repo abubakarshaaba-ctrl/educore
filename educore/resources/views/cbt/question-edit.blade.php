@@ -90,7 +90,7 @@
     </div>
 </div>
 
-{{-- Type + Marks + Difficulty --}}
+{{-- Type and marks --}}
 <div class="card">
     <div class="ch">📝 Question Details</div>
     <div class="cb">
@@ -160,17 +160,8 @@
             <div class="hint">JPG, PNG, GIF, SVG, WebP · Max 4MB. Diagrams, charts, equations, maps, graphs.</div>
         </div>
 
-        <div class="two">
-            <div class="fg"><label class="fl">Marks</label>
-                <input name="marks" id="questionMarks" type="number" step="0.25" min="0" class="fc" value="{{ old('marks', $q->marks ?? 1) }}">
-            </div>
-            <div class="fg"><label class="fl">Difficulty</label>
-                <select name="difficulty" class="fc">
-                    <option value="1" {{ ($q->difficulty??1)==1?'selected':'' }}>Easy</option>
-                    <option value="2" {{ ($q->difficulty??1)==2?'selected':'' }}>Medium</option>
-                    <option value="3" {{ ($q->difficulty??1)==3?'selected':'' }}>Hard</option>
-                </select>
-            </div>
+        <div class="fg"><label class="fl">Marks</label>
+            <input name="marks" id="questionMarks" type="number" step="0.25" min="0" class="fc" value="{{ old('marks', $q->marks ?? 1) }}">
         </div>
     </div>
 </div>
@@ -230,15 +221,6 @@
             <input name="word_limit" type="number" class="fc" min="10"
                    value="{{ old('word_limit', $q->word_limit) }}" placeholder="e.g. 200">
         </div>
-    </div>
-</div>
-
-{{-- Explanation --}}
-<div class="card">
-    <div class="ch">💡 Explanation (shown after submission)</div>
-    <div class="cb">
-        <textarea name="explanation" class="fc" rows="2"
-                  placeholder="Why is this the correct answer?">{{ old('explanation', $q->explanation) }}</textarea>
     </div>
 </div>
 

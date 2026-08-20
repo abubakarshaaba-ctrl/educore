@@ -43,8 +43,6 @@ class CbtQuestion extends BaseTenantModel
         'options',
         'correct_option',
         // Common
-        'explanation',
-        'difficulty',
         'marks',
         // Essay / short answer
         'word_limit',
@@ -58,7 +56,6 @@ class CbtQuestion extends BaseTenantModel
         return [
             'options'    => 'array',
             'marks'      => 'float',
-            'difficulty' => 'integer',
             'word_limit' => 'integer',
             'level' => 'integer',
             'sequence' => 'integer',
