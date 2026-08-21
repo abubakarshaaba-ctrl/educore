@@ -29,7 +29,9 @@ class CbtAttemptController extends Controller
                 'answers' => array_replace((array) $locked->answers, (array) ($data['answers'] ?? [])),
                 'essay_answers' => array_replace((array) $locked->essay_answers, (array) ($data['essay_answers'] ?? [])),
                 'flagged_questions' => $data['flagged_questions'] ?? $locked->flagged_questions,
-                'last_synced_at' => now(),
+                // A null value means this LAN attempt has local changes that
+                // still need to be pushed to the cloud.
+                'last_synced_at' => null,
             ]);
         });
         return response()->json(['ok' => true, 'saved_at' => now()->toIso8601String()]);

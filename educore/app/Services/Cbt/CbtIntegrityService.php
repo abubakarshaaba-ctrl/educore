@@ -30,6 +30,7 @@ class CbtIntegrityService
             if ($created && $normalized === 'exam_page_hidden_or_focus_lost' && ! $locked->isFinal()) {
                 $locked->increment('focus_loss_count');
             }
+            if ($created) $locked->update(['last_synced_at' => null]);
         });
 
         $session->refresh()->load('exam');

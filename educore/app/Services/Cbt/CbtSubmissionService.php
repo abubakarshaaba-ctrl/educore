@@ -73,7 +73,7 @@ class CbtSubmissionService
                 'maximum_score' => $maximum, 'percentage' => $fullyScored && $maximum > 0 ? round(($scored / $maximum) * 100, 2) : null,
                 'submitted_at' => now(), 'submission_reason' => $reason,
                 'status' => $automatic ? 'auto_submitted' : ($fullyScored ? 'graded' : 'submitted'),
-                'grading_completed_at' => $fullyScored ? now() : null,
+                'grading_completed_at' => $fullyScored ? now() : null, 'last_synced_at' => null,
             ])->save();
 
             AuditLog::create([
@@ -137,6 +137,7 @@ class CbtSubmissionService
                 'raw_score' => $stillPending ? null : $raw, 'maximum_score' => $maximum,
                 'percentage' => ! $stillPending && $maximum > 0 ? round(($raw / $maximum) * 100, 2) : null,
                 'status' => $stillPending ? 'submitted' : 'graded', 'grading_completed_at' => $stillPending ? null : now(),
+                'last_synced_at' => null,
             ])->save();
             return $locked->fresh();
         });

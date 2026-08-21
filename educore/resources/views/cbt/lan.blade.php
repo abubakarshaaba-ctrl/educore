@@ -27,6 +27,16 @@
     .pill { font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:#FEF9EC;color:var(--indigo);border:1px solid #F2C35B; }
     .pill-ok { background:#ECFDF5;color:var(--emerald);border-color:#A7F3D0; }
     .sync-status { font-size:11px;color:var(--slate-light);margin-left:8px; }
+    .lan-release { display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:4px 9px;border-radius:999px;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;font-size:10px;font-weight:700;vertical-align:middle; }
+    .lan-release::before { content:'✓'; }
+    .sync-status.is-error { color:var(--crimson); }
+    .sync-status.is-ok { color:var(--emerald); }
+    @media (max-width: 680px) {
+        .page-tabs { width:100%;overflow-x:auto; }
+        .page-tab { white-space:nowrap; }
+        .exam-row > div:last-child { width:100%;flex-wrap:wrap; }
+        .sync-status { margin-left:0;width:100%; }
+    }
 </style>
 @endpush
 
@@ -43,37 +53,40 @@
 @if($errors->any())<div class="alert-error">{{ $errors->first() }}</div>@endif
 
 <div class="card">
-    <div class="card-header"><span class="card-title">📡 What is LAN Mode?</span></div>
+    <div class="card-header">
+        <span class="card-title">LAN exam server</span>
+        <span class="lan-release">Release {{ $lanRelease }}</span>
+    </div>
     <div class="card-body">
         <div class="lan-steps">
             Use this when students must sit a CBT exam with <b>no internet</b> — e.g. a school hall
             with only local WiFi.
             <br><b>1. Before the exam (while online):</b> click "Export Package" on the exam below and
             download the file.
-            <br><b>2. On the exam-day laptop</b> (running this same app locally via XAMPP, offline):
+            <br><b>2. On the exam-day laptop</b> (running this exact EduCore LAN release locally via XAMPP, offline):
             open this same LAN Mode page and upload that package under "Import Package". The exam,
             its questions, and the enrolled students load into the local database.
             <br><b>3. Students connect</b> to the laptop's WiFi hotspot and open its local address in
             a browser, log in as normal, and take the exam — the ordinary CBT screens work unchanged.
             <br><b>4. When the laptop regains internet</b>, click "Sync Now" (or just leave this page
-            open — it retries quietly in the background) to push finished sessions back to the cloud.
+            open — it retries quietly in the background) to push finished sessions back to the cloud and receive schedule, security and retake updates.
         </div>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><span class="card-title">📥 Import Package (on the offline/LAN laptop)</span></div>
+    <div class="card-header"><span class="card-title">Import package</span></div>
     <div class="card-body">
         <form method="POST" action="{{ route('cbt.lan.import') }}" enctype="multipart/form-data">
             @csrf
             <input type="file" name="package" accept="application/json" class="form-control" required style="margin-bottom:10px">
-            <button type="submit" class="btn btn-primary">📥 Import Package</button>
+            <button type="submit" class="btn btn-primary">Import package</button>
         </form>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><span class="card-title">📤 Export / Sync (per exam)</span></div>
+    <div class="card-header"><span class="card-title">Exam packages and synchronization</span></div>
     <div class="card-body">
         @forelse($exams as $exam)
         <div class="exam-row" id="exam-row-{{ $exam->id }}">
@@ -93,9 +106,9 @@
                 </div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
-                <a href="{{ route('cbt.lan.export', $exam) }}" class="btn btn-ghost">📤 Export Package</a>
+                <a href="{{ route('cbt.lan.export', $exam) }}" class="btn btn-ghost">Export package</a>
                 @if($exam->lan_sync_token)
-                <button type="button" class="btn btn-primary" onclick="syncExam({{ $exam->id }})">🔄 Sync Now</button>
+                <button type="button" class="btn btn-primary" onclick="syncExam({{ $exam->id }})">Sync / refresh</button>
                 <span class="sync-status" id="sync-status-{{ $exam->id }}"></span>
                 @endif
             </div>
@@ -109,6 +122,7 @@
 <script>
 function syncExam(examId) {
     var el = document.getElementById('sync-status-' + examId);
+    el.classList.remove('is-error', 'is-ok');
     el.textContent = 'syncing…';
     fetch('/cbt/exams/' + examId + '/lan-sync', {
         method: 'POST',
@@ -119,12 +133,14 @@ function syncExam(examId) {
     })
     .then(function(r){ return r.json(); })
     .then(function(data){
-        if (data.status === 'synced') el.textContent = '✓ synced ' + data.count + ' just now';
-        else if (data.status === 'nothing_to_sync') el.textContent = '✓ up to date';
-        else if (data.status === 'offline') el.textContent = 'no internet yet — will retry';
-        else el.textContent = data.message || data.status;
+        if (data.status === 'synced') { el.textContent = '✓ synced ' + data.count + ' just now'; el.classList.add('is-ok'); }
+        else if (data.status === 'refreshed') { el.textContent = '✓ cloud settings refreshed'; el.classList.add('is-ok'); }
+        else if (data.status === 'nothing_to_sync') { el.textContent = '✓ up to date'; el.classList.add('is-ok'); }
+        else if (data.status === 'offline') { el.textContent = 'offline — retrying automatically'; el.classList.add('is-error'); }
+        else if (data.status === 'partial') { el.textContent = data.message || 'some attempts require attention'; el.classList.add('is-error'); }
+        else { el.textContent = data.message || data.status; el.classList.add('is-error'); }
     })
-    .catch(function(){ el.textContent = 'no internet yet — will retry'; });
+    .catch(function(){ el.textContent = 'offline — retrying automatically'; el.classList.add('is-error'); });
 }
 
 // Quietly retry every 30s for any exam that has a sync token — this is what
