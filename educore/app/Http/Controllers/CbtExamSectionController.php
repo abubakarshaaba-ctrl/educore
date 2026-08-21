@@ -227,7 +227,7 @@ class CbtExamSectionController extends Controller
 
     private function validatedSection(Request $request, CbtExam $exam, ?CbtExamSection $section = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'code' => ['required', 'string', 'max:20', Rule::unique('cbt_exam_sections', 'code')->where('cbt_exam_id', $exam->id)->ignore($section?->id)],
             'title' => ['nullable', 'string', 'max:180'], 'instructions' => ['nullable', 'string'],
@@ -236,6 +236,13 @@ class CbtExamSectionController extends Controller
             'answer_mode' => ['required', 'in:online,paper,hybrid'], 'max_marks' => ['required', 'numeric', 'min:0'],
             'is_required' => ['nullable', 'boolean'], 'is_active' => ['nullable', 'boolean'],
         ]) + ['is_required' => $request->boolean('is_required'), 'is_active' => $request->boolean('is_active')];
+
+        if (in_array($data['section_type'], ['theory', 'essay'], true)) {
+            $data['scoring_method'] = 'manual';
+            $data['answer_mode'] = 'paper';
+        }
+
+        return $data;
     }
 
     private function authorizeExam(CbtExam $exam): void

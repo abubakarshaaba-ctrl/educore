@@ -363,6 +363,29 @@ class CbtRestructuringTest extends TestCase
         $this->assertSame([], app(CbtExamConfigurationService::class)->publicationErrors($exam->fresh()));
     }
 
+    public function test_exam_workspace_shows_one_objective_per_view_and_one_complete_theory_branch(): void
+    {
+        [$exam, $bank] = $this->exam();
+        $objectiveSection = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Objective', 'code' => 'A', 'display_order' => 1, 'section_type' => 'objective', 'scoring_method' => 'automatic', 'answer_mode' => 'online', 'max_marks' => 2, 'is_required' => true, 'is_active' => true]);
+        $theorySection = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Theory', 'code' => 'B', 'display_order' => 2, 'section_type' => 'theory', 'scoring_method' => 'manual', 'answer_mode' => 'online', 'max_marks' => 10, 'is_required' => true, 'is_active' => true]);
+        $first = $this->question($bank, 'First objective?', 'mcq', 1); $first->update(['option_a' => 'One', 'option_b' => 'Two', 'correct_answer_letter' => 'a', 'sequence' => 1]);
+        $second = $this->question($bank, 'Second objective?', 'mcq', 1); $second->update(['option_a' => 'Three', 'option_b' => 'Four', 'correct_answer_letter' => 'b', 'sequence' => 2]);
+        $root = $this->question($bank, 'Answer all branches.', 'essay', 0, null, true);
+        $branchA = $this->question($bank, 'Explain the first concept.', 'essay', 5, $root); $branchA->update(['sequence' => 1]);
+        $branchB = $this->question($bank, 'Explain the second concept.', 'essay', 5, $root); $branchB->update(['sequence' => 2]);
+        foreach ([$first, $second] as $index => $question) $objectiveSection->questions()->attach($question->id, ['tenant_id' => $this->ids['tenant'], 'cbt_exam_id' => $exam->id, 'display_order' => $index + 1]);
+        foreach ([$root, $branchA, $branchB] as $index => $question) $theorySection->questions()->attach($question->id, ['tenant_id' => $this->ids['tenant'], 'cbt_exam_id' => $exam->id, 'display_order' => $index + 1]);
+
+        $response = $this->get(route('cbt.exams.start', $exam))->assertOk();
+
+        $this->assertSame(3, substr_count($response->getContent(), 'data-frame-index='));
+        $response->assertSee('First objective?')->assertSee('Second objective?')
+            ->assertSee('Answer all branches.')->assertSee('Explain the first concept.')->assertSee('Explain the second concept.')
+            ->assertSee('Answer in the official booklet.')
+            ->assertSee("event.key === 'ArrowLeft'", false)->assertSee("event.key === 'ArrowRight'", false)
+            ->assertSee("['a', 'b', 'c', 'd']", false)->assertDontSee('<textarea', false);
+    }
+
     private function exam(): array
     {
         $bank = CbtQuestionBank::create(['tenant_id' => $this->ids['tenant'], 'subject_id' => $this->ids['subject'], 'class_level_id' => $this->ids['level'], 'name' => 'Bank', 'is_active' => true]);

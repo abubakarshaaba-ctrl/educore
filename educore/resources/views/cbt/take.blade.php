@@ -1,69 +1,413 @@
 @extends('layouts.app')
 @section('title', $exam->title)
 @section('page-title', 'CBT Examination')
+
+@php
+    $questionFrames = collect();
+
+    foreach ($sectionPayload as $sectionItem) {
+        $section = $sectionItem['section'];
+        $questions = $sectionItem['questions']->values();
+        $isTheory = in_array($section->section_type, ['theory', 'essay'], true)
+            || $section->scoring_method === 'manual';
+
+        if (! $isTheory) {
+            foreach ($questions as $question) {
+                $questionFrames->push([
+                    'section' => $section,
+                    'questions' => collect([$question]),
+                    'manual' => false,
+                    'representative_id' => $question->id,
+                ]);
+            }
+            continue;
+        }
+
+        $questionsById = $questions->keyBy('id');
+        $branches = [];
+        foreach ($questions as $question) {
+            $root = $question;
+            $visited = [];
+            while ($root->parent_question_id && $questionsById->has($root->parent_question_id)) {
+                if (isset($visited[$root->id])) break;
+                $visited[$root->id] = true;
+                $root = $questionsById->get($root->parent_question_id);
+            }
+            $branches[$root->id] ??= collect();
+            $branches[$root->id]->push($question);
+        }
+
+        foreach ($branches as $rootId => $branchQuestions) {
+            $root = $branchQuestions->firstWhere('id', $rootId) ?? $branchQuestions->first();
+            $questionFrames->push([
+                'section' => $section,
+                'questions' => $branchQuestions,
+                'manual' => true,
+                'representative_id' => $root->id,
+            ]);
+        }
+    }
+@endphp
+
 @push('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <style>
-.exam-shell{max-width:1280px;margin:auto}.exam-top{position:sticky;top:0;z-index:20;background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(15,23,42,.06)}.exam-title{flex:1;min-width:0}.exam-title strong{display:block;color:var(--midnight);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.exam-title span{font-size:10px;color:var(--slate)}.timer{font-size:18px;font-weight:800;color:var(--midnight);font-variant-numeric:tabular-nums}.save-state{font-size:10px;color:var(--emerald);min-width:62px}.exam-workspace{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:12px}.section-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 0 10px}.section-tab{border:1px solid var(--border);background:#fff;color:var(--slate);border-radius:9px;padding:8px 13px;font:700 11px inherit;white-space:nowrap;cursor:pointer}.section-tab small{display:block;margin-top:2px;font-size:9px;font-weight:500;opacity:.75}.section-tab.active{background:var(--midnight);border-color:var(--midnight);color:#fff}.section-pane{display:none}.section-pane.active{display:block}.section-banner{background:linear-gradient(135deg,#0B234B,#153E75);color:#fff;border-radius:12px;padding:18px;margin-bottom:12px}.section-banner small{font-size:10px;color:#FBBF24;font-weight:800;letter-spacing:.08em}.section-banner h2{font-size:19px;margin:5px 0}.section-banner p{font-size:12px;opacity:.85;margin:0;white-space:pre-line}.paper-notice{padding:18px;border:1px solid #FDE68A;background:#FFFBEB;border-radius:11px;color:#854D0E;margin-bottom:12px;font-size:12px}.question{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:10px;scroll-margin-top:90px}.question.instruction{background:#F8FAFC;border-style:dashed}.q-head{display:flex;gap:10px;align-items:flex-start}.q-number{min-width:38px;height:32px;border-radius:8px;background:#EFF6FF;color:#1D4ED8;display:grid;place-items:center;font-weight:800;font-size:12px}.q-body{flex:1;min-width:0}.q-text{font-size:13px;line-height:1.65;color:var(--midnight);font-weight:600}.q-meta{font-size:10px;color:var(--slate);margin-top:4px}.flag-btn{float:right;border:1px solid var(--border);background:#fff;color:var(--slate);border-radius:6px;padding:4px 7px;font:700 9px inherit;cursor:pointer}.flag-btn.flagged{background:#FFFBEB;color:#B45309;border-color:#F59E0B}.options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.option{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--border);border-radius:9px;padding:10px;font-size:12px;cursor:pointer}.option:hover,.option.chosen{background:#EFF6FF;border-color:#60A5FA}.answer-box{width:100%;border:1px solid var(--border);border-radius:9px;padding:11px;font:inherit;font-size:12px;margin-top:12px;min-height:96px}.short{min-height:auto}.word-count{display:block;text-align:right;color:var(--slate);font-size:9px;margin-top:4px}.navigator{position:sticky;top:72px;align-self:start;background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px;max-height:calc(100vh - 100px);overflow:auto}.nav-head{font-size:12px;font-weight:800;color:var(--midnight);margin-bottom:4px}.nav-summary{font-size:9px;color:var(--slate);margin-bottom:12px}.nav-group{font-size:9px;font-weight:800;color:var(--slate);text-transform:uppercase;margin:10px 0 6px}.nav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}.nav-q{aspect-ratio:1;border:1px solid var(--border);background:#fff;border-radius:6px;font:700 9px inherit;color:var(--slate);cursor:pointer;position:relative}.nav-q.answered{background:#DCFCE7;border-color:#86EFAC;color:#166534}.nav-q.flagged:after{content:'';position:absolute;right:2px;top:2px;width:5px;height:5px;background:#F59E0B;border-radius:50%}.exam-foot{position:sticky;bottom:8px;background:#fff;border:1px solid var(--border);box-shadow:0 -4px 18px rgba(15,23,42,.07);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{border:0;border-radius:8px;padding:10px 15px;font:700 12px inherit;cursor:pointer}.btn-danger{background:#B91C1C;color:#fff}.btn-light{background:#fff;border:1px solid var(--border);color:var(--midnight)}.security-banner{display:none;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:9px;padding:11px;margin-bottom:10px;font-size:12px}.security-banner.show{display:block}.calc-panel{display:none;position:fixed;right:22px;bottom:22px;z-index:80;width:290px;background:#0F172A;color:#fff;border-radius:13px;padding:12px;box-shadow:0 18px 44px rgba(15,23,42,.35)}.calc-panel.open{display:block}.calc-screen{background:#020617;border-radius:8px;padding:10px;text-align:right;font-size:19px;min-height:46px;margin-bottom:8px;overflow:hidden}.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.calc-key{border:0;border-radius:7px;padding:9px 4px;background:#1E293B;color:#fff;font:700 11px inherit;cursor:pointer}.calc-key.op{background:#1D4ED8}.calc-title{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;margin-bottom:8px}.calc-title button{border:0;background:none;color:#CBD5E1;font-size:18px;cursor:pointer}@media(max-width:950px){.exam-workspace{grid-template-columns:1fr}.navigator{position:static;order:-1;max-height:none}.nav-grid{grid-template-columns:repeat(10,1fr)}}@media(max-width:700px){.exam-top{top:0;border-radius:8px;padding:10px}.save-state{display:none}.options{grid-template-columns:1fr}.question{padding:14px;margin-left:0!important}.section-banner{padding:15px}.exam-foot{bottom:4px}.exam-title span{display:none}.timer{font-size:15px}.nav-grid{grid-template-columns:repeat(8,1fr)}.calc-panel{left:10px;right:10px;bottom:10px;width:auto}}
+    .exam-shell{max-width:980px;margin:0 auto;color:var(--midnight)}
+    .exam-toolbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:12px 15px;margin-bottom:14px;background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:12px;box-shadow:0 7px 24px rgba(15,35,75,.08);backdrop-filter:blur(8px)}
+    .exam-heading{flex:1;min-width:0}.exam-heading strong{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.exam-heading span{display:block;margin-top:2px;font-size:10px;color:var(--slate)}
+    .timer{font-size:17px;font-weight:850;font-variant-numeric:tabular-nums}.save-state{min-width:58px;font-size:10px;color:#047857}
+    .security-banner{display:none;padding:11px 14px;margin-bottom:12px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#991B1B;font-size:11px}.security-banner.show{display:block}
+    .question-stage{min-height:430px}.question-frame{display:none}.question-frame.active{display:block}
+    .question-card{overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:15px;box-shadow:0 9px 28px rgba(15,35,75,.06)}
+    .question-card-head{display:flex;align-items:center;gap:10px;padding:14px 17px;border-bottom:1px solid var(--border);background:#F8FAFC}
+    .section-pill{padding:5px 9px;border-radius:7px;background:#0B234B;color:#fff;font-size:10px;font-weight:800;letter-spacing:.04em}.question-position{font-size:11px;font-weight:700;color:var(--slate)}
+    .type-pill{margin-left:auto;padding:5px 9px;border-radius:999px;background:#E0E7FF;color:#3730A3;font-size:9px;font-weight:800;text-transform:uppercase}.type-pill.theory{background:#FEF3C7;color:#92400E}
+    .flag-btn{border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--slate);padding:6px 9px;font:700 10px inherit;cursor:pointer}.flag-btn.flagged{border-color:#F59E0B;background:#FFFBEB;color:#B45309}
+    .question-content{padding:24px 25px 26px}.question-row{display:grid;grid-template-columns:42px minmax(0,1fr);gap:13px;align-items:start}.question-row+.question-row{margin-top:19px;padding-top:19px;border-top:1px solid #E8EDF5}
+    .question-number{width:42px;min-height:36px;display:grid;place-items:center;border-radius:9px;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:850}.theory-frame .question-number{background:#FFF7E6;color:#B45309}
+    .question-text{font-size:14px;line-height:1.72;font-weight:650;color:var(--midnight)}.question-meta{margin-top:5px;font-size:10px;color:var(--slate)}
+    .question-image{display:block;max-width:min(100%,620px);max-height:340px;object-fit:contain;margin:15px 0;border:1px solid var(--border);border-radius:10px}
+    .options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.option{display:flex;align-items:flex-start;gap:10px;min-height:49px;padding:12px;border:1px solid #DDE5F0;border-radius:10px;background:#fff;font-size:12px;line-height:1.5;cursor:pointer;transition:.16s ease}.option:hover{border-color:#93C5FD;background:#F8FBFF}.option.chosen{border-color:#2563EB;background:#EFF6FF;box-shadow:0 0 0 1px #2563EB inset}.option input{margin-top:2px;accent-color:#1D4ED8}.option-letter{font-weight:850;color:#1D4ED8}
+    .short-answer{width:100%;margin-top:17px;padding:12px;border:1px solid var(--border);border-radius:9px;font:inherit;font-size:12px}
+    .booklet-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin:18px 0 0;border:1px solid #FDE68A;border-radius:10px;background:#FFFBEB;color:#854D0E;font-size:11px;line-height:1.55}.booklet-notice strong{display:block;margin-bottom:2px}
+    .question-controls{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:12px;padding:10px;background:#fff;border:1px solid var(--border);border-radius:12px}
+    .move-btn{width:42px;height:38px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--midnight);font-size:19px;cursor:pointer}.move-btn:hover:not(:disabled){background:#EFF6FF;border-color:#93C5FD}.move-btn:disabled{opacity:.35;cursor:not-allowed}
+    .question-navigator{display:flex;gap:6px;overflow-x:auto;padding:2px;scrollbar-width:thin}.nav-question{flex:0 0 auto;min-width:39px;height:34px;padding:0 8px;border:1px solid #DDE5F0;border-radius:8px;background:#fff;color:var(--slate);font:750 10px inherit;cursor:pointer}.nav-question.active{border-color:#0B234B;background:#0B234B;color:#fff}.nav-question.answered{border-color:#86EFAC;background:#DCFCE7;color:#166534}.nav-question.paper{border-color:#FDE68A;background:#FFFBEB;color:#92400E}.nav-question.flagged{box-shadow:0 0 0 2px #F59E0B inset}.nav-question.active{color:#fff;background:#0B234B}
+    .keyboard-help{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:9px 0 14px;color:var(--slate);font-size:9px}.keyboard-help kbd{padding:2px 5px;border:1px solid #CBD5E1;border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--midnight);font:700 9px inherit}
+    .exam-footer{position:sticky;bottom:7px;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:12px;box-shadow:0 -7px 22px rgba(15,35,75,.08)}.exam-footer span{font-size:10px;color:var(--slate)}
+    .btn{border:0;border-radius:8px;padding:9px 13px;font:750 11px inherit;cursor:pointer}.btn-light{border:1px solid var(--border);background:#fff;color:var(--midnight)}.btn-danger{background:#B91C1C;color:#fff}
+    .empty-exam{padding:42px;text-align:center;background:#fff;border:1px solid var(--border);border-radius:13px;color:var(--slate)}
+    .calc-panel{display:none;position:fixed;right:22px;bottom:22px;z-index:80;width:290px;padding:12px;border-radius:13px;background:#0F172A;color:#fff;box-shadow:0 18px 44px rgba(15,23,42,.35)}.calc-panel.open{display:block}.calc-screen{min-height:46px;margin-bottom:8px;padding:10px;overflow:hidden;border-radius:8px;background:#020617;text-align:right;font-size:19px}.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.calc-key{border:0;border-radius:7px;padding:9px 4px;background:#1E293B;color:#fff;font:700 11px inherit;cursor:pointer}.calc-key.op{background:#1D4ED8}.calc-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;font-weight:800}.calc-title button{border:0;background:none;color:#CBD5E1;font-size:18px;cursor:pointer}
+    @media(max-width:700px){.exam-shell{margin:-4px}.exam-toolbar{border-radius:9px;padding:10px}.exam-heading span,.save-state{display:none}.timer{font-size:14px}.question-stage{min-height:360px}.question-content{padding:18px 15px 20px}.question-row{grid-template-columns:34px minmax(0,1fr);gap:10px}.question-number{width:34px;min-height:32px}.question-text{font-size:13px}.options{grid-template-columns:1fr}.question-controls{grid-template-columns:38px minmax(0,1fr) 38px;gap:6px}.move-btn{width:38px}.keyboard-help{display:none}.exam-footer span{display:none}.calc-panel{left:10px;right:10px;bottom:10px;width:auto}}
 </style>
 @endpush
+
 @section('content')
 <div class="exam-shell">
-<div id="securityBanner" class="security-banner">A prohibited navigation event was detected. Your current answers are being secured.</div>
-<div class="exam-top"><div class="exam-title"><strong>{{ $exam->title }}</strong><span>{{ $exam->questionBank->subject->name ?? '' }} · Attempt {{ $existing?->attempt_number ?? 'Preview' }}</span></div>@if($existing)<button type="button" id="calcToggle" class="btn btn-light">Calculator</button><span id="saveState" class="save-state">Saved</span><span id="timer" class="timer">--:--:--</span>@else<span class="timer">Preview</span>@endif</div>
-<div class="exam-workspace"><main><div class="section-tabs" role="tablist">@foreach($sectionPayload as $i=>$item)@php $assessable=$item['questions']->filter(fn($q)=>$q->countsForMarks())->count(); @endphp<button type="button" class="section-tab {{ $i===0?'active':'' }}" data-pane="section{{ $item['section']->id }}">{{ $item['section']->code }} · {{ $item['section']->name }}<small id="sectionStatus{{ $item['section']->id }}">{{ $assessable }} question(s) · {{ number_format((float)$item['section']->max_marks,1) }} marks</small></button>@endforeach</div>
-@if($existing)
-<form id="examForm" method="POST" action="{{ route('cbt.session.submit',$existing) }}">
-@csrf
-@endif
-@foreach($sectionPayload as $i=>$item)
-@php $section=$item['section']; @endphp
-<section id="section{{ $section->id }}" class="section-pane {{ $i===0?'active':'' }}"><div class="section-banner"><small>SECTION {{ $section->code }} · {{ strtoupper($section->answer_mode) }}</small><h2>{{ $section->title ?: $section->name }}</h2><p>{{ $section->instructions ?: 'Answer all required questions in this section.' }}</p></div>
-@if($section->answer_mode==='paper')<div class="paper-notice"><strong>Answer booklet required.</strong> Responses for this section must be written in the supplied booklet. No online answer field is provided; the teacher will score the booklet manually.</div>@endif
-@foreach($item['questions'] as $question)
-<article id="question{{ $question->id }}" data-question-id="{{ $question->id }}" data-requires-answer="{{ (!$question->is_instruction_only&&$question->requires_answer&&$section->answer_mode!=='paper')?1:0 }}" class="question {{ $question->is_instruction_only?'instruction':'' }}" style="margin-left:{{ min(44,$question->display_level*12) }}px"><div class="q-head"><span class="q-number">{{ $question->display_number }}</span><div class="q-body">@if($existing&&!$question->is_instruction_only&&$question->requires_answer&&$section->answer_mode!=='paper')<button type="button" class="flag-btn" data-flag="{{ $question->id }}">Flag</button>@endif<div class="q-text math-content">{!! nl2br(e($question->question_text)) !!}</div><div class="q-meta">{{ $question->is_instruction_only?'Instruction':number_format((float)($question->pivot->marks_override ?? $question->marks),1).' mark(s)' }}</div>
-@if(!$question->is_instruction_only && $question->requires_answer && $section->answer_mode!=='paper')
-  @if(in_array($question->type,['mcq','true_false']))<div class="options">@foreach($question->optionsArray() as $letter=>$option)<label class="option"><input type="radio" name="answers[{{ $question->id }}]" value="{{ $letter }}" {{ (($existing?->answers[$question->id]??'')===$letter)?'checked':'' }}><span><b>{{ strtoupper($letter) }}.</b> {{ $option }}</span></label>@endforeach</div>
-  @elseif($question->type==='fill_blank')<input class="answer-box short" type="text" name="answers[{{ $question->id }}]" value="{{ $existing?->answers[$question->id]??'' }}" placeholder="Type your answer">
-  @elseif($question->type==='short_answer')<textarea class="answer-box short" name="essay_answers[{{ $question->id }}]" placeholder="Type your answer">{{ $existing?->essay_answers[$question->id]??'' }}</textarea><small class="word-count">0 words</small>
-  @else<textarea class="answer-box" name="essay_answers[{{ $question->id }}]" placeholder="Type your answer">{{ $existing?->essay_answers[$question->id]??'' }}</textarea><small class="word-count">0 words</small>@endif
-@endif
-</div></div></article>
-@endforeach</section>
-@endforeach
-@if($existing)<div class="exam-foot"><button type="button" id="prevSection" class="btn btn-light">Previous section</button><span style="font-size:10px;color:var(--slate)">Answers save automatically</span><button type="submit" class="btn btn-danger" onclick="return confirm('Submit your final answers? You cannot edit them afterwards.')">Submit examination</button></div></form>@endif</main>
-<aside class="navigator"><div class="nav-head">Question navigator</div><div id="navSummary" class="nav-summary">Progress will appear here.</div>@foreach($sectionPayload as $i=>$item)<div class="nav-group">{{ $item['section']->code }} · {{ $item['section']->name }}</div><div class="nav-grid">@foreach($item['questions']->filter(fn($q)=>!$q->is_instruction_only&&$q->requires_answer) as $question)<button type="button" class="nav-q" data-nav-question="{{ $question->id }}" data-nav-section="{{ $i }}" title="Question {{ $question->display_number }}">{{ $question->display_number }}</button>@endforeach</div>@endforeach</aside></div>
-@if($existing)<div id="calcPanel" class="calc-panel"><div class="calc-title"><span>Scientific calculator</span><button type="button" id="calcClose">×</button></div><div id="calcDisplay" class="calc-screen">0</div><div class="calc-grid">@foreach(['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','(',')','sin(','cos(','tan(','√(','π','^','C','⌫'] as $key)<button type="button" class="calc-key {{ in_array($key,['÷','×','−','^'])?'op':'' }}" data-calc="{{ $key }}">{{ $key }}</button>@endforeach<button type="button" class="calc-key op" data-calc="=">=</button></div></div>@endif
+    <div id="securityBanner" class="security-banner">A prohibited navigation event was detected. Your current answers are being secured.</div>
+
+    <header class="exam-toolbar">
+        <div class="exam-heading">
+            <strong>{{ $exam->title }}</strong>
+            <span>{{ $exam->questionBank->subject->name ?? '' }} · {{ $existing ? 'Attempt '.$existing->attempt_number : 'Staff preview' }}</span>
+        </div>
+        @if($existing)
+            <button type="button" id="calcToggle" class="btn btn-light">Calculator</button>
+            <span id="saveState" class="save-state">Saved</span>
+            <span id="timer" class="timer">--:--:--</span>
+        @else
+            <span class="timer">Preview</span>
+        @endif
+    </header>
+
+    @if($existing)
+    <form id="examForm" method="POST" action="{{ route('cbt.session.submit', $existing) }}">
+        @csrf
+    @endif
+
+    @if($questionFrames->isEmpty())
+        <div class="empty-exam">No questions are available in this examination.</div>
+    @else
+        <div class="question-stage" id="questionStage">
+            @foreach($questionFrames as $frameIndex => $frame)
+                @php $section = $frame['section']; @endphp
+                <section class="question-frame {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'theory-frame' : 'objective-frame' }}"
+                         data-question-frame
+                         data-frame-index="{{ $frameIndex }}"
+                         data-manual="{{ $frame['manual'] ? 1 : 0 }}"
+                         data-representative-id="{{ $frame['representative_id'] }}">
+                    <article class="question-card">
+                        <div class="question-card-head">
+                            <span class="section-pill">SECTION {{ $section->code }}</span>
+                            <span class="question-position">Question {{ $frameIndex + 1 }} of {{ $questionFrames->count() }}</span>
+                            <span class="type-pill {{ $frame['manual'] ? 'theory' : '' }}">{{ $frame['manual'] ? 'Theory · booklet' : 'Objective' }}</span>
+                            @if($existing)
+                                <button type="button" class="flag-btn" data-flag="{{ $frame['representative_id'] }}">Flag</button>
+                            @endif
+                        </div>
+                        <div class="question-content">
+                            @foreach($frame['questions'] as $question)
+                                <div class="question-row" data-question-id="{{ $question->id }}">
+                                    <span class="question-number">{{ $question->display_path }}</span>
+                                    <div>
+                                        <div class="question-text math-content">{!! nl2br(e($question->question_text)) !!}</div>
+                                        @if($question->image_path)
+                                            <img class="question-image" src="{{ Storage::url($question->image_path) }}" alt="Question diagram">
+                                        @endif
+                                        <div class="question-meta">{{ $question->is_instruction_only ? 'Instruction' : number_format((float) ($question->pivot->marks_override ?? $question->marks), 1).' mark(s)' }}</div>
+
+                                        @if(! $frame['manual'] && ! $question->is_instruction_only && $question->requires_answer)
+                                            @if(in_array($question->type, ['mcq', 'true_false'], true))
+                                                <div class="options">
+                                                    @foreach($question->optionsArray() as $letter => $option)
+                                                        <label class="option">
+                                                            <input type="radio" name="answers[{{ $question->id }}]" value="{{ $letter }}" @checked(($existing?->answers[$question->id] ?? '') === $letter)>
+                                                            <span><span class="option-letter">{{ strtoupper($letter) }}.</span> {{ $option }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @elseif($question->type === 'fill_blank')
+                                                <input class="short-answer" type="text" name="answers[{{ $question->id }}]" value="{{ $existing?->answers[$question->id] ?? '' }}" placeholder="Type your answer">
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+
+                            @if($frame['manual'])
+                                <div class="booklet-notice"><span aria-hidden="true">✎</span><div><strong>Answer in the official booklet.</strong>Write the main question and every branch in your answer booklet. This question is marked manually; no response is entered on this screen.</div></div>
+                            @endif
+                        </div>
+                    </article>
+                </section>
+            @endforeach
+        </div>
+
+        <div class="question-controls" aria-label="Question navigation">
+            <button type="button" class="move-btn" id="previousQuestion" aria-label="Previous question">←</button>
+            <div class="question-navigator" id="questionNavigator">
+                @foreach($questionFrames as $frameIndex => $frame)
+                    <button type="button" class="nav-question {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'paper' : '' }}" data-nav-frame="{{ $frameIndex }}" data-nav-representative="{{ $frame['representative_id'] }}" title="Question {{ $frameIndex + 1 }}">{{ $frameIndex + 1 }}</button>
+                @endforeach
+            </div>
+            <button type="button" class="move-btn" id="nextQuestion" aria-label="Next question">→</button>
+        </div>
+
+        <div class="keyboard-help">
+            <span><kbd>←</kbd> <kbd>P</kbd> Previous</span>
+            <span><kbd>→</kbd> <kbd>N</kbd> Next</span>
+            <span><kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> <kbd>D</kbd> Choose objective answer</span>
+        </div>
+    @endif
+
+    @if($existing)
+        <footer class="exam-footer">
+            <span>Objective answers save automatically. Theory answers must be written in the official booklet.</span>
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Submit your final answers? You cannot edit them afterwards.')">Submit examination</button>
+        </footer>
+    </form>
+    @endif
+
+    @if($existing)
+        <div id="calcPanel" class="calc-panel">
+            <div class="calc-title"><span>Scientific calculator</span><button type="button" id="calcClose">×</button></div>
+            <div id="calcDisplay" class="calc-screen">0</div>
+            <div class="calc-grid">
+                @foreach(['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','(',')','sin(','cos(','tan(','√(','π','^','C','⌫'] as $key)
+                    <button type="button" class="calc-key {{ in_array($key, ['÷','×','−','^'], true) ? 'op' : '' }}" data-calc="{{ $key }}">{{ $key }}</button>
+                @endforeach
+                <button type="button" class="calc-key op" data-calc="=">=</button>
+            </div>
+        </div>
+    @endif
 </div>
 @endsection
-@if($existing)
+
 @push('scripts')
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
 <script>
-const form=document.getElementById('examForm'),tabs=[...document.querySelectorAll('.section-tab')],panes=[...document.querySelectorAll('.section-pane')],navButtons=[...document.querySelectorAll('[data-nav-question]')],csrf=@json(csrf_token()),strictIntegrity=@json((bool)($exam->malpractice_enabled && $exam->focus_loss_policy==='submit')),flaggedQuestions=new Set(@json(array_values(array_map('intval',(array)($existing->flagged_questions??[])))));let finalizing=false,integrityLocked=false,pendingIntegrity=null,saveTimer,lastIntegrity=0,currentQuestion=0;
-function activate(i){tabs.forEach((t,n)=>t.classList.toggle('active',n===i));panes.forEach((p,n)=>p.classList.toggle('active',n===i));window.scrollTo({top:0,behavior:'smooth'});}tabs.forEach((t,i)=>t.onclick=()=>activate(i));document.getElementById('prevSection').onclick=()=>{const i=tabs.findIndex(t=>t.classList.contains('active'));activate(Math.max(0,i-1));};
-function payload(){const fd=new FormData(form),answers={},essays={};for(const [k,v] of fd){let m=k.match(/^answers\[(\d+)\]$/);if(m)answers[m[1]]=v;m=k.match(/^essay_answers\[(\d+)\]$/);if(m)essays[m[1]]=v;}return{answers,essay_answers:essays,flagged_questions:[...flaggedQuestions]};}
-function answered(qid){const card=document.getElementById('question'+qid),checked=card?.querySelector('input[type=radio]:checked'),field=card?.querySelector('input[type=text],textarea');return !!checked||!!field?.value.trim();}
-function updateProgress(){let done=0,total=0;navButtons.forEach(button=>{const qid=button.dataset.navQuestion,card=document.getElementById('question'+qid),online=card?.dataset.requiresAnswer==='1',isDone=online&&answered(qid);button.classList.toggle('answered',isDone);button.classList.toggle('flagged',flaggedQuestions.has(Number(qid)));if(online){total++;if(isDone)done++;}});document.getElementById('navSummary').textContent=`${done} of ${total} online responses completed`;panes.forEach(pane=>{const required=[...pane.querySelectorAll('[data-requires-answer="1"]')],complete=required.filter(card=>answered(card.dataset.questionId)).length,status=document.getElementById('sectionStatus'+pane.id.replace('section',''));if(status)status.textContent=required.length?`${complete} of ${required.length} completed`:'Paper booklet';});document.querySelectorAll('.option').forEach(option=>option.classList.toggle('chosen',!!option.querySelector('input:checked')));document.querySelectorAll('textarea').forEach(area=>{const counter=area.nextElementSibling;if(counter?.classList.contains('word-count'))counter.textContent=(area.value.trim()?area.value.trim().split(/\s+/).length:0)+' words';});}
-function goQuestion(index){if(!navButtons.length)return;currentQuestion=Math.max(0,Math.min(index,navButtons.length-1));const button=navButtons[currentQuestion];activate(Number(button.dataset.navSection));setTimeout(()=>document.getElementById('question'+button.dataset.navQuestion)?.scrollIntoView({behavior:'smooth',block:'center'}),120);}navButtons.forEach((button,index)=>button.onclick=()=>goQuestion(index));document.querySelectorAll('[data-flag]').forEach(button=>{const qid=Number(button.dataset.flag);button.classList.toggle('flagged',flaggedQuestions.has(qid));button.onclick=()=>{flaggedQuestions.has(qid)?flaggedQuestions.delete(qid):flaggedQuestions.add(qid);button.classList.toggle('flagged',flaggedQuestions.has(qid));updateProgress();autosave();};});form.addEventListener('input',updateProgress);form.addEventListener('change',updateProgress);updateProgress();
-async function autosave(){if(finalizing||integrityLocked)return;const state=document.getElementById('saveState');state.textContent='Saving…';try{const r=await fetch(@json(route('cbt.session.autosave',$existing)),{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},body:JSON.stringify(payload())});if(r.status===409){finalizing=true;location.href=@json(route('student.portal.exams'));return;}state.textContent=r.ok?'Saved':'Retrying';}catch(e){state.textContent='Offline';}}
-form.addEventListener('input',()=>{clearTimeout(saveTimer);saveTimer=setTimeout(autosave,700)});setInterval(autosave,20000);form.addEventListener('submit',()=>{finalizing=true});
-async function deliverIntegrity(){if(!pendingIntegrity||finalizing)return;try{const r=await fetch(@json(route('cbt.session.integrity',$existing)),{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrf,'Accept':'application/json'},keepalive:true,body:JSON.stringify(pendingIntegrity)});const data=await r.json();if(data.submitted||['auto_submitted','submitted','graded'].includes(data.status)){finalizing=true;document.getElementById('securityBanner').textContent='Examination submitted automatically. Your saved responses have been recorded.';setTimeout(()=>location.href=@json(route('student.portal.exams')),900);return;}pendingIntegrity=null;if(!strictIntegrity)integrityLocked=false;}catch(e){document.getElementById('saveState').textContent='Reconnecting…';setTimeout(deliverIntegrity,3000);}}
-function integrity(type,meta={}){if(finalizing||integrityLocked)return;const now=Date.now(),prohibited=['visibility_hidden','window_blur','page_hidden','focus_lost','fullscreen_exit'].includes(type);if(now-lastIntegrity<900&&prohibited)return;lastIntegrity=now;document.getElementById('securityBanner').classList.add('show');pendingIntegrity={event_uuid:crypto.randomUUID(),event_type:type,metadata:meta,...payload()};if(strictIntegrity&&prohibited){integrityLocked=true;document.querySelectorAll('.exam-shell input,.exam-shell textarea,.exam-shell button').forEach(el=>el.disabled=true);}deliverIntegrity();}
-window.addEventListener('online',()=>{if(pendingIntegrity)deliverIntegrity()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)integrity('visibility_hidden')});window.addEventListener('blur',()=>integrity('window_blur'));window.addEventListener('pagehide',()=>integrity('page_hidden'));window.addEventListener('beforeunload',e=>{if(!finalizing){integrity('beforeunload');e.preventDefault();e.returnValue='';}});document.addEventListener('fullscreenchange',()=>{if(@json((bool)$exam->require_fullscreen)&&!document.fullscreenElement)integrity('fullscreen_exit')});
-document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('copy',e=>e.preventDefault());document.addEventListener('paste',e=>e.preventDefault());
-document.addEventListener('keydown',e=>{if(e.key==='PrintScreen'||(e.ctrlKey&&['p','s','u'].includes(e.key.toLowerCase()))){e.preventDefault();return;}if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;const key=e.key.toLowerCase();if(key==='n'){e.preventDefault();goQuestion(currentQuestion+1);}if(key==='p'){e.preventDefault();goQuestion(currentQuestion-1);}if(['a','b','c','d'].includes(key)){const card=document.getElementById('question'+navButtons[currentQuestion]?.dataset.navQuestion),radio=card?.querySelector(`input[type=radio][value="${key}"]`);if(radio){radio.checked=true;updateProgress();autosave();}}});
-const calcPanel=document.getElementById('calcPanel'),calcDisplay=document.getElementById('calcDisplay');document.getElementById('calcToggle')?.addEventListener('click',()=>calcPanel.classList.toggle('open'));document.getElementById('calcClose')?.addEventListener('click',()=>calcPanel.classList.remove('open'));let calcExpr='';document.querySelectorAll('[data-calc]').forEach(key=>key.onclick=()=>{const value=key.dataset.calc;if(value==='C')calcExpr='';else if(value==='⌫')calcExpr=calcExpr.slice(0,-1);else if(value==='='){try{const source=calcExpr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/π/g,'Math.PI').replace(/√\(/g,'Math.sqrt(').replace(/sin\(/g,'Math.sin(').replace(/cos\(/g,'Math.cos(').replace(/tan\(/g,'Math.tan(').replace(/\^/g,'**');calcExpr=String(Function(`"use strict";return (${source})`)());}catch(e){calcExpr='Error';}}else{if(calcExpr==='Error')calcExpr='';calcExpr+=value;}calcDisplay.textContent=calcExpr||'0';});
-window.addEventListener('load',()=>{if(window.renderMathInElement)document.querySelectorAll('.math-content').forEach(el=>renderMathInElement(el,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\(',right:'\\)',display:false},{left:'$',right:'$',display:false}],throwOnError:false,trust:false}));});
-const started=new Date(@json($existing->started_at?->toIso8601String())),duration={{ (int)$exam->duration_minutes }}*60000,scheduledEnd=@json($exam->scheduled_end?->toIso8601String());let deadline=started.getTime()+duration;if(scheduledEnd)deadline=Math.min(deadline,new Date(scheduledEnd).getTime());function tick(){const left=Math.max(0,deadline-Date.now()),h=Math.floor(left/3600000),m=Math.floor(left%3600000/60000),s=Math.floor(left%60000/1000);document.getElementById('timer').textContent=[h,m,s].map(x=>String(x).padStart(2,'0')).join(':');if(left<=0&&!finalizing){finalizing=true;form.submit();}}tick();setInterval(tick,1000);
-@if($exam->require_fullscreen)document.documentElement.requestFullscreen?.().catch(()=>{});@endif
+(() => {
+    const frames = [...document.querySelectorAll('[data-question-frame]')];
+    const navButtons = [...document.querySelectorAll('[data-nav-frame]')];
+    const previousButton = document.getElementById('previousQuestion');
+    const nextButton = document.getElementById('nextQuestion');
+    const form = document.getElementById('examForm');
+    const existing = @json((bool) $existing);
+    const csrf = @json(csrf_token());
+    const flaggedQuestions = new Set(@json(array_values(array_map('intval', (array) ($existing?->flagged_questions ?? [])))));
+    let currentFrame = 0;
+    let finalizing = false;
+    let integrityLocked = false;
+    let pendingIntegrity = null;
+    let saveTimer;
+    let lastIntegrity = 0;
+
+    function showFrame(index, focus = false) {
+        if (! frames.length) return;
+        currentFrame = Math.max(0, Math.min(index, frames.length - 1));
+        frames.forEach((frame, position) => frame.classList.toggle('active', position === currentFrame));
+        navButtons.forEach((button, position) => button.classList.toggle('active', position === currentFrame));
+        if (previousButton) previousButton.disabled = currentFrame === 0;
+        if (nextButton) nextButton.disabled = currentFrame === frames.length - 1;
+        navButtons[currentFrame]?.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'});
+        if (focus) document.getElementById('questionStage')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+
+    function moveFrame(delta) { showFrame(currentFrame + delta, true); }
+
+    function payload() {
+        if (! form) return {answers: {}, essay_answers: {}, flagged_questions: [...flaggedQuestions]};
+        const data = new FormData(form);
+        const answers = {};
+        for (const [key, value] of data) {
+            const match = key.match(/^answers\[(\d+)\]$/);
+            if (match) answers[match[1]] = value;
+        }
+        return {answers, essay_answers: {}, flagged_questions: [...flaggedQuestions]};
+    }
+
+    function frameAnswered(frame) {
+        if (frame.dataset.manual === '1') return false;
+        return !!frame.querySelector('input[type="radio"]:checked') || !!frame.querySelector('input[type="text"]')?.value.trim();
+    }
+
+    function updateProgress() {
+        frames.forEach((frame, index) => {
+            const nav = navButtons[index];
+            nav?.classList.toggle('answered', frameAnswered(frame));
+            nav?.classList.toggle('flagged', flaggedQuestions.has(Number(frame.dataset.representativeId)));
+            frame.querySelectorAll('.option').forEach(option => option.classList.toggle('chosen', !!option.querySelector('input:checked')));
+            const flag = frame.querySelector('[data-flag]');
+            if (flag) flag.classList.toggle('flagged', flaggedQuestions.has(Number(flag.dataset.flag)));
+        });
+    }
+
+    function selectObjectiveAnswer(letter) {
+        const radio = frames[currentFrame]?.querySelector(`input[type="radio"][value="${letter}"]`);
+        if (! radio || radio.disabled) return;
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+
+    previousButton?.addEventListener('click', () => moveFrame(-1));
+    nextButton?.addEventListener('click', () => moveFrame(1));
+    navButtons.forEach((button, index) => button.addEventListener('click', () => showFrame(index, true)));
+    document.querySelectorAll('[data-flag]').forEach(button => button.addEventListener('click', () => {
+        const id = Number(button.dataset.flag);
+        flaggedQuestions.has(id) ? flaggedQuestions.delete(id) : flaggedQuestions.add(id);
+        updateProgress();
+        autosave();
+    }));
+
+    document.addEventListener('keydown', event => {
+        const typing = document.activeElement?.tagName === 'INPUT' && document.activeElement?.type === 'text';
+        if (typing || event.ctrlKey || event.altKey || event.metaKey) return;
+        const key = event.key.toLowerCase();
+        if (event.key === 'ArrowLeft' || key === 'p') {
+            event.preventDefault(); moveFrame(-1);
+        } else if (event.key === 'ArrowRight' || key === 'n') {
+            event.preventDefault(); moveFrame(1);
+        } else if (['a', 'b', 'c', 'd'].includes(key)) {
+            event.preventDefault(); selectObjectiveAnswer(key);
+        }
+    });
+
+    document.querySelectorAll('input[name^="answers["]').forEach(input => input.addEventListener('change', () => { updateProgress(); autosave(); }));
+    form?.addEventListener('input', () => { updateProgress(); clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 650); });
+    form?.addEventListener('submit', () => { finalizing = true; });
+    showFrame(0);
+    updateProgress();
+
+    async function autosave() {
+        if (! existing || ! form || finalizing || integrityLocked) return;
+        const state = document.getElementById('saveState');
+        if (state) state.textContent = 'Saving…';
+        try {
+            const response = await fetch(@json($existing ? route('cbt.session.autosave', $existing) : ''), {
+                method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, body: JSON.stringify(payload()),
+            });
+            if (response.status === 409) { finalizing = true; location.href = @json(route('student.portal.exams')); return; }
+            if (state) state.textContent = response.ok ? 'Saved' : 'Retrying';
+        } catch (error) { if (state) state.textContent = 'Offline'; }
+    }
+
+    if (existing) setInterval(autosave, 20000);
+
+    const strictIntegrity = @json((bool) ($existing && $exam->malpractice_enabled && $exam->focus_loss_policy === 'submit'));
+    async function deliverIntegrity() {
+        if (! pendingIntegrity || finalizing || ! existing) return;
+        try {
+            const response = await fetch(@json($existing ? route('cbt.session.integrity', $existing) : ''), {
+                method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'}, keepalive: true, body: JSON.stringify(pendingIntegrity),
+            });
+            const data = await response.json();
+            if (data.submitted || ['auto_submitted', 'submitted', 'graded'].includes(data.status)) {
+                finalizing = true;
+                document.getElementById('securityBanner').textContent = 'Examination submitted automatically. Your saved responses have been recorded.';
+                setTimeout(() => location.href = @json(route('student.portal.exams')), 900);
+                return;
+            }
+            pendingIntegrity = null;
+            if (! strictIntegrity) integrityLocked = false;
+        } catch (error) {
+            const state = document.getElementById('saveState');
+            if (state) state.textContent = 'Reconnecting…';
+            setTimeout(deliverIntegrity, 3000);
+        }
+    }
+
+    function integrity(type, metadata = {}) {
+        if (! existing || finalizing || integrityLocked) return;
+        const now = Date.now();
+        const prohibited = ['visibility_hidden', 'window_blur', 'page_hidden', 'focus_lost', 'fullscreen_exit'].includes(type);
+        if (now - lastIntegrity < 900 && prohibited) return;
+        lastIntegrity = now;
+        document.getElementById('securityBanner').classList.add('show');
+        pendingIntegrity = {event_uuid: crypto.randomUUID(), event_type: type, metadata, ...payload()};
+        if (strictIntegrity && prohibited) {
+            integrityLocked = true;
+            document.querySelectorAll('.exam-shell input,.exam-shell button').forEach(element => element.disabled = true);
+        }
+        deliverIntegrity();
+    }
+
+    if (existing) {
+        window.addEventListener('online', () => pendingIntegrity && deliverIntegrity());
+        document.addEventListener('visibilitychange', () => document.hidden && integrity('visibility_hidden'));
+        window.addEventListener('blur', () => integrity('window_blur'));
+        window.addEventListener('pagehide', () => integrity('page_hidden'));
+        window.addEventListener('beforeunload', event => { if (! finalizing) { integrity('beforeunload'); event.preventDefault(); event.returnValue = ''; } });
+        document.addEventListener('fullscreenchange', () => { if (@json((bool) $exam->require_fullscreen) && ! document.fullscreenElement) integrity('fullscreen_exit'); });
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('copy', event => event.preventDefault());
+        document.addEventListener('paste', event => event.preventDefault());
+        document.addEventListener('keydown', event => { if (event.key === 'PrintScreen' || (event.ctrlKey && ['p', 's', 'u'].includes(event.key.toLowerCase()))) event.preventDefault(); });
+    }
+
+    const calcPanel = document.getElementById('calcPanel');
+    const calcDisplay = document.getElementById('calcDisplay');
+    document.getElementById('calcToggle')?.addEventListener('click', () => calcPanel.classList.toggle('open'));
+    document.getElementById('calcClose')?.addEventListener('click', () => calcPanel.classList.remove('open'));
+    let calcExpression = '';
+    document.querySelectorAll('[data-calc]').forEach(key => key.addEventListener('click', () => {
+        const value = key.dataset.calc;
+        if (value === 'C') calcExpression = '';
+        else if (value === '⌫') calcExpression = calcExpression.slice(0, -1);
+        else if (value === '=') {
+            try {
+                const source = calcExpression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/π/g, 'Math.PI').replace(/√\(/g, 'Math.sqrt(').replace(/sin\(/g, 'Math.sin(').replace(/cos\(/g, 'Math.cos(').replace(/tan\(/g, 'Math.tan(').replace(/\^/g, '**');
+                calcExpression = String(Function(`"use strict";return (${source})`)());
+            } catch (error) { calcExpression = 'Error'; }
+        } else { if (calcExpression === 'Error') calcExpression = ''; calcExpression += value; }
+        if (calcDisplay) calcDisplay.textContent = calcExpression || '0';
+    }));
+
+    window.addEventListener('load', () => {
+        if (window.renderMathInElement) document.querySelectorAll('.math-content').forEach(element => renderMathInElement(element, {
+            delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}, {left: '$', right: '$', display: false}], throwOnError: false, trust: false,
+        }));
+    });
+
+    if (existing) {
+        const started = new Date(@json($existing?->started_at?->toIso8601String()));
+        const scheduledEnd = @json($exam->scheduled_end?->toIso8601String());
+        let deadline = started.getTime() + {{ (int) $exam->duration_minutes }} * 60000;
+        if (scheduledEnd) deadline = Math.min(deadline, new Date(scheduledEnd).getTime());
+        function tick() {
+            const left = Math.max(0, deadline - Date.now());
+            const hours = Math.floor(left / 3600000), minutes = Math.floor(left % 3600000 / 60000), seconds = Math.floor(left % 60000 / 1000);
+            const timer = document.getElementById('timer');
+            if (timer) timer.textContent = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+            if (left <= 0 && ! finalizing && form) { finalizing = true; form.submit(); }
+        }
+        tick();
+        setInterval(tick, 1000);
+        @if($exam->require_fullscreen)
+            document.documentElement.requestFullscreen?.().catch(() => {});
+        @endif
+    }
+})();
 </script>
 @endpush
-@else
-@push('scripts')
-<script>const tabs=[...document.querySelectorAll('.section-tab')],panes=[...document.querySelectorAll('.section-pane')],navButtons=[...document.querySelectorAll('[data-nav-question]')];function activate(i){tabs.forEach((tab,n)=>tab.classList.toggle('active',n===i));panes.forEach((pane,n)=>pane.classList.toggle('active',n===i));}tabs.forEach((tab,i)=>tab.onclick=()=>activate(i));navButtons.forEach(button=>button.onclick=()=>{activate(Number(button.dataset.navSection));setTimeout(()=>document.getElementById('question'+button.dataset.navQuestion)?.scrollIntoView({behavior:'smooth',block:'center'}),100);});</script>
-@endpush
-@endif

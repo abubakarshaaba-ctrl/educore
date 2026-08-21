@@ -62,7 +62,7 @@ class CbtExamConfigurationService
                     'display_order' => $position + 1,
                     'section_type' => $sectionType,
                     'scoring_method' => $scoringMethod,
-                    'answer_mode' => 'online',
+                    'answer_mode' => $sectionType === 'theory' ? 'paper' : 'online',
                     'max_marks' => $maximum,
                     'is_required' => true,
                     'is_active' => true,
@@ -172,7 +172,7 @@ class CbtExamConfigurationService
                 $section = $exam->sections()->create([
                     'tenant_id' => $exam->tenant_id, 'name' => $name, 'code' => $code, 'title' => $title,
                     'display_order' => $position + 1, 'section_type' => $type, 'scoring_method' => $method,
-                    'answer_mode' => 'online', 'max_marks' => round($count * $mark, 2),
+                    'answer_mode' => $type === 'theory' ? 'paper' : 'online', 'max_marks' => round($count * $mark, 2),
                     'is_required' => true, 'is_active' => true, 'created_by' => $actorId,
                 ]);
                 $ids = CbtQuestion::where('question_bank_id', $exam->question_bank_id)->whereIn('type', $types)->inRandomOrder()->limit($count)->pluck('id');
