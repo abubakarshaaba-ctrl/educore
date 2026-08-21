@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends(auth()->user()?->isStudent() ? 'layouts.portal' : 'layouts.app')
 @section('title', 'Exam Security Acknowledgement')
 @section('page-title', 'CBT Examination')
 @push('styles')

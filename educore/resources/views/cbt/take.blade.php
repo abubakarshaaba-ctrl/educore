@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends(auth()->user()?->isStudent() ? 'layouts.portal' : 'layouts.app')
 @section('title', $exam->title)
 @section('page-title', 'CBT Examination')
 
@@ -57,6 +57,7 @@
     .exam-heading{flex:1;min-width:0}.exam-heading strong{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.exam-heading span{display:block;margin-top:2px;font-size:10px;color:var(--slate)}
     .timer{font-size:17px;font-weight:850;font-variant-numeric:tabular-nums}.save-state{min-width:58px;font-size:10px;color:#047857}
     .security-banner{display:none;padding:11px 14px;margin-bottom:12px;border:1px solid #FECACA;border-radius:10px;background:#FEF2F2;color:#991B1B;font-size:11px}.security-banner.show{display:block}
+    .section-tabs{display:flex;gap:7px;overflow-x:auto;margin:0 0 12px;padding:2px 1px 5px;scrollbar-width:thin}.section-tab{flex:0 0 auto;min-width:128px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--slate);font:750 11px inherit;text-align:left;cursor:pointer}.section-tab span{display:block;margin-top:2px;font-size:9px;font-weight:500;color:var(--muted)}.section-tab.active{border-color:#0B234B;background:#0B234B;color:#fff}.section-tab.active span{color:#CBD5E1}
     .question-stage{min-height:430px}.question-frame{display:none}.question-frame.active{display:block}
     .question-card{overflow:hidden;background:#fff;border:1px solid var(--border);border-radius:15px;box-shadow:0 9px 28px rgba(15,35,75,.06)}
     .question-card-head{display:flex;align-items:center;gap:10px;padding:14px 17px;border-bottom:1px solid var(--border);background:#F8FAFC}
@@ -72,13 +73,13 @@
     .booklet-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin:18px 0 0;border:1px solid #FDE68A;border-radius:10px;background:#FFFBEB;color:#854D0E;font-size:11px;line-height:1.55}.booklet-notice strong{display:block;margin-bottom:2px}
     .question-controls{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:12px;padding:10px;background:#fff;border:1px solid var(--border);border-radius:12px}
     .move-btn{width:42px;height:38px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--midnight);font-size:19px;cursor:pointer}.move-btn:hover:not(:disabled){background:#EFF6FF;border-color:#93C5FD}.move-btn:disabled{opacity:.35;cursor:not-allowed}
-    .question-navigator{display:flex;gap:6px;overflow-x:auto;padding:2px;scrollbar-width:thin}.nav-question{flex:0 0 auto;min-width:39px;height:34px;padding:0 8px;border:1px solid #DDE5F0;border-radius:8px;background:#fff;color:var(--slate);font:750 10px inherit;cursor:pointer}.nav-question.active{border-color:#0B234B;background:#0B234B;color:#fff}.nav-question.answered{border-color:#86EFAC;background:#DCFCE7;color:#166534}.nav-question.paper{border-color:#FDE68A;background:#FFFBEB;color:#92400E}.nav-question.flagged{box-shadow:0 0 0 2px #F59E0B inset}.nav-question.active{color:#fff;background:#0B234B}
+    .navigator-shell{min-width:0}.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(2,34px);gap:6px;overflow:hidden;padding:2px}.nav-question{width:100%;height:34px;padding:0 3px;border:1px solid #DDE5F0;border-radius:8px;background:#fff;color:var(--slate);font:750 10px inherit;cursor:pointer}.nav-question[hidden]{display:none}.nav-question.active{border-color:#0B234B;background:#0B234B;color:#fff}.nav-question.answered{border-color:#86EFAC;background:#DCFCE7;color:#166534}.nav-question.paper{border-color:#FDE68A;background:#FFFBEB;color:#92400E}.nav-question.flagged{box-shadow:0 0 0 2px #F59E0B inset}.nav-question.active{color:#fff;background:#0B234B}.navigator-range{display:block;margin-top:5px;text-align:center;color:var(--muted);font-size:9px}
     .keyboard-help{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:9px 0 14px;color:var(--slate);font-size:9px}.keyboard-help kbd{padding:2px 5px;border:1px solid #CBD5E1;border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--midnight);font:700 9px inherit}
     .exam-footer{position:sticky;bottom:7px;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:12px;box-shadow:0 -7px 22px rgba(15,35,75,.08)}.exam-footer span{font-size:10px;color:var(--slate)}
     .btn{border:0;border-radius:8px;padding:9px 13px;font:750 11px inherit;cursor:pointer}.btn-light{border:1px solid var(--border);background:#fff;color:var(--midnight)}.btn-danger{background:#B91C1C;color:#fff}
     .empty-exam{padding:42px;text-align:center;background:#fff;border:1px solid var(--border);border-radius:13px;color:var(--slate)}
     .calc-panel{display:none;position:fixed;right:22px;bottom:22px;z-index:80;width:290px;padding:12px;border-radius:13px;background:#0F172A;color:#fff;box-shadow:0 18px 44px rgba(15,23,42,.35)}.calc-panel.open{display:block}.calc-screen{min-height:46px;margin-bottom:8px;padding:10px;overflow:hidden;border-radius:8px;background:#020617;text-align:right;font-size:19px}.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.calc-key{border:0;border-radius:7px;padding:9px 4px;background:#1E293B;color:#fff;font:700 11px inherit;cursor:pointer}.calc-key.op{background:#1D4ED8}.calc-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;font-weight:800}.calc-title button{border:0;background:none;color:#CBD5E1;font-size:18px;cursor:pointer}
-    @media(max-width:700px){.exam-shell{margin:-4px}.exam-toolbar{border-radius:9px;padding:10px}.exam-heading span,.save-state{display:none}.timer{font-size:14px}.question-stage{min-height:360px}.question-content{padding:18px 15px 20px}.question-row{grid-template-columns:34px minmax(0,1fr);gap:10px}.question-number{width:34px;min-height:32px}.question-text{font-size:13px}.options{grid-template-columns:1fr}.question-controls{grid-template-columns:38px minmax(0,1fr) 38px;gap:6px}.move-btn{width:38px}.keyboard-help{display:none}.exam-footer span{display:none}.calc-panel{left:10px;right:10px;bottom:10px;width:auto}}
+    @media(max-width:700px){.exam-shell{margin:-4px}.exam-toolbar{border-radius:9px;padding:10px}.exam-heading span,.save-state{display:none}.timer{font-size:14px}.section-tab{min-width:112px}.question-stage{min-height:360px}.question-content{padding:18px 15px 20px}.question-row{grid-template-columns:34px minmax(0,1fr);gap:10px}.question-number{width:34px;min-height:32px}.question-text{font-size:13px}.options{grid-template-columns:1fr}.question-controls{grid-template-columns:38px minmax(0,1fr) 38px;gap:6px}.question-navigator{grid-template-columns:repeat(5,minmax(0,1fr))}.move-btn{width:38px}.keyboard-help{display:none}.exam-footer span{display:none}.calc-panel{left:10px;right:10px;bottom:10px;width:auto}}
 </style>
 @endpush
 
@@ -100,6 +101,21 @@
         @endif
     </header>
 
+    @if($sectionPayload->count() > 1)
+        <nav class="section-tabs" aria-label="Exam sections">
+            @foreach($sectionPayload as $sectionIndex => $sectionItem)
+                @php
+                    $tabSection = $sectionItem['section'];
+                    $tabQuestions = $questionFrames->filter(fn ($frame) => (int) $frame['section']->id === (int) $tabSection->id)->count();
+                @endphp
+                <button type="button" class="section-tab {{ $sectionIndex === 0 ? 'active' : '' }}" data-section-target="{{ $tabSection->id }}">
+                    {{ $tabSection->code }} · {{ $tabSection->name }}
+                    <span>{{ $tabQuestions }} {{ Str::plural('question', $tabQuestions) }}</span>
+                </button>
+            @endforeach
+        </nav>
+    @endif
+
     @if($existing)
     <form id="examForm" method="POST" action="{{ route('cbt.session.submit', $existing) }}">
         @csrf
@@ -114,6 +130,7 @@
                 <section class="question-frame {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'theory-frame' : 'objective-frame' }}"
                          data-question-frame
                          data-frame-index="{{ $frameIndex }}"
+                         data-section-id="{{ $section->id }}"
                          data-manual="{{ $frame['manual'] ? 1 : 0 }}"
                          data-representative-id="{{ $frame['representative_id'] }}">
                     <article class="question-card">
@@ -165,10 +182,13 @@
 
         <div class="question-controls" aria-label="Question navigation">
             <button type="button" class="move-btn" id="previousQuestion" aria-label="Previous question">←</button>
-            <div class="question-navigator" id="questionNavigator">
-                @foreach($questionFrames as $frameIndex => $frame)
-                    <button type="button" class="nav-question {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'paper' : '' }}" data-nav-frame="{{ $frameIndex }}" data-nav-representative="{{ $frame['representative_id'] }}" title="Question {{ $frameIndex + 1 }}">{{ $frameIndex + 1 }}</button>
-                @endforeach
+            <div class="navigator-shell">
+                <div class="question-navigator" id="questionNavigator">
+                    @foreach($questionFrames as $frameIndex => $frame)
+                        <button type="button" class="nav-question {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'paper' : '' }}" data-nav-frame="{{ $frameIndex }}" data-nav-representative="{{ $frame['representative_id'] }}" title="Question {{ $frameIndex + 1 }}">{{ $frameIndex + 1 }}</button>
+                    @endforeach
+                </div>
+                <span class="navigator-range" id="navigatorRange"></span>
             </div>
             <button type="button" class="move-btn" id="nextQuestion" aria-label="Next question">→</button>
         </div>
@@ -211,6 +231,7 @@
 (() => {
     const frames = [...document.querySelectorAll('[data-question-frame]')];
     const navButtons = [...document.querySelectorAll('[data-nav-frame]')];
+    const sectionTabs = [...document.querySelectorAll('[data-section-target]')];
     const previousButton = document.getElementById('previousQuestion');
     const nextButton = document.getElementById('nextQuestion');
     const form = document.getElementById('examForm');
@@ -229,10 +250,24 @@
         currentFrame = Math.max(0, Math.min(index, frames.length - 1));
         frames.forEach((frame, position) => frame.classList.toggle('active', position === currentFrame));
         navButtons.forEach((button, position) => button.classList.toggle('active', position === currentFrame));
+        const activeSection = frames[currentFrame]?.dataset.sectionId;
+        sectionTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.sectionTarget === activeSection));
+        updateNavigatorWindow();
         if (previousButton) previousButton.disabled = currentFrame === 0;
         if (nextButton) nextButton.disabled = currentFrame === frames.length - 1;
-        navButtons[currentFrame]?.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'});
         if (focus) document.getElementById('questionStage')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+
+    function navigatorPageSize() { return window.matchMedia('(max-width: 700px)').matches ? 10 : 20; }
+
+    function updateNavigatorWindow() {
+        if (! navButtons.length) return;
+        const pageSize = navigatorPageSize();
+        const start = Math.floor(currentFrame / pageSize) * pageSize;
+        const end = Math.min(start + pageSize, navButtons.length);
+        navButtons.forEach((button, index) => button.hidden = index < start || index >= end);
+        const range = document.getElementById('navigatorRange');
+        if (range) range.textContent = `Questions ${start + 1}–${end} of ${navButtons.length}`;
     }
 
     function moveFrame(delta) { showFrame(currentFrame + delta, true); }
@@ -274,6 +309,11 @@
     previousButton?.addEventListener('click', () => moveFrame(-1));
     nextButton?.addEventListener('click', () => moveFrame(1));
     navButtons.forEach((button, index) => button.addEventListener('click', () => showFrame(index, true)));
+    sectionTabs.forEach(tab => tab.addEventListener('click', () => {
+        const index = frames.findIndex(frame => frame.dataset.sectionId === tab.dataset.sectionTarget);
+        if (index >= 0) showFrame(index, true);
+    }));
+    window.addEventListener('resize', updateNavigatorWindow);
     document.querySelectorAll('[data-flag]').forEach(button => button.addEventListener('click', () => {
         const id = Number(button.dataset.flag);
         flaggedQuestions.has(id) ? flaggedQuestions.delete(id) : flaggedQuestions.add(id);

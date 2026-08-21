@@ -126,7 +126,19 @@ class CbtRestructuringTest extends TestCase
         DB::table('students')->insert(['tenant_id' => $this->ids['tenant'], 'user_id' => $secondStudentUserId, 'current_class_arm_id' => $secondArm, 'admission_number' => 'ST002', 'first_name' => 'Bola', 'last_name' => 'Adewale', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
         $this->actingAs(User::findOrFail($secondStudentUserId));
         $this->get(route('student.portal.exams'))->assertOk()->assertSee('Shared Biology Exam');
-        $this->get(route('cbt.exams.start', $shared))->assertOk()->assertSee('Shared Biology Exam');
+        $this->get(route('cbt.exams.start', $shared))->assertOk()
+            ->assertSee('Shared Biology Exam')
+            ->assertSee('Student Portal')
+            ->assertSee('CBT Exams')
+            ->assertDontSee('Payroll & Payslips')
+            ->assertDontSee('Staff Leave');
+        $this->post(route('cbt.exams.begin', $shared), ['integrity_acknowledged' => '1'])
+            ->assertRedirect(route('cbt.exams.start', $shared));
+        $this->get(route('cbt.exams.start', $shared))->assertOk()
+            ->assertSee('Student Portal')
+            ->assertSee('CBT Exams')
+            ->assertDontSee('Payroll & Payslips')
+            ->assertDontSee('Staff Leave');
     }
 
     public function test_bank_builder_creates_numbered_parent_and_child_questions_and_attaches_the_branch(): void
@@ -379,9 +391,13 @@ class CbtRestructuringTest extends TestCase
         $response = $this->get(route('cbt.exams.start', $exam))->assertOk();
 
         $this->assertSame(3, substr_count($response->getContent(), 'data-frame-index='));
+        $this->assertSame(2, substr_count($response->getContent(), 'data-section-target="'));
         $response->assertSee('First objective?')->assertSee('Second objective?')
             ->assertSee('Answer all branches.')->assertSee('Explain the first concept.')->assertSee('Explain the second concept.')
             ->assertSee('Answer in the official booklet.')
+            ->assertSee('aria-label="Exam sections"', false)
+            ->assertSee('.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(2,34px);gap:6px;overflow:hidden', false)
+            ->assertSee('id="navigatorRange"', false)
             ->assertSee("event.key === 'ArrowLeft'", false)->assertSee("event.key === 'ArrowRight'", false)
             ->assertSee("['a', 'b', 'c', 'd']", false)->assertDontSee('<textarea', false);
     }
