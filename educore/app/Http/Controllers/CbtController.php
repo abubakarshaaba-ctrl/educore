@@ -640,6 +640,44 @@ class CbtController extends Controller
         return back()->with('success', 'Exam closed. No more submissions allowed.');
     }
 
+    public function rescheduleExam(Request $request, CbtExam $exam)
+    {
+        abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403, 'You can only manage exams for subjects you teach.');
+        abort_unless(in_array($exam->status, ['published', 'active', 'closed'], true), 422, 'Only an ongoing or closed exam can be rescheduled.');
+
+        $data = $request->validate([
+            'scheduled_start' => ['required', 'date'],
+            'scheduled_end' => ['required', 'date', 'after:scheduled_start', 'after:now'],
+            'duration_minutes' => ['required', 'integer', 'min:5', 'max:1440'],
+        ]);
+        $oldValues = [
+            'status' => $exam->status,
+            'scheduled_start' => $exam->scheduled_start?->toIso8601String(),
+            'scheduled_end' => $exam->scheduled_end?->toIso8601String(),
+            'duration_minutes' => $exam->duration_minutes,
+        ];
+
+        $exam->update($data + ['status' => 'published']);
+        \App\Models\AuditLog::create([
+            'tenant_id' => $exam->tenant_id,
+            'actor_user_id' => auth()->id(),
+            'auditable_type' => CbtExam::class,
+            'auditable_id' => $exam->id,
+            'action' => 'cbt.exam.rescheduled',
+            'old_values' => $oldValues,
+            'new_values' => [
+                'status' => 'published',
+                'scheduled_start' => $exam->scheduled_start?->toIso8601String(),
+                'scheduled_end' => $exam->scheduled_end?->toIso8601String(),
+                'duration_minutes' => $exam->duration_minutes,
+            ],
+        ]);
+
+        return back()->with('success', $oldValues['status'] === 'closed'
+            ? 'Exam rescheduled and reopened.'
+            : 'Exam schedule updated.');
+    }
+
     public function updateSecurity(Request $request, CbtExam $exam)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403);
@@ -673,6 +711,7 @@ class CbtController extends Controller
 
         $exam ??= $exams->first();
         $sessions = collect();
+        $manualScoreGroups = collect();
         $stats = [
             'total' => 0,
             'submitted' => 0,
@@ -691,6 +730,11 @@ class CbtController extends Controller
                 ->when($request->filled('attempt_number'), fn ($q) => $q->where('attempt_number', $request->integer('attempt_number')))
                 ->latest()->get();
 
+            $scoring = app(CbtSubmissionService::class);
+            $manualScoreGroups = $sessions->mapWithKeys(
+                fn (CbtStudentSession $session) => [$session->id => $scoring->pendingManualGroups($session)]
+            );
+
             $percentages = $sessions
                 ->map(fn (CbtStudentSession $session) => $session->display_percentage)
                 ->filter(fn ($percentage) => $percentage !== null)
@@ -705,7 +749,7 @@ class CbtController extends Controller
             ];
         }
 
-        return view('cbt.results', compact('exam', 'exams', 'sessions', 'stats'));
+        return view('cbt.results', compact('exam', 'exams', 'sessions', 'stats', 'manualScoreGroups'));
     }
 
     // ── Start Exam ────────────────────────────────────────────────────

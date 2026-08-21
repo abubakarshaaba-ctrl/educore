@@ -73,7 +73,7 @@
     .booklet-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;margin:18px 0 0;border:1px solid #FDE68A;border-radius:10px;background:#FFFBEB;color:#854D0E;font-size:11px;line-height:1.55}.booklet-notice strong{display:block;margin-bottom:2px}
     .question-controls{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:12px;padding:10px;background:#fff;border:1px solid var(--border);border-radius:12px}
     .move-btn{width:42px;height:38px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--midnight);font-size:19px;cursor:pointer}.move-btn:hover:not(:disabled){background:#EFF6FF;border-color:#93C5FD}.move-btn:disabled{opacity:.35;cursor:not-allowed}
-    .navigator-shell{min-width:0}.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(2,34px);gap:6px;overflow:hidden;padding:2px}.nav-question{width:100%;height:34px;padding:0 3px;border:1px solid #DDE5F0;border-radius:8px;background:#fff;color:var(--slate);font:750 10px inherit;cursor:pointer}.nav-question[hidden]{display:none}.nav-question.active{border-color:#0B234B;background:#0B234B;color:#fff}.nav-question.answered{border-color:#86EFAC;background:#DCFCE7;color:#166534}.nav-question.paper{border-color:#FDE68A;background:#FFFBEB;color:#92400E}.nav-question.flagged{box-shadow:0 0 0 2px #F59E0B inset}.nav-question.active{color:#fff;background:#0B234B}.navigator-range{display:block;margin-top:5px;text-align:center;color:var(--muted);font-size:9px}
+    .navigator-shell{min-width:0}.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(5,34px);gap:6px;overflow:hidden;padding:2px}.nav-question{width:100%;height:34px;padding:0 3px;border:1px solid #DDE5F0;border-radius:8px;background:#fff;color:var(--slate);font:750 10px inherit;cursor:pointer}.nav-question[hidden]{display:none}.nav-question.active{border-color:#0B234B;background:#0B234B;color:#fff}.nav-question.answered{border-color:#86EFAC;background:#DCFCE7;color:#166534}.nav-question.paper{border-color:#FDE68A;background:#FFFBEB;color:#92400E}.nav-question.flagged{box-shadow:0 0 0 2px #F59E0B inset}.nav-question.active{color:#fff;background:#0B234B}.navigator-range{display:block;margin-top:5px;text-align:center;color:var(--muted);font-size:9px}
     .keyboard-help{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:9px 0 14px;color:var(--slate);font-size:9px}.keyboard-help kbd{padding:2px 5px;border:1px solid #CBD5E1;border-bottom-width:2px;border-radius:4px;background:#fff;color:var(--midnight);font:700 9px inherit}
     .exam-footer{position:sticky;bottom:7px;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:12px;box-shadow:0 -7px 22px rgba(15,35,75,.08)}.exam-footer span{font-size:10px;color:var(--slate)}
     .btn{border:0;border-radius:8px;padding:9px 13px;font:750 11px inherit;cursor:pointer}.btn-light{border:1px solid var(--border);background:#fff;color:var(--midnight)}.btn-danger{background:#B91C1C;color:#fff}
@@ -184,8 +184,17 @@
             <button type="button" class="move-btn" id="previousQuestion" aria-label="Previous question">←</button>
             <div class="navigator-shell">
                 <div class="question-navigator" id="questionNavigator">
+                    @php
+                        $navigatorSectionNumbers = [];
+                        $navigatorFirstSectionId = $questionFrames->isNotEmpty() ? (int) $questionFrames->first()['section']->id : null;
+                    @endphp
                     @foreach($questionFrames as $frameIndex => $frame)
-                        <button type="button" class="nav-question {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'paper' : '' }}" data-nav-frame="{{ $frameIndex }}" data-nav-representative="{{ $frame['representative_id'] }}" title="Question {{ $frameIndex + 1 }}">{{ $frameIndex + 1 }}</button>
+                        @php
+                            $navigatorSectionId = (int) $frame['section']->id;
+                            $navigatorSectionNumbers[$navigatorSectionId] = ($navigatorSectionNumbers[$navigatorSectionId] ?? 0) + 1;
+                            $navigatorQuestionNumber = $navigatorSectionNumbers[$navigatorSectionId];
+                        @endphp
+                        <button type="button" class="nav-question {{ $frameIndex === 0 ? 'active' : '' }} {{ $frame['manual'] ? 'paper' : '' }}" data-nav-frame="{{ $frameIndex }}" data-nav-section-id="{{ $navigatorSectionId }}" data-nav-section-position="{{ $navigatorQuestionNumber }}" data-nav-representative="{{ $frame['representative_id'] }}" title="Question {{ $navigatorQuestionNumber }}" {{ $navigatorSectionId !== $navigatorFirstSectionId ? 'hidden' : '' }}>{{ $navigatorQuestionNumber }}</button>
                     @endforeach
                 </div>
                 <span class="navigator-range" id="navigatorRange"></span>
@@ -231,6 +240,7 @@
 (() => {
     const frames = [...document.querySelectorAll('[data-question-frame]')];
     const navButtons = [...document.querySelectorAll('[data-nav-frame]')];
+    const questionNavigator = document.getElementById('questionNavigator');
     const sectionTabs = [...document.querySelectorAll('[data-section-target]')];
     const previousButton = document.getElementById('previousQuestion');
     const nextButton = document.getElementById('nextQuestion');
@@ -258,16 +268,23 @@
         if (focus) document.getElementById('questionStage')?.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
 
-    function navigatorPageSize() { return window.matchMedia('(max-width: 700px)').matches ? 10 : 20; }
+    function navigatorPageSize() { return window.matchMedia('(max-width: 700px)').matches ? 25 : 50; }
 
     function updateNavigatorWindow() {
         if (! navButtons.length) return;
+        const activeSection = frames[currentFrame]?.dataset.sectionId;
+        const sectionButtons = navButtons.filter(button => button.dataset.navSectionId === activeSection);
+        const sectionPosition = Math.max(0, sectionButtons.findIndex(button => Number(button.dataset.navFrame) === currentFrame));
         const pageSize = navigatorPageSize();
-        const start = Math.floor(currentFrame / pageSize) * pageSize;
-        const end = Math.min(start + pageSize, navButtons.length);
-        navButtons.forEach((button, index) => button.hidden = index < start || index >= end);
+        const start = Math.floor(sectionPosition / pageSize) * pageSize;
+        const end = Math.min(start + pageSize, sectionButtons.length);
+        navButtons.forEach(button => button.hidden = true);
+        sectionButtons.slice(start, end).forEach(button => button.hidden = false);
+        const columns = window.matchMedia('(max-width: 700px)').matches ? 5 : 10;
+        const rows = Math.max(1, Math.min(5, Math.ceil((end - start) / columns)));
+        if (questionNavigator) questionNavigator.style.gridTemplateRows = `repeat(${rows},34px)`;
         const range = document.getElementById('navigatorRange');
-        if (range) range.textContent = `Questions ${start + 1}–${end} of ${navButtons.length}`;
+        if (range) range.textContent = `Questions ${start + 1}–${end} of ${sectionButtons.length}`;
     }
 
     function moveFrame(delta) { showFrame(currentFrame + delta, true); }

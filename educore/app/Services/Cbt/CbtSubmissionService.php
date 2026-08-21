@@ -7,6 +7,7 @@ use App\Models\CbtQuestionScore;
 use App\Models\CbtSectionAttempt;
 use App\Models\CbtStudentSession;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class CbtSubmissionService
 {
@@ -94,16 +95,35 @@ class CbtSubmissionService
         $session = DB::transaction(function () use ($session, $scores, $markerId) {
             $locked = CbtStudentSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
             abort_if($locked->isInvalid(), 422, 'This attempt cannot be graded.');
-            $pending = CbtQuestionScore::where('cbt_student_session_id', $locked->id)->where('status', 'pending')->lockForUpdate()->get();
-            foreach ($pending as $questionScore) {
-                $required = (bool) $questionScore->section?->is_required;
-                if (! array_key_exists($questionScore->cbt_question_id, $scores)) {
-                    abort_if($required, 422, 'Every pending response in a required section must be scored.');
+            $pending = CbtQuestionScore::with(['question', 'section'])
+                ->where('cbt_student_session_id', $locked->id)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->get();
+            $groups = $this->manualScoreGroups($locked, $pending);
+            foreach ($groups as $group) {
+                $questionId = $group['question_id'];
+                if (! array_key_exists($questionId, $scores)) {
+                    abort_if($group['required'], 422, 'Every pending question in a required theory section must be scored.');
                     continue;
                 }
-                $value = (float) $scores[$questionScore->cbt_question_id];
-                abort_if($value < 0 || $value > $questionScore->maximum_score, 422, 'A question score exceeds its maximum mark.');
-                $questionScore->update(['score' => $value, 'status' => 'scored', 'scored_by' => $markerId, 'scored_at' => now()]);
+                $value = round((float) $scores[$questionId], 2);
+                abort_if($value < 0 || $value > $group['maximum_score'], 422, 'A question score exceeds its maximum mark.');
+
+                // The marker enters one total for the complete parent question.
+                // Existing leaf score rows remain an internal audit structure only.
+                $remaining = $value;
+                $rows = $group['scores']->values();
+                foreach ($rows as $index => $questionScore) {
+                    $maximum = (float) $questionScore->maximum_score;
+                    $allocated = $index === $rows->count() - 1
+                        ? $remaining
+                        : min($maximum, $remaining);
+                    $allocated = round(max(0, min($maximum, $allocated)), 2);
+                    $remaining = round($remaining - $allocated, 2);
+                    $questionScore->update(['score' => $allocated, 'status' => 'scored', 'scored_by' => $markerId, 'scored_at' => now()]);
+                }
+                abort_if(abs($remaining) > 0.01, 422, 'The question score could not be allocated within its maximum mark.');
             }
             $exam = $locked->exam()->with('sections')->firstOrFail();
             $this->aggregateSections($locked, $exam);
@@ -113,7 +133,7 @@ class CbtSubmissionService
             $requiredSectionIds = $exam->sections->where('is_required', true)->pluck('id');
             $stillPending = CbtQuestionScore::where('cbt_student_session_id', $locked->id)->whereIn('cbt_exam_section_id', $requiredSectionIds)->where('status', 'pending')->exists();
             $locked->forceFill([
-                'manual_scores' => $scores, 'marked_by' => $markerId, 'score' => $raw,
+                'manual_scores' => array_replace((array) $locked->manual_scores, $scores), 'marked_by' => $markerId, 'score' => $raw,
                 'raw_score' => $stillPending ? null : $raw, 'maximum_score' => $maximum,
                 'percentage' => ! $stillPending && $maximum > 0 ? round(($raw / $maximum) * 100, 2) : null,
                 'status' => $stillPending ? 'submitted' : 'graded', 'grading_completed_at' => $stillPending ? null : now(),
@@ -128,6 +148,64 @@ class CbtSubmissionService
         ]);
         if ($session->isFullyScored()) $this->resultSync->sync($session);
         return $session;
+    }
+
+    /**
+     * Return one marking unit per top-level theory question. A question such
+     * as 1(a)(i)–1(b)(ii) therefore produces one input whose maximum is the
+     * sum of all pending scored branches.
+     */
+    public function pendingManualGroups(CbtStudentSession $session): Collection
+    {
+        $pending = $session->relationLoaded('questionScores')
+            ? $session->questionScores->where('status', 'pending')->values()
+            : CbtQuestionScore::with(['question', 'section'])
+                ->where('cbt_student_session_id', $session->id)
+                ->where('status', 'pending')
+                ->get();
+
+        $pending->loadMissing(['question', 'section']);
+
+        return $this->manualScoreGroups($session, $pending);
+    }
+
+    private function manualScoreGroups(CbtStudentSession $session, Collection $pending): Collection
+    {
+        $questions = $session->resolvedQuestions()->keyBy('id');
+        $order = array_flip($session->questionIds());
+        $groups = [];
+
+        foreach ($pending as $questionScore) {
+            $question = $questions->get((int) $questionScore->cbt_question_id) ?: $questionScore->question;
+            if (! $question) continue;
+
+            $root = $question;
+            $visited = [];
+            while ($root->parent_question_id && ! isset($visited[$root->id])) {
+                $visited[$root->id] = true;
+                $parent = $questions->get((int) $root->parent_question_id);
+                if (! $parent) break;
+                $root = $parent;
+            }
+
+            $key = (int) $root->id;
+            $groups[$key] ??= [
+                'question_id' => $key,
+                'question' => $root,
+                'maximum_score' => 0.0,
+                'branch_count' => 0,
+                'required' => false,
+                'sort_order' => $order[$key] ?? PHP_INT_MAX,
+                'scores' => collect(),
+            ];
+            $groups[$key]['maximum_score'] += (float) $questionScore->maximum_score;
+            $groups[$key]['branch_count']++;
+            $groups[$key]['required'] = $groups[$key]['required'] || (bool) $questionScore->section?->is_required;
+            $groups[$key]['sort_order'] = min($groups[$key]['sort_order'], $order[(int) $questionScore->cbt_question_id] ?? PHP_INT_MAX);
+            $groups[$key]['scores']->push($questionScore);
+        }
+
+        return collect($groups)->sortBy('sort_order')->values();
     }
 
     private function aggregateSections(CbtStudentSession $session, $exam): void

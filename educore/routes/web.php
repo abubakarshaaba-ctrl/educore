@@ -563,6 +563,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('exams',                         [CbtController::class, 'storeExam'])->name('exams.store');
         Route::post('exams/{exam}/close',            [CbtController::class, 'closeExam'])->name('close');
         Route::post('exams/{exam}/publish',          [CbtController::class, 'publishExam'])->name('publish');
+        Route::put('exams/{exam}/schedule',           [CbtController::class, 'rescheduleExam'])->name('exams.schedule');
         Route::put('exams/{exam}/security',          [CbtController::class, 'updateSecurity'])->name('exams.security');
         Route::get('exams/{exam}/builder',           [\App\Http\Controllers\CbtExamSectionController::class, 'builder'])->name('exams.builder');
         Route::post('exams/{exam}/sections',         [\App\Http\Controllers\CbtExamSectionController::class, 'store'])->name('sections.store');

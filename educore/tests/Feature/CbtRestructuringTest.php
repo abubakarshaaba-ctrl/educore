@@ -106,6 +106,49 @@ class CbtRestructuringTest extends TestCase
         $this->assertSame('automatic', $exam->sections()->first()->scoring_method);
     }
 
+    public function test_ongoing_and_closed_exams_can_be_rescheduled_and_reopened(): void
+    {
+        [$exam] = $this->exam();
+        $exam->update([
+            'status' => 'published',
+            'scheduled_start' => now()->subHour(),
+            'scheduled_end' => now()->addHour(),
+        ]);
+
+        $firstStart = now()->subMinutes(30)->startOfMinute();
+        $firstEnd = now()->addHours(3)->startOfMinute();
+        $this->put(route('cbt.exams.schedule', $exam), [
+            'scheduled_start' => $firstStart->format('Y-m-d H:i:s'),
+            'scheduled_end' => $firstEnd->format('Y-m-d H:i:s'),
+            'duration_minutes' => 120,
+        ])->assertRedirect();
+
+        $this->assertSame('published', $exam->fresh()->status);
+        $this->assertSame(120, $exam->fresh()->duration_minutes);
+        $this->assertTrue($exam->fresh()->scheduled_end->equalTo($firstEnd));
+        $this->get(route('cbt.exams'))->assertOk()
+            ->assertSee('Reschedule')
+            ->assertSee(route('cbt.exams.schedule', $exam), false);
+
+        $this->post(route('cbt.close', $exam))->assertRedirect();
+        $this->assertSame('closed', $exam->fresh()->status);
+
+        $secondStart = now()->addHour()->startOfMinute();
+        $secondEnd = now()->addHours(5)->startOfMinute();
+        $this->put(route('cbt.exams.schedule', $exam), [
+            'scheduled_start' => $secondStart->format('Y-m-d H:i:s'),
+            'scheduled_end' => $secondEnd->format('Y-m-d H:i:s'),
+            'duration_minutes' => 90,
+        ])->assertRedirect();
+
+        $reopened = $exam->fresh();
+        $this->assertSame('published', $reopened->status);
+        $this->assertSame(90, $reopened->duration_minutes);
+        $this->assertTrue($reopened->scheduled_start->equalTo($secondStart));
+        $this->assertTrue($reopened->scheduled_end->equalTo($secondEnd));
+        $this->assertDatabaseCount('audit_logs', 3);
+    }
+
     public function test_one_exam_targets_multiple_classes_and_reuses_the_same_draft(): void
     {
         [, $bank] = $this->exam();
@@ -220,6 +263,46 @@ class CbtRestructuringTest extends TestCase
         $graded = app(CbtSubmissionService::class)->grade($submitted, [$manual->id => 0], $this->admin->id);
         $this->assertSame(80.0, (float) $graded->raw_score);
         $this->assertDatabaseHas('scores', ['cbt_exam_id' => $exam->id, 'score' => 56, 'score_source' => 'cbt', 'is_source_locked' => 1]);
+    }
+
+    public function test_complete_theory_question_is_marked_with_one_combined_score(): void
+    {
+        [$exam, $bank] = $this->exam();
+        $section = $exam->sections()->create(['tenant_id' => $this->ids['tenant'], 'name' => 'Theory', 'code' => 'B', 'display_order' => 1, 'section_type' => 'theory', 'scoring_method' => 'manual', 'answer_mode' => 'paper', 'max_marks' => 10, 'is_required' => true, 'is_active' => true]);
+        $root = $this->question($bank, 'Answer all parts of question one.', 'essay', 0, null, true); $root->update(['reference_code' => '1']);
+        $partA = $this->question($bank, 'Part A', 'essay', 0, $root, true); $partA->update(['reference_code' => '1.a']);
+        $partAi = $this->question($bank, 'First A branch', 'essay', 2, $partA); $partAi->update(['reference_code' => '1.a.i', 'sequence' => 1]);
+        $partAii = $this->question($bank, 'Second A branch', 'essay', 2, $partA); $partAii->update(['reference_code' => '1.a.ii', 'sequence' => 2]);
+        $partB = $this->question($bank, 'Part B', 'essay', 0, $root, true); $partB->update(['reference_code' => '1.b', 'sequence' => 2]);
+        $partBi = $this->question($bank, 'First B branch', 'essay', 3, $partB); $partBi->update(['reference_code' => '1.b.i', 'sequence' => 1]);
+        $partBii = $this->question($bank, 'Second B branch', 'essay', 3, $partB); $partBii->update(['reference_code' => '1.b.ii', 'sequence' => 2]);
+        $questions = collect([$root, $partA, $partAi, $partAii, $partB, $partBi, $partBii]);
+        foreach ($questions as $index => $question) {
+            $section->questions()->attach($question->id, ['tenant_id' => $this->ids['tenant'], 'cbt_exam_id' => $exam->id, 'display_order' => $index + 1]);
+        }
+
+        $submitted = app(CbtSubmissionService::class)->submit($this->attempt($exam, $questions->pluck('id')->all()));
+        $groups = app(CbtSubmissionService::class)->pendingManualGroups($submitted);
+        $this->assertCount(1, $groups);
+        $this->assertSame($root->id, $groups->first()['question_id']);
+        $this->assertSame(4, $groups->first()['branch_count']);
+        $this->assertSame(10.0, $groups->first()['maximum_score']);
+
+        $results = $this->get(route('cbt.results', $exam))->assertOk()
+            ->assertSee('Manual scoring by question')
+            ->assertSee('4 parts · Total max 10')
+            ->assertSee('name="manual_scores['.$root->id.']"', false);
+        foreach ([$partAi, $partAii, $partBi, $partBii] as $branch) {
+            $results->assertDontSee('name="manual_scores['.$branch->id.']"', false);
+        }
+
+        $this->post(route('cbt.grade-essay', $submitted), ['manual_scores' => [$root->id => 7.5]])->assertRedirect();
+        $graded = $submitted->fresh();
+        $this->assertSame('graded', $graded->status);
+        $this->assertSame(7.5, (float) $graded->raw_score);
+        $this->assertSame(10.0, (float) $graded->maximum_score);
+        $this->assertSame(0, $graded->questionScores()->where('status', 'pending')->count());
+        $this->assertSame(7.5, (float) $graded->questionScores()->sum('score'));
     }
 
     public function test_weighting_uses_the_configured_assessment_maximum_instead_of_hardcoding_seventy(): void
@@ -392,11 +475,16 @@ class CbtRestructuringTest extends TestCase
 
         $this->assertSame(3, substr_count($response->getContent(), 'data-frame-index='));
         $this->assertSame(2, substr_count($response->getContent(), 'data-section-target="'));
+        $this->assertSame(2, substr_count($response->getContent(), 'data-nav-section-id="'.$objectiveSection->id.'"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'data-nav-section-id="'.$theorySection->id.'"'));
+        $this->assertMatchesRegularExpression('/data-nav-section-id="'.$theorySection->id.'"[^>]*>1<\/button>/', $response->getContent());
         $response->assertSee('First objective?')->assertSee('Second objective?')
             ->assertSee('Answer all branches.')->assertSee('Explain the first concept.')->assertSee('Explain the second concept.')
             ->assertSee('Answer in the official booklet.')
             ->assertSee('aria-label="Exam sections"', false)
-            ->assertSee('.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(2,34px);gap:6px;overflow:hidden', false)
+            ->assertSee('.question-navigator{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(5,34px);gap:6px;overflow:hidden', false)
+            ->assertSee("return window.matchMedia('(max-width: 700px)').matches ? 25 : 50", false)
+            ->assertSee('Math.min(5, Math.ceil((end - start) / columns))', false)
             ->assertSee('id="navigatorRange"', false)
             ->assertSee("event.key === 'ArrowLeft'", false)->assertSee("event.key === 'ArrowRight'", false)
             ->assertSee("['a', 'b', 'c', 'd']", false)->assertDontSee('<textarea', false);

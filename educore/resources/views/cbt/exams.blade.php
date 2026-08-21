@@ -33,6 +33,9 @@
     .exam-meta { font-size:12px;color:var(--slate);margin-bottom:12px; }
     .exam-meta span { margin-right:12px; }
     .exam-actions { display:flex;gap:8px;flex-wrap:wrap; }
+    .schedule-panel { margin-top:12px;padding:12px;border:1px solid #DCE5F2;border-radius:9px;background:#F8FAFC; }
+    .schedule-panel .form-grid { grid-template-columns:1fr 1fr 120px;align-items:end; }
+    .schedule-panel .form-group { margin-bottom:0; }
     .badge { display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px; }
     .badge-draft     { background:#F1F5F9;color:var(--slate); }
     .badge-published { background:var(--indigo-bg);color:var(--indigo); }
@@ -52,7 +55,7 @@
     .target-option { display:flex;align-items:center;gap:7px;padding:7px 8px;border:1px solid #DFE7F2;border-radius:7px;background:#fff;color:var(--midnight);font-size:11px;cursor:pointer; }
     .target-option:has(input:checked) { border-color:var(--indigo);background:#EFF6FF;color:#1D4ED8;font-weight:700; }
     @media(max-width:1024px) { .two-col { grid-template-columns:1fr; } }
-    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; }.target-options{grid-template-columns:1fr} }
+    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; }.target-options{grid-template-columns:1fr}.schedule-panel .form-grid{grid-template-columns:1fr} }
 </style>
 @endpush
 
@@ -93,13 +96,29 @@
                             @csrf
                             <button type="submit" class="btn btn-success">Publish</button>
                         </form>
-                    @elseif($exam->status === 'published')
+                    @elseif(in_array($exam->status, ['published', 'active'], true))
                         <form method="POST" action="{{ route('cbt.close', $exam) }}" style="display:inline">
                             @csrf
                             <button type="submit" class="btn btn-warning">Close Exam</button>
                         </form>
                     @endif
+                    @if(in_array($exam->status, ['published', 'active', 'closed'], true))
+                        <button type="button" class="btn btn-ghost" onclick="document.getElementById('schedule{{ $exam->id }}').toggleAttribute('hidden')">Reschedule</button>
+                    @endif
                 </div>
+                @if(in_array($exam->status, ['published', 'active', 'closed'], true))
+                <div class="schedule-panel" id="schedule{{ $exam->id }}" hidden>
+                    <form method="POST" action="{{ route('cbt.exams.schedule', $exam) }}">
+                        @csrf @method('PUT')
+                        <div class="form-grid">
+                            <div class="form-group"><label class="form-label">Start</label><input type="datetime-local" name="scheduled_start" class="form-control" value="{{ $exam->scheduled_start?->format('Y-m-d\TH:i') }}" required></div>
+                            <div class="form-group"><label class="form-label">End</label><input type="datetime-local" name="scheduled_end" class="form-control" value="{{ $exam->scheduled_end?->format('Y-m-d\TH:i') }}" required></div>
+                            <div class="form-group"><label class="form-label">Minutes</label><input type="number" name="duration_minutes" class="form-control" value="{{ $exam->duration_minutes }}" min="5" max="1440" required></div>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="margin-top:10px">Save schedule</button>
+                    </form>
+                </div>
+                @endif
             </div>
             @empty
             <div class="empty-state">No exams created yet. Create one →</div>
