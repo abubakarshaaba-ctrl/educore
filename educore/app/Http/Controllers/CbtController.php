@@ -864,7 +864,9 @@ class CbtController extends Controller
             ? "Exam submitted. Final score: {$session->raw_score}/{$session->maximum_score} ({$session->percentage}%)."
             : 'Exam submitted. The final result will be available after manual scoring is completed.';
 
-        return redirect()->route('student.portal.dashboard')->with('success', $msg);
+        $destination = session('cbt_lan_only') ? 'student.portal.exams' : 'student.portal.dashboard';
+
+        return redirect()->route($destination)->with('success', $msg);
     }
 
     // ── Bulk Upload ───────────────────────────────────────────────────

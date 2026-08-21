@@ -160,6 +160,14 @@ Route::post('/school-onboarding', [PublicMarketingController::class, 'sendSchool
 Route::get('/get-started',  [\App\Http\Controllers\SchoolRegistrationController::class, 'show'])->name('school.register');
 Route::post('/get-started', [\App\Http\Controllers\SchoolRegistrationController::class, 'store'])->middleware('throttle:6,1')->name('school.register.post');
 
+// Passwordless access exists only on an activated private LAN installation.
+// The controller returns 404 on the public/cloud host.
+Route::get('/cbt/lan/access', [\App\Http\Controllers\CbtLanStudentAccessController::class, 'show'])
+    ->name('cbt.lan.student.access');
+Route::post('/cbt/lan/access', [\App\Http\Controllers\CbtLanStudentAccessController::class, 'authenticate'])
+    ->middleware('throttle:20,1')
+    ->name('cbt.lan.student.authenticate');
+
 Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
     // Unified login — accepts all user types (super admin, tenant admin, staff, student, parent)
     Route::get('/login',  [LoginController::class, 'showLogin'])->name('login');

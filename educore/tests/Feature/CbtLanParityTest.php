@@ -10,11 +10,14 @@ use App\Models\CbtQuestionBank;
 use App\Models\CbtStudentSession;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Cbt\CbtLanAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -30,6 +33,7 @@ class CbtLanParityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
 
         $now = now();
         $tenant = DB::table('tenants')->insertGetId([
@@ -124,8 +128,85 @@ class CbtLanParityTest extends TestCase
             'current-lan-package.json',
             json_encode($payload, JSON_THROW_ON_ERROR)
         );
-        $this->post(route('cbt.lan.import'), ['package' => $package])
+        $this->withServerVariables([
+            'HTTP_HOST' => '192.168.50.1',
+            'SERVER_NAME' => '192.168.50.1',
+        ]);
+        $this->post('http://192.168.50.1/cbt/lan/import', ['package' => $package])
             ->assertSessionHas('success');
+        Storage::disk('local')->assertExists('cbt-lan/installation.json');
+    }
+
+    public function test_student_uses_only_admission_number_on_private_lan_and_is_restricted_to_cbt(): void
+    {
+        [$exam] = $this->exam();
+        [$otherExam] = $this->exam();
+        $otherExam->update(['title' => 'Unimported Mathematics Examination']);
+        $otherExam->refresh();
+        app(CbtLanAccessService::class)->activateImportedPackage([
+            'exam_id' => $exam->id,
+            'tenant_id' => $this->ids['tenant'],
+        ]);
+        Auth::logout();
+        $this->withServerVariables([
+            'HTTP_HOST' => '192.168.50.1',
+            'SERVER_NAME' => '192.168.50.1',
+        ]);
+
+        $this->get('http://192.168.50.1/cbt/lan/access')->assertOk()
+            ->assertSee('Enter your admission number')
+            ->assertSee('No password required')
+            ->assertDontSee('name="password"', false);
+
+        $this->post('http://192.168.50.1/cbt/lan/access', [
+            'admission_number' => strtolower($this->student->admission_number),
+        ])->assertRedirect(route('cbt.exams.start', $exam));
+
+        $this->assertAuthenticatedAs($this->studentUser);
+        $this->assertTrue((bool) session('cbt_lan_only'));
+        $this->assertSame([$exam->id], session('cbt_lan_exam_ids'));
+        $this->get(route('student.portal.exams'))->assertOk()
+            ->assertSee($exam->title)
+            ->assertDontSee($otherExam->title);
+        $this->get(route('student.portal.results'))->assertRedirect(route('student.portal.exams'));
+        $this->get(route('cbt.exams.start', $otherExam))->assertRedirect(route('student.portal.exams'));
+        $this->get(route('cbt.exams.start', $exam))->assertOk()
+            ->assertSee('CBT LAN')
+            ->assertDontSee('My Results');
+    }
+
+    public function test_admission_number_access_is_not_exposed_on_the_cloud_host(): void
+    {
+        [$exam] = $this->exam();
+        app(CbtLanAccessService::class)->activateImportedPackage([
+            'exam_id' => $exam->id,
+            'tenant_id' => $this->ids['tenant'],
+        ]);
+        Auth::logout();
+
+        $this->withServerVariables([
+            'HTTP_HOST' => 'educoreng.online',
+            'SERVER_NAME' => 'educoreng.online',
+            'HTTPS' => 'on',
+        ])->get('/cbt/lan/access')->assertNotFound();
+    }
+
+    public function test_lan_import_can_provision_a_local_account_for_a_student_without_portal_access(): void
+    {
+        [$exam] = $this->exam();
+        $studentId = DB::table('students')->insertGetId([
+            'tenant_id' => $this->ids['tenant'], 'user_id' => null,
+            'current_class_arm_id' => $this->ids['arm'], 'admission_number' => 'LAN-NO-ACCOUNT',
+            'first_name' => 'Musa', 'last_name' => 'Bello', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(CbtLanAccessService::class)->provisionMissingStudentAccounts($exam->id);
+
+        $student = Student::withoutTenantScope()->findOrFail($studentId);
+        $this->assertNotNull($student->user_id);
+        $this->assertGreaterThan(8_000_000_000_000_000_000, $student->user_id);
+        $this->assertTrue(User::findOrFail($student->user_id)->isStudent());
     }
 
     public function test_lan_dashboard_displays_the_compatible_release_and_refresh_action(): void

@@ -31,6 +31,8 @@
     .lan-release::before { content:'✓'; }
     .sync-status.is-error { color:var(--crimson); }
     .sync-status.is-ok { color:var(--emerald); }
+    .student-access-row { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+    .student-access-row .form-control { flex:1;min-width:240px;background:#fff; }
     @media (max-width: 680px) {
         .page-tabs { width:100%;overflow-x:auto; }
         .page-tab { white-space:nowrap; }
@@ -52,6 +54,18 @@
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert-error">{{ $errors->first() }}</div>@endif
 
+@if($studentAccessUrl)
+<div class="card">
+    <div class="card-header"><span class="card-title">Student examination access</span></div>
+    <div class="card-body">
+        <div class="student-access-row">
+            <input id="student-access-url" class="form-control" type="text" value="{{ $studentAccessUrl }}" readonly aria-label="Student LAN access address">
+            <button class="btn btn-primary" type="button" onclick="copyStudentAccessUrl(this)">Copy address</button>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="card">
     <div class="card-header">
         <span class="card-title">LAN exam server</span>
@@ -66,8 +80,8 @@
             <br><b>2. On the exam-day laptop</b> (running this exact EduCore LAN release locally via XAMPP, offline):
             open this same LAN Mode page and upload that package under "Import Package". The exam,
             its questions, and the enrolled students load into the local database.
-            <br><b>3. Students connect</b> to the laptop's WiFi hotspot and open its local address in
-            a browser, log in as normal, and take the exam — the ordinary CBT screens work unchanged.
+            <br><b>3. Students connect</b> to the laptop's WiFi hotspot, open the student examination
+            address shown above, and enter only their admission number. No password is required.
             <br><b>4. When the laptop regains internet</b>, click "Sync Now" (or just leave this page
             open — it retries quietly in the background) to push finished sessions back to the cloud and receive schedule, security and retake updates.
         </div>
@@ -120,6 +134,15 @@
 </div>
 
 <script>
+function copyStudentAccessUrl(button) {
+    var input = document.getElementById('student-access-url');
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(function() {
+        button.textContent = 'Copied';
+        setTimeout(function() { button.textContent = 'Copy address'; }, 1800);
+    });
+}
+
 function syncExam(examId) {
     var el = document.getElementById('sync-status-' + examId);
     el.classList.remove('is-error', 'is-ok');

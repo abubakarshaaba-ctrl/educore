@@ -10,6 +10,7 @@ use App\Models\CbtSectionAttempt;
 use App\Models\CbtStudentSession;
 use App\Models\Student;
 use App\Models\Scopes\TenantScope;
+use App\Services\Cbt\CbtLanAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -35,7 +36,7 @@ use Illuminate\Support\Facades\Schema;
 class CbtLanController extends Controller
 {
     public const PACKAGE_VERSION = 3;
-    public const APPLICATION_RELEASE = '2026.08.21-lan-parity.1';
+    public const APPLICATION_RELEASE = '2026.08.21-lan-admission.1';
 
     /** Tables carried in an export package, in FK-safe import order. */
     private const TABLES = [
@@ -77,7 +78,7 @@ class CbtLanController extends Controller
     }
 
     // ── Dashboard ───────────────────────────────────────────────────────
-    public function dashboard()
+    public function dashboard(CbtLanAccessService $lanAccess)
     {
         $this->authorize404();
 
@@ -97,8 +98,11 @@ class CbtLanController extends Controller
             ->pluck('c', 'cbt_exam_id');
 
         $lanRelease = self::APPLICATION_RELEASE;
+        $studentAccessUrl = $lanAccess->isAvailable(request())
+            ? route('cbt.lan.student.access')
+            : null;
 
-        return view('cbt.lan', compact('exams', 'pendingCounts', 'lanRelease'));
+        return view('cbt.lan', compact('exams', 'pendingCounts', 'lanRelease', 'studentAccessUrl'));
     }
 
     // ── Export package (run on the CLOUD instance, while online) ────────
@@ -191,7 +195,7 @@ class CbtLanController extends Controller
     }
 
     // ── Import package (run on the LOCAL/LAN instance) ──────────────────
-    public function importPackage(Request $request)
+    public function importPackage(Request $request, CbtLanAccessService $lanAccess)
     {
         $this->authorize404();
         $request->validate(['package' => ['required', 'file']]);
@@ -210,7 +214,9 @@ class CbtLanController extends Controller
             return back()->withErrors(['error' => $message]);
         }
 
-        DB::transaction(function () use ($payload) {
+        $activateStudentAccess = $lanAccess->isPrivateHost($request);
+
+        DB::transaction(function () use ($payload, $lanAccess, $activateStudentAccess) {
             foreach (self::TABLES as $table) {
                 foreach ($payload['tables'][$table] ?? [] as $row) {
                     $row = (array) $row;
@@ -223,7 +229,14 @@ class CbtLanController extends Controller
                 'lan_sync_token' => $payload['sync_token'],
                 'lan_exported_at' => $payload['exported_at'] ?? now(),
             ]);
+            if ($activateStudentAccess) {
+                $lanAccess->provisionMissingStudentAccounts((int) $payload['exam_id']);
+            }
         });
+
+        if ($activateStudentAccess) {
+            $lanAccess->activateImportedPackage($payload);
+        }
 
         $exam = CbtExam::find($payload['exam_id']);
 

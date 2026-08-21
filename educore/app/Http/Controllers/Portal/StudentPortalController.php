@@ -269,6 +269,13 @@ class StudentPortalController extends Controller
                 ->with('questionBank.subject')
                 ->where('status', 'published');
 
+            if (session('cbt_lan_only')) {
+                $examsQuery->whereIn(
+                    'id',
+                    collect(session('cbt_lan_exam_ids', []))->map(fn ($id) => (int) $id)
+                );
+            }
+
             $examsQuery = $this->applyCbtScope($examsQuery, $student);
 
             $exams = $examsQuery

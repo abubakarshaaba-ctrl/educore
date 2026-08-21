@@ -214,10 +214,13 @@ table { width:100%; border-collapse:collapse; }
         <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
     </button>
     @php
-        $portalHomeRoute = auth()->user()->isStudent() ? 'student.portal.dashboard'
-            : (auth()->user()->isParent() ? 'parent.dashboard' : 'staff.portal.dashboard');
-        $portalLabel = auth()->user()->isStudent() ? 'Student Portal'
-            : (auth()->user()->isParent() ? 'Parent Portal' : 'Staff Portal');
+        $lanCbtOnly = (bool) session('cbt_lan_only', false);
+        $portalHomeRoute = $lanCbtOnly ? 'student.portal.exams'
+            : (auth()->user()->isStudent() ? 'student.portal.dashboard'
+            : (auth()->user()->isParent() ? 'parent.dashboard' : 'staff.portal.dashboard'));
+        $portalLabel = $lanCbtOnly ? 'CBT LAN'
+            : (auth()->user()->isStudent() ? 'Student Portal'
+            : (auth()->user()->isParent() ? 'Parent Portal' : 'Staff Portal'));
     @endphp
     <a href="{{ route($portalHomeRoute) }}" class="p-logo">
         <div class="p-logo-icon">
@@ -244,7 +247,9 @@ table { width:100%; border-collapse:collapse; }
 
 {{-- SIDEBAR --}}
 <aside class="p-sidebar" id="portalSidebar">
-    @if(auth()->user()->isStudent())
+    @if($lanCbtOnly)
+        @include('layouts.partials.lan-student-sidebar')
+    @elseif(auth()->user()->isStudent())
         @include('layouts.partials.student-sidebar')
     @elseif(auth()->user()->isParent())
         @include('layouts.partials.parent-sidebar')
