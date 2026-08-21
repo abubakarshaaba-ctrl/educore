@@ -45,7 +45,8 @@ class CbtRetakeController extends Controller
     public function invalidate(Request $request, CbtStudentSession $session, CbtResultSyncService $sync)
     {
         $this->authorizeAdmin();
-        abort_if(\App\Models\ReportCardPublication::where('class_arm_id', $session->exam->class_arm_id)->where('term_id', $session->exam->term_id)->where('status', 'published')->exists(), 423, 'Unpublish the report cards before invalidating an attempt.');
+        $classArmId = $session->student?->current_class_arm_id ?: $session->exam->class_arm_id;
+        abort_if(\App\Models\ReportCardPublication::where('class_arm_id', $classArmId)->where('term_id', $session->exam->term_id)->where('status', 'published')->exists(), 423, 'Unpublish the report cards before invalidating an attempt.');
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:1000']]);
         $session->update(['status' => 'invalidated', 'is_active_result' => false, 'submission_reason' => $data['reason']]);
         $fallback = CbtStudentSession::where('cbt_exam_id', $session->cbt_exam_id)->where('student_id', $session->student_id)->where('is_authorized_attempt', true)->whereNotIn('status', ['invalidated', 'cancelled'])->whereNotNull('grading_completed_at')->latest('attempt_number')->first();

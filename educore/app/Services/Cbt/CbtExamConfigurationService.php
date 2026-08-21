@@ -10,12 +10,87 @@ use Illuminate\Support\Facades\DB;
 
 class CbtExamConfigurationService
 {
+    public function createSectionsFromBank(CbtExam $exam, ?int $actorId = null): bool
+    {
+        if ($exam->sections()->exists()) return false;
+
+        $questions = CbtQuestion::where('question_bank_id', $exam->question_bank_id)
+            ->orderBy('sequence')->orderBy('id')->get();
+        if ($questions->isEmpty()) return false;
+
+        DB::transaction(function () use ($exam, $questions, $actorId) {
+            $locked = CbtExam::whereKey($exam->id)->lockForUpdate()->firstOrFail();
+            if ($locked->sections()->exists()) return;
+
+            $groups = $questions->groupBy(function (CbtQuestion $question) {
+                $sourceCode = strtoupper(trim((string) $question->source_section_code));
+                if ($sourceCode !== '') return 'SOURCE:'.$sourceCode;
+                return $question->isAutoGraded() ? 'INFERRED:OBJECTIVE' : 'INFERRED:THEORY';
+            });
+            $usedCodes = [];
+
+            foreach ($groups->values() as $position => $group) {
+                $first = $group->first();
+                $allAutomatic = $group->every(fn (CbtQuestion $question) => $question->is_instruction_only || $question->isAutoGraded());
+                $allManual = $group->every(fn (CbtQuestion $question) => $question->is_instruction_only || $question->isManualGraded());
+                $sectionType = $allAutomatic ? 'objective' : ($allManual ? 'theory' : 'mixed');
+                $scoringMethod = $allAutomatic ? 'automatic' : ($allManual ? 'manual' : 'mixed');
+
+                $preferredCode = strtoupper(trim((string) $first->source_section_code));
+                $preferredCode = preg_replace('/[^A-Z0-9_-]+/', '', $preferredCode) ?: ($sectionType === 'objective' ? 'A' : ($sectionType === 'theory' ? 'B' : 'S'.($position + 1)));
+                $code = substr($preferredCode, 0, 20);
+                $suffix = 2;
+                while (in_array($code, $usedCodes, true)) {
+                    $tail = '-'.$suffix++;
+                    $code = substr($preferredCode, 0, 20 - strlen($tail)).$tail;
+                }
+                $usedCodes[] = $code;
+
+                $sourceName = trim((string) $group->pluck('source_section_name')->first(fn ($name) => filled($name)));
+                $name = $sourceName !== '' ? $sourceName : 'Section '.$code;
+                $parentIds = $group->pluck('parent_question_id')->filter()->map(fn ($id) => (int) $id)->all();
+                $maximum = round((float) $group->sum(function (CbtQuestion $question) use ($parentIds) {
+                    if (! $question->countsForMarks() || in_array((int) $question->id, $parentIds, true)) return 0;
+                    return (float) $question->marks;
+                }), 2);
+
+                $section = $locked->sections()->create([
+                    'tenant_id' => $locked->tenant_id,
+                    'name' => $name,
+                    'code' => $code,
+                    'title' => $sectionType === 'objective' ? 'Objective Questions' : ($sectionType === 'theory' ? 'Theory Questions' : $name),
+                    'display_order' => $position + 1,
+                    'section_type' => $sectionType,
+                    'scoring_method' => $scoringMethod,
+                    'answer_mode' => 'online',
+                    'max_marks' => $maximum,
+                    'is_required' => true,
+                    'is_active' => true,
+                    'created_by' => $actorId,
+                ]);
+
+                foreach ($group->values() as $questionIndex => $question) {
+                    $section->questions()->attach($question->id, [
+                        'tenant_id' => $locked->tenant_id,
+                        'cbt_exam_id' => $locked->id,
+                        'display_order' => $questionIndex + 1,
+                    ]);
+                }
+            }
+        });
+
+        $this->recalculateExamTotals($exam->fresh());
+        return true;
+    }
+
     public function publicationErrors(CbtExam $exam): array
     {
         $exam->load('sections.questions');
         $errors = [];
         $sections = $exam->sections->where('is_active', true);
-        if ($sections->isEmpty()) $errors[] = 'Add at least one active section.';
+        if ($sections->isEmpty()) $errors[] = $exam->questions()->exists()
+            ? 'No active section could be prepared from the question bank.'
+            : 'The selected question bank has no questions.';
 
         foreach ($sections as $section) {
             if ($section->questions->isEmpty()) {

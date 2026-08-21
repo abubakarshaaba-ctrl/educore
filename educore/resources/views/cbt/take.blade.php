@@ -12,7 +12,10 @@
 <div id="securityBanner" class="security-banner">A prohibited navigation event was detected. Your current answers are being secured.</div>
 <div class="exam-top"><div class="exam-title"><strong>{{ $exam->title }}</strong><span>{{ $exam->questionBank->subject->name ?? '' }} · Attempt {{ $existing?->attempt_number ?? 'Preview' }}</span></div>@if($existing)<button type="button" id="calcToggle" class="btn btn-light">Calculator</button><span id="saveState" class="save-state">Saved</span><span id="timer" class="timer">--:--:--</span>@else<span class="timer">Preview</span>@endif</div>
 <div class="exam-workspace"><main><div class="section-tabs" role="tablist">@foreach($sectionPayload as $i=>$item)@php $assessable=$item['questions']->filter(fn($q)=>$q->countsForMarks())->count(); @endphp<button type="button" class="section-tab {{ $i===0?'active':'' }}" data-pane="section{{ $item['section']->id }}">{{ $item['section']->code }} · {{ $item['section']->name }}<small id="sectionStatus{{ $item['section']->id }}">{{ $assessable }} question(s) · {{ number_format((float)$item['section']->max_marks,1) }} marks</small></button>@endforeach</div>
-@if($existing)<form id="examForm" method="POST" action="{{ route('cbt.session.submit',$existing) }}">@csrf@endif
+@if($existing)
+<form id="examForm" method="POST" action="{{ route('cbt.session.submit',$existing) }}">
+@csrf
+@endif
 @foreach($sectionPayload as $i=>$item)
 @php $section=$item['section']; @endphp
 <section id="section{{ $section->id }}" class="section-pane {{ $i===0?'active':'' }}"><div class="section-banner"><small>SECTION {{ $section->code }} · {{ strtoupper($section->answer_mode) }}</small><h2>{{ $section->title ?: $section->name }}</h2><p>{{ $section->instructions ?: 'Answer all required questions in this section.' }}</p></div>

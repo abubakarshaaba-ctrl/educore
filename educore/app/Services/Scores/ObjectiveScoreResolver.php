@@ -24,7 +24,7 @@ class ObjectiveScoreResolver
      */
     public function findExam(int $classArmId, int $subjectId, int $termId, AssessmentType $assessmentType): ?CbtExam
     {
-        return CbtExam::where('class_arm_id', $classArmId)
+        return CbtExam::where(fn ($query) => $query->where('class_arm_id', $classArmId)->orWhereHas('classArms', fn ($assigned) => $assigned->where('class_arms.id', $classArmId)))
             ->where('term_id', $termId)
             ->where('assessment_type_id', $assessmentType->id)
             ->where('status', 'closed')

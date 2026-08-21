@@ -53,6 +53,8 @@ class CbtQuestionImportService
                         'tenant_id' => $batch->tenant_id, 'question_bank_id' => $batch->question_bank_id,
                         'parent_question_id' => $parent?->id, 'level' => $parent ? $parent->level + 1 : 0,
                         'sequence' => (int) $row['display_order'], 'reference_code' => $reference,
+                        'source_section_code' => $row['section_code'] ?: null,
+                        'source_section_name' => $row['section_name'] ?: null,
                         'type' => $row['type'], 'question_text' => $row['question_text'],
                         'option_a' => $row['option_a'] ?: ($row['type'] === 'true_false' ? 'True' : null),
                         'option_b' => $row['option_b'] ?: ($row['type'] === 'true_false' ? 'False' : null),

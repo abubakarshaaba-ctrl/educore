@@ -16,7 +16,8 @@ class CbtRetakeService
     public function authorize(CbtExam $exam, Student $student, User $actor, string $reason): CbtRetakeAuthorization
     {
         abort_unless((int) $exam->tenant_id === (int) $student->tenant_id && (int) $exam->tenant_id === (int) $actor->tenant_id, 403);
-        abort_if(ReportCardPublication::where('class_arm_id', $exam->class_arm_id)->where('term_id', $exam->term_id)->where('status', 'published')->exists(), 423, 'Unpublish the report cards before authorizing a retake.');
+        abort_unless($exam->isAssignedToClassArm($student->current_class_arm_id), 403, 'This examination is not assigned to the student’s class.');
+        abort_if(ReportCardPublication::where('class_arm_id', $student->current_class_arm_id)->where('term_id', $exam->term_id)->where('status', 'published')->exists(), 423, 'Unpublish the report cards before authorizing a retake.');
         abort_unless(CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->whereIn('status', CbtStudentSession::FINAL_STATUSES)->exists(), 422, 'A retake can only be authorized after a completed attempt.');
         return DB::transaction(function () use ($exam, $student, $actor, $reason) {
             $next = ((int) CbtStudentSession::where('cbt_exam_id', $exam->id)->where('student_id', $student->id)->lockForUpdate()->max('attempt_number')) + 1;

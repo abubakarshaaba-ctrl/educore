@@ -13,7 +13,7 @@ class CbtReportController extends Controller
     {
         $this->authorizeExam($exam);
         abort_unless(in_array($format, ['csv', 'pdf'], true), 404);
-        $exam->load(['sections', 'questionBank.subject', 'classArm.classLevel', 'term']);
+        $exam->load(['sections', 'questionBank.subject', 'classArm.classLevel', 'classArms.classLevel', 'term']);
         $sessions = CbtStudentSession::with(['student', 'sectionAttempts.section'])->where('cbt_exam_id', $exam->id)
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('attempt_number'), fn ($q) => $q->where('attempt_number', $request->integer('attempt_number')))
@@ -40,6 +40,6 @@ class CbtReportController extends Controller
     private function authorizeExam(CbtExam $exam): void
     {
         $user = auth()->user();
-        abort_unless($user && ! $user->isStudent() && (int) $user->tenant_id === (int) $exam->tenant_id && ($user->isAdmin() || $user->isSuperAdmin() || \App\Models\ClassArmSubject::where('teacher_id', $user->id)->where('class_arm_id', $exam->class_arm_id)->where('subject_id', $exam->questionBank->subject_id)->exists()), 403);
+        abort_unless($user && ! $user->isStudent() && (int) $user->tenant_id === (int) $exam->tenant_id && ($user->isAdmin() || $user->isSuperAdmin() || \App\Models\ClassArmSubject::where('teacher_id', $user->id)->whereIn('class_arm_id', $exam->assignedClassArmIds())->where('subject_id', $exam->questionBank->subject_id)->exists()), 403);
     }
 }

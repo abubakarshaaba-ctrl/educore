@@ -9,7 +9,7 @@
 @section('content')
 <div class="builder-shell">
   <div class="builder-head">
-    <div><div class="muted">{{ $exam->questionBank->subject->name ?? 'Subject' }} · {{ $exam->classArm->classLevel->name ?? '' }} {{ $exam->classArm->name ?? '' }}</div><h1>{{ $exam->title }}</h1><div class="muted">Build sections and nested questions. Structural editing closes after publication.</div></div>
+    <div><div class="muted">{{ $exam->questionBank->subject->name ?? 'Subject' }} · {{ $exam->assignedClassNames() }}</div><h1>{{ $exam->title }}</h1><div class="muted">Review sections and nested questions. Structural editing closes after publication.</div></div>
     <div class="actions"><a class="btn btn-light" href="{{ route('cbt.exams') }}">Back to exams</a><a class="btn btn-light" href="{{ route('cbt.exams.start',$exam) }}">Preview</a>@if($exam->status==='draft')<form method="POST" action="{{ route('cbt.publish',$exam) }}">@csrf<button class="btn btn-success">Publish exam</button></form>@endif</div>
   </div>
   @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif

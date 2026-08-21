@@ -44,8 +44,15 @@
     .workflow-step strong { display:block;font-size:12px;color:var(--midnight);margin:5px 0 3px; }
     .workflow-step span { font-size:10px;color:var(--slate);line-height:1.45;display:block; }
     .step-number { width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:var(--indigo);color:white;font-size:11px;font-weight:800; }
+    .target-picker { border:1px solid var(--border);border-radius:10px;background:#F8FAFC;max-height:230px;overflow:auto;padding:8px; }
+    .target-group { padding:7px 6px 9px;border-bottom:1px solid #E8EDF5; }
+    .target-group:last-child { border-bottom:0; }
+    .target-group strong { display:block;font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px; }
+    .target-options { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+    .target-option { display:flex;align-items:center;gap:7px;padding:7px 8px;border:1px solid #DFE7F2;border-radius:7px;background:#fff;color:var(--midnight);font-size:11px;cursor:pointer; }
+    .target-option:has(input:checked) { border-color:var(--indigo);background:#EFF6FF;color:#1D4ED8;font-weight:700; }
     @media(max-width:1024px) { .two-col { grid-template-columns:1fr; } }
-    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; } }
+    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; }.target-options{grid-template-columns:1fr} }
 </style>
 @endpush
 
@@ -74,7 +81,7 @@
                 </div>
                 <div class="exam-meta">
                     <span>📚 {{ $exam->questionBank->subject->name ?? '—' }}</span>
-                    <span>🏫 {{ $exam->classArm->classLevel->name }} {{ $exam->classArm->name }}</span>
+                    <span>🏫 {{ $exam->assignedClassNames() ?: '—' }}</span>
                     <span>⏱ {{ $exam->duration_minutes }} mins</span>
                     <span>❓ {{ $exam->total_questions }} questions</span>
                 </div>
@@ -121,22 +128,17 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Assign to <span>*</span></label>
-                    <select name="target" class="form-control" required>
-                        <option value="">Select class level or class</option>
-                        <optgroup label="Whole level (one exam per arm)">
-                            @foreach($classLevels as $level)
-                                <option value="level:{{ $level->id }}" {{ old('target') === 'level:'.$level->id ? 'selected' : '' }}>{{ $level->name }} — all arms</option>
+                    <label class="form-label">Assign to classes <span>*</span></label>
+                    <div class="target-picker">
+                        @foreach($classArms->groupBy('class_level_id') as $levelArms)
+                        <div class="target-group"><strong>{{ $levelArms->first()->classLevel->name ?? 'Class level' }}</strong><div class="target-options">
+                            @foreach($levelArms as $arm)
+                            <label class="target-option"><input type="checkbox" name="class_arm_ids[]" value="{{ $arm->id }}" @checked(in_array($arm->id, array_map('intval', old('class_arm_ids', []))))><span>{{ $arm->classLevel->name }} {{ $arm->name }}</span></label>
                             @endforeach
-                        </optgroup>
-                        <optgroup label="Specific class">
-                            @foreach($classArms as $arm)
-                                <option value="arm:{{ $arm->id }}" {{ old('target') === 'arm:'.$arm->id ? 'selected' : '' }}>
-                                    {{ $arm->classLevel->name }} {{ $arm->name }}
-                                </option>
-                            @endforeach
-                        </optgroup>
-                    </select>
+                        </div></div>
+                        @endforeach
+                    </div>
+                    <div style="font-size:10px;color:var(--slate-light);margin-top:4px">Select one or more classes. EduCore creates one shared exam, not duplicate drafts.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Term <span>*</span></label>
@@ -166,7 +168,7 @@
                 </div>
                 <div class="workflow-note" aria-label="Dynamic exam workflow">
                     <div class="workflow-step"><div class="step-number">1</div><strong>Create draft</strong><span>Save the examination details.</span></div>
-                    <div class="workflow-step"><div class="step-number">2</div><strong>Build sections</strong><span>Add any number of objective, theory, essay, practical or other sections.</span></div>
+                    <div class="workflow-step"><div class="step-number">2</div><strong>Review sections</strong><span>Uploaded questions are arranged into their original or inferred sections automatically.</span></div>
                     <div class="workflow-step"><div class="step-number">3</div><strong>Validate & publish</strong><span>Assign questions and confirm every section's marks.</span></div>
                 </div>
 
@@ -190,7 +192,7 @@
                     <div class="form-grid"><div class="form-group"><label class="form-label">Focus-loss action</label><select class="form-control" name="focus_loss_policy"><option value="submit">Submit attempt</option><option value="warn">Warn and log</option><option value="log">Log only</option></select></div><div class="form-group"><label class="form-label">Allowed losses</label><input class="form-control" type="number" name="max_focus_losses" value="0" min="0"></div></div>
                     <label style="display:block;font-size:11px;color:var(--slate)"><input type="checkbox" name="require_fullscreen" value="1"> Require full-screen mode</label>
                 </div>
-                <button type="submit" class="btn btn-primary">Create Exam</button>
+                <button type="submit" class="btn btn-primary">Create One Exam</button>
             </form>
         </div>
     </div>

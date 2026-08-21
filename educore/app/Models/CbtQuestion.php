@@ -48,6 +48,7 @@ class CbtQuestion extends BaseTenantModel
         'word_limit',
         'model_answer',
         'parent_question_id', 'level', 'sequence', 'numbering_style', 'reference_code',
+        'source_section_code', 'source_section_name',
         'is_instruction_only', 'requires_answer', 'scoring_method',
     ];
 

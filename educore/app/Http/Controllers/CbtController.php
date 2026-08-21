@@ -85,7 +85,7 @@ class CbtController extends Controller
     {
         return (int) $student->tenant_id === (int) $exam->tenant_id
             && $student->status === Student::STATUS_ACTIVE
-            && (int) $student->current_class_arm_id === (int) $exam->class_arm_id;
+            && $exam->isAssignedToClassArm($student->current_class_arm_id);
     }
 
     private function orderedQuestions(array $questionIds): Collection
@@ -491,7 +491,7 @@ class CbtController extends Controller
     public function exams()
     {
         $user = Auth::user();
-        $examsQuery = CbtExam::with(['questionBank', 'classArm.classLevel', 'term'])->latest();
+        $examsQuery = CbtExam::with(['questionBank', 'classArm.classLevel', 'classArms.classLevel', 'term'])->latest();
         $banksQuery = CbtQuestionBank::with(['subject', 'classLevel']);
         $classArmsQuery = ClassArm::with('classLevel');
 
@@ -519,7 +519,9 @@ class CbtController extends Controller
         $validated = $request->validate([
             'title'                   => ['required', 'string', 'max:150'],
             'question_bank_id'        => ['required', 'exists:cbt_question_banks,id'],
-            'target'                  => ['required', 'string'],
+            'class_arm_ids'           => ['nullable', 'array', 'min:1', 'required_without:target'],
+            'class_arm_ids.*'         => ['integer', 'distinct', 'exists:class_arms,id'],
+            'target'                  => ['nullable', 'string', 'required_without:class_arm_ids'],
             'term_id'                 => ['required', 'exists:terms,id'],
             'duration_minutes'        => ['required', 'integer', 'min:5'],
             'scheduled_start'         => ['nullable', 'date'],
@@ -536,40 +538,47 @@ class CbtController extends Controller
         $bank = CbtQuestionBank::findOrFail($validated['question_bank_id']);
         abort_unless($this->teacherTeachesBank($user, $bank), 403, 'You can only create exams for subjects you teach.');
 
-        [$type, $id] = array_pad(explode(':', $validated['target'], 2), 2, null);
-
-        if ($type === 'level') {
-            $arms = ClassArm::with('classLevel')->where('class_level_id', $id)->get();
-            if ($arms->isEmpty()) {
-                return back()->withErrors(['target' => 'No class arms exist under that class level yet.']);
+        if (! empty($validated['class_arm_ids'])) {
+            $arms = ClassArm::with('classLevel')->whereIn('id', $validated['class_arm_ids'])->get();
+            if ($arms->count() !== count($validated['class_arm_ids'])) {
+                return back()->withErrors(['class_arm_ids' => 'One or more selected classes are unavailable.'])->withInput();
             }
-        } else { // arm
-            $arm = ClassArm::with('classLevel')->find($id);
-            if (!$arm) {
-                return back()->withErrors(['target' => 'Selected class not found.']);
+        } else {
+            [$type, $id] = array_pad(explode(':', (string) $validated['target'], 2), 2, null);
+            if ($type === 'level') {
+                $arms = ClassArm::with('classLevel')->where('class_level_id', $id)->get();
+                if ($arms->isEmpty()) return back()->withErrors(['target' => 'No class arms exist under that class level yet.']);
+            } else {
+                $arm = ClassArm::with('classLevel')->find($id);
+                if (!$arm) return back()->withErrors(['target' => 'Selected class not found.']);
+                $arms = collect([$arm]);
             }
-            $arms = collect([$arm]);
         }
 
         // If scoped, only allow arms this teacher actually teaches.
         if (!$this->hasFullCbtAccess($user)) {
             $myArmIds = $this->teacherClassArmIds($user);
-            $arms = $arms->filter(fn ($a) => $myArmIds->contains($a->id))->values();
-            if ($arms->isEmpty()) {
-                return back()->withErrors(['target' => 'You can only assign exams to classes you teach.']);
+            if ($arms->contains(fn ($arm) => ! $myArmIds->contains($arm->id))) {
+                return back()->withErrors(['class_arm_ids' => 'You can only assign exams to classes you teach.'])->withInput();
             }
         }
 
-        $created = 0;
-        foreach ($arms as $arm) {
-            $exam = CbtExam::create([
-                'title'                   => $arms->count() > 1 ? "{$validated['title']} — " . (optional($arm->classLevel)->name ?? '') . " {$arm->name}" : $validated['title'],
+        $title = trim((string) preg_replace('/\s+/', ' ', $validated['title']));
+        [$exam, $reused] = DB::transaction(function () use ($request, $validated, $arms, $title) {
+            $exam = CbtExam::where('question_bank_id', $validated['question_bank_id'])
+                ->where('term_id', $validated['term_id'])
+                ->where('status', 'draft')
+                ->where('title', $title)
+                ->lockForUpdate()
+                ->oldest('id')
+                ->first();
+            $reused = (bool) $exam;
+            $attributes = [
+                'title'                   => $title,
                 'question_bank_id'        => $validated['question_bank_id'],
-                'class_arm_id'            => $arm->id,
+                'class_arm_id'            => $exam?->class_arm_id ?: $arms->first()->id,
                 'term_id'                 => $validated['term_id'],
                 'assessment_type_id'      => $validated['assessment_type_id'] ?? null,
-                'total_questions'         => 0,
-                'total_marks'             => 0,
                 // Retained only as a compatibility bridge for pre-upgrade records.
                 'section_objective_count' => 0,
                 'section_objective_marks' => 1,
@@ -588,23 +597,32 @@ class CbtController extends Controller
                 'require_fullscreen'      => $request->boolean('require_fullscreen'),
                 'retake_policy'           => 'latest_valid_authorized_attempt',
                 'strict_marks_validation' => true,
-            ]);
-            $created++;
-        }
+            ];
+            if ($exam) {
+                $exam->update($attributes);
+            } else {
+                $exam = CbtExam::create($attributes + ['total_questions' => 0, 'total_marks' => 0]);
+            }
+            $assignments = $arms->mapWithKeys(fn (ClassArm $arm) => [$arm->id => ['tenant_id' => $exam->tenant_id]])->all();
+            $exam->classArms()->syncWithoutDetaching($assignments);
+            return [$exam, $reused];
+        });
 
-        $msg = $created === 1
-            ? 'Exam created. Add the required sections and questions in the dynamic builder.'
-            : "{$created} exam drafts created — one per class arm. Open each draft to configure its sections.";
-        return $created === 1
-            ? redirect()->route('cbt.exams.builder', $exam)->with('success', $msg.' Review sections and marks before publication.')
-            : back()->with('success', $msg);
+        app(CbtExamConfigurationService::class)->createSectionsFromBank($exam, auth()->id());
+        $classCount = $exam->classArms()->count();
+        $message = $reused
+            ? "The existing draft was reused and now targets {$classCount} class(es)."
+            : "Exam created for {$classCount} class(es). Uploaded questions were arranged into their constituent sections.";
+        return redirect()->route('cbt.exams.builder', $exam)->with('success', $message.' Review the sections and publish when ready.');
     }
 
     public function publishExam(CbtExam $exam)
     {
         abort_unless($this->teacherTeachesBank(Auth::user(), $exam->questionBank), 403, 'You can only manage exams for subjects you teach.');
         abort_unless($exam->status === 'draft', 422, 'Only draft exams can be published.');
-        $validationErrors = app(CbtExamConfigurationService::class)->publicationErrors($exam);
+        $configuration = app(CbtExamConfigurationService::class);
+        $configuration->createSectionsFromBank($exam, auth()->id());
+        $validationErrors = $configuration->publicationErrors($exam->fresh());
         if ($validationErrors) return back()->withErrors(['publish' => implode(' ', $validationErrors)]);
         $exam->update(['status' => 'published']);
         \App\Models\AuditLog::create(['tenant_id' => $exam->tenant_id, 'actor_user_id' => auth()->id(), 'auditable_type' => CbtExam::class, 'auditable_id' => $exam->id, 'action' => 'cbt.exam.published', 'new_values' => ['status' => 'published']]);
@@ -642,7 +660,7 @@ class CbtController extends Controller
         $this->authorizeCbtStaffAccess();
         $user = Auth::user();
 
-        $examsQuery = CbtExam::with(['questionBank.subject', 'classArm.classLevel', 'term'])->latest();
+        $examsQuery = CbtExam::with(['questionBank.subject', 'classArm.classLevel', 'classArms.classLevel', 'term'])->latest();
         if (!$this->hasFullCbtAccess($user)) {
             $myBankIds = CbtQuestionBank::whereIn('subject_id', $this->teacherSubjectIds($user))->pluck('id');
             $examsQuery->whereIn('question_bank_id', $myBankIds);
@@ -664,7 +682,7 @@ class CbtController extends Controller
         ];
 
         if ($exam) {
-            $exam->loadMissing(['questionBank.subject', 'classArm.classLevel', 'term', 'sections']);
+            $exam->loadMissing(['questionBank.subject', 'classArm.classLevel', 'classArms.classLevel', 'term', 'sections']);
 
             $sessions = CbtStudentSession::with(['student', 'exam.questionBank.subject', 'sectionAttempts.section', 'questionScores.question', 'integrityEvents', 'retakeAuthorization'])
                 ->where('cbt_exam_id', $exam->id)
@@ -694,6 +712,11 @@ class CbtController extends Controller
     public function startExam(CbtExam $exam)
     {
         $user = Auth::user();
+        $configuration = app(CbtExamConfigurationService::class);
+        if (! $exam->sections()->exists()) {
+            $configuration->createSectionsFromBank($exam, $user->isStudent() ? null : $user->id);
+            $exam->refresh();
+        }
 
         if ($user->isStudent()) {
             $student = $this->studentForCurrentUser();
@@ -719,7 +742,12 @@ class CbtController extends Controller
             $questions = $this->orderedQuestions($this->examQuestionIds($exam));
             $existing = null;
         }
-        $sectionPayload = app(CbtExamConfigurationService::class)->sectionPayload($exam, $questions);
+        $sectionPayload = $configuration->sectionPayload($exam, $questions);
+        if ($sectionPayload->isEmpty()) {
+            return $user->isStudent()
+                ? redirect()->route('student.portal.exams')->with('info', 'This examination has no active questions yet.')
+                : redirect()->route('cbt.exams.builder', $exam)->withErrors(['preview' => 'Preview is unavailable until the question bank contains at least one active question.']);
+        }
         return view('cbt.take', compact('exam', 'questions', 'existing', 'sectionPayload'));
     }
 
@@ -870,7 +898,7 @@ class CbtController extends Controller
             return back()->with('info', 'Only submitted CBT sessions can be graded.');
         }
         abort_if(
-            \App\Models\ReportCardPublication::where('class_arm_id', $exam->class_arm_id)
+            \App\Models\ReportCardPublication::where('class_arm_id', $session->student?->current_class_arm_id ?: $exam->class_arm_id)
                 ->where('term_id', $exam->term_id)->where('status', 'published')->exists(),
             423,
             'These results are published and locked. Unpublish the report cards before changing CBT marks.'

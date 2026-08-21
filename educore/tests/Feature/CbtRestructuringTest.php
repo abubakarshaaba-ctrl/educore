@@ -66,30 +66,67 @@ class CbtRestructuringTest extends TestCase
         $this->assertNotEmpty($service->publicationErrors($exam->fresh()));
     }
 
-    public function test_exam_creation_opens_an_empty_dynamic_builder_without_legacy_a_b_sections(): void
+    public function test_exam_creation_builds_bank_sections_and_staff_preview_renders(): void
     {
         [, $bank] = $this->exam();
+        $question = $this->question($bank, 'Which option is correct?', 'mcq', 1);
+        $question->update(['option_a' => 'Correct', 'option_b' => 'Wrong', 'correct_answer_letter' => 'a']);
 
         $response = $this->post(route('cbt.exams.store'), [
             'title' => 'Dynamic Biology Examination',
             'question_bank_id' => $bank->id,
-            'target' => 'arm:'.$this->ids['arm'],
+            'class_arm_ids' => [$this->ids['arm']],
             'term_id' => $this->ids['term'],
             'duration_minutes' => 90,
             'assessment_type_id' => $this->ids['assessment'],
             'malpractice_enabled' => '1',
             'focus_loss_policy' => 'submit',
             'max_focus_losses' => 0,
-            // Obsolete fields must no longer recreate the former fixed model.
-            'section_objective_count' => 30,
-            'section_theory_count' => 5,
         ]);
 
         $created = CbtExam::where('title', 'Dynamic Biology Examination')->firstOrFail();
         $response->assertRedirect(route('cbt.exams.builder', $created));
-        $this->assertSame(0, $created->sections()->count());
-        $this->assertSame(0, (int) $created->total_questions);
-        $this->assertSame(0.0, (float) $created->total_marks);
+        $this->assertSame(1, $created->sections()->count());
+        $this->assertSame('objective', $created->sections()->first()->section_type);
+        $this->assertSame(1, (int) $created->fresh()->total_questions);
+        $this->get(route('cbt.exams.start', $created))->assertOk()->assertSee('Which option is correct?');
+    }
+
+    public function test_objective_only_exam_publishes_with_one_automatic_section(): void
+    {
+        [, $bank] = $this->exam();
+        $question = $this->question($bank, 'Objective only question', 'mcq', 2);
+        $question->update(['option_a' => 'Correct', 'option_b' => 'Wrong', 'correct_answer_letter' => 'a']);
+        $exam = CbtExam::create(['tenant_id' => $this->ids['tenant'], 'question_bank_id' => $bank->id, 'term_id' => $this->ids['term'], 'class_arm_id' => $this->ids['arm'], 'title' => 'Objective Only', 'duration_minutes' => 30, 'total_questions' => 0, 'total_marks' => 0, 'status' => 'draft', 'strict_marks_validation' => true]);
+
+        $this->post(route('cbt.publish', $exam))->assertRedirect();
+
+        $this->assertSame('published', $exam->fresh()->status);
+        $this->assertSame(1, $exam->sections()->count());
+        $this->assertSame('automatic', $exam->sections()->first()->scoring_method);
+    }
+
+    public function test_one_exam_targets_multiple_classes_and_reuses_the_same_draft(): void
+    {
+        [, $bank] = $this->exam();
+        $question = $this->question($bank, 'Shared objective question', 'mcq', 1);
+        $question->update(['option_a' => 'Correct', 'option_b' => 'Wrong', 'correct_answer_letter' => 'a']);
+        $secondArm = DB::table('class_arms')->insertGetId(['tenant_id' => $this->ids['tenant'], 'class_level_id' => $this->ids['level'], 'name' => 'B', 'created_at' => now(), 'updated_at' => now()]);
+        $payload = ['title' => 'Shared Biology Exam', 'question_bank_id' => $bank->id, 'class_arm_ids' => [$this->ids['arm'], $secondArm], 'term_id' => $this->ids['term'], 'duration_minutes' => 60];
+
+        $this->post(route('cbt.exams.store'), $payload)->assertRedirect();
+        $this->post(route('cbt.exams.store'), $payload)->assertRedirect();
+
+        $this->assertSame(1, CbtExam::where('title', 'Shared Biology Exam')->count());
+        $shared = CbtExam::where('title', 'Shared Biology Exam')->firstOrFail();
+        $this->assertEqualsCanonicalizing([$this->ids['arm'], $secondArm], $shared->assignedClassArmIds()->all());
+
+        $this->post(route('cbt.publish', $shared))->assertRedirect();
+        $secondStudentUserId = DB::table('users')->insertGetId(['tenant_id' => $this->ids['tenant'], 'name' => 'Second Student', 'email' => 'second.student@example.test', 'password' => bcrypt('password'), 'role' => 'student', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('students')->insert(['tenant_id' => $this->ids['tenant'], 'user_id' => $secondStudentUserId, 'current_class_arm_id' => $secondArm, 'admission_number' => 'ST002', 'first_name' => 'Bola', 'last_name' => 'Adewale', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs(User::findOrFail($secondStudentUserId));
+        $this->get(route('student.portal.exams'))->assertOk()->assertSee('Shared Biology Exam');
+        $this->get(route('cbt.exams.start', $shared))->assertOk()->assertSee('Shared Biology Exam');
     }
 
     public function test_bank_builder_creates_numbered_parent_and_child_questions_and_attaches_the_branch(): void
@@ -275,7 +312,7 @@ class CbtRestructuringTest extends TestCase
 
     public function test_import_allows_the_same_question_number_in_different_sections(): void
     {
-        [, $bank] = $this->exam();
+        [$exam, $bank] = $this->exam();
         $csv = implode("\n", [
             implode(',', CbtQuestionImportService::HEADERS),
             'A,Objective,1,,1,single_choice,"First answer?",Yes,No,,,A,1,automatic,online,1,,yes,',
@@ -285,6 +322,8 @@ class CbtRestructuringTest extends TestCase
         $this->assertSame('preview', $batch->status);
         $this->assertSame(2, app(CbtQuestionImportService::class)->import($batch));
         $this->assertSame(2, CbtQuestion::where('reference_code', '1')->count());
+        app(CbtExamConfigurationService::class)->createSectionsFromBank($exam, $this->admin->id);
+        $this->assertSame(['A', 'B'], $exam->sections()->orderBy('display_order')->pluck('code')->all());
     }
 
     public function test_sectionless_import_separates_objective_and_theory_numbering(): void

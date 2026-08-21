@@ -81,7 +81,7 @@
                 <div class="exam-row-title">{{ $exam->title }}</div>
                 <div class="exam-row-meta">
                     {{ optional($exam->questionBank->subject ?? null)->name }} ·
-                    {{ optional($exam->classArm)->name }}
+                    {{ $exam->assignedClassNames() }}
                     @if($exam->lan_exported_at)
                         · exported {{ $exam->lan_exported_at->diffForHumans() }}
                     @endif

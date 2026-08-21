@@ -32,7 +32,7 @@ class CbtLanController extends Controller
     private const TABLES = [
         'tenants', 'academic_sessions', 'terms', 'class_levels', 'class_arms',
         'subjects', 'assessment_types', 'cbt_question_banks', 'cbt_questions',
-        'users', 'students', 'cbt_exams', 'cbt_exam_sections', 'cbt_exam_section_questions',
+        'users', 'students', 'cbt_exams', 'cbt_exam_class_arms', 'cbt_exam_sections', 'cbt_exam_section_questions',
     ];
 
     private function authorize404(): void
@@ -54,7 +54,7 @@ class CbtLanController extends Controller
         // Only admins reach this point (see authorize404), so no per-teacher
         // subject scoping is needed — admins see every exam bank.
         $exams = CbtExam::query()
-            ->with('questionBank.subject', 'classArm')
+            ->with('questionBank.subject', 'classArm', 'classArms.classLevel')
             ->latest()
             ->get();
 
@@ -71,15 +71,16 @@ class CbtLanController extends Controller
     public function exportPackage(CbtExam $exam)
     {
         $this->authorize404();
-        $exam->load('questionBank', 'classArm');
+        $exam->load('questionBank', 'classArm', 'classArms.classLevel');
         abort_unless($exam->question_bank_id && $exam->classArm, 404, 'Exam is missing its bank/class link.');
 
         $tenantId  = $exam->tenant_id;
-        $classArm  = $exam->classArm;
+        $classArms = $exam->classArms->isNotEmpty() ? $exam->classArms : collect([$exam->classArm]);
+        $classArmIds = $classArms->pluck('id');
         $bank      = $exam->questionBank;
 
-        $studentIds = DB::table('students')->where('current_class_arm_id', $classArm->id)->pluck('id');
-        $userIds    = DB::table('students')->where('current_class_arm_id', $classArm->id)->pluck('user_id')->filter();
+        $studentIds = DB::table('students')->whereIn('current_class_arm_id', $classArmIds)->pluck('id');
+        $userIds    = DB::table('students')->whereIn('current_class_arm_id', $classArmIds)->pluck('user_id')->filter();
 
         $rows = [];
         $rows['tenants']            = DB::table('tenants')->where('id', $tenantId)->get();
@@ -87,8 +88,8 @@ class CbtLanController extends Controller
         $sessionIds                 = $rows['terms']->pluck('session_id')->filter();
         $rows['academic_sessions']  = Schema::hasTable('academic_sessions') && $sessionIds->isNotEmpty()
             ? DB::table('academic_sessions')->whereIn('id', $sessionIds)->get() : collect();
-        $rows['class_levels']       = DB::table('class_levels')->where('id', $classArm->class_level_id)->get();
-        $rows['class_arms']         = DB::table('class_arms')->where('id', $classArm->id)->get()
+        $rows['class_levels']       = DB::table('class_levels')->whereIn('id', $classArms->pluck('class_level_id')->unique())->get();
+        $rows['class_arms']         = DB::table('class_arms')->whereIn('id', $classArmIds)->get()
             ->map(function ($r) { $r->form_tutor_id = null; return $r; }); // form tutor account isn't exported
         $rows['subjects']           = DB::table('subjects')->where('id', $bank->subject_id)->get();
         $rows['assessment_types']   = $exam->assessment_type_id
@@ -98,6 +99,7 @@ class CbtLanController extends Controller
         $rows['users']              = DB::table('users')->whereIn('id', $userIds)->get();
         $rows['students']           = DB::table('students')->whereIn('id', $studentIds)->get();
         $rows['cbt_exams']          = DB::table('cbt_exams')->where('id', $exam->id)->get()->map(function ($row) { $row->created_by = null; return $row; });
+        $rows['cbt_exam_class_arms'] = DB::table('cbt_exam_class_arms')->where('cbt_exam_id', $exam->id)->get();
         $rows['cbt_exam_sections']  = DB::table('cbt_exam_sections')->where('cbt_exam_id', $exam->id)->get()->map(function ($row) { $row->created_by = null; return $row; });
         $rows['cbt_exam_section_questions'] = DB::table('cbt_exam_section_questions')->where('cbt_exam_id', $exam->id)->get();
 

@@ -17,7 +17,8 @@ class CbtResultSyncService
         if (! $exam?->assessment_type_id) return ['synced' => false, 'reason' => 'not_linked'];
         if (! $completed->isFullyScored()) return ['synced' => false, 'reason' => 'pending_manual_scoring'];
 
-        $published = ReportCardPublication::where('class_arm_id', $exam->class_arm_id)
+        $studentClassArmId = $completed->student?->current_class_arm_id ?: $exam->class_arm_id;
+        $published = ReportCardPublication::where('class_arm_id', $studentClassArmId)
             ->where('term_id', $exam->term_id)->where('status', 'published')->exists();
         if ($published) return ['synced' => false, 'reason' => 'result_published'];
 

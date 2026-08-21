@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\BaseTenantModel;
 use App\Models\CbtQuestion;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CbtExam extends BaseTenantModel
@@ -45,12 +46,43 @@ class CbtExam extends BaseTenantModel
     public function questionBank(): BelongsTo { return $this->belongsTo(CbtQuestionBank::class, 'question_bank_id'); }
     public function term(): BelongsTo { return $this->belongsTo(Term::class); }
     public function classArm(): BelongsTo { return $this->belongsTo(ClassArm::class); }
+    public function classArms(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassArm::class, 'cbt_exam_class_arms')
+            ->withPivot('tenant_id')->withTimestamps();
+    }
     public function studentSessions(): HasMany { return $this->hasMany(CbtStudentSession::class); }
     public function assessmentType(): BelongsTo { return $this->belongsTo(AssessmentType::class); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function sections(): HasMany { return $this->hasMany(CbtExamSection::class)->orderBy('display_order'); }
     public function retakeAuthorizations(): HasMany { return $this->hasMany(CbtRetakeAuthorization::class); }
     public function integrityEvents(): HasMany { return $this->hasMany(CbtIntegrityEvent::class); }
+
+    public function assignedClassArmIds(): \Illuminate\Support\Collection
+    {
+        $ids = $this->relationLoaded('classArms')
+            ? $this->classArms->pluck('id')
+            : $this->classArms()->pluck('class_arms.id');
+
+        if ($ids->isEmpty() && $this->class_arm_id) $ids->push($this->class_arm_id);
+
+        return $ids->map(fn ($id) => (int) $id)->unique()->values();
+    }
+
+    public function isAssignedToClassArm(?int $classArmId): bool
+    {
+        return $classArmId !== null && $this->assignedClassArmIds()->contains((int) $classArmId);
+    }
+
+    public function assignedClassNames(): string
+    {
+        $arms = $this->relationLoaded('classArms')
+            ? $this->classArms
+            : $this->classArms()->with('classLevel')->get();
+        if ($arms->isEmpty() && $this->classArm) $arms = collect([$this->classArm]);
+
+        return $arms->map(fn (ClassArm $arm) => trim(($arm->classLevel?->name ?? '').' '.$arm->name))->join(', ');
+    }
 
     public function getExamDateAttribute(): mixed
     {

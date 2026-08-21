@@ -202,7 +202,7 @@ class StudentController extends Controller
     {
         if (Schema::hasColumn('cbt_exams', 'class_arm_id') && $student->current_class_arm_id) {
             $armId = $student->current_class_arm_id;
-            $query->where(fn ($inner) => $inner->whereNull('class_arm_id')->orWhere('class_arm_id', $armId));
+            $query->where(fn ($inner) => $inner->whereNull('class_arm_id')->orWhere('class_arm_id', $armId)->orWhereHas('classArms', fn ($assigned) => $assigned->where('class_arms.id', $armId)));
         }
         return $query;
     }

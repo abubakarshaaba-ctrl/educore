@@ -55,7 +55,8 @@ class StudentPortalController extends Controller
         if (Schema::hasColumn('cbt_exams', 'class_arm_id') && $armId) {
             return $query->where(function ($q) use ($armId) {
                 $q->whereNull('class_arm_id')
-                  ->orWhere('class_arm_id', $armId);
+                  ->orWhere('class_arm_id', $armId)
+                  ->orWhereHas('classArms', fn ($assigned) => $assigned->where('class_arms.id', $armId));
             });
         }
 

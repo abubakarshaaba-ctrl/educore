@@ -22,7 +22,10 @@ class CbtExamSectionController extends Controller
     public function builder(CbtExam $exam)
     {
         $this->authorizeExam($exam);
-        $exam->load(['sections.questions.parent', 'questionBank.subject', 'classArm.classLevel']);
+        if ($exam->status === 'draft' && ! $exam->sections()->exists()) {
+            $this->configuration->createSectionsFromBank($exam, auth()->id());
+        }
+        $exam->load(['sections.questions.parent', 'questionBank.subject', 'classArm.classLevel', 'classArms.classLevel']);
         $availableQuestions = $this->numbering->number(
             $exam->questionBank->questions()->with('parent')->orderBy('sequence')->orderBy('id')->get()
         );
@@ -238,7 +241,8 @@ class CbtExamSectionController extends Controller
     private function authorizeExam(CbtExam $exam): void
     {
         $user = auth()->user();
-        abort_unless($user && ! $user->isStudent() && (int) $user->tenant_id === (int) $exam->tenant_id && ($user->isAdmin() || $user->isSuperAdmin() || \App\Models\ClassArmSubject::where('teacher_id', $user->id)->where('class_arm_id', $exam->class_arm_id)->where('subject_id', $exam->questionBank->subject_id)->exists()), 403);
+        $assignedArmIds = $exam->assignedClassArmIds();
+        abort_unless($user && ! $user->isStudent() && (int) $user->tenant_id === (int) $exam->tenant_id && ($user->isAdmin() || $user->isSuperAdmin() || \App\Models\ClassArmSubject::where('teacher_id', $user->id)->whereIn('class_arm_id', $assignedArmIds)->where('subject_id', $exam->questionBank->subject_id)->exists()), 403);
     }
 
     private function authorizeDraft(CbtExam $exam): void { $this->authorizeExam($exam); abort_unless($exam->status === 'draft', 422, 'Published or closed exams cannot be structurally edited.'); }
