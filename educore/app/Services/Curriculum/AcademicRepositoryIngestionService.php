@@ -57,6 +57,60 @@ class AcademicRepositoryIngestionService
         return $import->fresh();
     }
 
+    /** Re-extract a stored platform resource without creating a duplicate source. */
+    public function reindex(CurriculumSource $source, int $actor): CurriculumSource
+    {
+        if ($source->tenant_id !== null || !$source->source_file_path) {
+            throw new \RuntimeException('This resource cannot be re-indexed.');
+        }
+
+        $disk = Storage::disk('local');
+        if (!$disk->exists($source->source_file_path)) {
+            throw new \RuntimeException('The original file is missing from repository storage.');
+        }
+
+        $extension = strtolower(pathinfo($source->original_filename ?: $source->source_file_path, PATHINFO_EXTENSION));
+        if (!in_array($extension, ['docx', 'doc', 'pdf'], true)) {
+            throw new \RuntimeException('Only DOCX, DOC and PDF resources can be re-indexed here.');
+        }
+
+        [$raw, $locator] = match ($extension) {
+            'docx' => $this->docx($disk->path($source->source_file_path)),
+            'doc' => $this->doc($disk->path($source->source_file_path)),
+            default => $this->pdf($disk->path($source->source_file_path)),
+        };
+        $clean = $this->clean($raw);
+        if (mb_strlen($clean) < 80) {
+            $source->update(['raw_text' => $raw, 'cleaned_text' => $clean, 'extraction_status' => 'failed', 'index_status' => 'failed', 'is_active' => false]);
+            throw new \RuntimeException('No readable text was found. This may be a scanned PDF that requires OCR before upload.');
+        }
+
+        DB::transaction(function () use ($source, $actor, $raw, $clean, $locator, $extension) {
+            $source->fragments()->delete();
+            $source->update([
+                'raw_text' => $raw, 'cleaned_text' => $clean,
+                'extraction_status' => 'extracted', 'index_status' => 'indexed',
+                'is_active' => false, 'needs_review' => true, 'review_status' => 'pending',
+                'reviewed_by' => null, 'reviewed_at' => null,
+                'metadata' => array_merge($source->metadata ?? [], ['source_locator' => $locator, 'reindexed_by' => $actor]),
+            ]);
+            foreach ($this->chunks($clean) as $index => $chunk) {
+                CurriculumFragment::create([
+                    'curriculum_source_id' => $source->id,
+                    'subject_id' => $source->subject_id,
+                    'class_level_id' => $source->curriculum_level_id,
+                    'topic' => $source->title,
+                    'subtopic' => null,
+                    'content' => $chunk,
+                    'source_locator' => $extension === 'pdf' ? 'Extracted page text' : 'Document section '.($index + 1),
+                    'sequence' => $index,
+                ]);
+            }
+        });
+
+        return $source->fresh();
+    }
+
     /**
      * Read the mixed archive conventions and return one platform hierarchy:
      * Class -> Subject -> Term. The exact source path is always retained.
@@ -568,8 +622,40 @@ class AcademicRepositoryIngestionService
     private function pdf(string $path): array
     {
         $raw = file_get_contents($path) ?: '';
-        preg_match_all('/\(([^()]*(?:\\.[^()]*)*)\)\s*Tj/s', $raw, $matches);
-        $text = implode("\n", array_map(fn ($value) => stripcslashes($value), $matches[1] ?? []));
+        $streams = [$raw];
+        if (preg_match_all('/<<(.*?)>>\s*stream\R?(.*?)\R?endstream/s', $raw, $streamMatches, PREG_SET_ORDER)) {
+            foreach ($streamMatches as $match) {
+                $stream = $match[2];
+                if (str_contains($match[1], 'FlateDecode')) {
+                    $inflated = @gzuncompress($stream);
+                    if ($inflated === false) $inflated = @gzinflate($stream);
+                    if ($inflated !== false) $stream = $inflated;
+                }
+                $streams[] = $stream;
+            }
+        }
+
+        $parts = [];
+        foreach ($streams as $stream) {
+            preg_match_all('/BT(.*?)ET/s', $stream, $blocks);
+            foreach ($blocks[1] ?? [] as $block) {
+                preg_match_all('/\((?:\\.|[^\\)])*\)|<([0-9A-Fa-f\s]+)>/', $block, $tokens, PREG_SET_ORDER);
+                foreach ($tokens as $token) {
+                    if (!empty($token[1])) {
+                        $hex = preg_replace('/\s+/', '', $token[1]);
+                        $decoded = strlen($hex) % 2 === 0 ? @hex2bin($hex) : false;
+                        if ($decoded !== false) $parts[] = $decoded;
+                    } else {
+                        $literal = substr($token[0], 1, -1);
+                        $parts[] = preg_replace_callback('/\\\\([0-7]{1,3}|[nrtbf()\\\\])/', function ($match) {
+                            if (ctype_digit($match[1])) return chr(octdec($match[1]));
+                            return ['n'=>"\n",'r'=>"\r",'t'=>"\t",'b'=>"\b",'f'=>"\f",'('=>'(',')'=>')','\\'=>'\\'][$match[1]] ?? $match[1];
+                        }, $literal);
+                    }
+                }
+            }
+        }
+        $text = implode("\n", array_filter($parts, fn ($part) => trim((string) $part) !== ''));
 
         return [$text, 'pages'];
     }

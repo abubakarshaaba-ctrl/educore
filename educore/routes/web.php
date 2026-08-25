@@ -1096,9 +1096,16 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
     Route::get('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'index'])->name('curriculum-sources.index');
     Route::get('curriculum-sources/import', [\App\Http\Controllers\CurriculumSourceController::class, 'create'])->name('curriculum-sources.create');
     Route::get('curriculum-sources/topics', [\App\Http\Controllers\CurriculumSourceController::class, 'topics'])->name('curriculum-sources.topics.index');
+    Route::post('curriculum-sources/uploads', [\App\Http\Controllers\CurriculumSourceController::class, 'initiateUpload'])->name('curriculum-sources.uploads.initiate');
+    Route::get('curriculum-sources/uploads/{upload}', [\App\Http\Controllers\CurriculumSourceController::class, 'uploadStatus'])->whereUuid('upload')->name('curriculum-sources.uploads.status');
+    Route::post('curriculum-sources/uploads/{upload}/chunks', [\App\Http\Controllers\CurriculumSourceController::class, 'uploadChunk'])->whereUuid('upload')->name('curriculum-sources.uploads.chunk');
+    Route::post('curriculum-sources/uploads/{upload}/complete', [\App\Http\Controllers\CurriculumSourceController::class, 'completeUpload'])->whereUuid('upload')->name('curriculum-sources.uploads.complete');
+    Route::delete('curriculum-sources/uploads/{upload}', [\App\Http\Controllers\CurriculumSourceController::class, 'cancelUpload'])->whereUuid('upload')->name('curriculum-sources.uploads.cancel');
     Route::post('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'store'])->name('curriculum-sources.store');
+    Route::post('curriculum-sources/bulk', [\App\Http\Controllers\CurriculumSourceController::class, 'bulk'])->name('curriculum-sources.bulk');
     Route::post('curriculum-sources/{curriculumSource}/activate', [\App\Http\Controllers\CurriculumSourceController::class, 'activate'])->name('curriculum-sources.activate');
     Route::post('curriculum-sources/{curriculumSource}/deactivate', [\App\Http\Controllers\CurriculumSourceController::class, 'deactivate'])->name('curriculum-sources.deactivate');
+    Route::post('curriculum-sources/{curriculumSource}/reindex', [\App\Http\Controllers\CurriculumSourceController::class, 'reindex'])->name('curriculum-sources.reindex');
     Route::delete('curriculum-sources/{curriculumSource}', [\App\Http\Controllers\CurriculumSourceController::class, 'destroy'])->name('curriculum-sources.destroy');
     Route::post('curriculum-sources/topics', [\App\Http\Controllers\CurriculumSourceController::class, 'topic'])->name('curriculum-sources.topics.store');
     Route::post('data-migrations', [\App\Http\Controllers\DataMigrationController::class, 'store'])->name('migrations.store');
