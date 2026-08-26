@@ -4,6 +4,7 @@ use App\Console\Commands\AcademicRollover;
 use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\ExportCanonicalMigration;
 use App\Console\Commands\IngestDataMigration;
+use App\Console\Commands\ImportAcademicRepositoryDirectory;
 use App\Console\Commands\InspectAcademicCycle;
 use App\Console\Commands\InspectDataMigration;
 use App\Console\Commands\MapDataMigration;
@@ -34,6 +35,7 @@ app(ConsoleKernel::class)->registerCommand(app(SendFeeDefaulterReminders::class)
 app(ConsoleKernel::class)->registerCommand(app(InspectDataMigration::class));
 app(ConsoleKernel::class)->registerCommand(app(VerifyDataMigration::class));
 app(ConsoleKernel::class)->registerCommand(app(IngestDataMigration::class));
+app(ConsoleKernel::class)->registerCommand(app(ImportAcademicRepositoryDirectory::class));
 app(ConsoleKernel::class)->registerCommand(app(MapDataMigration::class));
 app(ConsoleKernel::class)->registerCommand(app(ReconstructSchoolBlueprint::class));
 app(ConsoleKernel::class)->registerCommand(app(PlanCoreEntityMigration::class));

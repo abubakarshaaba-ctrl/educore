@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Finder\Finder;
 use ZipArchive;
 
 class AcademicRepositoryIngestionService
@@ -38,6 +39,61 @@ class AcademicRepositoryIngestionService
                 $this->xlsx($file, $meta, $actor, $import);
             } else {
                 $this->document($file->getRealPath(), $file->getClientOriginalName(), $file->getMimeType(), $meta, $actor, $import);
+            }
+
+            $import->update([
+                'status' => $import->failed ? 'completed_with_errors' : 'completed',
+                'completed_at' => now(),
+            ]);
+        } catch (\Throwable $exception) {
+            $import->update([
+                'status' => 'failed',
+                'failed' => DB::raw('failed + 1'),
+                'metadata' => ['error' => Str::limit($exception->getMessage(), 500)],
+            ]);
+
+            throw $exception;
+        }
+
+        return $import->fresh();
+    }
+
+    public function ingestDirectory(string $directory, array $meta, int $actor, ?string $label = null): RepositoryImport
+    {
+        $root = realpath($directory);
+        if ($root === false || !is_dir($root)) {
+            throw new \InvalidArgumentException('The academic repository source directory does not exist.');
+        }
+
+        $import = RepositoryImport::create([
+            'filename' => $label ?: basename($root),
+            'format' => 'directory',
+            'uploaded_by' => $actor,
+            'status' => 'processing',
+            'started_at' => now(),
+        ]);
+
+        try {
+            $finder = Finder::create()
+                ->files()
+                ->in($root)
+                ->name('/\.(docx|doc|pdf|xlsx|xls)$/i')
+                ->sortByName();
+
+            $count = iterator_count($finder->getIterator());
+            if ($count > self::MAX_FILES) {
+                throw new \RuntimeException('Directory file-count limit exceeded (maximum 8,000 files).');
+            }
+
+            foreach ($finder as $file) {
+                $relative = str_replace('\\', '/', $file->getRelativePathname());
+                $extension = strtolower($file->getExtension());
+
+                if (in_array($extension, ['xlsx', 'xls'], true)) {
+                    $this->xlsxPath($file->getPathname(), $relative, $this->infer($relative, $meta), $actor, $import);
+                } else {
+                    $this->document($file->getPathname(), $file->getFilename(), $this->mime($extension), $meta, $actor, $import, $relative);
+                }
             }
 
             $import->update([
