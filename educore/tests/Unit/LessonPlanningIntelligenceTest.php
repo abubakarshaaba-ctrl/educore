@@ -12,31 +12,34 @@ use Tests\TestCase;
 
 class LessonPlanningIntelligenceTest extends TestCase
 {
-    public function test_structured_plan_requires_entry_behaviour_as_a_separate_field(): void
+    public function test_structured_plan_does_not_require_entry_behaviour(): void
     {
-        $this->expectException(ValidationException::class);
-        app(LessonPlanSchema::class)->validate([
+        $plan=app(LessonPlanSchema::class)->validate([
             'class'=>'Year 12','subject'=>'Biology','lesson'=>'One','topic'=>'Development','sub_topics'=>['Metamorphosis'],
             'duration'=>'40 minutes','sex'=>'Mixed','previous_background_knowledge'=>'Reproduction was previously taught.',
-            'behavioural_objectives'=>['Explain metamorphosis'],'instructional_resources'=>['Chart'],'introduction'=>'Review reproduction.',
-            'presentation'=>[['step'=>1,'title'=>'Meaning','activities'=>['Teacher guides students.']]],
-            'evaluation'=>['Define metamorphosis.'],'assignment'=>'Compare both forms.','references'=>[],
+            'behavioural_objectives'=>['Define metamorphosis accurately.','Identify the stages in an insect life cycle.','Compare observable developmental changes.'],'instructional_resources'=>['Insect life-cycle chart','Photographs of developmental stages'],'introduction'=>'The teacher reviews reproduction through questions, receives responses and links them to developmental changes.',
+            'presentation'=>[['step'=>1,'objective_numbers'=>[1,2,3],'title'=>'Metamorphosis','teacher_activities'=>['Teacher guides students to define metamorphosis as a sequence of developmental changes.','Teacher aids students to identify the major stages using a chart.','Teacher helps students compare the observable stages in an insect life cycle.'],'student_activities'=>['Students define metamorphosis and identify the stages on the chart.']]],
+            'evaluation'=>['Define metamorphosis.','Identify two stages in a complete life cycle.','Compare two developmental changes.'],'assignment'=>'Compare complete and incomplete metamorphosis with examples.','references'=>[],
         ]);
+        $this->assertArrayNotHasKey('entry_behaviour',$plan);
     }
 
     public function test_note_schema_accepts_subject_independent_content_blocks(): void
     {
         $note = $this->note();
-        $this->assertSame('Development of new organisms', app(LessonNoteSchema::class)->validate($note)['title']);
-        $this->assertStringContainsString('Diagram placeholder', app(StructuredNoteRenderer::class)->toHtml($note));
-        $this->assertStringNotContainsString('<script', app(StructuredNoteRenderer::class)->toHtml(array_replace($note,['overview'=>'<script>alert(1)</script>'])));
+        $this->assertSame('Development of new organisms', app(LessonNoteSchema::class)->validate($note)['topic']);
+        $html = app(StructuredNoteRenderer::class)->toHtml($note);
+        $this->assertStringContainsString('WEEK 1 | LESSON 1', $html);
+        $this->assertStringContainsString('<svg', $html);
+        $this->assertStringNotContainsString('Diagram placeholder', $html);
+        $this->assertStringNotContainsString('<script', app(StructuredNoteRenderer::class)->toHtml(array_replace($note,['assignment'=>'<script>alert(1)</script>'])));
     }
 
     public function test_plan_schema_normalises_numeric_ai_metadata_without_rejecting_the_draft(): void
     {
         $plan = app(LessonPlanSchema::class)->validate([
             'class'=>12,'subject'=>'Biology','week'=>4,'lesson'=>1,'topic'=>'Genetics','sub_topics'=>['Mendelian inheritance'],
-            'time'=>1020,'duration'=>40,'average_age'=>16,'sex'=>'Mixed','entry_behaviour'=>'Students can identify inherited traits.',
+            'time'=>1020,'duration'=>40,'average_age'=>16,'sex'=>'Mixed',
             'previous_background_knowledge'=>'Students were taught genes and chromosomes in the previous lesson.',
             'behavioural_objectives'=>['Define Mendelian inheritance accurately.','Identify dominant and recessive traits.','Explain inheritance using family traits.'],
             'instructional_resources'=>['A labelled inherited-traits chart','Photographs showing contrasting traits'],
@@ -66,10 +69,10 @@ class LessonPlanningIntelligenceTest extends TestCase
         $this->assertNotEmpty($result['factual_concerns']);
     }
 
-    public function test_institutional_section_order_keeps_entry_behaviour_before_background_knowledge(): void
+    public function test_institutional_section_order_omits_entry_behaviour(): void
     {
         $keys = array_keys(LessonPlan::nerdcSections());
-        $this->assertLessThan(array_search('previous_knowledge',$keys,true), array_search('entry_behaviour',$keys,true));
+        $this->assertNotContains('entry_behaviour', $keys);
         $this->assertNotContains('class_activity', $keys);
         $this->assertNotContains('conclusion', $keys);
         $this->assertSame('reference_materials', array_key_last(LessonPlan::nerdcSections()));
@@ -82,14 +85,15 @@ class LessonPlanningIntelligenceTest extends TestCase
             'teacher_activities'=>['Teacher guides students to define courtship behaviour.'],
             'student_activities'=>['Students define courtship behaviour and give an example.'],
         ]]]]);
-        $this->assertStringContainsString('Objective 1, Objective 2', $plan->sectionValue('presentation'));
-        $this->assertStringContainsString("STUDENTS' ACTIVITY", $plan->sectionValue('presentation'));
+        $this->assertStringContainsString('STEP I: Courtship Behaviour in Animals', $plan->sectionValue('presentation'));
+        $this->assertStringNotContainsString('Objective 1', $plan->sectionValue('presentation'));
+        $this->assertStringNotContainsString("STUDENTS' ACTIVITY", $plan->sectionValue('presentation'));
     }
 
     public function test_note_schema_normalises_provider_content_block_aliases(): void
     {
         $note=$this->note();
-        $note['sections'][0]['content_blocks'][0]=['type'=>'list','items'=>array_fill(0,20,'Complete metamorphosis proceeds through a distinct developmental stage with specialised structure and function.')];
+        $note['sections'][0]['content_blocks'][0]=['type'=>'list','items'=>array_fill(0,40,'Complete metamorphosis proceeds through a distinct developmental stage with specialised structure and function.')];
         $validated=app(LessonNoteSchema::class)->validate($note);
         $this->assertSame('bullets',$validated['sections'][0]['content_blocks'][0]['type']);
     }
@@ -109,7 +113,7 @@ class LessonPlanningIntelligenceTest extends TestCase
         $this->expectException(ValidationException::class);
         app(LessonPlanSchema::class)->validate([
             'class'=>'Year 12','subject'=>'Biology','lesson'=>'1','topic'=>'Development','week'=>'1','time'=>'12:10','duration'=>'70 minutes','average_age'=>'15','sex'=>'Mixed',
-            'sub_topics'=>['Courtship behaviour','Metamorphosis'],'entry_behaviour'=>'Students can identify examples of animal reproduction.',
+            'sub_topics'=>['Courtship behaviour','Metamorphosis'],
             'previous_background_knowledge'=>'Students were previously taught sexual and asexual reproduction.',
             'behavioural_objectives'=>['Define courtship behaviour accurately.','Explain metamorphosis in insects.','Compare complete and incomplete metamorphosis.'],
             'instructional_resources'=>['Insect life-cycle chart','Preserved insect specimens'],'introduction'=>'The teacher revises animal reproduction through questions, receives student responses, and links them to development.',
@@ -125,7 +129,7 @@ class LessonPlanningIntelligenceTest extends TestCase
 
         app(\App\Services\LessonPlanning\LessonPlanSchema::class)->validate([
             'class'=>'SS 1','subject'=>'Biology','lesson'=>'1','topic'=>'The cell','sub_topics'=>['Cell structure'],
-            'duration'=>'40 minutes','sex'=>'Mixed','entry_behaviour'=>'Learners can identify common living things around them.',
+            'duration'=>'40 minutes','sex'=>'Mixed',
             'previous_background_knowledge'=>'Learners previously studied the characteristics of living things.',
             'behavioural_objectives'=>['Understand cells very well','Know the parts of a cell','Appreciate cell structure'],
             'instructional_resources'=>['Cell chart','Onion epidermal slide'],'introduction'=>'Teacher revises living things through questions, receives learner responses and links them to cells.',
@@ -141,12 +145,11 @@ class LessonPlanningIntelligenceTest extends TestCase
 
     private function note(): array
     {
-        return ['title'=>'Development of new organisms','overview'=>'Metamorphosis explains developmental change.',
+        return ['week'=>'1','lesson'=>'1','topic'=>'Development of new organisms','sub_topics'=>['Metamorphosis in insects'],
             'sections'=>[['heading'=>'Metamorphosis in insects','subheading'=>null,'content_blocks'=>[
-                ['type'=>'paragraph','content'=>str_repeat('Complete metamorphosis is a biological developmental process with egg, larva, pupa and adult stages. The larva feeds and grows, while the pupa undergoes extensive reorganisation before the reproductive adult emerges. This pattern occurs in houseflies, mosquitoes and butterflies and differs from incomplete metamorphosis because a true pupal stage is present. ', 4)],
-                ['type'=>'diagram','title'=>'Complete metamorphosis','labels'=>['egg','larva','pupa','adult']],
-            ]]],'key_examination_points'=>['Distinguish complete and incomplete metamorphosis.'],
-            'review_questions'=>['objective'=>['Which stage follows larva?'],'structured'=>[],'application'=>[]],
-            'summary'=>'Metamorphosis is a sequence of developmental changes.','source_trace'=>[]];
+                ['type'=>'paragraph','content'=>str_repeat('Complete metamorphosis is a biological developmental process with egg, larva, pupa and adult stages. The larva feeds and grows, while the pupa undergoes extensive reorganisation before the reproductive adult emerges. This pattern occurs in houseflies, mosquitoes and butterflies and differs from incomplete metamorphosis because a true pupal stage is present. ', 9)],
+                ['type'=>'diagram','title'=>'Complete metamorphosis','caption'=>'Life cycle of a completely metamorphosing insect','description'=>'Follow the ordered change from egg to reproductive adult.','labels'=>['egg','larva','pupa','adult']],
+            ]]],'evaluation'=>['What is metamorphosis?','Name the stages of complete metamorphosis.','Differentiate complete and incomplete metamorphosis.'],
+            'assignment'=>'Draw and label the stages of complete metamorphosis.','reading_assignment'=>'Review metamorphosis and write two insect examples.','source_trace'=>[]];
     }
 }

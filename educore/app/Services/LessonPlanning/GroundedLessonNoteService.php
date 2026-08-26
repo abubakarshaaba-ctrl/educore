@@ -75,8 +75,12 @@ class GroundedLessonNoteService
         $sections = collect($existing['sections'] ?? [])->keyBy(fn($s)=>mb_strtolower($s['heading'] ?? ''));
         foreach ($generated['sections'] ?? [] as $section) $sections->put(mb_strtolower($section['heading'] ?? uniqid()), $section);
         $existing['sections'] = $sections->values()->all();
-        foreach (['key_examination_points','source_trace'] as $key) $existing[$key] = collect($existing[$key]??[])->merge($generated[$key]??[])->unique(fn($v)=>json_encode($v))->values()->all();
-        foreach (['objective','structured','application'] as $type) $existing['review_questions'][$type] = collect($existing['review_questions'][$type]??[])->merge($generated['review_questions'][$type]??[])->unique()->values()->all();
+        foreach (['evaluation','source_trace'] as $key) {
+            $existing[$key] = collect($existing[$key] ?? [])->merge($generated[$key] ?? [])->unique(fn ($value) => json_encode($value))->values()->all();
+        }
+        foreach (['assignment','reading_assignment'] as $key) {
+            if (! empty($generated[$key])) $existing[$key] = $generated[$key];
+        }
         return $existing;
     }
 }

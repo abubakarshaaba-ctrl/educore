@@ -10,12 +10,7 @@ class LessonAiServiceTest extends TestCase
     public function test_nerdc_generation_uses_a_complete_local_fallback_when_no_provider_is_available(): void
     {
         config([
-            'services.ai_provider' => 'gemini',
-            'services.gemini.key' => null,
             'services.groq.key' => null,
-            'services.openrouter.key' => null,
-            'services.anthropic.key' => null,
-            'services.ollama.enabled' => false,
         ]);
 
         $plan = app(LessonAiService::class)->generateNerdcPlan([
@@ -28,7 +23,6 @@ class LessonAiServiceTest extends TestCase
 
         $this->assertSame([
             'previous_knowledge',
-            'entry_behaviour',
             'behavioural_objectives',
             'instructional_materials',
             'reference_materials',
@@ -46,12 +40,7 @@ class LessonAiServiceTest extends TestCase
     public function test_british_generation_uses_a_complete_local_fallback_when_no_provider_is_available(): void
     {
         config([
-            'services.ai_provider' => 'gemini',
-            'services.gemini.key' => null,
             'services.groq.key' => null,
-            'services.openrouter.key' => null,
-            'services.anthropic.key' => null,
-            'services.ollama.enabled' => false,
         ]);
 
         $plan = app(LessonAiService::class)->generateBritishPlan([
@@ -62,5 +51,19 @@ class LessonAiServiceTest extends TestCase
         $this->assertArrayHasKey('success_criteria', $plan);
         $this->assertArrayHasKey('assessment_for_learning', $plan);
         $this->assertStringContainsString('Fractions', $plan['learning_objectives']);
+    }
+
+    public function test_lesson_planner_has_no_alternate_external_ai_provider_dependency(): void
+    {
+        $service = file_get_contents(app_path('Services/LessonAiService.php'));
+
+        $this->assertNull(config('services.gemini'));
+        $this->assertNull(config('services.openrouter'));
+        $this->assertNull(config('services.ollama'));
+        $this->assertNull(config('services.anthropic'));
+        $this->assertStringNotContainsString('callGemini', $service);
+        $this->assertStringNotContainsString('callOpenRouter', $service);
+        $this->assertStringNotContainsString('callOllama', $service);
+        $this->assertStringNotContainsString('callAnthropic', $service);
     }
 }

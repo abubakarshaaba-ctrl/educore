@@ -20,7 +20,7 @@ class LessonAiService
         try {
             return $this->callAi($this->buildNerdcPrompt($data));
         } catch (\Throwable $e) {
-            Log::error('LessonAI: all providers failed; using the built-in NERDC planner.', [
+            Log::error('LessonAI: Groq failed; using the built-in NERDC planner.', [
                 'error' => $e->getMessage(),
             ]);
 
@@ -33,7 +33,7 @@ class LessonAiService
         try {
             return $this->callAi($this->buildBritishPrompt($data));
         } catch (\Throwable $e) {
-            Log::error('LessonAI: all providers failed; using the built-in British planner.', [
+            Log::error('LessonAI: Groq failed; using the built-in British planner.', [
                 'error' => $e->getMessage(),
             ]);
 
@@ -46,7 +46,7 @@ class LessonAiService
         try {
             return $this->callAiHtml($this->buildNotesPrompt($plan));
         } catch (\Throwable $e) {
-            Log::error('LessonAI: student notes providers failed; using built-in notes.', [
+            Log::error('LessonAI: Groq failed while generating student notes; using built-in notes.', [
                 'lesson_plan_id' => $plan->id,
                 'error' => $e->getMessage(),
             ]);
@@ -128,69 +128,20 @@ PROMPT;
     }
 
     // -------------------------------------------------------------------------
-    // Provider orchestration — primary → fallbacks
+    // Groq is the sole external Lesson Planner provider. The deterministic
+    // built-in planners remain available only as an offline safety net.
     // -------------------------------------------------------------------------
-
-    private function availableProviders(): array
-    {
-        $all = [
-            'groq'       => (bool) config('services.groq.key'),
-            'openrouter' => (bool) config('services.openrouter.key'),
-            'ollama'     => (bool) config('services.ollama.enabled'),
-            'gemini'     => (bool) config('services.gemini.key'),
-            'anthropic'  => (bool) config('services.anthropic.key'),
-        ];
-
-        $primary = config('services.ai_provider', 'gemini');
-        $enabled = array_keys(array_filter($all));
-
-        if (in_array($primary, $enabled, true)) {
-            $enabled = array_values(array_diff($enabled, [$primary]));
-            array_unshift($enabled, $primary);
-        }
-
-        return $enabled;
-    }
 
     private function callAi(string $prompt): array
     {
-        $errors = [];
-        foreach ($this->availableProviders() as $provider) {
-            try {
-                $result = match ($provider) {
-                    'groq'       => $this->callGroq($prompt),
-                    'openrouter' => $this->callOpenRouter($prompt),
-                    'ollama'     => $this->callOllama($prompt),
-                    'gemini'     => $this->callGemini($prompt),
-                    'anthropic'  => $this->callAnthropic($prompt),
-                    default      => throw new \RuntimeException("Unknown provider: {$provider}"),
-                };
-                if ($provider !== config('services.ai_provider', 'groq')) {
-                    Log::info("LessonAI: used fallback provider [{$provider}]");
-                }
-                return $result;
-            } catch (\Throwable $e) {
-                $errors[$provider] = $e->getMessage();
-                Log::warning("LessonAI provider [{$provider}] failed: " . $e->getMessage());
-            }
-        }
-
-        $summary = implode(' | ', array_map(
-            fn($p, $m) => "{$p}: {$m}",
-            array_keys($errors), array_values($errors)
-        ));
-        throw new \RuntimeException("All AI providers failed — {$summary}");
+        return $this->callGroq($prompt);
     }
 
     // -------------------------------------------------------------------------
     // Provider implementations
     // -------------------------------------------------------------------------
 
-    private function callGroq(string $prompt): array   { return $this->parseJson($this->callGroqRaw($prompt)); }
-    private function callOpenRouter(string $prompt): array { return $this->parseJson($this->callOpenRouterRaw($prompt)); }
-    private function callOllama(string $prompt): array  { return $this->parseJson($this->callOllamaRaw($prompt)); }
-    private function callGemini(string $prompt): array  { return $this->parseJson($this->callGeminiRaw($prompt)); }
-    private function callAnthropic(string $prompt): array { return $this->parseJson($this->callAnthropicRaw($prompt)); }
+    private function callGroq(string $prompt): array { return $this->parseJson($this->callGroqRaw($prompt)); }
 
     // -------------------------------------------------------------------------
     // Student notes prompt & HTML call
@@ -281,27 +232,10 @@ PROMPT;
 
     private function callAiHtml(string $prompt): string
     {
-        $errors = [];
-        foreach ($this->availableProviders() as $provider) {
-            try {
-                $raw = match ($provider) {
-                    'groq'       => $this->callGroqRaw($prompt, 6000),
-                    'openrouter' => $this->callOpenRouterRaw($prompt, 6000),
-                    'ollama'     => $this->callOllamaRaw($prompt),
-                    'gemini'     => $this->callGeminiRaw($prompt),
-                    'anthropic'  => $this->callAnthropicRaw($prompt, 6000),
-                    default      => throw new \RuntimeException("Unknown provider: {$provider}"),
-                };
-                $raw = preg_replace('/^```(?:html)?\s*/i', '', $raw);
-                $raw = preg_replace('/\s*```\s*$/i', '', $raw);
-                return trim($raw);
-            } catch (\Throwable $e) {
-                $errors[$provider] = $e->getMessage();
-                Log::warning("LessonAI notes [{$provider}] failed: " . $e->getMessage());
-            }
-        }
-        $summary = implode(' | ', array_map(fn($p, $m) => "{$p}: {$m}", array_keys($errors), array_values($errors)));
-        throw new \RuntimeException("All AI providers failed — {$summary}");
+        $raw = $this->callGroqRaw($prompt, 6000);
+        $raw = preg_replace('/^```(?:html)?\s*/i', '', $raw);
+        $raw = preg_replace('/\s*```\s*$/i', '', $raw);
+        return trim($raw);
     }
 
     private function callGroqRaw(string $prompt, int $maxTokens = 3000): string
@@ -322,7 +256,7 @@ PROMPT;
             $body = $response->json();
             $msg  = $body['error']['message'] ?? '';
             if (str_contains($msg, 'rate limit') || str_contains($msg, 'Rate limit')) {
-                throw new \RuntimeException('Groq free-tier daily/minute limit reached. Try again later or switch provider.');
+                throw new \RuntimeException('Groq daily or minute rate limit reached. Try again later.');
             }
             throw new \RuntimeException('Groq rate limit: ' . $msg);
         }
@@ -339,89 +273,6 @@ PROMPT;
         }
 
         return $content;
-    }
-
-    private function callOpenRouterRaw(string $prompt, int $maxTokens = 8192): string
-    {
-        $key = config('services.openrouter.key');
-        if (!$key) throw new \RuntimeException('OPENROUTER_API_KEY not configured.');
-
-        $headers = [
-            'Authorization' => "Bearer {$key}",
-            'Content-Type'  => 'application/json',
-            'HTTP-Referer'  => config('app.url'),
-            'X-Title'       => config('app.name'),
-        ];
-        $body = [
-            'model'       => config('services.openrouter.model', 'meta-llama/llama-3.3-70b-instruct:free'),
-            'messages'    => [['role' => 'user', 'content' => $prompt]],
-            'max_tokens'  => $maxTokens,
-            'temperature' => 0.7,
-        ];
-
-        foreach ([1, 2] as $attempt) {
-            $response = Http::timeout(120)->withHeaders($headers)
-                ->post('https://openrouter.ai/api/v1/chat/completions', $body);
-
-            if ($response->status() === 429 && $attempt === 1) {
-                $retryAfter = (int) ($response->json('error.metadata.retry_after_seconds') ?? 30);
-                sleep(min($retryAfter, 35));
-                continue;
-            }
-            if ($response->failed()) throw new \RuntimeException('OpenRouter error: ' . $response->body());
-            return $response->json('choices.0.message.content') ?? '';
-        }
-        throw new \RuntimeException('OpenRouter error: still rate-limited after retry.');
-    }
-
-    private function callOllamaRaw(string $prompt): string
-    {
-        $host = config('services.ollama.host', 'http://localhost:11434');
-        $response = Http::timeout(180)->post("{$host}/api/chat", [
-            'model'    => config('services.ollama.model', 'llama3'),
-            'messages' => [['role' => 'user', 'content' => $prompt]],
-            'stream'   => false,
-            'options'  => ['temperature' => 0.7],
-        ]);
-        if ($response->failed()) throw new \RuntimeException('Ollama error: ' . $response->body());
-        return $response->json('message.content') ?? '';
-    }
-
-    private function callGeminiRaw(string $prompt): string
-    {
-        $key = config('services.gemini.key');
-        if (!$key) throw new \RuntimeException('GEMINI_API_KEY not configured.');
-        $isNew = str_starts_with($key, 'AQ.');
-        $model = config('services.gemini.model', 'gemini-2.0-flash-lite');
-        $url   = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent"
-            . ($isNew ? '' : "?key={$key}");
-        $http = Http::timeout(60);
-        if ($isNew) $http = $http->withHeaders(['x-goog-api-key' => $key]);
-        $response = $http->post($url, [
-            'contents'         => [['parts' => [['text' => $prompt]]]],
-            'generationConfig' => ['temperature' => 0.7, 'maxOutputTokens' => 6000],
-        ]);
-        if ($response->failed()) throw new \RuntimeException('Gemini error: ' . $response->body());
-        return $response->json('candidates.0.content.parts.0.text') ?? '';
-    }
-
-    private function callAnthropicRaw(string $prompt, int $maxTokens = 4096): string
-    {
-        $key = config('services.anthropic.key');
-        if (!$key) throw new \RuntimeException('ANTHROPIC_API_KEY not configured.');
-        $response = Http::timeout(90)
-            ->withHeaders([
-                'x-api-key'         => $key,
-                'anthropic-version' => '2023-06-01',
-                'content-type'      => 'application/json',
-            ])
-            ->post('https://api.anthropic.com/v1/messages', [
-                'model'      => config('services.anthropic.model', 'claude-sonnet-4-6'),
-                'max_tokens' => $maxTokens,
-                'messages'   => [['role' => 'user', 'content' => $prompt]],
-            ]);
-        if ($response->failed()) throw new \RuntimeException('Anthropic error: ' . $response->body());
-        return $response->json('content.0.text') ?? '';
     }
 
     // -------------------------------------------------------------------------

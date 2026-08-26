@@ -181,7 +181,8 @@
     classButtons.forEach(button => button.addEventListener('click', () => {
         classButtons.forEach(item => { item.classList.toggle('active', item === button); item.setAttribute('aria-selected', item === button ? 'true' : 'false'); });
         classPanels.forEach(panel => panel.hidden = panel.id !== button.dataset.classTarget);
-        button.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});
+        const selectedPanel = classPanels.find(panel => panel.id === button.dataset.classTarget);
+        selectedPanel?.scrollIntoView({behavior:'smooth',block:'start'});
     }));
 
     classPanels.forEach(classPanel => {
@@ -189,7 +190,9 @@
         const panels = [...classPanel.querySelectorAll('[data-term-panel]')];
         tabs.forEach(tab => tab.addEventListener('click', () => {
             tabs.forEach(item => { item.classList.toggle('active', item === tab); item.setAttribute('aria-selected', item === tab ? 'true' : 'false'); });
-            panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget;
+            panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);
+            const selectedPanel = panels.find(panel => panel.id === tab.dataset.termTarget);
+            selectedPanel?.scrollIntoView({behavior:'smooth',block:'nearest'});
         }));
         const search = classPanel.querySelector('[data-subject-search]');
         search?.addEventListener('input', () => {

@@ -35,8 +35,7 @@ class LessonPlanSchema
             'presentation' => 'required|array|min:1', 'presentation.*.step' => 'required|integer|min:1',
             'presentation.*.objective_numbers' => 'required|array|min:1', 'presentation.*.objective_numbers.*' => 'required|integer|min:1',
             'presentation.*.title' => 'required|string|min:3', 'presentation.*.teacher_activities' => 'required|array|min:3|max:6',
-            'presentation.*.teacher_activities.*' => 'required|string|min:25', 'presentation.*.student_activities' => 'required|array|min:1|max:4',
-            'presentation.*.student_activities.*' => 'required|string|min:12', 'evaluation' => 'required|array|min:3|max:10',
+            'presentation.*.teacher_activities.*' => 'required|string|min:25', 'evaluation' => 'required|array|min:3|max:10',
             'evaluation.*' => 'required|string|min:8', 'assignment' => 'required|string|min:10', 'references' => 'present|array',
         ]);
 

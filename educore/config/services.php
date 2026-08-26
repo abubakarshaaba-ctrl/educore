@@ -35,33 +35,10 @@ return [
         ],
     ],
 
-    // AI provider for lesson planner. Set AI_PROVIDER=anthropic to use Claude.
-    'ai_provider' => env('AI_PROVIDER', 'gemini'),
-
-    'gemini' => [
-        'key'   => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
-    ],
-
-    'anthropic' => [
-        'key'   => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
-    ],
-
+    // Sole external AI provider for Lesson Planner and student notes.
     'groq' => [
         'key'   => env('GROQ_API_KEY'),
         'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
-    ],
-
-    'openrouter' => [
-        'key'   => env('OPENROUTER_API_KEY'),
-        'model' => env('OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free'),
-    ],
-
-    'ollama' => [
-        'enabled' => (bool) env('OLLAMA_HOST'),
-        'host'    => env('OLLAMA_HOST', 'http://localhost:11434'),
-        'model'   => env('OLLAMA_MODEL', 'llama3'),
     ],
 
     'fcm' => [

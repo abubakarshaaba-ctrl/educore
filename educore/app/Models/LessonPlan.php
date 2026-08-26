@@ -90,10 +90,10 @@ class LessonPlan extends BaseTenantModel
         $steps=$this->structured_plan['presentation']??[];
         if(!$steps) return null;
         return collect($steps)->map(function($step){
-            $objectives=collect($step['objective_numbers']??[])->map(fn($n)=>'Objective '.$n)->implode(', ');
-            $teachers=$step['teacher_activities']??$step['activities']??[]; $students=$step['student_activities']??[];
-            return 'STEP '.($step['step']??'').': '.($step['title']??'').($objectives?" ({$objectives})":'')."\nTEACHER'S ACTIVITY:\n".
-                collect($teachers)->map(fn($v)=>'• '.$v)->implode("\n").($students?"\nSTUDENTS' ACTIVITY:\n".collect($students)->map(fn($v)=>'• '.$v)->implode("\n"):'');
+            $teachers=$step['teacher_activities']??$step['activities']??[];
+            $number=(int)($step['step']??0);
+            $roman=[1=>'I',2=>'II',3=>'III',4=>'IV',5=>'V',6=>'VI',7=>'VII',8=>'VIII'][$number]??(string)$number;
+            return 'STEP '.$roman.': '.($step['title']??'')."\n".collect($teachers)->map(fn($v)=>'▪ '.$v)->implode("\n");
         })->implode("\n\n");
     }
 }

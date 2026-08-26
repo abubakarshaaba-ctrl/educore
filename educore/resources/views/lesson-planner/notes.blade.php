@@ -65,6 +65,13 @@
 #notesContent h1, #notesContent h2 { color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin: 24px 0 12px; }
 #notesContent h2 { font-size: 17px; }
 #notesContent h3 { font-size: 15px; color: #4338ca; margin: 18px 0 8px; }
+#notesContent .lesson-note-heading { border-bottom:1px solid #cbd5e1; padding-bottom:18px; margin-bottom:20px; }
+#notesContent .lesson-note-week { text-align:center; font-size:14px; font-weight:800; letter-spacing:.05em; color:#0f2f61; }
+#notesContent .lesson-note-heading h1 { font-size:18px; border:0; margin:18px 0 12px; padding:0; }
+#notesContent .lesson-note-heading h1 span, #notesContent .lesson-note-heading h2 { font-weight:800; }
+#notesContent .lesson-note-heading h2 { font-size:15px; border:0; margin:10px 0 4px; padding:0; }
+#notesContent .lesson-note-subtopics { margin-top:4px; }
+#notesContent .lesson-note-section > h2 { text-decoration:underline; text-underline-offset:3px; border:0; }
 #notesContent p  { margin: 8px 0; }
 #notesContent ul, #notesContent ol { padding-left: 22px; margin: 8px 0; }
 #notesContent li { margin: 4px 0; }
@@ -75,9 +82,18 @@
 #notesContent svg { max-width: 100%; display: block; margin: 16px auto; }
 #notesContent figure { margin: 20px 0; text-align: center; }
 #notesContent figcaption { font-size: 12px; color: #64748b; font-style: italic; margin-top: 6px; }
+#notesContent .lesson-note-diagram { border:1px solid #dbeafe; background:#f8fbff; border-radius:12px; padding:14px; }
+#notesContent .lesson-note-diagram-description { text-align:left; color:#475569; font-size:13px; }
+#notesContent .lesson-note-table-wrap { width:100%; overflow-x:auto; }
+#notesContent .lesson-note-reading { text-align:center; margin-top:26px; }
 #notesContent blockquote { border-left: 4px solid #4338ca; padding-left: 14px; color: #475569; margin: 12px 0; }
 #notesContent .exam-question { background: #FFF7ED; border-left: 4px solid #EA580C; padding: 12px 16px; margin: 10px 0; border-radius: 4px; }
 #notesContent .key-points { background: #F0FDF4; border: 1px solid #BBF7D0; padding: 16px 20px; border-radius: 8px; margin: 16px 0; }
+@media (max-width:700px) {
+    #notesContent { padding:20px 16px !important; }
+    #notesContent .lesson-note-heading h1 { font-size:16px; }
+    #notesContent .lesson-note-diagram { padding:8px; }
+}
 </style>
 
 @push('scripts')

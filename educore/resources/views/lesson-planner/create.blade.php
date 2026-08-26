@@ -203,7 +203,7 @@
                 <div class="lp-card">
                     <div class="lp-section-title">5. Presentation</div>
                     <div class="lp-section-hint">Each step must align with its corresponding behavioural objective(s). Keep teacher activity and the resulting students' activity inside the same step.</div>
-                    <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:300px" placeholder="STEP I: Courtship Behaviour in Animals (Objectives 1-2)&#10;TEACHER'S ACTIVITY:&#10;• Teacher guides students to define...&#10;STUDENTS' ACTIVITY:&#10;• Students define and give examples...">{{ old('presentation', isset($lessonPlan) ? $lessonPlan->sectionValue('presentation') : '') }}</textarea>
+                    <textarea name="presentation" id="f_presentation" class="lp-textarea" style="min-height:300px" placeholder="STEP I: Courtship Behaviour in Animals&#10;▪ Teacher guides the students to define courtship behaviour...&#10;▪ Teacher aids the students to identify its types...&#10;▪ Teacher helps the students to explain each type with examples...">{{ old('presentation', isset($lessonPlan) ? $lessonPlan->sectionValue('presentation') : '') }}</textarea>
                 </div>
 
                 <div class="lp-card">

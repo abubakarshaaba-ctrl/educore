@@ -53,6 +53,10 @@ class CurriculumRepositoryUiTest extends TestCase
         $topics = file_get_contents(resource_path('views/curriculum-sources/topics.blade.php'));
 
         $this->assertStringContainsString("route('super.curriculum-sources.create')", $repository);
+        $this->assertStringContainsString('data-class-target', $repository);
+        $this->assertStringContainsString('data-term-target', $repository);
+        $this->assertStringContainsString('panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);', $repository);
+        $this->assertStringContainsString("selectedPanel?.scrollIntoView({behavior:'smooth',block:'start'});", $repository);
         $this->assertStringNotContainsString('name="source_files[]"', $repository);
         $this->assertStringNotContainsString('name="subtopics_text"', $repository);
         $this->assertStringContainsString('name="source_files[]"', $import);
