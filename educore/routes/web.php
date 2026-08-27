@@ -260,6 +260,15 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', \App\Htt
         Route::post('complete',          [TenantOnboardingController::class, 'complete'])->name('complete');
     });
 
+// Platform-owned academic resources are read-only inside each school.
+// Management and imports remain exclusively under the Super Admin routes below.
+Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class])
+    ->prefix('academic-repository')->name('academic-repository.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\AcademicRepositoryController::class, 'index'])->name('index');
+        Route::get('{curriculumSource}', [\App\Http\Controllers\AcademicRepositoryController::class, 'show'])->name('show');
+        Route::get('{curriculumSource}/download', [\App\Http\Controllers\AcademicRepositoryController::class, 'download'])->name('download');
+    });
+
 Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])->group(function () {
 
     // Dashboard

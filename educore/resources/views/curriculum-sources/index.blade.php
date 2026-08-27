@@ -3,7 +3,7 @@
 @section('title', 'Academic Content Repository')
 
 @section('content')
-<div class="repo-shell">
+<div class="repo-shell" data-repository-browser>
     <nav class="repo-crumbs" aria-label="Breadcrumb">
         <a href="{{ route('super.curriculum-sources.index') }}">Academic Repository</a>
         <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><span>Resources</span>
@@ -37,6 +37,8 @@
     </section>
 
     <form method="GET" action="{{ route('super.curriculum-sources.index') }}" class="repo-card repo-library-toolbar">
+        <input type="hidden" name="selected_class" value="{{ request('selected_class') }}" data-selection-class-field>
+        <input type="hidden" name="selected_term" value="{{ request('selected_term') }}" data-selection-term-field>
         <label class="repo-search">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
             <input name="search" value="{{ request('search') }}" placeholder="Search resource titles and content" aria-label="Search resources">
@@ -63,7 +65,7 @@
                         $activeCount = $classResources->where('is_active', true)->count();
                         $failedCount = $classResources->where('extraction_status', 'failed')->count();
                     @endphp
-                    <button type="button" class="repo-class-stat @if($loop->first) active @endif" data-class-target="{{ $classId }}" role="tab" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
+                    <button type="button" class="repo-class-stat @if($loop->first) active @endif" data-class-target="{{ $classId }}" data-class-key="{{ $classLabel }}" role="tab" aria-controls="{{ $classId }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
                         <span class="repo-class-icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span>
                         <span class="repo-class-copy"><strong>{{ $classLabel }}</strong><small>{{ number_format($classResources->count()) }} resources · {{ $terms->count() }} {{ str('term')->plural($terms->count()) }}</small></span>
                         <span class="repo-class-health"><b>{{ $activeCount }}</b> active @if($failedCount)<i>{{ $failedCount }} failed</i>@endif</span>
@@ -89,7 +91,7 @@
                 @php
                     $classId = 'class-'.$loop->index;
                 @endphp
-                <div class="repo-class-panel" id="{{ $classId }}" data-class-panel @if(!$loop->first) hidden @endif>
+                <div class="repo-class-panel" id="{{ $classId }}" data-class-key="{{ $classLabel }}" data-class-panel @if(!$loop->first) hidden @endif>
                     <div class="repo-hierarchy-head">
                         <div><span>Class</span><h2>{{ $classLabel }}</h2></div>
                         <label class="repo-local-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg><input type="search" placeholder="Filter subjects" data-subject-search></label>
@@ -100,7 +102,7 @@
                             @php
                                 $termId = $classId.'-term-'.$loop->index;
                             @endphp
-                            <button type="button" class="repo-term-tab @if($loop->first) active @endif" data-term-target="{{ $termId }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
+                            <button type="button" class="repo-term-tab @if($loop->first) active @endif" data-term-target="{{ $termId }}" data-term-key="{{ $termLabel }}" aria-controls="{{ $termId }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}">
                                 <span>{{ $termLabel }}</span><b>{{ $subjects->flatten(1)->count() }}</b>
                             </button>
                         @endforeach
@@ -176,37 +178,7 @@
 @push('scripts')
 <script>
 (() => {
-    const classButtons = [...document.querySelectorAll('[data-class-target]')];
-    const classPanels = [...document.querySelectorAll('[data-class-panel]')];
-    classButtons.forEach(button => button.addEventListener('click', () => {
-        classButtons.forEach(item => { item.classList.toggle('active', item === button); item.setAttribute('aria-selected', item === button ? 'true' : 'false'); });
-        classPanels.forEach(panel => panel.hidden = panel.id !== button.dataset.classTarget);
-        const selectedPanel = classPanels.find(panel => panel.id === button.dataset.classTarget);
-        selectedPanel?.scrollIntoView({behavior:'smooth',block:'start'});
-    }));
-
-    classPanels.forEach(classPanel => {
-        const tabs = [...classPanel.querySelectorAll('[data-term-target]')];
-        const panels = [...classPanel.querySelectorAll('[data-term-panel]')];
-        tabs.forEach(tab => tab.addEventListener('click', () => {
-            tabs.forEach(item => { item.classList.toggle('active', item === tab); item.setAttribute('aria-selected', item === tab ? 'true' : 'false'); });
-            panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);
-            const selectedPanel = panels.find(panel => panel.id === tab.dataset.termTarget);
-            selectedPanel?.scrollIntoView({behavior:'smooth',block:'nearest'});
-        }));
-        const search = classPanel.querySelector('[data-subject-search]');
-        search?.addEventListener('input', () => {
-            const termPanel = panels.find(panel => !panel.hidden);
-            const query = search.value.trim().toLowerCase();
-            let visible = 0;
-            termPanel?.querySelectorAll('[data-subject-name]').forEach(subject => {
-                subject.hidden = query !== '' && !subject.dataset.subjectName.includes(query);
-                if (!subject.hidden) visible++;
-            });
-            const empty = termPanel?.querySelector('.repo-no-subjects');
-            if (empty) empty.hidden = visible > 0;
-        });
-    });
+    @include('curriculum-sources._browser_script', ['repositorySelectionKey' => 'educore_platform_repository_selection'])
 
     const resources = [...document.querySelectorAll('[data-resource-select]')];
     const subjectSelectors = [...document.querySelectorAll('[data-subject-select]')];

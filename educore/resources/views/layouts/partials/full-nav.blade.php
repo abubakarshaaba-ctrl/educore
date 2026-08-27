@@ -44,7 +44,7 @@
 
     {{-- ACADEMICS --}}
     @php $u = auth()->user(); @endphp
-    @if($u->canAccessModule('students') || $u->canAccessModule('staff') || $u->canAccessModule('classes') || $u->canAccessModule('academic-cycle') || $u->canAccessModule('subjects') || $u->canAccessModule('curriculum') || $u->canAccessModule('attendance') || $u->canAccessModule('timetable') || $u->canAccessModule('skills'))
+    @if($u->isAdmin() || $u->isTeacher() || $u->canAccessModule('students') || $u->canAccessModule('staff') || $u->canAccessModule('classes') || $u->canAccessModule('academic-cycle') || $u->canAccessModule('subjects') || $u->canAccessModule('curriculum') || $u->canAccessModule('attendance') || $u->canAccessModule('timetable') || $u->canAccessModule('skills'))
     <div class="nav-section">
         <div class="nav-section-label">Academics</div>
         @if($u->canAccessModule('students'))
@@ -79,6 +79,12 @@
         <a href="{{ route('curriculum.tracks') }}" class="nav-item {{ request()->routeIs('curriculum.*') ? 'active' : '' }}" data-tip="Curriculum">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
             <span class="nav-label">Curriculum</span>
+        </a>
+        @endif
+        @if($u->isAdmin() || $u->isTeacher())
+        <a href="{{ route('academic-repository.index') }}" class="nav-item {{ request()->routeIs('academic-repository.*') ? 'active' : '' }}" data-tip="Academic Repository">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V3zm3 3v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z"/></svg>
+            <span class="nav-label">Academic Repository</span>
         </a>
         @endif
         @if($u->canAccessModule('subjects'))

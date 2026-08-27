@@ -51,12 +51,15 @@ class CurriculumRepositoryUiTest extends TestCase
         $repository = file_get_contents(resource_path('views/curriculum-sources/index.blade.php'));
         $import = file_get_contents(resource_path('views/curriculum-sources/import.blade.php'));
         $topics = file_get_contents(resource_path('views/curriculum-sources/topics.blade.php'));
+        $browser = file_get_contents(resource_path('views/curriculum-sources/_browser_script.blade.php'));
 
         $this->assertStringContainsString("route('super.curriculum-sources.create')", $repository);
         $this->assertStringContainsString('data-class-target', $repository);
         $this->assertStringContainsString('data-term-target', $repository);
-        $this->assertStringContainsString('panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);', $repository);
-        $this->assertStringContainsString("selectedPanel?.scrollIntoView({behavior:'smooth',block:'start'});", $repository);
+        $this->assertStringContainsString("@include('curriculum-sources._browser_script'", $repository);
+        $this->assertStringContainsString('panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);', $browser);
+        $this->assertStringContainsString("classPanel.scrollIntoView({behavior:'smooth',block:'start'});", $browser);
+        $this->assertStringContainsString("localStorage.setItem(storageKey", $browser);
         $this->assertStringNotContainsString('name="source_files[]"', $repository);
         $this->assertStringNotContainsString('name="subtopics_text"', $repository);
         $this->assertStringContainsString('name="source_files[]"', $import);
