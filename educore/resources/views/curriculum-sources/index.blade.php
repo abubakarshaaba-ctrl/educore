@@ -18,6 +18,32 @@
 
     @include('curriculum-sources._navigation')
 
+    <section class="repo-card repo-global-controls" aria-label="Repository-wide controls">
+        <div class="repo-global-controls-copy">
+            <span>Repository controls</span>
+            <strong>{{ number_format($analytics['resources']) }} resources</strong>
+        </div>
+        <div class="repo-global-controls-actions">
+            <form method="POST" action="{{ route('super.curriculum-sources.bulk-all') }}" onsubmit="return confirm('Activate every eligible repository resource?')">
+                @csrf
+                <input type="hidden" name="action" value="activate">
+                <button class="repo-button repo-button-success" @disabled($analytics['resources'] < 1)>
+                    <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>Activate all
+                </button>
+            </form>
+            <form method="POST" action="{{ route('super.curriculum-sources.bulk-all') }}" onsubmit="return confirm('Deactivate every repository resource?')">
+                @csrf
+                <input type="hidden" name="action" value="deactivate">
+                <button class="repo-button repo-button-outline" @disabled($analytics['resources'] < 1)>
+                    <svg viewBox="0 0 24 24"><path d="M7 7h10v10H7z"/></svg>Deactivate all
+                </button>
+            </form>
+            <button type="button" class="repo-button repo-button-danger repo-remove-all" id="openRemoveAllDialog" @disabled($analytics['resources'] < 1)>
+                <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>Remove all
+            </button>
+        </div>
+    </section>
+
     @if(session('success'))<div class="repo-notice repo-notice-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="repo-notice repo-notice-error">{{ $errors->first() }}</div>@endif
 
@@ -171,6 +197,22 @@
     @else
         <section class="repo-card repo-empty"><h2>No resources found</h2><p>Adjust the filter or import an archive.</p><a href="{{ route('super.curriculum-sources.create') }}" class="repo-button repo-button-primary">Import archive</a></section>
     @endif
+
+    <dialog class="repo-confirm-dialog" id="removeAllDialog" aria-labelledby="removeAllHeading">
+        <form method="POST" action="{{ route('super.curriculum-sources.bulk-all') }}" id="removeAllResourcesForm">
+            @csrf
+            <input type="hidden" name="action" value="delete">
+            <div class="repo-confirm-icon"><svg viewBox="0 0 24 24"><path d="M12 8v5m0 4h.01M10 3 2 19h20L14 3h-4Z"/></svg></div>
+            <h2 id="removeAllHeading">Remove all resources?</h2>
+            <p>Type <strong>REMOVE ALL</strong> to confirm.</p>
+            <label for="removeAllConfirmation">Confirmation</label>
+            <input id="removeAllConfirmation" name="confirmation" autocomplete="off" placeholder="REMOVE ALL" required>
+            <div class="repo-confirm-actions">
+                <button type="button" class="repo-button repo-button-outline" id="cancelRemoveAll">Cancel</button>
+                <button class="repo-button repo-button-danger" id="confirmRemoveAll" disabled>Remove all</button>
+            </div>
+        </form>
+    </dialog>
 </div>
 
 @include('curriculum-sources._styles')
@@ -206,6 +248,31 @@
         if (event.submitter?.value === 'delete' && !confirm(`Remove ${selected.length} selected resources?`)) { event.preventDefault(); return; }
         const holder = document.getElementById('bulkResourceIds'); holder.replaceChildren();
         selected.forEach(input => { const hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='source_ids[]'; hidden.value=input.value; holder.appendChild(hidden); });
+    });
+
+    const removeDialog = document.getElementById('removeAllDialog');
+    const removeConfirmation = document.getElementById('removeAllConfirmation');
+    const confirmRemoveAll = document.getElementById('confirmRemoveAll');
+    document.getElementById('openRemoveAllDialog')?.addEventListener('click', () => {
+        if (typeof removeDialog?.showModal === 'function') {
+            removeDialog.showModal();
+            removeConfirmation.focus();
+            return;
+        }
+        const confirmation = prompt('Type REMOVE ALL to remove every repository resource.');
+        if (confirmation === 'REMOVE ALL') {
+            removeConfirmation.value = confirmation;
+            document.getElementById('removeAllResourcesForm')?.requestSubmit();
+        }
+    });
+    removeConfirmation?.addEventListener('input', () => {
+        confirmRemoveAll.disabled = removeConfirmation.value.trim() !== 'REMOVE ALL';
+    });
+    document.getElementById('cancelRemoveAll')?.addEventListener('click', () => removeDialog?.close());
+    removeDialog?.addEventListener('click', event => { if (event.target === removeDialog) removeDialog.close(); });
+    removeDialog?.addEventListener('close', () => {
+        removeConfirmation.value = '';
+        confirmRemoveAll.disabled = true;
     });
 })();
 </script>

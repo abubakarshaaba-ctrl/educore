@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\CurriculumSource;
 use App\Models\CurriculumFragment;
+use App\Models\CurriculumSource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -21,6 +21,7 @@ class CurriculumRepositoryUiTest extends TestCase
         $importRoute = Route::getRoutes()->getByName('super.curriculum-sources.create');
         $topicsRoute = Route::getRoutes()->getByName('super.curriculum-sources.topics.index');
         $storeRoute = Route::getRoutes()->getByName('super.curriculum-sources.store');
+        $bulkAllRoute = Route::getRoutes()->getByName('super.curriculum-sources.bulk-all');
         $initiateRoute = Route::getRoutes()->getByName('super.curriculum-sources.uploads.initiate');
         $statusRoute = Route::getRoutes()->getByName('super.curriculum-sources.uploads.status');
         $chunkRoute = Route::getRoutes()->getByName('super.curriculum-sources.uploads.chunk');
@@ -31,6 +32,7 @@ class CurriculumRepositoryUiTest extends TestCase
         $this->assertNotNull($importRoute);
         $this->assertNotNull($topicsRoute);
         $this->assertNotNull($storeRoute);
+        $this->assertNotNull($bulkAllRoute);
         $this->assertNotNull($initiateRoute);
         $this->assertNotNull($statusRoute);
         $this->assertNotNull($chunkRoute);
@@ -42,6 +44,7 @@ class CurriculumRepositoryUiTest extends TestCase
         $this->assertSame('super/curriculum-sources/uploads/{upload}', $statusRoute->uri());
         $this->assertSame(['GET', 'HEAD'], $importRoute->methods());
         $this->assertSame(['GET', 'HEAD'], $topicsRoute->methods());
+        $this->assertSame(['POST'], $bulkAllRoute->methods());
         $this->assertStringEndsWith('@create', $importRoute->getActionName());
         $this->assertStringEndsWith('@topics', $topicsRoute->getActionName());
     }
@@ -59,7 +62,11 @@ class CurriculumRepositoryUiTest extends TestCase
         $this->assertStringContainsString("@include('curriculum-sources._browser_script'", $repository);
         $this->assertStringContainsString('panels.forEach(panel => panel.hidden = panel.id !== tab.dataset.termTarget);', $browser);
         $this->assertStringContainsString("classPanel.scrollIntoView({behavior:'smooth',block:'start'});", $browser);
-        $this->assertStringContainsString("localStorage.setItem(storageKey", $browser);
+        $this->assertStringContainsString('localStorage.setItem(storageKey', $browser);
+        $this->assertStringContainsString('Activate all', $repository);
+        $this->assertStringContainsString('Deactivate all', $repository);
+        $this->assertStringContainsString('Remove all', $repository);
+        $this->assertStringContainsString('REMOVE ALL', $repository);
         $this->assertStringNotContainsString('name="source_files[]"', $repository);
         $this->assertStringNotContainsString('name="subtopics_text"', $repository);
         $this->assertStringContainsString('name="source_files[]"', $import);
@@ -105,7 +112,7 @@ class CurriculumRepositoryUiTest extends TestCase
             'tenant_id' => null, 'authority' => 'OTHER', 'source_type' => 'lesson_note',
             'title' => 'Homeostasis', 'version' => '2026', 'original_filename' => 'homeostasis.pdf',
             'created_by' => $admin->id, 'extraction_status' => 'failed', 'index_status' => 'failed',
-            'needs_review' => true, 'metadata' => ['class_label'=>'SS 2','term_label'=>'Second Term','subject_label'=>'Biology'],
+            'needs_review' => true, 'metadata' => ['class_label' => 'SS 2', 'term_label' => 'Second Term', 'subject_label' => 'Biology'],
         ]);
 
         $this->actingAs($admin)->get(route('super.curriculum-sources.index'))
@@ -121,23 +128,69 @@ class CurriculumRepositoryUiTest extends TestCase
     {
         $admin = User::factory()->create(['is_super_admin' => true]);
         $indexed = CurriculumSource::create([
-            'tenant_id'=>null,'authority'=>'OTHER','source_type'=>'lesson_note','title'=>'Indexed note','version'=>'2026',
-            'created_by'=>$admin->id,'extraction_status'=>'extracted','index_status'=>'indexed','needs_review'=>true,
+            'tenant_id' => null, 'authority' => 'OTHER', 'source_type' => 'lesson_note', 'title' => 'Indexed note', 'version' => '2026',
+            'created_by' => $admin->id, 'extraction_status' => 'extracted', 'index_status' => 'indexed', 'needs_review' => true,
         ]);
         CurriculumFragment::create([
-            'curriculum_source_id'=>$indexed->id,'topic'=>'Cells','content'=>str_repeat('Indexed lesson content. ', 10),
+            'curriculum_source_id' => $indexed->id, 'topic' => 'Cells', 'content' => str_repeat('Indexed lesson content. ', 10),
         ]);
         $failed = CurriculumSource::create([
-            'tenant_id'=>null,'authority'=>'OTHER','source_type'=>'lesson_note','title'=>'Failed note','version'=>'2026',
-            'created_by'=>$admin->id,'extraction_status'=>'failed','index_status'=>'failed','needs_review'=>true,
+            'tenant_id' => null, 'authority' => 'OTHER', 'source_type' => 'lesson_note', 'title' => 'Failed note', 'version' => '2026',
+            'created_by' => $admin->id, 'extraction_status' => 'failed', 'index_status' => 'failed', 'needs_review' => true,
         ]);
 
         $this->actingAs($admin)->post(route('super.curriculum-sources.bulk'), [
-            'action'=>'activate', 'source_ids'=>[$indexed->id, $failed->id],
+            'action' => 'activate', 'source_ids' => [$indexed->id, $failed->id],
         ])->assertRedirect()->assertSessionHas('success');
 
-        $this->assertDatabaseHas('curriculum_sources', ['id'=>$indexed->id,'is_active'=>true,'review_status'=>'approved','needs_review'=>false]);
-        $this->assertDatabaseHas('curriculum_sources', ['id'=>$failed->id,'is_active'=>false]);
+        $this->assertDatabaseHas('curriculum_sources', ['id' => $indexed->id, 'is_active' => true, 'review_status' => 'approved', 'needs_review' => false]);
+        $this->assertDatabaseHas('curriculum_sources', ['id' => $failed->id, 'is_active' => false]);
+    }
+
+    public function test_repository_wide_actions_activate_deactivate_and_safely_remove_all_resources(): void
+    {
+        $admin = User::factory()->create(['is_super_admin' => true, 'is_active' => true]);
+        $eligible = CurriculumSource::create([
+            'tenant_id' => null, 'authority' => 'OTHER', 'source_type' => 'lesson_note',
+            'title' => 'Eligible note', 'version' => '2026', 'created_by' => $admin->id,
+            'extraction_status' => 'extracted', 'index_status' => 'indexed', 'is_active' => false,
+        ]);
+        CurriculumFragment::create([
+            'curriculum_source_id' => $eligible->id, 'topic' => 'Cells',
+            'content' => str_repeat('Indexed lesson content. ', 10),
+        ]);
+        $failed = CurriculumSource::create([
+            'tenant_id' => null, 'authority' => 'OTHER', 'source_type' => 'lesson_note',
+            'title' => 'Failed note', 'version' => '2026', 'created_by' => $admin->id,
+            'extraction_status' => 'failed', 'index_status' => 'failed', 'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('super.curriculum-sources.bulk-all'), [
+            'action' => 'activate',
+        ])->assertRedirect()->assertSessionHas('success');
+        $this->assertDatabaseHas('curriculum_sources', ['id' => $eligible->id, 'is_active' => true, 'review_status' => 'approved']);
+        $this->assertDatabaseHas('curriculum_sources', ['id' => $failed->id, 'is_active' => false]);
+
+        $this->actingAs($admin)->post(route('super.curriculum-sources.bulk-all'), [
+            'action' => 'deactivate',
+        ])->assertRedirect()->assertSessionHas('success');
+        $this->assertDatabaseHas('curriculum_sources', ['id' => $eligible->id, 'is_active' => false]);
+
+        $this->actingAs($admin)->post(route('super.curriculum-sources.bulk-all'), [
+            'action' => 'delete', 'confirmation' => 'remove all',
+        ])->assertStatus(422);
+        $this->assertNotSoftDeleted($eligible);
+
+        $this->actingAs($admin)->post(route('super.curriculum-sources.bulk-all'), [
+            'action' => 'delete', 'confirmation' => 'REMOVE ALL',
+        ])->assertRedirect()->assertSessionHas('success');
+        $this->assertSoftDeleted($eligible);
+        $this->assertSoftDeleted($failed);
+
+        $schoolAdmin = User::factory()->create(['role' => 'admin', 'is_super_admin' => false, 'is_active' => true]);
+        $this->actingAs($schoolAdmin)->post(route('super.curriculum-sources.bulk-all'), [
+            'action' => 'deactivate',
+        ])->assertForbidden();
     }
 
     public function test_resumable_archive_upload_recovers_chunks_and_completes_import(): void

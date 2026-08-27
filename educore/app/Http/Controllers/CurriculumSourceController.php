@@ -15,7 +15,10 @@ use Illuminate\Validation\Rule;
 
 class CurriculumSourceController extends Controller
 {
-    private function guard(): void { abort_unless(auth()->user()?->isSuperAdmin(), 403, 'Platform Super Admin access required.'); }
+    private function guard(): void
+    {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403, 'Platform Super Admin access required.');
+    }
 
     public function index(Request $request)
     {
@@ -55,6 +58,7 @@ class CurriculumSourceController extends Controller
 
             if (is_string($value)) {
                 $decoded = json_decode($value, true);
+
                 return is_array($decoded) ? $decoded : [];
             }
 
@@ -108,11 +112,14 @@ class CurriculumSourceController extends Controller
     {
         $this->guard();
         $data = $request->validate(array_merge([
-            'source_files'=>'required|array|min:1|max:2',
-            'source_files.*'=>'file|max:2097152|mimes:docx,doc,pdf,xlsx,xls,zip',
+            'source_files' => 'required|array|min:1|max:2',
+            'source_files.*' => 'file|max:2097152|mimes:docx,doc,pdf,xlsx,xls,zip',
         ], $this->metadataRules()));
         $data = $this->normaliseMetadata($data);
-        foreach ($request->file('source_files') as $file) $service->ingest($file, $data, auth()->id());
+        foreach ($request->file('source_files') as $file) {
+            $service->ingest($file, $data, auth()->id());
+        }
+
         return redirect()->route('super.curriculum-sources.index')->with('success', 'Archive imported.');
     }
 
@@ -172,9 +179,33 @@ class CurriculumSourceController extends Controller
         return response()->noContent();
     }
 
-    public function activate(CurriculumSource $curriculumSource) { $this->guard(); abort_unless($curriculumSource->tenant_id===null,403); abort_if($curriculumSource->extraction_status!=='extracted' || !$curriculumSource->fragments()->exists(),422,'Re-index this resource before activation.'); $curriculumSource->update(['review_status'=>'approved','is_active'=>true,'needs_review'=>false,'reviewed_by'=>auth()->id(),'reviewed_at'=>now()]); return back()->with('success','Resource activated and available to lesson generation.'); }
-    public function deactivate(CurriculumSource $curriculumSource) { $this->guard(); abort_unless($curriculumSource->tenant_id===null,403); $curriculumSource->update(['is_active'=>false]); return back()->with('success','Resource deactivated.'); }
-    public function destroy(CurriculumSource $curriculumSource) { $this->guard(); abort_unless($curriculumSource->tenant_id===null,403); $curriculumSource->delete(); return back()->with('success','Repository resource removed.'); }
+    public function activate(CurriculumSource $curriculumSource)
+    {
+        $this->guard();
+        abort_unless($curriculumSource->tenant_id === null, 403);
+        abort_if($curriculumSource->extraction_status !== 'extracted' || ! $curriculumSource->fragments()->exists(), 422, 'Re-index this resource before activation.');
+        $curriculumSource->update(['review_status' => 'approved', 'is_active' => true, 'needs_review' => false, 'reviewed_by' => auth()->id(), 'reviewed_at' => now()]);
+
+        return back()->with('success', 'Resource activated and available to lesson generation.');
+    }
+
+    public function deactivate(CurriculumSource $curriculumSource)
+    {
+        $this->guard();
+        abort_unless($curriculumSource->tenant_id === null, 403);
+        $curriculumSource->update(['is_active' => false]);
+
+        return back()->with('success', 'Resource deactivated.');
+    }
+
+    public function destroy(CurriculumSource $curriculumSource)
+    {
+        $this->guard();
+        abort_unless($curriculumSource->tenant_id === null, 403);
+        $curriculumSource->delete();
+
+        return back()->with('success', 'Repository resource removed.');
+    }
 
     public function reindex(CurriculumSource $curriculumSource, AcademicRepositoryIngestionService $service)
     {
@@ -212,6 +243,7 @@ class CurriculumSourceController extends Controller
                 if ($data['action'] === 'activate') {
                     if ($source->extraction_status !== 'extracted' || $source->fragments_count < 1) {
                         $skipped++;
+
                         continue;
                     }
                     $source->update([
@@ -231,25 +263,86 @@ class CurriculumSourceController extends Controller
             'activate' => 'activated', 'deactivate' => 'deactivated', default => 'removed',
         };
         $message = number_format($changed).' '.str('resource')->plural($changed).' '.$label.'.';
-        if ($skipped) $message .= ' '.number_format($skipped).' failed-extraction '.str('resource')->plural($skipped).' skipped; re-index before activation.';
+        if ($skipped) {
+            $message .= ' '.number_format($skipped).' failed-extraction '.str('resource')->plural($skipped).' skipped; re-index before activation.';
+        }
 
         return back()->with('success', $message);
     }
 
+    public function bulkAll(Request $request)
+    {
+        $this->guard();
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['activate', 'deactivate', 'delete'])],
+            'confirmation' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        if ($data['action'] === 'delete') {
+            abort_unless(
+                hash_equals('REMOVE ALL', trim((string) ($data['confirmation'] ?? ''))),
+                422,
+                'Type REMOVE ALL to confirm this action.'
+            );
+        }
+
+        $repository = CurriculumSource::whereNull('tenant_id');
+        $total = (clone $repository)->count();
+        if ($total === 0) {
+            return back()->with('success', 'The Academic Repository is already empty.');
+        }
+
+        if ($data['action'] === 'activate') {
+            $eligible = (clone $repository)
+                ->where('extraction_status', 'extracted')
+                ->where('index_status', 'indexed')
+                ->whereHas('fragments');
+            $eligibleCount = (clone $eligible)->count();
+
+            DB::transaction(fn () => $eligible->update([
+                'review_status' => 'approved',
+                'is_active' => true,
+                'needs_review' => false,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]));
+
+            $skipped = $total - $eligibleCount;
+            $message = number_format($eligibleCount).' eligible '.str('resource')->plural($eligibleCount).' activated.';
+            if ($skipped > 0) {
+                $message .= ' '.number_format($skipped).' failed or unindexed '.str('resource')->plural($skipped).' skipped.';
+            }
+
+            return back()->with('success', $message);
+        }
+
+        if ($data['action'] === 'deactivate') {
+            DB::transaction(fn () => $repository->update(['is_active' => false]));
+
+            return back()->with('success', number_format($total).' repository '.str('resource')->plural($total).' deactivated.');
+        }
+
+        DB::transaction(fn () => $repository->delete());
+
+        return back()->with('success', number_format($total).' repository '.str('resource')->plural($total).' removed.');
+    }
+
     public function topic(Request $request)
     {
-        $this->guard(); $data=$request->validate(['subject_id'=>'required|integer','curriculum_level_id'=>'required|integer','topic'=>'required|string|max:255','subtopics_text'=>'nullable|string','keywords_text'=>'nullable|string']);
-        CurriculumTopic::create(['subject_id'=>$data['subject_id'],'curriculum_level_id'=>$data['curriculum_level_id'],'topic'=>$data['topic'],'subtopics'=>preg_split('/[,;\n]+/',$data['subtopics_text']??'',-1,PREG_SPLIT_NO_EMPTY),'keywords'=>preg_split('/[,;\n]+/',$data['keywords_text']??'',-1,PREG_SPLIT_NO_EMPTY),'created_by'=>auth()->id()]);
-        return back()->with('success','Canonical curriculum topic added.');
+        $this->guard();
+        $data = $request->validate(['subject_id' => 'required|integer', 'curriculum_level_id' => 'required|integer', 'topic' => 'required|string|max:255', 'subtopics_text' => 'nullable|string', 'keywords_text' => 'nullable|string']);
+        CurriculumTopic::create(['subject_id' => $data['subject_id'], 'curriculum_level_id' => $data['curriculum_level_id'], 'topic' => $data['topic'], 'subtopics' => preg_split('/[,;\n]+/', $data['subtopics_text'] ?? '', -1, PREG_SPLIT_NO_EMPTY), 'keywords' => preg_split('/[,;\n]+/', $data['keywords_text'] ?? '', -1, PREG_SPLIT_NO_EMPTY), 'created_by' => auth()->id()]);
+
+        return back()->with('success', 'Canonical curriculum topic added.');
     }
 
     private function metadataRules(): array
     {
         return [
-            'title'=>'nullable|string|max:255','authority'=>['required',Rule::in(['NERDC','WAEC','NECO','JAMB','TEXTBOOK','OTHER'])],
-            'source_type'=>['required',Rule::in(['curriculum_document','teacher_guide','assessment_syllabus','approved_textbook','school_scheme','lesson_note'])],
-            'subject_id'=>'nullable|integer','curriculum_level_id'=>'nullable|integer','topic'=>'nullable|string|max:255','subtopic'=>'nullable|string|max:255','version'=>'nullable|string|max:80',
-            'rights_status'=>['required',Rule::in(['public_official','licensed','institution_authorised'])],'is_official'=>'nullable|boolean','column_mapping_json'=>'nullable|json',
+            'title' => 'nullable|string|max:255', 'authority' => ['required', Rule::in(['NERDC', 'WAEC', 'NECO', 'JAMB', 'TEXTBOOK', 'OTHER'])],
+            'source_type' => ['required', Rule::in(['curriculum_document', 'teacher_guide', 'assessment_syllabus', 'approved_textbook', 'school_scheme', 'lesson_note'])],
+            'subject_id' => 'nullable|integer', 'curriculum_level_id' => 'nullable|integer', 'topic' => 'nullable|string|max:255', 'subtopic' => 'nullable|string|max:255', 'version' => 'nullable|string|max:80',
+            'rights_status' => ['required', Rule::in(['public_official', 'licensed', 'institution_authorised'])], 'is_official' => 'nullable|boolean', 'column_mapping_json' => 'nullable|json',
         ];
     }
 
@@ -266,7 +359,9 @@ class CurriculumSourceController extends Controller
     private function metadataLabel(CurriculumSource $source, string $key, string $fallback): string
     {
         $metadata = $source->metadata;
-        if (is_string($metadata)) $metadata = json_decode($metadata, true);
+        if (is_string($metadata)) {
+            $metadata = json_decode($metadata, true);
+        }
         $value = is_array($metadata) ? trim((string) ($metadata[$key] ?? '')) : '';
 
         return $value !== '' ? $value : $fallback;

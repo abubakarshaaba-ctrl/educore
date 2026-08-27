@@ -1112,6 +1112,7 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
     Route::delete('curriculum-sources/uploads/{upload}', [\App\Http\Controllers\CurriculumSourceController::class, 'cancelUpload'])->whereUuid('upload')->name('curriculum-sources.uploads.cancel');
     Route::post('curriculum-sources', [\App\Http\Controllers\CurriculumSourceController::class, 'store'])->name('curriculum-sources.store');
     Route::post('curriculum-sources/bulk', [\App\Http\Controllers\CurriculumSourceController::class, 'bulk'])->name('curriculum-sources.bulk');
+    Route::post('curriculum-sources/bulk-all', [\App\Http\Controllers\CurriculumSourceController::class, 'bulkAll'])->name('curriculum-sources.bulk-all');
     Route::post('curriculum-sources/{curriculumSource}/activate', [\App\Http\Controllers\CurriculumSourceController::class, 'activate'])->name('curriculum-sources.activate');
     Route::post('curriculum-sources/{curriculumSource}/deactivate', [\App\Http\Controllers\CurriculumSourceController::class, 'deactivate'])->name('curriculum-sources.deactivate');
     Route::post('curriculum-sources/{curriculumSource}/reindex', [\App\Http\Controllers\CurriculumSourceController::class, 'reindex'])->name('curriculum-sources.reindex');
