@@ -1,0 +1,348 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "cb30c5da2d97c1d1661af35b426a533d",
+    "entities": [
+      {
+        "tableName": "cached_sessions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `user_id` INTEGER NOT NULL, `user_name` TEXT NOT NULL, `user_email` TEXT, `staff_id` TEXT, `role_key` TEXT NOT NULL, `role_label` TEXT NOT NULL, `portal` TEXT NOT NULL, `school_id` INTEGER, `school_name` TEXT NOT NULL, `school_slug` TEXT NOT NULL, `school_primary_color` TEXT NOT NULL, `school_accent_color` TEXT NOT NULL, `school_motto` TEXT, `session_id` INTEGER, `session_name` TEXT, `term_id` INTEGER, `term_name` TEXT, `access_allowed` INTEGER NOT NULL, `access_state` TEXT NOT NULL, `access_message` TEXT NOT NULL, `access_severity` TEXT, `access_expires_at` TEXT, `server_time` TEXT, `contract_version` INTEGER NOT NULL, `token_expires_at` TEXT, `cached_at_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`tenant_key`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userName",
+            "columnName": "user_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userEmail",
+            "columnName": "user_email",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "staffId",
+            "columnName": "staff_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "roleKey",
+            "columnName": "role_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roleLabel",
+            "columnName": "role_label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "portal",
+            "columnName": "portal",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schoolId",
+            "columnName": "school_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "schoolName",
+            "columnName": "school_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schoolSlug",
+            "columnName": "school_slug",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schoolPrimaryColor",
+            "columnName": "school_primary_color",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schoolAccentColor",
+            "columnName": "school_accent_color",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schoolMotto",
+            "columnName": "school_motto",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sessionId",
+            "columnName": "session_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sessionName",
+            "columnName": "session_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "termId",
+            "columnName": "term_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "termName",
+            "columnName": "term_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "accessAllowed",
+            "columnName": "access_allowed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessState",
+            "columnName": "access_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessMessage",
+            "columnName": "access_message",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accessSeverity",
+            "columnName": "access_severity",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "accessExpiresAt",
+            "columnName": "access_expires_at",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "serverTime",
+            "columnName": "server_time",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contractVersion",
+            "columnName": "contract_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tokenExpiresAt",
+            "columnName": "token_expires_at",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "cachedAtEpochMs",
+            "columnName": "cached_at_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key"
+          ]
+        }
+      },
+      {
+        "tableName": "cached_roles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`tenant_key`, `name`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key",
+            "name"
+          ]
+        }
+      },
+      {
+        "tableName": "cached_permissions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`tenant_key`, `name`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key",
+            "name"
+          ]
+        }
+      },
+      {
+        "tableName": "cached_features",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`tenant_key`, `name`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key",
+            "name"
+          ]
+        }
+      },
+      {
+        "tableName": "cached_modules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `key` TEXT NOT NULL, `title` TEXT NOT NULL, `path` TEXT NOT NULL, `icon` TEXT NOT NULL, `sort_order` INTEGER NOT NULL, PRIMARY KEY(`tenant_key`, `key`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key",
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "cached_dashboards",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tenant_key` TEXT NOT NULL, `user_id` INTEGER NOT NULL, `scope` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `source_generated_at` TEXT NOT NULL, `cached_at_epoch_ms` INTEGER NOT NULL, PRIMARY KEY(`tenant_key`, `user_id`))",
+        "fields": [
+          {
+            "fieldPath": "tenantKey",
+            "columnName": "tenant_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scope",
+            "columnName": "scope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceGeneratedAt",
+            "columnName": "source_generated_at",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cachedAtEpochMs",
+            "columnName": "cached_at_epoch_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tenant_key",
+            "user_id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cb30c5da2d97c1d1661af35b426a533d')"
+    ]
+  }
+}

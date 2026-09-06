@@ -1,0 +1,17 @@
+.gradle/
+.idea/
+build/
+**/build/
+local.properties
+release.properties
+*.jks
+*.keystore
+*.iml
+*.hprof
+captures/
+externalNativeBuild/
+.cxx/
+.codex-release/
+app/google-services.json
+app/src/debug/google-services.json
+app/src/release/google-services.json

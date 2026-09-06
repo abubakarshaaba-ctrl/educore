@@ -1,0 +1,5 @@
+# Copy to release.properties and keep the real file outside version control.
+storeFile=C:/secure/path/educore-upload-key.jks
+storePassword=replace-with-secure-secret
+keyAlias=educore
+keyPassword=replace-with-secure-secret
