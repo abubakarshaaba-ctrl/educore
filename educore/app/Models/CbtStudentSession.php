@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\BaseTenantModel;
-use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class CbtStudentSession extends BaseTenantModel
 {
@@ -30,54 +29,114 @@ class CbtStudentSession extends BaseTenantModel
         'attempt_number', 'is_authorized_attempt', 'is_active_result', 'retake_authorization_id',
         'integrity_acknowledged_at', 'focus_loss_count', 'submission_reason',
         'raw_score', 'maximum_score', 'grading_completed_at',
+        'sync_version',
     ];
 
     protected function casts(): array
     {
         return [
-            'question_order'    => 'array',
-            'answers'           => 'array',
-            'essay_answers'     => 'array',
+            'question_order' => 'array',
+            'answers' => 'array',
+            'essay_answers' => 'array',
             'flagged_questions' => 'array',
-            'manual_scores'     => 'array',
-            'started_at'        => 'datetime',
-            'submitted_at'      => 'datetime',
-            'last_synced_at'    => 'datetime',
-            'score'             => 'float',
-            'percentage'        => 'float',
-            'attempt_number'     => 'integer',
+            'manual_scores' => 'array',
+            'started_at' => 'datetime',
+            'submitted_at' => 'datetime',
+            'last_synced_at' => 'datetime',
+            'score' => 'float',
+            'percentage' => 'float',
+            'attempt_number' => 'integer',
             'is_authorized_attempt' => 'boolean',
-            'is_active_result'   => 'boolean',
+            'is_active_result' => 'boolean',
             'integrity_acknowledged_at' => 'datetime',
-            'focus_loss_count'   => 'integer',
-            'raw_score'          => 'float',
-            'maximum_score'      => 'float',
+            'focus_loss_count' => 'integer',
+            'raw_score' => 'float',
+            'maximum_score' => 'float',
             'grading_completed_at' => 'datetime',
+            'sync_version' => 'integer',
         ];
     }
 
-    public function tenant(): BelongsTo  { return $this->belongsTo(Tenant::class); }
-    public function exam(): BelongsTo    { return $this->belongsTo(CbtExam::class, 'cbt_exam_id'); }
-    public function student(): BelongsTo { return $this->belongsTo(Student::class); }
-    public function marker(): BelongsTo  { return $this->belongsTo(User::class, 'marked_by'); }
-    public function retakeAuthorization(): BelongsTo { return $this->belongsTo(CbtRetakeAuthorization::class); }
-    public function integrityEvents(): HasMany { return $this->hasMany(CbtIntegrityEvent::class); }
-    public function sectionAttempts(): HasMany { return $this->hasMany(CbtSectionAttempt::class); }
-    public function questionScores(): HasMany { return $this->hasMany(CbtQuestionScore::class); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
-    public function isSubmitted(): bool  { return in_array($this->status, ['submitted', 'auto_submitted'], true); }
-    public function isInProgress(): bool { return $this->status === 'in_progress'; }
-    public function isGraded(): bool     { return $this->status === 'graded'; }
-    public function awaitingMarking(): bool { return in_array($this->status, ['submitted', 'auto_submitted'], true) && ! $this->isFullyScored(); }
-    public function isFinal(): bool      { return in_array($this->status, self::FINAL_STATUSES, true); }
-    public function isInvalid(): bool { return in_array($this->status, ['invalidated', 'cancelled'], true); }
-    public function isFullyScored(): bool { return $this->grading_completed_at !== null; }
+    public function exam(): BelongsTo
+    {
+        return $this->belongsTo(CbtExam::class, 'cbt_exam_id');
+    }
+
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(Student::class);
+    }
+
+    public function marker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marked_by');
+    }
+
+    public function retakeAuthorization(): BelongsTo
+    {
+        return $this->belongsTo(CbtRetakeAuthorization::class);
+    }
+
+    public function integrityEvents(): HasMany
+    {
+        return $this->hasMany(CbtIntegrityEvent::class);
+    }
+
+    public function sectionAttempts(): HasMany
+    {
+        return $this->hasMany(CbtSectionAttempt::class);
+    }
+
+    public function questionScores(): HasMany
+    {
+        return $this->hasMany(CbtQuestionScore::class);
+    }
+
+    public function isSubmitted(): bool
+    {
+        return in_array($this->status, ['submitted', 'auto_submitted'], true);
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === 'in_progress';
+    }
+
+    public function isGraded(): bool
+    {
+        return $this->status === 'graded';
+    }
+
+    public function awaitingMarking(): bool
+    {
+        return in_array($this->status, ['submitted', 'auto_submitted'], true) && ! $this->isFullyScored();
+    }
+
+    public function isFinal(): bool
+    {
+        return in_array($this->status, self::FINAL_STATUSES, true);
+    }
+
+    public function isInvalid(): bool
+    {
+        return in_array($this->status, ['invalidated', 'cancelled'], true);
+    }
+
+    public function isFullyScored(): bool
+    {
+        return $this->grading_completed_at !== null;
+    }
 
     public function questionIds(): array
     {
         $ids = is_array($this->question_order) ? $this->question_order : [];
 
-        if (!empty($ids)) {
+        if (! empty($ids)) {
             return array_values(array_map('intval', $ids));
         }
 

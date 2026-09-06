@@ -1,7 +1,6 @@
 <?php
-namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+namespace App\Models;
 
 class Announcement extends BaseTenantModel
 {
@@ -18,4 +17,13 @@ class Announcement extends BaseTenantModel
         'is_published',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'publish_date' => 'date',
+            'expire_date' => 'date',
+            'is_published' => 'boolean',
+        ];
+    }
 }

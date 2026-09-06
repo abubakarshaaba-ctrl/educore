@@ -8,13 +8,14 @@ use App\Models\Announcement;
 use App\Models\ClassArm;
 use App\Models\ClassArmSubject;
 use App\Models\Term;
+use App\Services\Mobile\MobileClassAccessService;
 use Illuminate\Http\Request;
 
 class TeacherController extends Controller
 {
     public function me(Request $request)
     {
-        $user    = $request->user();
+        $user = $request->user();
         if ($user->isSuperAdmin()) {
             return response()->json([
                 'user' => [
@@ -34,27 +35,27 @@ class TeacherController extends Controller
             ]);
         }
         $session = AcademicSession::current()->first();
-        $term    = Term::current()->first();
+        $term = Term::current()->first();
 
         return response()->json([
             'user' => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'email'    => $user->email,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
                 'staff_id' => $user->staff_id,
                 'role_key' => $user->role,
-                'role'     => $user->roleLabel() ?? 'staff',
-                'roles'    => $user->getRoleNames()->values(),
-                'portal'   => in_array($user->roleKey(), ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'], true) ? 'admin' : 'staff',
+                'role' => $user->roleLabel() ?? 'staff',
+                'roles' => $user->getRoleNames()->values(),
+                'portal' => in_array($user->roleKey(), ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'], true) ? 'admin' : 'staff',
             ],
             'school' => [
-                'id'   => $user->tenant?->id,
+                'id' => $user->tenant?->id,
                 'name' => $user->tenant?->name,
                 'slug' => $user->tenant?->slug,
             ],
             'current_session' => $session?->only(['id', 'name']),
-            'current_term'    => $term?->only(['id', 'name']),
-            'permissions'     => $user->getAllPermissions()->pluck('name')->sort()->values(),
+            'current_term' => $term?->only(['id', 'name']),
+            'permissions' => $user->getAllPermissions()->pluck('name')->sort()->values(),
         ]);
     }
 
@@ -64,7 +65,7 @@ class TeacherController extends Controller
      */
     public function classes(Request $request)
     {
-        $user    = $request->user();
+        $user = $request->user();
         abort_if($user->isAccountant(), 403, 'Accountants do not have teaching assignments.');
         $session = AcademicSession::current()->first();
 
@@ -72,9 +73,9 @@ class TeacherController extends Controller
             ->where('form_tutor_id', $user->id)
             ->get()
             ->map(fn ($arm) => [
-                'id'    => $arm->id,
-                'name'  => trim(optional($arm->classLevel)->name . ' ' . $arm->name),
-                'role'  => 'form_tutor',
+                'id' => $arm->id,
+                'name' => trim(optional($arm->classLevel)->name.' '.$arm->name),
+                'role' => 'form_tutor',
                 'subject' => null,
                 'students_count' => $arm->students()->count(),
             ]);
@@ -84,9 +85,9 @@ class TeacherController extends Controller
             ->get()
             ->filter(fn ($cas) => $cas->classArm)
             ->map(fn ($cas) => [
-                'id'    => $cas->classArm->id,
-                'name'  => trim(optional($cas->classArm->classLevel)->name . ' ' . $cas->classArm->name),
-                'role'  => 'subject_teacher',
+                'id' => $cas->classArm->id,
+                'name' => trim(optional($cas->classArm->classLevel)->name.' '.$cas->classArm->name),
+                'role' => 'subject_teacher',
                 'subject' => optional($cas->subject)->only(['id', 'name']),
                 'students_count' => $cas->classArm->students()->count(),
             ]);
@@ -99,7 +100,7 @@ class TeacherController extends Controller
     public function students(Request $request, int $classArmId)
     {
         $user = $request->user();
-        $arm  = ClassArm::with('classLevel')->findOrFail($classArmId);
+        $arm = ClassArm::with('classLevel')->findOrFail($classArmId);
 
         abort_unless($this->canAccessArm($user, $arm->id), 403, 'You are not assigned to this class.');
 
@@ -108,14 +109,14 @@ class TeacherController extends Controller
             ->orderBy('first_name')
             ->get()
             ->map(fn ($st) => [
-                'id'               => $st->id,
-                'name'             => $st->full_name,
+                'id' => $st->id,
+                'name' => $st->full_name,
                 'admission_number' => $st->admission_number,
-                'gender'           => $st->gender,
+                'gender' => $st->gender,
             ]);
 
         return response()->json([
-            'class'    => ['id' => $arm->id, 'name' => trim(optional($arm->classLevel)->name . ' ' . $arm->name)],
+            'class' => ['id' => $arm->id, 'name' => trim(optional($arm->classLevel)->name.' '.$arm->name)],
             'students' => $students,
         ]);
     }
@@ -134,18 +135,11 @@ class TeacherController extends Controller
 
     public static function canAccessArm($user, int $armId): bool
     {
-        if (ClassArm::where('id', $armId)->where('form_tutor_id', $user->id)->exists()) {
-            return true;
-        }
-
-        return ClassArmSubject::where('teacher_id', $user->id)
-            ->where('class_arm_id', $armId)
-            ->exists();
+        return app(MobileClassAccessService::class)->canViewClass($user, $armId);
     }
 
     public static function canMarkAttendance($user, int $armId): bool
     {
-        if ($user->isAccountant()) return false;
-        return ClassArm::where('id', $armId)->where('form_tutor_id', $user->id)->exists();
+        return app(MobileClassAccessService::class)->canMarkAttendance($user, $armId);
     }
 }

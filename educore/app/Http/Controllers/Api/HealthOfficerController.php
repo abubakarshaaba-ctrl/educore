@@ -14,13 +14,15 @@ class HealthOfficerController extends Controller
     {
         $user = $this->guard($request);
         $tenantId = $user->tenant_id;
-        $students = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE)
+        $studentQuery = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE);
+        $studentCount = (clone $studentQuery)->count();
+        $students = $studentQuery
             ->with(['currentClassArm.classLevel:id,name', 'healthRecord'])->orderBy('last_name')->limit(150)->get();
         $records = StudentHealthRecord::where('tenant_id', $tenantId);
 
         return response()->json([
             'metrics' => [
-                'students' => $students->count(),
+                'students' => $studentCount,
                 'records' => (clone $records)->count(),
                 'allergy_alerts' => (clone $records)->whereNotNull('allergies')->where('allergies', '!=', '')->count(),
                 'medication_alerts' => (clone $records)->whereNotNull('current_medications')->where('current_medications', '!=', '')->count(),

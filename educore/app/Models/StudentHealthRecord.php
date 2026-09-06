@@ -1,7 +1,6 @@
 <?php
-namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+namespace App\Models;
 
 class StudentHealthRecord extends BaseTenantModel
 {
@@ -23,4 +22,9 @@ class StudentHealthRecord extends BaseTenantModel
         'doctor_phone',
         'notes',
     ];
+
+    public function student()
+    {
+        return $this->belongsTo(Student::class);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AssessmentType;
+use App\Models\ReportCardPublication;
 use App\Models\Score;
 use App\Models\Student;
 use App\Models\Subject;
@@ -21,6 +22,18 @@ class MobileReportCardService
             ->where('student_id', $student->id)
             ->latest('computed_at')
             ->get();
+
+        $publishedKeys = ReportCardPublication::where('status', 'published')
+            ->whereIn('class_arm_id', $summaries->pluck('class_arm_id')->unique())
+            ->whereIn('term_id', $summaries->pluck('term_id')->unique())
+            ->get(['class_arm_id', 'term_id'])
+            ->mapWithKeys(fn (ReportCardPublication $publication) => [
+                $publication->class_arm_id.':'.$publication->term_id => true,
+            ]);
+
+        $summaries = $summaries
+            ->filter(fn (TermlySummary $summary) => $publishedKeys->has($summary->class_arm_id.':'.$summary->term_id))
+            ->values();
 
         if ($summaries->isEmpty()) {
             return collect();

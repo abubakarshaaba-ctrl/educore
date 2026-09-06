@@ -42,8 +42,10 @@ class TransportOfficerController extends Controller
             'active' => (bool) $bus->is_active,
         ]);
         $assignedIds = TransportAssignment::where('tenant_id', $tenantId)->pluck('student_id');
-        $unassigned = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE)
-            ->whereNotIn('id', $assignedIds)->with('currentClassArm.classLevel:id,name')->orderBy('first_name')->limit(100)->get()
+        $unassignedQuery = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE)
+            ->whereNotIn('id', $assignedIds);
+        $unassignedCount = (clone $unassignedQuery)->count();
+        $unassigned = $unassignedQuery->with('currentClassArm.classLevel:id,name')->orderBy('first_name')->limit(100)->get()
             ->map(fn (Student $student) => [
                 'id' => $student->id,
                 'name' => trim("{$student->first_name} {$student->last_name}"),
@@ -56,7 +58,7 @@ class TransportOfficerController extends Controller
                 'routes' => $routes->count(),
                 'active_buses' => $buses->where('active', true)->count(),
                 'assigned_students' => $assignedIds->count(),
-                'unassigned_students' => $unassigned->count(),
+                'unassigned_students' => $unassignedCount,
             ],
             'routes' => $routes,
             'buses' => $buses,

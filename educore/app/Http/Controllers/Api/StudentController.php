@@ -8,6 +8,7 @@ use App\Models\Announcement;
 use App\Models\AttendanceRecord;
 use App\Models\CbtExam;
 use App\Models\CbtStudentSession;
+use App\Models\ReportCardPublication;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
@@ -28,6 +29,10 @@ class StudentController extends Controller
         $summary = $term
             ? TermlySummary::where('student_id', $student->id)->where('term_id', $term->id)->first()
             : null;
+        if ($summary && ! ReportCardPublication::where('class_arm_id', $summary->class_arm_id)
+            ->where('term_id', $summary->term_id)->where('status', 'published')->exists()) {
+            $summary = null;
+        }
 
         $attendance = $term
             ? AttendanceRecord::where('student_id', $student->id)
@@ -107,6 +112,7 @@ class StudentController extends Controller
     public function results(Request $request, MobileReportCardService $reports)
     {
         $student = $this->student($request);
+
         return response()->json([
             'student' => $this->studentPayload($student->loadMissing('currentClassArm.classLevel')),
             'results' => $reports->forStudent($student),
@@ -181,6 +187,7 @@ class StudentController extends Controller
                     'is_active_result' => $session->is_active_result,
                     'submitted_at' => $session->submitted_at,
                 ] : null;
+
                 return $payload;
             }),
         ]);
@@ -204,6 +211,7 @@ class StudentController extends Controller
             $armId = $student->current_class_arm_id;
             $query->where(fn ($inner) => $inner->whereNull('class_arm_id')->orWhere('class_arm_id', $armId)->orWhereHas('classArms', fn ($assigned) => $assigned->where('class_arms.id', $armId)));
         }
+
         return $query;
     }
 
@@ -216,7 +224,7 @@ class StudentController extends Controller
             'status' => $student->status,
             'class' => $student->currentClassArm ? [
                 'id' => $student->currentClassArm->id,
-                'name' => trim(($student->currentClassArm->classLevel?->name ?? '') . ' ' . $student->currentClassArm->name),
+                'name' => trim(($student->currentClassArm->classLevel?->name ?? '').' '.$student->currentClassArm->name),
             ] : null,
         ];
     }

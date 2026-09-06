@@ -1,7 +1,6 @@
 <?php
-namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+namespace App\Models;
 
 class CalendarEvent extends BaseTenantModel
 {
@@ -19,4 +18,13 @@ class CalendarEvent extends BaseTenantModel
         'is_public',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+            'is_public' => 'boolean',
+        ];
+    }
 }

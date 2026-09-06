@@ -7,6 +7,7 @@ use App\Models\Announcement;
 use App\Models\AttendanceRecord;
 use App\Models\Guardian;
 use App\Models\Invoice;
+use App\Models\ReportCardPublication;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
@@ -23,6 +24,10 @@ class ParentController extends Controller
         $summary = $student && $term
             ? TermlySummary::where('student_id', $student->id)->where('term_id', $term->id)->first()
             : null;
+        if ($summary && ! ReportCardPublication::where('class_arm_id', $summary->class_arm_id)
+            ->where('term_id', $summary->term_id)->where('status', 'published')->exists()) {
+            $summary = null;
+        }
 
         $records = $student && $term
             ? AttendanceRecord::where('student_id', $student->id)->where('term_id', $term->id)->get(['status'])
@@ -170,7 +175,7 @@ class ParentController extends Controller
             'status' => $student->status,
             'class' => $student->currentClassArm ? [
                 'id' => $student->currentClassArm->id,
-                'name' => trim(($student->currentClassArm->classLevel?->name ?? '') . ' ' . $student->currentClassArm->name),
+                'name' => trim(($student->currentClassArm->classLevel?->name ?? '').' '.$student->currentClassArm->name),
             ] : null,
         ];
     }

@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
@@ -60,8 +61,11 @@ class User extends Authenticatable
     const ROLES_PORTAL = ['student', 'parent'];
 
     public const STAFF_STATUS_ACTIVE = 'active';
+
     public const STAFF_STATUS_LEFT = 'left';
+
     public const STAFF_STATUS_RESIGNED = 'resigned';
+
     public const STAFF_STATUS_TERMINATED = 'terminated';
 
     public const STAFF_LIFECYCLE_STATUSES = [
@@ -92,10 +96,10 @@ class User extends Authenticatable
     ];
 
     const ROLE_ALIASES = [
-        'super-admin'            => 'super_admin',
-        'administrator'          => 'admin',
+        'super-admin' => 'super_admin',
+        'administrator' => 'admin',
         'assistant_form_teacher' => 'asst_form_teacher',
-        'teacher'                => 'subject_teacher',
+        'teacher' => 'subject_teacher',
     ];
 
     const ALL_ROLES = [
@@ -130,64 +134,64 @@ class User extends Authenticatable
     ];
 
     const ROLE_LABELS = [
-        'super_admin'            => 'Super Admin',
-        'admin'                 => 'Administrator',
-        'administrator'         => 'Administrator',
-        'super-admin'           => 'Super Admin',
-        'principal'             => 'Principal',
-        'head'                  => 'Head',
-        'head_teacher'          => 'Head Teacher',
-        'vice_principal'        => 'Vice Principal',
-        'academic_administrator'=> 'Academic Administrator',
-        'admission_officer'     => 'Admission Officer',
-        'form_teacher'          => 'Form Teacher',
-        'asst_form_teacher'     => 'Asst. Form Teacher',
-        'assistant_form_teacher'=> 'Asst. Form Teacher',
-        'subject_teacher'       => 'Subject Teacher',
-        'teacher'               => 'Subject Teacher',
-        'form_subject_teacher'  => 'Form & Subject Teacher',
-        'accountant'            => 'Accountant',
-        'health_officer'        => 'Health Officer',
-        'librarian'             => 'Librarian',
-        'transport_officer'     => 'Transport Officer',
+        'super_admin' => 'Super Admin',
+        'admin' => 'Administrator',
+        'administrator' => 'Administrator',
+        'super-admin' => 'Super Admin',
+        'principal' => 'Principal',
+        'head' => 'Head',
+        'head_teacher' => 'Head Teacher',
+        'vice_principal' => 'Vice Principal',
+        'academic_administrator' => 'Academic Administrator',
+        'admission_officer' => 'Admission Officer',
+        'form_teacher' => 'Form Teacher',
+        'asst_form_teacher' => 'Asst. Form Teacher',
+        'assistant_form_teacher' => 'Asst. Form Teacher',
+        'subject_teacher' => 'Subject Teacher',
+        'teacher' => 'Subject Teacher',
+        'form_subject_teacher' => 'Form & Subject Teacher',
+        'accountant' => 'Accountant',
+        'health_officer' => 'Health Officer',
+        'librarian' => 'Librarian',
+        'transport_officer' => 'Transport Officer',
         'communication_officer' => 'Communication Officer',
-        'driver'                => 'Driver',
-        'bus_assistant'         => 'Bus Assistant',
+        'driver' => 'Driver',
+        'bus_assistant' => 'Bus Assistant',
         // ── Executive / Leadership ────────────────────────────────────
-        'chairman'                          => 'Chairman',
-        'head_of_schools'                   => 'Head of Schools',
+        'chairman' => 'Chairman',
+        'head_of_schools' => 'Head of Schools',
         'executive_director_administration' => 'Executive Director (Administration)',
-        'executive_director_operations'     => 'Executive Director (Operations)',
-        'director_of_studies'               => 'Director of Studies',
-        'director_of_compliance'            => 'Director of Compliance',
-        'admin_officer'                     => 'Admin Officer',
+        'executive_director_operations' => 'Executive Director (Operations)',
+        'director_of_studies' => 'Director of Studies',
+        'director_of_compliance' => 'Director of Compliance',
+        'admin_officer' => 'Admin Officer',
         // ── Security ─────────────────────────────────────────────────
-        'chief_security'                    => 'Chief Security Officer',
-        'security'                          => 'Security Officer',
+        'chief_security' => 'Chief Security Officer',
+        'security' => 'Security Officer',
         // ── Health & Lab ──────────────────────────────────────────────
-        'health_technician'                 => 'Health Technician',
-        'laboratory_technician'             => 'Laboratory Technician',
+        'health_technician' => 'Health Technician',
+        'laboratory_technician' => 'Laboratory Technician',
         // ── Residential / Pastoral ────────────────────────────────────
-        'hostel_minder'                     => 'Hostel Minder',
+        'hostel_minder' => 'Hostel Minder',
         // ── Stores & Facilities ───────────────────────────────────────
-        'store_keeper'                      => 'Store Keeper',
-        'utility_officer'                   => 'Utility Officer',
-        'maintenance_officer'               => 'Maintenance Officer',
+        'store_keeper' => 'Store Keeper',
+        'utility_officer' => 'Utility Officer',
+        'maintenance_officer' => 'Maintenance Officer',
         // ── Front Office & Communication ──────────────────────────────
-        'receptionist'                      => 'Receptionist',
-        'secretary'                         => 'Secretary',
-        'public_relation_officer'           => 'Public Relations Officer',
-        'information_officer'               => 'Information Officer',
+        'receptionist' => 'Receptionist',
+        'secretary' => 'Secretary',
+        'public_relation_officer' => 'Public Relations Officer',
+        'information_officer' => 'Information Officer',
         // ── Kitchen & Catering ────────────────────────────────────────
-        'head_chef'                         => 'Head Chef',
-        'cook'                              => 'Cook',
+        'head_chef' => 'Head Chef',
+        'cook' => 'Cook',
         // ── Grounds & Cleaning ────────────────────────────────────────
-        'sanitation_officer'                => 'Sanitation Officer',
-        'cleaner'                           => 'Cleaner',
-        'gardener'                          => 'Gardener',
+        'sanitation_officer' => 'Sanitation Officer',
+        'cleaner' => 'Cleaner',
+        'gardener' => 'Gardener',
         // ── Portal ───────────────────────────────────────────────────
-        'student'               => 'Student',
-        'parent'                => 'Parent',
+        'student' => 'Student',
+        'parent' => 'Parent',
     ];
 
     // ── Sub-module route prefix mapping ───────────────────────────────
@@ -195,72 +199,72 @@ class User extends Authenticatable
     // Values are route name prefixes that belong to each module.
     const MODULE_ROUTES = [
         // core
-        'dashboard'              => ['dashboard'],
+        'dashboard' => ['dashboard'],
         // students
-        'students'               => ['students'],
+        'students' => ['students'],
         // staff
-        'staff'                  => ['staff'],
+        'staff' => ['staff'],
         // classes
-        'classes'                => ['classes'],
-        'academic-cycle'         => ['academic-cycle'],
+        'classes' => ['classes'],
+        'academic-cycle' => ['academic-cycle'],
         // subjects
-        'subjects'               => ['subjects'],
+        'subjects' => ['subjects'],
         // curriculum
-        'curriculum'             => ['curriculum'],
+        'curriculum' => ['curriculum'],
 
         // ── Scores (write vs read-only) ───────────────────────────────
-        'scores'                 => ['scores'],          // full score access
-        'scores.entry'           => ['scores.index','scores.entry','scores.save','scores.import'], // enter+save only
-        'scores.view'            => ['scores.index','scores.broadsheet'],   // read-only
+        'scores' => ['scores'],          // full score access
+        'scores.entry' => ['scores.index', 'scores.entry', 'scores.save', 'scores.import'], // enter+save only
+        'scores.view' => ['scores.index', 'scores.broadsheet'],   // read-only
 
         // ── Timetable (view vs manage) ────────────────────────────────
-        'timetable'              => ['timetable'],       // full timetable access
-        'timetable.view'         => ['timetable.index','timetable.view','timetable.teacher'], // view only
+        'timetable' => ['timetable'],       // full timetable access
+        'timetable.view' => ['timetable.index', 'timetable.view', 'timetable.teacher'], // view only
 
         // ── Reports (view vs manage) ──────────────────────────────────
-        'reports'                => ['reports'],         // full reports (compute, publish, etc.)
-        'reports.view'           => ['reports.index','reports.preview','reports.pdf','reports.pdf-class',
-                                     'reports.remarks','reports.remarks.page.view','reports.publications'],
+        'reports' => ['reports'],         // full reports (compute, publish, etc.)
+        'reports.view' => ['reports.index', 'reports.preview', 'reports.pdf', 'reports.pdf-class',
+            'reports.remarks', 'reports.remarks.page.view', 'reports.publications'],
         // form teacher: add remarks only — no compute/preview/pdf/publish
-        'reports.remarks'        => ['reports.remarks','reports.remarks.page.view','reports.remarks.save','reports.remarks.bulk'],
+        'reports.remarks' => ['reports.remarks', 'reports.remarks.page.view', 'reports.remarks.save', 'reports.remarks.bulk'],
 
         // skills
-        'skills'                 => ['skills'],
+        'skills' => ['skills'],
 
         // ── CBT ───────────────────────────────────────────────────────
-        'cbt'                    => ['cbt'],
+        'cbt' => ['cbt'],
 
         // ── Admissions ───────────────────────────────────────────────
-        'admissions'             => ['admissions'],
+        'admissions' => ['admissions'],
 
         // ── Finance ───────────────────────────────────────────────────
-        'fees'                   => ['fees'],
-        'expenses'               => ['expenses'],
-        'payroll'                => ['payroll'],
+        'fees' => ['fees'],
+        'expenses' => ['expenses'],
+        'payroll' => ['payroll'],
 
         // ── Operations ───────────────────────────────────────────────
-        'health'                 => ['health'],
-        'library'                => ['library'],
-        'transport'              => ['transport'],
-        'hostels'                => ['hostels'],
+        'health' => ['health'],
+        'library' => ['library'],
+        'transport' => ['transport'],
+        'hostels' => ['hostels'],
 
         // ── Annual School Census ──────────────────────────────────────
-        'asc'                    => ['asc'],
+        'asc' => ['asc'],
 
         // ── Analytics & Reporting ─────────────────────────────────────
-        'analytics'              => ['analytics'],
-        'risk'                   => ['risk'],
-        'exports'                => ['exports'],
+        'analytics' => ['analytics'],
+        'risk' => ['risk'],
+        'exports' => ['exports'],
 
         // ── Calendar (view vs manage) ─────────────────────────────────
-        'calendar'               => ['calendar'],        // full calendar (add/edit/delete events)
-        'calendar.view'          => ['calendar.index','calendar.api'],  // read-only
+        'calendar' => ['calendar'],        // full calendar (add/edit/delete events)
+        'calendar.view' => ['calendar.index', 'calendar.api'],  // read-only
 
         // ── Staff Attendance (self-service vs full admin) ──────────────
         // 'staff-attendance'      = full (dashboard, settings, reports, manual override, QR display)
         // 'staff-attendance.self' = every staff member: view own history, clock in/out,
         //                           proxy-clock a colleague, manage own PIN, view own ID card
-        'staff-attendance.self'  => [
+        'staff-attendance.self' => [
             'staff-attendance.my', 'staff-attendance.set-pin', 'staff-attendance.proxy',
             'staff-attendance.api.clockin', 'staff-attendance.api.clockout',
             'staff-attendance.api.proxy.initiate', 'staff-attendance.api.proxy.verify',
@@ -268,85 +272,85 @@ class User extends Authenticatable
         ],
 
         // ── Notifications (read vs send) ──────────────────────────────
-        'notifications'          => ['notifications'],    // full (send, manage, triggers)
-        'notifications.view'     => ['notifications.index','notifications.logs'], // read-only inbox
-        'notifications.send'     => ['notifications.index','notifications.logs',
-                                     'notifications.send','notifications.templates',
-                                     'notifications.settings'], // send but NOT triggers
+        'notifications' => ['notifications'],    // full (send, manage, triggers)
+        'notifications.view' => ['notifications.index', 'notifications.logs'], // read-only inbox
+        'notifications.send' => ['notifications.index', 'notifications.logs',
+            'notifications.send', 'notifications.templates',
+            'notifications.settings'], // send but NOT triggers
 
         // ── Auto Triggers (admin-only) ────────────────────────────────
-        'notifications.triggers' => ['notifications.triggers','notifications.triggers.save',
-                                     'notifications.triggers.test'],
+        'notifications.triggers' => ['notifications.triggers', 'notifications.triggers.save',
+            'notifications.triggers.test'],
 
         // ── Messages ──────────────────────────────────────────────────
-        'messages'               => ['messages'],
+        'messages' => ['messages'],
 
         // ── Announcements ─────────────────────────────────────────────
-        'announcements'          => ['announcements'],
+        'announcements' => ['announcements'],
 
         // ── SMS Campaigns ─────────────────────────────────────────────
-        'sms'                    => ['sms'],
+        'sms' => ['sms'],
 
         // ── Transfers ─────────────────────────────────────────────────
-        'transfers'              => ['students.transfers', 'students.class-transfers'],
+        'transfers' => ['students.transfers', 'students.class-transfers'],
 
         // ── Settings ──────────────────────────────────────────────────
-        'settings'               => ['settings'],
-        'portal-accounts'        => ['portal-accounts'],
-        'gradebook'              => ['gradebook'],
+        'settings' => ['settings'],
+        'portal-accounts' => ['portal-accounts'],
+        'gradebook' => ['gradebook'],
 
         // ── User Profile (everyone) ───────────────────────────────────
-        'profile'                => ['profile'],
+        'profile' => ['profile'],
     ];
 
     // Feature gates derived from subscription plans. Route prefixes are matched
     // against the named routes used throughout the staff web app.
     const FEATURE_ROUTE_PREFIXES = [
-        'school_setup'       => ['settings', 'portal-accounts'],
-        'academic_cycle'     => ['academic-cycle'],
-        'promotion'          => ['classes.grading', 'classes.promotion', 'classes.bulk-promote'],
-        'students'           => ['students'],
-        'student_transfer'   => ['students.transfers', 'students.class-transfers', 'transfers'],
-        'student_archive'    => ['students.archive'],
-        'staff'              => ['staff'],
-        'staff_archive'      => ['staff.archive'],
-        'classes'            => ['classes'],
-        'subjects'           => ['subjects'],
-        'curriculum'         => ['curriculum'],
-        'timetable'          => ['timetable'],
-        'scores'             => ['scores'],
-        'report_cards'       => ['reports', 'transcripts', 'students.transcript'],
-        'broadsheet'         => ['reports.publications', 'scores.broadsheet'],
-        'skill_ratings'      => ['skills'],
-        'gradebook'          => ['gradebook'],
-        'assessment_types'   => ['scores.assessment-types'],
+        'school_setup' => ['settings', 'portal-accounts'],
+        'academic_cycle' => ['academic-cycle'],
+        'promotion' => ['classes.grading', 'classes.promotion', 'classes.bulk-promote'],
+        'students' => ['students'],
+        'student_transfer' => ['students.transfers', 'students.class-transfers', 'transfers'],
+        'student_archive' => ['students.archive'],
+        'staff' => ['staff'],
+        'staff_archive' => ['staff.archive'],
+        'classes' => ['classes'],
+        'subjects' => ['subjects'],
+        'curriculum' => ['curriculum'],
+        'timetable' => ['timetable'],
+        'scores' => ['scores'],
+        'report_cards' => ['reports', 'transcripts', 'students.transcript'],
+        'broadsheet' => ['reports.publications', 'scores.broadsheet'],
+        'skill_ratings' => ['skills'],
+        'gradebook' => ['gradebook'],
+        'assessment_types' => ['scores.assessment-types'],
         'student_attendance' => ['attendance'],
-        'staff_attendance'   => ['staff-attendance'],
-        'staff_id_cards'     => ['staff-attendance.id-card'],
-        'cbt'                => ['cbt'],
-        'fees'               => ['fees'],
-        'invoices'           => ['fees.generate', 'fees.plans'],
-        'payment_plans'      => ['fees.plans'],
-        'fee_reminders'      => ['fees.reminders'],
-        'online_payments'    => ['fees.gateway'],
-        'expenses'           => ['expenses'],
-        'payroll'            => ['payroll'],
-        'financial_report'   => ['payroll.salary', 'fees.plans.overdue', 'analytics.financial'],
-        'messages'           => ['messages'],
-        'sms'                => ['sms'],
-        'notifications'      => ['notifications'],
-        'announcements'      => ['announcements'],
-        'auto_triggers'      => ['notifications.triggers'],
-        'parent_portal'      => ['portal.parent'],
-        'student_portal'     => ['student.portal'],
-        'library'            => ['library'],
-        'transport'          => ['transport'],
-        'health_records'     => ['health'],
-        'calendar'           => ['calendar'],
-        'risk_flags'         => ['risk'],
-        'analytics'          => ['analytics'],
-        'export_data'        => ['exports'],
-        'admissions'         => ['admissions'],
+        'staff_attendance' => ['staff-attendance'],
+        'staff_id_cards' => ['staff-attendance.id-card'],
+        'cbt' => ['cbt'],
+        'fees' => ['fees'],
+        'invoices' => ['fees.generate', 'fees.plans'],
+        'payment_plans' => ['fees.plans'],
+        'fee_reminders' => ['fees.reminders'],
+        'online_payments' => ['fees.gateway'],
+        'expenses' => ['expenses'],
+        'payroll' => ['payroll'],
+        'financial_report' => ['payroll.salary', 'fees.plans.overdue', 'analytics.financial'],
+        'messages' => ['messages'],
+        'sms' => ['sms'],
+        'notifications' => ['notifications'],
+        'announcements' => ['announcements'],
+        'auto_triggers' => ['notifications.triggers'],
+        'parent_portal' => ['portal.parent'],
+        'student_portal' => ['student.portal'],
+        'library' => ['library'],
+        'transport' => ['transport'],
+        'health_records' => ['health'],
+        'calendar' => ['calendar'],
+        'risk_flags' => ['risk'],
+        'analytics' => ['analytics'],
+        'export_data' => ['exports'],
+        'admissions' => ['admissions'],
         'push_notifications' => ['push'],
     ];
 
@@ -372,75 +376,75 @@ class User extends Authenticatable
         'admin' => ['*'],   // full access to everything
 
         'principal' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications','notifications.send',   // full notifications (not triggers)
-            'sms','transfers','settings',
-            'portal-accounts','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications', 'notifications.send',   // full notifications (not triggers)
+            'sms', 'transfers', 'settings',
+            'portal-accounts', 'gradebook', 'profile',
             'asc',
         ],
 
         'head' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications','notifications.send',
-            'sms','transfers','settings',
-            'portal-accounts','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications', 'notifications.send',
+            'sms', 'transfers', 'settings',
+            'portal-accounts', 'gradebook', 'profile',
             'asc',
         ],
 
         'head_teacher' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications','notifications.send',
-            'sms','transfers','settings',
-            'portal-accounts','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications', 'notifications.send',
+            'sms', 'transfers', 'settings',
+            'portal-accounts', 'gradebook', 'profile',
         ],
 
         'vice_principal' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','analytics','risk','exports',
-            'announcements','calendar','messages',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
             'notifications.send',
-            'transfers','gradebook','profile',
+            'transfers', 'gradebook', 'profile',
         ],
 
         'academic_administrator' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','analytics','risk','exports',
-            'announcements','calendar','messages',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
             'notifications.send',
-            'transfers','gradebook','profile',
+            'transfers', 'gradebook', 'profile',
         ],
 
         'admission_officer' => [
-            'dashboard','admissions','students',
-            'announcements','calendar.view','messages',
-            'notifications.view','transfers','staff-attendance.self','profile',
+            'dashboard', 'admissions', 'students',
+            'announcements', 'calendar.view', 'messages',
+            'notifications.view', 'transfers', 'staff-attendance.self', 'profile',
         ],
 
         // ── Form Teacher: mark attendance, rate skills, view broadsheet,
@@ -492,7 +496,7 @@ class User extends Authenticatable
             'dashboard',
             'scores.entry',          // enter scores for assigned subjects
             'scores.view',           // view broadsheet for own class
-            'attendance','staff-attendance.self',
+            'attendance', 'staff-attendance.self',
             'skills',
             'timetable.view',        // view class timetable + subject schedule
             'cbt',
@@ -507,9 +511,9 @@ class User extends Authenticatable
 
         'accountant' => [
             'dashboard',
-            'fees','expenses','payroll',
-            'analytics','exports',
-            'messages','students',
+            'fees', 'expenses', 'payroll',
+            'analytics', 'exports',
+            'messages', 'students',
             'notifications.view',
             'calendar.view',
             'staff-attendance.self',
@@ -517,245 +521,245 @@ class User extends Authenticatable
         ],
 
         'health_officer' => [
-            'dashboard','health','students',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'health', 'students',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         'librarian' => [
-            'dashboard','library','students',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'library', 'students',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         'transport_officer' => [
-            'dashboard','transport','students',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'transport', 'students',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         'driver' => [
-            'dashboard','transport',
-            'notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'transport',
+            'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         'bus_assistant' => [
-            'dashboard','transport',
-            'notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'transport',
+            'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         'communication_officer' => [
             'dashboard',
             'notifications.send',    // can send notifications but NOT triggers
-            'sms','messages',
+            'sms', 'messages',
             'announcements',
             'calendar',              // full calendar management
-            'staff-attendance.self','profile',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Chairman: highest governing authority — broad view access ──
         'chairman' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications.send','sms','transfers','settings',
-            'portal-accounts','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications.send', 'sms', 'transfers', 'settings',
+            'portal-accounts', 'gradebook', 'profile',
         ],
 
         // ── Head of Schools: equivalent to principal ───────────────────
         'head_of_schools' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications','notifications.send',
-            'sms','transfers','settings',
-            'portal-accounts','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications', 'notifications.send',
+            'sms', 'transfers', 'settings',
+            'portal-accounts', 'gradebook', 'profile',
         ],
 
         // ── Executive Director (Administration) ────────────────────────
         'executive_director_administration' => [
-            'dashboard','students','staff','classes','subjects',
+            'dashboard', 'students', 'staff', 'classes', 'subjects',
             'academic-cycle',
-            'admissions','fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','exports',
-            'announcements','calendar','messages',
-            'notifications.send','sms','transfers','settings',
-            'portal-accounts','profile',
+            'admissions', 'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications.send', 'sms', 'transfers', 'settings',
+            'portal-accounts', 'profile',
         ],
 
         // ── Executive Director (Operations) ────────────────────────────
         'executive_director_operations' => [
-            'dashboard','students','staff',
-            'fees','expenses','payroll',
-            'health','library','transport',
-            'analytics','exports',
-            'announcements','calendar','messages',
-            'notifications.send','profile',
+            'dashboard', 'students', 'staff',
+            'fees', 'expenses', 'payroll',
+            'health', 'library', 'transport',
+            'analytics', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications.send', 'profile',
         ],
 
         // ── Director of Studies: academic oversight ─────────────────────
         'director_of_studies' => [
-            'dashboard','students','staff','classes','subjects','curriculum',
+            'dashboard', 'students', 'staff', 'classes', 'subjects', 'curriculum',
             'academic-cycle',
-            'scores','reports','transcript',
-            'attendance','staff-attendance','timetable','skills','cbt',
-            'admissions','analytics','risk','exports',
-            'announcements','calendar','messages',
-            'notifications.send','transfers','gradebook','profile',
+            'scores', 'reports', 'transcript',
+            'attendance', 'staff-attendance', 'timetable', 'skills', 'cbt',
+            'admissions', 'analytics', 'risk', 'exports',
+            'announcements', 'calendar', 'messages',
+            'notifications.send', 'transfers', 'gradebook', 'profile',
         ],
 
         // ── Director of Compliance: audit / oversight read-access ───────
         'director_of_compliance' => [
-            'dashboard','students','staff','classes',
+            'dashboard', 'students', 'staff', 'classes',
             'academic-cycle',
-            'scores.view','reports.view',
-            'attendance','analytics','risk','exports',
-            'announcements','calendar.view','messages',
-            'notifications.view','staff-attendance.self','profile',
+            'scores.view', 'reports.view',
+            'attendance', 'analytics', 'risk', 'exports',
+            'announcements', 'calendar.view', 'messages',
+            'notifications.view', 'staff-attendance.self', 'profile',
         ],
 
         // ── Admin Officer: general administrative support ───────────────
         'admin_officer' => [
-            'dashboard','students','admissions',
-            'fees','announcements','calendar.view','messages',
-            'notifications.view','staff-attendance.self','profile',
+            'dashboard', 'students', 'admissions',
+            'fees', 'announcements', 'calendar.view', 'messages',
+            'notifications.view', 'staff-attendance.self', 'profile',
         ],
 
         // ── Chief Security Officer ─────────────────────────────────────
         'chief_security' => [
-            'dashboard','students','staff',
-            'messages','calendar.view',
+            'dashboard', 'students', 'staff',
+            'messages', 'calendar.view',
             'notifications.view',
-            'staff-attendance.self','profile',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Security Officer ───────────────────────────────────────────
         'security' => [
             'dashboard',
-            'messages','calendar.view',
+            'messages', 'calendar.view',
             'notifications.view',
-            'staff-attendance.self','profile',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Health Technician ──────────────────────────────────────────
         'health_technician' => [
-            'dashboard','health','students',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'health', 'students',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Laboratory Technician ──────────────────────────────────────
         'laboratory_technician' => [
-            'dashboard','students',
-            'scores.view','timetable.view',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'students',
+            'scores.view', 'timetable.view',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Hostel Minder ──────────────────────────────────────────────
         'hostel_minder' => [
-            'dashboard','students','health','hostels',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'dashboard', 'students', 'health', 'hostels',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Store Keeper ────────────────────────────────────────────────
         'store_keeper' => [
             'dashboard',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Utility Officer ─────────────────────────────────────────────
         'utility_officer' => [
             'dashboard',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Maintenance Officer ─────────────────────────────────────────
         'maintenance_officer' => [
             'dashboard',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Receptionist ────────────────────────────────────────────────
         'receptionist' => [
-            'dashboard','admissions','students',
-            'messages','calendar.view',
-            'notifications.view','staff-attendance.self','profile',
+            'dashboard', 'admissions', 'students',
+            'messages', 'calendar.view',
+            'notifications.view', 'staff-attendance.self', 'profile',
         ],
 
         // ── Secretary ───────────────────────────────────────────────────
         'secretary' => [
-            'dashboard','students','admissions',
-            'announcements','messages','calendar.view',
-            'notifications.view','staff-attendance.self','profile',
+            'dashboard', 'students', 'admissions',
+            'announcements', 'messages', 'calendar.view',
+            'notifications.view', 'staff-attendance.self', 'profile',
         ],
 
         // ── Public Relations Officer ────────────────────────────────────
         'public_relation_officer' => [
             'dashboard',
-            'notifications.send','sms','messages',
-            'announcements','calendar',
-            'staff-attendance.self','profile',
+            'notifications.send', 'sms', 'messages',
+            'announcements', 'calendar',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Information Officer ─────────────────────────────────────────
         'information_officer' => [
             'dashboard',
-            'notifications.send','sms','messages',
-            'announcements','calendar.view',
-            'staff-attendance.self','profile',
+            'notifications.send', 'sms', 'messages',
+            'announcements', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Head Chef ───────────────────────────────────────────────────
         'head_chef' => [
             'dashboard',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Cook ────────────────────────────────────────────────────────
         'cook' => [
             'dashboard',
-            'notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Sanitation Officer ──────────────────────────────────────────
         'sanitation_officer' => [
             'dashboard',
-            'messages','notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'messages', 'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Cleaner ─────────────────────────────────────────────────────
         'cleaner' => [
             'dashboard',
-            'notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
 
         // ── Gardener ────────────────────────────────────────────────────
         'gardener' => [
             'dashboard',
-            'notifications.view','calendar.view',
-            'staff-attendance.self','profile',
+            'notifications.view', 'calendar.view',
+            'staff-attendance.self', 'profile',
         ],
     ];
 
@@ -776,7 +780,7 @@ class User extends Authenticatable
 
     // Qualification hierarchy — highest first (for ASC reporting)
     const QUALIFICATION_ORDER = [
-        'PhD','MSc','MA','PGDE','PDE','BEd','BSc','HND','NCE','ND','O\'Level','PSLC',
+        'PhD', 'MSc', 'MA', 'PGDE', 'PDE', 'BEd', 'BSc', 'HND', 'NCE', 'ND', 'O\'Level', 'PSLC',
     ];
 
     public function qualificationsList(): array
@@ -788,8 +792,11 @@ class User extends Authenticatable
     {
         $held = array_map('strtolower', $this->qualificationsList());
         foreach (self::QUALIFICATION_ORDER as $q) {
-            if (in_array(strtolower($q), $held)) return $q;
+            if (in_array(strtolower($q), $held)) {
+                return $q;
+            }
         }
+
         return $held[0] ?? null;
     }
 
@@ -798,33 +805,53 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'qualifications'          => 'array',
-            'email_verified_at'       => 'datetime',
-            'last_login_at'           => 'datetime',
-            'date_of_birth'           => 'date',
-            'employment_started_at'   => 'date',
-            'employment_ended_at'     => 'date',
-            'status_changed_at'       => 'datetime',
+            'qualifications' => 'array',
+            'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'date_of_birth' => 'date',
+            'employment_started_at' => 'date',
+            'employment_ended_at' => 'date',
+            'status_changed_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
-            'password'                => 'hashed',
-            'two_factor_secret'       => 'encrypted',
-            'is_super_admin'          => 'boolean',
-            'is_migration_admin'      => 'boolean',
-            'is_active'               => 'boolean',
+            'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'is_super_admin' => 'boolean',
+            'is_migration_admin' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
     public function hasTwoFactorEnabled(): bool
     {
-        return !is_null($this->two_factor_secret) && !is_null($this->two_factor_confirmed_at);
+        return ! is_null($this->two_factor_secret) && ! is_null($this->two_factor_confirmed_at);
     }
 
     // ── Relationships ─────────────────────────────────────────────────
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function student(): HasOne   { return $this->hasOne(Student::class); }
-    public function classArms(): HasMany { return $this->hasMany(ClassArm::class, 'form_tutor_id'); }
-    public function staffStatusHistories(): HasMany { return $this->hasMany(StaffStatusHistory::class, 'user_id'); }
-    public function workHistories(): HasMany { return $this->hasMany(StaffWorkHistory::class, 'user_id'); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
+    }
+
+    public function classArms(): HasMany
+    {
+        return $this->hasMany(ClassArm::class, 'form_tutor_id');
+    }
+
+    public function staffStatusHistories(): HasMany
+    {
+        return $this->hasMany(StaffStatusHistory::class, 'user_id');
+    }
+
+    public function workHistories(): HasMany
+    {
+        return $this->hasMany(StaffWorkHistory::class, 'user_id');
+    }
+
     public function currentWorkHistory(): HasOne
     {
         return $this->hasOne(StaffWorkHistory::class, 'user_id')
@@ -854,7 +881,7 @@ class User extends Authenticatable
     public static function roleAliasesFor(?string $role): array
     {
         $canonical = self::canonicalRole($role);
-        if (!$canonical) {
+        if (! $canonical) {
             return [];
         }
 
@@ -912,7 +939,7 @@ class User extends Authenticatable
             ));
         }
 
-        if ($roles instanceof \Illuminate\Support\Collection) {
+        if ($roles instanceof Collection) {
             return $roles->map(fn ($role) => is_string($role) ? self::canonicalRole($role) : $role);
         }
 
@@ -929,15 +956,17 @@ class User extends Authenticatable
         foreach ($roles as $roleSet) {
             if (is_string($roleSet) && $roleSet !== '') {
                 Role::findOrCreate($roleSet, 'web');
+
                 continue;
             }
 
             if (is_array($roleSet)) {
                 self::ensureSpatieRolesExist($roleSet);
+
                 continue;
             }
 
-            if ($roleSet instanceof \Illuminate\Support\Collection) {
+            if ($roleSet instanceof Collection) {
                 self::ensureSpatieRolesExist($roleSet->all());
             }
         }
@@ -1027,7 +1056,7 @@ class User extends Authenticatable
 
         foreach (self::FEATURE_ROUTE_PREFIXES as $feature => $prefixes) {
             foreach ($prefixes as $prefix) {
-                if ($module === $prefix || str_starts_with($module, $prefix . '.')) {
+                if ($module === $prefix || str_starts_with($module, $prefix.'.')) {
                     return $feature;
                 }
             }
@@ -1078,7 +1107,7 @@ class User extends Authenticatable
 
         foreach (self::FEATURE_ROUTE_PREFIXES as $feature => $prefixes) {
             foreach ($prefixes as $prefix) {
-                if ($routeName === $prefix || str_starts_with($routeName, $prefix . '.')) {
+                if ($routeName === $prefix || str_starts_with($routeName, $prefix.'.')) {
                     return $feature;
                 }
             }
@@ -1088,28 +1117,87 @@ class User extends Authenticatable
     }
 
     // ── Role helpers ──────────────────────────────────────────────────
-    public function isSuperAdmin(): bool     { return (bool) $this->is_super_admin; }
-    public function isAdmin(): bool          { return $this->roleKey() === 'admin'; }
-    public function isMigrationAdmin(): bool { return $this->isSuperAdmin() || (bool) $this->is_migration_admin; }
-    public function isPrincipal(): bool      { return $this->roleKey() === 'principal'; }
-    public function isAdmissionOfficer(): bool { return $this->roleKey() === 'admission_officer'; }
-    public function isTeacher(): bool        { return in_array($this->roleKey(), self::ROLES_TEACHING, true); }
-    public function isAccountant(): bool     { return $this->roleKey() === 'accountant'; }
-    public function isHealthOfficer(): bool  { return $this->roleKey() === 'health_officer'; }
-    public function isLibrarian(): bool      { return $this->roleKey() === 'librarian'; }
-    public function isTransportOfficer(): bool { return $this->roleKey() === 'transport_officer'; }
-    public function isDriver(): bool         { return in_array($this->roleKey(), ['driver','bus_assistant'], true); }
-    public function isCommunicationOfficer(): bool { return $this->roleKey() === 'communication_officer'; }
-    public function isParent(): bool         { return $this->roleKey() === 'parent'; }
-    public function isStudent(): bool        { return $this->roleKey() === 'student'; }
-    public function isStaff(): bool          { return in_array($this->roleKey(), self::ROLES_STAFF, true); }
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
+    }
+
+    public function isMigrationAdmin(): bool
+    {
+        return $this->isSuperAdmin() || (bool) $this->is_migration_admin;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->roleKey() === 'admin';
+    }
+
+    public function isPrincipal(): bool
+    {
+        return $this->roleKey() === 'principal';
+    }
+
+    public function isAdmissionOfficer(): bool
+    {
+        return $this->roleKey() === 'admission_officer';
+    }
+
+    public function isTeacher(): bool
+    {
+        return in_array($this->roleKey(), self::ROLES_TEACHING, true);
+    }
+
+    public function isAccountant(): bool
+    {
+        return $this->roleKey() === 'accountant';
+    }
+
+    public function isHealthOfficer(): bool
+    {
+        return $this->roleKey() === 'health_officer';
+    }
+
+    public function isLibrarian(): bool
+    {
+        return $this->roleKey() === 'librarian';
+    }
+
+    public function isTransportOfficer(): bool
+    {
+        return $this->roleKey() === 'transport_officer';
+    }
+
+    public function isDriver(): bool
+    {
+        return in_array($this->roleKey(), ['driver', 'bus_assistant'], true);
+    }
+
+    public function isCommunicationOfficer(): bool
+    {
+        return $this->roleKey() === 'communication_officer';
+    }
+
+    public function isParent(): bool
+    {
+        return $this->roleKey() === 'parent';
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->roleKey() === 'student';
+    }
+
+    public function isStaff(): bool
+    {
+        return in_array($this->roleKey(), self::ROLES_STAFF, true);
+    }
 
     public function isTenantStaff(): bool
     {
         return $this->tenant_id
-            && !$this->isSuperAdmin()
-            && !$this->isParent()
-            && !$this->isStudent()
+            && ! $this->isSuperAdmin()
+            && ! $this->isParent()
+            && ! $this->isStudent()
             && $this->isStaff();
     }
 
@@ -1130,7 +1218,7 @@ class User extends Authenticatable
 
     public function wasEmployedOn(string|\DateTimeInterface $date): bool
     {
-        $date = \Illuminate\Support\Carbon::parse($date)->toDateString();
+        $date = Carbon::parse($date)->toDateString();
 
         if ($this->exists && Schema::hasTable('staff_work_histories') && $this->workHistories()->exists()) {
             return $this->workHistories()
@@ -1145,11 +1233,11 @@ class User extends Authenticatable
         $startedAt = $this->employment_started_at?->toDateString();
         $endedAt = $this->employment_ended_at?->toDateString();
 
-        if (!$startedAt) {
+        if (! $startedAt) {
             return $this->isEmploymentActive() && (bool) $this->is_active;
         }
 
-        return $startedAt <= $date && (!$endedAt || $endedAt >= $date);
+        return $startedAt <= $date && (! $endedAt || $endedAt >= $date);
     }
 
     public function employmentStatusLabel(): string
@@ -1160,14 +1248,14 @@ class User extends Authenticatable
 
     public function hasFormTeacherDuty(): bool
     {
-        return in_array($this->roleKey(), ['form_teacher','asst_form_teacher','form_subject_teacher',
-                                       'principal','vice_principal','admin'], true);
+        return in_array($this->roleKey(), ['form_teacher', 'asst_form_teacher', 'form_subject_teacher',
+            'principal', 'vice_principal', 'admin'], true);
     }
 
     public function hasSubjectTeacherDuty(): bool
     {
-        return in_array($this->roleKey(), ['subject_teacher','form_subject_teacher',
-                                       'principal','vice_principal','admin'], true);
+        return in_array($this->roleKey(), ['subject_teacher', 'form_subject_teacher',
+            'principal', 'vice_principal', 'admin'], true);
     }
 
     // ── Access checks ─────────────────────────────────────────────────
@@ -1179,49 +1267,61 @@ class User extends Authenticatable
     // ── Custom per-staff permissions (admin can grant/deny) ──────────
     public function customPermissions()
     {
-        return $this->hasMany(\App\Models\StaffPermission::class, 'user_id');
+        return $this->hasMany(StaffPermission::class, 'user_id');
     }
 
     public function hasGrantedPermission(string $module): bool
     {
-        if (!Schema::hasTable('staff_permissions')) {
+        if (! Schema::hasTable('staff_permissions')) {
             return false;
         }
 
-        return \App\Models\StaffPermission::where('user_id', $this->id)
+        return StaffPermission::where('user_id', $this->id)
             ->where('module', $module)->where('type', 'grant')->exists();
     }
 
     public function hasDeniedPermission(string $module): bool
     {
-        if (!Schema::hasTable('staff_permissions')) {
+        if (! Schema::hasTable('staff_permissions')) {
             return false;
         }
 
-        return \App\Models\StaffPermission::where('user_id', $this->id)
+        return StaffPermission::where('user_id', $this->id)
             ->where('module', $module)->where('type', 'deny')->exists();
     }
 
     public function canAccessModule(string $module): bool
     {
-        if ($this->isSuperAdmin()) return true;
-        if (($feature = $this->featureForModule($module)) && !$this->canUseFeature($feature)) {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
             return false;
         }
         // Custom per-staff deny overrides everything
-        if ($this->hasDeniedPermission($module)) return false;
+        if ($this->hasDeniedPermission($module)) {
+            return false;
+        }
         // Custom per-staff grant allows even without role access
-        if ($this->hasGrantedPermission($module)) return true;
+        if ($this->hasGrantedPermission($module)) {
+            return true;
+        }
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
-        if (in_array('*', $allowed)) return true;
+        if (in_array('*', $allowed)) {
+            return true;
+        }
 
         // Direct match
-        if (in_array($module, $allowed)) return true;
+        if (in_array($module, $allowed)) {
+            return true;
+        }
 
         // If asking for a parent module, check if any sub-module is allowed
         // e.g. 'timetable' check passes if 'timetable.view' is in allowed
         foreach ($allowed as $a) {
-            if (str_starts_with($a, $module . '.')) return true;
+            if (str_starts_with($a, $module.'.')) {
+                return true;
+            }
         }
 
         return false;
@@ -1229,12 +1329,18 @@ class User extends Authenticatable
 
     public function canAccessExactModule(string $module): bool
     {
-        if ($this->isSuperAdmin()) return true;
-        if (($feature = $this->featureForModule($module)) && !$this->canUseFeature($feature)) {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
             return false;
         }
-        if ($this->hasDeniedPermission($module)) return false;
-        if ($this->hasGrantedPermission($module)) return true;
+        if ($this->hasDeniedPermission($module)) {
+            return false;
+        }
+        if ($this->hasGrantedPermission($module)) {
+            return true;
+        }
 
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
 
@@ -1247,24 +1353,31 @@ class User extends Authenticatable
      */
     public function canAccessRoute(string $routeName): bool
     {
-        if ($this->isSuperAdmin()) return true;
-        if (($feature = $this->featureForRoute($routeName)) && !$this->canUseFeature($feature)) {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if (($feature = $this->featureForRoute($routeName)) && ! $this->canUseFeature($feature)) {
             return false;
         }
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
-        if (in_array('*', $allowed)) return true;
+        if (in_array('*', $allowed)) {
+            return true;
+        }
 
         // Profile is always allowed for authenticated staff
-        if (str_starts_with($routeName, 'profile')) return true;
+        if (str_starts_with($routeName, 'profile')) {
+            return true;
+        }
 
         foreach ($allowed as $module) {
             $prefixes = self::MODULE_ROUTES[$module] ?? [$module];
             foreach ($prefixes as $prefix) {
-                if ($routeName === $prefix || str_starts_with($routeName, $prefix . '.')) {
+                if ($routeName === $prefix || str_starts_with($routeName, $prefix.'.')) {
                     return true;
                 }
             }
         }
+
         return false;
     }
 
@@ -1274,13 +1387,20 @@ class User extends Authenticatable
      */
     public function canManage(string $module): bool
     {
-        if ($this->isSuperAdmin()) return true;
-        if (($feature = $this->featureForModule($module)) && !$this->canUseFeature($feature)) {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
             return false;
         }
-        if ($this->hasDeniedPermission($module)) return false;
-        if ($this->hasGrantedPermission($module)) return true;
+        if ($this->hasDeniedPermission($module)) {
+            return false;
+        }
+        if ($this->hasGrantedPermission($module)) {
+            return true;
+        }
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
+
         return in_array('*', $allowed, true) || in_array($module, $allowed, true);
     }
 
@@ -1292,10 +1412,25 @@ class User extends Authenticatable
     }
 
     // ── Scopes ────────────────────────────────────────────────────────
-    public function scopeForTenant($q, int $tid) { return $q->where('tenant_id', $tid); }
-    public function scopeStaff($q)   { return $q->whereIn('role', self::staffRoleNames()); }
-    public function scopeActive($q)  { return $q->where('is_active', true); }
-    public function scopeTeachers($q){ return $q->whereIn('role', self::teachingRoleNames()); }
+    public function scopeForTenant($q, int $tid)
+    {
+        return $q->where('tenant_id', $tid);
+    }
+
+    public function scopeStaff($q)
+    {
+        return $q->whereIn('role', self::staffRoleNames());
+    }
+
+    public function scopeActive($q)
+    {
+        return $q->where('is_active', true);
+    }
+
+    public function scopeTeachers($q)
+    {
+        return $q->whereIn('role', self::teachingRoleNames());
+    }
 
     public function scopeTenantStaff($q, ?int $tenantId = null)
     {
@@ -1328,12 +1463,12 @@ class User extends Authenticatable
 
     public function scopeEmployedDuring($q, ?int $tenantId, string|\DateTimeInterface $periodStart, string|\DateTimeInterface $periodEnd)
     {
-        $periodStart = \Illuminate\Support\Carbon::parse($periodStart)->toDateString();
-        $periodEnd = \Illuminate\Support\Carbon::parse($periodEnd)->toDateString();
+        $periodStart = Carbon::parse($periodStart)->toDateString();
+        $periodEnd = Carbon::parse($periodEnd)->toDateString();
 
-        if (!Schema::hasTable('staff_work_histories')) {
+        if (! Schema::hasTable('staff_work_histories')) {
             return $q->tenantStaff($tenantId)
-                ->where(function ($dates) use ($periodEnd, $periodStart) {
+                ->where(function ($dates) use ($periodEnd) {
                     $dates->whereDate('employment_started_at', '<=', $periodEnd)
                         ->orWhere(function ($legacy) {
                             $legacy->whereNull('employment_started_at')
@@ -1388,24 +1523,27 @@ class User extends Authenticatable
     {
         return $q->employedDuring($tenantId, $date, $date);
     }
+
     // ── Staff Personal QR ─────────────────────────────────────────────
     /** Get or generate this staff member's permanent QR secret */
     public function getOrCreateQrSecret(): string
     {
-        if (!$this->qr_secret) {
+        if (! $this->qr_secret) {
             $secret = bin2hex(random_bytes(16));
             $this->update(['qr_secret' => $secret]);
         }
+
         return $this->qr_secret;
     }
 
     /** Generate a permanent personal QR payload for this staff member */
     public function personalQrPayload(): string
     {
-        $secret  = $this->getOrCreateQrSecret();
+        $secret = $this->getOrCreateQrSecret();
         $payload = ['uid' => $this->id, 'tid' => $this->tenant_id, 'sid' => $this->staff_id ?? ''];
-        $sig     = hash_hmac('sha256', json_encode($payload), $secret);
+        $sig = hash_hmac('sha256', json_encode($payload), $secret);
         $payload['sig'] = $sig;
+
         return base64_encode(json_encode($payload));
     }
 
@@ -1413,17 +1551,19 @@ class User extends Authenticatable
     public static function verifyPersonalQr(string $token): ?self
     {
         try {
-            $data   = json_decode(base64_decode($token), true);
-            $sig    = $data['sig'] ?? '';
-            $uid    = $data['uid'] ?? 0;
+            $data = json_decode(base64_decode($token), true);
+            $sig = $data['sig'] ?? '';
+            $uid = $data['uid'] ?? 0;
             unset($data['sig']);
-            $user   = self::find($uid);
-            if (!$user || !$user->qr_secret) return null;
+            $user = self::find($uid);
+            if (! $user || ! $user->qr_secret) {
+                return null;
+            }
             $expected = hash_hmac('sha256', json_encode($data), $user->qr_secret);
+
             return hash_equals($expected, $sig) ? $user : null;
         } catch (\Throwable) {
             return null;
         }
     }
-
 }

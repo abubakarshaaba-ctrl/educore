@@ -1,7 +1,6 @@
 <?php
-namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+namespace App\Models;
 
 class MessageThreadReply extends BaseTenantModel
 {
@@ -14,8 +13,28 @@ class MessageThreadReply extends BaseTenantModel
         'body',
         'is_read',
         'read_at',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
+        'attachment_size',
     ];
 
-    public function thread()   { return $this->belongsTo(MessageThread::class); }
-    public function sender()   { return $this->belongsTo(\App\Models\User::class, 'sender_id'); }
+    protected function casts(): array
+    {
+        return [
+            'is_read' => 'boolean',
+            'read_at' => 'datetime',
+            'attachment_size' => 'integer',
+        ];
+    }
+
+    public function thread()
+    {
+        return $this->belongsTo(MessageThread::class);
+    }
+
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'sender_id');
+    }
 }

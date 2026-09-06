@@ -43,10 +43,12 @@ class PushNotificationService
                     $announcement->priority === 'urgent'
                         ? 'Urgent school announcement'
                         : 'New school announcement',
-                    Str::limit(strip_tags($announcement->title . ': ' . $announcement->body), 180),
+                    Str::limit(strip_tags($announcement->title.': '.$announcement->body), 180),
                     [
                         'type' => 'announcement',
                         'announcement_id' => (string) $announcement->id,
+                        'destination_type' => 'announcement',
+                        'destination_id' => (string) $announcement->id,
                     ],
                 );
             }
@@ -74,9 +76,14 @@ class PushNotificationService
             ->get()
             ->each(fn (User $user) => $this->sendToUser(
                 $user,
-                'New message: ' . Str::limit($thread->subject, 70),
-                Str::limit($sender->name . ': ' . strip_tags($body), 180),
-                ['type' => 'message', 'thread_id' => (string) $thread->id],
+                'New message: '.Str::limit($thread->subject, 70),
+                Str::limit($sender->name.': '.strip_tags($body), 180),
+                [
+                    'type' => 'message',
+                    'thread_id' => (string) $thread->id,
+                    'destination_type' => 'message_thread',
+                    'destination_id' => (string) $thread->id,
+                ],
             ));
     }
 
@@ -88,7 +95,7 @@ class PushNotificationService
 
         foreach ($byUser as $userId => $supervisorRows) {
             $user = User::find($userId);
-            if (!$user) {
+            if (! $user) {
                 continue;
             }
 
@@ -96,7 +103,7 @@ class PushNotificationService
             $this->sendToUser(
                 $user,
                 'Exam Supervision Schedule',
-                "You have {$count} supervision " . ($count === 1 ? 'duty' : 'duties') . " for {$period->title}. Open EduCore to view.",
+                "You have {$count} supervision ".($count === 1 ? 'duty' : 'duties')." for {$period->title}. Open EduCore to view.",
                 ['type' => 'exam_supervision', 'exam_period_id' => (string) $period->id],
             );
         }
@@ -115,8 +122,9 @@ class PushNotificationService
             $projectId = config('services.fcm.project_id');
             $accessToken = $this->accessToken();
 
-            if (!$projectId || !$accessToken) {
+            if (! $projectId || ! $accessToken) {
                 Log::warning('FCM not configured - skipping push send.');
+
                 return false;
             }
 
@@ -138,7 +146,7 @@ class PushNotificationService
                     ],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $failure = $response->json('error.details.0.errorCode')
                     ?? $response->json('error.status');
 
@@ -167,7 +175,7 @@ class PushNotificationService
     {
         return Cache::remember('fcm_access_token', 3300, function () {
             $account = $this->serviceAccount();
-            if (!$account || empty($account['private_key']) || empty($account['client_email'])) {
+            if (! $account || empty($account['private_key']) || empty($account['client_email'])) {
                 return null;
             }
 
@@ -182,10 +190,10 @@ class PushNotificationService
             ]));
 
             $unsigned = "{$header}.{$claims}";
-            if (!openssl_sign($unsigned, $signature, $account['private_key'], 'SHA256')) {
+            if (! openssl_sign($unsigned, $signature, $account['private_key'], 'SHA256')) {
                 return null;
             }
-            $jwt = $unsigned . '.' . $this->b64($signature);
+            $jwt = $unsigned.'.'.$this->b64($signature);
 
             $response = Http::timeout(15)
                 ->asForm()
@@ -209,7 +217,7 @@ class PushNotificationService
         }
 
         $path = config('services.fcm.credentials');
-        if (!$path || !file_exists($path)) {
+        if (! $path || ! file_exists($path)) {
             return null;
         }
 
