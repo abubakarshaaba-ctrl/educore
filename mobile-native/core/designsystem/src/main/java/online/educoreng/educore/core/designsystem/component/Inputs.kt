@@ -23,6 +23,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -76,6 +77,7 @@ fun EduCoreSearchBar(
     placeholder: String = "Search",
     enabled: Boolean = true,
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -94,6 +96,7 @@ fun EduCoreSearchBar(
             }
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
     )
 }
 

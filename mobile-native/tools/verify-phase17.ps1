@@ -18,6 +18,22 @@ $appId = 'online.educoreng.educore.nativepreview'
 $activity = 'online.educoreng.educore.MainActivity'
 $adb = Join-Path $AndroidHome 'platform-tools\adb.exe'
 
+$imeSafeSources = @(
+    'app\src\main\java\online\educoreng\educore\presentation\AuthScreens.kt',
+    'app\src\main\java\online\educoreng\educore\presentation\ScoreScreens.kt',
+    'app\src\main\java\online\educoreng\educore\presentation\CommunicationScreens.kt'
+)
+foreach ($relativeSource in $imeSafeSources) {
+    $sourcePath = Join-Path $projectRoot $relativeSource
+    if (-not (Test-Path -LiteralPath $sourcePath) -or (Get-Content -LiteralPath $sourcePath -Raw) -notmatch '\.imePadding\(\)') {
+        throw "Keyboard-inset contract missing from $relativeSource."
+    }
+}
+$manifestPath = Join-Path $projectRoot 'app\src\main\AndroidManifest.xml'
+if ((Get-Content -LiteralPath $manifestPath -Raw) -notmatch 'android:windowSoftInputMode="adjustResize"') {
+    throw 'MainActivity must retain adjustResize for keyboard-safe forms.'
+}
+
 foreach ($required in @((Join-Path $JavaHome 'bin\java.exe'), $AndroidHome, $adb)) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required device-test dependency not found: $required" }
 }
@@ -166,10 +182,10 @@ if ($focusedWindow -notmatch "mCurrentFocus=.*$([regex]::Escape($appId))" -and
     $focusedWindow -notmatch "mFocusedApp=.*$([regex]::Escape($appId))") {
     throw 'EduCore is not the focused window. Unlock the device, keep EduCore visible, and rerun Phase 17.'
 }
-$logcat = Get-AdbValue -Arguments @('logcat', '-d', '-v', 'threadtime', '-t', '2000')
+$startupLogcat = Get-AdbValue -Arguments @('logcat', '-d', '-v', 'threadtime', '-t', '2000')
 $memoryDump | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'memory.txt') -Encoding UTF8
 $windowDump | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'window.txt') -Encoding UTF8
-$logcat | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'logcat.txt') -Encoding UTF8
+$startupLogcat | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'startup-logcat.txt') -Encoding UTF8
 
 $remoteScreenshot = '/sdcard/Download/educore-phase17.png'
 $localScreenshot = Join-Path $evidenceDirectory 'startup-screen.png'
@@ -180,7 +196,8 @@ Invoke-Adb -Arguments @('shell', 'rm', $remoteScreenshot) | Out-Null
 
 $manualTests = @(
     [PSCustomObject]@{ Area = 'Portrait and adaptive layout'; Required = $true; Result = (Read-ManualResult 'Confirm portrait screens have no clipping, overlap, unreadable text or unreachable actions'); Note = '' },
-    [PSCustomObject]@{ Area = 'Keyboard'; Required = $true; Result = (Read-ManualResult 'Confirm login, search, score and message forms remain usable with the keyboard open'); Note = '' },
+    [PSCustomObject]@{ Area = 'Keyboard'; Required = $true; Result = (Read-ManualResult 'Confirm login, search, score and message forms remain visible and usable while the keyboard is open'); Note = '' },
+    [PSCustomObject]@{ Area = 'Authentication and bootstrap'; Required = $true; Result = (Read-ManualResult 'Sign in with an approved test account and confirm the authorized dashboard loads'); Note = '' },
     [PSCustomObject]@{ Area = 'Rotation'; Required = $false; Result = (Read-ManualResult 'Where supported, rotate the device and confirm state and navigation remain correct' -AllowNotApplicable); Note = '' },
     [PSCustomObject]@{ Area = 'Permissions'; Required = $true; Result = (Read-ManualResult 'Deny and then grant relevant location, camera and notification permissions; confirm safe recovery'); Note = '' },
     [PSCustomObject]@{ Area = 'Camera'; Required = $false; Result = (Read-ManualResult 'Exercise the authorized QR/camera flow and confirm cancellation and retry behavior' -AllowNotApplicable); Note = '' },
@@ -194,6 +211,21 @@ if (-not $NonInteractive) {
         $test.Note = (Read-Host "Briefly describe the $($test.Area) failure").Trim()
     }
 }
+
+# Startup evidence is intentionally captured before the manual checks. Capture a
+# second log after the tester has exercised authentication and feature flows so
+# API failures are present in the evidence bundle. OkHttp uses BASIC logging in
+# debug builds, which records method, URL and status only (never credentials or
+# bearer-token values).
+$manualLogcat = Get-AdbValue -Arguments @('logcat', '-d', '-v', 'threadtime', '-t', '5000')
+$manualLogcatPath = Join-Path $evidenceDirectory 'manual-logcat.txt'
+$manualLogcat | Set-Content -LiteralPath $manualLogcatPath -Encoding UTF8
+$diagnosticPattern = 'OkHttp|AndroidRuntime|UnknownHost|SSLHandshake|SocketTimeout|ConnectException|HTTP FAILED|-->|<--|educoreng\.online'
+$networkDiagnostics = @($manualLogcat -split "`r?`n" | Where-Object { $_ -match $diagnosticPattern })
+if ($networkDiagnostics.Count -eq 0) {
+    $networkDiagnostics = @('No matching API or Android runtime diagnostic lines were captured.')
+}
+$networkDiagnostics | Set-Content -LiteralPath (Join-Path $evidenceDirectory 'network-diagnostics.txt') -Encoding UTF8
 
 $failed = @($manualTests | Where-Object Result -eq 'FAIL')
 $notRun = @($manualTests | Where-Object Result -eq 'NOT_RUN')
