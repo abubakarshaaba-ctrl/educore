@@ -7,6 +7,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Mobile\MobileModuleService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -20,6 +21,11 @@ class MobileBootstrapTest extends TestCase
             $this->markTestSkipped('Mobile bootstrap tests require sqlite :memory:.');
         }
 
+        Schema::dropIfExists('role_has_permissions');
+        Schema::dropIfExists('model_has_roles');
+        Schema::dropIfExists('model_has_permissions');
+        Schema::dropIfExists('roles');
+        Schema::dropIfExists('permissions');
         Schema::dropIfExists('api_tokens');
         Schema::dropIfExists('students');
         Schema::dropIfExists('terms');
@@ -63,10 +69,12 @@ class MobileBootstrapTest extends TestCase
             $table->string('email')->nullable();
             $table->string('password')->nullable();
             $table->string('staff_id')->nullable();
+            $table->string('student_id')->nullable();
             $table->string('role')->nullable();
             $table->boolean('is_super_admin')->default(false);
             $table->boolean('is_active')->default(true);
             $table->string('employment_status')->nullable();
+            $table->timestamp('last_login_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -98,6 +106,151 @@ class MobileBootstrapTest extends TestCase
             $table->boolean('is_current')->default(false);
             $table->timestamps();
         });
+
+        Schema::create('permissions', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('guard_name');
+            $table->timestamps();
+            $table->unique(['name', 'guard_name']);
+        });
+
+        Schema::create('roles', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('guard_name');
+            $table->timestamps();
+            $table->unique(['name', 'guard_name']);
+        });
+
+        Schema::create('model_has_permissions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('permission_id');
+            $table->string('model_type');
+            $table->unsignedBigInteger('model_id');
+            $table->primary(['permission_id', 'model_id', 'model_type']);
+        });
+
+        Schema::create('model_has_roles', function (Blueprint $table): void {
+            $table->unsignedBigInteger('role_id');
+            $table->string('model_type');
+            $table->unsignedBigInteger('model_id');
+            $table->primary(['role_id', 'model_id', 'model_type']);
+        });
+
+        Schema::create('role_has_permissions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('permission_id');
+            $table->unsignedBigInteger('role_id');
+            $table->primary(['permission_id', 'role_id']);
+        });
+    }
+
+    public function test_mobile_login_issues_a_token_that_immediately_bootstraps(): void
+    {
+        $user = User::create([
+            'name' => 'Platform Administrator',
+            'email' => 'mobile-login@example.test',
+            'password' => Hash::make('Correct-password-123!'),
+            'role' => 'super_admin',
+            'is_super_admin' => true,
+            'is_active' => true,
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/login', [
+            'login_id' => 'MOBILE-LOGIN@EXAMPLE.TEST',
+            'password' => 'Correct-password-123!',
+            'device' => 'Android contract test',
+        ])->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'platform')
+            ->assertJsonPath('user.roles.0', 'super_admin')
+            ->assertJsonPath('school.slug', 'platform');
+
+        $plainToken = $login->json('token');
+
+        $this->assertIsString($plainToken);
+        $this->assertNotSame('', $plainToken);
+        $this->assertDatabaseHas('api_tokens', [
+            'user_id' => $user->id,
+            'token' => hash('sha256', $plainToken),
+        ]);
+
+        $this->withToken($plainToken)
+            ->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'platform')
+            ->assertJsonPath('access.allowed', true)
+            ->assertJsonPath('contract_version', 1);
+    }
+
+    public function test_mobile_login_accepts_staff_id_without_case_sensitivity(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Greenfield Academy',
+            'slug' => 'greenfield-academy',
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $user = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Class Teacher',
+            'email' => 'teacher@example.test',
+            'password' => Hash::make('Correct-password-123!'),
+            'staff_id' => 'GFA-STF-0042',
+            'role' => 'subject_teacher',
+            'is_super_admin' => false,
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/login', [
+            'login_id' => 'gfa-stf-0042',
+            'password' => 'Correct-password-123!',
+            'device' => 'Android contract test',
+        ])->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'staff')
+            ->assertJsonPath('school.id', $tenant->id);
+
+        $this->withToken($login->json('token'))
+            ->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'staff');
+    }
+
+    public function test_mobile_login_accepts_admission_number_without_case_sensitivity(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Greenfield Academy',
+            'slug' => 'greenfield-academy',
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $user = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Student Account',
+            'email' => 'student@example.test',
+            'password' => Hash::make('Correct-password-123!'),
+            'student_id' => 'GFA-ADM-2026-019',
+            'role' => 'student',
+            'is_super_admin' => false,
+            'is_active' => true,
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/login', [
+            'login_id' => 'gfa-adm-2026-019',
+            'password' => 'Correct-password-123!',
+            'device' => 'Android contract test',
+        ])->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'student')
+            ->assertJsonPath('school.id', $tenant->id);
+
+        $this->withToken($login->json('token'))
+            ->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.portal', 'student')
+            ->assertJsonFragment(['key' => 'student.dashboard']);
     }
 
     public function test_authenticated_super_admin_receives_one_authoritative_bootstrap_contract(): void

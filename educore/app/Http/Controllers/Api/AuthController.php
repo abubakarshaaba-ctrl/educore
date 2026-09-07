@@ -26,34 +26,34 @@ class AuthController extends Controller
         $data = $request->validate([
             'login_id' => ['required', 'string', 'max:180'],
             'password' => ['required', 'string'],
-            'device'   => ['nullable', 'string', 'max:150'],
+            'device' => ['nullable', 'string', 'max:150'],
         ]);
 
         $user = $users->resolveGlobal(trim($data['login_id']));
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
+        if (! $user || ! Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'These credentials do not match our records.'], 422);
         }
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             return response()->json(['message' => 'Your account has been deactivated. Contact the school.'], 403);
         }
 
-        if (!$user->isSuperAdmin() && !$user->isTenantStaff() && !$user->isStudent() && !$user->isParent()) {
+        if (! $user->isSuperAdmin() && ! $user->isTenantStaff() && ! $user->isStudent() && ! $user->isParent()) {
             return response()->json(['message' => 'This account is not enabled for the mobile app yet.'], 403);
         }
 
-        if ($user->isTenantStaff() && !$user->isEmploymentActive()) {
+        if ($user->isTenantStaff() && ! $user->isEmploymentActive()) {
             return response()->json(['message' => 'Your employment is no longer active. Contact the school.'], 403);
         }
 
         $tenant = $user->tenant;
 
-        if (!$user->isSuperAdmin() && !$tenant) {
+        if (! $user->isSuperAdmin() && ! $tenant) {
             return response()->json(['message' => 'Account is not linked to any school.'], 403);
         }
 
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             $decision = $tenantAccess->applicationAccess($tenant);
             if ($decision->isDenied()) {
                 return response()->json(['message' => 'This school account is currently unavailable.'], 403);
@@ -79,18 +79,20 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user'  => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'email'    => $user->email,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
                 'staff_id' => $user->staff_id,
                 'role_key' => $user->roleKey(),
-                'role'     => $user->roleLabel() ?? 'staff',
-                'roles'    => $user->getRoleNames()->values(),
-                'portal'   => $portal,
+                'role' => $user->roleLabel() ?? 'staff',
+                'roles' => $user->isSuperAdmin()
+                    ? ['super_admin']
+                    : $user->getRoleNames()->values(),
+                'portal' => $portal,
             ],
             'school' => [
-                'id'   => $tenant?->id,
+                'id' => $tenant?->id,
                 'name' => $tenant?->name ?? 'EduCore Platform',
                 'slug' => $tenant?->slug ?? 'platform',
             ],

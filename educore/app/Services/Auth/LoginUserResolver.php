@@ -10,19 +10,20 @@ class LoginUserResolver
     public function resolveGlobal(string $loginId): ?User
     {
         $loginId = trim($loginId);
+        $normalizedLoginId = mb_strtolower($loginId);
 
         if (filter_var($loginId, FILTER_VALIDATE_EMAIL)) {
-            return User::where('email', $loginId)->first();
+            return User::whereRaw('LOWER(email) = ?', [$normalizedLoginId])->first();
         }
 
-        $user = User::where('staff_id', $loginId)->first();
+        $user = User::whereRaw('LOWER(staff_id) = ?', [$normalizedLoginId])->first();
 
-        if (!$user) {
-            $user = User::where('student_id', $loginId)->first();
+        if (! $user) {
+            $user = User::whereRaw('LOWER(student_id) = ?', [$normalizedLoginId])->first();
         }
 
-        if (!$user) {
-            $user = User::where('email', $loginId)->first();
+        if (! $user) {
+            $user = User::whereRaw('LOWER(email) = ?', [$normalizedLoginId])->first();
         }
 
         return $user;
@@ -36,15 +37,18 @@ class LoginUserResolver
             return null;
         }
 
+        $normalizedLoginId = mb_strtolower($loginId);
+
         return User::tenantStaff($tenant->id)
-            ->where(function ($query) use ($loginId) {
+            ->where(function ($query) use ($loginId, $normalizedLoginId) {
                 if (filter_var($loginId, FILTER_VALIDATE_EMAIL)) {
-                    $query->where('email', $loginId);
+                    $query->whereRaw('LOWER(email) = ?', [$normalizedLoginId]);
+
                     return;
                 }
 
-                $query->where('staff_id', $loginId)
-                    ->orWhere('email', $loginId);
+                $query->whereRaw('LOWER(staff_id) = ?', [$normalizedLoginId])
+                    ->orWhereRaw('LOWER(email) = ?', [$normalizedLoginId]);
             })
             ->first();
     }
@@ -61,17 +65,20 @@ class LoginUserResolver
             return null;
         }
 
+        $normalizedLoginId = mb_strtolower($loginId);
+
         return User::where('tenant_id', $tenant->id)
             ->where('is_super_admin', false)
-            ->where(function ($query) use ($loginId) {
+            ->where(function ($query) use ($loginId, $normalizedLoginId) {
                 if (filter_var($loginId, FILTER_VALIDATE_EMAIL)) {
-                    $query->where('email', $loginId);
+                    $query->whereRaw('LOWER(email) = ?', [$normalizedLoginId]);
+
                     return;
                 }
 
-                $query->where('staff_id', $loginId)
-                    ->orWhere('student_id', $loginId)
-                    ->orWhere('email', $loginId);
+                $query->whereRaw('LOWER(staff_id) = ?', [$normalizedLoginId])
+                    ->orWhereRaw('LOWER(student_id) = ?', [$normalizedLoginId])
+                    ->orWhereRaw('LOWER(email) = ?', [$normalizedLoginId]);
             })
             ->first();
     }

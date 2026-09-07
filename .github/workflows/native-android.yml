@@ -1,0 +1,147 @@
+name: Build and Deploy Native Android App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - codex/native-login-brand-hotfix
+    paths:
+      - 'mobile-native/**'
+      - 'educore/app/Http/Controllers/Api/AuthController.php'
+      - 'educore/app/Services/Auth/LoginUserResolver.php'
+      - 'educore/tests/Feature/MobileBootstrapTest.php'
+      - '.github/workflows/native-android.yml'
+
+concurrency:
+  group: native-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      release_available: ${{ steps.signing.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Validate authentication API contract
+        working-directory: educore
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test tests/Feature/MobileBootstrapTest.php
+
+      - name: Build and test debug app
+        working-directory: mobile-native
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --no-parallel \
+            :core:common:testDebugUnitTest \
+            :core:designsystem:testDebugUnitTest \
+            :core:model:testDebugUnitTest \
+            :core:network:testDebugUnitTest \
+            :core:security:testDebugUnitTest \
+            :core:data:testDebugUnitTest \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug
+
+      - name: Prepare protected release signing
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_STORE_PASSWORD" ] || [ -z "$KEYSTORE_KEY_PASSWORD" ] || [ -z "$KEYSTORE_KEY_ALIAS" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets are unavailable; debug validation is still complete."
+            exit 0
+          fi
+
+          mkdir -p mobile-native/.ci-signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > mobile-native/.ci-signing/educore-release.jks
+          {
+            echo 'storeFile=educore-release.jks'
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } > mobile-native/.ci-signing/release.properties
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release app
+        if: steps.signing.outputs.available == 'true'
+        working-directory: mobile-native
+        run: |
+          ./gradlew --no-daemon --no-parallel \
+            -PEDUCORE_RELEASE_PROPERTIES=.ci-signing/release.properties \
+            :app:lintRelease \
+            :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../EduCore.apk
+
+      - name: Verify signed release
+        if: steps.signing.outputs.available == 'true'
+        shell: bash
+        run: |
+          APK_SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -n "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose --print-certs EduCore.apk
+          sha256sum EduCore.apk > EduCore.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: educore-native-debug-${{ github.sha }}
+          path: mobile-native/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.available == 'true'
+        with:
+          name: educore-native-release-${{ github.sha }}
+          path: |
+            EduCore.apk
+            EduCore.apk.sha256
+          retention-days: 30
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/master' && needs.validate.outputs.release_available == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: educore-native-release-${{ github.sha }}
+
+      - name: Publish APK to the live server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: EduCore.apk
+          target: ${{ secrets.DEPLOY_APK_PATH }}
+
+      - name: Verify live APK file
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            test -s "${{ secrets.DEPLOY_APK_PATH }}/EduCore.apk"
+            stat -c 'Published EduCore.apk: %s bytes' "${{ secrets.DEPLOY_APK_PATH }}/EduCore.apk"

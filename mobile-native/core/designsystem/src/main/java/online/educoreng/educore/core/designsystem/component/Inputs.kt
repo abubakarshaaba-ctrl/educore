@@ -43,6 +43,7 @@ fun EduCoreTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     OutlinedTextField(
@@ -62,6 +63,7 @@ fun EduCoreTextField(
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
+        leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
     )
 }
