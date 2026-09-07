@@ -94,11 +94,7 @@
 
         <div class="settings-section">
             <div class="section-title">Billing access</div>
-            <div class="form-group">
-                <label class="form-label">Initial Subscription Window (days)</label>
-                <input class="form-control" type="number" name="settings[trial_days]" min="0" max="365" value="{{ old('settings.trial_days', $val('trial_days', 30)) }}" required>
-                <div class="form-hint">Initial account window for newly provisioned schools. The free plan remains free while enrollment is 50 students or fewer.</div>
-            </div>
+            <div class="form-hint" style="margin-bottom:12px">Schools with up to 50 active students have all features with no expiry. From 51 students, billing is &#8358;300 per active student per term.</div>
             <div class="form-group">
                 <label class="form-label">Grace Period (days)</label>
                 <input class="form-control" type="number" name="settings[grace_period_days]" min="0" max="90" value="{{ old('settings.grace_period_days', $val('grace_period_days', 7)) }}" required>

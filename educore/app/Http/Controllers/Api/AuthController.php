@@ -97,8 +97,8 @@ class AuthController extends Controller
                 'slug' => $tenant?->slug ?? 'platform',
             ],
             'permissions' => $user->isSuperAdmin()
-                ? ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans']
-                : $user->getAllPermissions()->pluck('name')->sort()->values(),
+                ? ['*']
+                : $user->effectivePermissionKeys(),
         ]);
     }
 

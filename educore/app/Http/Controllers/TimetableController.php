@@ -34,13 +34,17 @@ class TimetableController extends Controller
     // ---------------------------------------------------------------
     // STEP 1 — SCHOOL HOURS CONFIGURATION
     // ---------------------------------------------------------------
-    public function configure()
+    public function configure(Request $request)
     {
         abort_unless(auth()->user()->canManage('timetable'), 403,
             'Only administrators can configure school timetable settings.');
         $sessions = AcademicSession::orderByDesc('is_current')->get();
         $configs  = TimetableConfig::with('session')->get()->keyBy('session_id');
-        return view('timetable.configure', compact('sessions', 'configs'));
+        $defaultSessionId = $request->integer('session_id')
+            ?: optional($sessions->firstWhere('is_current', true) ?? $sessions->first())->id;
+        $selectedSessionId = (int) old('session_id', $defaultSessionId);
+        $selectedConfig = $configs->get($selectedSessionId);
+        return view('timetable.configure', compact('sessions', 'configs', 'selectedSessionId', 'selectedConfig'));
     }
 
     public function saveConfig(Request $request)
@@ -81,7 +85,8 @@ class TimetableController extends Controller
             ]
         );
 
-        return back()->with('success', 'School timetable configuration saved.');
+        return redirect()->route('timetable.configure', ['session_id' => $validated['session_id']])
+            ->with('success', 'School timetable configuration saved.');
     }
 
     // ---------------------------------------------------------------

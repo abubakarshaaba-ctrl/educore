@@ -74,8 +74,8 @@ class MobileBootstrapController extends Controller
             ],
             'permissions' => $access->allowed
                 ? ($superAdmin
-                    ? ['platform.access', 'platform.tenants', 'platform.billing', 'platform.plans']
-                    : $user->getAllPermissions()->pluck('name')->sort()->values())
+                    ? ['*']
+                    : $user->effectivePermissionKeys())
                 : [],
             'features' => $access->allowed && ! $superAdmin
                 ? $user->subscriptionFeatureKeys()

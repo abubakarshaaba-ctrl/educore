@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,7 +67,7 @@ fun EduCoreTopAppBar(
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = EduCoreColors.Muted500,
+                        color = Color.White.copy(alpha = 0.74f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -82,10 +83,10 @@ fun EduCoreTopAppBar(
         },
         actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White,
-            titleContentColor = EduCoreColors.Navy900,
-            navigationIconContentColor = EduCoreColors.Navy900,
-            actionIconContentColor = EduCoreColors.Navy900,
+            containerColor = EduCoreColors.Navy900,
+            titleContentColor = Color.White,
+            navigationIconContentColor = Color.White,
+            actionIconContentColor = EduCoreColors.Gold400,
         ),
     )
 }
@@ -172,7 +173,13 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = EduCoreColors.Info100,
+        border = BorderStroke(1.dp, EduCoreColors.Info200),
+    ) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
         if (maxWidth < 520.dp && compactActions) {
             Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,6 +197,7 @@ fun EduCorePageHeader(
                 actions()
             }
         }
+    }
     }
 }
 

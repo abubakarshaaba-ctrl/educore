@@ -19,6 +19,10 @@ data class ForgotPasswordRequestDto(
     val email: String,
 )
 
+data class PortalSessionRequestDto(val path: String)
+
+data class PortalSessionResponseDto(val url: String)
+
 data class MessageDto(val message: String)
 
 data class UserDto(

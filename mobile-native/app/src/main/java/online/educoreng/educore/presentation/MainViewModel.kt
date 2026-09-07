@@ -109,6 +109,25 @@ class MainViewModel @Inject constructor(
         _uiState.update { it.copy(message = null) }
     }
 
+    fun openWebModule(path: String) {
+        if (_uiState.value.isBusy) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBusy = true, message = null) }
+            when (val result = sessionRepository.createPortalSession(path)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(isBusy = false, portalUrl = result.value)
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isBusy = false, message = result.error.userMessage)
+                }
+            }
+        }
+    }
+
+    fun consumePortalUrl() {
+        _uiState.update { it.copy(portalUrl = null) }
+    }
+
     fun retryBootstrap() {
         if (_uiState.value.isBusy || !sessionRepository.hasStoredToken()) return
         refreshSession()

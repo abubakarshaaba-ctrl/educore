@@ -25,6 +25,7 @@ class SkillRatingController extends Controller
     public function index()
     {
         $user = auth()->user();
+        SkillDefinition::ensureDefaultsForTenant($this->tenantId());
 
         $isAdminTier = $user->canAccessExactModule('students') || $user->isSuperAdmin();
         if ($isAdminTier) {
@@ -42,6 +43,7 @@ class SkillRatingController extends Controller
 
     public function sheet(Request $request)
     {
+        SkillDefinition::ensureDefaultsForTenant($this->tenantId());
         $request->validate([
             'class_arm_id' => ['required', Rule::exists('class_arms', 'id')->where('tenant_id', $this->tenantId())],
             'term_id'      => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
@@ -52,7 +54,7 @@ class SkillRatingController extends Controller
         $skillUser = auth()->user();
         if (!$skillUser->canAccessExactModule('students') && !$skillUser->isSuperAdmin()) {
             abort_if(
-                $classArm->form_tutor_id !== $skillUser->id,
+                (int) $classArm->form_tutor_id !== (int) $skillUser->id,
                 403,
                 'You can only rate skills for the class arm you are assigned as form teacher.'
             );
@@ -97,7 +99,7 @@ class SkillRatingController extends Controller
         $saveUser = auth()->user();
         if (!$saveUser->canAccessExactModule('students') && !$saveUser->isSuperAdmin()) {
             abort_if(
-                $classArm->form_tutor_id !== $saveUser->id,
+                (int) $classArm->form_tutor_id !== (int) $saveUser->id,
                 403,
                 'You can only save skill ratings for the class arm you are assigned as form teacher.'
             );

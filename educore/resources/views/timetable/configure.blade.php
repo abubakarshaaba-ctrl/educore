@@ -73,10 +73,10 @@
 
                     <div class="form-group">
                         <label class="form-label">Session <span>*</span></label>
-                        <select name="session_id" class="form-control" required>
+                        <select name="session_id" id="sessionConfig" class="form-control" required>
                             <option value="">Select session</option>
                             @foreach($sessions as $session)
-                                <option value="{{ $session->id }}" {{ $session->is_current ? 'selected' : '' }}>
+                                <option value="{{ $session->id }}" {{ (int) $selectedSessionId === (int) $session->id ? 'selected' : '' }}>
                                     {{ $session->name }}{{ $session->is_current ? ' (Current)' : '' }}
                                 </option>
                             @endforeach
@@ -86,22 +86,22 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">School Start Time <span>*</span></label>
-                            <input type="time" name="school_start" class="form-control" value="{{ old('school_start', '07:30') }}" required>
+                            <input type="time" name="school_start" class="form-control" value="{{ old('school_start', $selectedConfig?->school_start ?? '07:30') }}" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">School End Time <span>*</span></label>
-                            <input type="time" name="school_end" class="form-control" value="{{ old('school_end', '14:30') }}" required>
+                            <input type="time" name="school_end" class="form-control" value="{{ old('school_end', $selectedConfig?->school_end ?? '14:30') }}" required>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Periods Per Day <span>*</span></label>
-                            <input type="number" name="periods_per_day" id="periodsPerDay" class="form-control" value="{{ old('periods_per_day', 8) }}" min="1" max="12" required>
+                            <input type="number" name="periods_per_day" id="periodsPerDay" class="form-control" value="{{ old('periods_per_day', $selectedConfig?->periods_per_day ?? 8) }}" min="1" max="12" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Period Duration (mins) <span>*</span></label>
-                            <input type="number" name="period_duration" id="periodDuration" class="form-control" value="{{ old('period_duration', 40) }}" min="20" max="120" required>
+                            <input type="number" name="period_duration" id="periodDuration" class="form-control" value="{{ old('period_duration', $selectedConfig?->period_duration ?? 40) }}" min="20" max="120" required>
                         </div>
                     </div>
 
@@ -109,40 +109,20 @@
                     <div class="form-group">
                         <label class="form-label">Break Periods</label>
                         <div id="breaksContainer">
-                            <div class="break-row" data-break="0">
-                                <div>
-                                    <div class="break-label">After Period #</div>
-                                    <input type="number" name="breaks[0][after_period]" class="form-control" placeholder="e.g. 3" min="1" value="{{ old('breaks.0.after_period', 3) }}">
+                            @php
+                                $initialBreaks = old('breaks', $selectedConfig?->breaks ?? [
+                                    ['after_period' => 3, 'duration' => 20, 'label' => 'Short Break'],
+                                    ['after_period' => 6, 'duration' => 30, 'label' => 'Long Break'],
+                                ]);
+                            @endphp
+                            @foreach($initialBreaks as $index => $break)
+                                <div class="break-row" data-break="{{ $index }}">
+                                    <div><div class="break-label">After Period #</div><input type="number" name="breaks[{{ $index }}][after_period]" class="form-control" min="1" value="{{ $break['after_period'] ?? '' }}"></div>
+                                    <div><div class="break-label">Duration (mins)</div><input type="number" name="breaks[{{ $index }}][duration]" class="form-control" min="5" value="{{ $break['duration'] ?? '' }}"></div>
+                                    <div><div class="break-label">Label</div><input type="text" name="breaks[{{ $index }}][label]" class="form-control" value="{{ $break['label'] ?? 'Break' }}"></div>
+                                    <div style="padding-top:18px"><button type="button" class="btn btn-danger" onclick="removeBreak(this)">✕</button></div>
                                 </div>
-                                <div>
-                                    <div class="break-label">Duration (mins)</div>
-                                    <input type="number" name="breaks[0][duration]" class="form-control" placeholder="e.g. 20" min="5" value="{{ old('breaks.0.duration', 20) }}">
-                                </div>
-                                <div>
-                                    <div class="break-label">Label</div>
-                                    <input type="text" name="breaks[0][label]" class="form-control" placeholder="e.g. Short Break" value="{{ old('breaks.0.label', 'Short Break') }}">
-                                </div>
-                                <div style="padding-top:18px">
-                                    <button type="button" class="btn btn-danger" onclick="removeBreak(this)">✕</button>
-                                </div>
-                            </div>
-                            <div class="break-row" data-break="1">
-                                <div>
-                                    <div class="break-label">After Period #</div>
-                                    <input type="number" name="breaks[1][after_period]" class="form-control" placeholder="e.g. 6" min="1" value="{{ old('breaks.1.after_period', 6) }}">
-                                </div>
-                                <div>
-                                    <div class="break-label">Duration (mins)</div>
-                                    <input type="number" name="breaks[1][duration]" class="form-control" placeholder="e.g. 30" min="5" value="{{ old('breaks.1.duration', 30) }}">
-                                </div>
-                                <div>
-                                    <div class="break-label">Label</div>
-                                    <input type="text" name="breaks[1][label]" class="form-control" placeholder="e.g. Long Break" value="{{ old('breaks.1.label', 'Long Break') }}">
-                                </div>
-                                <div style="padding-top:18px">
-                                    <button type="button" class="btn btn-danger" onclick="removeBreak(this)">✕</button>
-                                </div>
-                            </div>
+                            @endforeach
                         </div>
                         <button type="button" class="btn btn-ghost" style="margin-top:8px" onclick="addBreak()">+ Add Break</button>
                     </div>
@@ -190,19 +170,33 @@
 
 @push('scripts')
 <script>
-let breakCount = 2;
+const savedConfigs = @json($configs->map(fn ($config) => [
+    'school_start' => substr($config->school_start, 0, 5),
+    'school_end' => substr($config->school_end, 0, 5),
+    'periods_per_day' => $config->periods_per_day,
+    'period_duration' => $config->period_duration,
+    'breaks' => $config->breaks ?? [],
+]));
+let breakCount = {{ count($initialBreaks) }};
 
-function addBreak() {
+function renderBreaks(breaks) {
+    const container = document.getElementById('breaksContainer');
+    container.innerHTML = '';
+    breakCount = 0;
+    (breaks || []).forEach(item => addBreak(item));
+}
+
+function addBreak(item = {}) {
     const container = document.getElementById('breaksContainer');
     const div = document.createElement('div');
     div.className = 'break-row';
     div.innerHTML = `
         <div><div class="break-label">After Period #</div>
-        <input type="number" name="breaks[${breakCount}][after_period]" class="form-control" placeholder="e.g. 4" min="1"></div>
+        <input type="number" name="breaks[${breakCount}][after_period]" class="form-control" placeholder="e.g. 4" min="1" value="${item.after_period || ''}"></div>
         <div><div class="break-label">Duration (mins)</div>
-        <input type="number" name="breaks[${breakCount}][duration]" class="form-control" placeholder="e.g. 20" min="5"></div>
+        <input type="number" name="breaks[${breakCount}][duration]" class="form-control" placeholder="e.g. 20" min="5" value="${item.duration || ''}"></div>
         <div><div class="break-label">Label</div>
-        <input type="text" name="breaks[${breakCount}][label]" class="form-control" placeholder="e.g. Break"></div>
+        <input type="text" name="breaks[${breakCount}][label]" class="form-control" placeholder="e.g. Break" value="${String(item.label || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></div>
         <div style="padding-top:18px"><button type="button" class="btn btn-danger" onclick="removeBreak(this)">✕</button></div>`;
     container.appendChild(div);
     breakCount++;
@@ -264,6 +258,18 @@ function updatePreview() {
 document.querySelectorAll('[name="school_start"],[name="periods_per_day"],[name="period_duration"]')
     .forEach(el => el.addEventListener('input', updatePreview));
 document.getElementById('breaksContainer').addEventListener('input', updatePreview);
+document.getElementById('sessionConfig').addEventListener('change', event => {
+    const config = savedConfigs[event.target.value];
+    document.querySelector('[name="school_start"]').value = config?.school_start || '07:30';
+    document.querySelector('[name="school_end"]').value = config?.school_end || '14:30';
+    document.querySelector('[name="periods_per_day"]').value = config?.periods_per_day || 8;
+    document.querySelector('[name="period_duration"]').value = config?.period_duration || 40;
+    renderBreaks(config?.breaks || [
+        { after_period: 3, duration: 20, label: 'Short Break' },
+        { after_period: 6, duration: 30, label: 'Long Break' },
+    ]);
+    updatePreview();
+});
 updatePreview();
 </script>
 @endpush

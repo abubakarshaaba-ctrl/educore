@@ -94,7 +94,7 @@ class AttendanceController extends Controller
         // Teaching a subject here does not grant attendance rights.
         $attendanceUser = auth()->user();
         if (!$attendanceUser->canAccessExactModule('students') && !$attendanceUser->isSuperAdmin()) {
-            abort_if($classArm->form_tutor_id !== $attendanceUser->id, 403, 'You can only mark attendance for your assigned form class.');
+            abort_if((int) $classArm->form_tutor_id !== (int) $attendanceUser->id, 403, 'You can only mark attendance for your assigned form class.');
         }
 
         $date     = $request->date;
@@ -138,7 +138,7 @@ class AttendanceController extends Controller
         // Non-admin staff: must be form tutor of this class.
         $saveUser = auth()->user();
         if (!$saveUser->canAccessExactModule('students') && !$saveUser->isSuperAdmin()) {
-            abort_if($classArm->form_tutor_id !== $saveUser->id, 403, 'You can only save attendance for your assigned form class.');
+            abort_if((int) $classArm->form_tutor_id !== (int) $saveUser->id, 403, 'You can only save attendance for your assigned form class.');
         }
 
         $allowedStudentIds = Student::where('current_class_arm_id', $classArm->id)

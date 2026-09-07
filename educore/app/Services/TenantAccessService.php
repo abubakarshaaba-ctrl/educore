@@ -53,17 +53,13 @@ class TenantAccessService
         // rather than needing its own subscription kept current.
         $expiresAt = $tenant->billingTenant()->subscription_expires_at;
 
-        // "Trial" under the pay-per-student model just means the school
-        // hasn't paid for extra capacity yet (still on the free tier). The
-        // free tier never expires on the automatic date clock — checked
-        // before the expiry gate below so a free-tier school is never
-        // locked out just because its (irrelevant) expiry date passed.
+        // Free schools never enter trial, expiry or grace states. This check
+        // intentionally precedes every date-based paid-subscription gate.
         if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
-            return TenantAccessDecision::warning(
-                TenantAccessDecision::STATE_TRIAL,
-                'This school account is currently on the free plan.',
-                $expiresAt
-            );
+            return TenantAccessDecision::free([
+                'student_limit' => PricingService::FREE_THRESHOLD,
+                'all_features' => true,
+            ]);
         }
 
         if ($expiresAt && $expiresAt->isPast()) {

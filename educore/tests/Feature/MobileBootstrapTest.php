@@ -340,6 +340,44 @@ class MobileBootstrapTest extends TestCase
         $this->assertFalse($keys->contains('fees'));
     }
 
+    public function test_subject_teacher_can_open_authorized_cbt_workspace_but_not_finance(): void
+    {
+        $tenant = Tenant::create(['name' => 'CBT School', 'slug' => 'cbt-school', 'status' => Tenant::STATUS_ACTIVE]);
+        $teacher = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $token = ApiToken::issue($teacher, 'portal-test');
+
+        $this->withToken($token)->postJson('/api/v1/portal/session', ['path' => '/cbt'])
+            ->assertOk()
+            ->assertJsonStructure(['url']);
+
+        $this->withToken($token)->postJson('/api/v1/portal/session', ['path' => '/fees/invoices'])
+            ->assertForbidden();
+    }
+
+    public function test_bootstrap_exposes_effective_role_permissions_to_native_client(): void
+    {
+        $tenant = Tenant::create(['name' => 'Role School', 'slug' => 'role-school', 'status' => Tenant::STATUS_ACTIVE]);
+        $teacher = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Form Subject Teacher',
+            'role' => 'form_subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $this->withToken(ApiToken::issue($teacher, 'rbac-test'))->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonFragment(['scores.entry'])
+            ->assertJsonFragment(['attendance'])
+            ->assertJsonFragment(['cbt']);
+    }
+
     public function test_mobile_password_reset_requires_a_valid_email_address(): void
     {
         $this->postJson('/api/v1/auth/forgot-password', ['email' => 'not-an-email'])

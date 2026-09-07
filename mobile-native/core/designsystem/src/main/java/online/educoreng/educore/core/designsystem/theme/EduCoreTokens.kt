@@ -31,4 +31,6 @@ object EduCoreSizes {
     val Avatar = 42.dp
     val LargeAvatar = 64.dp
     val ContentMaxWidth = 760.dp
+    val MetricCardHeight = 112.dp
+    val ModuleCardHeight = 136.dp
 }

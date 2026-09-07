@@ -24,6 +24,7 @@ data class AppUiState(
     val authMode: AuthMode = AuthMode.LOGIN,
     val fieldErrors: Map<String, String> = emptyMap(),
     val dashboard: DashboardUiState = DashboardUiState(),
+    val portalUrl: String? = null,
 )
 
 data class DashboardUiState(

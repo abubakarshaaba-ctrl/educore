@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -83,6 +84,7 @@ import online.educoreng.educore.core.model.AttendanceSheet
 import online.educoreng.educore.core.model.AttendanceStatus
 import online.educoreng.educore.core.model.SyncState
 import online.educoreng.educore.core.model.ClassSummary
+import online.educoreng.educore.PortraitCaptureActivity
 import online.educoreng.educore.core.model.StudentSummary
 
 @Composable
@@ -656,7 +658,8 @@ internal fun StaffAttendanceScreen(
                                 .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                                 .setPrompt("Scan the school attendance QR")
                                 .setBeepEnabled(false)
-                                .setOrientationLocked(false),
+                                .setCaptureActivity(PortraitCaptureActivity::class.java)
+                                .setOrientationLocked(true),
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -719,10 +722,17 @@ private fun currentLocation(
     client: com.google.android.gms.location.FusedLocationProviderClient,
     result: (Double?, Double?, String?) -> Unit,
 ) {
-    client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+    val request = CurrentLocationRequest.Builder()
+        .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+        .setMaxUpdateAgeMillis(0)
+        .setDurationMillis(20_000)
+        .build()
+    client.getCurrentLocation(request, CancellationTokenSource().token)
         .addOnSuccessListener { location ->
             if (location == null) {
                 result(null, null, "Your current location is unavailable. Turn on location services and try again.")
+            } else if (location.accuracy > 100f) {
+                result(null, null, "GPS accuracy is ${location.accuracy.toInt()} m. Move into an open area and try again.")
             } else {
                 result(location.latitude, location.longitude, null)
             }

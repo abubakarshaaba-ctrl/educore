@@ -19,5 +19,7 @@ interface SessionRepository {
 
     suspend fun requestPasswordReset(email: String): AppResult<String>
 
+    suspend fun createPortalSession(path: String): AppResult<String>
+
     suspend fun logout(): AppResult<Unit>
 }

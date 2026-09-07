@@ -34,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,8 +71,14 @@ fun EduCoreSectionHeader(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    Row(
+    Surface(
         modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        color = EduCoreColors.Gold50,
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Gold200),
+    ) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
@@ -86,6 +91,7 @@ fun EduCoreSectionHeader(
         if (actionLabel != null && onAction != null) {
             EduCoreTextButton(actionLabel, onAction)
         }
+    }
     }
 }
 
@@ -219,8 +225,8 @@ fun EduCoreFileCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Info200),
     ) {
         EduCoreListItem(
             title = title,
@@ -243,8 +249,8 @@ fun EduCoreExpandableSection(
     var expanded by remember { mutableStateOf(initiallyExpanded) }
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Info200),
     ) {
         Row(
             modifier = Modifier

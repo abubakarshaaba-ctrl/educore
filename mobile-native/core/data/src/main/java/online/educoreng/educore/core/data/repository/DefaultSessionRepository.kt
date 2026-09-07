@@ -19,6 +19,7 @@ import online.educoreng.educore.core.model.SessionSnapshot
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ForgotPasswordRequestDto
 import online.educoreng.educore.core.network.dto.LoginRequestDto
+import online.educoreng.educore.core.network.dto.PortalSessionRequestDto
 import online.educoreng.educore.core.network.safeApiCall
 import online.educoreng.educore.core.network.toDomain
 import online.educoreng.educore.core.security.TokenVault
@@ -102,6 +103,17 @@ class DefaultSessionRepository(
             api.forgotPassword(ForgotPasswordRequestDto(normalizedEmail))
         }) {
             is AppResult.Success -> AppResult.Success(result.value.message)
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun createPortalSession(path: String): AppResult<String> = withContext(Dispatchers.IO) {
+        if (!tokenVault.hasToken()) {
+            return@withContext AppResult.Failure(AppError.Unauthenticated())
+        }
+
+        when (val result = safeApiCall(moshi) { api.portalSession(PortalSessionRequestDto(path)) }) {
+            is AppResult.Success -> AppResult.Success(result.value.url)
             is AppResult.Failure -> result
         }
     }

@@ -80,6 +80,7 @@ internal fun AuthorizedShell(
     snackbarHostState: SnackbarHostState,
     onRefresh: () -> Unit,
     onRefreshDashboard: () -> Unit,
+    onOpenWebModule: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
     val navController = rememberNavController()
@@ -311,23 +312,31 @@ internal fun AuthorizedShell(
                                                 navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
                                             }
                                             "scores", "scores.entry" -> {
-                                                scoresViewModel.loadAssignments()
-                                                navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                if (session.can("scores") || session.can("scores.entry")) {
+                                                    scoresViewModel.loadAssignments()
+                                                    navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                } else {
+                                                    onOpenWebModule(module.path)
+                                                }
                                             }
                                             "timetable", "student.timetable" -> {
                                                 scheduleViewModel.load()
                                                 navController.navigate("native/schedule/0") { launchSingleTop = true }
                                             }
                                             "student.exams", "cbt", "cbt-exams", "examinations" -> {
-                                                cbtViewModel.loadExams()
-                                                navController.navigate(NativeRoute.CBT_EXAMS) { launchSingleTop = true }
+                                                if (session.user.portal == "student") {
+                                                    cbtViewModel.loadExams()
+                                                    navController.navigate(NativeRoute.CBT_EXAMS) { launchSingleTop = true }
+                                                } else {
+                                                    onOpenWebModule(module.path)
+                                                }
                                             }
                                             "results", "report-cards", "student.results", "parent.results" -> {
                                                 if (session.user.portal == "student" || session.user.portal == "parent") {
                                                     scoresViewModel.loadResults()
                                                     navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
                                                 } else {
-                                                    scope.launch { snackbarHostState.showSnackbar("Class result administration remains in the authorized web workspace.") }
+                                                    onOpenWebModule(module.path)
                                                 }
                                             }
                                             "academic-repository" -> {
@@ -352,11 +361,7 @@ internal fun AuthorizedShell(
                                                 operationsViewModel.load(module.key)
                                                 navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
                                             }
-                                            else -> scope.launch {
-                                                snackbarHostState.showSnackbar(
-                                                    "${module.title} is queued for its native feature phase.",
-                                                )
-                                            }
+                                            else -> onOpenWebModule(module.path)
                                         }
                                     },
                                     onLogout = { confirmLogout = true },

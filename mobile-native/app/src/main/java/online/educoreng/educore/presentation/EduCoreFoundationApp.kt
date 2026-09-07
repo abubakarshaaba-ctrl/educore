@@ -2,6 +2,8 @@ package online.educoreng.educore.presentation
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.ReportDrawnWhen
@@ -51,6 +53,17 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
         }
     }
 
+    LaunchedEffect(state.portalUrl) {
+        state.portalUrl?.let { url ->
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }.onFailure {
+                snackbarHostState.showSnackbar("No browser is available to open this workspace.")
+            }
+            viewModel.consumePortalUrl()
+        }
+    }
+
     EduCoreTheme {
         Box(
             modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
@@ -79,6 +92,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     snackbarHostState = snackbarHostState,
                     onRefresh = viewModel::retryBootstrap,
                     onRefreshDashboard = viewModel::retryDashboard,
+                    onOpenWebModule = viewModel::openWebModule,
                     onLogout = viewModel::logout,
                 )
             }

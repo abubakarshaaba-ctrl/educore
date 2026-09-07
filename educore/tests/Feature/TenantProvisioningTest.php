@@ -34,7 +34,7 @@ class TenantProvisioningTest extends TestCase
             ->get(route('super.tenants.create'))
             ->assertOk()
             ->assertSee('Provision New School')
-            ->assertSee('Subscription Expires')
+            ->assertSee('no expiry')
             ->assertSee('Employment Start Date');
     }
 
@@ -58,6 +58,7 @@ class TenantProvisioningTest extends TestCase
         // subscription row, no explicit capacity (defaults to the free
         // threshold via PricingService).
         $this->assertNull($tenant->students_capacity);
+        $this->assertNull($tenant->subscription_expires_at);
         $this->assertDatabaseHas('school_settings', ['tenant_id' => $tenant->id, 'key' => 'currency', 'value' => 'NGN']);
         $this->assertDatabaseHas('admission_portal_settings', ['tenant_id' => $tenant->id, 'is_open' => false]);
         $this->assertSame(1, AuditLog::where('action', 'tenant.provisioning.administrator_created')->count());

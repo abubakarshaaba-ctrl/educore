@@ -13,7 +13,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $repositoryRoot = Split-Path -Parent $projectRoot
 $laravelRoot = Join-Path $repositoryRoot 'educore'
 $productionApplicationId = 'online.educoreng.educore'
-$previousVersionCode = 13
+$previousVersionCode = 14
 $productionApi = 'https://educoreng.online/api/v1/'
 
 if ([string]::IsNullOrWhiteSpace($ReleasePropertiesPath)) {

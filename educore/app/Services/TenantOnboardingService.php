@@ -8,6 +8,7 @@ use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\GradingSystem;
 use App\Models\SchoolSetting;
+use App\Models\SkillDefinition;
 use App\Models\Subject;
 use App\Models\Tenant;
 use App\Models\Term;
@@ -104,6 +105,10 @@ class TenantOnboardingService
 
     public function createProvisioningDefaults(Tenant $tenant): void
     {
+        if (Schema::hasTable('skill_definitions')) {
+            SkillDefinition::ensureDefaultsForTenant((int) $tenant->id);
+        }
+
         if (Schema::hasTable('school_settings')) {
             foreach ([
                 'currency' => ['value' => 'NGN', 'group' => 'finance'],

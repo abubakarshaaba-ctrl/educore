@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
@@ -67,9 +68,9 @@ fun EduCoreDashboardCard(
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
-        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line300),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
     ) {
         Column(Modifier.padding(EduCoreSpacing.Lg)) { content() }
     }
@@ -84,7 +85,7 @@ fun EduCoreMetricCard(
     supportingText: String? = null,
     tone: EduCoreTone = EduCoreTone.Brand,
 ) {
-    EduCoreDashboardCard(modifier) {
+    EduCoreDashboardCard(modifier.height(EduCoreSizes.MetricCardHeight)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Surface(
@@ -141,10 +142,10 @@ fun EduCoreModuleCard(
     Card(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
-        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
+        modifier = modifier.height(EduCoreSizes.ModuleCardHeight),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Info200),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
     ) {
         Column(
             modifier = Modifier.padding(EduCoreSpacing.Lg),
@@ -199,8 +200,8 @@ fun EduCoreQuickAction(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.Gold50),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Gold200),
     ) {
         Row(
             modifier = Modifier.padding(EduCoreSpacing.Md),

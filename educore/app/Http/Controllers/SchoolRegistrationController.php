@@ -51,16 +51,13 @@ class SchoolRegistrationController extends Controller
         session()->forget('referral_code'); // consumed
 
         $tenant = DB::transaction(function () use ($validated, $onboarding, $referringAgent) {
-            $trialDays = (int) DB::table('platform_settings')->where('key', 'trial_days')->value('value') ?: 30;
-            $trialEnds = now()->addDays($trialDays);
-
             $tenant = Tenant::create([
                 'name'                    => $validated['school_name'],
                 'slug'                    => $validated['slug'],
                 'email'                   => $validated['admin_email'],
                 'phone'                   => $validated['phone'],
                 'status'                  => Tenant::STATUS_ACTIVE,
-                'subscription_expires_at' => $trialEnds,
+                'subscription_expires_at' => null,
                 'theme_primary'           => '#071E45',
                 'theme_accent'            => '#D79A21',
                 'theme_sidebar'           => '#071E45',

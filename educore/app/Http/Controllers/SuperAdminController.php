@@ -108,7 +108,6 @@ class SuperAdminController extends Controller
             'email'                   => ['required', 'email'],
             'phone'                   => ['nullable', 'string'],
             'address'                 => ['nullable', 'string'],
-            'subscription_expires_at' => ['required', 'date', 'after:today'],
             'admin_name'              => ['required', 'string'],
             'admin_email'             => ['required', 'email', 'unique:users,email'],
             'admin_password'          => ['required', 'string', 'min:8'],
@@ -125,7 +124,7 @@ class SuperAdminController extends Controller
                     'phone'                   => $validated['phone'] ?? null,
                     'address'                 => $validated['address'] ?? null,
                     'status'                  => Tenant::STATUS_ACTIVE,
-                    'subscription_expires_at' => $validated['subscription_expires_at'],
+                    'subscription_expires_at' => null,
                     'theme_primary'           => '#071E45',
                     'theme_accent'            => '#D79A21',
                     'theme_sidebar'           => '#071E45',
@@ -312,6 +311,10 @@ class SuperAdminController extends Controller
 
         if (!empty($validated['custom_domain'])) {
             $validated['custom_domain'] = $hosts->validateCustomDomain($validated['custom_domain']);
+        }
+
+        if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($tenant->id))) {
+            $validated['subscription_expires_at'] = null;
         }
 
         if (($validated['status'] ?? null) === Tenant::STATUS_ACTIVE && $tenant->status !== Tenant::STATUS_ACTIVE) {
@@ -678,14 +681,13 @@ class SuperAdminController extends Controller
         $this->guard();
 
         $validated = $request->validate([
-            'settings' => ['required', 'array:platform_name,support_email,support_phone,support_whatsapp,support_website,office_address,trial_days,grace_period_days,bank_transfer_bank_name,bank_transfer_account_name,bank_transfer_account_number,default_sms_gateway,sms_sender_id,maintenance_mode'],
+            'settings' => ['required', 'array:platform_name,support_email,support_phone,support_whatsapp,support_website,office_address,grace_period_days,bank_transfer_bank_name,bank_transfer_account_name,bank_transfer_account_number,default_sms_gateway,sms_sender_id,maintenance_mode'],
             'settings.platform_name' => ['required', 'string', 'max:100'],
             'settings.support_email' => ['required', 'email', 'max:180'],
             'settings.support_phone' => ['required', 'string', 'max:30'],
             'settings.support_whatsapp' => ['required', 'string', 'max:30'],
             'settings.support_website' => ['required', 'url:http,https', 'max:200'],
             'settings.office_address' => ['required', 'string', 'max:255'],
-            'settings.trial_days' => ['required', 'integer', 'min:0', 'max:365'],
             'settings.grace_period_days' => ['required', 'integer', 'min:0', 'max:90'],
             'settings.bank_transfer_bank_name' => ['nullable', 'required_with:settings.bank_transfer_account_name,settings.bank_transfer_account_number', 'string', 'max:120'],
             'settings.bank_transfer_account_name' => ['nullable', 'required_with:settings.bank_transfer_bank_name,settings.bank_transfer_account_number', 'string', 'max:160'],
@@ -713,7 +715,6 @@ class SuperAdminController extends Controller
             'support_whatsapp' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support WhatsApp'],
             'support_website' => ['type' => 'string', 'group' => 'contact', 'label' => 'Support Website'],
             'office_address' => ['type' => 'string', 'group' => 'contact', 'label' => 'Office Address'],
-            'trial_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Initial Subscription Window'],
             'grace_period_days' => ['type' => 'integer', 'group' => 'billing', 'label' => 'Grace Period'],
             'bank_transfer_bank_name' => ['type' => 'string', 'group' => 'payments', 'label' => 'Bank Transfer Bank Name'],
             'bank_transfer_account_name' => ['type' => 'string', 'group' => 'payments', 'label' => 'Bank Transfer Account Name'],

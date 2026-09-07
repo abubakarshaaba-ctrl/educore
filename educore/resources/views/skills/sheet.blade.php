@@ -26,6 +26,7 @@
     .sheet-header-icon svg { width: 15px; height: 15px; }
     .sheet-title { font-size: 14px; font-weight: 700; color: var(--midnight); }
     .sheet-subtitle { font-size: 12px; color: var(--slate-light); margin-left: auto; }
+    .tbl { width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
 
     .ratings-table { width: 100%; border-collapse: collapse; }
     .ratings-table thead th {
@@ -75,6 +76,17 @@
     .btn-ghost { background: white; color: var(--midnight); border: 1px solid var(--border); }
     .btn-ghost:hover { background: #F8FAFC; }
     .btn svg { width: 14px; height: 14px; }
+    .empty-sheet { padding: 28px; text-align: center; color: var(--slate); font-size: 13px; }
+    @media(max-width: 720px) {
+        .context-bar, .footer-bar { align-items: stretch; flex-direction: column; }
+        .sheet-header { align-items: flex-start; flex-wrap: wrap; padding: 12px; }
+        .sheet-subtitle { width: 100%; margin-left: 38px; }
+        .ratings-table thead th, .ratings-table tbody td { padding: 8px; }
+        .ratings-table thead th:first-child, .ratings-table tbody td:first-child { position: sticky; left: 0; z-index: 2; background: white; min-width: 150px; }
+        .ratings-table thead th:first-child { background: #F8FAFC; z-index: 3; }
+        .star-label { width: 25px; height: 25px; }
+        .footer-bar .btn { flex: 1; justify-content: center; }
+    }
 </style>
 
     
@@ -138,6 +150,7 @@
                             <input
                                 type="radio"
                                 class="star-radio"
+                                data-student="{{ $student->id }}"
                                 name="ratings[{{ $student->id }}][{{ $skill->id }}]"
                                 id="r_{{ $student->id }}_{{ $skill->id }}_{{ $val }}"
                                 value="{{ $val }}"
@@ -152,6 +165,7 @@
                 @endforeach
             </tbody>
         </table></div>
+        @if($psychomotorSkills->isEmpty())<div class="empty-sheet">No psychomotor skills are available.</div>@endif
     </div>
 
     {{-- AFFECTIVE SKILLS --}}
@@ -189,6 +203,7 @@
                             <input
                                 type="radio"
                                 class="star-radio"
+                                data-student="{{ $student->id }}"
                                 name="ratings[{{ $student->id }}][{{ $skill->id }}]"
                                 id="r_{{ $student->id }}_{{ $skill->id }}_{{ $val }}"
                                 value="{{ $val }}"
@@ -203,6 +218,7 @@
                 @endforeach
             </tbody>
         </table></div>
+        @if($affectiveSkills->isEmpty())<div class="empty-sheet">No affective skills are available.</div>@endif
 
         <div class="footer-bar">
             <span class="footer-count">

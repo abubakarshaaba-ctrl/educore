@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
-import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
@@ -80,7 +79,6 @@ internal fun OperationsScreen(
     ) {
         item { OperationsHeader(workspace.module.title, workspace.module.description, onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        item { EduCoreInfoBanner("Live school records · high-risk changes remain server-confirmed") }
         metricRows.forEachIndexed { rowIndex, metrics ->
             item(key = "metrics-$rowIndex") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
@@ -127,8 +125,8 @@ private fun OperationsHeader(title: String, subtitle: String, onBack: () -> Unit
 @Composable
 private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowWidth) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
+        border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
         Column(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),

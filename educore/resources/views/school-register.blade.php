@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Start your free EduCore trial — set up your school's admissions, academics, fees, and staff management in minutes. Free for up to 50 students.">
+<meta name="description" content="Start using EduCore with every feature included. Schools with up to 50 active students remain free with no expiry.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://educoreng.online/get-started">
 <title>Get Started — EduCore</title>
@@ -77,16 +77,16 @@ body{font-family:var(--font);background:var(--off);color:var(--navy);min-height:
 <div class="page">
 <div class="card">
     <div class="card-head">
-        <div class="trial-badge">⚡ 30-Day Free Trial</div>
+        <div class="trial-badge">⚡ Free for up to 50 students</div>
         <h1>Get started with EduCore</h1>
         <p>Set up your school in minutes. No credit card required.</p>
     </div>
     <div class="card-body">
 
         <div class="perks">
-            <div class="perk">Full access to all features for 30 days</div>
+            <div class="perk">Every feature included with no expiry</div>
             <div class="perk">Admissions, fees, payroll & student portals</div>
-            <div class="perk">No credit card required to get started</div>
+            <div class="perk">From 51 students: &#8358;300 per student per term</div>
         </div>
 
         @if($errors->any() && !$errors->has('school_name') && !$errors->has('admin_name') && !$errors->has('admin_email') && !$errors->has('phone') && !$errors->has('password'))

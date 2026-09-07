@@ -1348,6 +1348,30 @@ class User extends Authenticatable
     }
 
     /**
+     * The effective permission contract consumed by native clients.
+     * It combines the legacy role matrix with per-staff grants/denies so the
+     * client never has to infer authority from a role label.
+     */
+    public function effectivePermissionKeys(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return ['*'];
+        }
+
+        $permissions = collect(self::ROLE_ACCESS[$this->roleKey()] ?? []);
+        if (Schema::hasTable('staff_permissions')) {
+            $overrides = StaffPermission::where('user_id', $this->id)->get();
+            $permissions = $permissions
+                ->reject(fn (string $permission) => $overrides->contains(
+                    fn (StaffPermission $override) => $override->type === 'deny' && $override->module === $permission
+                ))
+                ->merge($overrides->where('type', 'grant')->pluck('module'));
+        }
+
+        return $permissions->filter()->unique()->sort()->values()->all();
+    }
+
+    /**
      * Check if user can access the current named route.
      * Used in CheckModuleAccess middleware.
      */

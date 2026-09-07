@@ -90,7 +90,7 @@ class TenantSubscriptionStateTest extends TestCase
         $this->assertSame(TenantAccessDecision::STATE_GRACE, $decision->state);
     }
 
-    public function test_free_tier_tenant_is_allowed_with_trial_warning(): void
+    public function test_free_tier_tenant_is_allowed_without_an_expiry_warning(): void
     {
         // Free tier (≤20 students) — no dedicated students seeded at all.
         $tenant = $this->tenantFixture(studentCount: 0);
@@ -98,8 +98,9 @@ class TenantSubscriptionStateTest extends TestCase
         $decision = $this->service()->applicationAccess($tenant);
 
         $this->assertTrue($decision->allowed);
-        $this->assertTrue($decision->isWarning());
-        $this->assertSame(TenantAccessDecision::STATE_TRIAL, $decision->state);
+        $this->assertFalse($decision->isWarning());
+        $this->assertSame(TenantAccessDecision::STATE_FREE, $decision->state);
+        $this->assertNull($decision->expiresAt);
     }
 
     public function test_free_tier_tenant_is_never_denied_by_a_past_expiry_date(): void
@@ -113,7 +114,26 @@ class TenantSubscriptionStateTest extends TestCase
         $decision = $this->service()->applicationAccess($tenant);
 
         $this->assertTrue($decision->allowed);
-        $this->assertSame(TenantAccessDecision::STATE_TRIAL, $decision->state);
+        $this->assertSame(TenantAccessDecision::STATE_FREE, $decision->state);
+        $this->assertNull($decision->expiresAt);
+    }
+
+    public function test_pricing_migration_removes_expiry_only_from_free_schools(): void
+    {
+        $free = $this->tenantFixture(studentCount: 50, overrides: [
+            'slug' => 'free-school',
+            'subscription_expires_at' => now()->addMonth()->toDateString(),
+        ]);
+        $paid = $this->tenantFixture(studentCount: 51, overrides: [
+            'slug' => 'paid-school',
+            'subscription_expires_at' => now()->addMonth()->toDateString(),
+        ]);
+
+        $migration = require database_path('migrations/2026_09_07_000000_remove_expiry_from_free_school_accounts.php');
+        $migration->up();
+
+        $this->assertNull($free->fresh()->subscription_expires_at);
+        $this->assertNotNull($paid->fresh()->subscription_expires_at);
     }
 
     public function test_expiring_soon_subscription_is_allowed_with_warning(): void

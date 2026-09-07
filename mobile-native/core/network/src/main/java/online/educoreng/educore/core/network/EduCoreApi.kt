@@ -47,6 +47,8 @@ import online.educoreng.educore.core.network.dto.MessageThreadResponseDto
 import online.educoreng.educore.core.network.dto.NotificationResponseDto
 import online.educoreng.educore.core.network.dto.NotificationsResponseDto
 import online.educoreng.educore.core.network.dto.PushTokenRequestDto
+import online.educoreng.educore.core.network.dto.PortalSessionRequestDto
+import online.educoreng.educore.core.network.dto.PortalSessionResponseDto
 import online.educoreng.educore.core.network.dto.ReadAllResponseDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -74,6 +76,9 @@ interface EduCoreApi {
 
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto
+
+    @POST("portal/session")
+    suspend fun portalSession(@Body request: PortalSessionRequestDto): PortalSessionResponseDto
 
     @GET("classes")
     suspend fun classes(

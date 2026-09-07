@@ -7,6 +7,7 @@ use Carbon\CarbonInterface;
 class TenantAccessDecision
 {
     public const STATE_ALLOWED = 'allowed';
+    public const STATE_FREE = 'free';
     public const STATE_TRIAL = 'trial';
     public const STATE_EXPIRING_SOON = 'expiring_soon';
     public const STATE_GRACE = 'grace';
@@ -39,6 +40,18 @@ class TenantAccessDecision
         return new self(true, $state, $message, 'warning', $expiresAt, $metadata);
     }
 
+    public static function free(array $metadata = []): self
+    {
+        return new self(
+            true,
+            self::STATE_FREE,
+            'This school is on the free plan with all features included.',
+            null,
+            null,
+            $metadata
+        );
+    }
+
     public static function deny(
         string $state,
         string $message,
@@ -61,6 +74,7 @@ class TenantAccessDecision
     public function title(): string
     {
         return match ($this->state) {
+            self::STATE_FREE => 'Free plan',
             self::STATE_TRIAL => 'Trial account',
             self::STATE_EXPIRING_SOON => 'Subscription expiring soon',
             self::STATE_GRACE => 'Subscription grace period',

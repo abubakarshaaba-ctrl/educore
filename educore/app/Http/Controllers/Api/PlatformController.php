@@ -151,6 +151,9 @@ class PlatformController extends Controller
 
         $reason = $data['reason'] ?? null;
         unset($data['reason']);
+        if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
+            $data['subscription_expires_at'] = null;
+        }
         $before = $tenant->only(array_keys($data));
 
         if (($data['status'] ?? null) === Tenant::STATUS_ACTIVE && $tenant->status !== Tenant::STATUS_ACTIVE) {
@@ -248,7 +251,6 @@ class PlatformController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'], 'slug' => Tenant::slugRules(),
             'email' => ['required', 'email'], 'phone' => ['nullable', 'string', 'max:30'],
-            'subscription_expires_at' => ['required', 'date', 'after:today'],
             'admin_name' => ['required', 'string', 'max:150'],
             'admin_email' => ['required', 'email', 'unique:users,email'],
             'admin_password' => ['required', 'string', 'min:8'],
@@ -258,7 +260,7 @@ class PlatformController extends Controller
             $tenant = Tenant::create([
                 'name' => $data['name'], 'slug' => $data['slug'], 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null, 'status' => Tenant::STATUS_ACTIVE,
-                'subscription_expires_at' => $data['subscription_expires_at'],
+                'subscription_expires_at' => null,
                 'theme_primary' => '#071E45', 'theme_accent' => '#D79A21', 'theme_sidebar' => '#071E45',
             ]);
             $admin = User::create([

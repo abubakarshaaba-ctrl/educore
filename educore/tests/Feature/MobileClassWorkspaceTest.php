@@ -214,6 +214,31 @@ class MobileClassWorkspaceTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_assigned_form_teacher_can_load_and_save_own_class_attendance(): void
+    {
+        [$tenant] = $this->school('form-attendance-school');
+        $formTeacher = $this->user($tenant, 'form_teacher');
+        $classArm = $this->classArm($tenant, $formTeacher);
+        $student = $this->student($tenant, $classArm, 'FORM001');
+        $token = ApiToken::issue($formTeacher, 'form-attendance-test');
+
+        $this->withToken($token)
+            ->getJson("/api/v1/classes/{$classArm->id}/attendance?date=".today()->toDateString())
+            ->assertOk()
+            ->assertJsonPath('capabilities.save', true)
+            ->assertJsonPath('students.0.id', $student->id);
+
+        $this->withToken($token)->postJson("/api/v1/classes/{$classArm->id}/attendance", [
+            'date' => today()->toDateString(),
+            'version' => 'empty',
+            'request_id' => '2199322b-7cc8-73de-a9f1-3e34cb662dde',
+            'records' => [[
+                'student_id' => $student->id,
+                'status' => 'present',
+            ]],
+        ])->assertOk()->assertJsonPath('saved', 1);
+    }
+
     public function test_administrator_can_save_attendance_and_stale_version_is_rejected(): void
     {
         [$tenant] = $this->school('admin-school');
