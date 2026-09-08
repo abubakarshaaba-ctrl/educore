@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -22,6 +24,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
@@ -33,12 +36,13 @@ import online.educoreng.educore.core.network.dto.PlatformTenantDto
 @Composable
 internal fun PlatformScreen(
     state: PlatformUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onSection: (PlatformSection) -> Unit,
     onSearchChange: (String) -> Unit,
     onSearch: () -> Unit,
     onStatus: (String?) -> Unit,
     onRetry: () -> Unit,
+    onLogout: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize()) {
         EduCorePageHeader("Platform Administration", "EduCore network control centre", onBack = onBack)
@@ -55,12 +59,17 @@ internal fun PlatformScreen(
                 )
             }
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
                     PlatformSection.entries.forEach { section ->
                         FilterChip(
                             selected = state.section == section,
                             onClick = { onSection(section) },
-                            label = { Text(section.name.lowercase().replaceFirstChar(Char::uppercase)) },
+                            label = { Text(section.label()) },
                         )
                     }
                 }
@@ -97,7 +106,12 @@ internal fun PlatformScreen(
                     }
                     item { EduCorePrimaryButton("Search schools", onSearch, Modifier.fillMaxWidth()) }
                     item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                        ) {
                             listOf(null, "active", "pending", "suspended", "subscription_expired").forEach { status ->
                                 FilterChip(
                                     selected = state.status == status,
@@ -158,6 +172,15 @@ internal fun PlatformScreen(
             if (!state.isLoading && state.errorMessage != null) {
                 item { EduCorePrimaryButton("Retry", onRetry, Modifier.fillMaxWidth()) }
             }
+            onLogout?.let { logout ->
+                item {
+                    EduCoreSecondaryButton(
+                        text = "Sign out of Platform",
+                        onClick = logout,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         }
     }
 }
@@ -186,6 +209,14 @@ private fun PlatformMetricCard(label: String, value: String, supporting: String)
             Text(supporting, style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+private fun PlatformSection.label(): String = when (this) {
+    PlatformSection.OVERVIEW -> "Overview"
+    PlatformSection.SCHOOLS -> "Schools"
+    PlatformSection.BILLING -> "Billing"
+    PlatformSection.PLANS -> "Plans"
+    PlatformSection.AGENTS -> "Agents"
 }
 
 private fun money(value: Double): String = "NGN ${String.format("%,.2f", value)}"
