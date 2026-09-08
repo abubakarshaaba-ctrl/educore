@@ -20,10 +20,11 @@ import retrofit2.HttpException
 
 enum class TransferWorkspaceTab(val label: String) {
     CROSS_SCHOOL("Cross-school"),
+    INTRA_CLASS("Intra-class"),
     INTERCLASS("Interclass"),
 }
 
-enum class TransferConfirmationTarget { CROSS_SCHOOL, INTERCLASS }
+enum class TransferConfirmationTarget { CROSS_SCHOOL, INTRA_CLASS, INTERCLASS }
 enum class TransferConfirmationAction { APPROVE, REJECT, CANCEL }
 
 internal data class TransferConfirmation(
@@ -39,10 +40,10 @@ internal data class TransfersUiState(
     val selectedStudentId: Long? = null,
     val selectedDestinationId: Long? = null,
     val reason: String = "",
-    val interclassStudentId: Long? = null,
-    val interclassDestinationClassId: Long? = null,
-    val interclassEffectiveDate: String = "",
-    val interclassReason: String = "",
+    val classStudentId: Long? = null,
+    val classDestinationArmId: Long? = null,
+    val classEffectiveDate: String = "",
+    val classReason: String = "",
     val actionReason: String = "",
     val isLoading: Boolean = false,
     val isMutating: Boolean = false,
@@ -54,19 +55,35 @@ internal data class TransfersUiState(
         workspace?.capabilities?.crossSchoolRequest == true &&
             selectedStudentId != null && selectedDestinationId != null && !isMutating
 
-    val canSubmitInterclass: Boolean get() {
-        val student = workspace?.options?.students?.firstOrNull { it.id == interclassStudentId }
-        return workspace?.capabilities?.interclassRequest == true &&
-            interclassStudentId != null &&
-            interclassDestinationClassId != null &&
-            interclassDestinationClassId != student?.classArmId &&
-            INTERCLASS_DATE.matches(interclassEffectiveDate.trim()) &&
-            interclassReason.isNotBlank() &&
+    val classDestinationOptions get() = run {
+        val student = workspace?.options?.students?.firstOrNull { it.id == classStudentId }
+        val currentLevel = student?.classLevelId
+        workspace?.options?.classArms.orEmpty().filter { arm ->
+            arm.id != student?.classArmId && when (tab) {
+                TransferWorkspaceTab.INTRA_CLASS -> currentLevel != null && arm.classLevelId == currentLevel
+                TransferWorkspaceTab.INTERCLASS -> currentLevel != null && arm.classLevelId != null && arm.classLevelId != currentLevel
+                TransferWorkspaceTab.CROSS_SCHOOL -> false
+            }
+        }
+    }
+
+    val canSubmitClassTransfer: Boolean get() {
+        val capability = when (tab) {
+            TransferWorkspaceTab.INTRA_CLASS -> workspace?.capabilities?.intraClassRequest == true
+            TransferWorkspaceTab.INTERCLASS -> workspace?.capabilities?.interclassRequest == true
+            TransferWorkspaceTab.CROSS_SCHOOL -> false
+        }
+        return capability &&
+            classStudentId != null &&
+            classDestinationArmId != null &&
+            classDestinationOptions.any { it.id == classDestinationArmId } &&
+            CLASS_TRANSFER_DATE.matches(classEffectiveDate.trim()) &&
+            classReason.isNotBlank() &&
             !isMutating
     }
 }
 
-private val INTERCLASS_DATE = Regex("\\d{4}-\\d{2}-\\d{2}")
+private val CLASS_TRANSFER_DATE = Regex("\\d{4}-\\d{2}-\\d{2}")
 
 @HiltViewModel
 internal class TransfersViewModel @Inject constructor(
@@ -82,7 +99,13 @@ internal class TransfersViewModel @Inject constructor(
     }
 
     fun selectTab(tab: TransferWorkspaceTab) = _uiState.update {
-        it.copy(tab = tab, errorMessage = null, confirmation = null, actionReason = "")
+        it.copy(
+            tab = tab,
+            classDestinationArmId = null,
+            errorMessage = null,
+            confirmation = null,
+            actionReason = "",
+        )
     }
 
     fun selectStudent(id: Long?) = _uiState.update {
@@ -97,27 +120,29 @@ internal class TransfersViewModel @Inject constructor(
         it.copy(reason = value.take(1000), errorMessage = null, message = null)
     }
 
-    fun selectInterclassStudent(id: Long?) = _uiState.update { state ->
-        val selected = state.workspace?.options?.students?.firstOrNull { it.id == id }
+    fun selectClassStudent(id: Long?) = _uiState.update { state ->
         state.copy(
-            interclassStudentId = id,
-            interclassDestinationClassId = state.interclassDestinationClassId
-                ?.takeUnless { it == selected?.classArmId },
+            classStudentId = id,
+            classDestinationArmId = null,
             errorMessage = null,
             message = null,
         )
     }
 
-    fun selectInterclassDestination(id: Long?) = _uiState.update {
-        it.copy(interclassDestinationClassId = id, errorMessage = null, message = null)
+    fun selectClassDestination(id: Long?) = _uiState.update { state ->
+        state.copy(
+            classDestinationArmId = id?.takeIf { candidate -> state.classDestinationOptions.any { it.id == candidate } },
+            errorMessage = null,
+            message = null,
+        )
     }
 
-    fun updateInterclassEffectiveDate(value: String) = _uiState.update {
-        it.copy(interclassEffectiveDate = value.take(10), errorMessage = null, message = null)
+    fun updateClassEffectiveDate(value: String) = _uiState.update {
+        it.copy(classEffectiveDate = value.take(10), errorMessage = null, message = null)
     }
 
-    fun updateInterclassReason(value: String) = _uiState.update {
-        it.copy(interclassReason = value.take(2000), errorMessage = null, message = null)
+    fun updateClassReason(value: String) = _uiState.update {
+        it.copy(classReason = value.take(2000), errorMessage = null, message = null)
     }
 
     fun updateActionReason(value: String) = _uiState.update {
@@ -141,21 +166,24 @@ internal class TransfersViewModel @Inject constructor(
         }
     }
 
-    fun requestInterclassTransfer() {
+    fun requestClassTransfer() {
         val state = _uiState.value
-        val studentId = state.interclassStudentId ?: return
-        val destinationId = state.interclassDestinationClassId ?: return
-        if (!state.canSubmitInterclass) return
+        val studentId = state.classStudentId ?: return
+        val destinationId = state.classDestinationArmId ?: return
+        if (!state.canSubmitClassTransfer) return
 
+        val body = InterclassTransferRequestDto(
+            studentId = studentId,
+            toClassArmId = destinationId,
+            effectiveDate = state.classEffectiveDate.trim(),
+            reason = state.classReason.trim(),
+        )
         mutate {
-            api.requestInterclass(
-                InterclassTransferRequestDto(
-                    studentId = studentId,
-                    toClassArmId = destinationId,
-                    effectiveDate = state.interclassEffectiveDate.trim(),
-                    reason = state.interclassReason.trim(),
-                )
-            ).message
+            when (state.tab) {
+                TransferWorkspaceTab.INTRA_CLASS -> api.requestIntraClass(body).message
+                TransferWorkspaceTab.INTERCLASS -> api.requestInterclass(body).message
+                TransferWorkspaceTab.CROSS_SCHOOL -> error("Class transfer tab required.")
+            }
         }
     }
 
@@ -173,26 +201,32 @@ internal class TransfersViewModel @Inject constructor(
         studentName,
     )
 
-    fun requestInterclassApproval(transferId: Long, studentName: String) = setConfirmation(
-        TransferConfirmationTarget.INTERCLASS,
+    fun requestClassApproval(transferId: Long, studentName: String) = setConfirmation(
+        currentClassTarget(),
         TransferConfirmationAction.APPROVE,
         transferId,
         studentName,
     )
 
-    fun requestInterclassRejection(transferId: Long, studentName: String) = setConfirmation(
-        TransferConfirmationTarget.INTERCLASS,
+    fun requestClassRejection(transferId: Long, studentName: String) = setConfirmation(
+        currentClassTarget(),
         TransferConfirmationAction.REJECT,
         transferId,
         studentName,
     )
 
-    fun requestInterclassCancellation(transferId: Long, studentName: String) = setConfirmation(
-        TransferConfirmationTarget.INTERCLASS,
+    fun requestClassCancellation(transferId: Long, studentName: String) = setConfirmation(
+        currentClassTarget(),
         TransferConfirmationAction.CANCEL,
         transferId,
         studentName,
     )
+
+    private fun currentClassTarget(): TransferConfirmationTarget = when (_uiState.value.tab) {
+        TransferWorkspaceTab.INTRA_CLASS -> TransferConfirmationTarget.INTRA_CLASS
+        TransferWorkspaceTab.INTERCLASS -> TransferConfirmationTarget.INTERCLASS
+        TransferWorkspaceTab.CROSS_SCHOOL -> error("Class transfer tab required.")
+    }
 
     private fun setConfirmation(
         target: TransferConfirmationTarget,
@@ -214,12 +248,13 @@ internal class TransfersViewModel @Inject constructor(
     fun confirmAction() {
         val state = _uiState.value
         val confirmation = state.confirmation ?: return
+        val classTarget = confirmation.target != TransferConfirmationTarget.CROSS_SCHOOL
         if (
-            confirmation.target == TransferConfirmationTarget.INTERCLASS &&
+            classTarget &&
             confirmation.action in setOf(TransferConfirmationAction.REJECT, TransferConfirmationAction.CANCEL) &&
             state.actionReason.isBlank()
         ) {
-            _uiState.update { it.copy(errorMessage = "Enter a reason before confirming this interclass action.") }
+            _uiState.update { it.copy(errorMessage = "Enter a reason before confirming this class transfer action.") }
             return
         }
 
@@ -230,6 +265,17 @@ internal class TransfersViewModel @Inject constructor(
                     TransferConfirmationAction.APPROVE -> api.approveCrossSchool(confirmation.transferId).message
                     TransferConfirmationAction.REJECT -> api.rejectCrossSchool(confirmation.transferId).message
                     TransferConfirmationAction.CANCEL -> error("Cross-school cancellation is not supported.")
+                }
+                TransferConfirmationTarget.INTRA_CLASS -> when (confirmation.action) {
+                    TransferConfirmationAction.APPROVE -> api.approveIntraClass(confirmation.transferId).message
+                    TransferConfirmationAction.REJECT -> api.rejectIntraClass(
+                        confirmation.transferId,
+                        TransferReasonRequestDto(state.actionReason.trim()),
+                    ).message
+                    TransferConfirmationAction.CANCEL -> api.cancelIntraClass(
+                        confirmation.transferId,
+                        TransferReasonRequestDto(state.actionReason.trim()),
+                    ).message
                 }
                 TransferConfirmationTarget.INTERCLASS -> when (confirmation.action) {
                     TransferConfirmationAction.APPROVE -> api.approveInterclass(confirmation.transferId).message
@@ -260,10 +306,10 @@ internal class TransfersViewModel @Inject constructor(
                         selectedStudentId = null,
                         selectedDestinationId = null,
                         reason = "",
-                        interclassStudentId = null,
-                        interclassDestinationClassId = null,
-                        interclassEffectiveDate = "",
-                        interclassReason = "",
+                        classStudentId = null,
+                        classDestinationArmId = null,
+                        classEffectiveDate = "",
+                        classReason = "",
                         actionReason = "",
                         message = message,
                     )
@@ -305,7 +351,7 @@ private fun Throwable.transferMessage(): String = when (this) {
         403 -> "You do not have permission to perform that transfer action."
         404 -> "The student, school, class or transfer record is no longer available."
         409 -> "The transfer state changed while you were working. Reload the workspace."
-        422 -> "The transfer is no longer valid in its current state. Check the student enrollment and try again."
+        422 -> "The transfer is no longer valid in its current state. Check the student enrollment, class level and destination arm, then try again."
         else -> "The Transfers service returned an error (${code()})."
     }
     else -> localizedMessage?.takeIf(String::isNotBlank)
