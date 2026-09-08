@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - mobile-overhaul
       - codex/native-login-brand-hotfix
     paths:
       - 'mobile-native/**'
