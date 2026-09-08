@@ -111,6 +111,7 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('payroll')->group(function () {
             Route::get('/', [MobilePayrollController::class, 'index']);
+            Route::post('/', [MobilePayrollController::class, 'generate']);
             Route::get('{period}', [MobilePayrollController::class, 'show'])->whereNumber('period');
             Route::post('{period}/approve', [MobilePayrollController::class, 'approve'])->whereNumber('period');
             Route::post('{period}/paid', [MobilePayrollController::class, 'markPaid'])->whereNumber('period');
