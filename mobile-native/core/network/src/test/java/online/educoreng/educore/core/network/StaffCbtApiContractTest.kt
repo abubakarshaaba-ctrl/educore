@@ -14,6 +14,14 @@ class StaffCbtApiContractTest {
         val methods = StaffCbtApi::class.java.declaredMethods.associateBy { it.name }
 
         assertEquals(
+            "staff/cbt/options",
+            methods.getValue("createOptions").getAnnotation(GET::class.java).value,
+        )
+        assertEquals(
+            "staff/cbt/exams",
+            methods.getValue("createExam").getAnnotation(POST::class.java).value,
+        )
+        assertEquals(
             "staff/cbt/exams",
             methods.getValue("exams").getAnnotation(GET::class.java).value,
         )
