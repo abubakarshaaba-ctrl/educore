@@ -127,8 +127,9 @@ class MobileClassController extends Controller
 
     /**
      * Published report cards for a student inside a class the authenticated
-     * staff member is allowed to view. This deliberately reuses the same
-     * MobileReportCardService contract consumed by student and parent apps.
+     * staff member is allowed to view. The selected class is also applied to
+     * the report query so historical classes outside the user's authorised
+     * workspace are never exposed through this endpoint.
      */
     public function results(
         Request $request,
@@ -155,7 +156,7 @@ class MobileClassController extends Controller
                     'name' => trim(($classArm->classLevel?->name ?? '').' '.$classArm->name),
                 ],
             ],
-            'results' => $reports->forStudent($student),
+            'results' => $reports->forStudent($student, $classArm->id),
         ]);
     }
 
