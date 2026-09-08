@@ -100,5 +100,13 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
+    fun loadStudentResults(classId: Long, studentId: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
+        when (val result = repository.loadStudentResults(classId, studentId)) {
+            is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
+            is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
+        }
+    }
+
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
 }
