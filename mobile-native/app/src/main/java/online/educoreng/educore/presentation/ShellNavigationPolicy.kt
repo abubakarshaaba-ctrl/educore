@@ -67,6 +67,7 @@ object ShellNavigationPolicy {
                 "parent" -> session.modules.filter {
                     it.key.contains("result") || it.key.contains("attendance")
                 }
+                "staff", "admin" -> session.modules.filter { it.key in CLASS_WORKSPACE_ENTRY_KEYS }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
@@ -98,6 +99,16 @@ object ShellNavigationPolicy {
             else -> ModuleGroup.OPERATIONS
         }
     }
+
+    private val CLASS_WORKSPACE_ENTRY_KEYS = setOf(
+        "classes",
+        "students",
+        "attendance",
+        "scores",
+        "scores.entry",
+        "lesson-planner",
+        "academic-repository",
+    )
 
     private val ACADEMIC_KEYS = listOf(
         "student",
