@@ -107,6 +107,7 @@ jobs:
             tests/Feature/MobileCurriculumTest.php \
             tests/Feature/MobileAcademicCycleTest.php \
             tests/Feature/MobileSkillsTest.php \
+            tests/Feature/MobileGradebookTest.php \
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/IntraClassTransferTest.php \
