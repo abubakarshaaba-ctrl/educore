@@ -48,6 +48,7 @@ data class InterclassTransferDto(
     val status: String,
     val reason: String? = null,
     @param:Json(name = "requested_by") val requestedBy: String? = null,
+    @param:Json(name = "requested_by_id") val requestedById: Long? = null,
     @param:Json(name = "created_at") val createdAt: String? = null,
 )
 
@@ -87,6 +88,17 @@ data class CrossSchoolTransferRequestDto(
     @param:Json(name = "student_id") val studentId: Long,
     @param:Json(name = "to_tenant_id") val toTenantId: Long,
     val reason: String? = null,
+)
+
+data class InterclassTransferRequestDto(
+    @param:Json(name = "student_id") val studentId: Long,
+    @param:Json(name = "to_class_arm_id") val toClassArmId: Long,
+    @param:Json(name = "effective_date") val effectiveDate: String,
+    val reason: String,
+)
+
+data class TransferReasonRequestDto(
+    val reason: String,
 )
 
 data class TransferMutationResponseDto(
