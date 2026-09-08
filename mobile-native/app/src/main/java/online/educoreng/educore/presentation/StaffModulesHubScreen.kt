@@ -50,8 +50,9 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT, staff directory, risk intelligence and data exports are hosted directly
- * inside this native hub. These workspaces never fall back to a browser.
+ * CBT, staff directory, transfers, risk intelligence and data exports are
+ * hosted directly inside this native hub. These workspaces never fall back to
+ * a browser.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -68,6 +69,8 @@ internal fun StaffModulesHubScreen(
     val exportsState by exportsViewModel.uiState.collectAsStateWithLifecycle()
     val riskViewModel: RiskViewModel = hiltViewModel()
     val riskState by riskViewModel.uiState.collectAsStateWithLifecycle()
+    val transfersViewModel: TransfersViewModel = hiltViewModel()
+    val transfersState by transfersViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -77,6 +80,7 @@ internal fun StaffModulesHubScreen(
     var riskOpen by rememberSaveable { mutableStateOf(false) }
     var riskConfigOpen by rememberSaveable { mutableStateOf(false) }
     var riskFlagId by rememberSaveable { mutableLongStateOf(0L) }
+    var transfersOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -85,6 +89,24 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (transfersOpen) {
+        TransfersScreen(
+            state = transfersState,
+            onBack = { transfersOpen = false },
+            onTab = transfersViewModel::selectTab,
+            onStudent = transfersViewModel::selectStudent,
+            onDestination = transfersViewModel::selectDestination,
+            onReason = transfersViewModel::updateReason,
+            onRequest = transfersViewModel::requestTransfer,
+            onApprove = transfersViewModel::requestApproval,
+            onReject = transfersViewModel::requestRejection,
+            onConfirm = transfersViewModel::confirmAction,
+            onCancelConfirm = transfersViewModel::cancelConfirmation,
+            onRetry = transfersViewModel::load,
+        )
+        return
     }
 
     if (riskOpen) {
@@ -238,6 +260,10 @@ internal fun StaffModulesHubScreen(
                 staffDirectoryOpen = true
                 staffDirectoryViewModel.load()
             }
+            "transfers" -> {
+                transfersOpen = true
+                transfersViewModel.load()
+            }
             "exports" -> {
                 exportsOpen = true
                 exportsViewModel.load()
@@ -325,7 +351,6 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
         .filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }
         .sortedBy { it.title.lowercase() }
 
-    // If both attendance aliases arrive, expose only the self-service entry.
     val deduped = normalized
         .groupBy { canonicalHubKey(it.key) }
         .mapNotNull { (_, candidates) ->
@@ -347,7 +372,7 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
         ModuleHubGroup(
             key = "operations",
             title = "Operations",
-            supportingText = "Attendance, risk intelligence and school support services",
+            supportingText = "Attendance, transfers, risk intelligence and school support services",
             modules = group(OPERATION_KEYS) + other,
         ),
         ModuleHubGroup(
@@ -374,6 +399,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "cbt", "cbt-exams", "examinations" -> "Examinations"
     "academic-cycle" -> "Sessions"
     "fees" -> "Fees & Payments"
+    "transfers" -> "Student Transfers"
     "analytics" -> "Analytics"
     "risk" -> "Risk Flags"
     "exports" -> "Exports"
@@ -421,6 +447,7 @@ private val OPERATION_KEYS = setOf(
     "expenses",
     "payroll",
     "admissions",
+    "transfers",
     "transport",
     "health",
     "inventory",
@@ -438,6 +465,7 @@ private val ACCOUNT_KEYS = setOf(
 private fun moduleHubIcon(key: String): ImageVector = when {
     key.equals("profile", ignoreCase = true) -> Icons.Default.Person
     key.equals("staff", ignoreCase = true) -> EduCoreIcons.Students
+    key.contains("transfer", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("student", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("class", ignoreCase = true) -> EduCoreIcons.Classes
     key.contains("subject", ignoreCase = true) || key.contains("curriculum", ignoreCase = true) -> EduCoreIcons.Subjects
