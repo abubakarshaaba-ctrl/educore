@@ -127,6 +127,7 @@ jobs:
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobilePlatformTest.php \
             tests/Feature/MobilePlatformExtendedTest.php \
+            tests/Feature/MobilePlatformMutationTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/ReportCardDocumentServiceTest.php \
