@@ -12,6 +12,7 @@ on:
       - 'educore/app/Http/Controllers/Api/**'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
+      - 'educore/app/Services/PayrollGenerationService.php'
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/bootstrap/app.php'
