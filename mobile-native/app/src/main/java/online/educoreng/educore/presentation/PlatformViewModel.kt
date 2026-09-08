@@ -14,13 +14,31 @@ import kotlinx.coroutines.launch
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.PlatformApi
 import online.educoreng.educore.core.network.dto.PlatformAgentsDto
+import online.educoreng.educore.core.network.dto.PlatformAnalyticsDto
 import online.educoreng.educore.core.network.dto.PlatformBillingDto
+import online.educoreng.educore.core.network.dto.PlatformBroadcastsDto
 import online.educoreng.educore.core.network.dto.PlatformDashboardDto
+import online.educoreng.educore.core.network.dto.PlatformGatewaysDto
+import online.educoreng.educore.core.network.dto.PlatformGroupsDto
 import online.educoreng.educore.core.network.dto.PlatformPlansDto
+import online.educoreng.educore.core.network.dto.PlatformSettingsDto
+import online.educoreng.educore.core.network.dto.PlatformSupportDto
 import online.educoreng.educore.core.network.dto.PlatformTenantsDto
 import retrofit2.HttpException
 
-enum class PlatformSection { OVERVIEW, SCHOOLS, BILLING, PLANS, AGENTS }
+enum class PlatformSection {
+    OVERVIEW,
+    SCHOOLS,
+    BILLING,
+    PLANS,
+    AGENTS,
+    ANALYTICS,
+    GROUPS,
+    SUPPORT,
+    BROADCASTS,
+    SETTINGS,
+    GATEWAYS,
+}
 
 internal data class PlatformUiState(
     val section: PlatformSection = PlatformSection.OVERVIEW,
@@ -29,6 +47,12 @@ internal data class PlatformUiState(
     val billing: PlatformBillingDto? = null,
     val plans: PlatformPlansDto? = null,
     val agents: PlatformAgentsDto? = null,
+    val analytics: PlatformAnalyticsDto? = null,
+    val groups: PlatformGroupsDto? = null,
+    val support: PlatformSupportDto? = null,
+    val broadcasts: PlatformBroadcastsDto? = null,
+    val settings: PlatformSettingsDto? = null,
+    val gateways: PlatformGatewaysDto? = null,
     val search: String = "",
     val status: String? = null,
     val isLoading: Boolean = false,
@@ -58,6 +82,12 @@ internal class PlatformViewModel @Inject constructor(factory: ApiClientFactory) 
                     PlatformSection.BILLING -> _uiState.update { it.copy(billing = api.billing()) }
                     PlatformSection.PLANS -> _uiState.update { it.copy(plans = api.plans()) }
                     PlatformSection.AGENTS -> _uiState.update { it.copy(agents = api.agents()) }
+                    PlatformSection.ANALYTICS -> _uiState.update { it.copy(analytics = api.analytics()) }
+                    PlatformSection.GROUPS -> _uiState.update { it.copy(groups = api.groups()) }
+                    PlatformSection.SUPPORT -> _uiState.update { it.copy(support = api.support()) }
+                    PlatformSection.BROADCASTS -> _uiState.update { it.copy(broadcasts = api.broadcasts()) }
+                    PlatformSection.SETTINGS -> _uiState.update { it.copy(settings = api.settings()) }
+                    PlatformSection.GATEWAYS -> _uiState.update { it.copy(gateways = api.gateways()) }
                 }
                 _uiState.update { it.copy(isLoading = false) }
             } catch (cancelled: CancellationException) {
@@ -86,6 +116,7 @@ private fun Throwable.platformMessage(): String = when (this) {
     is HttpException -> when (code()) {
         401 -> "Your platform session has expired. Sign in again."
         403 -> "Platform Super Admin access is required."
+        404 -> "The requested platform record is no longer available."
         else -> "The platform service returned an error (${code()})."
     }
     else -> localizedMessage?.takeIf(String::isNotBlank)
