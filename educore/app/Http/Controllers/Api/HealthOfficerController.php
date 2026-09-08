@@ -13,12 +13,35 @@ class HealthOfficerController extends Controller
     public function dashboard(Request $request)
     {
         $user = $this->guard($request);
-        $tenantId = $user->tenant_id;
-        $studentQuery = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE);
-        $studentCount = (clone $studentQuery)->count();
-        $students = $studentQuery
-            ->with(['currentClassArm.classLevel:id,name', 'healthRecord'])->orderBy('last_name')->limit(150)->get();
-        $records = StudentHealthRecord::where('tenant_id', $tenantId);
+        $tenantId = (int) $user->tenant_id;
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+        ]);
+        $search = trim((string) ($data['search'] ?? ''));
+        $perPage = (int) ($data['per_page'] ?? 40);
+
+        $activeStudentQuery = Student::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', Student::STATUS_ACTIVE);
+        $studentCount = (clone $activeStudentQuery)->count();
+        $records = StudentHealthRecord::query()->where('tenant_id', $tenantId);
+
+        $students = (clone $activeStudentQuery)
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.$search.'%';
+                $query->where(function ($nested) use ($like) {
+                    $nested->where('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhere('other_names', 'like', $like)
+                        ->orWhere('admission_number', 'like', $like);
+                });
+            })
+            ->with(['currentClassArm.classLevel:id,name', 'healthRecord'])
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate($perPage);
 
         return response()->json([
             'capabilities' => [
@@ -30,7 +53,7 @@ class HealthOfficerController extends Controller
                 'allergy_alerts' => (clone $records)->whereNotNull('allergies')->where('allergies', '!=', '')->count(),
                 'medication_alerts' => (clone $records)->whereNotNull('current_medications')->where('current_medications', '!=', '')->count(),
             ],
-            'students' => $students->map(fn (Student $student) => [
+            'students' => collect($students->items())->map(fn (Student $student) => [
                 'id' => $student->id,
                 'name' => trim("{$student->first_name} {$student->last_name}"),
                 'admission_number' => $student->admission_number,
@@ -38,7 +61,17 @@ class HealthOfficerController extends Controller
                 'has_record' => $student->healthRecord !== null,
                 'allergy_alert' => filled($student->healthRecord?->allergies),
                 'medication_alert' => filled($student->healthRecord?->current_medications),
-            ]),
+            ])->values(),
+            'selected' => [
+                'search' => $search,
+            ],
+            'meta' => [
+                'page' => $students->currentPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+                'last_page' => $students->lastPage(),
+                'has_more' => $students->hasMorePages(),
+            ],
         ]);
     }
 
