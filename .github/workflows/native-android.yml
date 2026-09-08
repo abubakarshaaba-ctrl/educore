@@ -47,6 +47,7 @@ on:
       - 'educore/routes/web-report-publication.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/ReportCardPublicationServiceTest.php'
       - 'educore/tests/Feature/WebReportComputeRouteTest.php'
       - 'educore/tests/Feature/WebReportPublicationRouteTest.php'
       - 'educore/tests/Feature/IntraClassTransferTest.php'
@@ -120,6 +121,7 @@ jobs:
             tests/Feature/MobileReportComputationTest.php \
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
+            tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/WebReportComputeRouteTest.php \
             tests/Feature/WebReportPublicationRouteTest.php \
             tests/Feature/IntraClassTransferTest.php \
