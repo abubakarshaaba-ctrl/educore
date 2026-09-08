@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Admission;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Schema;
 
 class TenantUrlGenerator
 {
@@ -51,7 +52,9 @@ class TenantUrlGenerator
         // Existing callers historically supplied only the application number.
         // Resolve the already-generated portal token when the admission exists so
         // the success page is not an application-number-only public lookup.
-        if ($portalToken === null || $portalToken === '') {
+        // Schema guard keeps this helper safe in onboarding/tests before the
+        // admissions table exists.
+        if (($portalToken === null || $portalToken === '') && Schema::hasTable('admissions')) {
             $portalToken = Admission::withoutTenantScope()
                 ->where('tenant_id', $tenant->id)
                 ->where('application_number', $applicationNumber)
