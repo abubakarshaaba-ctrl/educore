@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Admission;
 use App\Models\Tenant;
 
 class TenantUrlGenerator
@@ -45,9 +46,24 @@ class TenantUrlGenerator
         return $this->url($tenant, '/apply/status');
     }
 
-    public function admissionSuccess(Tenant $tenant, string $applicationNumber): string
+    public function admissionSuccess(Tenant $tenant, string $applicationNumber, ?string $portalToken = null): string
     {
-        return $this->url($tenant, '/apply/success/' . rawurlencode($applicationNumber));
+        // Existing callers historically supplied only the application number.
+        // Resolve the already-generated portal token when the admission exists so
+        // the success page is not an application-number-only public lookup.
+        if ($portalToken === null || $portalToken === '') {
+            $portalToken = Admission::withoutTenantScope()
+                ->where('tenant_id', $tenant->id)
+                ->where('application_number', $applicationNumber)
+                ->value('portal_token');
+        }
+
+        $path = '/apply/success/' . rawurlencode($applicationNumber);
+        if (is_string($portalToken) && $portalToken !== '') {
+            $path .= '?token=' . rawurlencode($portalToken);
+        }
+
+        return $this->url($tenant, $path);
     }
 
     public function accountStatus(Tenant $tenant): string
