@@ -50,9 +50,8 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT, staff directory and data exports are hosted directly inside this native
- * hub while the surrounding staff navigation is progressively migrated to
- * explicit feature routes. These workspaces never fall back to a browser.
+ * CBT, staff directory, risk intelligence and data exports are hosted directly
+ * inside this native hub. These workspaces never fall back to a browser.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -67,12 +66,17 @@ internal fun StaffModulesHubScreen(
     val staffDirectoryState by staffDirectoryViewModel.uiState.collectAsStateWithLifecycle()
     val exportsViewModel: ExportsViewModel = hiltViewModel()
     val exportsState by exportsViewModel.uiState.collectAsStateWithLifecycle()
+    val riskViewModel: RiskViewModel = hiltViewModel()
+    val riskState by riskViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
     var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
     var staffDirectoryOpen by rememberSaveable { mutableStateOf(false) }
     var exportsOpen by rememberSaveable { mutableStateOf(false) }
+    var riskOpen by rememberSaveable { mutableStateOf(false) }
+    var riskConfigOpen by rememberSaveable { mutableStateOf(false) }
+    var riskFlagId by rememberSaveable { mutableLongStateOf(0L) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -81,6 +85,55 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (riskOpen) {
+        when {
+            riskConfigOpen -> {
+                RiskConfigScreen(
+                    state = riskState,
+                    onBack = { riskConfigOpen = false },
+                    onValue = riskViewModel::updateConfig,
+                    onFeeRisk = riskViewModel::setIncludeFeeRisk,
+                    onSave = riskViewModel::saveConfig,
+                    onReset = riskViewModel::resetConfigDraft,
+                )
+            }
+            riskFlagId > 0L -> {
+                RiskDetailScreen(
+                    state = riskState,
+                    onBack = {
+                        riskFlagId = 0L
+                        riskViewModel.clearDetail()
+                    },
+                    onNote = riskViewModel::setInterventionNote,
+                    onAcknowledge = riskViewModel::acknowledge,
+                    onResolve = riskViewModel::resolve,
+                    onRetry = { riskViewModel.openFlag(riskFlagId) },
+                )
+            }
+            else -> {
+                RiskDashboardScreen(
+                    state = riskState,
+                    onBack = { riskOpen = false },
+                    onTerm = riskViewModel::selectTerm,
+                    onStatus = riskViewModel::selectStatus,
+                    onRiskLevel = riskViewModel::selectRiskLevel,
+                    onOpen = { flagId ->
+                        riskFlagId = flagId
+                        riskViewModel.openFlag(flagId)
+                    },
+                    onLoadMore = riskViewModel::loadMore,
+                    onCompute = riskViewModel::compute,
+                    onConfig = {
+                        riskViewModel.resetConfigDraft()
+                        riskConfigOpen = true
+                    },
+                    onRetry = riskViewModel::load,
+                )
+            }
+        }
+        return
     }
 
     if (exportsOpen) {
@@ -189,6 +242,13 @@ internal fun StaffModulesHubScreen(
                 exportsOpen = true
                 exportsViewModel.load()
             }
+            "risk" -> {
+                riskFlagId = 0L
+                riskConfigOpen = false
+                riskOpen = true
+                riskViewModel.clearDetail()
+                riskViewModel.load()
+            }
             in CBT_MODULE_KEYS -> {
                 cbtExamId = 0L
                 cbtCreating = false
@@ -287,7 +347,7 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
         ModuleHubGroup(
             key = "operations",
             title = "Operations",
-            supportingText = "Your attendance and school support services",
+            supportingText = "Attendance, risk intelligence and school support services",
             modules = group(OPERATION_KEYS) + other,
         ),
         ModuleHubGroup(
@@ -315,6 +375,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "academic-cycle" -> "Sessions"
     "fees" -> "Fees & Payments"
     "analytics" -> "Analytics"
+    "risk" -> "Risk Flags"
     "exports" -> "Exports"
     else -> module.title
 }
@@ -365,6 +426,7 @@ private val OPERATION_KEYS = setOf(
     "inventory",
     "hostels",
     "analytics",
+    "risk",
     "exports",
 )
 
@@ -380,6 +442,7 @@ private fun moduleHubIcon(key: String): ImageVector = when {
     key.contains("class", ignoreCase = true) -> EduCoreIcons.Classes
     key.contains("subject", ignoreCase = true) || key.contains("curriculum", ignoreCase = true) -> EduCoreIcons.Subjects
     key.contains("attendance", ignoreCase = true) -> EduCoreIcons.Attendance
+    key.contains("risk", ignoreCase = true) -> EduCoreIcons.Notices
     key.contains("score", ignoreCase = true) || key.contains("result", ignoreCase = true) || key.contains("report", ignoreCase = true) -> EduCoreIcons.Scores
     key.contains("cbt", ignoreCase = true) || key.contains("exam", ignoreCase = true) -> EduCoreIcons.ExamDuties
     key.contains("lesson", ignoreCase = true) -> EduCoreIcons.LessonPlan
