@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileRiskController;
 use App\Http\Controllers\Api\MobileScheduleController;
 use App\Http\Controllers\Api\MobileStaffDirectoryController;
+use App\Http\Controllers\Api\MobileSubjectsController;
 use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PushController;
@@ -115,6 +116,13 @@ Route::prefix('v1')->group(function () {
             Route::get('{period}', [MobilePayrollController::class, 'show'])->whereNumber('period');
             Route::post('{period}/approve', [MobilePayrollController::class, 'approve'])->whereNumber('period');
             Route::post('{period}/paid', [MobilePayrollController::class, 'markPaid'])->whereNumber('period');
+        });
+
+        Route::prefix('subjects')->group(function () {
+            Route::get('/', [MobileSubjectsController::class, 'index']);
+            Route::post('/', [MobileSubjectsController::class, 'store']);
+            Route::patch('{subject}', [MobileSubjectsController::class, 'update'])->whereNumber('subject');
+            Route::delete('{subject}', [MobileSubjectsController::class, 'destroy'])->whereNumber('subject');
         });
 
         Route::prefix('academic-repository')->group(function () {
