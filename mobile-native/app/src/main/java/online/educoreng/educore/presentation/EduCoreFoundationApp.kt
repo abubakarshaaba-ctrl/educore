@@ -87,7 +87,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                 AppPhase.READY -> {
                     val session = requireNotNull(state.session)
                     if (session.user.portal == "staff") {
-                        StaffAuthorizedShell(
+                        StaffWorkspaceShell(
                             session = session,
                             online = state.isOnline,
                             busy = state.isBusy,
