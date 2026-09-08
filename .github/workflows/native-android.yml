@@ -10,18 +10,29 @@ on:
     paths:
       - 'mobile-native/**'
       - 'educore/app/Http/Controllers/Api/**'
+      - 'educore/app/Http/Controllers/SelfDeployController.php'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
+      - 'educore/app/Http/Controllers/StudentTransferController.php'
+      - 'educore/app/Http/Middleware/**'
+      - 'educore/app/Models/AcademicTrack.php'
+      - 'educore/app/Models/StudentTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/app/Services/PayrollGenerationService.php'
+      - 'educore/app/Services/TenantUrlGenerator.php'
+      - 'educore/resources/views/portal/admissions/success.blade.php'
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/WebSecurityHardeningTest.php'
+      - 'educore/tests/Feature/TenantHostResolutionTest.php'
       - 'educore/tests/Feature/AcademicRepositoryReaderTest.php'
       - 'educore/tests/Feature/CbtRestructuringTest.php'
       - 'educore/tests/Feature/PushRegistrationTest.php'
       - 'educore/tests/Feature/TenantAccessEnforcementTest.php'
       - 'educore/tests/Feature/SelfWorkflowValidationControllerTest.php'
+      - '.htaccess'
+      - 'educore/public/.htaccess'
       - '.github/workflows/native-android.yml'
 
 concurrency:
@@ -49,7 +60,7 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
-      - name: Validate Laravel mobile and fallback contracts
+      - name: Validate Laravel mobile and security contracts
         working-directory: educore
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -74,6 +85,8 @@ jobs:
             tests/Feature/MobileCurriculumTest.php \
             tests/Feature/MobileAcademicCycleTest.php \
             tests/Feature/MobileOperationsTest.php \
+            tests/Feature/WebSecurityHardeningTest.php \
+            tests/Feature/TenantHostResolutionTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
       - name: Build and test debug app
