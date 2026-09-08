@@ -58,12 +58,14 @@ fun EduCoreSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingIcon: (@Composable RowScope.() -> Unit)? = null,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
     ) {
+        leadingIcon?.invoke(this)
         Text(text)
     }
 }
@@ -118,15 +120,15 @@ fun EduCoreResponsiveButtonPair(
     primaryLoading: Boolean = false,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        if (maxWidth < 380.dp) {
+        if (maxWidth < 420.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCorePrimaryButton(primaryText, onPrimary, Modifier.fillMaxWidth(), primaryEnabled, primaryLoading)
                 EduCoreSecondaryButton(secondaryText, onSecondary, Modifier.fillMaxWidth(), secondaryEnabled)
             }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-                EduCoreSecondaryButton(secondaryText, onSecondary, Modifier.weight(1f), secondaryEnabled)
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCorePrimaryButton(primaryText, onPrimary, Modifier.weight(1f), primaryEnabled, primaryLoading)
+                EduCoreSecondaryButton(secondaryText, onSecondary, Modifier.weight(1f), secondaryEnabled)
             }
         }
     }
