@@ -45,6 +45,7 @@ object ModulePresentationPolicy {
         "fees",
         "parent.fees",
         "payroll",
+        "expenses",
         "messages",
         "parent.messages",
         "student.messages",
@@ -58,7 +59,6 @@ object ModulePresentationPolicy {
     )
 
     private val NATIVE_GENERIC_MODULES = setOf(
-        "expenses",
         "library",
         "transport",
         "health",
