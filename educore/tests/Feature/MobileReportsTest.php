@@ -182,7 +182,7 @@ class MobileReportsTest extends TestCase
             ->getJson('/api/v1/reports?class_arm_id='.$localClass.'&term_id='.$localPeriod['term'])
             ->assertOk()
             ->assertJsonPath('capabilities.view', true)
-            ->assertJsonPath('capabilities.compute', false)
+            ->assertJsonPath('capabilities.compute', true)
             ->assertJsonPath('capabilities.publish', true)
             ->assertJsonPath('summary.computed', 1)
             ->assertJsonPath('summary.active_students', 1)
@@ -204,7 +204,6 @@ class MobileReportsTest extends TestCase
     {
         $school = $this->school('Tutor Reports', 'form_teacher');
         $token = ApiToken::issue($school['user'], 'reports-tutor');
-
         $this->withToken($token)->getJson('/api/v1/reports')->assertForbidden();
     }
 
@@ -222,7 +221,6 @@ class MobileReportsTest extends TestCase
             'class_arm_id' => $localClass,
             'term_id' => $localPeriod['term'],
         ])->assertUnprocessable();
-
         $this->withToken($token)->postJson('/api/v1/reports/publish', [
             'class_arm_id' => $foreignClass,
             'term_id' => $localPeriod['term'],
@@ -263,6 +261,11 @@ class MobileReportsTest extends TestCase
             'action' => 'report_cards.published',
         ]);
 
+        $this->withToken($token)->postJson('/api/v1/reports/compute', [
+            'class_arm_id' => $classId,
+            'term_id' => $period['term'],
+        ])->assertStatus(423);
+
         $this->withToken($token)->postJson('/api/v1/reports/unpublish', [
             'class_arm_id' => $classId,
             'term_id' => $period['term'],
@@ -273,7 +276,6 @@ class MobileReportsTest extends TestCase
             'actor_user_id' => $school['user']->id,
             'action' => 'report_cards.unpublished',
         ]);
-
         $this->withToken($token)->postJson('/api/v1/reports/unpublish', [
             'class_arm_id' => $classId,
             'term_id' => $period['term'],
@@ -295,7 +297,6 @@ class MobileReportsTest extends TestCase
             'is_active' => true,
             'employment_status' => User::STAFF_STATUS_ACTIVE,
         ]);
-
         return compact('tenant', 'user');
     }
 
@@ -316,7 +317,6 @@ class MobileReportsTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
         return compact('session', 'term');
     }
 
@@ -329,7 +329,6 @@ class MobileReportsTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
         return DB::table('class_arms')->insertGetId([
             'tenant_id' => $tenantId,
             'class_level_id' => $level,
