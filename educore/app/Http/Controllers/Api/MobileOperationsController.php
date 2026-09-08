@@ -14,6 +14,10 @@ class MobileOperationsController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
+        if ($module === 'analytics') {
+            return app(MobileAnalyticsController::class)($request);
+        }
+
         return response()->json($operations->for($user, $module));
     }
 }
