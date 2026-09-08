@@ -190,7 +190,40 @@ internal fun OperationsScreen(
     }
 
     if (workspace.module.key.equals("hostels", ignoreCase = true)) {
-        HostelsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        val hostelViewModel: HostelViewModel = hiltViewModel()
+        val hostelState by hostelViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(workspace.module.key) {
+            if (hostelState.workspace == null && !hostelState.isLoading) {
+                hostelViewModel.load()
+            }
+        }
+        NativeHostelsScreen(
+            state = hostelState,
+            onBack = onBack,
+            onQuery = hostelViewModel::setQuery,
+            onSearch = hostelViewModel::search,
+            onLoadMore = hostelViewModel::loadMore,
+            onOpenCreateHostel = hostelViewModel::openCreateHostel,
+            onOpenCreateRoom = hostelViewModel::openCreateRoom,
+            onOpenAllocation = hostelViewModel::openAllocation,
+            onCloseEditor = hostelViewModel::closeEditor,
+            onHostelName = hostelViewModel::setHostelName,
+            onHostelGender = hostelViewModel::setHostelGender,
+            onHostelCapacity = hostelViewModel::setHostelCapacity,
+            onWarden = hostelViewModel::setWarden,
+            onRoomNumber = hostelViewModel::setRoomNumber,
+            onRoomCapacity = hostelViewModel::setRoomCapacity,
+            onStudentQuery = hostelViewModel::setStudentQuery,
+            onSearchStudents = hostelViewModel::searchStudents,
+            onAllocationHostel = hostelViewModel::selectAllocationHostel,
+            onAllocationRoom = hostelViewModel::selectAllocationRoom,
+            onAllocationStudent = hostelViewModel::selectAllocationStudent,
+            onCreateHostel = hostelViewModel::createHostel,
+            onCreateRoom = hostelViewModel::createRoom,
+            onAllocate = hostelViewModel::allocate,
+            onVacate = hostelViewModel::vacate,
+            onRetry = hostelViewModel::load,
+        )
         return
     }
 
