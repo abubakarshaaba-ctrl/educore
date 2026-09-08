@@ -1,0 +1,29 @@
+package online.educoreng.educore.core.network
+
+import online.educoreng.educore.core.network.dto.PlatformAgentsDto
+import online.educoreng.educore.core.network.dto.PlatformBillingDto
+import online.educoreng.educore.core.network.dto.PlatformDashboardDto
+import online.educoreng.educore.core.network.dto.PlatformPlansDto
+import online.educoreng.educore.core.network.dto.PlatformTenantsDto
+import retrofit2.http.GET
+import retrofit2.http.Query
+
+interface PlatformApi {
+    @GET("platform/dashboard")
+    suspend fun dashboard(): PlatformDashboardDto
+
+    @GET("platform/tenants")
+    suspend fun tenants(
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null,
+    ): PlatformTenantsDto
+
+    @GET("platform/billing")
+    suspend fun billing(): PlatformBillingDto
+
+    @GET("platform/plans")
+    suspend fun plans(): PlatformPlansDto
+
+    @GET("platform/agents")
+    suspend fun agents(): PlatformAgentsDto
+}
