@@ -12,6 +12,7 @@ on:
       - 'educore/app/Console/Commands/MigrateSensitiveDocuments.php'
       - 'educore/app/Http/Controllers/Api/**'
       - 'educore/app/Http/Controllers/AdmissionController.php'
+      - 'educore/app/Http/Controllers/PushNotificationController.php'
       - 'educore/app/Http/Controllers/RecruitmentController.php'
       - 'educore/app/Http/Controllers/SelfDeployController.php'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
@@ -41,6 +42,8 @@ on:
       - 'educore/tests/Feature/SensitiveDocumentStorageTest.php'
       - 'educore/tests/Feature/StudentClassTransferTest.php'
       - 'educore/tests/Feature/WebSecurityHardeningTest.php'
+      - 'educore/tests/Feature/WebPushSecurityTest.php'
+      - 'educore/tests/Feature/PublicDiagnosticBoundaryTest.php'
       - 'educore/tests/Feature/TenantHostResolutionTest.php'
       - 'educore/tests/Feature/AcademicRepositoryReaderTest.php'
       - 'educore/tests/Feature/CbtRestructuringTest.php'
@@ -106,6 +109,8 @@ jobs:
             tests/Feature/SensitiveDocumentStorageTest.php \
             tests/Feature/StudentClassTransferTest.php \
             tests/Feature/WebSecurityHardeningTest.php \
+            tests/Feature/WebPushSecurityTest.php \
+            tests/Feature/PublicDiagnosticBoundaryTest.php \
             tests/Feature/TenantHostResolutionTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
