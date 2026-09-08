@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,34 +58,29 @@ internal class GradebookViewModel @Inject constructor(
     private val api: GradebookApi = factory.create(GradebookApi::class.java)
     private val _uiState = MutableStateFlow(GradebookUiState())
     val uiState: StateFlow<GradebookUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     fun load() {
-        if (_uiState.value.isLoading) return
-        viewModelScope.launch {
-            loadWorkspace(
-                classId = _uiState.value.selectedClassId,
-                termId = _uiState.value.selectedTermId,
-                allowAutoSelection = true,
-            )
-        }
+        if (loadJob?.isActive == true) return
+        launchWorkspaceLoad(
+            classId = _uiState.value.selectedClassId,
+            termId = _uiState.value.selectedTermId,
+            allowAutoSelection = true,
+        )
     }
 
     fun selectClass(id: Long?) {
         val state = _uiState.value
         if (id == state.selectedClassId) return
         _uiState.update { it.copy(selectedClassId = id, editor = null, message = null, errorMessage = null) }
-        viewModelScope.launch {
-            loadWorkspace(id, _uiState.value.selectedTermId, allowAutoSelection = false)
-        }
+        launchWorkspaceLoad(id, _uiState.value.selectedTermId, allowAutoSelection = false)
     }
 
     fun selectTerm(id: Long?) {
         val state = _uiState.value
         if (id == state.selectedTermId) return
         _uiState.update { it.copy(selectedTermId = id, editor = null, message = null, errorMessage = null) }
-        viewModelScope.launch {
-            loadWorkspace(_uiState.value.selectedClassId, id, allowAutoSelection = false)
-        }
+        launchWorkspaceLoad(_uiState.value.selectedClassId, id, allowAutoSelection = false)
     }
 
     fun editFormTutorRemark(row: GradebookStudentRowDto) {
@@ -142,6 +138,7 @@ internal class GradebookViewModel @Inject constructor(
                     ),
                 )
                 _uiState.update { it.copy(isSaving = false, editor = null, message = response.message) }
+                loadJob?.cancel()
                 loadWorkspace(
                     _uiState.value.selectedClassId,
                     _uiState.value.selectedTermId,
@@ -157,6 +154,17 @@ internal class GradebookViewModel @Inject constructor(
     }
 
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
+
+    private fun launchWorkspaceLoad(
+        classId: Long?,
+        termId: Long?,
+        allowAutoSelection: Boolean,
+    ) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            loadWorkspace(classId, termId, allowAutoSelection)
+        }
+    }
 
     private suspend fun loadWorkspace(
         classId: Long?,
