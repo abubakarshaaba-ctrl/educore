@@ -1,15 +1,13 @@
 <?php
 
 use App\Http\Controllers\SelfGitCommitController;
+use App\Http\Controllers\SelfSourceValidationController;
 use App\Http\Controllers\SelfWorkflowValidationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Shell-free native Android source/workflow validation. The deploy token is
-// required inside the controller; throttling also limits repeated zipball/CI
-// lookups on shared hosting. GitHub API credentials must come from server
-// configuration, never from a URL/query string where they could be retained in
-// access logs or browser history.
+// Shell-free native Android source/workflow validation. This legacy diagnostic
+// can classify GitHub Actions state, but repository commits do not depend on it.
 Route::get('/deploy/validate-android', function (Request $request, SelfWorkflowValidationController $controller) {
     abort_if($request->has('gh'), 400, 'GitHub credentials must be configured on the server, not supplied in the URL.');
 
@@ -17,6 +15,12 @@ Route::get('/deploy/validate-android', function (Request $request, SelfWorkflowV
 })
     ->middleware('throttle:5,10')
     ->name('deploy.validate-android');
+
+// Source-only preflight. It reads the branch and critical source contracts
+// through repository APIs only and never queries or reruns GitHub Actions.
+Route::get('/deploy/validate-source', [SelfSourceValidationController::class, 'android'])
+    ->middleware('throttle:10,1')
+    ->name('deploy.validate-source');
 
 // Direct GitHub Git Database API writer. These endpoints do not execute git,
 // shell commands, cPanel Git hooks or GitHub Actions. Authentication is sent in
