@@ -39,6 +39,7 @@ object ModulePresentationPolicy {
         "examinations",
         "academic-repository",
         "lesson-planner",
+        "exports",
         "messages",
         "parent.messages",
         "student.messages",
