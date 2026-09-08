@@ -16,13 +16,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,12 +34,14 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
-import online.educoreng.educore.core.designsystem.component.EduCoreSegmentedControl
-import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreSegmentedControl
+import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
+import online.educoreng.educore.core.designsystem.component.EduCoreTone
+import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
+import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.model.ExamDuty
 import online.educoreng.educore.core.model.SchedulePeriod
 import online.educoreng.educore.core.model.ScheduledExam
@@ -68,8 +68,9 @@ internal fun ScheduleScreen(
     ) {
         item {
             EduCorePageHeader(
-                workspace.title,
-                listOfNotNull(workspace.className, workspace.termName, workspace.sessionName).distinct().joinToString(" · "),
+                title = "Schedule",
+                subtitle = listOfNotNull(workspace.className, workspace.termName, workspace.sessionName)
+                    .distinct().joinToString(" · "),
                 onBack = onBack,
             )
         }
@@ -77,7 +78,11 @@ internal fun ScheduleScreen(
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
             EduCoreSegmentedControl(
-                options = listOf("Timetable", "Exams (${workspace.exams.size})", "Duties (${workspace.duties.size})"),
+                options = listOf(
+                    "Timetable",
+                    "Exams (${workspace.exams.size})",
+                    "Exam Duties (${workspace.duties.size})",
+                ),
                 selectedIndex = state.selectedSection,
                 onSelected = onSection,
                 modifier = Modifier.fillMaxWidth(),
@@ -91,22 +96,32 @@ internal fun ScheduleScreen(
                         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     ) {
                         workspace.week.forEach { day ->
-                            EduCoreFilterChip(day.day.take(3), day.day == state.selectedDay, { onDay(day.day) })
+                            EduCoreFilterChip(
+                                label = day.day.take(3),
+                                selected = day.day == state.selectedDay,
+                                onClick = { onDay(day.day) },
+                            )
                         }
                     }
                 }
                 val periods = workspace.week.firstOrNull { it.day == state.selectedDay }?.periods.orEmpty()
-                if (periods.isEmpty()) item { EduCoreEmptyState("No periods", "There are no timetable periods for ${state.selectedDay}.") }
+                if (periods.isEmpty()) item {
+                    EduCoreEmptyState("No timetable periods", "There are no timetable periods for ${state.selectedDay}.")
+                }
                 items(periods, key = SchedulePeriod::id) { PeriodCard(it) }
             }
             1 -> {
-                item { DateRangeBanner(workspace.from, workspace.to) }
-                if (workspace.exams.isEmpty()) item { EduCoreEmptyState("No published examinations", "No published examination falls within this schedule range.") }
+                item { DateRangeBanner(workspace.from, workspace.to, "Published examinations") }
+                if (workspace.exams.isEmpty()) item {
+                    EduCoreEmptyState("No published examinations", "No published examination falls within this schedule range.")
+                }
                 items(workspace.exams, key = ScheduledExam::id) { ExamCard(it) }
             }
             else -> {
-                item { DateRangeBanner(workspace.from, workspace.to) }
-                if (workspace.duties.isEmpty()) item { EduCoreEmptyState("No supervision duties", "No published examination duty is assigned within this schedule range.") }
+                item { DateRangeBanner(workspace.from, workspace.to, "My supervision duties") }
+                if (workspace.duties.isEmpty()) item {
+                    EduCoreEmptyState("No supervision duties", "No published examination duty is assigned within this schedule range.")
+                }
                 items(workspace.duties, key = ExamDuty::id) { DutyCard(it) }
             }
         }
@@ -122,31 +137,82 @@ private fun PeriodCard(period: SchedulePeriod) {
         date = null,
         time = listOfNotNull(period.startTime, period.endTime).joinToString(" – "),
         venue = period.venue,
+        badge = "Class",
+        tone = EduCoreTone.Brand,
     )
 }
 
 @Composable
 private fun ExamCard(exam: ScheduledExam) {
-    ScheduleCard(exam.subject, listOfNotNull(exam.title, exam.session, exam.classLevel).joinToString(" · "), exam.date, listOfNotNull(exam.startTime, exam.endTime).joinToString(" – "), exam.venue)
+    ScheduleCard(
+        title = exam.subject,
+        supporting = listOfNotNull(exam.title, exam.session, exam.classLevel).joinToString(" · "),
+        date = exam.date,
+        time = listOfNotNull(exam.startTime, exam.endTime).joinToString(" – "),
+        venue = exam.venue,
+        badge = "Examination",
+        tone = EduCoreTone.Accent,
+    )
 }
 
 @Composable
 private fun DutyCard(duty: ExamDuty) {
-    ScheduleCard(duty.subject, listOfNotNull(duty.examTitle, duty.session, duty.classLevel).joinToString(" · "), duty.date, listOfNotNull(duty.startTime, duty.endTime).joinToString(" – "), duty.venue)
+    ScheduleCard(
+        title = duty.subject,
+        supporting = listOfNotNull(duty.examTitle, duty.session, duty.classLevel).joinToString(" · "),
+        date = duty.date,
+        time = listOfNotNull(duty.startTime, duty.endTime).joinToString(" – "),
+        venue = duty.venue,
+        badge = "Duty",
+        tone = EduCoreTone.Accent,
+    )
 }
 
 @Composable
-private fun ScheduleCard(title: String, supporting: String, date: String?, time: String, venue: String?) {
-    Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-        Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = MaterialTheme.shapes.medium, color = EduCoreColors.Info100) {
-                Icon(Icons.Default.CalendarMonth, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900)
+private fun ScheduleCard(
+    title: String,
+    supporting: String,
+    date: String?,
+    time: String,
+    venue: String?,
+    badge: String,
+    tone: EduCoreTone,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(shape = MaterialTheme.shapes.medium, color = EduCoreColors.Gold50) {
+                Icon(
+                    Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    modifier = Modifier.padding(EduCoreSpacing.Md),
+                    tint = EduCoreColors.Navy900,
+                )
             }
             Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                if (supporting.isNotBlank()) Text(supporting, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
-                Text(listOfNotNull(date, time.takeIf(String::isNotBlank)).joinToString(" · "), color = EduCoreColors.Navy900)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    EduCoreStatusBadge(badge, tone)
+                }
+                if (supporting.isNotBlank()) {
+                    Text(supporting, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    listOfNotNull(date, time.takeIf(String::isNotBlank)).joinToString(" · "),
+                    color = EduCoreColors.Navy900,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 venue?.takeIf(String::isNotBlank)?.let {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.LocationOn, null, Modifier.width(14.dp), tint = EduCoreColors.Muted500)
@@ -159,8 +225,15 @@ private fun ScheduleCard(title: String, supporting: String, date: String?, time:
 }
 
 @Composable
-private fun DateRangeBanner(from: String, to: String) {
-    Surface(color = EduCoreColors.Info100, shape = MaterialTheme.shapes.medium) {
-        Text("Published schedule · $from to $to", Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), color = EduCoreColors.Navy900)
+private fun DateRangeBanner(from: String, to: String, title: String) {
+    Surface(
+        color = EduCoreColors.Gold50,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, EduCoreColors.Gold200),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Navy900)
+            Text("$from to $to", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+        }
     }
 }
