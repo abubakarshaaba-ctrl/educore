@@ -16,7 +16,15 @@ class TransportOfficerController extends Controller
     public function dashboard(Request $request)
     {
         $user = $this->guard($request);
-        $tenantId = $user->tenant_id;
+        $tenantId = (int) $user->tenant_id;
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+        ]);
+        $search = trim((string) ($data['search'] ?? ''));
+        $perPage = (int) ($data['per_page'] ?? 40);
+
         $routes = TransportRoute::where('tenant_id', $tenantId)
             ->with(['bus', 'driver:id,name', 'assistant:id,name'])
             ->withCount('assignments')->orderBy('name')->get()->map(fn (TransportRoute $route) => [
@@ -42,16 +50,25 @@ class TransportOfficerController extends Controller
             'active' => (bool) $bus->is_active,
         ]);
         $assignedIds = TransportAssignment::where('tenant_id', $tenantId)->pluck('student_id');
-        $unassignedQuery = Student::where('tenant_id', $tenantId)->where('status', Student::STATUS_ACTIVE)
+        $unassignedBase = Student::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', Student::STATUS_ACTIVE)
             ->whereNotIn('id', $assignedIds);
-        $unassignedCount = (clone $unassignedQuery)->count();
-        $unassigned = $unassignedQuery->with('currentClassArm.classLevel:id,name')->orderBy('first_name')->limit(100)->get()
-            ->map(fn (Student $student) => [
-                'id' => $student->id,
-                'name' => trim("{$student->first_name} {$student->last_name}"),
-                'admission_number' => $student->admission_number,
-                'class' => $student->currentClassArm?->full_name ?? 'Unassigned',
-            ]);
+        $unassignedCount = (clone $unassignedBase)->count();
+        $unassigned = (clone $unassignedBase)
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.$search.'%';
+                $query->where(function ($nested) use ($like) {
+                    $nested->where('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhere('other_names', 'like', $like)
+                        ->orWhere('admission_number', 'like', $like);
+                });
+            })
+            ->with('currentClassArm.classLevel:id,name')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->paginate($perPage);
 
         return response()->json([
             'capabilities' => [
@@ -65,7 +82,22 @@ class TransportOfficerController extends Controller
             ],
             'routes' => $routes,
             'buses' => $buses,
-            'unassigned_students' => $unassigned,
+            'unassigned_students' => collect($unassigned->items())->map(fn (Student $student) => [
+                'id' => $student->id,
+                'name' => trim("{$student->first_name} {$student->last_name}"),
+                'admission_number' => $student->admission_number,
+                'class' => $student->currentClassArm?->full_name ?? 'Unassigned',
+            ])->values(),
+            'selected' => [
+                'search' => $search,
+            ],
+            'meta' => [
+                'page' => $unassigned->currentPage(),
+                'per_page' => $unassigned->perPage(),
+                'total' => $unassigned->total(),
+                'last_page' => $unassigned->lastPage(),
+                'has_more' => $unassigned->hasMorePages(),
+            ],
         ]);
     }
 
@@ -75,6 +107,7 @@ class TransportOfficerController extends Controller
         abort_unless((int) $route->tenant_id === (int) $user->tenant_id, 404);
         $items = TransportAssignment::where('tenant_id', $user->tenant_id)->where('route_id', $route->id)
             ->with('student.currentClassArm.classLevel:id,name')->get()->map(fn (TransportAssignment $assignment) => [
+                'assignment_id' => $assignment->id,
                 'student_id' => $assignment->student_id,
                 'name' => trim(($assignment->student?->first_name ?? '').' '.($assignment->student?->last_name ?? '')),
                 'admission_number' => $assignment->student?->admission_number,
@@ -107,6 +140,21 @@ class TransportOfficerController extends Controller
         );
 
         return response()->json(['message' => 'Student transport assignment saved.']);
+    }
+
+    public function unassign(Request $request, Student $student)
+    {
+        $user = $this->guard($request, manage: true);
+        abort_unless((int) $student->tenant_id === (int) $user->tenant_id, 404);
+
+        $deleted = TransportAssignment::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->where('student_id', $student->id)
+            ->delete();
+
+        abort_if($deleted === 0, 404, 'Transport assignment not found.');
+
+        return response()->json(['message' => 'Student transport assignment removed.']);
     }
 
     private function guard(Request $request, bool $manage = false): User
