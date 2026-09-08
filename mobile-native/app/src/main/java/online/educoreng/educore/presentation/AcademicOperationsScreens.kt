@@ -135,24 +135,44 @@ internal fun AcademicCycleScreen(
     onQuery: (String) -> Unit,
     onSection: (Int) -> Unit,
 ) {
-    val workspace = state.workspace ?: return
-    val section = workspace.sections.getOrNull(state.selectedSection)
-    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+    val viewModel: AcademicCycleViewModel = hiltViewModel()
+    val cycleState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    AcademicListShell(
-        title = "Academic Cycle",
-        subtitle = "Sessions, terms and current academic-period state",
-        state = state,
-        workspace = workspace,
-        records = records,
-        onBack = onBack,
-        onQuery = onQuery,
-        onSection = onSection,
-        placeholder = if (section?.key == "terms") "Search term or session" else "Search academic session",
-        emptyMessage = if (section?.key == "terms") "Configured academic terms will appear here." else "Academic sessions will appear here.",
-    ) { record ->
-        if (section?.key == "terms") AcademicTermCard(record) else AcademicSessionCard(record)
+    LaunchedEffect(state.workspace?.module?.key) {
+        if (cycleState.workspace == null && !cycleState.isLoading) {
+            viewModel.load()
+        }
     }
+
+    NativeAcademicCycleScreen(
+        state = cycleState,
+        onBack = onBack,
+        onTab = viewModel::setTab,
+        onCreateSession = viewModel::createSession,
+        onEditSession = viewModel::editSession,
+        onSessionName = viewModel::setSessionName,
+        onSessionActivate = viewModel::setSessionActivate,
+        onSaveSession = viewModel::saveSession,
+        onCreateTerm = viewModel::createTerm,
+        onEditTerm = viewModel::editTerm,
+        onTermSession = viewModel::setTermSession,
+        onTermName = viewModel::setTermName,
+        onTermStart = viewModel::setTermStart,
+        onTermEnd = viewModel::setTermEnd,
+        onNextTerm = viewModel::setNextTerm,
+        onTermActivate = viewModel::setTermActivate,
+        onSaveTerm = viewModel::saveTerm,
+        onCloseEditor = viewModel::closeEditor,
+        onActivateSession = viewModel::requestActivateSession,
+        onCloseSession = viewModel::requestCloseSession,
+        onDeleteSession = viewModel::requestDeleteSession,
+        onActivateTerm = viewModel::requestActivateTerm,
+        onCloseTerm = viewModel::requestCloseTerm,
+        onDeleteTerm = viewModel::requestDeleteTerm,
+        onCancelAction = viewModel::cancelAction,
+        onConfirmAction = viewModel::confirmAction,
+        onRetry = viewModel::load,
+    )
 }
 
 @Composable
@@ -308,23 +328,6 @@ private fun AcademicListShell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun CurriculumTrackCard(record: OperationsRecord) {
-    AcademicRecordCard(record) { }
-}
-
-@Composable
-private fun CurriculumRuleCard(record: OperationsRecord) {
-    AcademicRecordCard(record) {
-        AcademicFieldGrid(
-            listOf(
-                "Track" to record.academicField("Track"),
-                "Group" to record.academicField("Group"),
-            )
-        )
     }
 }
 
