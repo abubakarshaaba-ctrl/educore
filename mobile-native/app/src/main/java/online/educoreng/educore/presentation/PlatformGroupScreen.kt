@@ -125,7 +125,7 @@ internal fun PlatformGroupDetailScreen(
         ) {
             state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
             state.message?.let { item { InfoCard(it) } }
-            if (state.isLoading) item { EduCoreLoadingState("Loading school group") }
+            if (state.isLoading) item { EduCoreLoadingState(message = "Loading school group") }
 
             state.detail?.let { detail ->
                 item { EduCoreSectionHeader("Member campuses", "Only one lead campus governs the shared subscription") }
