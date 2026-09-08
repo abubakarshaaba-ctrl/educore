@@ -6,6 +6,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudentClassTransfer extends BaseTenantModel
 {
+    public const TYPE_INTRA_CLASS = 'intra_class';
+    public const TYPE_INTERCLASS = 'interclass';
+
+    public const TYPES = [
+        self::TYPE_INTRA_CLASS,
+        self::TYPE_INTERCLASS,
+    ];
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
@@ -27,6 +35,7 @@ class StudentClassTransfer extends BaseTenantModel
         'term_id',
         'from_class_arm_id',
         'to_class_arm_id',
+        'movement_type',
         'effective_date',
         'reason',
         'status',
@@ -107,6 +116,16 @@ class StudentClassTransfer extends BaseTenantModel
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function isIntraClass(): bool
+    {
+        return $this->movement_type === self::TYPE_INTRA_CLASS;
+    }
+
+    public function isInterclass(): bool
+    {
+        return $this->movement_type === self::TYPE_INTERCLASS;
     }
 
     public function isFinal(): bool
