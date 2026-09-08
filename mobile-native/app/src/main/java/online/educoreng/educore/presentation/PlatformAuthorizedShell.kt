@@ -1,10 +1,20 @@
 package online.educoreng.educore.presentation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
 /**
  * Dedicated native shell for Platform Super Admin accounts.
@@ -18,8 +28,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 internal fun PlatformAuthorizedShell(
     onLogout: () -> Unit,
     viewModel: PlatformViewModel = hiltViewModel(),
+    tenantViewModel: PlatformTenantViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
+    var schoolDirectoryOpen by remember { mutableStateOf(false) }
+    var selectedTenantId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) {
@@ -27,29 +41,68 @@ internal fun PlatformAuthorizedShell(
         }
     }
 
-    PlatformScreen(
-        state = state,
-        onBack = null,
-        onSection = viewModel::selectSection,
-        onSearchChange = viewModel::setSearch,
-        onSearch = viewModel::searchSchools,
-        onStatus = viewModel::setStatus,
-        onEditReply = viewModel::editReply,
-        onReplyDraft = viewModel::setReplyDraft,
-        onSendReply = viewModel::sendReply,
-        onCancelReply = viewModel::cancelReply,
-        onRequestCloseTicket = viewModel::requestCloseSupport,
-        onOpenBroadcastEditor = viewModel::openBroadcastEditor,
-        onCloseBroadcastEditor = viewModel::closeBroadcastEditor,
-        onBroadcastTitle = viewModel::setBroadcastTitle,
-        onBroadcastBody = viewModel::setBroadcastBody,
-        onBroadcastTarget = viewModel::setBroadcastTarget,
-        onBroadcastExpiresAt = viewModel::setBroadcastExpiresAt,
-        onCreateBroadcast = viewModel::createBroadcast,
-        onRequestExpireBroadcast = viewModel::requestExpireBroadcast,
-        onConfirmPendingAction = viewModel::confirmPendingAction,
-        onDismissPendingAction = viewModel::dismissPendingAction,
-        onRetry = viewModel::load,
-        onLogout = onLogout,
-    )
+    LaunchedEffect(selectedTenantId) {
+        selectedTenantId?.let(tenantViewModel::load)
+    }
+
+    when {
+        selectedTenantId != null -> PlatformTenantScreen(
+            state = tenantState,
+            onBack = {
+                selectedTenantId = null
+                viewModel.load(PlatformSection.SCHOOLS)
+            },
+            onReason = tenantViewModel::setReason,
+            onMonths = tenantViewModel::setExtensionMonths,
+            onStatus = tenantViewModel::requestStatus,
+            onExtend = tenantViewModel::requestExtension,
+            onConfirm = tenantViewModel::confirm,
+            onDismissConfirmation = tenantViewModel::dismissConfirmation,
+            onRetry = { selectedTenantId?.let(tenantViewModel::load) },
+        )
+
+        schoolDirectoryOpen -> PlatformSchoolDirectoryScreen(
+            schools = state.tenants?.tenants.orEmpty(),
+            onBack = { schoolDirectoryOpen = false },
+            onOpen = { selectedTenantId = it },
+        )
+
+        else -> Box(Modifier.fillMaxSize()) {
+            PlatformScreen(
+                state = state,
+                onBack = null,
+                onSection = viewModel::selectSection,
+                onSearchChange = viewModel::setSearch,
+                onSearch = viewModel::searchSchools,
+                onStatus = viewModel::setStatus,
+                onEditReply = viewModel::editReply,
+                onReplyDraft = viewModel::setReplyDraft,
+                onSendReply = viewModel::sendReply,
+                onCancelReply = viewModel::cancelReply,
+                onRequestCloseTicket = viewModel::requestCloseSupport,
+                onOpenBroadcastEditor = viewModel::openBroadcastEditor,
+                onCloseBroadcastEditor = viewModel::closeBroadcastEditor,
+                onBroadcastTitle = viewModel::setBroadcastTitle,
+                onBroadcastBody = viewModel::setBroadcastBody,
+                onBroadcastTarget = viewModel::setBroadcastTarget,
+                onBroadcastExpiresAt = viewModel::setBroadcastExpiresAt,
+                onCreateBroadcast = viewModel::createBroadcast,
+                onRequestExpireBroadcast = viewModel::requestExpireBroadcast,
+                onConfirmPendingAction = viewModel::confirmPendingAction,
+                onDismissPendingAction = viewModel::dismissPendingAction,
+                onRetry = viewModel::load,
+                onLogout = onLogout,
+            )
+
+            if (state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null) {
+                EduCorePrimaryButton(
+                    text = "Manage schools",
+                    onClick = { schoolDirectoryOpen = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(EduCoreSpacing.Lg),
+                )
+            }
+        }
+    }
 }
