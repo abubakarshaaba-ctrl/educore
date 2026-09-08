@@ -111,9 +111,22 @@ class MainViewModel @Inject constructor(
 
     fun openWebModule(path: String) {
         if (_uiState.value.isBusy) return
+
+        val normalizedPath = path.trim()
+        if (normalizedPath !in EXPLICIT_WEB_ONLY_PATHS) {
+            _uiState.update {
+                it.copy(
+                    isBusy = false,
+                    portalUrl = null,
+                    message = "This workspace is being moved into the native EduCore app and will not open in your browser.",
+                )
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isBusy = true, message = null) }
-            when (val result = sessionRepository.createPortalSession(path)) {
+            when (val result = sessionRepository.createPortalSession(normalizedPath)) {
                 is AppResult.Success -> _uiState.update {
                     it.copy(isBusy = false, portalUrl = result.value)
                 }
@@ -273,4 +286,11 @@ class MainViewModel @Inject constructor(
             .orEmpty()
             .mapValues { (_, messages) -> messages.firstOrNull().orEmpty() }
             .filterValues(String::isNotBlank)
+
+    private companion object {
+        // Phase A: browser handoff is opt-in only. Keep this empty until a route has been
+        // deliberately reviewed and approved as web-only. Unknown modules must never
+        // escape the native app automatically.
+        val EXPLICIT_WEB_ONLY_PATHS: Set<String> = emptySet()
+    }
 }
