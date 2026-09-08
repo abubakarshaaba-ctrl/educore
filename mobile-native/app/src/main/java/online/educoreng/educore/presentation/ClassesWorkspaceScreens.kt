@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Schedule
@@ -73,6 +75,10 @@ import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
@@ -230,64 +236,162 @@ internal fun ClassWorkspaceScreen(
         EduCoreErrorState(state.errorMessage ?: "Class workspace is unavailable.", Modifier.fillMaxSize(), onRetry = onRetry)
         return
     }
+    val classSummary = workspace.classSummary
+    val isFormTutor = classSummary.roles.any { it.equals("form_tutor", ignoreCase = true) }
     val filteredStudents = remember(workspace.students, state.studentSearch) {
         workspace.students.filter { student ->
             state.studentSearch.isBlank() || student.name.contains(state.studentSearch, true) ||
                 student.admissionNumber.contains(state.studentSearch, true)
         }
     }
+    val roleLine = classSummary.roles
+        .joinToString(" · ") { it.replace('_', ' ').roleLabel() }
+        .ifBlank { "Assigned class" }
+    val subjectLine = classSummary.subjects
+        .joinToString(" • ") { it.name }
+        .ifBlank { "No subject assignment listed" }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().imePadding(),
+        modifier = Modifier.fillMaxSize().imePadding().background(EduCoreColors.Page50),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { FeatureBackHeader("Class workspace", workspace.classSummary.name, onBack) }
+        item {
+            EduCorePageHeader(
+                title = classSummary.name,
+                subtitle = roleLine,
+                onBack = onBack,
+            )
+        }
+        item {
+            EduCoreShowcaseHero(
+                eyebrow = "CLASS WORKSPACE",
+                title = "Teach, assess and follow up in one place.",
+                subtitle = subjectLine,
+                trailing = {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = EduCoreColors.Gold100,
+                        contentColor = EduCoreColors.Navy900,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                },
+            )
+        }
         if (workspace.isFromCache) item {
             EduCoreWarningBanner("Showing students from the most recent device cache.")
         }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-                EduCoreMetricCard(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreShowcaseStat(
                     label = "Students",
-                    value = workspace.classSummary.studentCount.toString(),
+                    value = classSummary.studentCount.toString(),
                     icon = Icons.Default.Groups,
+                    tone = EduCoreTone.Success,
                     modifier = Modifier.weight(1f),
                 )
-                EduCoreMetricCard(
+                EduCoreShowcaseStat(
                     label = "Subjects",
-                    value = workspace.classSummary.subjects.size.toString(),
+                    value = classSummary.subjects.size.toString(),
                     icon = Icons.Default.School,
+                    tone = EduCoreTone.Brand,
                     modifier = Modifier.weight(1f),
                 )
             }
         }
-        if (workspace.classSummary.capabilities.markAttendance) item {
-            EduCorePrimaryButton(
-                text = "Take attendance",
-                onClick = { onOpenAttendance(workspace.classSummary.id) },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.CheckCircle, null) },
-            )
-        }
-        if (workspace.classSummary.capabilities.enterScores && workspace.classSummary.subjects.isNotEmpty()) item {
-            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                Text("Score entry", style = MaterialTheme.typography.titleMedium)
-                workspace.classSummary.subjects.forEach { subject ->
-                    EduCoreSecondaryButton(
-                        text = "Open ${subject.name} score sheet",
-                        onClick = { onOpenScores(workspace.classSummary.id, subject.id) },
-                        modifier = Modifier.fillMaxWidth(),
+        item {
+            EduCoreShowcaseSectionCard {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    EduCoreSectionHeader(
+                        title = "Class actions",
+                        supportingText = "Actions shown here come from this assignment's server-granted capabilities",
                     )
+                    if (classSummary.capabilities.markAttendance) {
+                        EduCorePrimaryButton(
+                            text = "Take student attendance",
+                            onClick = { onOpenAttendance(classSummary.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
+                        )
+                    }
+                    if (isFormTutor) {
+                        EduCoreSecondaryButton(
+                            text = "Open class timetable",
+                            onClick = { onOpenSchedule(classSummary.id) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    if (!classSummary.capabilities.markAttendance && !isFormTutor &&
+                        !(classSummary.capabilities.enterScores && classSummary.subjects.isNotEmpty())
+                    ) {
+                        EduCoreInfoBanner(
+                            "There are no additional class actions permitted for this assignment.",
+                            title = "View-only workspace",
+                        )
+                    }
                 }
             }
         }
-        if (workspace.classSummary.roles.contains("form_tutor")) item {
-            EduCoreSecondaryButton(
-                text = "Open class timetable",
-                onClick = { onOpenSchedule(workspace.classSummary.id) },
-                modifier = Modifier.fillMaxWidth(),
+        if (classSummary.capabilities.enterScores && classSummary.subjects.isNotEmpty()) {
+            item {
+                EduCoreSectionHeader(
+                    title = "Score entry",
+                    supportingText = "Choose the subject whose score sheet you are authorised to manage",
+                )
+            }
+            items(classSummary.subjects, key = { "score-subject-${it.id}" }) { subject ->
+                Card(
+                    onClick = { onOpenScores(classSummary.id, subject.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(42.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            color = EduCoreColors.Gold50,
+                            contentColor = EduCoreColors.Navy900,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                subject.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = EduCoreColors.Ink900,
+                            )
+                            Text(
+                                "Open native score sheet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Open score sheet", tint = EduCoreColors.Gold700)
+                    }
+                }
+            }
+        }
+        item {
+            EduCoreSectionHeader(
+                title = "Student roster",
+                supportingText = "${workspace.total} student${if (workspace.total == 1) "" else "s"} in this authorised class",
             )
         }
         item {
@@ -299,11 +403,20 @@ internal fun ClassWorkspaceScreen(
         }
         if (filteredStudents.isEmpty()) {
             item {
-                EduCoreEmptyState("No students found", "Try another name or admission number.")
+                EduCoreShowcaseSectionCard {
+                    EduCoreEmptyState(
+                        title = if (state.studentSearch.isBlank()) "No students available" else "No students found",
+                        message = if (state.studentSearch.isBlank()) {
+                            "No active student is currently available in this class workspace."
+                        } else {
+                            "Try another student name or admission number."
+                        },
+                    )
+                }
             }
         } else {
             items(filteredStudents, key = StudentSummary::id) { student ->
-                StudentRow(student) { onOpenStudent(workspace.classSummary.id, student.id) }
+                StudentRow(student) { onOpenStudent(classSummary.id, student.id) }
             }
             if (workspace.currentPage < workspace.lastPage) {
                 item {
@@ -316,6 +429,7 @@ internal fun ClassWorkspaceScreen(
                 }
             }
         }
+        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
 
@@ -323,12 +437,15 @@ internal fun ClassWorkspaceScreen(
 private fun StudentRow(student: StudentSummary, onClick: () -> Unit) {
     Card(
         onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             Surface(
                 modifier = Modifier.size(44.dp),
@@ -337,15 +454,22 @@ private fun StudentRow(student: StudentSummary, onClick: () -> Unit) {
                 contentColor = Color.White,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(student.initials, style = MaterialTheme.typography.labelLarge)
+                    Text(student.initials, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
-            Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
-                Text(student.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    student.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EduCoreColors.Ink900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(student.admissionNumber, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
             }
             student.gender?.let { EduCoreStatusBadge(it.roleLabel(), EduCoreTone.Neutral) }
+            Icon(Icons.Default.ChevronRight, contentDescription = "Open student", tint = EduCoreColors.Gold700)
         }
     }
 }
