@@ -190,7 +190,7 @@ private fun DomainOperationsList(
             }
         }
 
-        item { EduCoreSearchBar(query = state.query, onQueryChange = onQuery, placeholder = placeholder) }
+        item { EduCoreSearchBar(value = state.query, onValueChange = onQuery, placeholder = placeholder) }
 
         if (records.isEmpty()) {
             item {
