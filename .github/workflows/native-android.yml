@@ -57,6 +57,10 @@ jobs:
           DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test \
             tests/Feature/MobileBootstrapTest.php \
             tests/Feature/MobileStaffCbtTest.php \
+            tests/Feature/MobileStaffDirectoryTest.php \
+            tests/Feature/MobileAnalyticsTest.php \
+            tests/Feature/MobileExportsTest.php \
+            tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
       - name: Build and test debug app
