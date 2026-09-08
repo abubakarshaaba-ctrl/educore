@@ -84,6 +84,15 @@ internal fun OperationsScreen(
         return
     }
 
+    if (workspace.module.key.equals("expenses", ignoreCase = true)) {
+        ExpensesScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+        )
+        return
+    }
+
     if (workspace.module.key.equals("admissions", ignoreCase = true)) {
         val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
         val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
