@@ -9,7 +9,6 @@ use App\Models\StudentEnrollment;
 use App\Models\StudentSubjectSelection;
 use App\Models\StudentTransfer;
 use App\Models\Tenant;
-use App\Models\TransportAssignment;
 use App\Models\User;
 use App\Services\CrossSchoolStudentTransferService;
 use Illuminate\Database\Schema\Blueprint;
@@ -142,8 +141,7 @@ class CrossSchoolStudentTransferServiceTest extends TestCase
 
     public function test_destination_admission_number_collision_gets_safe_transfer_number(): void
     {
-        [$source, $destination, $sourceAdmin, $receiver, $student] = $this->world();
-        $this->actingAs($destination);
+        [, $destination, $sourceAdmin, $receiver, $student] = $this->world();
 
         Student::withoutTenantScope()->create([
             'tenant_id' => $destination->id,
@@ -166,7 +164,7 @@ class CrossSchoolStudentTransferServiceTest extends TestCase
 
     public function test_stale_transfer_cannot_move_student_after_source_lifecycle_changes(): void
     {
-        [$source, $destination, $sourceAdmin, $receiver, $student] = $this->world();
+        [, $destination, $sourceAdmin, $receiver, $student] = $this->world();
         $service = app(CrossSchoolStudentTransferService::class);
 
         $this->actingAs($sourceAdmin);
@@ -193,9 +191,9 @@ class CrossSchoolStudentTransferServiceTest extends TestCase
         ]);
     }
 
-    public function test_only_receiving_school_can_approve_or_reject_pending_transfer(): void
+    public function test_only_receiving_school_can_approve_pending_transfer(): void
     {
-        [$source, $destination, $sourceAdmin, $receiver, $student] = $this->world();
+        [, $destination, $sourceAdmin, , $student] = $this->world();
         $third = Tenant::create(['name' => 'Third School', 'slug' => 'third-school', 'status' => Tenant::STATUS_ACTIVE]);
         $thirdAdmin = $this->user($third, 'Third Admin', 'admin');
         $service = app(CrossSchoolStudentTransferService::class);
