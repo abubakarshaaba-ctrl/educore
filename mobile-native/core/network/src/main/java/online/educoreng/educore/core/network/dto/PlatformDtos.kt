@@ -124,6 +124,40 @@ data class PlatformGroupDto(
 )
 data class PlatformGroupsDto(val groups: List<PlatformGroupDto> = emptyList())
 
+data class PlatformGroupMemberDto(
+    @param:Json(name = "tenant_id") val tenantId: Long,
+    val name: String,
+    val slug: String,
+    val status: String,
+    val role: String,
+    @param:Json(name = "subscription_expires_at") val subscriptionExpiresAt: String? = null,
+)
+
+data class PlatformAvailableSchoolDto(
+    val id: Long,
+    val name: String,
+    val slug: String,
+    val status: String,
+)
+
+data class PlatformGroupDetailDto(
+    val group: PlatformGroupDto,
+    val members: List<PlatformGroupMemberDto> = emptyList(),
+    @param:Json(name = "available_schools") val availableSchools: List<PlatformAvailableSchoolDto> = emptyList(),
+)
+
+data class PlatformGroupCreateRequestDto(
+    val name: String,
+    val description: String? = null,
+    @param:Json(name = "owner_name") val ownerName: String? = null,
+    @param:Json(name = "owner_email") val ownerEmail: String? = null,
+)
+
+data class PlatformGroupMemberRequestDto(
+    @param:Json(name = "tenant_id") val tenantId: Long,
+    val role: String = "member",
+)
+
 data class PlatformSupportSummaryDto(
     val open: Int = 0,
     val replied: Int = 0,
@@ -176,6 +210,62 @@ data class PlatformGatewayDto(
     val configured: Boolean = false,
 )
 data class PlatformGatewaysDto(val gateways: List<PlatformGatewayDto> = emptyList())
+
+data class PlatformAdminDto(
+    val id: Long,
+    val name: String,
+    val email: String? = null,
+    val active: Boolean = true,
+)
+
+data class PlatformSubscriptionDto(
+    @param:Json(name = "is_free") val isFree: Boolean = false,
+    @param:Json(name = "expires_at") val expiresAt: String? = null,
+    @param:Json(name = "can_extend") val canExtend: Boolean = false,
+    @param:Json(name = "allowed_months") val allowedMonths: List<Int> = emptyList(),
+)
+
+data class PlatformTenantDetailDto(
+    val tenant: PlatformTenantDto,
+    val admins: List<PlatformAdminDto> = emptyList(),
+    val subscription: PlatformSubscriptionDto = PlatformSubscriptionDto(),
+)
+
+data class PlatformTenantUpdateRequestDto(
+    val status: String? = null,
+    val reason: String? = null,
+)
+
+data class PlatformTenantExtendRequestDto(
+    val months: Int,
+    val reason: String,
+)
+
+data class PlatformTenantMutationResponseDto(
+    val message: String,
+    val tenant: PlatformTenantDto,
+)
+
+data class PlatformSettingsUpdateRequestDto(
+    val settings: Map<String, Any?>,
+    val reason: String,
+)
+
+data class PlatformGatewayUpdateRequestDto(
+    @param:Json(name = "public_key") val publicKey: String,
+    @param:Json(name = "secret_key") val secretKey: String? = null,
+    @param:Json(name = "contract_code") val contractCode: String? = null,
+    val live: Boolean,
+    val reason: String,
+)
+
+data class PlatformSettingsMutationResponseDto(
+    val message: String,
+    @param:Json(name = "changed_keys") val changedKeys: List<String> = emptyList(),
+    val provider: String? = null,
+    @param:Json(name = "secret_replaced") val secretReplaced: Boolean? = null,
+    val live: Boolean? = null,
+)
 
 data class PlatformSupportReplyRequestDto(val reply: String)
 
