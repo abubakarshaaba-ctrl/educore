@@ -79,6 +79,22 @@ class ClassesViewModel @Inject constructor(
         loadStudents(classId, "")
     }
 
+    fun clearClassSelection() {
+        studentSearchJob?.cancel()
+        studentLoadJob?.cancel()
+        _uiState.update {
+            it.copy(
+                classStudents = null,
+                studentProfile = null,
+                attendanceSheet = null,
+                studentSearch = "",
+                isLoadingWorkspace = false,
+                isLoadingMoreStudents = false,
+                errorMessage = null,
+            )
+        }
+    }
+
     fun setStudentSearch(value: String) {
         _uiState.update { it.copy(studentSearch = value) }
         val classId = _uiState.value.classStudents?.classSummary?.id ?: return
