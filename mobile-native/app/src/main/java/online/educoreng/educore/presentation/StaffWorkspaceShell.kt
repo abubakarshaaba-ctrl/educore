@@ -97,6 +97,8 @@ internal fun StaffWorkspaceShell(
     val operationsState by operationsViewModel.uiState.collectAsStateWithLifecycle()
     val communicationViewModel: CommunicationViewModel = hiltViewModel()
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
+    val skillsViewModel: SkillsViewModel = hiltViewModel()
+    val skillsState by skillsViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -179,6 +181,10 @@ internal fun StaffWorkspaceShell(
                 classesViewModel.clearClassSelection()
                 classesViewModel.loadClasses()
                 navController.navigate(StaffRoutes.REPORT_CARDS)
+            }
+            "skills" -> {
+                skillsViewModel.load()
+                navController.navigate(StaffRoutes.SKILLS)
             }
             "lesson-planner" -> {
                 academicViewModel.loadLessons()
@@ -478,6 +484,35 @@ internal fun StaffWorkspaceShell(
                             )
                         }
 
+                        composable(StaffRoutes.SKILLS) {
+                            LaunchedEffect(Unit) {
+                                if (skillsState.workspace == null && !skillsState.isLoading) {
+                                    skillsViewModel.load()
+                                }
+                            }
+                            SkillsScreen(
+                                state = skillsState,
+                                onBack = {
+                                    if (skillsState.inSheet) skillsViewModel.requestCloseSheet()
+                                    else navController.popBackStack()
+                                },
+                                onClass = skillsViewModel::selectClass,
+                                onTerm = skillsViewModel::selectTerm,
+                                onOpenSheet = skillsViewModel::openSheet,
+                                onCategory = skillsViewModel::setCategory,
+                                onPreviousStudent = skillsViewModel::previousStudent,
+                                onNextStudent = skillsViewModel::nextStudent,
+                                onRate = skillsViewModel::rate,
+                                onSave = skillsViewModel::save,
+                                onRetry = {
+                                    if (skillsState.inSheet) skillsViewModel.openSheet()
+                                    else skillsViewModel.load()
+                                },
+                                onCancelDiscard = skillsViewModel::cancelDiscard,
+                                onConfirmDiscard = skillsViewModel::confirmDiscard,
+                            )
+                        }
+
                         composable(StaffRoutes.PROFILE) {
                             StaffProfileScreen(session = session, onBack = navController::popBackStack)
                         }
@@ -728,6 +763,7 @@ private object StaffRoutes {
     const val SCHEDULE = "staff/schedule/{classId}"
     const val REPORT_CARDS = "staff/report-cards"
     const val REPORT_RESULT = "staff/report-cards/{classId}/{studentId}"
+    const val SKILLS = "staff/skills"
     const val PROFILE = "staff/profile"
     const val REPOSITORY = "staff/repository"
     const val REPOSITORY_RESOURCE = "staff/repository/{resourceId}"
@@ -766,7 +802,7 @@ private fun rootFor(route: String): StaffTab = when {
     route.startsWith("staff-v2/timetable") || route.startsWith("staff/schedule") -> StaffTab.TIMETABLE
     route.startsWith("staff-v2/inbox") || route.startsWith("staff/inbox") -> StaffTab.INBOX
     route.startsWith("staff-v2/more") || route.startsWith("staff/staff-attendance") ||
-        route.startsWith("staff/report-cards") || route.startsWith("staff/profile") ||
+        route.startsWith("staff/report-cards") || route.startsWith("staff/skills") || route.startsWith("staff/profile") ||
         route.startsWith("staff/repository") || route.startsWith("staff/lesson-plans") ||
         route.startsWith("staff/operations") -> StaffTab.MORE
     else -> StaffTab.HOME
@@ -775,6 +811,7 @@ private fun rootFor(route: String): StaffTab = when {
 private fun staffSubtitle(key: String): String? = when (key.lowercase()) {
     "staff-attendance", "staff-attendance.self" -> "Clock in, clock out and review attendance"
     "reports", "report-cards", "results" -> "Generate and review published report cards"
+    "skills" -> "Behavioural and psychomotor ratings"
     "cbt", "cbt-exams", "examinations" -> "Manage computer-based examinations"
     "lesson-planner" -> "Create, generate and publish lesson plans"
     "academic-repository" -> "Notes, schemes and academic resources"
