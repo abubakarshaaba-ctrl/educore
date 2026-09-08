@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Admission;
+use App\Services\TenantHostResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +29,8 @@ class ProtectPublicTenantPortal
         'tenant.host.custom.careers.track.reply' => [12, 60],
     ];
 
+    public function __construct(private readonly TenantHostResolver $hosts) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $routeName = (string) ($request->route()?->getName() ?? '');
@@ -49,7 +52,7 @@ class ProtectPublicTenantPortal
 
     private function protectAdmissionSuccess(Request $request): void
     {
-        $tenant = $request->attributes->get('resolved_tenant');
+        $tenant = $this->hosts->resolve($request)->tenant;
         $applicationNumber = (string) $request->route('app');
         $presentedToken = (string) $request->query('token', '');
 
@@ -75,7 +78,7 @@ class ProtectPublicTenantPortal
         int $maxAttempts,
         int $decaySeconds,
     ): void {
-        $tenantId = $request->attributes->get('resolved_tenant')?->id ?? 'unknown';
+        $tenantId = $this->hosts->resolve($request)->tenant?->id ?? 'unknown';
         $key = 'public-tenant-portal:' . $tenantId . ':' . $routeName . ':' . $request->ip();
 
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
