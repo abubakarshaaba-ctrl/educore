@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\PlatformSetting;
 use App\Models\Student;
 use App\Models\Tenant;
@@ -13,6 +14,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MobilePlatformExtendedController extends Controller
 {
@@ -142,11 +145,76 @@ class MobilePlatformExtendedController extends Controller
         return response()->json([
             'summary' => [
                 'open' => (clone $base)->where('status', 'open')->count(),
-                'replied' => (clone $base)->where('status', 'replied')->count(),
+                'replied' => (clone $base)->whereIn('status', ['answered', 'replied'])->count(),
                 'closed' => (clone $base)->where('status', 'closed')->count(),
             ],
             'tickets' => $tickets,
         ]);
+    }
+
+    public function replySupport(Request $request, int $ticket): JsonResponse
+    {
+        $user = $this->guard($request);
+        $data = $request->validate([
+            'reply' => ['required', 'string', 'min:2', 'max:3000'],
+        ]);
+
+        $record = DB::table('platform_support_tickets')->where('id', $ticket)->first();
+        abort_unless($record, 404);
+        if ($record->status === 'closed') {
+            throw ValidationException::withMessages(['ticket' => 'Closed support tickets cannot be replied to.']);
+        }
+
+        DB::transaction(function () use ($record, $data, $user, $request): void {
+            DB::table('platform_support_tickets')->where('id', $record->id)->update([
+                'admin_reply' => trim($data['reply']),
+                'replied_by' => $user->id,
+                'replied_at' => now(),
+                'status' => 'answered',
+                'updated_at' => now(),
+            ]);
+            $this->audit(
+                request: $request,
+                user: $user,
+                action: 'platform.support.replied',
+                auditableType: 'platform_support_ticket',
+                auditableId: (int) $record->id,
+                tenantId: (int) $record->tenant_id,
+                oldValues: ['status' => $record->status],
+                newValues: ['status' => 'answered'],
+            );
+        });
+
+        return response()->json(['message' => 'Support reply sent.', 'status' => 'answered']);
+    }
+
+    public function closeSupport(Request $request, int $ticket): JsonResponse
+    {
+        $user = $this->guard($request);
+        $record = DB::table('platform_support_tickets')->where('id', $ticket)->first();
+        abort_unless($record, 404);
+        if ($record->status === 'closed') {
+            throw ValidationException::withMessages(['ticket' => 'This support ticket is already closed.']);
+        }
+
+        DB::transaction(function () use ($record, $user, $request): void {
+            DB::table('platform_support_tickets')->where('id', $record->id)->update([
+                'status' => 'closed',
+                'updated_at' => now(),
+            ]);
+            $this->audit(
+                request: $request,
+                user: $user,
+                action: 'platform.support.closed',
+                auditableType: 'platform_support_ticket',
+                auditableId: (int) $record->id,
+                tenantId: (int) $record->tenant_id,
+                oldValues: ['status' => $record->status],
+                newValues: ['status' => 'closed'],
+            );
+        });
+
+        return response()->json(['message' => 'Support ticket closed.', 'status' => 'closed']);
     }
 
     public function broadcasts(Request $request): JsonResponse
@@ -174,6 +242,74 @@ class MobilePlatformExtendedController extends Controller
             ]);
 
         return response()->json(['broadcasts' => $broadcasts]);
+    }
+
+    public function createBroadcast(Request $request): JsonResponse
+    {
+        $user = $this->guard($request);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'body' => ['required', 'string', 'max:5000'],
+            'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
+            'expires_at' => ['nullable', 'date', 'after:now'],
+        ]);
+
+        $id = DB::transaction(function () use ($data, $user, $request): int {
+            $id = DB::table('platform_broadcasts')->insertGetId([
+                'title' => trim($data['title']),
+                'body' => trim($data['body']),
+                'target' => $data['target'],
+                'created_by' => $user->id,
+                'expires_at' => $data['expires_at'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->audit(
+                request: $request,
+                user: $user,
+                action: 'platform.broadcast.created',
+                auditableType: 'platform_broadcast',
+                auditableId: $id,
+                tenantId: null,
+                oldValues: [],
+                newValues: ['title' => $data['title'], 'target' => $data['target'], 'expires_at' => $data['expires_at'] ?? null],
+            );
+
+            return $id;
+        });
+
+        return response()->json(['message' => 'Platform broadcast created.', 'id' => $id], 201);
+    }
+
+    public function expireBroadcast(Request $request, int $broadcast): JsonResponse
+    {
+        $user = $this->guard($request);
+        $record = DB::table('platform_broadcasts')->where('id', $broadcast)->first();
+        abort_unless($record, 404);
+
+        $alreadyExpired = $record->expires_at !== null && Carbon::parse($record->expires_at)->isPast();
+        if ($alreadyExpired) {
+            throw ValidationException::withMessages(['broadcast' => 'This broadcast has already expired.']);
+        }
+
+        DB::transaction(function () use ($record, $user, $request): void {
+            DB::table('platform_broadcasts')->where('id', $record->id)->update([
+                'expires_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->audit(
+                request: $request,
+                user: $user,
+                action: 'platform.broadcast.expired',
+                auditableType: 'platform_broadcast',
+                auditableId: (int) $record->id,
+                tenantId: null,
+                oldValues: ['expires_at' => $record->expires_at],
+                newValues: ['expires_at' => now()->toIso8601String()],
+            );
+        });
+
+        return response()->json(['message' => 'Platform broadcast expired.']);
     }
 
     public function settings(Request $request): JsonResponse
@@ -252,6 +388,33 @@ class MobilePlatformExtendedController extends Controller
         }
 
         return substr($text, 0, 4).'••••'.substr($text, -4);
+    }
+
+    private function audit(
+        Request $request,
+        User $user,
+        string $action,
+        string $auditableType,
+        int $auditableId,
+        ?int $tenantId,
+        array $oldValues,
+        array $newValues,
+    ): void {
+        if (!Schema::hasTable('audit_logs')) {
+            return;
+        }
+
+        AuditLog::create([
+            'tenant_id' => $tenantId,
+            'actor_user_id' => $user->id,
+            'auditable_type' => $auditableType,
+            'auditable_id' => $auditableId,
+            'action' => $action,
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
     }
 
     private function guard(Request $request): User
