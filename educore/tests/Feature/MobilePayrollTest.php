@@ -19,7 +19,11 @@ class MobilePayrollTest extends TestCase
             $this->markTestSkipped('Mobile payroll tests require sqlite :memory:.');
         }
 
-        foreach (['payroll_items', 'payroll_periods', 'staff_permissions', 'api_tokens', 'users', 'tenants'] as $table) {
+        foreach ([
+            'staff_disciplinary_actions', 'staff_deductions', 'payroll_deduction_templates',
+            'payroll_tax_bands', 'staff_salary_settings', 'payroll_items', 'payroll_periods',
+            'staff_permissions', 'api_tokens', 'users', 'tenants',
+        ] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -40,6 +44,8 @@ class MobilePayrollTest extends TestCase
             $table->boolean('is_super_admin')->default(false);
             $table->boolean('is_active')->default(true);
             $table->string('employment_status')->nullable();
+            $table->date('employment_started_at')->nullable();
+            $table->date('employment_ended_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -100,6 +106,65 @@ class MobilePayrollTest extends TestCase
             $table->text('notes')->nullable();
             $table->timestamps();
         });
+        Schema::create('staff_salary_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('staff_id');
+            $table->decimal('basic_salary', 10, 2)->default(0);
+            $table->decimal('housing_allowance', 10, 2)->default(0);
+            $table->decimal('transport_allowance', 10, 2)->default(0);
+            $table->decimal('other_allowances', 10, 2)->default(0);
+            $table->decimal('annual_rent_paid', 12, 2)->default(0);
+            $table->string('bank_name')->nullable();
+            $table->string('account_number')->nullable();
+            $table->string('account_name')->nullable();
+            $table->boolean('bank_details_locked')->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('payroll_tax_bands', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->decimal('lower_bound', 12, 2)->default(0);
+            $table->decimal('upper_bound', 12, 2)->nullable();
+            $table->decimal('rate_percent', 6, 3)->default(0);
+            $table->unsignedInteger('order_index')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('payroll_deduction_templates', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('name');
+            $table->string('type')->default('other');
+            $table->string('calc_method')->default('fixed');
+            $table->decimal('value', 10, 2)->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('staff_deductions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('staff_id');
+            $table->unsignedBigInteger('payroll_deduction_template_id');
+            $table->decimal('custom_amount', 10, 2)->nullable();
+            $table->string('notes')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('staff_disciplinary_actions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('staff_id');
+            $table->string('offence_type')->nullable();
+            $table->string('action_type');
+            $table->decimal('amount', 10, 2)->nullable();
+            $table->date('effective_date')->nullable();
+            $table->unsignedBigInteger('staff_deduction_id')->nullable();
+            $table->unsignedBigInteger('applied_payroll_item_id')->nullable();
+            $table->timestamp('applied_at')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamps();
+        });
     }
 
     public function test_payroll_index_is_tenant_scoped_searchable_and_permission_aware(): void
@@ -117,6 +182,54 @@ class MobilePayrollTest extends TestCase
             ->assertJsonPath('metrics.net_total', 900000)
             ->assertJsonCount(1, 'periods')
             ->assertJsonPath('periods.0.title', 'September 2026 Salary');
+    }
+
+    public function test_authoritative_generator_creates_draft_and_reports_unconfigured_staff(): void
+    {
+        [$tenant, $admin] = $this->school('Generator Payroll School');
+        $configured = $this->staff($tenant->id, 'Configured Staff', 'PAY-GEN-1');
+        $unconfigured = $this->staff($tenant->id, 'Unconfigured Staff', 'PAY-GEN-2');
+        $this->salary($tenant->id, $configured, 100000, 10000, 5000, 0);
+        $this->salary($tenant->id, $unconfigured, 0, 0, 0, 0);
+
+        $response = $this->withToken(ApiToken::issue($admin, 'payroll-generate'))
+            ->postJson('/api/v1/payroll', [
+                'title' => 'October 2026 Payroll',
+                'period_start' => '2026-10-01',
+                'period_end' => '2026-10-31',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.status', 'draft')
+            ->assertJsonPath('period.title', 'October 2026 Payroll')
+            ->assertJsonPath('skipped_staff.0', 'Unconfigured Staff');
+
+        $periodId = (int) $response->json('period.id');
+        $this->assertDatabaseHas('payroll_items', [
+            'tenant_id' => $tenant->id,
+            'payroll_period_id' => $periodId,
+            'staff_id' => $configured,
+            'payment_status' => 'pending',
+        ]);
+        $this->assertDatabaseMissing('payroll_items', [
+            'payroll_period_id' => $periodId,
+            'staff_id' => $unconfigured,
+        ]);
+    }
+
+    public function test_generator_rejects_duplicate_exact_date_range(): void
+    {
+        [$tenant, $admin] = $this->school('Duplicate Payroll School');
+        $this->period($tenant->id, 'Existing October Payroll', 'draft', 0, 0, 0, '2026-10-01', '2026-10-31');
+
+        $this->withToken(ApiToken::issue($admin, 'payroll-duplicate'))
+            ->postJson('/api/v1/payroll', [
+                'title' => 'Duplicate October Payroll',
+                'period_start' => '2026-10-01',
+                'period_end' => '2026-10-31',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertSame(1, DB::table('payroll_periods')->where('tenant_id', $tenant->id)->count());
     }
 
     public function test_period_detail_is_tenant_scoped_and_exposes_staff_lines(): void
@@ -175,7 +288,7 @@ class MobilePayrollTest extends TestCase
         $staffA = $this->staff($tenant->id, 'Staff A', 'PAY-001');
         $staffB = $this->staff($tenant->id, 'Staff B', 'PAY-002');
         $draftId = $this->period($tenant->id, 'Draft Payroll', 'draft', 100000, 10000, 90000);
-        $approvedId = $this->period($tenant->id, 'Approved Payroll', 'approved', 200000, 20000, 180000);
+        $approvedId = $this->period($tenant->id, 'Approved Payroll', 'approved', 200000, 20000, 180000, '2026-10-01', '2026-10-31');
         $this->item($tenant->id, $approvedId, $staffA, 100000, 10000, 90000);
         $this->item($tenant->id, $approvedId, $staffB, 100000, 10000, 90000);
         $token = ApiToken::issue($admin, 'payroll-paid');
@@ -205,7 +318,7 @@ class MobilePayrollTest extends TestCase
         $this->withToken($token)->postJson("/api/v1/payroll/{$foreignPeriod}/paid")->assertNotFound();
     }
 
-    public function test_custom_deny_blocks_payroll_access(): void
+    public function test_custom_deny_blocks_payroll_access_and_generation(): void
     {
         [$tenant, $admin] = $this->school('Denied Payroll School');
         DB::table('staff_permissions')->insert([
@@ -218,9 +331,13 @@ class MobilePayrollTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->withToken(ApiToken::issue($admin, 'payroll-denied'))
-            ->getJson('/api/v1/payroll')
-            ->assertForbidden();
+        $token = ApiToken::issue($admin, 'payroll-denied');
+        $this->withToken($token)->getJson('/api/v1/payroll')->assertForbidden();
+        $this->withToken($token)->postJson('/api/v1/payroll', [
+            'title' => 'Denied Payroll',
+            'period_start' => '2026-10-01',
+            'period_end' => '2026-10-31',
+        ])->assertForbidden();
     }
 
     private function school(string $name): array
@@ -254,13 +371,37 @@ class MobilePayrollTest extends TestCase
         ])->id;
     }
 
-    private function period(int $tenantId, string $title, string $status, float $gross, float $deductions, float $net): int
+    private function salary(int $tenantId, int $staffId, float $basic, float $housing, float $transport, float $other): void
     {
+        DB::table('staff_salary_settings')->insert([
+            'tenant_id' => $tenantId,
+            'staff_id' => $staffId,
+            'basic_salary' => $basic,
+            'housing_allowance' => $housing,
+            'transport_allowance' => $transport,
+            'other_allowances' => $other,
+            'annual_rent_paid' => 0,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function period(
+        int $tenantId,
+        string $title,
+        string $status,
+        float $gross,
+        float $deductions,
+        float $net,
+        string $start = '2026-09-01',
+        string $end = '2026-09-30',
+    ): int {
         return DB::table('payroll_periods')->insertGetId([
             'tenant_id' => $tenantId,
             'title' => $title,
-            'period_start' => '2026-09-01',
-            'period_end' => '2026-09-30',
+            'period_start' => $start,
+            'period_end' => $end,
             'status' => $status,
             'total_gross' => $gross,
             'total_deductions' => $deductions,
