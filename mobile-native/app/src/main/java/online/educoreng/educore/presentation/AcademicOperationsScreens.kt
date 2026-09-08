@@ -82,24 +82,50 @@ internal fun CurriculumScreen(
     onQuery: (String) -> Unit,
     onSection: (Int) -> Unit,
 ) {
-    val workspace = state.workspace ?: return
-    val section = workspace.sections.getOrNull(state.selectedSection)
-    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+    val viewModel: CurriculumViewModel = hiltViewModel()
+    val curriculumState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    AcademicListShell(
-        title = "Curriculum",
-        subtitle = "Academic tracks and class-subject offering rules",
-        state = state,
-        workspace = workspace,
-        records = records,
-        onBack = onBack,
-        onQuery = onQuery,
-        onSection = onSection,
-        placeholder = if (section?.key == "tracks") "Search academic track" else "Search subject, class, track or group",
-        emptyMessage = if (section?.key == "tracks") "Academic tracks will appear here." else "Class-subject rules will appear here.",
-    ) { record ->
-        if (section?.key == "tracks") CurriculumTrackCard(record) else CurriculumRuleCard(record)
+    LaunchedEffect(state.workspace?.module?.key) {
+        if (curriculumState.workspace == null && !curriculumState.isLoading) {
+            viewModel.load()
+        }
     }
+
+    NativeCurriculumScreen(
+        state = curriculumState,
+        onBack = onBack,
+        onTab = viewModel::setTab,
+        onQuery = viewModel::setQuery,
+        onSearch = viewModel::search,
+        onLevelFilter = viewModel::setLevelFilter,
+        onTrackFilter = viewModel::setTrackFilter,
+        onStatusFilter = viewModel::setStatusFilter,
+        onCreateTrack = viewModel::createTrack,
+        onEditTrack = viewModel::editTrack,
+        onTrackName = viewModel::setTrackName,
+        onTrackSection = viewModel::setTrackSection,
+        onTrackActive = viewModel::setTrackActive,
+        onSaveTrack = viewModel::saveTrack,
+        onRequestDeleteTrack = viewModel::requestDeleteTrack,
+        onCancelDeleteTrack = viewModel::cancelDeleteTrack,
+        onConfirmDeleteTrack = viewModel::confirmDeleteTrack,
+        onCreateRule = viewModel::createRule,
+        onEditRule = viewModel::editRule,
+        onRuleLevel = viewModel::setRuleLevel,
+        onRuleTrack = viewModel::setRuleTrack,
+        onRuleSubject = viewModel::setRuleSubject,
+        onRuleStatus = viewModel::setRuleStatus,
+        onRuleGroup = viewModel::setRuleGroup,
+        onRuleMin = viewModel::setRuleMin,
+        onRuleMax = viewModel::setRuleMax,
+        onRuleActive = viewModel::setRuleActive,
+        onSaveRule = viewModel::saveRule,
+        onRequestDeleteRule = viewModel::requestDeleteRule,
+        onCancelDeleteRule = viewModel::cancelDeleteRule,
+        onConfirmDeleteRule = viewModel::confirmDeleteRule,
+        onCloseEditor = viewModel::closeEditor,
+        onRetry = viewModel::load,
+    )
 }
 
 @Composable
