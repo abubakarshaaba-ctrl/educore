@@ -109,6 +109,8 @@ internal fun StaffModulesHubScreen(
             onUnpublish = reportsViewModel::requestUnpublish,
             onConfirm = reportsViewModel::confirmManagementAction,
             onDismissConfirmation = reportsViewModel::dismissConfirmation,
+            onDownload = reportsViewModel::downloadPdf,
+            onDocumentOpened = reportsViewModel::consumeDocument,
             onRetry = reportsViewModel::load,
         )
         return
