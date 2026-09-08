@@ -65,6 +65,7 @@ jobs:
             tests/Feature/MobileSpecialistOperationsTest.php \
             tests/Feature/MobileLibraryTest.php \
             tests/Feature/MobileInventoryTest.php \
+            tests/Feature/MobileHostelTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
