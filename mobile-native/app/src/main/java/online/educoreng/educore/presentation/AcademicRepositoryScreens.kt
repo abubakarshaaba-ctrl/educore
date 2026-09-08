@@ -31,12 +31,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.text.HtmlCompat
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -180,8 +183,9 @@ internal fun AcademicRepositoryScreen(
 }
 
 /**
- * Note detail follows the approved concept: strong title bar, metadata chips,
- * an overview card, accordion-like content sections and an attachment action.
+ * Repository content is kept faithful to the source while being presented as
+ * a conventional lesson note: headings, paragraphs, bullets and numbered
+ * points are separated instead of rendering extracted text as one dense block.
  */
 @Composable
 internal fun AcademicResourceDetailScreen(
@@ -222,8 +226,8 @@ internal fun AcademicResourceDetailScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 Text(
                     "${detail.fragments.size} prepared section${if (detail.fragments.size == 1) "" else "s"} for ${detail.resource.subject}. " +
-                        "Use the sections below for reading, then open the original file when you need the source document.",
-                    style = MaterialTheme.typography.bodyMedium,
+                        "The note reader separates headings, paragraphs and lists for comfortable mobile reading while preserving the source content.",
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp),
                     color = EduCoreColors.Slate700,
                 )
             }
@@ -243,17 +247,27 @@ internal fun AcademicResourceDetailScreen(
                         end = EduCoreSpacing.Lg,
                         bottom = EduCoreSpacing.Lg,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                 ) {
-                    Text(fragment.content, style = MaterialTheme.typography.bodyLarge, color = EduCoreColors.Ink900)
-                    fragment.learningExpectation?.takeIf(String::isNotBlank)?.let {
+                    AcademicNoteContent(fragment.content)
+                    fragment.learningExpectation?.takeIf(String::isNotBlank)?.let { expectation ->
                         Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.small) {
-                            Text(
-                                "Learning expectation: $it",
+                            Column(
                                 Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = EduCoreColors.Navy900,
-                            )
+                                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                            ) {
+                                Text(
+                                    "Learning expectation",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EduCoreColors.Navy900,
+                                )
+                                Text(
+                                    expectation,
+                                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp),
+                                    color = EduCoreColors.Navy900,
+                                )
+                            }
                         }
                     }
                 }
@@ -292,6 +306,215 @@ internal fun AcademicResourceDetailScreen(
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
+
+@Composable
+private fun AcademicNoteContent(content: String) {
+    val blocks = remember(content) { parseAcademicNote(content) }
+    if (blocks.isEmpty()) {
+        Text(
+            "No readable note text is available in this section.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = EduCoreColors.Slate600,
+        )
+        return
+    }
+
+    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        blocks.forEach { block ->
+            when (block) {
+                is AcademicNoteBlock.Heading -> Text(
+                    text = block.text,
+                    modifier = Modifier.padding(top = EduCoreSpacing.Xs),
+                    style = MaterialTheme.typography.titleSmall.copy(lineHeight = 22.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = EduCoreColors.Navy900,
+                )
+
+                is AcademicNoteBlock.Paragraph -> Text(
+                    text = block.text,
+                    style = bodyStyle,
+                    color = EduCoreColors.Ink900,
+                )
+
+                is AcademicNoteBlock.Bullet -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Text(
+                        "•",
+                        modifier = Modifier.width(22.dp),
+                        style = bodyStyle,
+                        fontWeight = FontWeight.Bold,
+                        color = EduCoreColors.Gold700,
+                    )
+                    Text(
+                        block.text,
+                        modifier = Modifier.weight(1f),
+                        style = bodyStyle,
+                        color = EduCoreColors.Ink900,
+                    )
+                }
+
+                is AcademicNoteBlock.Numbered -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Text(
+                        block.marker,
+                        modifier = Modifier.width(38.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
+                        fontWeight = FontWeight.SemiBold,
+                        color = EduCoreColors.Gold700,
+                    )
+                    Text(
+                        block.text,
+                        modifier = Modifier.weight(1f),
+                        style = bodyStyle,
+                        color = EduCoreColors.Ink900,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private sealed class AcademicNoteBlock {
+    data class Heading(val text: String) : AcademicNoteBlock()
+    data class Paragraph(val text: String) : AcademicNoteBlock()
+    data class Bullet(val text: String) : AcademicNoteBlock()
+    data class Numbered(val marker: String, val text: String) : AcademicNoteBlock()
+}
+
+private val academicHtmlTag = Regex("</?[A-Za-z][^>]*>")
+private val academicMarkdownHeading = Regex("^#{1,6}\\s+(.+)$")
+private val academicNumberedPoint = Regex("^((?:\\d+(?:\\.\\d+)*)|[A-Za-z])[.)]\\s+(.+)$")
+private val academicBulletPrefixes = listOf("• ", "● ", "◦ ", "▪ ", "‣ ", "- ", "* ", "– ", "— ")
+private val academicHeadingLabels = setOf(
+    "introduction",
+    "meaning",
+    "definition",
+    "definitions",
+    "overview",
+    "objectives",
+    "learning objectives",
+    "learning outcomes",
+    "features",
+    "characteristics",
+    "types",
+    "classification",
+    "importance",
+    "functions",
+    "examples",
+    "causes",
+    "effects",
+    "advantages",
+    "disadvantages",
+    "applications",
+    "summary",
+    "conclusion",
+    "revision",
+    "evaluation",
+)
+
+private fun parseAcademicNote(raw: String): List<AcademicNoteBlock> {
+    val text = normaliseAcademicNote(raw)
+    if (text.isBlank()) return emptyList()
+
+    val blocks = mutableListOf<AcademicNoteBlock>()
+    val paragraph = mutableListOf<String>()
+
+    fun flushParagraph() {
+        if (paragraph.isNotEmpty()) {
+            blocks += AcademicNoteBlock.Paragraph(paragraph.joinToString(" ").normaliseInlineSpacing())
+            paragraph.clear()
+        }
+    }
+
+    text.lineSequence().forEach { sourceLine ->
+        val line = sourceLine.trim()
+        if (line.isBlank()) {
+            flushParagraph()
+            return@forEach
+        }
+
+        academicMarkdownHeading.matchEntire(line)?.let { match ->
+            flushParagraph()
+            blocks += AcademicNoteBlock.Heading(match.groupValues[1].trim().trimEnd(':'))
+            return@forEach
+        }
+
+        academicBulletPrefixes.firstOrNull(line::startsWith)?.let { prefix ->
+            flushParagraph()
+            line.removePrefix(prefix).trim().takeIf(String::isNotBlank)?.let {
+                blocks += AcademicNoteBlock.Bullet(it.normaliseInlineSpacing())
+            }
+            return@forEach
+        }
+
+        academicNumberedPoint.matchEntire(line)?.let { match ->
+            flushParagraph()
+            blocks += AcademicNoteBlock.Numbered(
+                marker = "${match.groupValues[1]}.",
+                text = match.groupValues[2].trim().normaliseInlineSpacing(),
+            )
+            return@forEach
+        }
+
+        if (isAcademicHeading(line)) {
+            flushParagraph()
+            blocks += AcademicNoteBlock.Heading(line.trim().trimEnd(':').normaliseInlineSpacing())
+            return@forEach
+        }
+
+        paragraph += line
+    }
+    flushParagraph()
+    return blocks
+}
+
+private fun normaliseAcademicNote(raw: String): String {
+    val source = raw
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .replace('\u00A0', ' ')
+
+    val readable = if (academicHtmlTag.containsMatchIn(source)) {
+        val prepared = source
+            .replace(Regex("(?i)<h[1-6][^>]*>"), "# ")
+            .replace(Regex("(?i)</h[1-6]>"), "<br/>")
+            .replace(Regex("(?i)<li[^>]*>"), "• ")
+            .replace(Regex("(?i)</li>"), "<br/>")
+        HtmlCompat.fromHtml(prepared, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
+    } else {
+        source
+    }
+
+    return readable
+        .replace('\u00A0', ' ')
+        .replace(Regex("[ \\t]+\\n"), "\n")
+        .replace(Regex("\\n[ \\t]+"), "\n")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+private fun isAcademicHeading(line: String): Boolean {
+    val candidate = line.trim().trimEnd(':').normaliseInlineSpacing()
+    if (candidate.length !in 2..90) return false
+
+    val lower = candidate.lowercase()
+    if (lower in academicHeadingLabels) return true
+
+    val letters = candidate.filter(Char::isLetter)
+    if (letters.length >= 4 && letters.all(Char::isUpperCase)) return true
+
+    return line.endsWith(':') && candidate.split(Regex("\\s+")).size <= 8
+}
+
+private fun String.normaliseInlineSpacing(): String = trim().replace(Regex("\\s+"), " ")
 
 @Composable
 private fun RepositoryHeader(title: String, subtitle: String, onBack: () -> Unit) {
