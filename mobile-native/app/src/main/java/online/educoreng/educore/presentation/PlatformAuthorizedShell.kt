@@ -16,14 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
-/**
- * Dedicated native shell for Platform Super Admin accounts.
- *
- * Platform administration has a different information hierarchy from tenant
- * staff/parent/student workspaces. Keeping it outside AuthorizedShell prevents
- * platform modules from accidentally falling through tenant operations or web
- * handoff paths while the native overhaul is in progress.
- */
+/** Dedicated native shell for Platform Super Admin accounts. */
 @Composable
 internal fun PlatformAuthorizedShell(
     onLogout: () -> Unit,
@@ -32,13 +25,16 @@ internal fun PlatformAuthorizedShell(
     groupViewModel: PlatformGroupViewModel = hiltViewModel(),
     settingsViewModel: PlatformSettingsViewModel = hiltViewModel(),
     agentViewModel: PlatformAgentViewModel = hiltViewModel(),
+    provisioningViewModel: PlatformProvisioningViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
     val groupState by groupViewModel.uiState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val agentState by agentViewModel.uiState.collectAsStateWithLifecycle()
+    val provisioningState by provisioningViewModel.uiState.collectAsStateWithLifecycle()
     var schoolDirectoryOpen by remember { mutableStateOf(false) }
+    var provisioningOpen by remember { mutableStateOf(false) }
     var selectedTenantId by remember { mutableStateOf<Long?>(null) }
     var groupDirectoryOpen by remember { mutableStateOf(false) }
     var selectedGroupId by remember { mutableStateOf<Long?>(null) }
@@ -47,32 +43,41 @@ internal fun PlatformAuthorizedShell(
     var agentManagementOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        if (state.dashboard == null && !state.isLoading) {
-            viewModel.load(PlatformSection.OVERVIEW)
-        }
+        if (state.dashboard == null && !state.isLoading) viewModel.load(PlatformSection.OVERVIEW)
     }
-
-    LaunchedEffect(selectedTenantId) {
-        selectedTenantId?.let(tenantViewModel::load)
-    }
-
-    LaunchedEffect(selectedGroupId) {
-        selectedGroupId?.let(groupViewModel::load)
-    }
-
-    LaunchedEffect(settingsEditorOpen) {
-        if (settingsEditorOpen) settingsViewModel.loadSettings()
-    }
-
-    LaunchedEffect(gatewayEditorOpen) {
-        if (gatewayEditorOpen) settingsViewModel.loadGateways()
-    }
-
-    LaunchedEffect(agentManagementOpen) {
-        if (agentManagementOpen) agentViewModel.load()
-    }
+    LaunchedEffect(selectedTenantId) { selectedTenantId?.let(tenantViewModel::load) }
+    LaunchedEffect(selectedGroupId) { selectedGroupId?.let(groupViewModel::load) }
+    LaunchedEffect(settingsEditorOpen) { if (settingsEditorOpen) settingsViewModel.loadSettings() }
+    LaunchedEffect(gatewayEditorOpen) { if (gatewayEditorOpen) settingsViewModel.loadGateways() }
+    LaunchedEffect(agentManagementOpen) { if (agentManagementOpen) agentViewModel.load() }
 
     when {
+        provisioningOpen -> PlatformProvisioningScreen(
+            state = provisioningState,
+            onBack = {
+                provisioningOpen = false
+                provisioningViewModel.reset()
+            },
+            onSchoolName = provisioningViewModel::setSchoolName,
+            onSlug = provisioningViewModel::setSlug,
+            onSubdomain = provisioningViewModel::setSubdomain,
+            onSchoolEmail = provisioningViewModel::setSchoolEmail,
+            onPhone = provisioningViewModel::setPhone,
+            onAddress = provisioningViewModel::setAddress,
+            onAdminName = provisioningViewModel::setAdminName,
+            onAdminEmail = provisioningViewModel::setAdminEmail,
+            onAdminPassword = provisioningViewModel::setAdminPassword,
+            onEmploymentStartDate = provisioningViewModel::setEmploymentStartDate,
+            onSubmit = {
+                provisioningViewModel.submit { tenantId ->
+                    provisioningOpen = false
+                    schoolDirectoryOpen = false
+                    selectedTenantId = tenantId
+                    viewModel.load(PlatformSection.SCHOOLS)
+                }
+            },
+        )
+
         selectedTenantId != null -> PlatformTenantScreen(
             state = tenantState,
             onBack = {
@@ -92,6 +97,7 @@ internal fun PlatformAuthorizedShell(
             schools = state.tenants?.tenants.orEmpty(),
             onBack = { schoolDirectoryOpen = false },
             onOpen = { selectedTenantId = it },
+            onProvision = { provisioningOpen = true },
         )
 
         selectedGroupId != null -> PlatformGroupDetailScreen(
@@ -207,41 +213,31 @@ internal fun PlatformAuthorizedShell(
             )
 
             when {
-                state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> {
-                    EduCorePrimaryButton(
-                        text = "Manage schools",
-                        onClick = { schoolDirectoryOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                    )
-                }
-                state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> {
-                    EduCorePrimaryButton(
-                        text = "Manage groups",
-                        onClick = { groupDirectoryOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                    )
-                }
-                state.section == PlatformSection.AGENTS && !state.isLoading && state.agents != null -> {
-                    EduCorePrimaryButton(
-                        text = "Manage agents",
-                        onClick = { agentManagementOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                    )
-                }
-                state.section == PlatformSection.SETTINGS && !state.isLoading && state.settings != null -> {
-                    EduCorePrimaryButton(
-                        text = "Edit settings",
-                        onClick = { settingsEditorOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                    )
-                }
-                state.section == PlatformSection.GATEWAYS && !state.isLoading && state.gateways != null -> {
-                    EduCorePrimaryButton(
-                        text = "Configure gateways",
-                        onClick = { gatewayEditorOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                    )
-                }
+                state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> EduCorePrimaryButton(
+                    text = "Manage schools",
+                    onClick = { schoolDirectoryOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
+                state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> EduCorePrimaryButton(
+                    text = "Manage groups",
+                    onClick = { groupDirectoryOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
+                state.section == PlatformSection.AGENTS && !state.isLoading && state.agents != null -> EduCorePrimaryButton(
+                    text = "Manage agents",
+                    onClick = { agentManagementOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
+                state.section == PlatformSection.SETTINGS && !state.isLoading && state.settings != null -> EduCorePrimaryButton(
+                    text = "Edit settings",
+                    onClick = { settingsEditorOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
+                state.section == PlatformSection.GATEWAYS && !state.isLoading && state.gateways != null -> EduCorePrimaryButton(
+                    text = "Configure gateways",
+                    onClick = { gatewayEditorOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
             }
         }
     }
