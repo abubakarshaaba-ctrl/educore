@@ -17,12 +17,15 @@ return Application::configure(basePath: dirname(__DIR__))
             // maintenance mode. Their individual routes apply throttling.
             Route::group(base_path('routes/deploy.php'));
 
-            // Native staff CBT draft creation is kept in a focused route file
-            // while the wider mobile API remains stable. It uses the same bearer
-            // token middleware and /api/v1 namespace as routes/api.php.
+            // Focused native route files share the same bearer-authenticated
+            // /api/v1 contract without making routes/api.php a monolith.
             Route::prefix('api/v1/staff/cbt')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-staff-cbt.php'));
+
+            Route::prefix('api/v1')
+                ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
+                ->group(base_path('routes/mobile-skills.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
