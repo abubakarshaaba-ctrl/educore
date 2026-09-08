@@ -124,7 +124,14 @@ internal class PlatformAgentViewModel @Inject constructor(factory: ApiClientFact
 
     fun requestDeactivate(agent: PlatformAgentDto) {
         if (!agent.active || _uiState.value.isMutating) return
-        _uiState.update { it.copy(pendingDeactivateId = agent.id, reason = "", errorMessage = null, message = null) }
+        _uiState.update {
+            it.copy(
+                pendingDeactivateId = agent.id,
+                reason = "Deactivate platform agent account",
+                errorMessage = null,
+                message = null,
+            )
+        }
     }
 
     fun dismissDeactivate() = _uiState.update { it.copy(pendingDeactivateId = null, reason = "") }
