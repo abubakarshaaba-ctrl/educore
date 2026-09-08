@@ -6,6 +6,7 @@ import online.educoreng.educore.core.network.dto.StaffCbtMutationResponseDto
 import online.educoreng.educore.core.network.dto.StaffCbtRescheduleRequestDto
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -27,7 +28,7 @@ interface StaffCbtApi {
     @POST("staff/cbt/exams/{exam}/close")
     suspend fun close(@Path("exam") examId: Long): StaffCbtMutationResponseDto
 
-    @POST("staff/cbt/exams/{exam}/reschedule")
+    @PATCH("staff/cbt/exams/{exam}/schedule")
     suspend fun reschedule(
         @Path("exam") examId: Long,
         @Body request: StaffCbtRescheduleRequestDto,
