@@ -70,6 +70,7 @@ jobs:
             tests/Feature/MobileFeesTest.php \
             tests/Feature/MobilePayrollTest.php \
             tests/Feature/MobileExpensesTest.php \
+            tests/Feature/MobileSubjectsTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
