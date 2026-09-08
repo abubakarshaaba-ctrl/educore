@@ -14,7 +14,6 @@ use App\Notifications\JobOfferNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Storage;
 
 class RecruitmentController extends Controller
 {
@@ -103,7 +102,6 @@ class RecruitmentController extends Controller
         return back()->with('success', 'Applicant added.');
     }
 
-    // ── Documents review ──────────────────────────────────────────────
     public function documents(JobApplicant $applicant)
     {
         $docs = JobApplicantDocument::where('job_applicant_id', $applicant->id)->get();
@@ -115,12 +113,16 @@ class RecruitmentController extends Controller
     {
         abort_if($doc->job_applicant_id !== $applicant->id, 403);
 
-        $path = storage_path('app/public/' . $doc->file_path);
-        if (!file_exists($path)) {
+        $path = app(\App\Services\SensitiveDocumentStorage::class)
+            ->resolveAbsolutePath($doc->file_path);
+        if ($path === null || !is_file($path)) {
             return back()->withErrors(['error' => 'File not found on server.']);
         }
 
-        return response()->download($path, $doc->original_name);
+        return response()->download($path, $doc->original_name, [
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function verifyDocument(Request $request, JobApplicant $applicant, JobApplicantDocument $doc)
@@ -240,7 +242,6 @@ class RecruitmentController extends Controller
         return back()->with('success', 'Message sent to applicant.');
     }
 
-    // ── Send / Download Job Offer Letter ──────────────────────────────
     public function sendOffer(JobApplicant $applicant)
     {
         $tenant = auth()->user()->tenant;
@@ -289,7 +290,6 @@ class RecruitmentController extends Controller
         return $pdf->download("Job-Offer-{$applicant->id}-{$applicant->name}.pdf");
     }
 
-    /** Merge the tenant's (customisable) job-offer letter template with this applicant's details. */
     private function offerLetterVars(JobApplicant $applicant, \App\Models\Tenant $tenant): array
     {
         $template = LetterTemplate::forTenant($tenant->id, LetterTemplate::TYPE_JOB_OFFER);
