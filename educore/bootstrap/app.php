@@ -53,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Runs inside the routed "web" group so route()/routeIs() are available.
         $middleware->web(append: [
+            \App\Http\Middleware\BlockPublicDiagnostics::class,
             \App\Http\Middleware\MaintenanceMode::class,
             \App\Http\Middleware\RestrictCbtLanSession::class,
             \App\Http\Middleware\ProtectPublicTenantPortal::class,
