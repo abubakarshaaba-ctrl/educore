@@ -98,6 +98,8 @@ internal fun AuthorizedShell(
     val operationsState by operationsViewModel.uiState.collectAsStateWithLifecycle()
     val communicationViewModel: CommunicationViewModel = hiltViewModel()
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
+    val portalAttendanceViewModel: PortalAttendanceViewModel = hiltViewModel()
+    val portalAttendanceState by portalAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeepLink by NotificationDeepLinkStore.pending.collectAsStateWithLifecycle()
     val tabs = remember(session) { ShellNavigationPolicy.tabs(session) }
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -108,6 +110,7 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.CLASS_WORKSPACE -> "Class Workspace"
         currentRoute == NativeRoute.STUDENT_PROFILE -> "Student Profile"
         currentRoute == NativeRoute.ATTENDANCE -> "Student Attendance"
+        currentRoute == NativeRoute.PORTAL_ATTENDANCE -> if (session.user.portal == "parent") "Child Attendance" else "My Attendance"
         currentRoute == NativeRoute.STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
@@ -307,6 +310,10 @@ internal fun AuthorizedShell(
                                                 classesViewModel.loadClasses()
                                                 navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
                                             }
+                                            "student.attendance", "parent.attendance" -> {
+                                                portalAttendanceViewModel.load(session.user.portal)
+                                                navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
+                                            }
                                             "staff-attendance", "staff-attendance.self" -> {
                                                 classesViewModel.loadStaffAttendance()
                                                 navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
@@ -431,6 +438,15 @@ internal fun AuthorizedShell(
                                 onMarkAllPresent = classesViewModel::markAllPresent,
                                 onDiscardDraft = classesViewModel::discardAttendanceDraft,
                                 onSubmit = classesViewModel::submitAttendance,
+                            )
+                        }
+                        composable(NativeRoute.PORTAL_ATTENDANCE) {
+                            PortalAttendanceScreen(
+                                state = portalAttendanceState,
+                                onBack = navController::popBackStack,
+                                onChild = portalAttendanceViewModel::selectChild,
+                                onTerm = portalAttendanceViewModel::selectTerm,
+                                onRetry = portalAttendanceViewModel::retry,
                             )
                         }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
@@ -704,6 +720,7 @@ private object NativeRoute {
     const val CLASS_WORKSPACE = "native/classes/{classId}"
     const val STUDENT_PROFILE = "native/classes/{classId}/students/{studentId}"
     const val ATTENDANCE = "native/classes/{classId}/attendance"
+    const val PORTAL_ATTENDANCE = "native/portal-attendance"
     const val STAFF_ATTENDANCE = "native/staff-attendance"
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
