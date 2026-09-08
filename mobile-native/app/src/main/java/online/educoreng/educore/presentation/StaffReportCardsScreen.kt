@@ -24,10 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
+import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreSearchField
+import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreSkeletonList
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -71,7 +71,7 @@ internal fun StaffReportCardsScreen(
 
         if (selectedClass == null) {
             item {
-                EduCoreSearchField(
+                EduCoreSearchBar(
                     value = state.classSearch,
                     onValueChange = onClassSearch,
                     placeholder = "Search classes",
@@ -79,9 +79,11 @@ internal fun StaffReportCardsScreen(
             }
 
             when {
-                state.isLoadingClasses && state.catalogue == null -> item { EduCoreSkeletonList(rows = 4) }
+                state.isLoadingClasses && state.catalogue == null -> item {
+                    EduCoreLoadingState(message = "Loading your classes")
+                }
                 state.errorMessage != null && state.catalogue == null -> item {
-                    EduCoreErrorState(state.errorMessage, onRetryClasses)
+                    EduCoreErrorState(message = state.errorMessage, onRetry = onRetryClasses)
                 }
                 else -> {
                     val classes = state.catalogue?.classes.orEmpty().filter { summary ->
@@ -89,7 +91,12 @@ internal fun StaffReportCardsScreen(
                             summary.name.contains(state.classSearch, ignoreCase = true) ||
                             summary.subjects.any { it.name.contains(state.classSearch, ignoreCase = true) }
                     }
-                    item { EduCoreSectionHeader("My classes", "Report cards remain scoped to classes you can access") }
+                    item {
+                        EduCoreSectionHeader(
+                            title = "My classes",
+                            supportingText = "Report cards remain scoped to classes you can access",
+                        )
+                    }
                     if (classes.isEmpty()) {
                         item {
                             EduCoreEmptyState(
@@ -106,7 +113,7 @@ internal fun StaffReportCardsScreen(
             }
         } else {
             item {
-                EduCoreSearchField(
+                EduCoreSearchBar(
                     value = state.studentSearch,
                     onValueChange = onStudentSearch,
                     placeholder = "Search students",
@@ -114,9 +121,14 @@ internal fun StaffReportCardsScreen(
             }
 
             when {
-                state.isLoadingWorkspace && state.classStudents?.students.isNullOrEmpty() -> item { EduCoreSkeletonList(rows = 6) }
+                state.isLoadingWorkspace && state.classStudents?.students.isNullOrEmpty() -> item {
+                    EduCoreLoadingState(message = "Loading students")
+                }
                 state.errorMessage != null && state.classStudents?.students.isNullOrEmpty() -> item {
-                    EduCoreErrorState(state.errorMessage) { onOpenClass(selectedClass.id) }
+                    EduCoreErrorState(
+                        message = state.errorMessage,
+                        onRetry = { onOpenClass(selectedClass.id) },
+                    )
                 }
                 else -> {
                     val students = state.classStudents?.students.orEmpty()
