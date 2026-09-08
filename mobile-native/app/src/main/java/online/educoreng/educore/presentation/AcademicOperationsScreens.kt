@@ -16,11 +16,15 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
@@ -41,24 +45,34 @@ internal fun SubjectsScreen(
     onBack: () -> Unit,
     onQuery: (String) -> Unit,
 ) {
-    val workspace = state.workspace ?: return
-    val records = remember(workspace.sections.firstOrNull()?.records, state.query) {
-        workspace.sections.firstOrNull()?.records.orEmpty().filterOperations(state.query)
+    val viewModel: SubjectsViewModel = hiltViewModel()
+    val subjectsState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(state.workspace?.module?.key) {
+        if (subjectsState.workspace == null && !subjectsState.isLoading) {
+            viewModel.load()
+        }
     }
 
-    AcademicListShell(
-        title = "Subjects",
-        subtitle = "Active subject catalogue and class-level coverage",
-        state = state,
-        workspace = workspace,
-        records = records,
+    NativeSubjectsScreen(
+        state = subjectsState,
         onBack = onBack,
-        onQuery = onQuery,
-        onSection = {},
-        placeholder = "Search subject, code or status",
-        showTabs = false,
-        emptyMessage = "Configured subjects will appear here.",
-    ) { SubjectRecordCard(it) }
+        onQuery = viewModel::setQuery,
+        onSearch = viewModel::search,
+        onStatus = viewModel::setStatus,
+        onCreate = viewModel::create,
+        onEdit = viewModel::edit,
+        onCloseEditor = viewModel::closeEditor,
+        onName = viewModel::setName,
+        onCode = viewModel::setCode,
+        onActive = viewModel::setActive,
+        onSave = viewModel::save,
+        onRequestDelete = viewModel::requestDelete,
+        onCancelDelete = viewModel::cancelDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onLoadMore = viewModel::loadMore,
+        onRetry = viewModel::load,
+    )
 }
 
 @Composable
@@ -268,13 +282,6 @@ private fun AcademicListShell(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun SubjectRecordCard(record: OperationsRecord) {
-    AcademicRecordCard(record) {
-        AcademicFieldGrid(listOf("Class-level rules" to record.academicField("Class-level rules")))
     }
 }
 
