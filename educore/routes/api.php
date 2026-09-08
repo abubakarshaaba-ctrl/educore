@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\ScoreController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use App\Http\Controllers\Api\StaffCardController;
+use App\Http\Controllers\Api\StaffCbtApiController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\TimetableController;
@@ -86,6 +87,18 @@ Route::prefix('v1')->group(function () {
             Route::post('sessions/{session}/submit', [MobileCbtController::class, 'submit']);
             Route::get('sessions/{session}/questions/{question}/image', [MobileCbtController::class, 'image']);
         });
+
+        // Staff CBT management is intentionally separate from the student
+        // attempt contract above. Every action is server-authorized and
+        // teacher accounts remain scoped to subjects/classes they teach.
+        Route::prefix('staff/cbt')->group(function () {
+            Route::get('exams', [StaffCbtApiController::class, 'index']);
+            Route::get('exams/{exam}', [StaffCbtApiController::class, 'show']);
+            Route::post('exams/{exam}/publish', [StaffCbtApiController::class, 'publish']);
+            Route::post('exams/{exam}/close', [StaffCbtApiController::class, 'close']);
+            Route::patch('exams/{exam}/schedule', [StaffCbtApiController::class, 'reschedule']);
+        });
+
         Route::get('me', [TeacherController::class, 'me']);
         Route::get('portal/modules', [MobilePortalController::class, 'modules']);
         Route::post('portal/session', [MobilePortalController::class, 'createSession']);
