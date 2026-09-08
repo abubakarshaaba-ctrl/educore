@@ -50,9 +50,9 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT, staff directory, transfers, risk intelligence and data exports are
- * hosted directly inside this native hub. These workspaces never fall back to
- * a browser.
+ * CBT, staff directory, transfers, gradebook/remarks, risk intelligence and
+ * data exports are hosted directly inside this native hub. These workspaces
+ * never fall back to a browser.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -71,6 +71,8 @@ internal fun StaffModulesHubScreen(
     val riskState by riskViewModel.uiState.collectAsStateWithLifecycle()
     val transfersViewModel: TransfersViewModel = hiltViewModel()
     val transfersState by transfersViewModel.uiState.collectAsStateWithLifecycle()
+    val gradebookViewModel: GradebookViewModel = hiltViewModel()
+    val gradebookState by gradebookViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -81,6 +83,7 @@ internal fun StaffModulesHubScreen(
     var riskConfigOpen by rememberSaveable { mutableStateOf(false) }
     var riskFlagId by rememberSaveable { mutableLongStateOf(0L) }
     var transfersOpen by rememberSaveable { mutableStateOf(false) }
+    var gradebookOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -89,6 +92,22 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (gradebookOpen) {
+        GradebookScreen(
+            state = gradebookState,
+            onBack = { gradebookOpen = false },
+            onClass = gradebookViewModel::selectClass,
+            onTerm = gradebookViewModel::selectTerm,
+            onEditFormRemark = gradebookViewModel::editFormTutorRemark,
+            onEditPrincipalRemark = gradebookViewModel::editPrincipalRemark,
+            onRemarkDraft = gradebookViewModel::updateRemarkDraft,
+            onSaveRemark = gradebookViewModel::saveRemark,
+            onDismissEditor = gradebookViewModel::dismissEditor,
+            onRetry = gradebookViewModel::load,
+        )
+        return
     }
 
     if (transfersOpen) {
@@ -267,6 +286,10 @@ internal fun StaffModulesHubScreen(
                 staffDirectoryOpen = true
                 staffDirectoryViewModel.load()
             }
+            "gradebook" -> {
+                gradebookOpen = true
+                gradebookViewModel.load()
+            }
             "transfers" -> {
                 transfersOpen = true
                 transfersViewModel.load()
@@ -399,6 +422,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "staff-attendance", "staff-attendance.self" -> "My Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
+    "gradebook" -> "Gradebook & Remarks"
     "reports", "report-cards", "results" -> "Report Cards"
     "cbt", "cbt-exams", "examinations" -> "Examinations"
     "academic-cycle" -> "Sessions"
@@ -418,7 +442,7 @@ private val ROOT_WORKFLOW_KEYS = setOf(
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 
 private val ACADEMIC_KEYS = setOf(
-    "subjects", "curriculum", "reports", "report-cards", "results", "cbt", "cbt-exams",
+    "subjects", "curriculum", "reports", "report-cards", "results", "gradebook", "cbt", "cbt-exams",
     "examinations", "lesson-planner", "academic-repository", "library",
 )
 
@@ -439,7 +463,7 @@ private fun moduleHubIcon(key: String): ImageVector = when {
     key.contains("subject", ignoreCase = true) || key.contains("curriculum", ignoreCase = true) -> EduCoreIcons.Subjects
     key.contains("attendance", ignoreCase = true) -> EduCoreIcons.Attendance
     key.contains("risk", ignoreCase = true) -> EduCoreIcons.Notices
-    key.contains("score", ignoreCase = true) || key.contains("result", ignoreCase = true) || key.contains("report", ignoreCase = true) -> EduCoreIcons.Scores
+    key.contains("gradebook", ignoreCase = true) || key.contains("score", ignoreCase = true) || key.contains("result", ignoreCase = true) || key.contains("report", ignoreCase = true) -> EduCoreIcons.Scores
     key.contains("cbt", ignoreCase = true) || key.contains("exam", ignoreCase = true) -> EduCoreIcons.ExamDuties
     key.contains("lesson", ignoreCase = true) -> EduCoreIcons.LessonPlan
     key.contains("repository", ignoreCase = true) -> EduCoreIcons.Repository
