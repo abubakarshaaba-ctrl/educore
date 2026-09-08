@@ -24,6 +24,16 @@ class Subject extends BaseTenantModel
     public function scores(): HasMany   { return $this->hasMany(Score::class); }
 
     /**
+     * Direct teacher/class assignments for this subject.
+     * This relation is preferable for reference counting/deletion guards because
+     * it counts assignment rows without joining class_arms.
+     */
+    public function classArmSubjects(): HasMany
+    {
+        return $this->hasMany(ClassArmSubject::class);
+    }
+
+    /**
      * @deprecated  Prefer classLevelRules() for curriculum queries.
      * Teacher assignments per class arm (class_arm_subjects).
      */
