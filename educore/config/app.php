@@ -14,6 +14,13 @@ return [
     */
 
     'deploy_token' => env('DEPLOY_TOKEN'),
+    'deploy_gh_token' => env('DEPLOY_GH_TOKEN'),
+
+    // Shell-free GitHub synchronization. The write token must be a fine-grained
+    // token restricted to this repository with Contents: Read and write only.
+    'github_write_token' => env('GITHUB_WRITE_TOKEN'),
+    'github_repository' => env('GITHUB_REPOSITORY', 'abubakarshaaba-ctrl/educore'),
+    'github_branch' => env('GITHUB_BRANCH', 'master'),
 
     'name' => env('APP_NAME', 'Laravel'),
 
@@ -36,8 +43,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | When your application is in debug mode, detailed error messages with
-    | stack traces will be shown on every error that occurs within your
-    | application. If disabled, a simple generic error page is shown.
+    | stack traces will be shown on every request. If disabled, a simple
+    | generic error page is shown.
     |
     */
 
@@ -48,9 +55,9 @@ return [
     | Application URL
     |--------------------------------------------------------------------------
     |
-    | This URL is used by the console to properly generate URLs when using
-    | the Artisan command line tool. You should set this to the root of
-    | the application so that it's available within Artisan commands.
+    | This URL is used by the console to properly generate URLs when using the
+    | Artisan command line tool. You should set this to the root of the
+    | application so that it's available within Artisan commands.
     |
     */
 
@@ -62,8 +69,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | will be used by the PHP date and date-time functions. The timezone is set
+    | to "UTC" by default as it is suitable for most use cases.
     |
     */
 
@@ -75,8 +82,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | by the translation / localization methods. This option can be set to any
+    | locale for which you plan to provide translation strings.
     |
     */
 
@@ -92,8 +99,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | This key is utilized by Laravel's encryption services and should be set
-    | to a random, 32 character string to ensure that all encrypted values
-    | are secure. You should do this prior to deploying the application.
+    | to a random, 32 character string to ensure that all encrypted values are
+    | secure. You should do this prior to deploying the application.
     |
     */
 
