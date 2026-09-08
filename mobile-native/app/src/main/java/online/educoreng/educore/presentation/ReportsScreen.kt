@@ -24,8 +24,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +46,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+import online.educoreng.educore.core.network.dto.ReportSubjectBreakdownDto
 import online.educoreng.educore.core.network.dto.ReportSummaryRowDto
 
 @Composable
@@ -60,6 +63,20 @@ internal fun ReportsScreen(
     onDismissConfirmation: () -> Unit,
     onRetry: () -> Unit,
 ) {
+    var selectedSummaryId by rememberSaveable { mutableLongStateOf(0L) }
+    val selectedSummary = state.workspace?.students?.firstOrNull { it.summaryId == selectedSummaryId }
+
+    if (selectedSummary != null) {
+        ReportDetailContent(
+            row = selectedSummary,
+            className = state.workspace?.classRoom?.name,
+            termLabel = state.workspace?.term?.let { listOfNotNull(it.name, it.session).joinToString(" · ") },
+            published = state.workspace?.summary?.published == true,
+            onBack = { selectedSummaryId = 0L },
+        )
+        return
+    }
+
     val action = state.confirmation
     EduCoreConfirmationDialog(
         visible = action != null,
@@ -120,12 +137,7 @@ internal fun ReportsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     ) {
-                        EduCoreShowcaseStat(
-                            label = "Computed",
-                            value = data.summary.computed.toString(),
-                            icon = Icons.Default.Groups,
-                            modifier = Modifier.weight(1f),
-                        )
+                        EduCoreShowcaseStat("Computed", data.summary.computed.toString(), Icons.Default.Groups, Modifier.weight(1f))
                         EduCoreShowcaseStat(
                             label = "Missing",
                             value = data.summary.missing?.toString() ?: "—",
@@ -144,37 +156,25 @@ internal fun ReportsScreen(
                 }
 
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-                    ) {
+                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                         ) {
-                            EduCoreSectionHeader(
-                                title = "Selection",
-                                supportingText = "Every action applies only to this tenant class and term.",
+                            EduCoreSectionHeader("Selection", "Every action applies only to this tenant class and term.")
+                            ReportDropdown(
+                                "Class",
+                                data.options.classArms.firstOrNull { it.id == state.selectedClassId }?.name ?: "Select class",
+                                data.options.classArms,
+                                { it.name }, { it.id }, !state.isMutating, onClass,
                             )
                             ReportDropdown(
-                                label = "Class",
-                                value = data.options.classArms.firstOrNull { it.id == state.selectedClassId }?.name ?: "Select class",
-                                options = data.options.classArms,
-                                optionLabel = { it.name },
-                                optionId = { it.id },
-                                enabled = !state.isMutating,
-                                onSelected = onClass,
-                            )
-                            ReportDropdown(
-                                label = "Term",
-                                value = data.options.terms.firstOrNull { it.id == state.selectedTermId }?.let {
+                                "Term",
+                                data.options.terms.firstOrNull { it.id == state.selectedTermId }?.let {
                                     listOfNotNull(it.name, it.session).joinToString(" · ")
                                 } ?: "Select term",
-                                options = data.options.terms,
-                                optionLabel = { listOfNotNull(it.name, it.session).joinToString(" · ") },
-                                optionId = { it.id },
-                                enabled = !state.isMutating,
-                                onSelected = onTerm,
+                                data.options.terms,
+                                { listOfNotNull(it.name, it.session).joinToString(" · ") }, { it.id }, !state.isMutating, onTerm,
                             )
                         }
                     }
@@ -185,33 +185,28 @@ internal fun ReportsScreen(
 
                 if (state.hasSelection) {
                     item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-                        ) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
                             Column(
-                                modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                                Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                                 verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                             ) {
                                 EduCoreSectionHeader(
-                                    title = "Lifecycle actions",
-                                    supportingText = if (data.summary.published) {
+                                    "Lifecycle actions",
+                                    if (data.summary.published) {
                                         data.publication?.publishedByName?.let { "Published by $it. Return to draft before recomputing." }
                                             ?: "Published results are locked. Return to draft before recomputing."
                                     } else {
-                                        "Compute from current scores, review the summaries below, then publish."
+                                        "Compute from current scores, inspect individual reports below, then publish."
                                     },
                                 )
-
                                 if (state.canCompute) {
                                     EduCoreSecondaryButton(
-                                        text = if (data.summary.computed > 0) "Recompute report cards" else "Compute report cards",
-                                        onClick = onCompute,
-                                        modifier = Modifier.fillMaxWidth(),
+                                        if (data.summary.computed > 0) "Recompute report cards" else "Compute report cards",
+                                        onCompute,
+                                        Modifier.fillMaxWidth(),
                                         enabled = !state.isMutating,
                                     )
                                 }
-
                                 Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                     FilterChip(
                                         selected = data.summary.published,
@@ -232,20 +227,13 @@ internal fun ReportsScreen(
                                 )
                                 when {
                                     state.canPublish -> EduCorePrimaryButton(
-                                        text = "Publish report cards",
-                                        onClick = onPublish,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        loading = state.isMutating,
+                                        "Publish report cards", onPublish, Modifier.fillMaxWidth(), loading = state.isMutating,
                                     )
                                     state.canUnpublish -> EduCoreSecondaryButton(
-                                        text = "Return to draft",
-                                        onClick = onUnpublish,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        enabled = !state.isMutating,
+                                        "Return to draft", onUnpublish, Modifier.fillMaxWidth(), enabled = !state.isMutating,
                                     )
                                     data.summary.computed == 0 && !data.summary.published -> EduCoreInfoBanner(
-                                        message = "Compute the report cards before publication.",
-                                        title = "Nothing to publish",
+                                        "Compute the report cards before publication.", title = "Nothing to publish",
                                     )
                                 }
                             }
@@ -254,26 +242,16 @@ internal fun ReportsScreen(
                 }
 
                 when {
-                    data.options.classArms.isEmpty() -> item {
-                        EduCoreEmptyState("No classes available", "No tenant class arms are available for report management.")
-                    }
-                    !state.hasSelection -> item {
-                        EduCoreEmptyState("Choose class and term", "Select both fields to load report summaries.")
-                    }
+                    data.options.classArms.isEmpty() -> item { EduCoreEmptyState("No classes available", "No tenant class arms are available for report management.") }
+                    !state.hasSelection -> item { EduCoreEmptyState("Choose class and term", "Select both fields to load report summaries.") }
                     data.students.isEmpty() && !state.isLoading -> item {
-                        EduCoreEmptyState(
-                            "No computed report cards",
-                            "Use Compute report cards to build summaries from the current score records.",
-                        )
+                        EduCoreEmptyState("No computed report cards", "Use Compute report cards to build summaries from the current score records.")
                     }
                     else -> {
-                        item {
-                            EduCoreSectionHeader(
-                                title = "Computed summaries",
-                                supportingText = "Review these summaries before publication.",
-                            )
+                        item { EduCoreSectionHeader("Computed summaries", "Open each report to inspect subject-level evidence before publication.") }
+                        items(data.students, key = { it.summaryId }) { row ->
+                            ReportSummaryCard(row) { selectedSummaryId = row.summaryId }
                         }
-                        items(data.students, key = { it.summaryId }) { row -> ReportSummaryCard(row) }
                     }
                 }
             }
@@ -293,31 +271,117 @@ internal fun ReportsScreen(
 }
 
 @Composable
-private fun ReportSummaryCard(row: ReportSummaryRowDto) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-    ) {
+private fun ReportDetailContent(
+    row: ReportSummaryRowDto,
+    className: String?,
+    termLabel: String?,
+    published: Boolean,
+    onBack: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        EduCorePageHeader(
+            title = row.student.name,
+            subtitle = listOfNotNull(row.student.admissionNumber, className, termLabel).joinToString(" · "),
+            onBack = onBack,
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(EduCoreSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            item {
+                EduCoreShowcaseHero(
+                    eyebrow = if (published) "PUBLISHED REPORT" else "DRAFT REPORT",
+                    title = "${String.format("%.1f", row.average)}% average",
+                    subtitle = row.position?.let { position ->
+                        row.classSize?.let { "Position $position of $it" } ?: "Position $position"
+                    } ?: "Class position not available",
+                )
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    ReportMetric("Subjects", row.subjectsOffered.toString(), Modifier.weight(1f))
+                    ReportMetric("Failed", row.subjectsFailed.toString(), Modifier.weight(1f))
+                    ReportMetric("Status", row.promotionStatus?.replace('_', ' ') ?: "Pending", Modifier.weight(1f))
+                }
+            }
+            if (row.subjects.isEmpty()) {
+                item { EduCoreEmptyState("No subject breakdown", "Recompute this report card to rebuild subject-level details from score records.") }
+            } else {
+                item { EduCoreSectionHeader("Subject performance", "Computed totals, grading and class comparison") }
+                items(row.subjects, key = { it.subjectId ?: it.subject }) { subject -> ReportSubjectCard(subject) }
+            }
+            item {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        Text("Remarks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Form tutor", style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
+                        Text(row.formTutorRemark?.takeIf(String::isNotBlank) ?: "No form tutor remark yet.")
+                        Text("Principal", style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
+                        Text(row.principalRemark?.takeIf(String::isNotBlank) ?: "No principal remark yet.")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportSubjectCard(subject: ReportSubjectBreakdownDto) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(subject.subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                EduCoreStatusBadge(subject.grade ?: "—", if (subject.isPass) EduCoreTone.Success else EduCoreTone.Warning)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                ReportMetric("Total", String.format("%.1f", subject.total), Modifier.weight(1f))
+                ReportMetric("Position", subject.position?.toString() ?: "—", Modifier.weight(1f))
+                ReportMetric("Class avg", subject.classAverage?.let { String.format("%.1f", it) } ?: "—", Modifier.weight(1f))
+            }
+            Text(
+                "Class range: ${subject.classLowest?.let { String.format("%.1f", it) } ?: "—"} – ${subject.classHighest?.let { String.format("%.1f", it) } ?: "—"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            subject.cumulativeAverage?.let {
+                Text(
+                    "Cumulative average: ${String.format("%.1f", it)}${subject.annualTotal?.let { total -> " · Annual total ${String.format("%.1f", total)}" } ?: ""}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+            }
+            subject.remark?.takeIf(String::isNotBlank)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportSummaryCard(row: ReportSummaryRowDto, onOpen: () -> Unit) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+        Column(
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f)) {
                     Text(row.student.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    row.student.admissionNumber?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
-                    }
+                    row.student.admissionNumber?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600) }
                 }
                 EduCoreStatusBadge(
                     row.promotionStatus?.replace('_', ' ')?.replaceFirstChar(Char::uppercase) ?: "Pending",
                     if (row.subjectsFailed > 0) EduCoreTone.Warning else EduCoreTone.Success,
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 ReportMetric("Average", String.format("%.1f", row.average), Modifier.weight(1f))
                 ReportMetric(
                     "Position",
@@ -326,12 +390,7 @@ private fun ReportSummaryCard(row: ReportSummaryRowDto) {
                 )
                 ReportMetric("Failed", row.subjectsFailed.toString(), Modifier.weight(1f))
             }
-            row.formTutorRemark?.takeIf(String::isNotBlank)?.let {
-                Text("Form tutor: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
-            }
-            row.principalRemark?.takeIf(String::isNotBlank)?.let {
-                Text("Principal: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
-            }
+            EduCoreSecondaryButton("View full report", onOpen, Modifier.fillMaxWidth())
         }
     }
 }
