@@ -24,7 +24,10 @@ return [
         'trim',
         explode(',', (string) env('GITHUB_COMMIT_BRANCHES', 'mobile-overhaul'))
     ))),
-    'github_commit_allow_master' => (bool) env('GITHUB_COMMIT_ALLOW_MASTER', false),
+    'github_commit_allow_master' => filter_var(
+        env('GITHUB_COMMIT_ALLOW_MASTER', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 
     'name' => env('APP_NAME', 'Laravel'),
 
@@ -84,7 +87,7 @@ return [
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    'faker_locale' => env('FAKER_LOCALE', 'en_US'),
 
     /*
     |--------------------------------------------------------------------------
