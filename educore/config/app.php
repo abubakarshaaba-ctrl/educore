@@ -14,6 +14,8 @@ return [
     */
 
     'deploy_token' => env('DEPLOY_TOKEN'),
+    'deploy_gh_token' => env('DEPLOY_GH_TOKEN'),
+    'workflow_gh_token' => env('WORKFLOW_GH_TOKEN'),
 
     'name' => env('APP_NAME', 'Laravel'),
 
@@ -23,8 +25,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | This value determines the "environment" your application is currently
-    | running in. This may determine how you prefer to configure various
-    | services the application utilizes. Set this in your ".env" file.
+    | running in. This may determine how you prefer to utilize various
+    | services the application provides. Set this in your ".env" file.
     |
     */
 
@@ -76,7 +78,7 @@ return [
     |
     | The application locale determines the default locale that will be used
     | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | set to any locale for which you plan to offer translation strings.
     |
     */
 
