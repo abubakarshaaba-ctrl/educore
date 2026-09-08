@@ -30,14 +30,18 @@ internal fun PlatformAuthorizedShell(
     viewModel: PlatformViewModel = hiltViewModel(),
     tenantViewModel: PlatformTenantViewModel = hiltViewModel(),
     groupViewModel: PlatformGroupViewModel = hiltViewModel(),
+    settingsViewModel: PlatformSettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
     val groupState by groupViewModel.uiState.collectAsStateWithLifecycle()
+    val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     var schoolDirectoryOpen by remember { mutableStateOf(false) }
     var selectedTenantId by remember { mutableStateOf<Long?>(null) }
     var groupDirectoryOpen by remember { mutableStateOf(false) }
     var selectedGroupId by remember { mutableStateOf<Long?>(null) }
+    var settingsEditorOpen by remember { mutableStateOf(false) }
+    var gatewayEditorOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) {
@@ -51,6 +55,14 @@ internal fun PlatformAuthorizedShell(
 
     LaunchedEffect(selectedGroupId) {
         selectedGroupId?.let(groupViewModel::load)
+    }
+
+    LaunchedEffect(settingsEditorOpen) {
+        if (settingsEditorOpen) settingsViewModel.loadSettings()
+    }
+
+    LaunchedEffect(gatewayEditorOpen) {
+        if (gatewayEditorOpen) settingsViewModel.loadGateways()
     }
 
     when {
@@ -106,6 +118,37 @@ internal fun PlatformAuthorizedShell(
             },
         )
 
+        settingsEditorOpen -> PlatformSettingsEditorScreen(
+            state = settingsState,
+            onBack = {
+                settingsEditorOpen = false
+                viewModel.load(PlatformSection.SETTINGS)
+            },
+            onValue = settingsViewModel::setValue,
+            onMaintenance = settingsViewModel::setMaintenanceMode,
+            onReason = settingsViewModel::setReason,
+            onSave = settingsViewModel::saveSettings,
+            onRetry = settingsViewModel::loadSettings,
+        )
+
+        gatewayEditorOpen -> PlatformGatewayEditorScreen(
+            state = settingsState,
+            onBack = {
+                gatewayEditorOpen = false
+                settingsViewModel.clearGateway()
+                viewModel.load(PlatformSection.GATEWAYS)
+            },
+            onSelect = settingsViewModel::selectGateway,
+            onClear = settingsViewModel::clearGateway,
+            onPublic = settingsViewModel::setGatewayPublic,
+            onSecret = settingsViewModel::setGatewaySecret,
+            onContract = settingsViewModel::setGatewayContract,
+            onLive = settingsViewModel::setGatewayLive,
+            onReason = settingsViewModel::setReason,
+            onSave = settingsViewModel::saveGateway,
+            onRetry = settingsViewModel::loadGateways,
+        )
+
         else -> Box(Modifier.fillMaxSize()) {
             PlatformScreen(
                 state = state,
@@ -145,6 +188,20 @@ internal fun PlatformAuthorizedShell(
                     EduCorePrimaryButton(
                         text = "Manage groups",
                         onClick = { groupDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
+                state.section == PlatformSection.SETTINGS && !state.isLoading && state.settings != null -> {
+                    EduCorePrimaryButton(
+                        text = "Edit settings",
+                        onClick = { settingsEditorOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
+                state.section == PlatformSection.GATEWAYS && !state.isLoading && state.gateways != null -> {
+                    EduCorePrimaryButton(
+                        text = "Configure gateways",
+                        onClick = { gatewayEditorOpen = true },
                         modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
                     )
                 }
