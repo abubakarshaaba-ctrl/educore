@@ -477,7 +477,10 @@ private fun LibraryLoanCard(
                 LibraryValue("Due", loan.fieldValue("Due") ?: "—", Modifier.weight(1f))
                 LibraryValue("Fine", loan.fieldValue("Fine") ?: "—", Modifier.weight(1f))
             }
-            if (canManage && loan.status in setOf("issued", "overdue")) {
+            val returnable = loan.status?.let { status ->
+                status.equals("issued", ignoreCase = true) || status.equals("overdue", ignoreCase = true)
+            } == true
+            if (canManage && returnable) {
                 EduCoreSecondaryButton(
                     text = "Mark returned",
                     onClick = { onReturn(loan.id) },
