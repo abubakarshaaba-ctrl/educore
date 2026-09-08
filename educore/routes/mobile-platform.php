@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MobilePlatformAgentController;
 use App\Http\Controllers\Api\MobilePlatformExtendedController;
 use App\Http\Controllers\Api\MobilePlatformGroupController;
 use App\Http\Controllers\Api\MobilePlatformSettingsController;
@@ -14,6 +15,9 @@ Route::prefix('platform')->group(function (): void {
     Route::post('groups/{group}/members', [MobilePlatformGroupController::class, 'addMember'])->whereNumber('group');
     Route::delete('groups/{group}/members/{tenant}', [MobilePlatformGroupController::class, 'removeMember'])->whereNumber('group')->whereNumber('tenant');
     Route::post('groups/{group}/members/{tenant}/lead', [MobilePlatformGroupController::class, 'setLead'])->whereNumber('group')->whereNumber('tenant');
+
+    Route::post('agents', [MobilePlatformAgentController::class, 'store']);
+    Route::patch('agents/{agent}', [MobilePlatformAgentController::class, 'update'])->whereNumber('agent');
 
     Route::get('support', [MobilePlatformExtendedController::class, 'support']);
     Route::post('support/{ticket}/reply', [MobilePlatformExtendedController::class, 'replySupport'])->whereNumber('ticket');
