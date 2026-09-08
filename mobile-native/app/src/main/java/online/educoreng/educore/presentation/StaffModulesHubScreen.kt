@@ -14,9 +14,16 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
@@ -36,6 +43,11 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * RBAC rule: every tile originates from SessionSnapshot.modules. Root workflows
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
+ *
+ * CBT is hosted directly inside this native hub while the surrounding staff
+ * navigation is being progressively migrated to explicit feature routes. This
+ * prevents the permitted Examinations tile from falling back to a browser or
+ * an "in progress" placeholder.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -44,6 +56,41 @@ internal fun StaffModulesHubScreen(
     onModuleClick: (ModuleDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
+    val cbtViewModel: StaffCbtViewModel = hiltViewModel()
+    val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
+    var cbtOpen by rememberSaveable { mutableStateOf(false) }
+    var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
+
+    if (cbtOpen) {
+        if (cbtExamId > 0L) {
+            StaffCbtDetailScreen(
+                state = cbtState,
+                onBack = {
+                    cbtExamId = 0L
+                    cbtViewModel.load()
+                },
+                onPublish = cbtViewModel::publish,
+                onClose = cbtViewModel::close,
+                onReschedule = cbtViewModel::reschedule,
+                onRetry = { cbtViewModel.openExam(cbtExamId) },
+            )
+        } else {
+            StaffCbtListScreen(
+                state = cbtState,
+                onBack = { cbtOpen = false },
+                onQuery = cbtViewModel::setQuery,
+                onSearch = cbtViewModel::search,
+                onStatus = cbtViewModel::selectStatus,
+                onOpen = { examId ->
+                    cbtExamId = examId
+                    cbtViewModel.openExam(examId)
+                },
+                onRetry = cbtViewModel::load,
+            )
+        }
+        return
+    }
+
     val columns = when (width) {
         EduCoreWindowWidth.Compact -> 3
         EduCoreWindowWidth.Medium -> 4
@@ -51,6 +98,16 @@ internal fun StaffModulesHubScreen(
     }
     val groups = remember(session.modules) {
         buildModuleHubGroups(session.modules)
+    }
+
+    fun openModule(module: ModuleDescriptor) {
+        if (module.key.lowercase() in CBT_MODULE_KEYS) {
+            cbtExamId = 0L
+            cbtOpen = true
+            cbtViewModel.load()
+        } else {
+            onModuleClick(module)
+        }
     }
 
     LazyVerticalGrid(
@@ -87,7 +144,7 @@ internal fun StaffModulesHubScreen(
                     EduCoreShowcaseTile(
                         label = moduleHubLabel(module),
                         icon = moduleHubIcon(module.key),
-                        onClick = { onModuleClick(module) },
+                        onClick = { openModule(module) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -185,6 +242,8 @@ private val ROOT_WORKFLOW_KEYS = setOf(
     "announcements",
     "calendar.view",
 )
+
+private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 
 private val ACADEMIC_KEYS = setOf(
     "subjects",
