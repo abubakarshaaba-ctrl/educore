@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 /**
  * AcademicTrack
@@ -19,7 +20,7 @@ class AcademicTrack extends BaseTenantModel
         'tenant_id',
         'name',
         'slug',
-        'section',   // junior | senior | general
+        'section',   // primary | junior | senior | general
         'is_active',
         'sort_order',
     ];
@@ -29,11 +30,44 @@ class AcademicTrack extends BaseTenantModel
         return ['is_active' => 'boolean'];
     }
 
-    // ── Disable global tenant scope for system defaults (tenant_id = null) ──
+    // AcademicTrack intentionally does not use the normal tenant global scope
+    // because tenant_id = null rows are platform defaults shared by all schools.
+    // Every query that reads defaults must therefore use ::forTenant(), while
+    // route-model binding below is deliberately stricter for mutation safety.
     protected static function booted(): void
     {
-        // AcademicTrack doesn't use TenantScope because some rows are system-wide (tenant_id = null)
-        // Queries must use ::forTenant() or ::systemAndTenant() explicitly
+        static::deleting(function (AcademicTrack $track): void {
+            $references = $track->classArms()->count()
+                + $track->subjectRules()->count()
+                + $track->studentSubjectSelections()->count();
+
+            if ($references > 0) {
+                throw ValidationException::withMessages([
+                    'track' => 'This academic track is in use and cannot be deleted. Deactivate it instead.',
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Route-bound tracks are mutation targets. A normal school user may bind
+     * only a school-owned track; platform/system defaults and foreign-school
+     * tracks cannot be addressed by changing the numeric route id.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+        $query = static::query()->where($field, $value);
+        $user = auth()->user();
+
+        if ($user && !$user->isSuperAdmin()) {
+            if (!$user->tenant_id) {
+                return null;
+            }
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->first();
     }
 
     // ── Scopes ─────────────────────────────────────────────────────────
