@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ApiToken;
+use App\Models\PushSubscription;
 use App\Models\Student;
 use App\Models\StudentTransfer;
 use App\Models\Tenant;
@@ -24,6 +25,7 @@ class MobileTransfersTest extends TestCase
 
         foreach ([
             'audit_logs',
+            'push_subscriptions',
             'student_status_histories',
             'transport_assignments',
             'student_subject_selections',
@@ -95,6 +97,17 @@ class MobileTransfersTest extends TestCase
             $table->string('device')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('push_subscriptions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('endpoint')->unique();
+            $table->text('p256dh_key');
+            $table->text('auth_key');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
@@ -196,8 +209,6 @@ class MobileTransfersTest extends TestCase
         [$source, $sourceAdmin] = $this->school('Source School');
         [$receiver, $receiverAdmin] = $this->school('Receiver School');
 
-        // Collision forces the lifecycle service to allocate a receiving-school
-        // transfer admission number instead of violating tenant uniqueness.
         Student::withoutTenantScope()->create([
             'tenant_id' => $receiver->id,
             'admission_number' => 'SRC-001',
@@ -229,6 +240,14 @@ class MobileTransfersTest extends TestCase
         ]);
         $portal->update(['student_id' => $student->id]);
         ApiToken::issue($portal, 'student-phone');
+        PushSubscription::create([
+            'tenant_id' => $source->id,
+            'user_id' => $portal->id,
+            'endpoint' => 'https://push.example.test/amina',
+            'p256dh_key' => 'p256dh',
+            'auth_key' => 'auth',
+            'is_active' => true,
+        ]);
 
         DB::table('student_enrollments')->insert([
             'tenant_id' => $source->id,
@@ -292,7 +311,6 @@ class MobileTransfersTest extends TestCase
             'approved_by' => $receiverAdmin->id,
         ]);
 
-        // Historical source identity remains with the originating school.
         $this->assertDatabaseHas('students', [
             'id' => $student->id,
             'tenant_id' => $source->id,
@@ -333,6 +351,11 @@ class MobileTransfersTest extends TestCase
             'is_active' => false,
         ]);
         $this->assertDatabaseMissing('api_tokens', ['user_id' => $portal->id]);
+        $this->assertDatabaseHas('push_subscriptions', [
+            'tenant_id' => $source->id,
+            'user_id' => $portal->id,
+            'is_active' => false,
+        ]);
         $this->assertDatabaseHas('student_status_histories', [
             'tenant_id' => $source->id,
             'student_id' => $student->id,
