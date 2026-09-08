@@ -86,3 +86,15 @@ data class PayrollMutationResponseDto(
     val message: String,
     val period: PayrollPeriodDto,
 )
+
+data class PayrollGenerateRequestDto(
+    val title: String,
+    @param:Json(name = "period_start") val periodStart: String,
+    @param:Json(name = "period_end") val periodEnd: String,
+)
+
+data class PayrollGenerateResponseDto(
+    val message: String,
+    val period: PayrollPeriodDto,
+    @param:Json(name = "skipped_staff") val skippedStaff: List<String> = emptyList(),
+)
