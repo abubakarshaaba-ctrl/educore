@@ -2,7 +2,6 @@ package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -20,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
-import online.educoreng.educore.core.designsystem.component.EduCoreProfileHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseTile
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
@@ -60,15 +58,6 @@ internal fun StaffModulesHubScreen(
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
-        item(key = "hub-profile", span = { GridItemSpan(maxLineSpan) }) {
-            EduCoreProfileHeader(
-                name = session.user.name,
-                role = session.user.roleLabel,
-                identifier = session.user.staffId ?: session.user.email,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
         if (groups.all { it.modules.isEmpty() }) {
             item(key = "hub-empty", span = { GridItemSpan(maxLineSpan) }) {
                 EduCoreEmptyState(
@@ -123,7 +112,10 @@ private data class ModuleHubGroup(
 
 private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHubGroup> {
     val normalized = modules
-        .filterNot { it.key.equals("dashboard", ignoreCase = true) }
+        .filterNot {
+            it.key.equals("dashboard", ignoreCase = true) ||
+                it.key.equals("timetable", ignoreCase = true)
+        }
         .sortedBy { it.title.lowercase() }
 
     // If both attendance aliases arrive, expose only the self-service entry.
