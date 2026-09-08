@@ -1,5 +1,8 @@
 package online.educoreng.educore.core.network
 
+import online.educoreng.educore.core.network.dto.StaffCbtCreateOptionsDto
+import online.educoreng.educore.core.network.dto.StaffCbtCreateRequestDto
+import online.educoreng.educore.core.network.dto.StaffCbtCreateResponseDto
 import online.educoreng.educore.core.network.dto.StaffCbtExamResponseDto
 import online.educoreng.educore.core.network.dto.StaffCbtExamsResponseDto
 import online.educoreng.educore.core.network.dto.StaffCbtMutationResponseDto
@@ -13,6 +16,12 @@ import retrofit2.http.Query
 
 /** Native staff-only CBT management contract. Server-side RBAC remains authoritative. */
 interface StaffCbtApi {
+    @GET("staff/cbt/options")
+    suspend fun createOptions(): StaffCbtCreateOptionsDto
+
+    @POST("staff/cbt/exams")
+    suspend fun createExam(@Body request: StaffCbtCreateRequestDto): StaffCbtCreateResponseDto
+
     @GET("staff/cbt/exams")
     suspend fun exams(
         @Query("status") status: String? = null,
