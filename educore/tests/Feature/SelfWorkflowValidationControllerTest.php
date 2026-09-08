@@ -13,6 +13,14 @@ class SelfWorkflowValidationControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_android_validation_rejects_github_credentials_in_the_url(): void
+    {
+        $token = SelfDeployController::derivedToken();
+
+        $this->getJson('/deploy/validate-android?token='.urlencode($token).'&ref=mobile-overhaul&gh=secret')
+            ->assertStatus(400);
+    }
+
     public function test_android_validation_rejects_unsafe_repository_refs_before_network_access(): void
     {
         $token = SelfDeployController::derivedToken();
