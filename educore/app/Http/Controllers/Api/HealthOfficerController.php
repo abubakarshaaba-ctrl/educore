@@ -21,6 +21,9 @@ class HealthOfficerController extends Controller
         $records = StudentHealthRecord::where('tenant_id', $tenantId);
 
         return response()->json([
+            'capabilities' => [
+                'manage' => $user->canManage('health'),
+            ],
             'metrics' => [
                 'students' => $studentCount,
                 'records' => (clone $records)->count(),
@@ -45,7 +48,11 @@ class HealthOfficerController extends Controller
         abort_unless((int) $student->tenant_id === (int) $user->tenant_id, 404);
         $student->load('currentClassArm.classLevel:id,name');
         $record = StudentHealthRecord::where('tenant_id', $user->tenant_id)->where('student_id', $student->id)->first();
+
         return response()->json([
+            'capabilities' => [
+                'manage' => $user->canManage('health'),
+            ],
             'student' => [
                 'id' => $student->id,
                 'name' => trim("{$student->first_name} {$student->last_name}"),
@@ -58,29 +65,58 @@ class HealthOfficerController extends Controller
 
     public function upsert(Request $request, Student $student)
     {
-        $user = $this->guard($request);
+        $user = $this->guard($request, manage: true);
         abort_unless((int) $student->tenant_id === (int) $user->tenant_id, 404);
         $rules = collect($this->fields())->mapWithKeys(fn ($field) => [$field => ['nullable', 'string', 'max:2000']])->all();
-        foreach (['blood_group', 'genotype'] as $short) $rules[$short] = ['nullable', 'string', 'max:5'];
-        foreach (['emergency_contact_phone', 'doctor_phone'] as $phone) $rules[$phone] = ['nullable', 'string', 'max:30'];
+        foreach (['blood_group', 'genotype'] as $short) {
+            $rules[$short] = ['nullable', 'string', 'max:5'];
+        }
+        foreach (['emergency_contact_phone', 'doctor_phone'] as $phone) {
+            $rules[$phone] = ['nullable', 'string', 'max:30'];
+        }
         $data = $request->validate($rules);
         $record = StudentHealthRecord::updateOrCreate(
             ['tenant_id' => $user->tenant_id, 'student_id' => $student->id],
             $data + ['tenant_id' => $user->tenant_id]
         );
-        return response()->json(['message' => 'Health record updated securely.', 'record' => $record->only($this->fields())]);
+
+        return response()->json([
+            'message' => 'Health record updated securely.',
+            'record' => $record->only($this->fields()),
+        ]);
     }
 
     private function fields(): array
     {
-        return ['blood_group', 'genotype', 'allergies', 'chronic_conditions', 'current_medications', 'disability', 'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship', 'doctor_name', 'doctor_phone', 'notes'];
+        return [
+            'blood_group',
+            'genotype',
+            'allergies',
+            'chronic_conditions',
+            'current_medications',
+            'disability',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'emergency_contact_relationship',
+            'doctor_name',
+            'doctor_phone',
+            'notes',
+        ];
     }
 
-    private function guard(Request $request): User
+    private function guard(Request $request, bool $manage = false): User
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $request->user();
-        abort_unless($user && in_array($user->roleKey(), ['health_officer', 'admin'], true), 403, 'Health Officer access required.');
+        abort_unless($user, 401);
+        abort_if($user->isStudent() || $user->isParent() || $user->isSuperAdmin(), 403, 'School health access required.');
+        abort_unless($user->tenant_id, 403, 'School health access required.');
+        abort_unless(
+            $manage ? $user->canManage('health') : $user->canAccessModule('health'),
+            403,
+            $manage ? 'Health record management permission required.' : 'Health records access required.'
+        );
+
         return $user;
     }
 }
