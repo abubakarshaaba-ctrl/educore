@@ -23,6 +23,7 @@ on:
       - 'educore/app/Models/AdmissionDocument.php'
       - 'educore/app/Models/JobApplicantDocument.php'
       - 'educore/app/Models/StudentTransfer.php'
+      - 'educore/app/Models/StudentClassTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/app/Services/CrossSchoolStudentTransferService.php'
       - 'educore/app/Services/StudentClassTransferService.php'
@@ -33,12 +34,14 @@ on:
       - 'educore/app/Services/TenantUrlGenerator.php'
       - 'educore/database/migrations/**'
       - 'educore/resources/views/dashboard/staff.blade.php'
+      - 'educore/resources/views/students/class-transfers/**'
       - 'educore/resources/views/portal/admissions/success.blade.php'
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/routes/mobile-*.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/IntraClassTransferTest.php'
       - 'educore/tests/Feature/SensitiveDocumentStorageTest.php'
       - 'educore/tests/Feature/StudentClassTransferTest.php'
       - 'educore/tests/Feature/WebSecurityHardeningTest.php'
@@ -106,6 +109,7 @@ jobs:
             tests/Feature/MobileSkillsTest.php \
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
+            tests/Feature/IntraClassTransferTest.php \
             tests/Feature/SensitiveDocumentStorageTest.php \
             tests/Feature/StudentClassTransferTest.php \
             tests/Feature/WebSecurityHardeningTest.php \
