@@ -176,3 +176,18 @@ data class PlatformGatewayDto(
     val configured: Boolean = false,
 )
 data class PlatformGatewaysDto(val gateways: List<PlatformGatewayDto> = emptyList())
+
+data class PlatformSupportReplyRequestDto(val reply: String)
+
+data class PlatformBroadcastCreateRequestDto(
+    val title: String,
+    val body: String,
+    val target: String,
+    @param:Json(name = "expires_at") val expiresAt: String? = null,
+)
+
+data class PlatformMutationResponseDto(
+    val message: String,
+    val status: String? = null,
+    val id: Long? = null,
+)
