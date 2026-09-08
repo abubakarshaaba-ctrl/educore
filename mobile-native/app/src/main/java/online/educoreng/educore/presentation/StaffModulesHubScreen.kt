@@ -50,10 +50,10 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT is hosted directly inside this native hub while the surrounding staff
- * navigation is being progressively migrated to explicit feature routes. This
- * prevents the permitted Examinations tile from falling back to a browser or
- * an "in progress" placeholder.
+ * CBT and the administrator staff directory are hosted directly inside this
+ * native hub while the surrounding staff navigation is progressively migrated
+ * to explicit feature routes. Neither permitted workspace falls back to a
+ * browser or an "in progress" placeholder.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -64,9 +64,13 @@ internal fun StaffModulesHubScreen(
 ) {
     val cbtViewModel: StaffCbtViewModel = hiltViewModel()
     val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
+    val staffDirectoryViewModel: StaffDirectoryViewModel = hiltViewModel()
+    val staffDirectoryState by staffDirectoryViewModel.uiState.collectAsStateWithLifecycle()
+
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
     var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
+    var staffDirectoryOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -75,6 +79,19 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (staffDirectoryOpen) {
+        StaffDirectoryScreen(
+            state = staffDirectoryState,
+            currentUserId = session.user.id,
+            onBack = { staffDirectoryOpen = false },
+            onQuery = staffDirectoryViewModel::setQuery,
+            onFilter = staffDirectoryViewModel::setFilter,
+            onRefresh = staffDirectoryViewModel::load,
+            onToggleActive = staffDirectoryViewModel::setActive,
+        )
+        return
     }
 
     if (cbtOpen) {
@@ -145,13 +162,18 @@ internal fun StaffModulesHubScreen(
     }
 
     fun openModule(module: ModuleDescriptor) {
-        if (module.key.lowercase() in CBT_MODULE_KEYS) {
-            cbtExamId = 0L
-            cbtCreating = false
-            cbtOpen = true
-            cbtViewModel.load()
-        } else {
-            onModuleClick(module)
+        when (module.key.lowercase()) {
+            "staff" -> {
+                staffDirectoryOpen = true
+                staffDirectoryViewModel.load()
+            }
+            in CBT_MODULE_KEYS -> {
+                cbtExamId = 0L
+                cbtCreating = false
+                cbtOpen = true
+                cbtViewModel.load()
+            }
+            else -> onModuleClick(module)
         }
     }
 
@@ -262,6 +284,7 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
 
 /** Compact labels are intentional: phones use three concise tiles per row. */
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
+    "staff" -> "Staff Directory"
     "staff-attendance", "staff-attendance.self" -> "My Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
@@ -328,6 +351,7 @@ private val ACCOUNT_KEYS = setOf(
 
 private fun moduleHubIcon(key: String): ImageVector = when {
     key.equals("profile", ignoreCase = true) -> Icons.Default.Person
+    key.equals("staff", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("student", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("class", ignoreCase = true) -> EduCoreIcons.Classes
     key.contains("subject", ignoreCase = true) || key.contains("curriculum", ignoreCase = true) -> EduCoreIcons.Subjects
