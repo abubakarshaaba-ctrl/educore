@@ -2,10 +2,7 @@ package online.educoreng.educore.core.network.dto
 
 import com.squareup.moshi.Json
 
-data class ReportModuleDto(
-    val key: String,
-    val title: String,
-)
+data class ReportModuleDto(val key: String, val title: String)
 
 data class ReportCapabilitiesDto(
     val view: Boolean = false,
@@ -38,11 +35,7 @@ data class ReportSelectedDto(
     @param:Json(name = "term_id") val termId: Long? = null,
 )
 
-data class ReportSelectionDto(
-    val id: Long,
-    val name: String,
-    val session: String? = null,
-)
+data class ReportSelectionDto(val id: Long, val name: String, val session: String? = null)
 
 data class ReportPublicationDto(
     val id: Long,
@@ -101,7 +94,10 @@ data class ReportPublishRequestDto(
     val note: String? = null,
 )
 
+data class ReportComputeResponseDto(val message: String, val computed: Int)
+
 data class ReportMutationResponseDto(
     val message: String,
     val publication: ReportPublicationDto,
+    @param:Json(name = "guardians_notified") val guardiansNotified: Int? = null,
 )
