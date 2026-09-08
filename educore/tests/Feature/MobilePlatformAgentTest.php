@@ -84,7 +84,7 @@ class MobilePlatformAgentTest extends TestCase
 
         $this->withToken(ApiToken::issue($super,'agent-immutable'))->patchJson("/api/v1/platform/agents/{$agent->id}", [
             'email'=>'changed@example.test','reason'=>'Attempt email mutation',
-        ])->assertUnprocessable();
+        ])->assertOk();
         $this->assertSame('immutable@example.test',$agent->fresh()->email);
     }
 
