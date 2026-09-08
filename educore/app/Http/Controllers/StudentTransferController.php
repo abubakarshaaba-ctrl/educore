@@ -7,6 +7,8 @@ use App\Models\StudentTransfer;
 use App\Models\Tenant;
 use App\Services\LifecycleAuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class StudentTransferController extends Controller
 {
@@ -24,9 +26,8 @@ class StudentTransferController extends Controller
         $incoming = StudentTransfer::where('to_tenant_id', $tenantId)
                         ->latest()->get();
 
-        // FIX: tenants table uses status (string enum), NOT is_active (boolean)
         $tenants = Tenant::where('id', '!=', $tenantId)
-                        ->where('status', 'active')   // ← was: where('is_active', true)
+                        ->where('status', 'active')
                         ->get();
 
         $activeStudents = Student::where('status', 'active')
@@ -39,22 +40,33 @@ class StudentTransferController extends Controller
 
     public function request(Request $request)
     {
+        $tenantId = (int) auth()->user()->tenant_id;
         $data = $request->validate([
-            'student_id'   => ['required', 'exists:students,id'],
-            'to_tenant_id' => ['required', 'exists:tenants,id'],
-            'reason'       => ['nullable', 'string', 'max:500'],
+            'student_id' => [
+                'required',
+                Rule::exists('students', 'id')->where(fn ($query) => $query
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', Student::STATUS_ACTIVE)
+                    ->whereNull('deleted_at')),
+            ],
+            'to_tenant_id' => [
+                'required',
+                Rule::exists('tenants', 'id')->where(fn ($query) => $query
+                    ->where('status', 'active')
+                    ->where('id', '!=', $tenantId)
+                    ->whereNull('deleted_at')),
+            ],
+            'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $student = Student::findOrFail($data['student_id']);
 
-        // Ensure student belongs to THIS school
-        abort_if($student->tenant_id !== auth()->user()->tenant_id, 403,
+        abort_if((int) $student->tenant_id !== $tenantId, 403,
             'You can only transfer students from your own school.');
 
-        // Prevent duplicate pending request
         $existing = StudentTransfer::where('student_id', $student->id)
-                        ->where('status', 'pending')
-                        ->exists();
+            ->where('status', 'pending')
+            ->exists();
 
         if ($existing) {
             return back()->withErrors([
@@ -63,18 +75,18 @@ class StudentTransferController extends Controller
         }
 
         $transfer = StudentTransfer::create([
-            'from_tenant_id'   => auth()->user()->tenant_id,
+            'from_tenant_id'   => $tenantId,
             'to_tenant_id'     => $data['to_tenant_id'],
             'student_id'       => $student->id,
             'student_name'     => $student->full_name,
             'admission_number' => $student->admission_number ?? null,
-            'reason'           => $data['reason'],
+            'reason'           => $data['reason'] ?? null,
             'requested_by'     => auth()->id(),
             'status'           => 'pending',
         ]);
 
         $this->auditLogger->record(
-            auth()->user()->tenant_id,
+            $tenantId,
             auth()->user(),
             $transfer,
             'student.transfer.requested',
@@ -90,36 +102,46 @@ class StudentTransferController extends Controller
 
     public function approve(StudentTransfer $transfer)
     {
-        // Only the RECEIVING school can approve
-        abort_unless($transfer->to_tenant_id === auth()->user()->tenant_id, 403,
-            'Only the receiving school can approve this transfer.');
+        $receiverTenantId = (int) auth()->user()->tenant_id;
 
-        abort_if($transfer->status !== 'pending', 422,
-            'This transfer has already been processed.');
+        $transfer = DB::transaction(function () use ($transfer, $receiverTenantId): StudentTransfer {
+            $locked = StudentTransfer::whereKey($transfer->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Move student to receiving school
-        $student = Student::withoutTenantScope()->find($transfer->student_id);
+            abort_unless((int) $locked->to_tenant_id === $receiverTenantId, 403,
+                'Only the receiving school can approve this transfer.');
+            abort_if($locked->status !== 'pending', 422,
+                'This transfer has already been processed.');
 
-        if ($student) {
-            $student->update([
-                'tenant_id'           => $transfer->to_tenant_id,
-                'current_class_arm_id'=> null,   // reset class assignment
-                'status'              => 'active',
-            ]);
+            // Re-check ownership while both transfer and student are locked. A
+            // stale pending request must never move a student who has meanwhile
+            // left the originating school through another lifecycle action.
+            $student = Student::withoutTenantScope()
+                ->whereKey($locked->student_id)
+                ->where('tenant_id', $locked->from_tenant_id)
+                ->lockForUpdate()
+                ->first();
 
-            $transfer->update([
-                'status'      => 'completed',
+            abort_unless($student, 409,
+                'This student no longer belongs to the originating school. The transfer cannot be completed.');
+
+            $student->forceFill([
+                'tenant_id' => $locked->to_tenant_id,
+                'current_class_arm_id' => null,
+                'status' => Student::STATUS_ACTIVE,
+            ])->save();
+
+            $locked->update([
+                'status' => 'completed',
                 'approved_at' => now(),
             ]);
-        } else {
-            $transfer->update([
-                'status'      => 'approved',
-                'approved_at' => now(),
-            ]);
-        }
+
+            return $locked->fresh();
+        });
 
         $this->auditLogger->record(
-            auth()->user()->tenant_id,
+            $receiverTenantId,
             auth()->user(),
             $transfer,
             'student.transfer.approved',
@@ -135,17 +157,25 @@ class StudentTransferController extends Controller
 
     public function reject(StudentTransfer $transfer)
     {
-        // Only the RECEIVING school can reject
-        abort_unless($transfer->to_tenant_id === auth()->user()->tenant_id, 403,
-            'Only the receiving school can reject this transfer.');
+        $receiverTenantId = (int) auth()->user()->tenant_id;
 
-        abort_if($transfer->status !== 'pending', 422,
-            'This transfer has already been processed.');
+        $transfer = DB::transaction(function () use ($transfer, $receiverTenantId): StudentTransfer {
+            $locked = StudentTransfer::whereKey($transfer->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $transfer->update(['status' => 'rejected']);
+            abort_unless((int) $locked->to_tenant_id === $receiverTenantId, 403,
+                'Only the receiving school can reject this transfer.');
+            abort_if($locked->status !== 'pending', 422,
+                'This transfer has already been processed.');
+
+            $locked->update(['status' => 'rejected']);
+
+            return $locked->fresh();
+        });
 
         $this->auditLogger->record(
-            auth()->user()->tenant_id,
+            $receiverTenantId,
             auth()->user(),
             $transfer,
             'student.transfer.rejected',
