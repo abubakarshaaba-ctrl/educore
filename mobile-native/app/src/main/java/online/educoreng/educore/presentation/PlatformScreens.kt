@@ -55,7 +55,7 @@ internal fun PlatformScreen(
                 EduCoreShowcaseHero(
                     eyebrow = "PLATFORM",
                     title = state.dashboard?.operator?.name ?: "Super Admin",
-                    subtitle = "Monitor schools, subscriptions, revenue and platform growth without leaving the native app.",
+                    subtitle = "Monitor schools, subscriptions, payments, support and platform operations without leaving the native app.",
                 )
             }
             item {
@@ -80,12 +80,11 @@ internal fun PlatformScreen(
             when (state.section) {
                 PlatformSection.OVERVIEW -> state.dashboard?.let { dashboard ->
                     item { EduCoreSectionHeader("Network overview", "Live platform-wide totals") }
-                    item {
-                        PlatformMetricCard("Schools", dashboard.metrics.schools.toString(), "${dashboard.metrics.activeSchools} active")
-                    }
+                    item { PlatformMetricCard("Schools", dashboard.metrics.schools.toString(), "${dashboard.metrics.activeSchools} active") }
                     item { PlatformMetricCard("Students", dashboard.metrics.students.toString(), "Across all schools") }
                     item { PlatformMetricCard("Platform users", dashboard.metrics.platformUsers.toString(), "Tenant-linked accounts") }
                     item { PlatformMetricCard("Revenue this month", money(dashboard.metrics.monthlyRevenue), "Confirmed payments") }
+                    item { PlatformMetricCard("Total revenue", money(dashboard.metrics.totalRevenue), "All confirmed platform payments") }
                     item {
                         EduCoreSectionHeader(
                             "Attention",
@@ -94,6 +93,7 @@ internal fun PlatformScreen(
                     }
                     items(dashboard.recentSchools, key = { "recent-${it.id}" }) { PlatformTenantCard(it) }
                 }
+
                 PlatformSection.SCHOOLS -> {
                     item {
                         OutlinedTextField(
@@ -107,9 +107,7 @@ internal fun PlatformScreen(
                     item { EduCorePrimaryButton("Search schools", onSearch, Modifier.fillMaxWidth()) }
                     item {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                         ) {
                             listOf(null, "active", "pending", "suspended", "subscription_expired").forEach { status ->
@@ -125,14 +123,16 @@ internal fun PlatformScreen(
                     if (!state.isLoading && schools.isEmpty()) item { EduCoreEmptyState("No schools found", "Adjust the search or status filter.") }
                     items(schools, key = { it.id }) { PlatformTenantCard(it) }
                 }
+
                 PlatformSection.BILLING -> state.billing?.let { billing ->
                     item { PlatformMetricCard("Confirmed revenue", money(billing.summary.confirmed), "All confirmed platform payments") }
                     item { PlatformMetricCard("Pending", money(billing.summary.pending), "Awaiting confirmation") }
                     item { PlatformMetricCard("This month", money(billing.summary.thisMonth), "Confirmed this month") }
                     item { EduCoreSectionHeader("Recent payments") }
+                    if (billing.payments.isEmpty()) item { EduCoreEmptyState("No payments", "Platform payments will appear here when recorded.") }
                     items(billing.payments, key = { it.id }) { payment ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
-                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
                                 Text(payment.school, fontWeight = FontWeight.Bold)
                                 Text(money(payment.amount) + (payment.currency?.let { " $it" } ?: ""))
                                 Text(listOfNotNull(payment.reference, payment.method, payment.paidAt).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
@@ -141,11 +141,12 @@ internal fun PlatformScreen(
                         }
                     }
                 }
+
                 PlatformSection.PLANS -> state.plans?.let { plans ->
                     item { EduCoreSectionHeader("Pricing", plans.model) }
                     items(plans.plans, key = { it.id }) { plan ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
-                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
                                 Text(plan.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("${money(plan.rate)} · ${plan.cycle}")
                                 plan.features.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
@@ -153,16 +154,127 @@ internal fun PlatformScreen(
                         }
                     }
                 }
+
                 PlatformSection.AGENTS -> state.agents?.let { agents ->
                     item { EduCoreSectionHeader("Platform agents", "Referral network performance") }
+                    if (agents.agents.isEmpty()) item { EduCoreEmptyState("No agents", "Registered platform agents will appear here.") }
                     items(agents.agents, key = { it.id }) { agent ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
-                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
                                 Text(agent.name, fontWeight = FontWeight.Bold)
                                 Text(agent.email)
                                 Text("${agent.referrals} referrals · ${agent.commissionRate}% commission")
                                 Text("Earned ${money(agent.earned)} · Paid ${money(agent.paid)}")
                                 EduCoreStatusBadge(if (agent.active) "Active" else "Inactive", if (agent.active) EduCoreTone.Success else EduCoreTone.Warning)
+                            }
+                        }
+                    }
+                }
+
+                PlatformSection.ANALYTICS -> state.analytics?.let { analytics ->
+                    item { EduCoreSectionHeader("Platform analytics", "Growth and pricing distribution") }
+                    item { PlatformMetricCard("Schools", analytics.metrics.schools.toString(), "${analytics.metrics.activeSubscriptions} active subscriptions") }
+                    item { PlatformMetricCard("Students", analytics.metrics.students.toString(), "Active enrollment across the network") }
+                    item { PlatformMetricCard("Largest pricing segment", analytics.metrics.topTier, "By number of schools") }
+                    item { EduCoreSectionHeader("School growth", "New tenants created this year") }
+                    if (analytics.growth.isEmpty()) item { EduCoreEmptyState("No growth records", "No school creation activity is recorded for the current year.") }
+                    items(analytics.growth, key = { "${it.year}-${it.month}" }) { point ->
+                        PlatformMetricCard(monthLabel(point.month), point.count.toString(), point.year.toString())
+                    }
+                    item { EduCoreSectionHeader("Pricing distribution") }
+                    items(analytics.planDistribution, key = { it.plan }) { tier ->
+                        PlatformMetricCard(tier.plan, tier.count.toString(), "schools")
+                    }
+                }
+
+                PlatformSection.GROUPS -> state.groups?.let { groups ->
+                    item { EduCoreSectionHeader("School groups", "Chains and shared-subscription campuses") }
+                    if (groups.groups.isEmpty()) item { EduCoreEmptyState("No school groups", "School groups created on the platform will appear here.") }
+                    items(groups.groups, key = { it.id }) { group ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                                Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("${group.memberCount} member school(s)")
+                                group.ownerName?.let { Text("Owner: $it", style = MaterialTheme.typography.bodySmall) }
+                                group.ownerEmail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                group.description?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                            }
+                        }
+                    }
+                }
+
+                PlatformSection.SUPPORT -> state.support?.let { support ->
+                    item { EduCoreSectionHeader("Support inbox", "School requests requiring platform attention") }
+                    item {
+                        PlatformMetricCard(
+                            "Tickets",
+                            (support.summary.open + support.summary.replied + support.summary.closed).toString(),
+                            "${support.summary.open} open · ${support.summary.replied} replied · ${support.summary.closed} closed",
+                        )
+                    }
+                    if (support.tickets.isEmpty()) item { EduCoreEmptyState("No support tickets", "Incoming school support requests will appear here.") }
+                    items(support.tickets, key = { it.id }) { ticket ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(ticket.subject, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    EduCoreStatusBadge(ticket.status, ticket.status.supportTone())
+                                }
+                                Text(listOfNotNull(ticket.school, ticket.requester, ticket.createdAt).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+                                Text(ticket.body, style = MaterialTheme.typography.bodyMedium)
+                                ticket.adminReply?.takeIf(String::isNotBlank)?.let {
+                                    Text("Platform reply: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                PlatformSection.BROADCASTS -> state.broadcasts?.let { broadcasts ->
+                    item { EduCoreSectionHeader("Platform broadcasts", "Network-wide notices and targeted announcements") }
+                    if (broadcasts.broadcasts.isEmpty()) item { EduCoreEmptyState("No broadcasts", "Platform broadcasts will appear here after creation.") }
+                    items(broadcasts.broadcasts, key = { it.id }) { broadcast ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(broadcast.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    EduCoreStatusBadge(if (broadcast.active) "Active" else "Expired", if (broadcast.active) EduCoreTone.Success else EduCoreTone.Neutral)
+                                }
+                                Text("Target: ${broadcast.target.replace('_', ' ')}", style = MaterialTheme.typography.bodySmall)
+                                Text(broadcast.body)
+                                Text(listOfNotNull(broadcast.creator, broadcast.createdAt, broadcast.expiresAt?.let { "Expires $it" }).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                PlatformSection.SETTINGS -> state.settings?.let { settings ->
+                    item { EduCoreSectionHeader("Platform settings", "Operational settings; encrypted secrets are intentionally excluded") }
+                    if (settings.settings.isEmpty()) item { EduCoreEmptyState("No platform settings", "Operational settings will appear here after configuration.") }
+                    items(settings.settings, key = { it.key }) { setting ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                                Text(setting.label, fontWeight = FontWeight.Bold)
+                                Text(setting.value?.toString() ?: "Not configured")
+                                Text("${setting.group} · ${setting.type}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            }
+                        }
+                    }
+                }
+
+                PlatformSection.GATEWAYS -> state.gateways?.let { gateways ->
+                    item { EduCoreSectionHeader("Payment gateways", "Credential status only; secret keys never leave the server") }
+                    items(gateways.gateways, key = { it.provider }) { gateway ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(gateway.provider.replaceFirstChar(Char::uppercase), fontWeight = FontWeight.Bold)
+                                    EduCoreStatusBadge(if (gateway.configured) "Configured" else "Incomplete", if (gateway.configured) EduCoreTone.Success else EduCoreTone.Warning)
+                                }
+                                Text(if (gateway.live) "LIVE mode" else "Test mode", style = MaterialTheme.typography.bodySmall)
+                                gateway.publicIdentifier?.let { Text("Public identifier: $it", style = MaterialTheme.typography.bodySmall) }
+                                gateway.contractCode?.let { Text("Contract: $it", style = MaterialTheme.typography.bodySmall) }
+                                Text("Secret credential: ${if (gateway.secretConfigured) "configured" else "missing"}", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -214,9 +326,25 @@ private fun PlatformMetricCard(label: String, value: String, supporting: String)
 private fun PlatformSection.label(): String = when (this) {
     PlatformSection.OVERVIEW -> "Overview"
     PlatformSection.SCHOOLS -> "Schools"
-    PlatformSection.BILLING -> "Billing"
+    PlatformSection.BILLING -> "Payments"
     PlatformSection.PLANS -> "Plans"
     PlatformSection.AGENTS -> "Agents"
+    PlatformSection.ANALYTICS -> "Analytics"
+    PlatformSection.GROUPS -> "Groups"
+    PlatformSection.SUPPORT -> "Support"
+    PlatformSection.BROADCASTS -> "Broadcasts"
+    PlatformSection.SETTINGS -> "Settings"
+    PlatformSection.GATEWAYS -> "Gateways"
 }
+
+private fun String.supportTone(): EduCoreTone = when (lowercase()) {
+    "closed" -> EduCoreTone.Neutral
+    "replied" -> EduCoreTone.Info
+    else -> EduCoreTone.Warning
+}
+
+private fun monthLabel(month: Int): String = listOf(
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+).getOrElse(month - 1) { "Month $month" }
 
 private fun money(value: Double): String = "NGN ${String.format("%,.2f", value)}"
