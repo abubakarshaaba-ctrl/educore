@@ -34,6 +34,8 @@ object ModulePresentationPolicy {
         "skills",
         "transfers",
         "gradebook",
+        "reports",
+        "report-cards",
         "timetable",
         "student.timetable",
         "student.exams",
@@ -77,8 +79,6 @@ object ModulePresentationPolicy {
         "scores",
         "scores.entry",
         "results",
-        "reports",
-        "report-cards",
         "student.results",
         "parent.results",
     )
