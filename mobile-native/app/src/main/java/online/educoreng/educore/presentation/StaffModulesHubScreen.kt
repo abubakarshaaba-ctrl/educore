@@ -89,6 +89,7 @@ internal fun StaffModulesHubScreen(
             onQuery = staffDirectoryViewModel::setQuery,
             onFilter = staffDirectoryViewModel::setFilter,
             onRefresh = staffDirectoryViewModel::load,
+            onLoadMore = staffDirectoryViewModel::loadMore,
             onToggleActive = staffDirectoryViewModel::setActive,
         )
         return
