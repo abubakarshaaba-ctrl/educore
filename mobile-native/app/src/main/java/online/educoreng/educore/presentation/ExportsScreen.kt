@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
+import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
@@ -76,7 +78,13 @@ internal fun ExportsScreen(
         }
 
         state.errorMessage?.let { message ->
-            item { EduCoreErrorBanner(message = message, onRetry = onRetry) }
+            item {
+                if (state.options == null) {
+                    EduCoreErrorState(message = message, onRetry = onRetry)
+                } else {
+                    EduCoreErrorBanner(message = message)
+                }
+            }
         }
 
         if (state.isLoading && state.options == null) {
@@ -175,16 +183,13 @@ internal fun ExportsScreen(
 
             item {
                 EduCorePrimaryButton(
-                    text = if (state.isDownloading) "Generating export…" else "Generate CSV",
+                    text = "Generate CSV",
                     onClick = onDownload,
-                    enabled = state.canDownload && !state.isDownloading,
+                    enabled = state.canDownload,
+                    loading = state.isDownloading,
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
-                        if (state.isDownloading) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(18.dp))
-                        } else {
-                            androidx.compose.material3.Icon(Icons.Default.Download, contentDescription = null)
-                        }
+                        Icon(Icons.Default.Download, contentDescription = null)
                     },
                 )
             }
