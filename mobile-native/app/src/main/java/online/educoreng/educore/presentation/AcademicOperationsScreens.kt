@@ -168,8 +168,8 @@ internal fun AnalyticsScreen(
 
         item {
             EduCoreSearchBar(
-                query = state.query,
-                onQueryChange = onQuery,
+                value = state.query,
+                onValueChange = onQuery,
                 placeholder = when (section?.key) {
                     "classes" -> "Search class performance"
                     "subjects" -> "Search subject performance"
@@ -244,7 +244,7 @@ private fun AcademicListShell(
             }
         }
 
-        item { EduCoreSearchBar(query = state.query, onQueryChange = onQuery, placeholder = placeholder) }
+        item { EduCoreSearchBar(value = state.query, onValueChange = onQuery, placeholder = placeholder) }
 
         if (records.isEmpty()) {
             item {
