@@ -70,6 +70,8 @@ import online.educoreng.educore.core.model.SessionSnapshot
  *
  * No route in this shell falls back to an external browser. Staff workflows
  * either open a native screen or show an in-app "being completed" message.
+ * Root navigation is also RBAC-aware: only server-granted workspaces are
+ * surfaced, while Home and More remain universally available to staff.
  */
 @Composable
 internal fun StaffWorkspaceShell(
@@ -99,7 +101,8 @@ internal fun StaffWorkspaceShell(
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route ?: StaffTab.HOME.route
-    val selectedRoot = rootFor(route)
+    val availableTabs = remember(session.modules) { availableStaffTabs(session.modules) }
+    val selectedRoot = rootFor(route).takeIf { it in availableTabs } ?: StaffTab.HOME
 
     LaunchedEffect(classesState.message) {
         classesState.message?.let {
@@ -126,7 +129,7 @@ internal fun StaffWorkspaceShell(
         }
     }
 
-    val navigationItems = StaffTab.entries.map { tab ->
+    val navigationItems = availableTabs.map { tab ->
         EduCoreNavigationItem(
             key = tab.route,
             label = tab.label,
@@ -138,6 +141,7 @@ internal fun StaffWorkspaceShell(
     }
 
     fun navigateRoot(tab: StaffTab) {
+        if (tab !in availableTabs) return
         navController.navigate(tab.route) {
             popUpTo(StaffTab.HOME.route) { saveState = true }
             launchSingleTop = true
@@ -246,7 +250,7 @@ internal fun StaffWorkspaceShell(
                     EduCoreBottomNavigation(
                         items = navigationItems,
                         selectedKey = selectedRoot.route,
-                        onSelect = { item -> StaffTab.entries.firstOrNull { it.route == item.key }?.let(::navigateRoot) },
+                        onSelect = { item -> availableTabs.firstOrNull { it.route == item.key }?.let(::navigateRoot) },
                     )
                 }
             },
@@ -254,7 +258,7 @@ internal fun StaffWorkspaceShell(
             Row(Modifier.fillMaxSize().padding(padding)) {
                 if (width != EduCoreWindowWidth.Compact) {
                     NavigationRail(containerColor = EduCoreColors.White) {
-                        StaffTab.entries.forEach { tab ->
+                        availableTabs.forEach { tab ->
                             val unread = if (tab == StaffTab.INBOX) {
                                 communicationState.unreadNotifications + (communicationState.messagePage?.unreadCount ?: 0)
                             } else 0
@@ -737,10 +741,24 @@ private object StaffRoutes {
         "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
         "messages", "notifications.view", "announcements", "calendar.view",
     )
+    val CLASS_ROOT_MODULES = setOf("classes", "students", "attendance", "scores", "scores.entry")
+    val INBOX_ROOT_MODULES = setOf("messages", "notifications.view", "announcements", "calendar.view")
     val GENERIC_OPERATIONS = setOf(
         "fees", "expenses", "payroll", "admissions", "library", "transport", "health",
         "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
     )
+}
+
+private fun availableStaffTabs(modules: List<ModuleDescriptor>): List<StaffTab> {
+    val keys = modules.map { it.key.lowercase() }.toSet()
+    return StaffTab.entries.filter { tab ->
+        when (tab) {
+            StaffTab.HOME, StaffTab.MORE -> true
+            StaffTab.CLASSES -> keys.any { it in StaffRoutes.CLASS_ROOT_MODULES }
+            StaffTab.TIMETABLE -> "timetable" in keys
+            StaffTab.INBOX -> keys.any { it in StaffRoutes.INBOX_ROOT_MODULES }
+        }
+    }
 }
 
 private fun rootFor(route: String): StaffTab = when {
