@@ -31,17 +31,20 @@ internal fun PlatformAuthorizedShell(
     tenantViewModel: PlatformTenantViewModel = hiltViewModel(),
     groupViewModel: PlatformGroupViewModel = hiltViewModel(),
     settingsViewModel: PlatformSettingsViewModel = hiltViewModel(),
+    agentViewModel: PlatformAgentViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
     val groupState by groupViewModel.uiState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val agentState by agentViewModel.uiState.collectAsStateWithLifecycle()
     var schoolDirectoryOpen by remember { mutableStateOf(false) }
     var selectedTenantId by remember { mutableStateOf<Long?>(null) }
     var groupDirectoryOpen by remember { mutableStateOf(false) }
     var selectedGroupId by remember { mutableStateOf<Long?>(null) }
     var settingsEditorOpen by remember { mutableStateOf(false) }
     var gatewayEditorOpen by remember { mutableStateOf(false) }
+    var agentManagementOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) {
@@ -63,6 +66,10 @@ internal fun PlatformAuthorizedShell(
 
     LaunchedEffect(gatewayEditorOpen) {
         if (gatewayEditorOpen) settingsViewModel.loadGateways()
+    }
+
+    LaunchedEffect(agentManagementOpen) {
+        if (agentManagementOpen) agentViewModel.load()
     }
 
     when {
@@ -149,6 +156,29 @@ internal fun PlatformAuthorizedShell(
             onRetry = settingsViewModel::loadGateways,
         )
 
+        agentManagementOpen -> PlatformAgentManagementScreen(
+            state = agentState,
+            onBack = {
+                agentManagementOpen = false
+                viewModel.load(PlatformSection.AGENTS)
+            },
+            onNew = agentViewModel::newAgent,
+            onEdit = agentViewModel::edit,
+            onCloseEditor = agentViewModel::closeEditor,
+            onName = agentViewModel::setName,
+            onEmail = agentViewModel::setEmail,
+            onPhone = agentViewModel::setPhone,
+            onStateName = agentViewModel::setStateName,
+            onCommission = agentViewModel::setCommissionRate,
+            onReason = agentViewModel::setReason,
+            onSave = agentViewModel::save,
+            onRequestDeactivate = agentViewModel::requestDeactivate,
+            onActivate = agentViewModel::activate,
+            onConfirmDeactivate = agentViewModel::confirmDeactivate,
+            onDismissDeactivate = agentViewModel::dismissDeactivate,
+            onRetry = agentViewModel::load,
+        )
+
         else -> Box(Modifier.fillMaxSize()) {
             PlatformScreen(
                 state = state,
@@ -188,6 +218,13 @@ internal fun PlatformAuthorizedShell(
                     EduCorePrimaryButton(
                         text = "Manage groups",
                         onClick = { groupDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
+                state.section == PlatformSection.AGENTS && !state.isLoading && state.agents != null -> {
+                    EduCorePrimaryButton(
+                        text = "Manage agents",
+                        onClick = { agentManagementOpen = true },
                         modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
                     )
                 }
