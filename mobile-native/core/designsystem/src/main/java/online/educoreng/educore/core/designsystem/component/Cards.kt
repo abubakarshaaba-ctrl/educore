@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
@@ -144,13 +146,13 @@ fun EduCoreModuleCard(
     Card(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(EduCoreSizes.ModuleCardHeight),
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Info200),
+        modifier = modifier.heightIn(min = EduCoreSizes.ModuleCardMinHeight),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
     ) {
         Column(
-            modifier = Modifier.padding(EduCoreSpacing.Lg),
+            modifier = Modifier.padding(EduCoreSpacing.Md),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
             Row(
@@ -160,8 +162,9 @@ fun EduCoreModuleCard(
             ) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
-                    color = EduCoreColors.Info100,
+                    color = EduCoreColors.Gold50,
                     contentColor = EduCoreColors.Navy900,
+                    border = BorderStroke(1.dp, EduCoreColors.Gold200),
                 ) {
                     Icon(
                         imageVector = icon,
@@ -174,6 +177,7 @@ fun EduCoreModuleCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
+                color = EduCoreColors.Ink900,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -181,7 +185,7 @@ fun EduCoreModuleCard(
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.Muted500,
+                    color = EduCoreColors.Slate600,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -217,7 +221,7 @@ fun EduCoreQuickAction(
             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
             Icon(icon, contentDescription = null, tint = EduCoreColors.Navy900)
-            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Navy900)
         }
     }
 }
