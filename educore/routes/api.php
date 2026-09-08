@@ -250,6 +250,7 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard', [TransportOfficerController::class, 'dashboard']);
             Route::get('routes/{route}/manifest', [TransportOfficerController::class, 'manifest']);
             Route::post('assignments', [TransportOfficerController::class, 'assign']);
+            Route::delete('assignments/{student}', [TransportOfficerController::class, 'unassign'])->whereNumber('student');
         });
 
         Route::prefix('health-officer')->group(function () {
