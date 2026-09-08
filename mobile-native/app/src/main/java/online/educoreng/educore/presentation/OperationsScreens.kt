@@ -93,6 +93,16 @@ internal fun OperationsScreen(
         return
     }
 
+    if (workspace.module.key.equals("library", ignoreCase = true)) {
+        LibraryScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+        )
+        return
+    }
+
     if (workspace.module.key.equals("admissions", ignoreCase = true)) {
         val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
         val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
