@@ -61,6 +61,17 @@ The controller creates every blob first, builds one tree, creates one commit wit
 
 A `409 branch_head_changed` means the initial `expected_head_sha` is stale. Fetch status again, reconcile the new head, and retry. A `409 concurrent_branch_update` means another writer advanced the branch after the commit object had been created; EduCore reports the orphan commit SHA but does not force it onto the branch.
 
+## 3. Validate critical source without GitHub Actions
+
+```http
+GET /deploy/validate-source?ref=mobile-overhaul
+X-EduCore-Deploy-Token: <DEPLOY_TOKEN>
+```
+
+`SelfSourceValidationController` resolves the branch and reads critical source files through GitHub repository APIs only. It explicitly reports `actions_queried=false` and validates the direct writer, native CBT creation contract, Android routes, RBAC markers and regression-test markers. It does **not** call, rerun, wait for, or classify a GitHub Actions workflow.
+
+A source-preflight pass is not a build pass. Its response intentionally keeps `release_ready=false`; Gradle compilation, Android lint/unit tests, Laravel tests and release signing must still be executed through an available local/build environment before an APK is published.
+
 ## Safety boundaries
 
 The writer accepts only approved repository branches and approved repository paths, refuses `.env` and runtime `storage` content, rejects traversal and duplicate paths, caps each request at 50 changes and 2 MB of text, and never force-pushes. GitHub credentials remain server-side.
