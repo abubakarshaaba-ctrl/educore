@@ -135,32 +135,33 @@ internal fun ShowcaseClassesListScreen(
             )
         }
 
-        item(key = "class-count") {
-            EduCoreShowcaseStat(
-                label = "Classes",
-                value = catalogue.classes.size.toString(),
-                icon = Icons.Default.School,
-                tone = EduCoreTone.Brand,
+        item(key = "classes-summary", span = { GridItemSpan(maxLineSpan) }) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item(key = "student-count") {
-            EduCoreShowcaseStat(
-                label = "Students",
-                value = totalStudents.toString(),
-                icon = Icons.Default.Groups,
-                tone = EduCoreTone.Success,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item(key = "subject-count") {
-            EduCoreShowcaseStat(
-                label = "Subjects",
-                value = uniqueSubjects.toString(),
-                icon = Icons.Default.MenuBook,
-                tone = EduCoreTone.Accent,
-                modifier = Modifier.fillMaxWidth(),
-            )
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreShowcaseStat(
+                    label = "Classes",
+                    value = catalogue.classes.size.toString(),
+                    icon = Icons.Default.School,
+                    tone = EduCoreTone.Brand,
+                    modifier = Modifier.weight(1f),
+                )
+                EduCoreShowcaseStat(
+                    label = "Students",
+                    value = totalStudents.toString(),
+                    icon = Icons.Default.Groups,
+                    tone = EduCoreTone.Success,
+                    modifier = Modifier.weight(1f),
+                )
+                EduCoreShowcaseStat(
+                    label = "Subjects",
+                    value = uniqueSubjects.toString(),
+                    icon = Icons.Default.MenuBook,
+                    tone = EduCoreTone.Accent,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         item(key = "class-search", span = { GridItemSpan(maxLineSpan) }) {
