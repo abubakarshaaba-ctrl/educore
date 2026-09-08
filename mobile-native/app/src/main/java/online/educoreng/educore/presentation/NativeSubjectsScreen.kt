@@ -187,7 +187,7 @@ private fun SubjectRegisterScreen(
                     text = "Add subject",
                     onClick = onCreate,
                     modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = Icons.Default.Add,
+                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                 )
             }
         }
@@ -275,7 +275,7 @@ private fun SubjectAdminCard(
                         text = "Edit",
                         onClick = onEdit,
                         modifier = Modifier.weight(1f),
-                        leadingIcon = Icons.Default.Edit,
+                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                     )
                     EduCoreSecondaryButton(
                         text = if (references.total == 0) "Delete" else "In use",
