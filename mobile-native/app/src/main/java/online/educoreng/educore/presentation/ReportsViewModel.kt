@@ -17,20 +17,23 @@ import online.educoreng.educore.core.network.dto.ReportPublishRequestDto
 import online.educoreng.educore.core.network.dto.ReportsWorkspaceDto
 import retrofit2.HttpException
 
-enum class ReportPublicationAction { PUBLISH, UNPUBLISH }
+enum class ReportManagementAction { COMPUTE, PUBLISH, UNPUBLISH }
 
 internal data class ReportsUiState(
     val workspace: ReportsWorkspaceDto? = null,
     val selectedClassId: Long? = null,
     val selectedTermId: Long? = null,
     val publicationNote: String = "",
-    val confirmation: ReportPublicationAction? = null,
+    val confirmation: ReportManagementAction? = null,
     val isLoading: Boolean = false,
     val isMutating: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
 ) {
     val hasSelection: Boolean get() = selectedClassId != null && selectedTermId != null
+    val canCompute: Boolean get() =
+        workspace?.capabilities?.compute == true &&
+            workspace.summary.published.not() && hasSelection && !isMutating
     val canPublish: Boolean get() =
         workspace?.capabilities?.publish == true &&
             workspace.summary.computed > 0 &&
@@ -63,11 +66,7 @@ internal class ReportsViewModel @Inject constructor(
                     ?.takeIf { id -> initial.options.terms.any { it.id == id } }
                     ?: initial.options.terms.firstOrNull { it.isCurrent }?.id
                     ?: initial.options.terms.firstOrNull()?.id
-                val workspace = if (classId != null && termId != null) {
-                    api.index(classId, termId)
-                } else {
-                    initial
-                }
+                val workspace = if (classId != null && termId != null) api.index(classId, termId) else initial
                 _uiState.update {
                     it.copy(
                         workspace = workspace,
@@ -87,38 +86,36 @@ internal class ReportsViewModel @Inject constructor(
     }
 
     fun selectClass(id: Long?) {
-        _uiState.update {
-            it.copy(selectedClassId = id, publicationNote = "", errorMessage = null, message = null)
-        }
+        if (_uiState.value.isMutating) return
+        _uiState.update { it.copy(selectedClassId = id, publicationNote = "", errorMessage = null, message = null) }
         reloadSelection()
     }
 
     fun selectTerm(id: Long?) {
-        _uiState.update {
-            it.copy(selectedTermId = id, publicationNote = "", errorMessage = null, message = null)
-        }
+        if (_uiState.value.isMutating) return
+        _uiState.update { it.copy(selectedTermId = id, publicationNote = "", errorMessage = null, message = null) }
         reloadSelection()
     }
 
     fun updatePublicationNote(value: String) = _uiState.update {
-        it.copy(publicationNote = value.take(2000), errorMessage = null, message = null)
+        if (it.isMutating) it else it.copy(publicationNote = value.take(2000), errorMessage = null, message = null)
+    }
+
+    fun requestCompute() {
+        if (_uiState.value.canCompute) _uiState.update { it.copy(confirmation = ReportManagementAction.COMPUTE) }
     }
 
     fun requestPublish() {
-        if (_uiState.value.canPublish) {
-            _uiState.update { it.copy(confirmation = ReportPublicationAction.PUBLISH) }
-        }
+        if (_uiState.value.canPublish) _uiState.update { it.copy(confirmation = ReportManagementAction.PUBLISH) }
     }
 
     fun requestUnpublish() {
-        if (_uiState.value.canUnpublish) {
-            _uiState.update { it.copy(confirmation = ReportPublicationAction.UNPUBLISH) }
-        }
+        if (_uiState.value.canUnpublish) _uiState.update { it.copy(confirmation = ReportManagementAction.UNPUBLISH) }
     }
 
     fun dismissConfirmation() = _uiState.update { it.copy(confirmation = null) }
 
-    fun confirmPublicationAction() {
+    fun confirmManagementAction() {
         val state = _uiState.value
         val action = state.confirmation ?: return
         val classId = state.selectedClassId ?: return
@@ -126,6 +123,7 @@ internal class ReportsViewModel @Inject constructor(
         if (state.isMutating) return
 
         viewModelScope.launch {
+            loadJob?.cancel()
             _uiState.update { it.copy(confirmation = null, isMutating = true, errorMessage = null, message = null) }
             try {
                 val request = ReportPublishRequestDto(
@@ -133,9 +131,10 @@ internal class ReportsViewModel @Inject constructor(
                     termId = termId,
                     note = state.publicationNote.trim().takeIf(String::isNotBlank),
                 )
-                val response = when (action) {
-                    ReportPublicationAction.PUBLISH -> api.publish(request)
-                    ReportPublicationAction.UNPUBLISH -> api.unpublish(request)
+                val message = when (action) {
+                    ReportManagementAction.COMPUTE -> api.compute(request).message
+                    ReportManagementAction.PUBLISH -> api.publish(request).message
+                    ReportManagementAction.UNPUBLISH -> api.unpublish(request).message
                 }
                 val workspace = api.index(classId, termId)
                 _uiState.update {
@@ -144,7 +143,7 @@ internal class ReportsViewModel @Inject constructor(
                         publicationNote = workspace.publication?.note.orEmpty(),
                         isMutating = false,
                         errorMessage = null,
-                        message = response.message,
+                        message = message,
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -191,7 +190,8 @@ private fun Throwable.reportMessage(): String = when (this) {
         403 -> "You do not have permission to manage report cards."
         404 -> "The selected class, term or report-card record is no longer available."
         409 -> "The report-card state changed while you were working. Reload and try again."
-        422 -> "The requested report-card action is not valid yet. Check that reports have been computed."
+        423 -> "These report cards are published and locked. Return them to draft before recomputing."
+        422 -> "The requested report-card action is not valid yet. Check the selected class, term and computed summaries."
         else -> "The Report Cards service returned an error (${code()})."
     }
     else -> localizedMessage?.takeIf(String::isNotBlank)
