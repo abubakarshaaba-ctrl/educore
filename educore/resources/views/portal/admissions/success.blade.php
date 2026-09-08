@@ -33,10 +33,16 @@ p{font-size:15px;color:#64748B;margin-bottom:20px;line-height:1.6}
         <div class="num">{{ $admission->application_number }}</div>
     </div>
 
+    @php
+        $phoneDigits = preg_replace('/\D+/', '', (string) $admission->guardian_phone);
+        $maskedPhone = $phoneDigits !== ''
+            ? str_repeat('•', max(strlen($phoneDigits) - 4, 4)) . substr($phoneDigits, -4)
+            : null;
+    @endphp
     <div class="info">
         <strong>&#128241; What happens next?</strong>
         Our admissions team will review your application.
-        @if($admission->guardian_phone) An SMS confirmation has been sent to <strong>{{ $admission->guardian_phone }}</strong>.@endif
+        @if($maskedPhone) An SMS confirmation has been sent to <strong>{{ $maskedPhone }}</strong>.@endif
         You can check your application status at any time using your application number.
     </div>
 
