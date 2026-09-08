@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MobilePlatformExtendedController;
+use App\Http\Controllers\Api\MobilePlatformTenantController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('platform')->group(function (): void {
@@ -14,4 +15,7 @@ Route::prefix('platform')->group(function (): void {
     Route::post('broadcasts/{broadcast}/expire', [MobilePlatformExtendedController::class, 'expireBroadcast'])->whereNumber('broadcast');
     Route::get('settings', [MobilePlatformExtendedController::class, 'settings']);
     Route::get('gateways', [MobilePlatformExtendedController::class, 'gateways']);
+
+    Route::get('tenants/{tenant}', [MobilePlatformTenantController::class, 'show'])->whereNumber('tenant');
+    Route::post('tenants/{tenant}/extend', [MobilePlatformTenantController::class, 'extend'])->whereNumber('tenant');
 });
