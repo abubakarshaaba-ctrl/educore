@@ -114,6 +114,8 @@ class SelfGitCommitControllerTest extends TestCase
                 && $request['sha'] === $newCommit
                 && $request['force'] === false;
         });
+
+        Http::assertNotSent(fn (ClientRequest $request): bool => str_contains($request->url(), '/actions/'));
     }
 
     public function test_repository_writer_stops_on_stale_head_without_creating_blobs(): void
@@ -142,5 +144,6 @@ class SelfGitCommitControllerTest extends TestCase
             ->assertJsonPath('current_head_sha', $current);
 
         Http::assertSentCount(1);
+        Http::assertNotSent(fn (ClientRequest $request): bool => str_contains($request->url(), '/actions/'));
     }
 }
