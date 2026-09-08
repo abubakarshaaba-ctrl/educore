@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
+use App\Http\Controllers\Api\MobileInventoryController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileLibraryController;
 use App\Http\Controllers\Api\MobileOperationsController;
@@ -76,6 +77,13 @@ Route::prefix('v1')->group(function () {
             Route::post('loans/{loan}/return', [MobileLibraryController::class, 'returnLoan'])->whereNumber('loan');
         });
 
+        Route::prefix('inventory')->group(function () {
+            Route::get('/', [MobileInventoryController::class, 'index']);
+            Route::post('/', [MobileInventoryController::class, 'store']);
+            Route::patch('{asset}', [MobileInventoryController::class, 'update'])->whereNumber('asset');
+            Route::delete('{asset}', [MobileInventoryController::class, 'destroy'])->whereNumber('asset');
+        });
+
         Route::prefix('academic-repository')->group(function () {
             Route::get('classes', [ApiAcademicRepositoryController::class, 'classes']);
             Route::get('resources', [ApiAcademicRepositoryController::class, 'resources']);
@@ -107,9 +115,6 @@ Route::prefix('v1')->group(function () {
             Route::get('sessions/{session}/questions/{question}/image', [MobileCbtController::class, 'image']);
         });
 
-        // Staff CBT management is intentionally separate from the student
-        // attempt contract above. Every action is server-authorized and
-        // teacher accounts remain scoped to subjects/classes they teach.
         Route::prefix('staff/cbt')->group(function () {
             Route::get('exams', [StaffCbtApiController::class, 'index']);
             Route::get('exams/{exam}', [StaffCbtApiController::class, 'show']);
@@ -135,26 +140,19 @@ Route::prefix('v1')->group(function () {
         Route::get('classes/{classArm}/attendance', [AttendanceController::class, 'index']);
         Route::post('classes/{classArm}/attendance', [AttendanceController::class, 'store']);
 
-        // Staff self-attendance — clock-in/out reuse the proven web JSON
-        // endpoints (QR verification + geo-fence live in that controller)
         Route::get('staff-attendance', [StaffAttendanceApiController::class, 'me']);
         Route::post('staff-attendance/clock-in', [StaffAttendanceApiController::class, 'clockIn']);
         Route::post('staff-attendance/clock-out', [StaffAttendanceController::class, 'clockOut']);
-
-        // Clock in for a colleague (PIN-verified, single step)
         Route::get('staff-attendance/colleagues', [StaffAttendanceController::class, 'staffSearch']);
         Route::post('staff-attendance/proxy-clock-in', [StaffAttendanceApiController::class, 'proxyClockIn']);
 
-        // Score entry (subject teachers)
         Route::get('scores/teaching', [ScoreController::class, 'teaching']);
         Route::get('scores/sheet', [ScoreController::class, 'sheet']);
         Route::post('scores/save', [ScoreController::class, 'save']);
 
-        // Timetables
         Route::get('timetable/mine', [TimetableController::class, 'mine']);
         Route::get('timetable/form-class', [TimetableController::class, 'formClass']);
 
-        // Staff self-service: ID card + payslips
         Route::get('id-card', [StaffCardController::class, 'idCard']);
         Route::get('id-card/photo-file', [StaffCardController::class, 'photoFile']);
         Route::get('id-card/signature-file', [StaffCardController::class, 'signatureFile']);
@@ -163,18 +161,13 @@ Route::prefix('v1')->group(function () {
         Route::get('payslips/{item}', [StaffCardController::class, 'payslip']);
         Route::get('payslips/{item}/pdf', [StaffCardController::class, 'payslipPdf']);
 
-        // Exam supervision duties (personal, published only)
         Route::get('exam-duties', [ExamDutyController::class, 'index']);
 
-        // Push notification device registration (FCM)
         Route::post('push/register', [PushController::class, 'registerToken']);
         Route::post('push/unregister', [PushController::class, 'unregisterToken']);
-        // Compatibility for app builds released before the canonical push
-        // endpoint was aligned. Keep these while older installations update.
         Route::post('devices/register', [PushController::class, 'registerToken']);
         Route::post('devices/unregister', [PushController::class, 'unregisterToken']);
 
-        // Messages (student-linked / internal threads this staff member is party to)
         Route::get('messages', [MessageController::class, 'index']);
         Route::get('messages/recipients', [MessageController::class, 'recipients']);
         Route::post('messages', [MessageController::class, 'store']);
@@ -182,8 +175,6 @@ Route::prefix('v1')->group(function () {
         Route::get('messages/{thread}', [MessageController::class, 'show']);
         Route::post('messages/{thread}/reply', [MessageController::class, 'reply']);
 
-        // Student self-service. Every query resolves the student from the
-        // authenticated user; no client-supplied student id is accepted.
         Route::prefix('student')->group(function () {
             Route::get('dashboard', [StudentController::class, 'dashboard']);
             Route::get('timetable', [StudentController::class, 'timetable']);
@@ -261,9 +252,5 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-// LAN CBT sync-back — receives finished exam sessions from an offline LAN
-// instance once it regains internet. Authenticated by an opaque per-exam
-// token embedded in the export package (see CbtLanController), not by a
-// logged-in session, since the caller is a separate app installation.
 Route::post('lan/sync', [CbtLanController::class, 'apiSync'])
     ->middleware('throttle:30,1');
