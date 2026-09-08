@@ -82,6 +82,35 @@ if ($staffShell.Contains('ACTION_VIEW') -or $staffShell.Contains('onOpenWebModul
     throw 'StaffWorkspaceShell contains a generic browser fallback. Staff mobile routing must remain explicitly native/RBAC-scoped.'
 }
 
+$staffHub = Get-Content -LiteralPath (
+    Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\StaffModulesHubScreen.kt'
+) -Raw
+foreach ($marker in @('StaffCbtListScreen', 'StaffCbtDetailScreen', 'CBT_MODULE_KEYS')) {
+    if (-not $staffHub.Contains($marker)) { throw "Native staff CBT hub marker is missing: $marker" }
+}
+
+$staffCbtApi = Get-Content -LiteralPath (
+    Join-Path $projectRoot 'core\network\src\main\java\online\educoreng\educore\core\network\StaffCbtApi.kt'
+) -Raw
+foreach ($marker in @(
+    '@GET("staff/cbt/exams")',
+    '@POST("staff/cbt/exams/{exam}/publish")',
+    '@POST("staff/cbt/exams/{exam}/close")',
+    '@PATCH("staff/cbt/exams/{exam}/schedule")'
+)) {
+    if (-not $staffCbtApi.Contains($marker)) { throw "Native staff CBT API contract marker is missing: $marker" }
+}
+if ($staffCbtApi.Contains('staff/cbt/exams/{exam}/reschedule')) {
+    throw 'Retired staff CBT reschedule URL has reappeared in the Android API contract.'
+}
+
+$modulePolicy = Get-Content -LiteralPath (
+    Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\ModulePresentationPolicy.kt'
+) -Raw
+foreach ($marker in @('"cbt"', '"cbt-exams"', '"examinations"', '"student.exams"')) {
+    if (-not $modulePolicy.Contains($marker)) { throw "Native CBT presentation policy marker is missing: $marker" }
+}
+
 $noteReader = Get-Content -LiteralPath (
     Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\AcademicRepositoryScreens.kt'
 ) -Raw
@@ -136,6 +165,7 @@ if (-not $SkipServerTests) {
         'tests/Feature/MobileCommunicationTest.php',
         'tests/Feature/MobileOperationsTest.php',
         'tests/Feature/MobileLessonRepositoryTest.php',
+        'tests/Feature/MobileStaffCbtTest.php',
         'tests/Feature/AcademicRepositoryReaderTest.php',
         'tests/Feature/CbtRestructuringTest.php',
         'tests/Feature/PushRegistrationTest.php',
