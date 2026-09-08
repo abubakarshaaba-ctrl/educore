@@ -12,6 +12,14 @@ Route::prefix('transfers')->group(function (): void {
     Route::post('cross-school/{transfer}/reject', [MobileTransfersController::class, 'rejectCrossSchool'])
         ->whereNumber('transfer');
 
+    Route::post('intra-class', [MobileTransfersController::class, 'requestIntraClass']);
+    Route::post('intra-class/{transfer}/approve', [MobileTransfersController::class, 'approveIntraClass'])
+        ->whereNumber('transfer');
+    Route::post('intra-class/{transfer}/reject', [MobileTransfersController::class, 'rejectIntraClass'])
+        ->whereNumber('transfer');
+    Route::post('intra-class/{transfer}/cancel', [MobileTransfersController::class, 'cancelIntraClass'])
+        ->whereNumber('transfer');
+
     Route::post('interclass', [MobileTransfersController::class, 'requestInterclass']);
     Route::post('interclass/{transfer}/approve', [MobileTransfersController::class, 'approveInterclass'])
         ->whereNumber('transfer');
