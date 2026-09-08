@@ -75,7 +75,7 @@ internal fun StaffModulesHubScreen(
                 }
                 items(group.modules, key = { "hub-${group.key}-${it.key}" }) { module ->
                     EduCoreShowcaseTile(
-                        label = module.title,
+                        label = moduleHubLabel(module),
                         icon = moduleHubIcon(module.key),
                         onClick = { onModuleClick(module) },
                         modifier = Modifier.fillMaxWidth(),
@@ -84,12 +84,6 @@ internal fun StaffModulesHubScreen(
             }
         }
 
-        item(key = "hub-account-heading", span = { GridItemSpan(maxLineSpan) }) {
-            EduCoreSectionHeader(
-                title = "Account",
-                supportingText = "Account actions for this device",
-            )
-        }
         item(key = "hub-signout", span = { GridItemSpan(maxLineSpan) }) {
             EduCorePrimaryButton(
                 text = "Sign out",
@@ -150,9 +144,9 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
             modules = group(COMMUNICATION_KEYS),
         ),
         ModuleHubGroup(
-            key = "profile",
-            title = "Profile & Settings",
-            supportingText = "Only account modules granted by your school are shown",
+            key = "account",
+            title = "Account",
+            supportingText = "Profile and account tools granted to your role",
             modules = group(ACCOUNT_KEYS),
         ),
     )
@@ -160,7 +154,23 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
 
 private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     "staff-attendance.self" -> "staff-attendance"
+    "announcements", "notifications.view" -> key.lowercase()
     else -> key.lowercase()
+}
+
+/** Compact labels are intentional: the August reference uses three tiles per row on phones. */
+private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
+    "attendance" -> "Attendance"
+    "staff-attendance", "staff-attendance.self" -> "My Attendance"
+    "academic-repository" -> "Repository"
+    "lesson-planner" -> "Lesson Planner"
+    "reports", "report-cards", "results" -> "Results"
+    "cbt", "cbt-exams", "examinations" -> "Examinations"
+    "notifications.view", "announcements" -> "Notices"
+    "calendar.view" -> "Events"
+    "academic-cycle" -> "Sessions"
+    "fees" -> "Fees & Payments"
+    else -> module.title
 }
 
 private val ACADEMIC_KEYS = setOf(
