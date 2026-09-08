@@ -54,6 +54,9 @@ class TransportOfficerController extends Controller
             ]);
 
         return response()->json([
+            'capabilities' => [
+                'manage' => $user->canManage('transport'),
+            ],
             'metrics' => [
                 'routes' => $routes->count(),
                 'active_buses' => $buses->where('active', true)->count(),
@@ -79,12 +82,19 @@ class TransportOfficerController extends Controller
                 'pickup_stop' => $assignment->pickup_stop,
                 'direction' => $assignment->direction,
             ]);
-        return response()->json(['route' => ['id' => $route->id, 'name' => $route->name], 'manifest' => $items]);
+
+        return response()->json([
+            'capabilities' => [
+                'manage' => $user->canManage('transport'),
+            ],
+            'route' => ['id' => $route->id, 'name' => $route->name],
+            'manifest' => $items,
+        ]);
     }
 
     public function assign(Request $request)
     {
-        $user = $this->guard($request);
+        $user = $this->guard($request, manage: true);
         $data = $request->validate([
             'student_id' => ['required', Rule::exists('students', 'id')->where(fn ($q) => $q->where('tenant_id', $user->tenant_id)->where('status', Student::STATUS_ACTIVE))],
             'route_id' => ['required', Rule::exists('transport_routes', 'id')->where(fn ($q) => $q->where('tenant_id', $user->tenant_id)->where('is_active', true))],
@@ -95,14 +105,23 @@ class TransportOfficerController extends Controller
             ['tenant_id' => $user->tenant_id, 'student_id' => $data['student_id']],
             $data + ['tenant_id' => $user->tenant_id]
         );
+
         return response()->json(['message' => 'Student transport assignment saved.']);
     }
 
-    private function guard(Request $request): User
+    private function guard(Request $request, bool $manage = false): User
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $request->user();
-        abort_unless($user && in_array($user->roleKey(), ['transport_officer', 'admin', 'principal', 'head', 'head_teacher'], true), 403, 'Transport Officer access required.');
+        abort_unless($user, 401);
+        abort_if($user->isStudent() || $user->isParent() || $user->isSuperAdmin(), 403, 'School transport access required.');
+        abort_unless($user->tenant_id, 403, 'School transport access required.');
+        abort_unless(
+            $manage ? $user->canManage('transport') : $user->canAccessModule('transport'),
+            403,
+            $manage ? 'Transport management permission required.' : 'Transport access required.'
+        );
+
         return $user;
     }
 }
