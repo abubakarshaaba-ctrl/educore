@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PricingService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -169,7 +170,7 @@ class MobilePlatformExtendedController extends Controller
                 'creator' => $item->creator_name,
                 'expires_at' => $item->expires_at,
                 'created_at' => $item->created_at,
-                'active' => $item->expires_at === null || now()->lt($item->expires_at),
+                'active' => $item->expires_at === null || Carbon::parse($item->expires_at)->isFuture(),
             ]);
 
         return response()->json(['broadcasts' => $broadcasts]);
