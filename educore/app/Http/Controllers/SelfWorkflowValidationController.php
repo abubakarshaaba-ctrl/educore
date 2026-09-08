@@ -41,12 +41,21 @@ class SelfWorkflowValidationController extends Controller
         'mobile-native/tools/verify-native.ps1',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/EduCoreFoundationApp.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffWorkspaceShell.kt',
+        'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffModulesHubScreen.kt',
+        'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffCbtScreens.kt',
+        'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffCbtViewModel.kt',
+        'mobile-native/app/src/main/java/online/educoreng/educore/presentation/ModulePresentationPolicy.kt',
+        'mobile-native/core/network/src/main/java/online/educoreng/educore/core/network/StaffCbtApi.kt',
+        'mobile-native/core/network/src/main/java/online/educoreng/educore/core/network/dto/StaffCbtDtos.kt',
+        'mobile-native/core/network/src/test/java/online/educoreng/educore/core/network/StaffCbtApiContractTest.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffClassesScreen.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/ClassesWorkspaceScreens.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/AcademicRepositoryScreens.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/LessonPlannerScreens.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/CommunicationScreens.kt',
         'educore/app/Http/Controllers/Api/StaffAttendanceApiController.php',
+        'educore/app/Http/Controllers/Api/StaffCbtApiController.php',
+        'educore/tests/Feature/MobileStaffCbtTest.php',
         'educore/routes/api.php',
     ];
 
@@ -350,6 +359,7 @@ class SelfWorkflowValidationController extends Controller
             'workflow:debug-build' => ':app:assembleDebug',
             'workflow:unit-tests' => ':app:testDebugUnitTest',
             'workflow:lint' => ':app:lintDebug',
+            'workflow:staff-cbt-tests' => 'tests/Feature/MobileStaffCbtTest.php',
         ] as $name => $marker) {
             $this->markerCheck($checks, $name, $workflow, $marker, 'error');
         }
@@ -392,6 +402,44 @@ class SelfWorkflowValidationController extends Controller
             'Staff shell contains a browser fallback.'
         );
 
+        $staffHub = $this->read($root.'/mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffModulesHubScreen.kt');
+        foreach (['StaffCbtListScreen', 'StaffCbtDetailScreen', 'CBT_MODULE_KEYS'] as $marker) {
+            $this->markerCheck($checks, 'staff-cbt:hub:'.$marker, $staffHub, $marker, 'error');
+        }
+
+        $staffCbtApi = $this->read($root.'/mobile-native/core/network/src/main/java/online/educoreng/educore/core/network/StaffCbtApi.kt');
+        foreach ([
+            '@GET("staff/cbt/exams")',
+            '@POST("staff/cbt/exams/{exam}/publish")',
+            '@POST("staff/cbt/exams/{exam}/close")',
+            '@PATCH("staff/cbt/exams/{exam}/schedule")',
+        ] as $marker) {
+            $this->markerCheck($checks, 'staff-cbt:api:'.$marker, $staffCbtApi, $marker, 'error');
+        }
+        $this->addCheck(
+            $checks,
+            'staff-cbt:no-retired-reschedule-url',
+            ! str_contains($staffCbtApi, 'staff/cbt/exams/{exam}/reschedule'),
+            'error',
+            'Retired staff CBT reschedule URL is absent.',
+            'Retired staff CBT reschedule URL has reappeared.'
+        );
+
+        $modulePolicy = $this->read($root.'/mobile-native/app/src/main/java/online/educoreng/educore/presentation/ModulePresentationPolicy.kt');
+        foreach (['"cbt"', '"cbt-exams"', '"examinations"', '"student.exams"'] as $marker) {
+            $this->markerCheck($checks, 'staff-cbt:native-policy:'.$marker, $modulePolicy, $marker, 'error');
+        }
+
+        $apiRoutes = $this->read($root.'/educore/routes/api.php');
+        foreach (["Route::prefix('staff/cbt')", "Route::patch('exams/{exam}/schedule'"] as $marker) {
+            $this->markerCheck($checks, 'staff-cbt:laravel-route:'.$marker, $apiRoutes, $marker, 'error');
+        }
+
+        $staffCbtController = $this->read($root.'/educore/app/Http/Controllers/Api/StaffCbtApiController.php');
+        foreach (["canAccessModule('cbt')", "'create_exam' => false", "'status' => 'published'"] as $marker) {
+            $this->markerCheck($checks, 'staff-cbt:server:'.$marker, $staffCbtController, $marker, 'error');
+        }
+
         $notes = $this->read($root.'/mobile-native/app/src/main/java/online/educoreng/educore/presentation/AcademicRepositoryScreens.kt');
         foreach (['parseAcademicNote', 'AcademicNoteBlock.Heading', 'AcademicNoteBlock.Bullet', 'AcademicNoteBlock.Numbered'] as $marker) {
             $this->markerCheck($checks, 'notes:'.$marker, $notes, $marker, 'error');
@@ -407,7 +455,15 @@ class SelfWorkflowValidationController extends Controller
         );
 
         $validator = $this->read($root.'/mobile-native/tools/verify-native.ps1');
-        foreach ([':app:testDebugUnitTest', ':app:lintDebug', ':app:assembleDebug', 'AcademicRepositoryScreens.kt', 'StaffWorkspaceShell.kt'] as $marker) {
+        foreach ([
+            ':app:testDebugUnitTest',
+            ':app:lintDebug',
+            ':app:assembleDebug',
+            'AcademicRepositoryScreens.kt',
+            'StaffWorkspaceShell.kt',
+            'StaffCbtApi.kt',
+            'MobileStaffCbtTest.php',
+        ] as $marker) {
             $this->markerCheck($checks, 'local-validator:'.$marker, $validator, $marker, 'error');
         }
 
