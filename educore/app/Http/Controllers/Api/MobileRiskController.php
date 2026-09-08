@@ -15,7 +15,6 @@ use App\Models\TermlySummary;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -178,9 +177,9 @@ class MobileRiskController extends Controller
             ->where('term_id', $record->term_id)
             ->whereIn('status', ['unpaid', 'partially_paid']);
         $outstandingInvoices = (clone $invoiceQuery)->count();
-        $outstandingBalance = (float) (clone $invoiceQuery)
-            ->selectRaw('COALESCE(SUM(GREATEST(total_amount - amount_paid, 0)), 0) as balance')
-            ->value('balance');
+        $outstandingBilled = (float) (clone $invoiceQuery)->sum('total_amount');
+        $outstandingPaid = (float) (clone $invoiceQuery)->sum('amount_paid');
+        $outstandingBalance = max(0, $outstandingBilled - $outstandingPaid);
 
         $previous = TermlySummary::query()
             ->where('tenant_id', $tenantId)
