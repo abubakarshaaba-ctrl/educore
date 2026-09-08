@@ -287,7 +287,7 @@ internal fun StaffWorkspaceShell(
                         }
                         composable(StaffTab.CLASSES.route) {
                             LaunchedEffect(Unit) { classesViewModel.loadClasses() }
-                            ClassesListScreen(
+                            ShowcaseClassesListScreen(
                                 state = classesState,
                                 width = width,
                                 onSearch = classesViewModel::setClassSearch,
@@ -329,7 +329,7 @@ internal fun StaffWorkspaceShell(
                             )
                         }
                         composable(StaffTab.MORE.route) {
-                            StaffMoreRoot(session, width, openModule, onLogout)
+                            StaffModulesHubScreen(session, width, openModule, onLogout)
                         }
 
                         composable(
