@@ -26,6 +26,7 @@ class MobileModuleService
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
+        'transfers' => ['Student Transfers', '/students/transfers', 'transfers'],
         'messages' => ['Messages', '/messages', 'messages'],
         'notifications.view' => ['Notifications', '/notifications', 'notifications'],
         'calendar.view' => ['Calendar', '/calendar', 'calendar'],
