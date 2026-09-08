@@ -29,6 +29,24 @@ interface TransfersApi {
     @POST("transfers/cross-school/{transfer}/reject")
     suspend fun rejectCrossSchool(@Path("transfer") transferId: Long): TransferMutationResponseDto
 
+    @POST("transfers/intra-class")
+    suspend fun requestIntraClass(@Body body: InterclassTransferRequestDto): TransferMutationResponseDto
+
+    @POST("transfers/intra-class/{transfer}/approve")
+    suspend fun approveIntraClass(@Path("transfer") transferId: Long): TransferMutationResponseDto
+
+    @POST("transfers/intra-class/{transfer}/reject")
+    suspend fun rejectIntraClass(
+        @Path("transfer") transferId: Long,
+        @Body body: TransferReasonRequestDto,
+    ): TransferMutationResponseDto
+
+    @POST("transfers/intra-class/{transfer}/cancel")
+    suspend fun cancelIntraClass(
+        @Path("transfer") transferId: Long,
+        @Body body: TransferReasonRequestDto,
+    ): TransferMutationResponseDto
+
     @POST("transfers/interclass")
     suspend fun requestInterclass(@Body body: InterclassTransferRequestDto): TransferMutationResponseDto
 
