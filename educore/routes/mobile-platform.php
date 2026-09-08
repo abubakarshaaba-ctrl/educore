@@ -1,12 +1,19 @@
 <?php
 
 use App\Http\Controllers\Api\MobilePlatformExtendedController;
+use App\Http\Controllers\Api\MobilePlatformGroupController;
 use App\Http\Controllers\Api\MobilePlatformTenantController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('platform')->group(function (): void {
     Route::get('analytics', [MobilePlatformExtendedController::class, 'analytics']);
     Route::get('groups', [MobilePlatformExtendedController::class, 'groups']);
+    Route::post('groups', [MobilePlatformGroupController::class, 'store']);
+    Route::get('groups/{group}', [MobilePlatformGroupController::class, 'show'])->whereNumber('group');
+    Route::post('groups/{group}/members', [MobilePlatformGroupController::class, 'addMember'])->whereNumber('group');
+    Route::delete('groups/{group}/members/{tenant}', [MobilePlatformGroupController::class, 'removeMember'])->whereNumber('group')->whereNumber('tenant');
+    Route::post('groups/{group}/members/{tenant}/lead', [MobilePlatformGroupController::class, 'setLead'])->whereNumber('group')->whereNumber('tenant');
+
     Route::get('support', [MobilePlatformExtendedController::class, 'support']);
     Route::post('support/{ticket}/reply', [MobilePlatformExtendedController::class, 'replySupport'])->whereNumber('ticket');
     Route::post('support/{ticket}/close', [MobilePlatformExtendedController::class, 'closeSupport'])->whereNumber('ticket');
