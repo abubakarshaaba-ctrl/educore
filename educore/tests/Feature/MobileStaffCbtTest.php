@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ApiToken;
 use App\Models\CbtExam;
+use App\Models\CbtQuestion;
 use App\Models\CbtQuestionBank;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +23,8 @@ class MobileStaffCbtTest extends TestCase
     private int $chemistrySubjectId;
     private User $admin;
     private User $teacher;
+    private CbtQuestionBank $biologyBank;
+    private CbtQuestionBank $chemistryBank;
     private CbtExam $biologyExam;
     private CbtExam $chemistryExam;
 
@@ -117,14 +120,14 @@ class MobileStaffCbtTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        $biologyBank = CbtQuestionBank::create([
+        $this->biologyBank = CbtQuestionBank::create([
             'tenant_id' => $this->tenantId,
             'subject_id' => $this->biologySubjectId,
             'class_level_id' => $this->levelId,
             'name' => 'SS3 Biology Bank',
             'is_active' => true,
         ]);
-        $chemistryBank = CbtQuestionBank::create([
+        $this->chemistryBank = CbtQuestionBank::create([
             'tenant_id' => $this->tenantId,
             'subject_id' => $this->chemistrySubjectId,
             'class_level_id' => $this->levelId,
@@ -132,9 +135,26 @@ class MobileStaffCbtTest extends TestCase
             'is_active' => true,
         ]);
 
+        CbtQuestion::create([
+            'tenant_id' => $this->tenantId,
+            'question_bank_id' => $this->biologyBank->id,
+            'type' => 'mcq',
+            'question_text' => 'Which organelle contains chlorophyll?',
+            'option_a' => 'Chloroplast',
+            'option_b' => 'Nucleus',
+            'correct_answer_letter' => 'a',
+            'marks' => 2,
+            'level' => 0,
+            'sequence' => 1,
+            'numbering_style' => 'auto',
+            'is_instruction_only' => false,
+            'requires_answer' => true,
+            'scoring_method' => 'automatic',
+        ]);
+
         $this->biologyExam = CbtExam::create([
             'tenant_id' => $this->tenantId,
-            'question_bank_id' => $biologyBank->id,
+            'question_bank_id' => $this->biologyBank->id,
             'term_id' => $this->termId,
             'class_arm_id' => $this->armId,
             'title' => 'Biology Mock CBT',
@@ -147,7 +167,7 @@ class MobileStaffCbtTest extends TestCase
         ]);
         $this->chemistryExam = CbtExam::create([
             'tenant_id' => $this->tenantId,
-            'question_bank_id' => $chemistryBank->id,
+            'question_bank_id' => $this->chemistryBank->id,
             'term_id' => $this->termId,
             'class_arm_id' => $this->armId,
             'title' => 'Chemistry Mock CBT',
@@ -177,10 +197,84 @@ class MobileStaffCbtTest extends TestCase
             ->assertOk()
             ->assertJsonPath('contract_version', 1)
             ->assertJsonPath('capabilities.full_access', false)
-            ->assertJsonPath('capabilities.create_exam', false)
+            ->assertJsonPath('capabilities.create_exam', true)
             ->assertJsonCount(1, 'exams')
             ->assertJsonPath('exams.0.id', $this->biologyExam->id)
             ->assertJsonPath('exams.0.subject.name', 'Biology');
+    }
+
+    public function test_subject_teacher_receives_scoped_creation_options_and_can_create_draft(): void
+    {
+        $token = ApiToken::issue($this->teacher, 'android-cbt-create-test');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/staff/cbt/options')
+            ->assertOk()
+            ->assertJsonPath('contract_version', 1)
+            ->assertJsonCount(1, 'banks')
+            ->assertJsonPath('banks.0.id', $this->biologyBank->id)
+            ->assertJsonPath('banks.0.subject.name', 'Biology')
+            ->assertJsonPath('banks.0.question_count', 1)
+            ->assertJsonCount(1, 'classes')
+            ->assertJsonPath('classes.0.id', $this->armId)
+            ->assertJsonPath('defaults.term_id', $this->termId);
+
+        $start = now()->addHour()->startOfMinute();
+        $end = now()->addHours(2)->startOfMinute();
+
+        $response = $this->withToken($token)
+            ->postJson('/api/v1/staff/cbt/exams', [
+                'title' => 'Native Biology Examination',
+                'question_bank_id' => $this->biologyBank->id,
+                'class_arm_ids' => [$this->armId],
+                'term_id' => $this->termId,
+                'duration_minutes' => 45,
+                'scheduled_start' => $start->toIso8601String(),
+                'scheduled_end' => $end->toIso8601String(),
+                'malpractice_enabled' => true,
+                'focus_loss_policy' => 'submit',
+                'max_focus_losses' => 0,
+                'require_fullscreen' => false,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('reused', false)
+            ->assertJsonPath('section_count', 1)
+            ->assertJsonPath('question_count', 1);
+
+        $examId = (int) $response->json('exam_id');
+        $this->assertDatabaseHas('cbt_exams', [
+            'id' => $examId,
+            'tenant_id' => $this->tenantId,
+            'question_bank_id' => $this->biologyBank->id,
+            'term_id' => $this->termId,
+            'title' => 'Native Biology Examination',
+            'status' => 'draft',
+            'duration_minutes' => 45,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $this->tenantId,
+            'actor_user_id' => $this->teacher->id,
+            'auditable_type' => CbtExam::class,
+            'auditable_id' => $examId,
+            'action' => 'cbt.exam.created',
+        ]);
+    }
+
+    public function test_subject_teacher_cannot_create_exam_for_unassigned_bank(): void
+    {
+        $token = ApiToken::issue($this->teacher, 'android-cbt-create-test');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/staff/cbt/exams', [
+                'title' => 'Chemistry Examination',
+                'question_bank_id' => $this->chemistryBank->id,
+                'class_arm_ids' => [$this->armId],
+                'term_id' => $this->termId,
+                'duration_minutes' => 45,
+                'scheduled_start' => now()->addHour()->toIso8601String(),
+                'scheduled_end' => now()->addHours(2)->toIso8601String(),
+            ])
+            ->assertForbidden();
     }
 
     public function test_subject_teacher_cannot_open_an_unassigned_subject_exam(): void
@@ -193,7 +287,7 @@ class MobileStaffCbtTest extends TestCase
             ->assertJsonPath('message', 'You can only manage exams for subjects you teach.');
     }
 
-    public function test_admin_receives_full_staff_cbt_capability_without_claiming_unimplemented_creation(): void
+    public function test_admin_receives_full_staff_cbt_capability(): void
     {
         $token = ApiToken::issue($this->admin, 'android-cbt-admin-test');
 
@@ -201,7 +295,7 @@ class MobileStaffCbtTest extends TestCase
             ->getJson('/api/v1/staff/cbt/exams')
             ->assertOk()
             ->assertJsonPath('capabilities.full_access', true)
-            ->assertJsonPath('capabilities.create_exam', false)
+            ->assertJsonPath('capabilities.create_exam', true)
             ->assertJsonPath('capabilities.publish_exam', true)
             ->assertJsonPath('capabilities.close_exam', true)
             ->assertJsonPath('capabilities.reschedule_exam', true)
