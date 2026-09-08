@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\ReportCardController;
 use App\Models\ApiToken;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ReportCardDocumentService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -284,7 +284,7 @@ class MobileReportsTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    public function test_report_pdf_uses_summary_class_without_persisting_student_move(): void
+    public function test_report_pdf_delegates_tenant_scoped_summary_to_shared_document_service(): void
     {
         $school = $this->school('PDF Reports', 'admin');
         $period = $this->period($school['tenant']->id, true);
@@ -299,16 +299,12 @@ class MobileReportsTest extends TestCase
             $period['session'],
         );
 
-        $renderer = Mockery::mock(ReportCardController::class);
-        $renderer->shouldReceive('pdf')
+        $documents = Mockery::mock(ReportCardDocumentService::class);
+        $documents->shouldReceive('download')
             ->once()
-            ->withArgs(function ($request, $student) use ($studentId, $historicalClass, $period): bool {
-                return (int) $student->id === $studentId
-                    && (int) $student->current_class_arm_id === $historicalClass
-                    && (int) $request->input('term_id') === $period['term'];
-            })
+            ->with($school['tenant']->id, $summaryId)
             ->andReturn(response('PDF-CONTENT', 200, ['Content-Type' => 'application/pdf']));
-        $this->app->instance(ReportCardController::class, $renderer);
+        $this->app->instance(ReportCardDocumentService::class, $documents);
 
         $token = ApiToken::issue($school['user'], 'reports-pdf');
         $this->withToken($token)
@@ -323,7 +319,7 @@ class MobileReportsTest extends TestCase
         ]);
     }
 
-    public function test_report_pdf_hides_foreign_summary_ids(): void
+    public function test_report_pdf_hides_foreign_summary_ids_before_document_rendering(): void
     {
         $local = $this->school('Local PDF', 'admin');
         $foreign = $this->school('Foreign PDF', 'admin');
@@ -338,9 +334,9 @@ class MobileReportsTest extends TestCase
             $foreignPeriod['session'],
         );
 
-        $renderer = Mockery::mock(ReportCardController::class);
-        $renderer->shouldNotReceive('pdf');
-        $this->app->instance(ReportCardController::class, $renderer);
+        $documents = Mockery::mock(ReportCardDocumentService::class);
+        $documents->shouldNotReceive('download');
+        $this->app->instance(ReportCardDocumentService::class, $documents);
 
         $token = ApiToken::issue($local['user'], 'reports-pdf-foreign');
         $this->withToken($token)
