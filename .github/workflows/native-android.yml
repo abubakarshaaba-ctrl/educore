@@ -68,6 +68,7 @@ jobs:
             tests/Feature/MobileHostelTest.php \
             tests/Feature/MobileFeesTest.php \
             tests/Feature/MobilePayrollTest.php \
+            tests/Feature/MobileExpensesTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
