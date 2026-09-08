@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class StudentClassTransfer extends BaseTenantModel
 {
@@ -51,6 +52,19 @@ class StudentClassTransfer extends BaseTenantModel
         'cancellation_reason',
         'supporting_document',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $transfer): void {
+            // Allows old isolated test fixtures and a rolling deployment window
+            // to keep operating until the movement_type migration is applied.
+            // Production persistence becomes mandatory as soon as the column is
+            // present; the migration backfills all historical transfer rows.
+            if (!Schema::hasColumn($transfer->getTable(), 'movement_type')) {
+                unset($transfer->attributes['movement_type']);
+            }
+        });
+    }
 
     protected function casts(): array
     {
