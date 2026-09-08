@@ -63,6 +63,7 @@ jobs:
             tests/Feature/MobileRiskTest.php \
             tests/Feature/MobileAdmissionsTest.php \
             tests/Feature/MobileSpecialistOperationsTest.php \
+            tests/Feature/MobileLibraryTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
