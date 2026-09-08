@@ -85,3 +85,74 @@ data class StaffCbtRescheduleRequestDto(
     @Json(name = "scheduled_end") val scheduledEnd: String,
     @Json(name = "duration_minutes") val durationMinutes: Int,
 )
+
+data class StaffCbtBankOptionDto(
+    val id: Long,
+    val name: String,
+    val subject: StaffCbtIdentityDto? = null,
+    @Json(name = "class_level") val classLevel: StaffCbtIdentityDto? = null,
+    @Json(name = "question_count") val questionCount: Int = 0,
+)
+
+data class StaffCbtClassOptionDto(
+    val id: Long,
+    val name: String,
+    @Json(name = "class_level_id") val classLevelId: Long,
+)
+
+data class StaffCbtTermOptionDto(
+    val id: Long,
+    val name: String,
+    val session: String? = null,
+    @Json(name = "is_current") val isCurrent: Boolean = false,
+)
+
+data class StaffCbtAssessmentOptionDto(
+    val id: Long,
+    val name: String,
+    @Json(name = "term_id") val termId: Long,
+    @Json(name = "is_exam") val isExam: Boolean = false,
+    @Json(name = "weight_percentage") val weightPercentage: Double? = null,
+)
+
+data class StaffCbtCreateDefaultsDto(
+    @Json(name = "term_id") val termId: Long? = null,
+    @Json(name = "duration_minutes") val durationMinutes: Int = 60,
+    @Json(name = "malpractice_enabled") val malpracticeEnabled: Boolean = true,
+    @Json(name = "focus_loss_policy") val focusLossPolicy: String = "submit",
+    @Json(name = "max_focus_losses") val maxFocusLosses: Int = 0,
+    @Json(name = "require_fullscreen") val requireFullscreen: Boolean = false,
+)
+
+data class StaffCbtCreateOptionsDto(
+    @Json(name = "contract_version") val contractVersion: Int,
+    @Json(name = "generated_at") val generatedAt: String,
+    val defaults: StaffCbtCreateDefaultsDto = StaffCbtCreateDefaultsDto(),
+    val banks: List<StaffCbtBankOptionDto> = emptyList(),
+    val classes: List<StaffCbtClassOptionDto> = emptyList(),
+    val terms: List<StaffCbtTermOptionDto> = emptyList(),
+    @Json(name = "assessment_types") val assessmentTypes: List<StaffCbtAssessmentOptionDto> = emptyList(),
+)
+
+data class StaffCbtCreateRequestDto(
+    val title: String,
+    @Json(name = "question_bank_id") val questionBankId: Long,
+    @Json(name = "class_arm_ids") val classArmIds: List<Long>,
+    @Json(name = "term_id") val termId: Long,
+    @Json(name = "duration_minutes") val durationMinutes: Int,
+    @Json(name = "scheduled_start") val scheduledStart: String? = null,
+    @Json(name = "scheduled_end") val scheduledEnd: String? = null,
+    @Json(name = "assessment_type_id") val assessmentTypeId: Long? = null,
+    @Json(name = "malpractice_enabled") val malpracticeEnabled: Boolean = true,
+    @Json(name = "focus_loss_policy") val focusLossPolicy: String = "submit",
+    @Json(name = "max_focus_losses") val maxFocusLosses: Int = 0,
+    @Json(name = "require_fullscreen") val requireFullscreen: Boolean = false,
+)
+
+data class StaffCbtCreateResponseDto(
+    val message: String,
+    @Json(name = "exam_id") val examId: Long,
+    val reused: Boolean = false,
+    @Json(name = "section_count") val sectionCount: Int = 0,
+    @Json(name = "question_count") val questionCount: Int = 0,
+)
