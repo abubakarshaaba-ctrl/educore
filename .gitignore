@@ -25,6 +25,7 @@ educore/storage/framework/cache/data/*
 educore/storage/logs/*
 educore/.phpunit.result.cache
 educore/.phpunit.cache/
+educore/.tmp/
 educore/auth.json
 
 # IDE
