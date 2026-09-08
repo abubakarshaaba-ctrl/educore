@@ -161,7 +161,31 @@ internal fun OperationsScreen(
     }
 
     if (workspace.module.key.equals("inventory", ignoreCase = true)) {
-        InventoryScreen(state = state, onBack = onBack, onQuery = onQuery)
+        val inventoryViewModel: InventoryViewModel = hiltViewModel()
+        val inventoryState by inventoryViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(workspace.module.key) {
+            if (inventoryState.workspace == null && !inventoryState.isLoading) {
+                inventoryViewModel.load()
+            }
+        }
+        NativeInventoryScreen(
+            state = inventoryState,
+            onBack = onBack,
+            onQuery = inventoryViewModel::setQuery,
+            onSearch = inventoryViewModel::search,
+            onStatusFilter = inventoryViewModel::setStatusFilter,
+            onCreate = inventoryViewModel::create,
+            onEdit = inventoryViewModel::edit,
+            onCloseEditor = inventoryViewModel::closeEditor,
+            onField = inventoryViewModel::updateField,
+            onAssignedTo = inventoryViewModel::setAssignedTo,
+            onCondition = inventoryViewModel::setCondition,
+            onStatus = inventoryViewModel::setStatus,
+            onSave = inventoryViewModel::save,
+            onDelete = inventoryViewModel::delete,
+            onLoadMore = inventoryViewModel::loadMore,
+            onRetry = inventoryViewModel::load,
+        )
         return
     }
 
