@@ -109,6 +109,7 @@ jobs:
             tests/Feature/MobileSkillsTest.php \
             tests/Feature/MobileGradebookTest.php \
             tests/Feature/MobileReportsTest.php \
+            tests/Feature/MobileReportComputationTest.php \
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/IntraClassTransferTest.php \
