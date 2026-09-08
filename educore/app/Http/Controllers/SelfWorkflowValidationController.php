@@ -7,31 +7,38 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 /**
- * Shell-free Android workflow/source validation for shared hosting.
+ * Shell-free validation fallback for EduCore's native Android workflow.
  *
- * This does not pretend to replace a real Gradle compile. Its purpose is to
- * give EduCore a deterministic fallback when GitHub Actions fails before a
- * runner executes any step. It downloads the requested repository ref,
- * validates the native Android project/workflow/API contracts without shell
- * access, and classifies the latest GitHub Actions result so runner-infra
- * failures are distinguishable from actual source/build failures.
+ * GitHub Actions can occasionally fail before a runner is allocated. In that
+ * case there are no executable steps or job logs, so the failure is not proof
+ * that the Android source is broken. This controller independently downloads
+ * an approved repository ref, validates the native source/workflow contracts,
+ * classifies the latest GitHub run, and can request a rerun when a server-side
+ * Actions-write token is configured.
  *
- * Trigger:
- *   GET /deploy/validate-android?token=<DEPLOY_TOKEN>&ref=mobile-overhaul
+ * It deliberately does NOT claim that static/source validation replaces a
+ * Gradle compile. Release readiness remains false until CI has actually run
+ * and passed for the exact source SHA (or a separately verified local release
+ * build is produced by mobile-native/tools/verify-native.ps1).
+ *
+ * GET /deploy/validate-android?token=<DEPLOY_TOKEN>&ref=mobile-overhaul
+ * Optional: &retry=1
  */
 class SelfWorkflowValidationController extends Controller
 {
     private const REPO = 'abubakarshaaba-ctrl/educore';
     private const WORKFLOW = 'native-android.yml';
-    private const DEFAULT_REF = 'master';
+    private const ALLOWED_REFS = ['mobile-overhaul', 'master'];
 
     private const REQUIRED_FILES = [
         '.github/workflows/native-android.yml',
         'mobile-native/gradlew',
+        'mobile-native/gradlew.bat',
         'mobile-native/gradle/wrapper/gradle-wrapper.properties',
         'mobile-native/settings.gradle.kts',
         'mobile-native/app/build.gradle.kts',
         'mobile-native/app/src/main/AndroidManifest.xml',
+        'mobile-native/tools/verify-native.ps1',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/EduCoreFoundationApp.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffWorkspaceShell.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffClassesScreen.kt',
@@ -39,10 +46,10 @@ class SelfWorkflowValidationController extends Controller
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/AcademicRepositoryScreens.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/LessonPlannerScreens.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/CommunicationScreens.kt',
+        'educore/app/Http/Controllers/Api/StaffAttendanceApiController.php',
         'educore/routes/api.php',
     ];
 
-    /** Files that must never reappear once their replacements are canonical. */
     private const RETIRED_PATHS = [
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffAuthorizedShell.kt',
         'mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffAuthorizedShowcaseShell.kt',
@@ -54,85 +61,104 @@ class SelfWorkflowValidationController extends Controller
 
     public function android(Request $request)
     {
-        $expected = (string) (config('app.deploy_token') ?: SelfDeployController::derivedToken());
-        if ($expected === '' || ! hash_equals($expected, (string) $request->query('token'))) {
-            abort(403, 'Invalid deploy token.');
+        $this->authorise($request);
+
+        // Credentials must never be carried in a URL/query string. Only
+        // server-side configuration may provide GitHub credentials.
+        if ($request->has('gh') || $request->has('github_token')) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'GitHub credentials are not accepted in the request URL.',
+            ], 400);
         }
 
-        $ref = trim((string) $request->query('ref', self::DEFAULT_REF));
-        if (! preg_match('/^[A-Za-z0-9._\/-]{1,120}$/', $ref) || str_contains($ref, '..')) {
+        $ref = trim((string) $request->query('ref', 'mobile-overhaul'));
+        if (! in_array($ref, self::ALLOWED_REFS, true)) {
             return response()->json(['ok' => false, 'error' => 'Invalid repository ref.'], 422);
         }
 
         @set_time_limit(0);
         @ignore_user_abort(true);
 
-        $runId = (string) Str::uuid();
-        $work = storage_path('app/self-workflow-validation/' . $runId);
-        $zipPath = $work . '/repo.zip';
-        $extractDir = $work . '/tree';
-        @mkdir($work, 0755, true);
+        $headers = $this->githubHeaders(false);
+        $sourceSha = $this->resolveRefSha($headers, $ref);
+        $ci = $this->latestCiState($headers, $ref, $sourceSha);
+        $retry = null;
 
-        $ghToken = (string) ($request->query('gh') ?: config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', '')));
-        $headers = ['User-Agent' => 'educore-self-workflow-validator'];
-        if ($ghToken !== '') {
-            $headers['Authorization'] = 'Bearer ' . $ghToken;
+        if ($request->boolean('retry') && ($ci['classification'] ?? null) === 'runner_allocation_failure') {
+            $retry = $this->retryRun((int) ($ci['run_id'] ?? 0));
         }
 
-        try {
-            $response = Http::withHeaders($headers)
-                ->timeout(180)
-                ->get('https://api.github.com/repos/' . self::REPO . '/zipball/' . rawurlencode($ref));
+        $runId = (string) Str::uuid();
+        $work = storage_path('app/self-workflow-validation/'.$runId);
+        $zipPath = $work.'/repo.zip';
+        $extractDir = $work.'/tree';
+        @mkdir($work, 0755, true);
 
-            if (! $response->successful()) {
+        try {
+            $download = Http::withHeaders($headers)
+                ->timeout(180)
+                ->get('https://api.github.com/repos/'.self::REPO.'/zipball/'.rawurlencode($ref));
+
+            if (! $download->successful()) {
                 return response()->json([
                     'ok' => false,
+                    'release_ready' => false,
                     'step' => 'download',
                     'ref' => $ref,
-                    'status' => $response->status(),
-                    'message' => 'Unable to download the repository ref for validation.',
+                    'source_sha' => $sourceSha,
+                    'status' => $download->status(),
+                    'ci' => $ci,
+                    'retry' => $retry,
+                    'message' => 'Unable to download the repository ref for self-validation.',
                 ], 200);
             }
 
-            file_put_contents($zipPath, $response->body());
+            file_put_contents($zipPath, $download->body());
             $zip = new \ZipArchive();
             if ($zip->open($zipPath) !== true) {
-                return response()->json(['ok' => false, 'step' => 'unzip', 'ref' => $ref], 500);
+                return response()->json([
+                    'ok' => false,
+                    'release_ready' => false,
+                    'step' => 'unzip',
+                    'ref' => $ref,
+                    'source_sha' => $sourceSha,
+                    'ci' => $ci,
+                    'retry' => $retry,
+                ], 500);
             }
 
             @mkdir($extractDir, 0755, true);
             $zip->extractTo($extractDir);
             $zip->close();
 
-            $roots = glob($extractDir . '/*', GLOB_ONLYDIR) ?: [];
+            $roots = glob($extractDir.'/*', GLOB_ONLYDIR) ?: [];
             if (! $roots) {
-                return response()->json(['ok' => false, 'step' => 'locate-root', 'ref' => $ref], 500);
+                return response()->json([
+                    'ok' => false,
+                    'release_ready' => false,
+                    'step' => 'locate-root',
+                    'ref' => $ref,
+                    'source_sha' => $sourceSha,
+                    'ci' => $ci,
+                    'retry' => $retry,
+                ], 500);
             }
-            $root = $roots[0];
 
-            $checks = [];
-            $this->validateRequiredFiles($root, $checks);
-            $this->validateWorkflow($root, $ref, $checks);
-            $this->validateGradleProject($root, $checks);
-            $this->validateNativeArchitecture($root, $checks);
-            $this->validateApiContracts($root, $checks);
-            $this->validateRepositoryCleanliness($root, $checks);
-            $this->scanConflictMarkers($root, $checks);
-
-            $ci = $this->latestCiState($headers, $ref);
+            $checks = $this->validateTree($roots[0], $ref);
             $errors = array_values(array_filter($checks, fn (array $check) => ! $check['ok'] && $check['severity'] === 'error'));
             $warnings = array_values(array_filter($checks, fn (array $check) => ! $check['ok'] && $check['severity'] === 'warning'));
             $sourceOk = count($errors) === 0;
-
             $ciClass = (string) ($ci['classification'] ?? 'unknown');
-            $ciPassed = $ciClass === 'passed';
+            $ciPassedForHead = $ciClass === 'passed' && ($ci['head_sha'] ?? null) === $sourceSha;
             $runnerUnavailable = $ciClass === 'runner_allocation_failure';
 
             return response()->json([
                 'ok' => $sourceOk,
-                'release_ready' => $sourceOk && $ciPassed,
+                'release_ready' => $sourceOk && $ciPassedForHead,
                 'validation_mode' => $runnerUnavailable && $sourceOk ? 'source-fallback' : 'normal',
                 'ref' => $ref,
+                'source_sha' => $sourceSha,
                 'source_validation' => [
                     'passed' => $sourceOk,
                     'checks' => count($checks),
@@ -140,10 +166,11 @@ class SelfWorkflowValidationController extends Controller
                     'warnings' => count($warnings),
                 ],
                 'ci' => $ci,
-                'decision' => $this->decision($sourceOk, $ciClass),
+                'retry' => $retry,
+                'decision' => $this->decision($sourceOk, $ciClass, $ciPassedForHead),
                 'checks' => $checks,
                 'validated_at' => now()->toIso8601String(),
-                'note' => 'Source fallback validates repository structure and contracts only. A signed production APK still requires a successful Gradle build/signature verification before release.',
+                'note' => 'Source fallback validates repository structure and contracts only. A production APK still requires an executed Gradle build, tests, lint, signing and signature verification.',
             ], $sourceOk ? 200 : 422);
         } finally {
             @unlink($zipPath);
@@ -152,322 +179,321 @@ class SelfWorkflowValidationController extends Controller
         }
     }
 
-    private function validateRequiredFiles(string $root, array &$checks): void
+    private function authorise(Request $request): void
     {
+        $expected = (string) (config('app.deploy_token') ?: SelfDeployController::derivedToken());
+        $supplied = (string) $request->query('token');
+        if ($expected === '' || ! hash_equals($expected, $supplied)) {
+            abort(403, 'Invalid deploy token.');
+        }
+    }
+
+    private function githubHeaders(bool $write): array
+    {
+        $workflowToken = (string) config('app.workflow_gh_token', '');
+        $readToken = (string) config('app.deploy_gh_token', '');
+        $token = $write ? $workflowToken : ($workflowToken ?: $readToken);
+
+        $headers = [
+            'Accept' => 'application/vnd.github+json',
+            'User-Agent' => 'educore-self-workflow-validator',
+            'X-GitHub-Api-Version' => '2022-11-28',
+        ];
+        if ($token !== '') {
+            $headers['Authorization'] = 'Bearer '.$token;
+        }
+        return $headers;
+    }
+
+    private function resolveRefSha(array $headers, string $ref): ?string
+    {
+        try {
+            $response = Http::withHeaders($headers)
+                ->timeout(30)
+                ->get('https://api.github.com/repos/'.self::REPO.'/commits/'.rawurlencode($ref));
+            return $response->successful() ? (string) $response->json('sha') : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function latestCiState(array $headers, string $ref, ?string $sourceSha): array
+    {
+        try {
+            $runs = Http::withHeaders($headers)
+                ->timeout(30)
+                ->get('https://api.github.com/repos/'.self::REPO.'/actions/workflows/'.self::WORKFLOW.'/runs', [
+                    'branch' => $ref,
+                    'per_page' => 1,
+                ]);
+
+            if (! $runs->successful()) {
+                return ['classification' => 'unavailable', 'http_status' => $runs->status()];
+            }
+
+            $run = collect($runs->json('workflow_runs', []))->first();
+            if (! $run) {
+                return ['classification' => 'not_found'];
+            }
+
+            $headSha = (string) ($run['head_sha'] ?? '');
+            if ($sourceSha && $headSha !== '' && ! hash_equals($sourceSha, $headSha)) {
+                return [
+                    'classification' => 'stale_run',
+                    'run_id' => (int) ($run['id'] ?? 0),
+                    'run_number' => (int) ($run['run_number'] ?? 0),
+                    'head_sha' => $headSha,
+                    'source_sha' => $sourceSha,
+                    'status' => (string) ($run['status'] ?? 'unknown'),
+                    'conclusion' => (string) ($run['conclusion'] ?? 'unknown'),
+                    'html_url' => (string) ($run['html_url'] ?? ''),
+                ];
+            }
+
+            $jobs = Http::withHeaders($headers)
+                ->timeout(30)
+                ->get((string) ($run['jobs_url'] ?? ''));
+            $jobList = $jobs->successful() ? $jobs->json('jobs', []) : [];
+            $validate = collect($jobList)->firstWhere('name', 'validate') ?: collect($jobList)->first();
+            $steps = is_array($validate['steps'] ?? null) ? $validate['steps'] : [];
+            $runnerId = (int) ($validate['runner_id'] ?? 0);
+            $conclusion = (string) ($validate['conclusion'] ?? $run['conclusion'] ?? '');
+            $status = (string) ($run['status'] ?? 'unknown');
+
+            $classification = match (true) {
+                $status !== 'completed' => 'in_progress',
+                $conclusion === 'success' => 'passed',
+                $conclusion === 'failure' && $runnerId === 0 && count($steps) === 0 => 'runner_allocation_failure',
+                $conclusion === 'failure' && count($steps) > 0 => 'executed_failure',
+                $conclusion === 'cancelled' => 'cancelled',
+                default => 'unknown',
+            };
+
+            return [
+                'classification' => $classification,
+                'run_id' => (int) ($run['id'] ?? 0),
+                'run_number' => (int) ($run['run_number'] ?? 0),
+                'head_sha' => $headSha,
+                'status' => $status,
+                'conclusion' => (string) ($run['conclusion'] ?? 'unknown'),
+                'runner_id' => $runnerId,
+                'step_count' => count($steps),
+                'display_title' => (string) ($run['display_title'] ?? ''),
+                'html_url' => (string) ($run['html_url'] ?? ''),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'classification' => 'unavailable',
+                'error' => mb_substr($e->getMessage(), 0, 300),
+            ];
+        }
+    }
+
+    private function retryRun(int $runId): array
+    {
+        if ($runId <= 0) {
+            return ['status' => 'skipped', 'reason' => 'No workflow run id is available.'];
+        }
+        if ((string) config('app.workflow_gh_token', '') === '') {
+            return [
+                'status' => 'skipped',
+                'reason' => 'A server-side WORKFLOW_GH_TOKEN with Actions write permission is not configured.',
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders($this->githubHeaders(true))
+                ->timeout(30)
+                ->post('https://api.github.com/repos/'.self::REPO.'/actions/runs/'.$runId.'/rerun-failed-jobs');
+            return [
+                'status' => $response->successful() ? 'requested' : 'failed',
+                'http_status' => $response->status(),
+            ];
+        } catch (\Throwable $e) {
+            return ['status' => 'failed', 'error' => mb_substr($e->getMessage(), 0, 300)];
+        }
+    }
+
+    private function validateTree(string $root, string $ref): array
+    {
+        $checks = [];
+
         foreach (self::REQUIRED_FILES as $path) {
             $this->addCheck(
                 $checks,
-                'required-file:' . $path,
-                is_file($root . '/' . $path),
+                'required-file:'.$path,
+                is_file($root.'/'.$path),
                 'error',
                 'Required project file is present.',
                 'Required project file is missing.'
             );
         }
-    }
 
-    private function validateWorkflow(string $root, string $ref, array &$checks): void
-    {
-        $path = $root . '/.github/workflows/' . self::WORKFLOW;
-        if (! is_file($path)) {
-            return;
-        }
-        $workflow = (string) file_get_contents($path);
-        $markers = [
-            'ubuntu runner' => 'runs-on: ubuntu-latest',
-            'checkout' => 'actions/checkout@v4',
-            'JDK setup' => 'actions/setup-java@v4',
-            'Gradle setup' => 'gradle/actions/setup-gradle@v4',
-            'unit tests' => ':app:testDebugUnitTest',
-            'lint' => ':app:lintDebug',
-            'debug assemble' => ':app:assembleDebug',
-            'release signing gate' => 'Prepare protected release signing',
-            'signed release verification' => 'apksigner',
-        ];
-        foreach ($markers as $label => $needle) {
-            $this->containsCheck($checks, 'workflow:' . $label, $workflow, $needle, 'error');
-        }
-
-        $this->containsCheck(
-            $checks,
-            'workflow:development-ref',
-            $workflow,
-            $ref,
-            $ref === 'master' ? 'warning' : 'error'
-        );
-
-        $this->addCheck(
-            $checks,
-            'workflow:no-release-on-development-branch',
-            str_contains($workflow, "github.ref == 'refs/heads/master'"),
-            'error',
-            'Release deployment is restricted to master.',
-            'Release deployment is not visibly restricted to master.'
-        );
-    }
-
-    private function validateGradleProject(string $root, array &$checks): void
-    {
-        $settingsPath = $root . '/mobile-native/settings.gradle.kts';
-        $buildPath = $root . '/mobile-native/app/build.gradle.kts';
-        $wrapperPath = $root . '/mobile-native/gradle/wrapper/gradle-wrapper.properties';
-
-        $settings = is_file($settingsPath) ? (string) file_get_contents($settingsPath) : '';
-        foreach ([
-            ':app', ':core:common', ':core:designsystem', ':core:model', ':core:network', ':core:security', ':core:data',
-        ] as $module) {
-            $this->containsCheck($checks, 'gradle:module:' . $module, $settings, 'include("' . $module . '")', 'error');
-        }
-
-        $build = is_file($buildPath) ? (string) file_get_contents($buildPath) : '';
-        foreach ([
-            'compileSdk 36' => 'compileSdk = 36',
-            'targetSdk 36' => 'targetSdk = 36',
-            'Java 17 source' => 'JavaVersion.VERSION_17',
-            'Compose enabled' => 'compose = true',
-            'release minification' => 'isMinifyEnabled = true',
-            'release shrink resources' => 'isShrinkResources = true',
-        ] as $label => $needle) {
-            $this->containsCheck($checks, 'gradle:' . $label, $build, $needle, 'error');
-        }
-
-        $wrapper = is_file($wrapperPath) ? (string) file_get_contents($wrapperPath) : '';
-        $validDistribution = preg_match('/distributionUrl=.*gradle-[0-9.]+-(?:all|bin)\.zip/', $wrapper) === 1;
-        $this->addCheck(
-            $checks,
-            'gradle:wrapper-distribution',
-            $validDistribution,
-            'error',
-            'Gradle wrapper distribution is configured.',
-            'Gradle wrapper distribution is missing or malformed.'
-        );
-    }
-
-    private function validateNativeArchitecture(string $root, array &$checks): void
-    {
-        $foundationPath = $root . '/mobile-native/app/src/main/java/online/educoreng/educore/presentation/EduCoreFoundationApp.kt';
-        $staffShellPath = $root . '/mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffWorkspaceShell.kt';
-        $foundation = is_file($foundationPath) ? (string) file_get_contents($foundationPath) : '';
-        $staffShell = is_file($staffShellPath) ? (string) file_get_contents($staffShellPath) : '';
-
-        $this->containsCheck($checks, 'architecture:staff-shell-active', $foundation, 'StaffWorkspaceShell', 'error');
-        $this->addCheck(
-            $checks,
-            'architecture:staff-shell-no-browser-fallback',
-            ! str_contains($staffShell, 'ACTION_VIEW') && ! str_contains($staffShell, 'onOpenWebModule'),
-            'error',
-            'Staff workspace has no generic browser fallback.',
-            'Staff workspace contains a browser/web-module fallback.'
-        );
-
-        $notePath = $root . '/mobile-native/app/src/main/java/online/educoreng/educore/presentation/AcademicRepositoryScreens.kt';
-        $note = is_file($notePath) ? (string) file_get_contents($notePath) : '';
-        foreach (['parseAcademicNote', 'AcademicNoteBlock.Heading', 'AcademicNoteBlock.Bullet', 'AcademicNoteBlock.Numbered'] as $needle) {
-            $this->containsCheck($checks, 'notes:' . $needle, $note, $needle, 'error');
-        }
-    }
-
-    private function validateApiContracts(string $root, array &$checks): void
-    {
-        $path = $root . '/educore/routes/api.php';
-        $api = is_file($path) ? (string) file_get_contents($path) : '';
-        $required = [
-            "Route::get('bootstrap'",
-            "Route::get('dashboard'",
-            "Route::get('classes'",
-            "Route::get('classes/{classArm}/students'",
-            "Route::get('staff-attendance'",
-            "Route::post('staff-attendance/clock-in'",
-            "Route::post('staff-attendance/clock-out'",
-            "Route::prefix('academic-repository')",
-            "Route::prefix('lesson-plans')",
-            "Route::get('schedule'",
-        ];
-        foreach ($required as $needle) {
-            $this->containsCheck($checks, 'api:' . $needle, $api, $needle, 'error');
-        }
-
-        $attendancePath = $root . '/educore/app/Http/Controllers/Api/StaffAttendanceApiController.php';
-        if (is_file($attendancePath)) {
-            $attendance = (string) file_get_contents($attendancePath);
-            $this->containsCheck(
-                $checks,
-                'attendance:early-counts-as-present',
-                $attendance,
-                "whereIn('status', ['early', 'present'])->count()",
-                'error'
-            );
-        } else {
-            $this->addCheck($checks, 'attendance:controller-present', false, 'error', '', 'Staff attendance API controller is missing.');
-        }
-    }
-
-    private function validateRepositoryCleanliness(string $root, array &$checks): void
-    {
         foreach (self::RETIRED_PATHS as $path) {
             $this->addCheck(
                 $checks,
-                'retired-file:' . $path,
-                ! file_exists($root . '/' . $path),
+                'retired-absent:'.$path,
+                ! file_exists($root.'/'.$path),
                 'error',
-                'Retired file is absent.',
-                'Retired file has reappeared in the repository.'
+                'Retired path is absent.',
+                'Retired/deprecated path has reappeared.'
             );
         }
 
-        $backupFiles = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($root . '/educore', \FilesystemIterator::SKIP_DOTS)
-        );
-        foreach ($iterator as $item) {
-            if (! $item->isFile()) {
-                continue;
-            }
-            $name = $item->getFilename();
-            if (preg_match('/(?:\.bak(?:-|$)|\.old$|\.orig$|~$)/i', $name)) {
-                $backupFiles[] = str_replace($root . '/', '', $item->getPathname());
-                if (count($backupFiles) >= 25) {
-                    break;
-                }
-            }
+        $workflow = $this->read($root.'/.github/workflows/'.self::WORKFLOW);
+        foreach ([
+            'workflow:runner' => 'runs-on: ubuntu-latest',
+            'workflow:checkout' => 'actions/checkout@v4',
+            'workflow:jdk' => 'actions/setup-java@v4',
+            'workflow:gradle' => 'gradle/actions/setup-gradle@v4',
+            'workflow:dispatch' => 'workflow_dispatch:',
+            'workflow:debug-build' => ':app:assembleDebug',
+            'workflow:unit-tests' => ':app:testDebugUnitTest',
+            'workflow:lint' => ':app:lintDebug',
+        ] as $name => $marker) {
+            $this->markerCheck($checks, $name, $workflow, $marker, 'error');
         }
-        $this->addCheck(
-            $checks,
-            'repository:no-backup-files',
-            count($backupFiles) === 0,
-            'warning',
-            'No backup/deprecated files detected in the Laravel tree.',
-            'Backup/deprecated files detected: ' . implode(', ', $backupFiles)
-        );
-    }
+        if ($ref === 'mobile-overhaul') {
+            $this->markerCheck($checks, 'workflow:overhaul-branch', $workflow, '- mobile-overhaul', 'error');
+        }
 
-    private function scanConflictMarkers(string $root, array &$checks): void
-    {
-        $targets = [
-            $root . '/mobile-native/app/src/main/java',
-            $root . '/mobile-native/core',
-            $root . '/educore/app',
-            $root . '/educore/routes',
-        ];
-        $hits = [];
-        foreach ($targets as $target) {
-            if (! is_dir($target)) {
-                continue;
-            }
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($target, \FilesystemIterator::SKIP_DOTS)
-            );
-            foreach ($iterator as $item) {
-                if (! $item->isFile() || $item->getSize() > 2_000_000) {
-                    continue;
-                }
-                $content = (string) @file_get_contents($item->getPathname());
-                if (str_contains($content, '<<<<<<< ') || str_contains($content, '>>>>>>> ')) {
-                    $hits[] = str_replace($root . '/', '', $item->getPathname());
-                    if (count($hits) >= 10) {
-                        break 2;
-                    }
-                }
-            }
+        $gradle = $this->read($root.'/mobile-native/app/build.gradle.kts');
+        foreach ([
+            'android:namespace' => 'namespace = "online.educoreng.educore"',
+            'android:application-id' => 'applicationId = "online.educoreng.educore"',
+            'android:compile-sdk' => 'compileSdk = 36',
+            'android:target-sdk' => 'targetSdk = 36',
+            'android:minify' => 'isMinifyEnabled = true',
+            'android:shrink-resources' => 'isShrinkResources = true',
+        ] as $name => $marker) {
+            $this->markerCheck($checks, $name, $gradle, $marker, 'error');
         }
         $this->addCheck(
             $checks,
-            'repository:no-merge-conflict-markers',
-            count($hits) === 0,
+            'android:version-code',
+            (bool) preg_match('/versionCode\s*=\s*[1-9][0-9]*/', $gradle),
             'error',
-            'No unresolved merge-conflict markers detected.',
-            'Merge-conflict markers detected: ' . implode(', ', $hits)
+            'Positive Android versionCode is configured.',
+            'A positive Android versionCode was not found.'
         );
-    }
 
-    private function latestCiState(array $headers, string $ref): array
-    {
-        try {
-            $runs = Http::withHeaders($headers)->acceptJson()->timeout(30)->get(
-                'https://api.github.com/repos/' . self::REPO . '/actions/workflows/' . self::WORKFLOW . '/runs',
-                ['branch' => $ref, 'per_page' => 1]
-            );
-            if (! $runs->successful()) {
-                return [
-                    'classification' => 'unavailable',
-                    'http_status' => $runs->status(),
-                    'message' => 'GitHub Actions status could not be read.',
-                ];
-            }
+        $manifest = $this->read($root.'/mobile-native/app/src/main/AndroidManifest.xml');
+        $this->markerCheck($checks, 'android:no-backup', $manifest, 'android:allowBackup="false"', 'error');
+        $this->markerCheck($checks, 'android:no-cleartext', $manifest, 'android:usesCleartextTraffic="false"', 'error');
 
-            $run = data_get($runs->json(), 'workflow_runs.0');
-            if (! is_array($run)) {
-                return ['classification' => 'not_run', 'message' => 'No Android workflow run exists for this ref.'];
-            }
+        $staffShell = $this->read($root.'/mobile-native/app/src/main/java/online/educoreng/educore/presentation/StaffWorkspaceShell.kt');
+        $this->markerCheck($checks, 'staff-shell:rbac-modules', $staffShell, 'session.modules', 'error');
+        $this->addCheck(
+            $checks,
+            'staff-shell:no-browser-fallback',
+            ! str_contains($staffShell, 'ACTION_VIEW') && ! str_contains($staffShell, 'onOpenWebModule'),
+            'error',
+            'Staff shell has no generic external-browser fallback.',
+            'Staff shell contains a browser fallback.'
+        );
 
-            $runId = (int) ($run['id'] ?? 0);
-            $jobsResponse = Http::withHeaders($headers)->acceptJson()->timeout(30)->get(
-                'https://api.github.com/repos/' . self::REPO . '/actions/runs/' . $runId . '/jobs',
-                ['per_page' => 20]
-            );
-            $jobs = $jobsResponse->successful() ? (array) data_get($jobsResponse->json(), 'jobs', []) : [];
-            $steps = [];
-            foreach ($jobs as $job) {
-                foreach ((array) ($job['steps'] ?? []) as $step) {
-                    $steps[] = $step;
-                }
-            }
-
-            $status = (string) ($run['status'] ?? 'unknown');
-            $conclusion = (string) ($run['conclusion'] ?? '');
-            $classification = match (true) {
-                $status !== 'completed' => 'running',
-                $conclusion === 'success' => 'passed',
-                $conclusion === 'failure' && count($steps) === 0 => 'runner_allocation_failure',
-                $conclusion === 'failure' => 'build_failure',
-                $conclusion === 'cancelled' => 'cancelled',
-                default => $conclusion !== '' ? $conclusion : 'unknown',
-            };
-
-            return [
-                'classification' => $classification,
-                'run_id' => $runId,
-                'head_sha' => $run['head_sha'] ?? null,
-                'status' => $status,
-                'conclusion' => $conclusion ?: null,
-                'jobs' => count($jobs),
-                'executed_steps' => count($steps),
-                'url' => $run['html_url'] ?? null,
-                'message' => $classification === 'runner_allocation_failure'
-                    ? 'GitHub Actions failed before any step executed; this is classified as runner/workflow infrastructure failure rather than a source compile failure.'
-                    : null,
-            ];
-        } catch (\Throwable $e) {
-            return [
-                'classification' => 'unavailable',
-                'message' => 'CI status lookup failed: ' . $e->getMessage(),
-            ];
+        $notes = $this->read($root.'/mobile-native/app/src/main/java/online/educoreng/educore/presentation/AcademicRepositoryScreens.kt');
+        foreach (['parseAcademicNote', 'AcademicNoteBlock.Heading', 'AcademicNoteBlock.Bullet', 'AcademicNoteBlock.Numbered'] as $marker) {
+            $this->markerCheck($checks, 'notes:'.$marker, $notes, $marker, 'error');
         }
-    }
 
-    private function decision(bool $sourceOk, string $ciClass): string
-    {
-        if (! $sourceOk) {
-            return 'STOP: source validation failed. Fix the reported errors before merge or deployment.';
+        $attendance = $this->read($root.'/educore/app/Http/Controllers/Api/StaffAttendanceApiController.php');
+        $this->markerCheck(
+            $checks,
+            'attendance:early-counts-as-present',
+            $attendance,
+            "whereIn('status', ['early', 'present'])",
+            'error'
+        );
+
+        $validator = $this->read($root.'/mobile-native/tools/verify-native.ps1');
+        foreach ([':app:testDebugUnitTest', ':app:lintDebug', ':app:assembleDebug', 'AcademicRepositoryScreens.kt', 'StaffWorkspaceShell.kt'] as $marker) {
+            $this->markerCheck($checks, 'local-validator:'.$marker, $validator, $marker, 'error');
         }
-        return match ($ciClass) {
-            'passed' => 'PASS: source validation and GitHub Android CI both passed.',
-            'runner_allocation_failure' => 'CONTINUE DEVELOPMENT: source validation passed and CI failed before a runner executed. Do not release an APK until a real Gradle build later succeeds.',
-            'running' => 'WAIT: source validation passed; GitHub Android CI is still running.',
-            'build_failure' => 'STOP RELEASE: GitHub executed build steps and failed. Inspect the failing job before merge/release.',
-            default => 'SOURCE PASS ONLY: continue development, but require a real Gradle build before production release.',
-        };
+
+        $dirty = $this->findDeprecatedFiles($root);
+        $this->addCheck(
+            $checks,
+            'repository:deprecated-files',
+            count($dirty) === 0,
+            'error',
+            'No deprecated backup/temp/showcase source files were found.',
+            'Deprecated files found: '.implode(', ', array_slice($dirty, 0, 30))
+        );
+
+        $conflicts = $this->findConflictMarkers($root);
+        $this->addCheck(
+            $checks,
+            'repository:merge-conflicts',
+            count($conflicts) === 0,
+            'error',
+            'No unresolved merge-conflict markers were found.',
+            'Merge-conflict markers found: '.implode(', ', array_slice($conflicts, 0, 20))
+        );
+
+        return $checks;
     }
 
-    private function containsCheck(array &$checks, string $name, string $haystack, string $needle, string $severity): void
+    private function findDeprecatedFiles(string $root): array
+    {
+        $found = [];
+        $rootLength = strlen(rtrim($root, DIRECTORY_SEPARATOR)) + 1;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($iterator as $file) {
+            if (! $file->isFile()) {
+                continue;
+            }
+            $relative = str_replace('\\', '/', substr($file->getPathname(), $rootLength));
+            $basename = $file->getBasename();
+            $deprecated = preg_match('/(?:\.bak(?:[-_.].*)?$|\.old$|\.orig$|~$)/i', $basename)
+                || str_contains($relative, '/.tmp/')
+                || str_starts_with($relative, '.tmp/')
+                || preg_match('/(^|\/)Showcase[^\/]*\.(kt|java)$/', $relative)
+                || preg_match('/(^|\/)verify-phase\d+\.ps1$/i', $relative);
+            if ($deprecated) {
+                $found[] = $relative;
+            }
+        }
+        sort($found);
+        return $found;
+    }
+
+    private function findConflictMarkers(string $root): array
+    {
+        $found = [];
+        $extensions = ['kt', 'kts', 'java', 'php', 'xml', 'yml', 'yaml', 'json', 'md', 'ps1'];
+        $rootLength = strlen(rtrim($root, DIRECTORY_SEPARATOR)) + 1;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($iterator as $file) {
+            if (! $file->isFile() || ! in_array(strtolower($file->getExtension()), $extensions, true)) {
+                continue;
+            }
+            $contents = @file_get_contents($file->getPathname());
+            if ($contents !== false && preg_match('/^(<<<<<<< |>>>>>>> )/m', $contents)) {
+                $found[] = str_replace('\\', '/', substr($file->getPathname(), $rootLength));
+            }
+        }
+        sort($found);
+        return $found;
+    }
+
+    private function markerCheck(array &$checks, string $name, string $content, string $marker, string $severity): void
     {
         $this->addCheck(
             $checks,
             $name,
-            $haystack !== '' && str_contains($haystack, $needle),
+            $content !== '' && str_contains($content, $marker),
             $severity,
-            'Expected contract marker is present.',
-            'Expected contract marker is missing: ' . $needle
+            'Expected marker is present.',
+            'Expected marker is missing: '.$marker
         );
     }
 
@@ -477,7 +503,7 @@ class SelfWorkflowValidationController extends Controller
         bool $ok,
         string $severity,
         string $passMessage,
-        string $failMessage,
+        string $failMessage
     ): void {
         $checks[] = [
             'name' => $name,
@@ -485,6 +511,28 @@ class SelfWorkflowValidationController extends Controller
             'severity' => $severity,
             'message' => $ok ? $passMessage : $failMessage,
         ];
+    }
+
+    private function read(string $path): string
+    {
+        return is_file($path) ? (string) file_get_contents($path) : '';
+    }
+
+    private function decision(bool $sourceOk, string $ciClass, bool $ciPassedForHead): string
+    {
+        if (! $sourceOk) {
+            return 'BLOCK: source validation failed.';
+        }
+        if ($ciPassedForHead) {
+            return 'PASS: source validation and executed CI passed for this exact source SHA.';
+        }
+        return match ($ciClass) {
+            'runner_allocation_failure' => 'SOURCE PASS / BUILD UNVERIFIED: GitHub failed before allocating a runner. Retry CI or run mobile-native/tools/verify-native.ps1 locally before release.',
+            'stale_run' => 'SOURCE PASS / BUILD UNVERIFIED: latest CI run belongs to an older commit.',
+            'executed_failure' => 'BLOCK: CI executed and failed. Fix the build/test failure before release.',
+            'in_progress' => 'WAIT: CI is still running.',
+            default => 'SOURCE PASS / BUILD UNVERIFIED: no successful executed CI is available for this source SHA.',
+        };
     }
 
     private function rrmdir(string $dir): void
