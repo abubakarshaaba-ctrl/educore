@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
@@ -63,14 +64,14 @@ internal fun TransfersScreen(
     onRequest: () -> Unit,
     onApprove: (Long, String) -> Unit,
     onReject: (Long, String) -> Unit,
-    onInterclassStudent: (Long?) -> Unit,
-    onInterclassDestination: (Long?) -> Unit,
-    onInterclassDate: (String) -> Unit,
-    onInterclassReason: (String) -> Unit,
-    onInterclassRequest: () -> Unit,
-    onInterclassApprove: (Long, String) -> Unit,
-    onInterclassReject: (Long, String) -> Unit,
-    onInterclassCancel: (Long, String) -> Unit,
+    onClassStudent: (Long?) -> Unit,
+    onClassDestination: (Long?) -> Unit,
+    onClassDate: (String) -> Unit,
+    onClassReason: (String) -> Unit,
+    onClassRequest: () -> Unit,
+    onClassApprove: (Long, String) -> Unit,
+    onClassReject: (Long, String) -> Unit,
+    onClassCancel: (Long, String) -> Unit,
     onActionReason: (String) -> Unit,
     onConfirm: () -> Unit,
     onCancelConfirm: () -> Unit,
@@ -78,16 +79,19 @@ internal fun TransfersScreen(
 ) {
     val workspace = state.workspace
     val confirmation = state.confirmation
-    val needsReason = confirmation?.target == TransferConfirmationTarget.INTERCLASS &&
-        confirmation.action in setOf(TransferConfirmationAction.REJECT, TransferConfirmationAction.CANCEL)
+    val classConfirmation = confirmation?.target != null &&
+        confirmation.target != TransferConfirmationTarget.CROSS_SCHOOL
+    val needsReason = classConfirmation &&
+        confirmation?.action in setOf(TransferConfirmationAction.REJECT, TransferConfirmationAction.CANCEL)
 
     if (needsReason && confirmation != null) {
+        val typeLabel = if (confirmation.target == TransferConfirmationTarget.INTRA_CLASS) "intra-class" else "interclass"
         AlertDialog(
             onDismissRequest = onCancelConfirm,
             title = {
                 Text(
-                    if (confirmation.action == TransferConfirmationAction.REJECT) "Reject interclass transfer?"
-                    else "Cancel interclass transfer?"
+                    if (confirmation.action == TransferConfirmationAction.REJECT) "Reject $typeLabel transfer?"
+                    else "Cancel $typeLabel transfer?"
                 )
             },
             text = {
@@ -135,8 +139,11 @@ internal fun TransfersScreen(
                     "Approve ${confirmation.studentName}'s transfer? EduCore will archive the source-school student and create a fresh student record for this school."
                 confirmation.target == TransferConfirmationTarget.CROSS_SCHOOL ->
                     "Reject ${confirmation.studentName}'s incoming transfer request?"
+                confirmation.target == TransferConfirmationTarget.INTRA_CLASS &&
+                    confirmation.action == TransferConfirmationAction.APPROVE ->
+                    "Approve ${confirmation.studentName}'s intra-class transfer? The current enrollment will close and a new enrollment will open in another arm of the same class level."
                 confirmation.action == TransferConfirmationAction.APPROVE ->
-                    "Approve ${confirmation.studentName}'s interclass transfer? EduCore will close the current enrollment, open the destination enrollment and resync compulsory subjects atomically."
+                    "Approve ${confirmation.studentName}'s interclass transfer? The current enrollment will close and a new enrollment will open in the destination class level."
                 else -> "Confirm this transfer action?"
             },
             confirmLabel = when (confirmation?.action) {
@@ -153,7 +160,7 @@ internal fun TransfersScreen(
     Column(Modifier.fillMaxSize()) {
         EduCorePageHeader(
             title = "Student Transfers",
-            subtitle = "Cross-school and interclass movement",
+            subtitle = "Cross-school, intra-class and interclass movement",
             onBack = onBack,
         )
 
@@ -171,7 +178,7 @@ internal fun TransfersScreen(
                 EduCoreShowcaseHero(
                     eyebrow = "STUDENT LIFECYCLE",
                     title = "Move students without moving history",
-                    subtitle = "Cross-school approval creates a fresh receiving-school record. Interclass approval changes only the current enrollment while historical records remain intact.",
+                    subtitle = "Cross-school transfers create a receiving-school identity. Intra-class and interclass transfers replace only the current enrollment while preserving academic history.",
                 )
             }
 
@@ -182,28 +189,15 @@ internal fun TransfersScreen(
                         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     ) {
                         EduCoreShowcaseStat(
-                            label = "Outgoing",
-                            value = data.metrics.crossOutgoing.toString(),
+                            label = "Cross pending",
+                            value = data.metrics.crossPending.toString(),
                             icon = Icons.Default.School,
                             modifier = Modifier.weight(1f),
                         )
                         EduCoreShowcaseStat(
-                            label = "Incoming",
-                            value = data.metrics.crossIncoming.toString(),
+                            label = "Intra-class pending",
+                            value = data.metrics.intraClassPending.toString(),
                             icon = Icons.Default.Apartment,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-                    ) {
-                        EduCoreShowcaseStat(
-                            label = "Cross pending",
-                            value = data.metrics.crossPending.toString(),
-                            icon = Icons.Default.PendingActions,
                             modifier = Modifier.weight(1f),
                         )
                         EduCoreShowcaseStat(
@@ -220,8 +214,8 @@ internal fun TransfersScreen(
                 }
 
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                        TransferWorkspaceTab.entries.forEach { tab ->
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                        items(TransferWorkspaceTab.entries) { tab ->
                             FilterChip(
                                 selected = state.tab == tab,
                                 onClick = { onTab(tab) },
@@ -231,110 +225,123 @@ internal fun TransfersScreen(
                     }
                 }
 
-                state.errorMessage?.let { error ->
-                    item { EduCoreErrorBanner(error) }
-                }
+                state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
 
-                if (state.tab == TransferWorkspaceTab.CROSS_SCHOOL) {
-                    if (data.capabilities.crossSchoolRequest) {
-                        item {
-                            CrossSchoolRequestCard(
-                                students = data.options.students,
-                                destinations = data.options.destinations,
-                                selectedStudentId = state.selectedStudentId,
-                                selectedDestinationId = state.selectedDestinationId,
-                                reason = state.reason,
-                                enabled = !state.isMutating,
-                                canSubmit = state.canSubmitRequest,
-                                onStudent = onStudent,
-                                onDestination = onDestination,
-                                onReason = onReason,
-                                onSubmit = onRequest,
-                            )
+                when (state.tab) {
+                    TransferWorkspaceTab.CROSS_SCHOOL -> {
+                        if (data.capabilities.crossSchoolRequest) {
+                            item {
+                                CrossSchoolRequestCard(
+                                    students = data.options.students,
+                                    destinations = data.options.destinations,
+                                    selectedStudentId = state.selectedStudentId,
+                                    selectedDestinationId = state.selectedDestinationId,
+                                    reason = state.reason,
+                                    enabled = !state.isMutating,
+                                    canSubmit = state.canSubmitRequest,
+                                    onStudent = onStudent,
+                                    onDestination = onDestination,
+                                    onReason = onReason,
+                                    onSubmit = onRequest,
+                                )
+                            }
                         }
-                    }
 
-                    item {
-                        EduCoreSectionHeader(
-                            title = "Cross-school transfers",
-                            supportingText = "Incoming and outgoing requests visible to your school",
-                        )
-                    }
-                    if (data.crossSchool.isEmpty()) {
                         item {
-                            EduCoreEmptyState(
-                                title = "No cross-school transfers",
-                                message = "Transfer requests involving this school will appear here.",
+                            EduCoreSectionHeader(
+                                title = "Cross-school transfers",
+                                supportingText = "Incoming and outgoing requests involving this school",
                             )
                         }
-                    } else {
-                        items(data.crossSchool, key = { "cross-${it.id}" }) { transfer ->
-                            CrossSchoolTransferCard(
-                                transfer = transfer,
-                                busy = state.isMutating,
-                                canApprove = data.capabilities.crossSchoolApprove,
-                                canReject = data.capabilities.crossSchoolReject,
-                                onApprove = onApprove,
-                                onReject = onReject,
-                            )
-                        }
-                    }
-                } else {
-                    if (data.capabilities.interclassRequest) {
-                        item {
-                            InterclassRequestCard(
-                                students = data.options.students,
-                                classes = data.options.classArms,
-                                selectedStudentId = state.interclassStudentId,
-                                selectedClassId = state.interclassDestinationClassId,
-                                effectiveDate = state.interclassEffectiveDate,
-                                reason = state.interclassReason,
-                                enabled = !state.isMutating,
-                                canSubmit = state.canSubmitInterclass,
-                                onStudent = onInterclassStudent,
-                                onClass = onInterclassDestination,
-                                onDate = onInterclassDate,
-                                onReason = onInterclassReason,
-                                onSubmit = onInterclassRequest,
-                            )
+                        if (data.crossSchool.isEmpty()) {
+                            item {
+                                EduCoreEmptyState(
+                                    title = "No cross-school transfers",
+                                    message = "Cross-school requests involving this school will appear here.",
+                                )
+                            }
+                        } else {
+                            items(data.crossSchool, key = { "cross-${it.id}" }) { transfer ->
+                                CrossSchoolTransferCard(
+                                    transfer = transfer,
+                                    busy = state.isMutating,
+                                    canApprove = data.capabilities.crossSchoolApprove,
+                                    canReject = data.capabilities.crossSchoolReject,
+                                    onApprove = onApprove,
+                                    onReject = onReject,
+                                )
+                            }
                         }
                     }
 
-                    item {
-                        EduCoreSectionHeader(
-                            title = "Interclass transfers",
-                            supportingText = if (data.capabilities.interclassMobileMutation)
-                                "Managed through the same enrollment transaction as the web workspace"
-                            else
-                                "Read-only lifecycle history on mobile",
-                        )
-                    }
-                    if (!data.capabilities.interclassView) {
+                    TransferWorkspaceTab.INTRA_CLASS,
+                    TransferWorkspaceTab.INTERCLASS -> {
+                        val isIntra = state.tab == TransferWorkspaceTab.INTRA_CLASS
+                        val canView = if (isIntra) data.capabilities.intraClassView else data.capabilities.interclassView
+                        val canRequest = if (isIntra) data.capabilities.intraClassRequest else data.capabilities.interclassRequest
+                        val canApprove = if (isIntra) data.capabilities.intraClassApprove else data.capabilities.interclassApprove
+                        val canReject = if (isIntra) data.capabilities.intraClassReject else data.capabilities.interclassReject
+                        val canCancel = if (isIntra) data.capabilities.intraClassCancel else data.capabilities.interclassCancel
+                        val rows = if (isIntra) data.intraClass else data.interclass
+                        val label = if (isIntra) "Intra-class" else "Interclass"
+
+                        if (canRequest) {
+                            item {
+                                ClassTransferRequestCard(
+                                    type = state.tab,
+                                    students = data.options.students,
+                                    classes = state.classDestinationOptions,
+                                    selectedStudentId = state.classStudentId,
+                                    selectedClassId = state.classDestinationArmId,
+                                    effectiveDate = state.classEffectiveDate,
+                                    reason = state.classReason,
+                                    enabled = !state.isMutating,
+                                    canSubmit = state.canSubmitClassTransfer,
+                                    onStudent = onClassStudent,
+                                    onClass = onClassDestination,
+                                    onDate = onClassDate,
+                                    onReason = onClassReason,
+                                    onSubmit = onClassRequest,
+                                )
+                            }
+                        }
+
                         item {
-                            EduCoreEmptyState(
-                                title = "Interclass access unavailable",
-                                message = "Your role does not have permission to view interclass transfer history.",
+                            EduCoreSectionHeader(
+                                title = "$label transfers",
+                                supportingText = if (isIntra)
+                                    "Move a student to another arm within the same class level"
+                                else
+                                    "Move a student to an arm in a different class level",
                             )
                         }
-                    } else if (data.interclass.isEmpty()) {
-                        item {
-                            EduCoreEmptyState(
-                                title = "No interclass transfers",
-                                message = "Interclass transfer requests for this school will appear here.",
-                            )
-                        }
-                    } else {
-                        items(data.interclass, key = { "inter-${it.id}" }) { transfer ->
-                            InterclassTransferCard(
-                                transfer = transfer,
-                                busy = state.isMutating,
-                                canApprove = data.capabilities.interclassApprove,
-                                canReject = data.capabilities.interclassReject,
-                                canCancel = data.capabilities.interclassCancel,
-                                onApprove = onInterclassApprove,
-                                onReject = onInterclassReject,
-                                onCancel = onInterclassCancel,
-                            )
+                        if (!canView) {
+                            item {
+                                EduCoreEmptyState(
+                                    title = "$label access unavailable",
+                                    message = "Your role does not have permission to view this transfer history.",
+                                )
+                            }
+                        } else if (rows.isEmpty()) {
+                            item {
+                                EduCoreEmptyState(
+                                    title = "No ${label.lowercase()} transfers",
+                                    message = "$label transfer requests for this school will appear here.",
+                                )
+                            }
+                        } else {
+                            items(rows, key = { "${if (isIntra) "intra" else "inter"}-${it.id}" }) { transfer ->
+                                ClassTransferCard(
+                                    transfer = transfer,
+                                    busy = state.isMutating,
+                                    canApprove = canApprove,
+                                    canReject = canReject,
+                                    canCancel = canCancel,
+                                    onApprove = onClassApprove,
+                                    onReject = onClassReject,
+                                    onCancel = onClassCancel,
+                                )
+                            }
                         }
                     }
                 }
@@ -410,7 +417,8 @@ private fun CrossSchoolRequestCard(
 }
 
 @Composable
-private fun InterclassRequestCard(
+private fun ClassTransferRequestCard(
+    type: TransferWorkspaceTab,
     students: List<TransferStudentOptionDto>,
     classes: List<TransferClassOptionDto>,
     selectedStudentId: Long?,
@@ -426,30 +434,44 @@ private fun InterclassRequestCard(
     onSubmit: () -> Unit,
 ) {
     val selectedStudent = students.firstOrNull { it.id == selectedStudentId }
-    val destinationOptions = classes.filterNot { it.id == selectedStudent?.classArmId }
+    val isIntra = type == TransferWorkspaceTab.INTRA_CLASS
+    val label = if (isIntra) "intra-class" else "interclass"
 
     TransferFormCard(
-        title = "New interclass request",
-        subtitle = "The current enrollment remains unchanged until an authorised approver completes the request",
+        title = "New $label request",
+        subtitle = if (isIntra)
+            "Only other arms in the student's current class level are available"
+        else
+            "Only arms in a different class level are available",
     ) {
         TransferDropdown(
             label = "Student",
             value = selectedStudent?.displayName() ?: "Select student",
             enabled = enabled && students.isNotEmpty(),
-            options = students.filter { it.classArmId != null },
+            options = students.filter { it.classArmId != null && it.classLevelId != null },
             optionLabel = TransferStudentOptionDto::displayName,
             optionId = { it.id },
             onSelected = onStudent,
         )
         TransferDropdown(
-            label = "Destination class",
-            value = classes.firstOrNull { it.id == selectedClassId }?.name ?: "Select destination class",
-            enabled = enabled && selectedStudent != null && destinationOptions.isNotEmpty(),
-            options = destinationOptions,
+            label = "Destination class arm",
+            value = classes.firstOrNull { it.id == selectedClassId }?.name ?: "Select destination arm",
+            enabled = enabled && selectedStudent != null && classes.isNotEmpty(),
+            options = classes,
             optionLabel = { it.name },
             optionId = { it.id },
             onSelected = onClass,
         )
+        if (selectedStudent != null && classes.isEmpty()) {
+            Text(
+                if (isIntra)
+                    "No other class arm exists in this student's class level."
+                else
+                    "No destination arm exists in another class level.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
         OutlinedTextField(
             value = effectiveDate,
             onValueChange = onDate,
@@ -469,7 +491,7 @@ private fun InterclassRequestCard(
             maxLines = 5,
         )
         EduCorePrimaryButton(
-            text = "Create interclass request",
+            text = "Create $label request",
             onClick = onSubmit,
             modifier = Modifier.fillMaxWidth(),
             enabled = canSubmit,
@@ -590,7 +612,7 @@ private fun CrossSchoolTransferCard(
 }
 
 @Composable
-private fun InterclassTransferCard(
+private fun ClassTransferCard(
     transfer: InterclassTransferDto,
     busy: Boolean,
     canApprove: Boolean,
@@ -612,6 +634,11 @@ private fun InterclassTransferCard(
             Text(
                 "${transfer.fromClass ?: "Unassigned"} → ${transfer.toClass ?: "Unassigned"}",
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                if (transfer.movementType == "intra_class") "Same class level · different arm" else "Different class level",
+                style = MaterialTheme.typography.labelMedium,
+                color = EduCoreColors.Navy900,
             )
             transfer.effectiveDate?.let {
                 Text("Effective $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
