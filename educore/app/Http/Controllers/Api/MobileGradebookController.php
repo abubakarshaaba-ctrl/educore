@@ -73,6 +73,9 @@ class MobileGradebookController extends Controller
             );
         }
 
+        $canEditFormTutorRemark = $this->canManageAllClasses($user)
+            || $classArms->contains(fn (ClassArm $arm): bool => (int) $arm->form_tutor_id === (int) $user->id);
+
         return response()->json([
             'contract_version' => 1,
             'module' => [
@@ -81,7 +84,7 @@ class MobileGradebookController extends Controller
             ],
             'capabilities' => [
                 'view' => true,
-                'edit_form_tutor_remark' => true,
+                'edit_form_tutor_remark' => $canEditFormTutorRemark,
                 'edit_principal_remark' => $this->hasFullReportsAccess($user),
                 'compute_reports' => false,
                 'publish_reports' => false,
@@ -260,7 +263,7 @@ class MobileGradebookController extends Controller
             $assessmentTypes->map(fn (AssessmentType $type): array => [
                 'id' => $type->id,
                 'name' => $type->name,
-                'max_score' => (float) $type->max_score,
+                'max_score' => (float) $type->weight_percentage,
                 'is_exam' => (bool) $type->is_exam,
             ])->values()->all(),
             $subjects->map(fn (Subject $subject): array => [
