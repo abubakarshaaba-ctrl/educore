@@ -65,6 +65,7 @@ object ModulePresentationPolicy {
         "subjects",
         "curriculum",
         "academic-cycle",
+        "analytics",
     )
 
     private val ROLE_CONDITIONAL_MODULES = setOf(
