@@ -1,0 +1,389 @@
+package online.educoreng.educore.presentation
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
+import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
+import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
+import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
+import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
+import online.educoreng.educore.core.designsystem.component.EduCoreTabs
+import online.educoreng.educore.core.designsystem.component.EduCoreTone
+import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
+import online.educoreng.educore.core.designsystem.theme.EduCoreColors
+import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+import online.educoreng.educore.core.model.OperationsRecord
+import online.educoreng.educore.core.model.OperationsWorkspace
+
+@Composable
+internal fun SubjectsScreen(
+    state: OperationsUiState,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val records = remember(workspace.sections.firstOrNull()?.records, state.query) {
+        workspace.sections.firstOrNull()?.records.orEmpty().filterOperations(state.query)
+    }
+
+    AcademicListShell(
+        title = "Subjects",
+        subtitle = "Active subject catalogue and class-level coverage",
+        state = state,
+        workspace = workspace,
+        records = records,
+        onBack = onBack,
+        onQuery = onQuery,
+        onSection = {},
+        placeholder = "Search subject, code or status",
+        showTabs = false,
+        emptyMessage = "Configured subjects will appear here.",
+    ) { SubjectRecordCard(it) }
+}
+
+@Composable
+internal fun CurriculumScreen(
+    state: OperationsUiState,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onSection: (Int) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val section = workspace.sections.getOrNull(state.selectedSection)
+    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+
+    AcademicListShell(
+        title = "Curriculum",
+        subtitle = "Academic tracks and class-subject offering rules",
+        state = state,
+        workspace = workspace,
+        records = records,
+        onBack = onBack,
+        onQuery = onQuery,
+        onSection = onSection,
+        placeholder = if (section?.key == "tracks") "Search academic track" else "Search subject, class, track or group",
+        emptyMessage = if (section?.key == "tracks") "Academic tracks will appear here." else "Class-subject rules will appear here.",
+    ) { record ->
+        if (section?.key == "tracks") CurriculumTrackCard(record) else CurriculumRuleCard(record)
+    }
+}
+
+@Composable
+internal fun AcademicCycleScreen(
+    state: OperationsUiState,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onSection: (Int) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val section = workspace.sections.getOrNull(state.selectedSection)
+    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+
+    AcademicListShell(
+        title = "Academic Cycle",
+        subtitle = "Sessions, terms and current academic-period state",
+        state = state,
+        workspace = workspace,
+        records = records,
+        onBack = onBack,
+        onQuery = onQuery,
+        onSection = onSection,
+        placeholder = if (section?.key == "terms") "Search term or session" else "Search academic session",
+        emptyMessage = if (section?.key == "terms") "Configured academic terms will appear here." else "Academic sessions will appear here.",
+    ) { record ->
+        if (section?.key == "terms") AcademicTermCard(record) else AcademicSessionCard(record)
+    }
+}
+
+@Composable
+internal fun AnalyticsScreen(
+    state: OperationsUiState,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onSection: (Int) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val section = workspace.sections.getOrNull(state.selectedSection)
+    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(eduCoreScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        item {
+            EduCorePageHeader(
+                title = "Analytics",
+                subtitle = "School performance, attendance, enrolment and authorised finance intelligence",
+                onBack = onBack,
+            )
+        }
+        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+        workspace.metrics.chunked(2).forEachIndexed { index, rowMetrics ->
+            item(key = "analytics-metrics-$index") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    rowMetrics.forEach { metric ->
+                        EduCoreMetricCard(
+                            label = metric.label,
+                            value = metric.value,
+                            modifier = Modifier.weight(1f),
+                            tone = metric.tone.academicTone(),
+                        )
+                    }
+                    if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+
+        if (workspace.sections.size > 1) {
+            item {
+                EduCoreTabs(
+                    labels = workspace.sections.map { "${it.title} (${it.count})" },
+                    selectedIndex = state.selectedSection,
+                    onSelected = onSection,
+                )
+            }
+        }
+
+        item {
+            EduCoreSearchBar(
+                query = state.query,
+                onQueryChange = onQuery,
+                placeholder = when (section?.key) {
+                    "classes" -> "Search class performance"
+                    "subjects" -> "Search subject performance"
+                    "enrollment" -> "Search enrolment month"
+                    "finance" -> "Search finance overview"
+                    else -> "Search analytics"
+                },
+            )
+        }
+
+        if (records.isEmpty()) {
+            item {
+                EduCoreEmptyState(
+                    title = if (state.query.isBlank()) "No analytics data" else "No matching analytics",
+                    message = if (state.query.isBlank()) "Data will appear as school activity is recorded." else "Try another search term.",
+                )
+            }
+        } else {
+            items(records, key = { "analytics-${section?.key}-${it.id}" }) { record ->
+                AnalyticsRecordCard(record)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AcademicListShell(
+    title: String,
+    subtitle: String,
+    state: OperationsUiState,
+    workspace: OperationsWorkspace,
+    records: List<OperationsRecord>,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onSection: (Int) -> Unit,
+    placeholder: String,
+    emptyMessage: String,
+    showTabs: Boolean = true,
+    card: @Composable (OperationsRecord) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(eduCoreScreenPadding()),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        item { EduCorePageHeader(title = title, subtitle = subtitle, onBack = onBack) }
+        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+        workspace.metrics.chunked(2).forEachIndexed { index, rowMetrics ->
+            item(key = "academic-metrics-$index") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    rowMetrics.forEach { metric ->
+                        EduCoreMetricCard(
+                            label = metric.label,
+                            value = metric.value,
+                            modifier = Modifier.weight(1f),
+                            tone = metric.tone.academicTone(),
+                        )
+                    }
+                    if (rowMetrics.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+
+        if (showTabs && workspace.sections.size > 1) {
+            item {
+                EduCoreTabs(
+                    labels = workspace.sections.map { "${it.title} (${it.count})" },
+                    selectedIndex = state.selectedSection,
+                    onSelected = onSection,
+                )
+            }
+        }
+
+        item { EduCoreSearchBar(query = state.query, onQueryChange = onQuery, placeholder = placeholder) }
+
+        if (records.isEmpty()) {
+            item {
+                EduCoreEmptyState(
+                    title = if (state.query.isBlank()) "No records yet" else "No matching records",
+                    message = if (state.query.isBlank()) emptyMessage else "Try another search term.",
+                )
+            }
+        } else {
+            items(records, key = { "${workspace.module.key}-${it.id}" }) { card(it) }
+        }
+
+        item {
+            Text(
+                text = if (workspace.module.canManage) {
+                    "Your account has management access. Native write actions will be enabled only where the server exposes a tenant-scoped mutation contract."
+                } else {
+                    "This account has read-only access to this workspace."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubjectRecordCard(record: OperationsRecord) {
+    AcademicRecordCard(record) {
+        AcademicFieldGrid(listOf("Class-level rules" to record.academicField("Class-level rules")))
+    }
+}
+
+@Composable
+private fun CurriculumTrackCard(record: OperationsRecord) {
+    AcademicRecordCard(record) { }
+}
+
+@Composable
+private fun CurriculumRuleCard(record: OperationsRecord) {
+    AcademicRecordCard(record) {
+        AcademicFieldGrid(
+            listOf(
+                "Track" to record.academicField("Track"),
+                "Group" to record.academicField("Group"),
+            )
+        )
+    }
+}
+
+@Composable
+private fun AcademicSessionCard(record: OperationsRecord) {
+    AcademicRecordCard(record) { }
+}
+
+@Composable
+private fun AcademicTermCard(record: OperationsRecord) {
+    AcademicRecordCard(record) {
+        AcademicFieldGrid(
+            listOf(
+                "Starts" to record.academicField("Starts"),
+                "Ends" to record.academicField("Ends"),
+                "Next term" to record.academicField("Next term"),
+            )
+        )
+    }
+}
+
+@Composable
+private fun AnalyticsRecordCard(record: OperationsRecord) {
+    AcademicRecordCard(record) {
+        AcademicFieldGrid(record.fields.map { it.label to it.value })
+    }
+}
+
+@Composable
+private fun AcademicRecordCard(record: OperationsRecord, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    record.subtitle?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                record.status?.let {
+                    EduCoreStatusBadge(
+                        text = it.replace('_', ' ').replaceFirstChar(Char::uppercase),
+                        tone = it.academicStatusTone(),
+                    )
+                }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun AcademicFieldGrid(fields: List<Pair<String, String?>>) {
+    fields.filter { !it.second.isNullOrBlank() }.chunked(2).forEach { rowFields ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Lg)) {
+            rowFields.forEach { (label, value) ->
+                Column(Modifier.weight(1f)) {
+                    Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(value.orEmpty(), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (rowFields.size == 1) Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+private fun OperationsRecord.academicField(label: String): String? =
+    fields.firstOrNull { it.label.equals(label, ignoreCase = true) }?.value
+
+private fun String.academicTone(): EduCoreTone = when (lowercase()) {
+    "success" -> EduCoreTone.Success
+    "warning" -> EduCoreTone.Warning
+    "danger" -> EduCoreTone.Danger
+    "blue", "info" -> EduCoreTone.Info
+    "purple" -> EduCoreTone.Purple
+    else -> EduCoreTone.Brand
+}
+
+private fun String.academicStatusTone(): EduCoreTone = when (lowercase()) {
+    "active", "current", "core", "elective" -> EduCoreTone.Success
+    "inactive", "closed", "not_offered" -> EduCoreTone.Neutral
+    "optional" -> EduCoreTone.Info
+    else -> EduCoreTone.Info
+}
