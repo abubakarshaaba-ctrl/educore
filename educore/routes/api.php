@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
+use App\Http\Controllers\Api\MobileLibraryController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileRiskController;
@@ -67,6 +68,12 @@ Route::prefix('v1')->group(function () {
             Route::get('{flag}', [MobileRiskController::class, 'show'])->whereNumber('flag');
             Route::post('{flag}/acknowledge', [MobileRiskController::class, 'acknowledge'])->whereNumber('flag');
             Route::post('{flag}/resolve', [MobileRiskController::class, 'resolve'])->whereNumber('flag');
+        });
+
+        Route::prefix('library')->group(function () {
+            Route::get('options', [MobileLibraryController::class, 'options']);
+            Route::post('loans', [MobileLibraryController::class, 'issue']);
+            Route::post('loans/{loan}/return', [MobileLibraryController::class, 'returnLoan'])->whereNumber('loan');
         });
 
         Route::prefix('academic-repository')->group(function () {
