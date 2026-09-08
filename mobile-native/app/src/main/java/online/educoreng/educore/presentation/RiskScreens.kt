@@ -13,9 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -38,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -130,20 +132,10 @@ internal fun RiskDashboardScreen(
                 )
             }
             item {
-                FilterStrip(
-                    title = "Status",
-                    options = data.filters.statuses,
-                    selected = state.selectedStatus,
-                    onSelect = onStatus,
-                )
+                FilterStrip("Status", data.filters.statuses, state.selectedStatus, onStatus)
             }
             item {
-                FilterStrip(
-                    title = "Risk level",
-                    options = data.filters.riskLevels,
-                    selected = state.selectedRiskLevel,
-                    onSelect = onRiskLevel,
-                )
+                FilterStrip("Risk level", data.filters.riskLevels, state.selectedRiskLevel, onRiskLevel)
             }
             item {
                 Row(
@@ -177,8 +169,8 @@ internal fun RiskDashboardScreen(
                 )
             }
         } else {
-            items(state.flags.size, key = { state.flags[it].id }) { index ->
-                RiskFlagCard(state.flags[index], onOpen)
+            items(state.flags, key = RiskFlagDto::id) { flag ->
+                RiskFlagCard(flag, onOpen)
             }
         }
 
@@ -239,9 +231,7 @@ internal fun RiskDetailScreen(
         }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         state.message?.let { item { RiskMessageCard(it) } }
-        item {
-            RiskScoreCard(flag)
-        }
+        item { RiskScoreCard(flag) }
         item {
             Text("Why this student is flagged", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(EduCoreSpacing.Sm))
@@ -341,20 +331,14 @@ internal fun RiskConfigScreen(
             EduCoreShowcaseHero(
                 eyebrow = "RISK MODEL",
                 title = "Keep the scoring model explicit and reviewable.",
-                subtitle = "Thresholds determine when individual dimensions trigger risk; weights determine how those dimensions contribute to the composite score.",
+                subtitle = "Thresholds determine when dimensions trigger risk; weights determine how those dimensions contribute to the composite score.",
             )
         }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         state.message?.let { item { RiskMessageCard(it) } }
-        item {
-            ConfigNumberField("Academic threshold (%)", draft.academicThreshold) { onValue(RiskConfigField.ACADEMIC_THRESHOLD, it) }
-        }
-        item {
-            ConfigNumberField("Attendance threshold (%)", draft.attendanceThreshold) { onValue(RiskConfigField.ATTENDANCE_THRESHOLD, it) }
-        }
-        item {
-            ConfigNumberField("Subjects failed threshold", draft.subjectsFailedThreshold) { onValue(RiskConfigField.SUBJECTS_FAILED_THRESHOLD, it) }
-        }
+        item { ConfigNumberField("Academic threshold (%)", draft.academicThreshold) { onValue(RiskConfigField.ACADEMIC_THRESHOLD, it) } }
+        item { ConfigNumberField("Attendance threshold (%)", draft.attendanceThreshold) { onValue(RiskConfigField.ATTENDANCE_THRESHOLD, it) } }
+        item { ConfigNumberField("Subjects failed threshold", draft.subjectsFailedThreshold) { onValue(RiskConfigField.SUBJECTS_FAILED_THRESHOLD, it) } }
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -368,7 +352,11 @@ internal fun RiskConfigScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("Include fee risk", fontWeight = FontWeight.SemiBold)
-                        Text("Use overdue/unpaid invoices as one component of the composite risk score.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "Use overdue/unpaid invoices as one component of the composite risk score.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Switch(checked = draft.includeFeeRisk, onCheckedChange = onFeeRisk)
                 }
@@ -382,15 +370,9 @@ internal fun RiskConfigScreen(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        item {
-            ConfigNumberField("Academic weight (%)", draft.academicWeight) { onValue(RiskConfigField.ACADEMIC_WEIGHT, it) }
-        }
-        item {
-            ConfigNumberField("Attendance weight (%)", draft.attendanceWeight) { onValue(RiskConfigField.ATTENDANCE_WEIGHT, it) }
-        }
-        item {
-            ConfigNumberField("Fee weight (%)", draft.feeWeight) { onValue(RiskConfigField.FEE_WEIGHT, it) }
-        }
+        item { ConfigNumberField("Academic weight (%)", draft.academicWeight) { onValue(RiskConfigField.ACADEMIC_WEIGHT, it) } }
+        item { ConfigNumberField("Attendance weight (%)", draft.attendanceWeight) { onValue(RiskConfigField.ATTENDANCE_WEIGHT, it) } }
+        item { ConfigNumberField("Fee weight (%)", draft.feeWeight) { onValue(RiskConfigField.FEE_WEIGHT, it) } }
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -524,9 +506,9 @@ private fun RiskFlagCard(flag: RiskFlagDto, onOpen: (Long) -> Unit) {
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                MiniRisk("Academic", flag.academicRisk)
-                MiniRisk("Attendance", flag.attendanceRisk)
-                MiniRisk("Fees", flag.feeRisk)
+                MiniRisk("Academic", flag.academicRisk, Modifier.weight(1f))
+                MiniRisk("Attendance", flag.attendanceRisk, Modifier.weight(1f))
+                MiniRisk("Fees", flag.feeRisk, Modifier.weight(1f))
             }
             Text("Status: ${flag.status.replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.labelMedium)
         }
@@ -549,9 +531,9 @@ private fun RiskScoreCard(flag: RiskFlagDto) {
                 RiskLevelBadge(flag.riskLevel, flag.compositeRisk)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                MiniRisk("Academic", flag.academicRisk)
-                MiniRisk("Attendance", flag.attendanceRisk)
-                MiniRisk("Fees", flag.feeRisk)
+                MiniRisk("Academic", flag.academicRisk, Modifier.weight(1f))
+                MiniRisk("Attendance", flag.attendanceRisk, Modifier.weight(1f))
+                MiniRisk("Fees", flag.feeRisk, Modifier.weight(1f))
             }
             Text("Subjects failed: ${flag.subjectsFailed}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -559,11 +541,11 @@ private fun RiskScoreCard(flag: RiskFlagDto) {
 }
 
 @Composable
-private fun MiniRisk(label: String, value: Int) {
+private fun MiniRisk(label: String, value: Int, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
     ) {
         Column(Modifier.padding(EduCoreSpacing.Sm), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$value%", fontWeight = FontWeight.SemiBold)
@@ -574,11 +556,12 @@ private fun MiniRisk(label: String, value: Int) {
 
 @Composable
 private fun RiskLevelBadge(level: String, score: Int) {
-    Surface(shape = RoundedCornerShape(50), color = riskAccent(level).copy(alpha = 0.12f)) {
+    val accent = riskAccent(level)
+    Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = 0.12f)) {
         Text(
             "${level.replaceFirstChar { it.uppercase() }} · $score%",
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            color = riskAccent(level),
+            color = accent,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -641,7 +624,7 @@ private fun RiskMessageCard(message: String) {
 }
 
 @Composable
-private fun riskAccent(level: String) = when (level.lowercase()) {
+private fun riskAccent(level: String): Color = when (level.lowercase()) {
     "critical" -> MaterialTheme.colorScheme.error
     "high" -> MaterialTheme.colorScheme.tertiary
     "medium" -> MaterialTheme.colorScheme.secondary
