@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Warning
@@ -61,8 +62,12 @@ internal fun ReportsScreen(
     onUnpublish: () -> Unit,
     onConfirm: () -> Unit,
     onDismissConfirmation: () -> Unit,
+    onDownload: (ReportSummaryRowDto) -> Unit,
+    onDocumentOpened: () -> Unit,
     onRetry: () -> Unit,
 ) {
+    OpenDocumentEffect(state.document, onDocumentOpened)
+
     var selectedSummaryId by rememberSaveable { mutableLongStateOf(0L) }
     val selectedSummary = state.workspace?.students?.firstOrNull { it.summaryId == selectedSummaryId }
 
@@ -72,6 +77,10 @@ internal fun ReportsScreen(
             className = state.workspace?.classRoom?.name,
             termLabel = state.workspace?.term?.let { listOfNotNull(it.name, it.session).joinToString(" · ") },
             published = state.workspace?.summary?.published == true,
+            isDownloadingPdf = state.isDownloadingPdf,
+            message = state.message,
+            errorMessage = state.errorMessage,
+            onDownload = { onDownload(selectedSummary) },
             onBack = { selectedSummaryId = 0L },
         )
         return
@@ -276,6 +285,10 @@ private fun ReportDetailContent(
     className: String?,
     termLabel: String?,
     published: Boolean,
+    isDownloadingPdf: Boolean,
+    message: String?,
+    errorMessage: String?,
+    onDownload: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -298,12 +311,24 @@ private fun ReportDetailContent(
                     } ?: "Class position not available",
                 )
             }
+            message?.let { item { EduCoreInfoBanner(it, title = "Report card") } }
+            errorMessage?.let { item { EduCoreErrorBanner(it) } }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     ReportMetric("Subjects", row.subjectsOffered.toString(), Modifier.weight(1f))
                     ReportMetric("Failed", row.subjectsFailed.toString(), Modifier.weight(1f))
                     ReportMetric("Status", row.promotionStatus?.replace('_', ' ') ?: "Pending", Modifier.weight(1f))
                 }
+            }
+            item {
+                EduCorePrimaryButton(
+                    text = "Download PDF",
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isDownloadingPdf,
+                    loading = isDownloadingPdf,
+                    leadingIcon = { androidx.compose.material3.Icon(Icons.Default.Download, contentDescription = null) },
+                )
             }
             if (row.subjects.isEmpty()) {
                 item { EduCoreEmptyState("No subject breakdown", "Recompute this report card to rebuild subject-level details from score records.") }
