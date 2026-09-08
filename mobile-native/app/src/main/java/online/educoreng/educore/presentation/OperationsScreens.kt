@@ -66,78 +66,62 @@ internal fun OperationsScreen(
     )
 
     if (workspace.module.key.equals("fees", ignoreCase = true)) {
-        FeesScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-            onSection = onSection,
-        )
+        FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
     if (workspace.module.key.equals("payroll", ignoreCase = true)) {
-        PayrollScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-        )
+        PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
     if (workspace.module.key.equals("expenses", ignoreCase = true)) {
-        ExpensesScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-        )
+        ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
     if (workspace.module.key.equals("library", ignoreCase = true)) {
-        LibraryScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-            onSection = onSection,
-        )
+        LibraryScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
     if (workspace.module.key.equals("transport", ignoreCase = true)) {
-        TransportScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-            onSection = onSection,
-        )
+        TransportScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
     if (workspace.module.key.equals("health", ignoreCase = true)) {
-        HealthRecordsScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-        )
+        HealthRecordsScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
     if (workspace.module.key.equals("inventory", ignoreCase = true)) {
-        InventoryScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-        )
+        InventoryScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
     if (workspace.module.key.equals("hostels", ignoreCase = true)) {
-        HostelsScreen(
-            state = state,
-            onBack = onBack,
-            onQuery = onQuery,
-            onSection = onSection,
-        )
+        HostelsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        return
+    }
+
+    if (workspace.module.key.equals("subjects", ignoreCase = true)) {
+        SubjectsScreen(state = state, onBack = onBack, onQuery = onQuery)
+        return
+    }
+
+    if (workspace.module.key.equals("curriculum", ignoreCase = true)) {
+        CurriculumScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        return
+    }
+
+    if (workspace.module.key.equals("academic-cycle", ignoreCase = true)) {
+        AcademicCycleScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        return
+    }
+
+    if (workspace.module.key.equals("analytics", ignoreCase = true)) {
+        AnalyticsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
