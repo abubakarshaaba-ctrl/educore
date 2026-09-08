@@ -33,6 +33,9 @@ class StudentClassTransferController extends Controller
         $this->authorizeTransfer(self::PERMISSION_VIEW);
 
         $tenantId = $this->tenantId();
+        $movementType = in_array($request->input('movement_type'), StudentClassTransfer::TYPES, true)
+            ? $request->input('movement_type')
+            : null;
         $baseQuery = StudentClassTransfer::where('tenant_id', $tenantId);
 
         $transfers = (clone $baseQuery)
@@ -45,6 +48,7 @@ class StudentClassTransferController extends Controller
                 'requestedBy',
                 'approvedBy',
             ])
+            ->when($movementType, fn ($q) => $q->where('movement_type', $movementType))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('class_arm_id'), function ($q) use ($request) {
                 $classArmId = (int) $request->input('class_arm_id');
@@ -78,11 +82,15 @@ class StudentClassTransferController extends Controller
             'transfers' => $transfers,
             'summary' => $summary,
             'statuses' => StudentClassTransfer::STATUSES,
+            'movementTypes' => StudentClassTransfer::TYPES,
             'classArms' => $this->classArmOptions($tenantId),
             'sessions' => $this->sessionOptions($tenantId),
             'terms' => $this->termOptions($tenantId),
             'canRequest' => $this->canTransfer(auth()->user(), self::PERMISSION_REQUEST),
-            'filters' => $request->only(['search', 'status', 'class_arm_id', 'academic_session_id', 'term_id']),
+            'filters' => array_merge(
+                $request->only(['search', 'status', 'class_arm_id', 'academic_session_id', 'term_id']),
+                ['movement_type' => $movementType],
+            ),
         ]);
     }
 
@@ -100,6 +108,7 @@ class StudentClassTransferController extends Controller
                 ->orderBy('last_name')
                 ->get(),
             'classArms' => $this->classArmOptions($tenantId),
+            'movementTypes' => StudentClassTransfer::TYPES,
             'activeContext' => $this->transfers->activeAcademicContextOrNull($tenantId),
         ]);
     }
@@ -109,6 +118,9 @@ class StudentClassTransferController extends Controller
         $this->authorizeTransfer(self::PERMISSION_REQUEST);
         $tenantId = $this->tenantId();
         $data = $request->validate([
+            // Nullable preserves compatibility with a stale browser form; the
+            // service infers the correct type from source/destination levels.
+            'movement_type' => ['nullable', Rule::in(StudentClassTransfer::TYPES)],
             'student_id' => [
                 'required',
                 'integer',
@@ -135,11 +147,12 @@ class StudentClassTransferController extends Controller
             $data['reason'],
             $request->file('supporting_document'),
             $request,
+            $data['movement_type'] ?? null,
         );
 
         return redirect()
             ->route('students.class-transfers.show', $transfer)
-            ->with('success', 'Interclass transfer request created.');
+            ->with('success', $this->movementLabel($transfer).' transfer request created.');
     }
 
     public function show(StudentClassTransfer $classTransfer): View
@@ -182,7 +195,7 @@ class StudentClassTransferController extends Controller
 
         return redirect()
             ->route('students.class-transfers.show', $transfer)
-            ->with('success', 'Interclass transfer approved and completed.');
+            ->with('success', $this->movementLabel($transfer).' transfer approved and completed.');
     }
 
     public function reject(Request $request, StudentClassTransfer $classTransfer): RedirectResponse
@@ -201,7 +214,7 @@ class StudentClassTransferController extends Controller
 
         return redirect()
             ->route('students.class-transfers.show', $transfer)
-            ->with('success', 'Interclass transfer request rejected.');
+            ->with('success', $this->movementLabel($transfer).' transfer request rejected.');
     }
 
     public function cancel(Request $request, StudentClassTransfer $classTransfer): RedirectResponse
@@ -221,7 +234,7 @@ class StudentClassTransferController extends Controller
 
         return redirect()
             ->route('students.class-transfers.show', $transfer)
-            ->with('success', 'Interclass transfer request cancelled.');
+            ->with('success', $this->movementLabel($transfer).' transfer request cancelled.');
     }
 
     public function downloadDocument(StudentClassTransfer $classTransfer)
@@ -278,10 +291,17 @@ class StudentClassTransferController extends Controller
             ->get();
     }
 
+    private function movementLabel(StudentClassTransfer $transfer): string
+    {
+        return $transfer->movement_type === StudentClassTransfer::TYPE_INTRA_CLASS
+            ? 'Intra-class'
+            : 'Interclass';
+    }
+
     private function tenantId(): int
     {
         $tenantId = auth()->user()?->tenant_id;
-        abort_unless($tenantId, 403, 'A tenant context is required for interclass transfers.');
+        abort_unless($tenantId, 403, 'A tenant context is required for class transfers.');
 
         return (int) $tenantId;
     }
