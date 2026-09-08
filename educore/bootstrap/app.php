@@ -12,7 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            Route::middleware('web')->group(base_path('routes/deploy.php'));
+            // Deployment/validation endpoints authenticate with the deploy token
+            // and must remain callable even when the normal web application is in
+            // maintenance mode. Their individual routes apply throttling.
+            Route::group(base_path('routes/deploy.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
