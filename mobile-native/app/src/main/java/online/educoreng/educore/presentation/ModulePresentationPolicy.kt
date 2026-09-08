@@ -32,6 +32,7 @@ object ModulePresentationPolicy {
         "staff-attendance",
         "staff-attendance.self",
         "skills",
+        "transfers",
         "timetable",
         "student.timetable",
         "student.exams",
