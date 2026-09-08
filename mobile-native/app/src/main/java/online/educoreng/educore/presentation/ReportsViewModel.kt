@@ -1,19 +1,26 @@
 package online.educoreng.educore.presentation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import online.educoreng.educore.core.data.repository.saveDownloadedDocument
+import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.ReportsApi
 import online.educoreng.educore.core.network.dto.ReportPublishRequestDto
+import online.educoreng.educore.core.network.dto.ReportSummaryRowDto
 import online.educoreng.educore.core.network.dto.ReportsWorkspaceDto
 import retrofit2.HttpException
 
@@ -27,8 +34,10 @@ internal data class ReportsUiState(
     val confirmation: ReportManagementAction? = null,
     val isLoading: Boolean = false,
     val isMutating: Boolean = false,
+    val isDownloadingPdf: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
+    val document: DownloadedDocument? = null,
 ) {
     val hasSelection: Boolean get() = selectedClassId != null && selectedTermId != null
     val canCompute: Boolean get() =
@@ -47,6 +56,7 @@ internal data class ReportsUiState(
 @HiltViewModel
 internal class ReportsViewModel @Inject constructor(
     factory: ApiClientFactory,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val api: ReportsApi = factory.create(ReportsApi::class.java)
     private val _uiState = MutableStateFlow(ReportsUiState())
@@ -154,6 +164,42 @@ internal class ReportsViewModel @Inject constructor(
         }
     }
 
+    fun downloadPdf(row: ReportSummaryRowDto) {
+        if (_uiState.value.isDownloadingPdf) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isDownloadingPdf = true, errorMessage = null, message = null, document = null)
+            }
+            try {
+                val body = api.downloadPdf(row.summaryId)
+                val termName = _uiState.value.workspace?.term?.name ?: "Term"
+                val document = withContext(Dispatchers.IO) {
+                    saveDownloadedDocument(
+                        context = context,
+                        body = body,
+                        requestedName = "EduCore_ReportCard_${safePart(row.student.name)}_${safePart(termName)}.pdf",
+                        requestedMimeType = "application/pdf",
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        isDownloadingPdf = false,
+                        document = document,
+                        message = "Report card PDF generated successfully.",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(isDownloadingPdf = false, errorMessage = error.reportMessage())
+                }
+            }
+        }
+    }
+
+    fun consumeDocument() = _uiState.update { it.copy(document = null) }
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
 
     private fun reloadSelection() {
@@ -182,6 +228,9 @@ internal class ReportsViewModel @Inject constructor(
             }
         }
     }
+
+    private fun safePart(value: String): String =
+        value.replace(Regex("[^A-Za-z0-9_-]+"), "_").trim('_').take(60).ifBlank { "Report" }
 }
 
 private fun Throwable.reportMessage(): String = when (this) {
