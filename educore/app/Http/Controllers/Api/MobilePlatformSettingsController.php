@@ -8,6 +8,7 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -37,19 +38,23 @@ class MobilePlatformSettingsController extends Controller
         ]);
 
         $definitions = $this->definitions();
-        $changed = [];
-        foreach ($data['settings'] as $key => $value) {
-            $definition = $definitions[$key];
-            $before = PlatformSetting::valueFor($key);
-            PlatformSetting::setValue($key, $value, $definition['type'], $definition['group'], $definition['label']);
-            if ($before !== $value) {
-                $changed[] = $key;
+        $changed = DB::transaction(function () use ($data, $definitions, $request, $user): array {
+            $changed = [];
+            foreach ($data['settings'] as $key => $value) {
+                $definition = $definitions[$key];
+                $before = PlatformSetting::valueFor($key);
+                PlatformSetting::setValue($key, $value, $definition['type'], $definition['group'], $definition['label']);
+                if ($before !== $value) {
+                    $changed[] = $key;
+                }
             }
-        }
 
-        $this->audit($request, $user, 'platform.settings.updated', [
-            'changed_keys' => $changed,
-        ], trim($data['reason']));
+            $this->audit($request, $user, 'platform.settings.updated', [
+                'changed_keys' => $changed,
+            ], trim($data['reason']));
+
+            return $changed;
+        });
 
         return response()->json([
             'message' => 'Platform settings saved.',
@@ -119,24 +124,26 @@ class MobilePlatformSettingsController extends Controller
             throw ValidationException::withMessages(['contract_code' => 'A Monnify contract code is required for first-time configuration.']);
         }
 
-        if ($newPublic !== '') {
-            PlatformSetting::setValue($mapping['public_key'], $newPublic, 'string', 'payments', Str::headline($mapping['public_key']));
-        }
-        if ($newSecret !== '') {
-            PlatformSetting::setValue($mapping['secret_key'], $newSecret, 'encrypted', 'payments', Str::headline($mapping['secret_key']));
-        }
-        if (isset($mapping['contract_code']) && $newContract !== '') {
-            PlatformSetting::setValue($mapping['contract_code'], $newContract, 'string', 'payments', Str::headline($mapping['contract_code']));
-        }
-        PlatformSetting::setValue($mapping['live'], (bool) $data['live'], 'boolean', 'payments', Str::headline($mapping['live']));
+        DB::transaction(function () use ($mapping, $newPublic, $newSecret, $newContract, $data, $provider, $request, $user): void {
+            if ($newPublic !== '') {
+                PlatformSetting::setValue($mapping['public_key'], $newPublic, 'string', 'payments', Str::headline($mapping['public_key']));
+            }
+            if ($newSecret !== '') {
+                PlatformSetting::setValue($mapping['secret_key'], $newSecret, 'encrypted', 'payments', Str::headline($mapping['secret_key']));
+            }
+            if (isset($mapping['contract_code']) && $newContract !== '') {
+                PlatformSetting::setValue($mapping['contract_code'], $newContract, 'string', 'payments', Str::headline($mapping['contract_code']));
+            }
+            PlatformSetting::setValue($mapping['live'], (bool) $data['live'], 'boolean', 'payments', Str::headline($mapping['live']));
 
-        $this->audit($request, $user, 'platform.gateway.updated', [
-            'provider' => $provider,
-            'public_identifier_changed' => $newPublic !== '',
-            'secret_replaced' => $newSecret !== '',
-            'contract_code_changed' => isset($mapping['contract_code']) && $newContract !== '',
-            'live' => (bool) $data['live'],
-        ], trim($data['reason']));
+            $this->audit($request, $user, 'platform.gateway.updated', [
+                'provider' => $provider,
+                'public_identifier_changed' => $newPublic !== '',
+                'secret_replaced' => $newSecret !== '',
+                'contract_code_changed' => isset($mapping['contract_code']) && $newContract !== '',
+                'live' => (bool) $data['live'],
+            ], trim($data['reason']));
+        });
 
         return response()->json([
             'message' => Str::headline($provider).' gateway settings saved.',
