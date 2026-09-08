@@ -3,6 +3,9 @@ package online.educoreng.educore.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +16,7 @@ import kotlinx.coroutines.launch
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.PayrollApi
 import online.educoreng.educore.core.network.dto.PayrollDetailDto
+import online.educoreng.educore.core.network.dto.PayrollGenerateRequestDto
 import online.educoreng.educore.core.network.dto.PayrollPeriodDto
 import online.educoreng.educore.core.network.dto.PayrollWorkspaceDto
 import retrofit2.HttpException
@@ -23,6 +27,10 @@ internal data class PayrollUiState(
     val detail: PayrollDetailDto? = null,
     val query: String = "",
     val status: String = "all",
+    val generationOpen: Boolean = false,
+    val generationTitle: String = "",
+    val generationStart: String = "",
+    val generationEnd: String = "",
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isLoadingDetail: Boolean = false,
@@ -51,6 +59,93 @@ internal class PayrollViewModel @Inject constructor(
         if (value == _uiState.value.status) return
         _uiState.update { it.copy(status = value, errorMessage = null) }
         loadPage(reset = true)
+    }
+
+    fun openGeneration() {
+        val today = LocalDate.now()
+        val monthName = today.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+        _uiState.update {
+            it.copy(
+                generationOpen = true,
+                generationTitle = "$monthName ${today.year} Payroll",
+                generationStart = today.withDayOfMonth(1).toString(),
+                generationEnd = today.withDayOfMonth(today.lengthOfMonth()).toString(),
+                errorMessage = null,
+                message = null,
+            )
+        }
+    }
+
+    fun closeGeneration() = _uiState.update {
+        it.copy(generationOpen = false, errorMessage = null)
+    }
+
+    fun setGenerationTitle(value: String) = _uiState.update {
+        it.copy(generationTitle = value.take(150), errorMessage = null)
+    }
+
+    fun setGenerationStart(value: String) = _uiState.update {
+        it.copy(generationStart = value.take(10), errorMessage = null)
+    }
+
+    fun setGenerationEnd(value: String) = _uiState.update {
+        it.copy(generationEnd = value.take(10), errorMessage = null)
+    }
+
+    fun generate() {
+        val state = _uiState.value
+        if (!state.canManage || state.isSaving) return
+        val title = state.generationTitle.trim()
+        val start = state.generationStart.trim()
+        val end = state.generationEnd.trim()
+        val startDate = runCatching { LocalDate.parse(start) }.getOrNull()
+        val endDate = runCatching { LocalDate.parse(end) }.getOrNull()
+
+        val validationError = when {
+            title.isBlank() -> "Enter a payroll title."
+            startDate == null -> "Enter the start date as YYYY-MM-DD."
+            endDate == null -> "Enter the end date as YYYY-MM-DD."
+            endDate.isBefore(startDate) -> "Payroll end date cannot be before the start date."
+            else -> null
+        }
+        if (validationError != null) {
+            _uiState.update { it.copy(errorMessage = validationError) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, errorMessage = null, message = null) }
+            try {
+                val response = api.generate(
+                    PayrollGenerateRequestDto(
+                        title = title,
+                        periodStart = start,
+                        periodEnd = end,
+                    )
+                )
+                val detail = api.show(response.period.id)
+                val skipped = response.skippedStaff
+                val successMessage = if (skipped.isEmpty()) {
+                    response.message
+                } else {
+                    response.message + " Skipped: " + skipped.joinToString(", ")
+                }
+                _uiState.update { current ->
+                    current.copy(
+                        generationOpen = false,
+                        isSaving = false,
+                        detail = detail,
+                        periods = listOf(response.period) + current.periods.filterNot { it.id == response.period.id },
+                        message = successMessage,
+                    )
+                }
+                loadPage(reset = true, preserveMessage = true, preserveDetail = true)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.update { it.copy(isSaving = false, errorMessage = error.payrollMessage()) }
+            }
+        }
     }
 
     fun open(period: PayrollPeriodDto) {
@@ -116,7 +211,7 @@ internal class PayrollViewModel @Inject constructor(
                     isLoadingMore = !reset,
                     errorMessage = null,
                     message = if (preserveMessage) it.message else null,
-                    detail = if (preserveDetail) it.detail else it.detail,
+                    detail = if (preserveDetail) it.detail else null,
                 )
             }
             try {
@@ -151,7 +246,7 @@ private fun Throwable.payrollMessage(): String = when (this) {
         401 -> "Your session has expired. Sign in again."
         403 -> "Your account is not permitted to manage payroll."
         404 -> "This payroll period is no longer available."
-        422 -> "This payroll transition is not allowed in its current status."
+        422 -> "Check the payroll dates and status. The selected date range may already have a payroll period."
         else -> "The payroll service returned an error (${code()})."
     }
     else -> localizedMessage?.takeIf(String::isNotBlank)
