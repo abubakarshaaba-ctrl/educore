@@ -72,6 +72,7 @@ jobs:
             tests/Feature/MobileExpensesTest.php \
             tests/Feature/MobileSubjectsTest.php \
             tests/Feature/MobileCurriculumTest.php \
+            tests/Feature/MobileAcademicCycleTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
 
