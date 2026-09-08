@@ -28,6 +28,7 @@ object ModulePresentationPolicy {
         "classes",
         "students",
         "attendance",
+        "staff",
         "staff-attendance",
         "staff-attendance.self",
         "timetable",
