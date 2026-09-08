@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\Http;
  * it downloads the GitHub zipball of master over HTTPS, extracts it, and
  * syncs the same paths .cpanel.yml would have rsynced, then clears caches.
  *
- * Trigger: GET /deploy/pull?token=<DEPLOY_TOKEN from .env>
+ * Preferred trigger: GET /deploy/pull with X-Deploy-Token or Bearer token.
+ * Legacy ?token= remains supported so existing shared-host bookmarks keep
+ * working, but secrets for GitHub itself are never accepted in the URL.
  */
 class SelfDeployController extends Controller
 {
@@ -49,8 +51,13 @@ class SelfDeployController extends Controller
     public function pull(Request $request)
     {
         $expected = (string) (config('app.deploy_token') ?: self::derivedToken());
+        $presented = (string) (
+            $request->header('X-Deploy-Token')
+            ?: $request->bearerToken()
+            ?: $request->query('token', '')
+        );
 
-        if ($expected === '' || !hash_equals($expected, (string) $request->query('token'))) {
+        if ($expected === '' || $presented === '' || !hash_equals($expected, $presented)) {
             abort(403, 'Invalid deploy token.');
         }
 
@@ -64,38 +71,36 @@ class SelfDeployController extends Controller
 
         @mkdir($work, 0755, true);
 
-        // 1. Download the master zipball from GitHub.
-        //    Public repos work anonymously; private repos need a read-only
-        //    token, supplied as ?gh=<token> or config('app.deploy_gh_token').
-        $ghToken = (string) ($request->query('gh') ?: config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', '')));
-
+        // Download the master zipball from GitHub. A private-repository token,
+        // if ever needed, must come from server configuration only. Query-string
+        // credentials are intentionally rejected because URLs are commonly logged.
+        $ghToken = (string) config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', ''));
         $headers = ['User-Agent' => 'educore-self-deploy'];
         if ($ghToken !== '') {
             $headers['Authorization'] = 'Bearer ' . $ghToken;
         }
 
-        // API zipball endpoint honours the Authorization header for private repos.
         $response = Http::withHeaders($headers)
             ->timeout(180)
             ->get('https://api.github.com/repos/' . self::REPO . '/zipball/master');
 
         if (!$response->successful()) {
-            return response()->json([
-                'ok'    => false,
-                'step'  => 'download',
-                'status'=> $response->status(),
-                'hint'  => $response->status() === 404
-                    ? 'Repo is private — append &gh=<github read token> to the deploy URL, or make the repo public.'
+            return $this->json([
+                'ok'     => false,
+                'step'   => 'download',
+                'status' => $response->status(),
+                'hint'   => $response->status() === 404
+                    ? 'Repository download is unavailable. If the repository becomes private, configure DEPLOY_GH_TOKEN on the server.'
                     : 'GitHub download failed.',
-            ], 200);
+            ]);
         }
 
         file_put_contents($zipPath, $response->body());
 
-        // 2. Extract
+        // Extract the trusted GitHub-generated archive.
         $zip = new \ZipArchive();
         if ($zip->open($zipPath) !== true) {
-            return response()->json(['ok' => false, 'step' => 'unzip'], 500);
+            return $this->json(['ok' => false, 'step' => 'unzip'], 500);
         }
 
         $extractDir = $work . '/tree';
@@ -104,14 +109,14 @@ class SelfDeployController extends Controller
         $zip->extractTo($extractDir);
         $zip->close();
 
-        // Zipball wraps everything in "<repo>-master/"
+        // Zipball wraps everything in "<repo>-master/".
         $roots = glob($extractDir . '/*', GLOB_ONLYDIR);
         if (!$roots) {
-            return response()->json(['ok' => false, 'step' => 'locate-root'], 500);
+            return $this->json(['ok' => false, 'step' => 'locate-root'], 500);
         }
         $srcRoot = $roots[0];
 
-        // 3. Sync the deployable paths
+        // Sync the deployable paths.
         $copied = 0;
         foreach (self::SYNC_PATHS as $path) {
             $src = $srcRoot . '/' . rtrim($path, '/');
@@ -135,37 +140,35 @@ class SelfDeployController extends Controller
             }
         }
 
-        // 4. Clear caches + run migrations
+        // Clear caches + run migrations.
         foreach (glob(storage_path('framework/views') . '/*.php') ?: [] as $f) @unlink($f);
         foreach (['routes-v7.php', 'config.php', 'events.php'] as $f) @unlink(base_path('bootstrap/cache/' . $f));
 
         $migrated = 'skipped';
+        $migrationOk = true;
         try {
             Artisan::call('migrate', ['--force' => true]);
             $migrated = trim(Artisan::output()) ?: 'nothing to migrate';
         } catch (\Throwable $e) {
+            $migrationOk = false;
             $migrated = 'error: ' . $e->getMessage();
         }
 
-        // opcache_reset() only clears the CURRENT PHP-FPM worker's cache —
-        // other workers keep serving stale bytecode until they individually
-        // revalidate. The shipped .user.ini (opcache.validate_timestamps=1)
-        // is the actual fix; this call is just a best-effort nudge for the
-        // worker handling this request.
         $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
 
-        // 5. Tidy up the workspace
+        // Tidy up the workspace even when migrations report a failure.
         @unlink($zipPath);
         $this->rrmdir($extractDir);
 
-        return response()->json([
-            'ok'       => true,
+        return $this->json([
+            'ok'       => $migrationOk,
+            'step'     => $migrationOk ? 'complete' : 'migrate',
             'copied'   => $copied,
             'removed'  => $removed,
             'opcache_reset' => $opcacheReset,
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
-        ]);
+        ], $migrationOk ? 200 : 500);
     }
 
     /**
@@ -176,6 +179,16 @@ class SelfDeployController extends Controller
     public static function derivedToken(): string
     {
         return hash_hmac('sha256', 'educore-self-deploy', (string) config('app.key'));
+    }
+
+    private function json(array $payload, int $status = 200)
+    {
+        return response()->json($payload, $status, [
+            'Cache-Control' => 'no-store, private',
+            'Pragma' => 'no-cache',
+            'Referrer-Policy' => 'no-referrer',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function copyTree(string $src, string $dst): int
@@ -193,8 +206,6 @@ class SelfDeployController extends Controller
             if ($item->isDir()) {
                 @mkdir($target, 0755, true);
             } else {
-                // Skip files that are byte-identical in size — avoids re-copying
-                // large unchanged binaries (e.g. the APK) on every deploy.
                 if (is_file($target)
                     && filesize($target) === $item->getSize()
                     && hash_file('sha256', $target) === hash_file('sha256', $item->getPathname())) {
@@ -221,5 +232,4 @@ class SelfDeployController extends Controller
         }
         @rmdir($dir);
     }
-
 }
