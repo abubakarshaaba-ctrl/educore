@@ -29,11 +29,15 @@ internal fun PlatformAuthorizedShell(
     onLogout: () -> Unit,
     viewModel: PlatformViewModel = hiltViewModel(),
     tenantViewModel: PlatformTenantViewModel = hiltViewModel(),
+    groupViewModel: PlatformGroupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
+    val groupState by groupViewModel.uiState.collectAsStateWithLifecycle()
     var schoolDirectoryOpen by remember { mutableStateOf(false) }
     var selectedTenantId by remember { mutableStateOf<Long?>(null) }
+    var groupDirectoryOpen by remember { mutableStateOf(false) }
+    var selectedGroupId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) {
@@ -43,6 +47,10 @@ internal fun PlatformAuthorizedShell(
 
     LaunchedEffect(selectedTenantId) {
         selectedTenantId?.let(tenantViewModel::load)
+    }
+
+    LaunchedEffect(selectedGroupId) {
+        selectedGroupId?.let(groupViewModel::load)
     }
 
     when {
@@ -65,6 +73,37 @@ internal fun PlatformAuthorizedShell(
             schools = state.tenants?.tenants.orEmpty(),
             onBack = { schoolDirectoryOpen = false },
             onOpen = { selectedTenantId = it },
+        )
+
+        selectedGroupId != null -> PlatformGroupDetailScreen(
+            state = groupState,
+            onBack = {
+                selectedGroupId = null
+                viewModel.load(PlatformSection.GROUPS)
+            },
+            onAddMember = groupViewModel::addMember,
+            onRequestLead = groupViewModel::requestLead,
+            onRequestRemove = groupViewModel::requestRemove,
+            onConfirm = groupViewModel::confirm,
+            onDismissConfirmation = groupViewModel::dismissConfirmation,
+            onRetry = { selectedGroupId?.let(groupViewModel::load) },
+        )
+
+        groupDirectoryOpen -> PlatformGroupDirectoryScreen(
+            groups = state.groups?.groups.orEmpty(),
+            state = groupState,
+            onBack = { groupDirectoryOpen = false },
+            onOpen = { selectedGroupId = it },
+            onOpenCreate = groupViewModel::openCreate,
+            onCloseCreate = groupViewModel::closeCreate,
+            onName = groupViewModel::setNewGroupName,
+            onDescription = groupViewModel::setNewGroupDescription,
+            onCreate = {
+                groupViewModel.createGroup { id ->
+                    selectedGroupId = id
+                    viewModel.load(PlatformSection.GROUPS)
+                }
+            },
         )
 
         else -> Box(Modifier.fillMaxSize()) {
@@ -94,14 +133,21 @@ internal fun PlatformAuthorizedShell(
                 onLogout = onLogout,
             )
 
-            if (state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null) {
-                EduCorePrimaryButton(
-                    text = "Manage schools",
-                    onClick = { schoolDirectoryOpen = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(EduCoreSpacing.Lg),
-                )
+            when {
+                state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> {
+                    EduCorePrimaryButton(
+                        text = "Manage schools",
+                        onClick = { schoolDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
+                state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> {
+                    EduCorePrimaryButton(
+                        text = "Manage groups",
+                        onClick = { groupDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
             }
         }
     }
