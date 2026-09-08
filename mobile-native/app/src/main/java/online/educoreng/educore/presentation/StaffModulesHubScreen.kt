@@ -102,6 +102,15 @@ internal fun StaffModulesHubScreen(
             onRequest = transfersViewModel::requestTransfer,
             onApprove = transfersViewModel::requestApproval,
             onReject = transfersViewModel::requestRejection,
+            onInterclassStudent = transfersViewModel::selectInterclassStudent,
+            onInterclassDestination = transfersViewModel::selectInterclassDestination,
+            onInterclassDate = transfersViewModel::updateInterclassEffectiveDate,
+            onInterclassReason = transfersViewModel::updateInterclassReason,
+            onInterclassRequest = transfersViewModel::requestInterclassTransfer,
+            onInterclassApprove = transfersViewModel::requestInterclassApproval,
+            onInterclassReject = transfersViewModel::requestInterclassRejection,
+            onInterclassCancel = transfersViewModel::requestInterclassCancellation,
+            onActionReason = transfersViewModel::updateActionReason,
             onConfirm = transfersViewModel::confirmAction,
             onCancelConfirm = transfersViewModel::cancelConfirmation,
             onRetry = transfersViewModel::load,
@@ -250,9 +259,7 @@ internal fun StaffModulesHubScreen(
         EduCoreWindowWidth.Medium -> 4
         EduCoreWindowWidth.Expanded -> 6
     }
-    val groups = remember(session.modules) {
-        buildModuleHubGroups(session.modules)
-    }
+    val groups = remember(session.modules) { buildModuleHubGroups(session.modules) }
 
     fun openModule(module: ModuleDescriptor) {
         when (module.key.lowercase()) {
@@ -331,9 +338,7 @@ internal fun StaffModulesHubScreen(
                 text = "Sign out",
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
             )
         }
     }
@@ -389,7 +394,6 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     else -> key.lowercase()
 }
 
-/** Compact labels are intentional: phones use three concise tiles per row. */
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
     "staff" -> "Staff Directory"
     "staff-attendance", "staff-attendance.self" -> "My Attendance"
@@ -406,61 +410,25 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     else -> module.title
 }
 
-/** Workspaces already represented by the task-oriented root navigation. */
 private val ROOT_WORKFLOW_KEYS = setOf(
-    "dashboard",
-    "classes",
-    "students",
-    "attendance",
-    "scores",
-    "scores.entry",
-    "timetable",
-    "student.timetable",
-    "messages",
-    "notifications.view",
-    "announcements",
-    "calendar.view",
+    "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
+    "student.timetable", "messages", "notifications.view", "announcements", "calendar.view",
 )
 
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 
 private val ACADEMIC_KEYS = setOf(
-    "subjects",
-    "curriculum",
-    "reports",
-    "report-cards",
-    "results",
-    "cbt",
-    "cbt-exams",
-    "examinations",
-    "lesson-planner",
-    "academic-repository",
-    "library",
+    "subjects", "curriculum", "reports", "report-cards", "results", "cbt", "cbt-exams",
+    "examinations", "lesson-planner", "academic-repository", "library",
 )
 
 private val OPERATION_KEYS = setOf(
-    "staff",
-    "staff-attendance",
-    "staff-attendance.self",
-    "academic-cycle",
-    "fees",
-    "expenses",
-    "payroll",
-    "admissions",
-    "transfers",
-    "transport",
-    "health",
-    "inventory",
-    "hostels",
-    "analytics",
-    "risk",
-    "exports",
+    "staff", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses",
+    "payroll", "admissions", "transfers", "transport", "health", "inventory", "hostels",
+    "analytics", "risk", "exports",
 )
 
-private val ACCOUNT_KEYS = setOf(
-    "profile",
-    "settings",
-)
+private val ACCOUNT_KEYS = setOf("profile", "settings")
 
 private fun moduleHubIcon(key: String): ImageVector = when {
     key.equals("profile", ignoreCase = true) -> Icons.Default.Person
