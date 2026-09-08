@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\MobileBootstrapController;
 use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
+use App\Http\Controllers\Api\MobileCurriculumController;
 use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileExpensesController;
 use App\Http\Controllers\Api\MobileFeesController;
@@ -123,6 +124,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [MobileSubjectsController::class, 'store']);
             Route::patch('{subject}', [MobileSubjectsController::class, 'update'])->whereNumber('subject');
             Route::delete('{subject}', [MobileSubjectsController::class, 'destroy'])->whereNumber('subject');
+        });
+
+        Route::prefix('curriculum')->group(function () {
+            Route::get('/', [MobileCurriculumController::class, 'index']);
+            Route::post('tracks', [MobileCurriculumController::class, 'storeTrack']);
+            Route::patch('tracks/{track}', [MobileCurriculumController::class, 'updateTrack'])->whereNumber('track');
+            Route::delete('tracks/{track}', [MobileCurriculumController::class, 'destroyTrack'])->whereNumber('track');
+            Route::post('rules', [MobileCurriculumController::class, 'storeRule']);
+            Route::patch('rules/{rule}', [MobileCurriculumController::class, 'updateRule'])->whereNumber('rule');
+            Route::delete('rules/{rule}', [MobileCurriculumController::class, 'destroyRule'])->whereNumber('rule');
         });
 
         Route::prefix('academic-repository')->group(function () {
