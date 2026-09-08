@@ -62,7 +62,7 @@ class ReportCardComputationService
             if ($isThirdTerm) {
                 $priorTerms = Term::where('tenant_id', $tenantId)
                     ->where('session_id', $term->session_id)
-                    ->whereKeyNot($term->id)
+                    ->where('id', '!=', $term->id)
                     ->orderBy('start_date')
                     ->get();
                 foreach ($priorTerms as $priorTerm) {
