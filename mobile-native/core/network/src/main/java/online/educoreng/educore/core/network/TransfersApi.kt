@@ -1,7 +1,9 @@
 package online.educoreng.educore.core.network
 
 import online.educoreng.educore.core.network.dto.CrossSchoolTransferRequestDto
+import online.educoreng.educore.core.network.dto.InterclassTransferRequestDto
 import online.educoreng.educore.core.network.dto.TransferMutationResponseDto
+import online.educoreng.educore.core.network.dto.TransferReasonRequestDto
 import online.educoreng.educore.core.network.dto.TransfersWorkspaceDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -26,4 +28,22 @@ interface TransfersApi {
 
     @POST("transfers/cross-school/{transfer}/reject")
     suspend fun rejectCrossSchool(@Path("transfer") transferId: Long): TransferMutationResponseDto
+
+    @POST("transfers/interclass")
+    suspend fun requestInterclass(@Body body: InterclassTransferRequestDto): TransferMutationResponseDto
+
+    @POST("transfers/interclass/{transfer}/approve")
+    suspend fun approveInterclass(@Path("transfer") transferId: Long): TransferMutationResponseDto
+
+    @POST("transfers/interclass/{transfer}/reject")
+    suspend fun rejectInterclass(
+        @Path("transfer") transferId: Long,
+        @Body body: TransferReasonRequestDto,
+    ): TransferMutationResponseDto
+
+    @POST("transfers/interclass/{transfer}/cancel")
+    suspend fun cancelInterclass(
+        @Path("transfer") transferId: Long,
+        @Body body: TransferReasonRequestDto,
+    ): TransferMutationResponseDto
 }
