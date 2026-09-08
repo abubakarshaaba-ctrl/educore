@@ -28,7 +28,7 @@ class MobileSubjectsController extends Controller
         $base = Subject::where('tenant_id', $tenantId);
 
         $subjects = (clone $base)
-            ->withCount(['classLevelRules', 'classArms', 'scores', 'studentSelections'])
+            ->withCount(['classLevelRules', 'classArmSubjects', 'scores', 'studentSelections'])
             ->when($status !== 'all', fn ($query) => $query->where('is_active', $status === 'active'))
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($nested) use ($search): void {
@@ -99,7 +99,7 @@ class MobileSubjectsController extends Controller
         $this->loadCounts($record);
 
         $references = [
-            'class assignments' => (int) $record->class_arms_count,
+            'class assignments' => (int) $record->class_arm_subjects_count,
             'curriculum rules' => (int) $record->class_level_rules_count,
             'scores' => (int) $record->scores_count,
             'student selections' => (int) $record->student_selections_count,
@@ -144,7 +144,7 @@ class MobileSubjectsController extends Controller
 
     private function loadCounts(Subject $subject): void
     {
-        $subject->loadCount(['classLevelRules', 'classArms', 'scores', 'studentSelections']);
+        $subject->loadCount(['classLevelRules', 'classArmSubjects', 'scores', 'studentSelections']);
     }
 
     private function payload(Subject $subject): array
@@ -155,7 +155,7 @@ class MobileSubjectsController extends Controller
             'code' => $subject->code,
             'active' => (bool) $subject->is_active,
             'references' => [
-                'class_assignments' => (int) ($subject->class_arms_count ?? 0),
+                'class_assignments' => (int) ($subject->class_arm_subjects_count ?? 0),
                 'curriculum_rules' => (int) ($subject->class_level_rules_count ?? 0),
                 'scores' => (int) ($subject->scores_count ?? 0),
                 'student_selections' => (int) ($subject->student_selections_count ?? 0),
