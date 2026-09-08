@@ -15,6 +15,11 @@
 
     RewriteEngine On
 
+    # Admission and recruitment uploads can contain NINs, birth certificates,
+    # CVs and certificates. They must never be served through the public
+    # storage symlink; authenticated controllers provide controlled downloads.
+    RewriteRule ^storage/(admissions|recruitment)(?:/|$) - [F,L,NC]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
