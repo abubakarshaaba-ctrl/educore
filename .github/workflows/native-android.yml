@@ -9,9 +9,18 @@ on:
       - codex/native-login-brand-hotfix
     paths:
       - 'mobile-native/**'
-      - 'educore/app/Http/Controllers/Api/AuthController.php'
+      - 'educore/app/Http/Controllers/Api/**'
+      - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
-      - 'educore/tests/Feature/MobileBootstrapTest.php'
+      - 'educore/routes/api.php'
+      - 'educore/routes/deploy.php'
+      - 'educore/bootstrap/app.php'
+      - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/AcademicRepositoryReaderTest.php'
+      - 'educore/tests/Feature/CbtRestructuringTest.php'
+      - 'educore/tests/Feature/PushRegistrationTest.php'
+      - 'educore/tests/Feature/TenantAccessEnforcementTest.php'
+      - 'educore/tests/Feature/SelfWorkflowValidationControllerTest.php'
       - '.github/workflows/native-android.yml'
 
 concurrency:
@@ -21,27 +30,33 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       release_available: ${{ steps.signing.outputs.available }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
-      - name: Validate authentication API contract
+      - name: Validate Laravel mobile and fallback contracts
         working-directory: educore
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           cp .env.example .env
           php artisan key:generate
-          DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test tests/Feature/MobileBootstrapTest.php
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test \
+            tests/Feature/MobileBootstrapTest.php \
+            tests/Feature/SelfWorkflowValidationControllerTest.php
 
       - name: Build and test debug app
         working-directory: mobile-native
@@ -102,13 +117,15 @@ jobs:
           "$APK_SIGNER" verify --verbose --print-certs EduCore.apk
           sha256sum EduCore.apk > EduCore.apk.sha256
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
         with:
           name: educore-native-debug-${{ github.sha }}
           path: mobile-native/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload signed release APK
+        uses: actions/upload-artifact@v4
         if: steps.signing.outputs.available == 'true'
         with:
           name: educore-native-release-${{ github.sha }}
