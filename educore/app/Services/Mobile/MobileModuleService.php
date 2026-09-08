@@ -2,6 +2,7 @@
 
 namespace App\Services\Mobile;
 
+use App\Models\ClassArm;
 use App\Models\User;
 
 class MobileModuleService
@@ -91,6 +92,19 @@ class MobileModuleService
             ->filter(function (array $definition, string $key) use ($user): bool {
                 if ($key === 'academic-repository') {
                     return $user->isAdmin() || $user->isTeacher();
+                }
+
+                if ($key === 'skills') {
+                    if (!$user->canAccessModule('skills')) {
+                        return false;
+                    }
+                    if ($user->canAccessExactModule('students')) {
+                        return true;
+                    }
+
+                    return ClassArm::where('tenant_id', $user->tenant_id)
+                        ->where('form_tutor_id', $user->id)
+                        ->exists();
                 }
 
                 return $user->canAccessModule($key);
