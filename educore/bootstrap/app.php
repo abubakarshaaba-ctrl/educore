@@ -17,11 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
             // maintenance mode. Their individual routes apply throttling.
             Route::group(base_path('routes/deploy.php'));
 
-            // Replace only the legacy web report-card computation handler after
-            // routes/web.php has loaded. The focused route file preserves the same
-            // authenticated tenant/staff/module middleware boundary while routing
-            // computation through the shared service used by the native app.
+            // Replace only the legacy web report-card lifecycle mutation handlers
+            // after routes/web.php has loaded. These focused route files preserve
+            // the same authenticated tenant/staff/module middleware boundary while
+            // routing compute/publication through the shared services used by the
+            // native app.
             Route::group(base_path('routes/web-report-compute.php'));
+            Route::group(base_path('routes/web-report-publication.php'));
 
             // Focused native route files share the same bearer-authenticated
             // /api/v1 contract without making routes/api.php a monolith.
