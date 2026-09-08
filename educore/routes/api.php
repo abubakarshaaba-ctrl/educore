@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\MobileInventoryController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileLibraryController;
 use App\Http\Controllers\Api\MobileOperationsController;
+use App\Http\Controllers\Api\MobilePayrollController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileRiskController;
 use App\Http\Controllers\Api\MobileScheduleController;
@@ -98,6 +99,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [MobileFeesController::class, 'index']);
             Route::post('generate', [MobileFeesController::class, 'generate']);
             Route::post('invoices/{invoice}/payments', [MobileFeesController::class, 'recordPayment'])->whereNumber('invoice');
+        });
+
+        Route::prefix('payroll')->group(function () {
+            Route::get('/', [MobilePayrollController::class, 'index']);
+            Route::get('{period}', [MobilePayrollController::class, 'show'])->whereNumber('period');
+            Route::post('{period}/approve', [MobilePayrollController::class, 'approve'])->whereNumber('period');
+            Route::post('{period}/paid', [MobilePayrollController::class, 'markPaid'])->whereNumber('period');
         });
 
         Route::prefix('academic-repository')->group(function () {
