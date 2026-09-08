@@ -84,17 +84,33 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     onRetry = viewModel::retryBootstrap,
                     onLogout = viewModel::logout,
                 )
-                AppPhase.READY -> AuthorizedShell(
-                    session = requireNotNull(state.session),
-                    online = state.isOnline,
-                    busy = state.isBusy,
-                    dashboard = state.dashboard,
-                    snackbarHostState = snackbarHostState,
-                    onRefresh = viewModel::retryBootstrap,
-                    onRefreshDashboard = viewModel::retryDashboard,
-                    onOpenWebModule = viewModel::openWebModule,
-                    onLogout = viewModel::logout,
-                )
+                AppPhase.READY -> {
+                    val session = requireNotNull(state.session)
+                    if (session.user.portal == "staff") {
+                        StaffAuthorizedShell(
+                            session = session,
+                            online = state.isOnline,
+                            busy = state.isBusy,
+                            dashboard = state.dashboard,
+                            snackbarHostState = snackbarHostState,
+                            onRefresh = viewModel::retryBootstrap,
+                            onRefreshDashboard = viewModel::retryDashboard,
+                            onLogout = viewModel::logout,
+                        )
+                    } else {
+                        AuthorizedShell(
+                            session = session,
+                            online = state.isOnline,
+                            busy = state.isBusy,
+                            dashboard = state.dashboard,
+                            snackbarHostState = snackbarHostState,
+                            onRefresh = viewModel::retryBootstrap,
+                            onRefreshDashboard = viewModel::retryDashboard,
+                            onOpenWebModule = viewModel::openWebModule,
+                            onLogout = viewModel::logout,
+                        )
+                    }
+                }
             }
             SnackbarHost(
                 hostState = snackbarHostState,
