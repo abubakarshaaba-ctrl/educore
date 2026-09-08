@@ -44,9 +44,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.network.dto.ReportClassOptionDto
 import online.educoreng.educore.core.network.dto.ReportSummaryRowDto
-import online.educoreng.educore.core.network.dto.ReportTermOptionDto
 
 @Composable
 internal fun ReportsScreen(
@@ -55,26 +53,35 @@ internal fun ReportsScreen(
     onClass: (Long?) -> Unit,
     onTerm: (Long?) -> Unit,
     onNote: (String) -> Unit,
+    onCompute: () -> Unit,
     onPublish: () -> Unit,
     onUnpublish: () -> Unit,
     onConfirm: () -> Unit,
     onDismissConfirmation: () -> Unit,
     onRetry: () -> Unit,
 ) {
+    val action = state.confirmation
     EduCoreConfirmationDialog(
-        visible = state.confirmation != null,
-        title = if (state.confirmation == ReportPublicationAction.UNPUBLISH) {
-            "Unpublish report cards?"
-        } else {
-            "Publish report cards?"
+        visible = action != null,
+        title = when (action) {
+            ReportManagementAction.COMPUTE -> "Compute report cards?"
+            ReportManagementAction.UNPUBLISH -> "Unpublish report cards?"
+            else -> "Publish report cards?"
         },
-        message = if (state.confirmation == ReportPublicationAction.UNPUBLISH) {
-            "Parent and student result access will be locked again, and score entry can resume for this class and term."
-        } else {
-            "Publishing locks score changes for this class and term and makes the computed results available to authorised parent and student accounts."
+        message = when (action) {
+            ReportManagementAction.COMPUTE ->
+                "EduCore will recompute term summaries from the current tenant-scoped score records. Existing authorised remarks are preserved."
+            ReportManagementAction.UNPUBLISH ->
+                "Parent and student result access will be locked again, and score entry can resume for this class and term."
+            else ->
+                "Publishing locks score changes for this class and term and makes computed results available to authorised parent and student accounts."
         },
-        confirmLabel = if (state.confirmation == ReportPublicationAction.UNPUBLISH) "Unpublish" else "Publish",
-        destructive = state.confirmation == ReportPublicationAction.UNPUBLISH,
+        confirmLabel = when (action) {
+            ReportManagementAction.COMPUTE -> "Compute"
+            ReportManagementAction.UNPUBLISH -> "Unpublish"
+            else -> "Publish"
+        },
+        destructive = action == ReportManagementAction.UNPUBLISH,
         onConfirm = onConfirm,
         onDismiss = onDismissConfirmation,
     )
@@ -82,7 +89,7 @@ internal fun ReportsScreen(
     Column(Modifier.fillMaxSize()) {
         EduCorePageHeader(
             title = "Report Cards",
-            subtitle = "Computed summaries and publication control",
+            subtitle = "Compute, review and publish term results",
             onBack = onBack,
         )
 
@@ -103,7 +110,7 @@ internal fun ReportsScreen(
                     title = workspace?.classRoom?.name ?: "Report Cards",
                     subtitle = workspace?.term?.let {
                         listOfNotNull(it.name, it.session).joinToString(" · ")
-                    } ?: "Choose a class and term to review computed summaries and publication state.",
+                    } ?: "Choose a class and term to compute, review and publish report cards.",
                 )
             }
 
@@ -147,15 +154,15 @@ internal fun ReportsScreen(
                         ) {
                             EduCoreSectionHeader(
                                 title = "Selection",
-                                supportingText = "Report publication applies only to the selected tenant class and term.",
+                                supportingText = "Every action applies only to this tenant class and term.",
                             )
                             ReportDropdown(
                                 label = "Class",
-                                value = data.options.classArms.firstOrNull { it.id == state.selectedClassId }?.name
-                                    ?: "Select class",
+                                value = data.options.classArms.firstOrNull { it.id == state.selectedClassId }?.name ?: "Select class",
                                 options = data.options.classArms,
                                 optionLabel = { it.name },
                                 optionId = { it.id },
+                                enabled = !state.isMutating,
                                 onSelected = onClass,
                             )
                             ReportDropdown(
@@ -166,6 +173,7 @@ internal fun ReportsScreen(
                                 options = data.options.terms,
                                 optionLabel = { listOfNotNull(it.name, it.session).joinToString(" · ") },
                                 optionId = { it.id },
+                                enabled = !state.isMutating,
                                 onSelected = onTerm,
                             )
                         }
@@ -174,15 +182,6 @@ internal fun ReportsScreen(
 
                 state.message?.let { message -> item { EduCoreInfoBanner(message, title = "Report cards updated") } }
                 state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
-
-                if (!data.capabilities.compute) {
-                    item {
-                        EduCoreInfoBanner(
-                            message = "This native phase reviews already-computed summaries and controls publication. Report computation is still server-controlled and is not triggered implicitly from this screen.",
-                            title = "Protected computation",
-                        )
-                    }
-                }
 
                 if (state.hasSelection) {
                     item {
@@ -195,10 +194,24 @@ internal fun ReportsScreen(
                                 verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                             ) {
                                 EduCoreSectionHeader(
-                                    title = "Publication",
-                                    supportingText = data.publication?.publishedByName?.let { "Last published by $it" }
-                                        ?: "Results remain private until publication.",
+                                    title = "Lifecycle actions",
+                                    supportingText = if (data.summary.published) {
+                                        data.publication?.publishedByName?.let { "Published by $it. Return to draft before recomputing." }
+                                            ?: "Published results are locked. Return to draft before recomputing."
+                                    } else {
+                                        "Compute from current scores, review the summaries below, then publish."
+                                    },
                                 )
+
+                                if (state.canCompute) {
+                                    EduCoreSecondaryButton(
+                                        text = if (data.summary.computed > 0) "Recompute report cards" else "Compute report cards",
+                                        onClick = onCompute,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                    )
+                                }
+
                                 Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                     FilterChip(
                                         selected = data.summary.published,
@@ -230,8 +243,8 @@ internal fun ReportsScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         enabled = !state.isMutating,
                                     )
-                                    data.summary.computed == 0 -> EduCoreInfoBanner(
-                                        message = "No computed summaries exist for this class and term, so publication is blocked.",
+                                    data.summary.computed == 0 && !data.summary.published -> EduCoreInfoBanner(
+                                        message = "Compute the report cards before publication.",
                                         title = "Nothing to publish",
                                     )
                                 }
@@ -242,28 +255,22 @@ internal fun ReportsScreen(
 
                 when {
                     data.options.classArms.isEmpty() -> item {
-                        EduCoreEmptyState(
-                            title = "No classes available",
-                            message = "No tenant class arms are available for report management.",
-                        )
+                        EduCoreEmptyState("No classes available", "No tenant class arms are available for report management.")
                     }
                     !state.hasSelection -> item {
-                        EduCoreEmptyState(
-                            title = "Choose class and term",
-                            message = "Select both fields to load report summaries.",
-                        )
+                        EduCoreEmptyState("Choose class and term", "Select both fields to load report summaries.")
                     }
                     data.students.isEmpty() && !state.isLoading -> item {
                         EduCoreEmptyState(
-                            title = "No computed report cards",
-                            message = "Compute the report cards for this class and term before publication.",
+                            "No computed report cards",
+                            "Use Compute report cards to build summaries from the current score records.",
                         )
                     }
                     else -> {
                         item {
                             EduCoreSectionHeader(
                                 title = "Computed summaries",
-                                supportingText = "These are the report summaries that publication will expose.",
+                                supportingText = "Review these summaries before publication.",
                             )
                         }
                         items(data.students, key = { it.summaryId }) { row -> ReportSummaryCard(row) }
@@ -344,6 +351,7 @@ private fun <T> ReportDropdown(
     options: List<T>,
     optionLabel: (T) -> String,
     optionId: (T) -> Long,
+    enabled: Boolean,
     onSelected: (Long?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -352,7 +360,7 @@ private fun <T> ReportDropdown(
             text = "$label: $value",
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth(),
-            enabled = options.isNotEmpty(),
+            enabled = enabled && options.isNotEmpty(),
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
