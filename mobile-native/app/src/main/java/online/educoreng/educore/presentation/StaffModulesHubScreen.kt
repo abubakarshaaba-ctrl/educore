@@ -128,7 +128,7 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
         }
 
     fun group(keys: Set<String>) = deduped.filter { it.key.lowercase() in keys }
-    val known = ACADEMIC_KEYS + OPERATION_KEYS + COMMUNICATION_KEYS + ACCOUNT_KEYS
+    val known = ACADEMIC_KEYS + OPERATION_KEYS + ACCOUNT_KEYS
     val other = deduped.filter { it.key.lowercase() !in known }
 
     return listOf(
@@ -145,12 +145,6 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
             modules = group(OPERATION_KEYS) + other,
         ),
         ModuleHubGroup(
-            key = "communication",
-            title = "Communication",
-            supportingText = "Additional communication tools not already represented by Inbox",
-            modules = group(COMMUNICATION_KEYS),
-        ),
-        ModuleHubGroup(
             key = "account",
             title = "Account",
             supportingText = "Profile and account tools granted to your role",
@@ -161,7 +155,6 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
 
 private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     "staff-attendance.self" -> "staff-attendance"
-    "announcements", "notifications.view" -> key.lowercase()
     else -> key.lowercase()
 }
 
@@ -223,8 +216,6 @@ private val OPERATION_KEYS = setOf(
     "analytics",
     "exports",
 )
-
-private val COMMUNICATION_KEYS = emptySet<String>()
 
 private val ACCOUNT_KEYS = setOf(
     "profile",
