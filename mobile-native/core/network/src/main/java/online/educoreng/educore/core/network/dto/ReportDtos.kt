@@ -60,6 +60,22 @@ data class ReportStudentDto(
     @param:Json(name = "admission_number") val admissionNumber: String? = null,
 )
 
+data class ReportSubjectBreakdownDto(
+    @param:Json(name = "subject_id") val subjectId: Long? = null,
+    val subject: String,
+    val total: Double = 0.0,
+    val grade: String? = null,
+    val remark: String? = null,
+    @param:Json(name = "is_pass") val isPass: Boolean = false,
+    val position: Int? = null,
+    @param:Json(name = "class_highest") val classHighest: Double? = null,
+    @param:Json(name = "class_lowest") val classLowest: Double? = null,
+    @param:Json(name = "class_avg") val classAverage: Double? = null,
+    @param:Json(name = "annual_total") val annualTotal: Double? = null,
+    @param:Json(name = "cumulative_avg") val cumulativeAverage: Double? = null,
+    @param:Json(name = "term_totals") val termTotals: Map<String, Double>? = null,
+)
+
 data class ReportSummaryRowDto(
     @param:Json(name = "summary_id") val summaryId: Long,
     val student: ReportStudentDto,
@@ -71,6 +87,7 @@ data class ReportSummaryRowDto(
     @param:Json(name = "promotion_status") val promotionStatus: String? = null,
     @param:Json(name = "form_tutor_remark") val formTutorRemark: String? = null,
     @param:Json(name = "principal_remark") val principalRemark: String? = null,
+    val subjects: List<ReportSubjectBreakdownDto> = emptyList(),
     @param:Json(name = "computed_at") val computedAt: String? = null,
 )
 
