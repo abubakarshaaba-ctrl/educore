@@ -1,21 +1,21 @@
 package online.educoreng.educore.core.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,7 +111,9 @@ fun EduCoreBottomNavigation(
                     BadgedBox(
                         badge = {
                             if (item.badgeCount > 0) {
-                                Badge { Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "") }
+                                Badge {
+                                    Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "")
+                                }
                             }
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
@@ -164,6 +166,11 @@ fun EduCoreTenantHeader(
     }
 }
 
+/**
+ * Premium feature header used on score entry, timetable, repository and other
+ * deep workspaces. The approved mobile direction uses a solid navy identity
+ * bar with white copy and gold actions rather than a pale web-style panel.
+ */
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -175,42 +182,57 @@ fun EduCorePageHeader(
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = EduCoreColors.Info100,
-        border = BorderStroke(1.dp, EduCoreColors.Info200),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = EduCoreColors.Navy900,
+        border = BorderStroke(1.dp, EduCoreColors.Navy800),
+        shadowElevation = 2.dp,
     ) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
-        if (maxWidth < 520.dp && compactActions) {
-            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md)) {
+            if (maxWidth < 520.dp && compactActions) {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PageHeaderIdentity(title, subtitle, onBack)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
+                        content = actions,
+                    )
+                }
+            } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PageHeaderIdentity(title, subtitle, onBack)
+                    actions()
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
-                    content = actions,
-                )
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PageHeaderIdentity(title, subtitle, onBack)
-                actions()
             }
         }
-    }
     }
 }
 
 @Composable
 private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
     if (onBack != null) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+        }
         Spacer(Modifier.width(EduCoreSpacing.Xs))
     }
     Column(Modifier.weight(1f)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         subtitle?.takeIf(String::isNotBlank)?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.72f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
