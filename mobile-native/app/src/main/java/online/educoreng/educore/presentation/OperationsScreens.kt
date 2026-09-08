@@ -114,7 +114,25 @@ internal fun OperationsScreen(
     }
 
     if (workspace.module.key.equals("health", ignoreCase = true)) {
-        HealthRecordsScreen(state = state, onBack = onBack, onQuery = onQuery)
+        val healthViewModel: HealthViewModel = hiltViewModel()
+        val healthState by healthViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(workspace.module.key) {
+            if (healthState.dashboard == null && !healthState.isLoading) {
+                healthViewModel.load()
+            }
+        }
+        NativeHealthScreen(
+            state = healthState,
+            onBack = onBack,
+            onQuery = healthViewModel::setQuery,
+            onSearch = healthViewModel::search,
+            onOpen = healthViewModel::open,
+            onCloseDetail = healthViewModel::closeDetail,
+            onField = healthViewModel::updateField,
+            onSave = healthViewModel::save,
+            onLoadMore = healthViewModel::loadMore,
+            onRetry = healthViewModel::load,
+        )
         return
     }
 
