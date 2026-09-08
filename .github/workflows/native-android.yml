@@ -16,16 +16,21 @@ on:
       - 'educore/app/Http/Controllers/SelfDeployController.php'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Http/Controllers/StudentTransferController.php'
+      - 'educore/app/Http/Controllers/StudentClassTransferController.php'
       - 'educore/app/Http/Middleware/**'
       - 'educore/app/Models/AcademicTrack.php'
       - 'educore/app/Models/AdmissionDocument.php'
       - 'educore/app/Models/JobApplicantDocument.php'
       - 'educore/app/Models/StudentTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
+      - 'educore/app/Services/CrossSchoolStudentTransferService.php'
+      - 'educore/app/Services/StudentClassTransferService.php'
+      - 'educore/app/Services/Mobile/MobileDashboardService.php'
       - 'educore/app/Services/Mobile/MobileModuleService.php'
       - 'educore/app/Services/PayrollGenerationService.php'
       - 'educore/app/Services/SensitiveDocumentStorage.php'
       - 'educore/app/Services/TenantUrlGenerator.php'
+      - 'educore/database/migrations/**'
       - 'educore/resources/views/dashboard/staff.blade.php'
       - 'educore/resources/views/portal/admissions/success.blade.php'
       - 'educore/routes/api.php'
@@ -34,6 +39,7 @@ on:
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
       - 'educore/tests/Feature/SensitiveDocumentStorageTest.php'
+      - 'educore/tests/Feature/StudentClassTransferTest.php'
       - 'educore/tests/Feature/WebSecurityHardeningTest.php'
       - 'educore/tests/Feature/TenantHostResolutionTest.php'
       - 'educore/tests/Feature/AcademicRepositoryReaderTest.php'
@@ -95,8 +101,10 @@ jobs:
             tests/Feature/MobileCurriculumTest.php \
             tests/Feature/MobileAcademicCycleTest.php \
             tests/Feature/MobileSkillsTest.php \
+            tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/SensitiveDocumentStorageTest.php \
+            tests/Feature/StudentClassTransferTest.php \
             tests/Feature/WebSecurityHardeningTest.php \
             tests/Feature/TenantHostResolutionTest.php \
             tests/Feature/SelfWorkflowValidationControllerTest.php
