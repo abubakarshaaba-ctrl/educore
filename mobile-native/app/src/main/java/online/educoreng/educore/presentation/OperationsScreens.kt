@@ -103,6 +103,44 @@ internal fun OperationsScreen(
         return
     }
 
+    if (workspace.module.key.equals("transport", ignoreCase = true)) {
+        TransportScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+        )
+        return
+    }
+
+    if (workspace.module.key.equals("health", ignoreCase = true)) {
+        HealthRecordsScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+        )
+        return
+    }
+
+    if (workspace.module.key.equals("inventory", ignoreCase = true)) {
+        InventoryScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+        )
+        return
+    }
+
+    if (workspace.module.key.equals("hostels", ignoreCase = true)) {
+        HostelsScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+        )
+        return
+    }
+
     if (workspace.module.key.equals("admissions", ignoreCase = true)) {
         val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
         val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
