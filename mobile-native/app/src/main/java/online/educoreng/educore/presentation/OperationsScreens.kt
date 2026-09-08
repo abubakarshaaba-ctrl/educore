@@ -109,7 +109,31 @@ internal fun OperationsScreen(
     }
 
     if (workspace.module.key.equals("transport", ignoreCase = true)) {
-        TransportScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        val transportViewModel: TransportViewModel = hiltViewModel()
+        val transportState by transportViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(workspace.module.key) {
+            if (transportState.dashboard == null && !transportState.isLoading) {
+                transportViewModel.load()
+            }
+        }
+        NativeTransportScreen(
+            state = transportState,
+            onBack = onBack,
+            onQuery = transportViewModel::setQuery,
+            onSearch = transportViewModel::search,
+            onOpenManifest = transportViewModel::openManifest,
+            onCloseManifest = transportViewModel::closeManifest,
+            onOpenAssignment = transportViewModel::openAssignment,
+            onCloseAssignment = transportViewModel::closeAssignment,
+            onRoute = transportViewModel::selectRoute,
+            onStudent = transportViewModel::selectStudent,
+            onPickupStop = transportViewModel::setPickupStop,
+            onDirection = transportViewModel::setDirection,
+            onAssign = transportViewModel::assign,
+            onUnassign = transportViewModel::unassign,
+            onLoadMore = transportViewModel::loadMore,
+            onRetry = transportViewModel::load,
+        )
         return
     }
 
