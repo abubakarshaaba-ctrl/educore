@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
+use App\Http\Controllers\Api\MobileExpensesController;
 use App\Http\Controllers\Api\MobileFeesController;
 use App\Http\Controllers\Api\MobileHostelController;
 use App\Http\Controllers\Api\MobileInventoryController;
@@ -99,6 +100,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [MobileFeesController::class, 'index']);
             Route::post('generate', [MobileFeesController::class, 'generate']);
             Route::post('invoices/{invoice}/payments', [MobileFeesController::class, 'recordPayment'])->whereNumber('invoice');
+        });
+
+        Route::prefix('expenses')->group(function () {
+            Route::get('/', [MobileExpensesController::class, 'index']);
+            Route::post('/', [MobileExpensesController::class, 'store']);
+            Route::patch('{expense}', [MobileExpensesController::class, 'update'])->whereNumber('expense');
+            Route::delete('{expense}', [MobileExpensesController::class, 'destroy'])->whereNumber('expense');
         });
 
         Route::prefix('payroll')->group(function () {
