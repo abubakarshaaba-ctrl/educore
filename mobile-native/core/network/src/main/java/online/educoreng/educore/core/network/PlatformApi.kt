@@ -25,6 +25,8 @@ import online.educoreng.educore.core.network.dto.PlatformSupportReplyRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantDetailDto
 import online.educoreng.educore.core.network.dto.PlatformTenantExtendRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantMutationResponseDto
+import online.educoreng.educore.core.network.dto.PlatformTenantProvisionRequestDto
+import online.educoreng.educore.core.network.dto.PlatformTenantProvisionResponseDto
 import online.educoreng.educore.core.network.dto.PlatformTenantUpdateRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantsDto
 import retrofit2.http.Body
@@ -45,6 +47,9 @@ interface PlatformApi {
         @Query("search") search: String? = null,
         @Query("status") status: String? = null,
     ): PlatformTenantsDto
+
+    @POST("platform/tenants")
+    suspend fun provisionTenant(@Body body: PlatformTenantProvisionRequestDto): PlatformTenantProvisionResponseDto
 
     @GET("platform/tenants/{tenant}")
     suspend fun tenant(@Path("tenant") tenant: Long): PlatformTenantDetailDto
