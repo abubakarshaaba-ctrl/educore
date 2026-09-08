@@ -9,16 +9,14 @@ use App\Models\StudentClassTransfer;
 use App\Models\StudentTransfer;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\LifecycleAuditLogger;
+use App\Services\CrossSchoolStudentTransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class MobileTransfersController extends Controller
 {
-    public function __construct(private readonly LifecycleAuditLogger $auditLogger)
+    public function __construct(private readonly CrossSchoolStudentTransferService $transfers)
     {
     }
 
@@ -28,7 +26,7 @@ class MobileTransfersController extends Controller
         $tenantId = (int) $user->tenant_id;
         $data = $request->validate([
             'scope' => ['nullable', Rule::in(['all', 'cross_school', 'interclass'])],
-            'status' => ['nullable', 'string', 'max:30'],
+            'status' => ['nullable', Rule::in(array_merge(StudentTransfer::STATUSES, StudentClassTransfer::STATUSES))],
             'q' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -113,7 +111,7 @@ class MobileTransfersController extends Controller
                 'name' => trim(($arm->classLevel?->name ?? '').' '.$arm->name),
             ]);
 
-        $crossPending = $this->crossSchoolQuery($tenantId)->where('status', 'pending');
+        $crossPending = $this->crossSchoolQuery($tenantId)->where('status', StudentTransfer::STATUS_PENDING);
         $interclassBase = StudentClassTransfer::where('tenant_id', $tenantId);
 
         return response()->json([
@@ -127,8 +125,8 @@ class MobileTransfersController extends Controller
                 'interclass_approve' => $user->can('student.transfer.approve'),
                 'interclass_reject' => $user->can('student.transfer.reject'),
                 'interclass_cancel' => $user->can('student.transfer.cancel'),
-                // Mutations remain on the lifecycle service/controller until the
-                // full enrollment transaction is extracted for shared native use.
+                // Interclass lifecycle mutations remain web-only until their
+                // enrollment transaction is extracted into a shared service.
                 'interclass_mobile_mutation' => false,
             ],
             'metrics' => [
@@ -142,6 +140,7 @@ class MobileTransfersController extends Controller
                 'id' => $transfer->id,
                 'direction' => (int) $transfer->to_tenant_id === $tenantId ? 'incoming' : 'outgoing',
                 'student_id' => $transfer->student_id,
+                'destination_student_id' => $transfer->destination_student_id,
                 'student_name' => $transfer->student_name,
                 'admission_number' => $transfer->admission_number,
                 'from_school' => $tenantNames->get($transfer->from_tenant_id, 'School'),
@@ -149,6 +148,7 @@ class MobileTransfersController extends Controller
                 'status' => $transfer->status,
                 'reason' => $transfer->reason,
                 'created_at' => optional($transfer->created_at)?->toIso8601String(),
+                'completed_at' => optional($transfer->completed_at)?->toIso8601String(),
             ])->values(),
             'interclass' => $interclass->map(fn (StudentClassTransfer $transfer): array => [
                 'id' => $transfer->id,
@@ -187,53 +187,21 @@ class MobileTransfersController extends Controller
             'to_tenant_id' => [
                 'required',
                 'integer',
-                Rule::exists('tenants', 'id')->where(fn ($q) => $q->where('status', Tenant::STATUS_ACTIVE)),
+                Rule::exists('tenants', 'id')->where(fn ($q) => $q
+                    ->where('status', Tenant::STATUS_ACTIVE)
+                    ->where('id', '!=', $tenantId)
+                    ->whereNull('deleted_at')),
             ],
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if ((int) $data['to_tenant_id'] === $tenantId) {
-            throw ValidationException::withMessages(['to_tenant_id' => 'Destination school must be different from the current school.']);
-        }
-
-        $transfer = DB::transaction(function () use ($request, $user, $tenantId, $data): StudentTransfer {
-            $student = Student::where('tenant_id', $tenantId)
-                ->whereKey((int) $data['student_id'])
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $pending = StudentTransfer::where('student_id', $student->id)
-                ->where('status', 'pending')
-                ->lockForUpdate()
-                ->exists();
-            if ($pending) {
-                throw ValidationException::withMessages(['student_id' => 'This student already has a pending cross-school transfer request.']);
-            }
-
-            $transfer = StudentTransfer::create([
-                'from_tenant_id' => $tenantId,
-                'to_tenant_id' => (int) $data['to_tenant_id'],
-                'student_id' => $student->id,
-                'student_name' => $this->studentName($student),
-                'admission_number' => $student->admission_number,
-                'reason' => $data['reason'] ?? null,
-                'requested_by' => $user->id,
-                'status' => 'pending',
-            ]);
-
-            $this->auditLogger->record(
-                $tenantId,
-                $user,
-                $transfer,
-                'student.transfer.requested.mobile',
-                [],
-                ['to_tenant_id' => $transfer->to_tenant_id, 'student_id' => $student->id],
-                $data['reason'] ?? null,
-                $request,
-            );
-
-            return $transfer;
-        });
+        $transfer = $this->transfers->request(
+            $user,
+            (int) $data['student_id'],
+            (int) $data['to_tenant_id'],
+            $data['reason'] ?? null,
+            $request,
+        );
 
         return response()->json([
             'message' => 'Transfer request submitted.',
@@ -244,76 +212,18 @@ class MobileTransfersController extends Controller
     public function approveCrossSchool(Request $request, int $transfer): JsonResponse
     {
         $user = $this->guard($request);
-        $tenantId = (int) $user->tenant_id;
+        $completed = $this->transfers->approve($user, $transfer, $request);
 
-        DB::transaction(function () use ($request, $user, $tenantId, $transfer): void {
-            $record = StudentTransfer::where('to_tenant_id', $tenantId)
-                ->whereKey($transfer)
-                ->lockForUpdate()
-                ->firstOrFail();
-            if ($record->status !== 'pending') {
-                throw ValidationException::withMessages(['transfer' => 'Only pending incoming transfers can be approved.']);
-            }
-
-            $student = Student::withoutTenantScope()
-                ->whereKey($record->student_id)
-                ->lockForUpdate()
-                ->firstOrFail();
-            if ((int) $student->tenant_id !== (int) $record->from_tenant_id) {
-                throw ValidationException::withMessages(['transfer' => 'Student ownership no longer matches the originating school.']);
-            }
-
-            $student->forceFill([
-                'tenant_id' => $tenantId,
-                'current_class_arm_id' => null,
-                'status' => Student::STATUS_ACTIVE,
-            ])->save();
-            $record->update([
-                'status' => 'completed',
-                'approved_at' => now(),
-            ]);
-
-            $this->auditLogger->record(
-                $tenantId,
-                $user,
-                $record,
-                'student.transfer.approved.mobile',
-                ['status' => 'pending', 'from_tenant_id' => $record->from_tenant_id],
-                ['status' => 'completed', 'to_tenant_id' => $tenantId],
-                null,
-                $request,
-            );
-        });
-
-        return response()->json(['message' => 'Incoming transfer approved and student moved to this school.']);
+        return response()->json([
+            'message' => 'Incoming transfer approved. A fresh receiving-school student record has been created while source-school history remains archived.',
+            'destination_student_id' => $completed->destination_student_id,
+        ]);
     }
 
     public function rejectCrossSchool(Request $request, int $transfer): JsonResponse
     {
         $user = $this->guard($request);
-        $tenantId = (int) $user->tenant_id;
-
-        DB::transaction(function () use ($request, $user, $tenantId, $transfer): void {
-            $record = StudentTransfer::where('to_tenant_id', $tenantId)
-                ->whereKey($transfer)
-                ->lockForUpdate()
-                ->firstOrFail();
-            if ($record->status !== 'pending') {
-                throw ValidationException::withMessages(['transfer' => 'Only pending incoming transfers can be rejected.']);
-            }
-            $record->update(['status' => 'rejected']);
-
-            $this->auditLogger->record(
-                $tenantId,
-                $user,
-                $record,
-                'student.transfer.rejected.mobile',
-                ['status' => 'pending'],
-                ['status' => 'rejected'],
-                null,
-                $request,
-            );
-        });
+        $this->transfers->reject($user, $transfer, $request);
 
         return response()->json(['message' => 'Incoming transfer rejected.']);
     }
