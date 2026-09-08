@@ -29,6 +29,7 @@ internal fun PlatformSchoolDirectoryScreen(
     schools: List<PlatformTenantDto>,
     onBack: () -> Unit,
     onOpen: (Long) -> Unit,
+    onProvision: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         EduCorePageHeader(
@@ -41,8 +42,15 @@ internal fun PlatformSchoolDirectoryScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(EduCoreSpacing.Lg),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
+            item {
+                EduCorePrimaryButton(
+                    text = "Provision new school",
+                    onClick = onProvision,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             if (schools.isEmpty()) {
-                item { EduCoreEmptyState("No schools available", "Return to Schools and refresh the directory.") }
+                item { EduCoreEmptyState("No schools available", "Provision a school or return to Schools and refresh the directory.") }
             }
             items(schools, key = { it.id }) { tenant ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
