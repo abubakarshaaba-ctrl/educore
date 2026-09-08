@@ -26,6 +26,7 @@ data class CrossSchoolTransferDto(
     val id: Long,
     val direction: String,
     @param:Json(name = "student_id") val studentId: Long? = null,
+    @param:Json(name = "destination_student_id") val destinationStudentId: Long? = null,
     @param:Json(name = "student_name") val studentName: String,
     @param:Json(name = "admission_number") val admissionNumber: String? = null,
     @param:Json(name = "from_school") val fromSchool: String,
@@ -33,6 +34,7 @@ data class CrossSchoolTransferDto(
     val status: String,
     val reason: String? = null,
     @param:Json(name = "created_at") val createdAt: String? = null,
+    @param:Json(name = "completed_at") val completedAt: String? = null,
 )
 
 data class InterclassTransferDto(
@@ -90,4 +92,5 @@ data class CrossSchoolTransferRequestDto(
 data class TransferMutationResponseDto(
     val message: String,
     @param:Json(name = "transfer_id") val transferId: Long? = null,
+    @param:Json(name = "destination_student_id") val destinationStudentId: Long? = null,
 )
