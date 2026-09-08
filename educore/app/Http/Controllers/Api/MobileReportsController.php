@@ -9,22 +9,17 @@ use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\User;
-use App\Services\GuardianNotifier;
-use App\Services\LifecycleAuditLogger;
 use App\Services\ReportCardComputationService;
+use App\Services\ReportCardPublicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class MobileReportsController extends Controller
 {
     public function __construct(
-        private readonly LifecycleAuditLogger $auditLogger,
         private readonly ReportCardComputationService $computation,
-        private readonly GuardianNotifier $guardianNotifier,
+        private readonly ReportCardPublicationService $publication,
     ) {
     }
 
@@ -170,76 +165,19 @@ class MobileReportsController extends Controller
         $tenantId = (int) $user->tenant_id;
         $data = $this->validateSelection($request, $tenantId, includeNote: true);
 
-        $computed = TermlySummary::where('tenant_id', $tenantId)
-            ->where('class_arm_id', (int) $data['class_arm_id'])
-            ->where('term_id', (int) $data['term_id'])
-            ->count();
-        if ($computed < 1) {
-            throw ValidationException::withMessages([
-                'class_arm_id' => 'Compute report cards for this class and term before publishing.',
-            ]);
-        }
-
-        $publication = DB::transaction(function () use ($tenantId, $user, $data, $request): ReportCardPublication {
-            $publication = ReportCardPublication::where('tenant_id', $tenantId)
-                ->where('class_arm_id', (int) $data['class_arm_id'])
-                ->where('term_id', (int) $data['term_id'])
-                ->lockForUpdate()
-                ->first();
-            $old = $publication ? [
-                'status' => $publication->status,
-                'published_at' => $publication->published_at?->toIso8601String(),
-                'published_by' => $publication->published_by,
-                'note' => $publication->note,
-            ] : [];
-
-            if (!$publication) {
-                $publication = new ReportCardPublication([
-                    'tenant_id' => $tenantId,
-                    'class_arm_id' => (int) $data['class_arm_id'],
-                    'term_id' => (int) $data['term_id'],
-                ]);
-            }
-            $publication->forceFill([
-                'tenant_id' => $tenantId,
-                'status' => 'published',
-                'published_at' => now(),
-                'published_by' => $user->id,
-                'archived_at' => null,
-                'note' => isset($data['note']) ? trim((string) $data['note']) ?: null : null,
-            ])->save();
-
-            $this->auditLogger->record(
-                $tenantId,
-                $user,
-                $publication,
-                'report_cards.published',
-                $old,
-                [
-                    'status' => 'published',
-                    'class_arm_id' => $publication->class_arm_id,
-                    'term_id' => $publication->term_id,
-                    'published_by' => $user->id,
-                    'note' => $publication->note,
-                ],
-                $publication->note,
-                $request,
-            );
-
-            return $publication->fresh(['publishedBy:id,name']);
-        });
-
-        $notified = $this->notifyPublishedResults(
+        $result = $this->publication->publish(
             $tenantId,
             (int) $data['class_arm_id'],
             (int) $data['term_id'],
             $user,
+            isset($data['note']) ? (string) $data['note'] : null,
+            $request,
         );
 
         return response()->json([
             'message' => 'Report cards published. Parent and student result access is now unlocked.',
-            'publication' => $this->publicationPayload($publication),
-            'guardians_notified' => $notified,
+            'publication' => $this->publicationPayload($result['publication']),
+            'guardians_notified' => $result['guardians_notified'],
         ]);
     }
 
@@ -250,46 +188,13 @@ class MobileReportsController extends Controller
         $tenantId = (int) $user->tenant_id;
         $data = $this->validateSelection($request, $tenantId);
 
-        $publication = DB::transaction(function () use ($tenantId, $user, $data, $request): ReportCardPublication {
-            $publication = ReportCardPublication::where('tenant_id', $tenantId)
-                ->where('class_arm_id', (int) $data['class_arm_id'])
-                ->where('term_id', (int) $data['term_id'])
-                ->lockForUpdate()
-                ->firstOrFail();
-            if (!$publication->isPublished()) {
-                throw ValidationException::withMessages([
-                    'class_arm_id' => 'These report cards are already in draft state.',
-                ]);
-            }
-
-            $old = [
-                'status' => $publication->status,
-                'published_at' => $publication->published_at?->toIso8601String(),
-                'published_by' => $publication->published_by,
-            ];
-            $publication->forceFill([
-                'status' => 'draft',
-                'archived_at' => now(),
-            ])->save();
-
-            $this->auditLogger->record(
-                $tenantId,
-                $user,
-                $publication,
-                'report_cards.unpublished',
-                $old,
-                [
-                    'status' => 'draft',
-                    'class_arm_id' => $publication->class_arm_id,
-                    'term_id' => $publication->term_id,
-                    'archived_at' => $publication->archived_at?->toIso8601String(),
-                ],
-                null,
-                $request,
-            );
-
-            return $publication->fresh(['publishedBy:id,name']);
-        });
+        $publication = $this->publication->unpublish(
+            $tenantId,
+            (int) $data['class_arm_id'],
+            (int) $data['term_id'],
+            $user,
+            $request,
+        );
 
         return response()->json([
             'message' => 'Report cards returned to draft. Score entry is unlocked again.',
@@ -314,49 +219,6 @@ class MobileReportsController extends Controller
         }
 
         return $request->validate($rules);
-    }
-
-    private function notifyPublishedResults(int $tenantId, int $classArmId, int $termId, User $actor): int
-    {
-        if (!Schema::hasTable('guardians') || !Schema::hasTable('guardian_student')) {
-            return 0;
-        }
-
-        $term = Term::where('tenant_id', $tenantId)->whereKey($termId)->first();
-        $schoolName = $actor->tenant?->name;
-        $summaries = TermlySummary::where('tenant_id', $tenantId)
-            ->where('class_arm_id', $classArmId)
-            ->where('term_id', $termId)
-            ->with('student.guardians')
-            ->get();
-        $notified = 0;
-        foreach ($summaries as $summary) {
-            $student = $summary->student;
-            if (!$student) {
-                continue;
-            }
-            $guardian = $student->guardians->firstWhere('pivot.is_primary_contact', true)
-                ?? $student->guardians->first();
-            if (!$guardian) {
-                continue;
-            }
-
-            $this->guardianNotifier->send(
-                $guardian,
-                'Results published — '.$student->full_name,
-                [
-                    ($term?->name ?? 'Term').' results for '.$student->full_name.' are now available.',
-                    'Sign in to the parent portal to view the full report card.',
-                ],
-                smsBody: 'Dear Parent, '.$student->full_name.'\'s '.($term?->name ?? 'term').' results are now available on the EduCore parent portal.',
-                actionLabel: 'View Results',
-                actionUrl: route('login'),
-                schoolName: $schoolName,
-            );
-            $notified++;
-        }
-
-        return $notified;
     }
 
     private function summaryPayload(TermlySummary $summary): array
