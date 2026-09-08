@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
+use App\Http\Controllers\Api\MobileFeesController;
 use App\Http\Controllers\Api\MobileHostelController;
 use App\Http\Controllers\Api\MobileInventoryController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
@@ -91,6 +92,12 @@ Route::prefix('v1')->group(function () {
             Route::post('{hostel}/rooms', [MobileHostelController::class, 'storeRoom'])->whereNumber('hostel');
             Route::post('allocations', [MobileHostelController::class, 'allocate']);
             Route::post('allocations/{allocation}/vacate', [MobileHostelController::class, 'vacate'])->whereNumber('allocation');
+        });
+
+        Route::prefix('fees')->group(function () {
+            Route::get('/', [MobileFeesController::class, 'index']);
+            Route::post('generate', [MobileFeesController::class, 'generate']);
+            Route::post('invoices/{invoice}/payments', [MobileFeesController::class, 'recordPayment'])->whereNumber('invoice');
         });
 
         Route::prefix('academic-repository')->group(function () {
