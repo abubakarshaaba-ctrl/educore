@@ -14,13 +14,6 @@ return [
     */
 
     'deploy_token' => env('DEPLOY_TOKEN'),
-    'deploy_gh_token' => env('DEPLOY_GH_TOKEN'),
-
-    // Shell-free GitHub synchronization. The write token must be a fine-grained
-    // token restricted to this repository with Contents: Read and write only.
-    'github_write_token' => env('GITHUB_WRITE_TOKEN'),
-    'github_repository' => env('GITHUB_REPOSITORY', 'abubakarshaaba-ctrl/educore'),
-    'github_branch' => env('GITHUB_BRANCH', 'master'),
 
     'name' => env('APP_NAME', 'Laravel'),
 
