@@ -22,6 +22,7 @@ on:
       - 'educore/resources/views/portal/admissions/success.blade.php'
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
+      - 'educore/routes/mobile-*.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
       - 'educore/tests/Feature/WebSecurityHardeningTest.php'
@@ -84,6 +85,7 @@ jobs:
             tests/Feature/MobileSubjectsTest.php \
             tests/Feature/MobileCurriculumTest.php \
             tests/Feature/MobileAcademicCycleTest.php \
+            tests/Feature/MobileSkillsTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/WebSecurityHardeningTest.php \
             tests/Feature/TenantHostResolutionTest.php \
