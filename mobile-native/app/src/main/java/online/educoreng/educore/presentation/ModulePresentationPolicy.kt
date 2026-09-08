@@ -51,6 +51,10 @@ object ModulePresentationPolicy {
         "health",
         "inventory",
         "hostels",
+        "subjects",
+        "curriculum",
+        "academic-cycle",
+        "analytics",
         "messages",
         "parent.messages",
         "student.messages",
@@ -63,12 +67,7 @@ object ModulePresentationPolicy {
         "announcements",
     )
 
-    private val NATIVE_GENERIC_MODULES = setOf(
-        "subjects",
-        "curriculum",
-        "academic-cycle",
-        "analytics",
-    )
+    private val NATIVE_GENERIC_MODULES: Set<String> = emptySet()
 
     private val ROLE_CONDITIONAL_MODULES = setOf(
         "scores",
