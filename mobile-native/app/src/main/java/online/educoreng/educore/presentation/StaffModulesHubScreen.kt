@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseTile
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
@@ -30,10 +31,11 @@ import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
 /**
- * Grouped More / Modules Hub based on the approved August mobile concept.
+ * Grouped secondary-workspace hub for staff.
  *
- * RBAC rule: every tile originates from SessionSnapshot.modules. The screen
- * never constructs a module that the server did not grant to the account.
+ * RBAC rule: every tile originates from SessionSnapshot.modules. Root workflows
+ * already represented by Home, Classes, Timetable and Inbox are intentionally
+ * removed here so More does not become a second, confusing navigation system.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -58,6 +60,14 @@ internal fun StaffModulesHubScreen(
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
+        item(key = "hub-hero", span = { GridItemSpan(maxLineSpan) }) {
+            EduCoreShowcaseHero(
+                eyebrow = "MORE",
+                title = "Secondary tools, kept out of your way.",
+                subtitle = "Only additional workspaces granted to ${session.user.roleLabel} are shown here. Core teaching and communication tasks stay in the main navigation.",
+            )
+        }
+
         if (groups.all { it.modules.isEmpty() }) {
             item(key = "hub-empty", span = { GridItemSpan(maxLineSpan) }) {
                 EduCoreEmptyState(
@@ -106,10 +116,7 @@ private data class ModuleHubGroup(
 
 private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHubGroup> {
     val normalized = modules
-        .filterNot {
-            it.key.equals("dashboard", ignoreCase = true) ||
-                it.key.equals("timetable", ignoreCase = true)
-        }
+        .filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }
         .sortedBy { it.title.lowercase() }
 
     // If both attendance aliases arrive, expose only the self-service entry.
@@ -128,19 +135,19 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
         ModuleHubGroup(
             key = "academics",
             title = "Academics",
-            supportingText = "Teaching, learning and assessment",
+            supportingText = "Planning, resources, reporting and examinations",
             modules = group(ACADEMIC_KEYS),
         ),
         ModuleHubGroup(
             key = "operations",
             title = "Operations",
-            supportingText = "School administration and support services",
+            supportingText = "Your attendance and school support services",
             modules = group(OPERATION_KEYS) + other,
         ),
         ModuleHubGroup(
             key = "communication",
             title = "Communication",
-            supportingText = "Messages, notices and school events",
+            supportingText = "Additional communication tools not already represented by Inbox",
             modules = group(COMMUNICATION_KEYS),
         ),
         ModuleHubGroup(
@@ -158,29 +165,37 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     else -> key.lowercase()
 }
 
-/** Compact labels are intentional: the August reference uses three tiles per row on phones. */
+/** Compact labels are intentional: phones use three concise tiles per row. */
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
-    "attendance" -> "Attendance"
     "staff-attendance", "staff-attendance.self" -> "My Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
-    "reports", "report-cards", "results" -> "Results"
+    "reports", "report-cards", "results" -> "Report Cards"
     "cbt", "cbt-exams", "examinations" -> "Examinations"
-    "notifications.view", "announcements" -> "Notices"
-    "calendar.view" -> "Events"
     "academic-cycle" -> "Sessions"
     "fees" -> "Fees & Payments"
     else -> module.title
 }
 
-private val ACADEMIC_KEYS = setOf(
-    "students",
+/** Workspaces already represented by the task-oriented root navigation. */
+private val ROOT_WORKFLOW_KEYS = setOf(
+    "dashboard",
     "classes",
-    "subjects",
-    "curriculum",
+    "students",
     "attendance",
     "scores",
     "scores.entry",
+    "timetable",
+    "student.timetable",
+    "messages",
+    "notifications.view",
+    "announcements",
+    "calendar.view",
+)
+
+private val ACADEMIC_KEYS = setOf(
+    "subjects",
+    "curriculum",
     "reports",
     "report-cards",
     "results",
@@ -209,12 +224,7 @@ private val OPERATION_KEYS = setOf(
     "exports",
 )
 
-private val COMMUNICATION_KEYS = setOf(
-    "messages",
-    "notifications.view",
-    "announcements",
-    "calendar.view",
-)
+private val COMMUNICATION_KEYS = emptySet<String>()
 
 private val ACCOUNT_KEYS = setOf(
     "profile",
