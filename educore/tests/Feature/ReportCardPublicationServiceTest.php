@@ -143,6 +143,75 @@ class ReportCardPublicationServiceTest extends TestCase
         }
     }
 
+    public function test_bulk_publish_and_unpublish_reject_mixed_states_without_partial_changes(): void
+    {
+        [$tenant, $actor] = $this->school('Atomic Publication School');
+        $termId = 91;
+        $firstClass = 101;
+        $secondClass = 102;
+        $this->summary($tenant->id, $firstClass, $termId);
+        $this->summary($tenant->id, $secondClass, $termId);
+
+        DB::table('report_card_publications')->insert([
+            'tenant_id' => $tenant->id,
+            'class_arm_id' => $secondClass,
+            'term_id' => $termId,
+            'status' => 'published',
+            'published_at' => now(),
+            'published_by' => $actor->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(ReportCardPublicationService::class);
+        try {
+            $service->publishMany($tenant->id, [$firstClass, $secondClass], $termId, $actor);
+            $this->fail('A mixed-state bulk publication should have been rejected.');
+        } catch (ValidationException) {
+            $this->assertDatabaseMissing('report_card_publications', [
+                'tenant_id' => $tenant->id,
+                'class_arm_id' => $firstClass,
+                'term_id' => $termId,
+            ]);
+            $this->assertSame(0, DB::table('audit_logs')->where('action', 'report_cards.published')->count());
+        }
+
+        DB::table('report_card_publications')
+            ->where('tenant_id', $tenant->id)
+            ->where('class_arm_id', $secondClass)
+            ->where('term_id', $termId)
+            ->update(['status' => 'draft', 'updated_at' => now()]);
+        DB::table('report_card_publications')->insert([
+            'tenant_id' => $tenant->id,
+            'class_arm_id' => $firstClass,
+            'term_id' => $termId,
+            'status' => 'published',
+            'published_at' => now(),
+            'published_by' => $actor->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            $service->unpublishMany($tenant->id, [$firstClass, $secondClass], $termId, $actor);
+            $this->fail('A mixed-state bulk unpublish should have been rejected.');
+        } catch (ValidationException) {
+            $this->assertDatabaseHas('report_card_publications', [
+                'tenant_id' => $tenant->id,
+                'class_arm_id' => $firstClass,
+                'term_id' => $termId,
+                'status' => 'published',
+            ]);
+            $this->assertDatabaseHas('report_card_publications', [
+                'tenant_id' => $tenant->id,
+                'class_arm_id' => $secondClass,
+                'term_id' => $termId,
+                'status' => 'draft',
+            ]);
+            $this->assertSame(0, DB::table('audit_logs')->where('action', 'report_cards.unpublished')->count());
+        }
+    }
+
     public function test_publish_cannot_use_another_tenants_computed_summary(): void
     {
         [$localTenant, $localActor] = $this->school('Local Publication School');
