@@ -14,6 +14,7 @@ on:
       - 'educore/app/Http/Controllers/AdmissionController.php'
       - 'educore/app/Http/Controllers/PushNotificationController.php'
       - 'educore/app/Http/Controllers/RecruitmentController.php'
+      - 'educore/app/Http/Controllers/ReportCardComputeController.php'
       - 'educore/app/Http/Controllers/SelfDeployController.php'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Http/Controllers/StudentTransferController.php'
@@ -26,6 +27,7 @@ on:
       - 'educore/app/Models/StudentClassTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/app/Services/CrossSchoolStudentTransferService.php'
+      - 'educore/app/Services/ReportCardComputationService.php'
       - 'educore/app/Services/StudentClassTransferService.php'
       - 'educore/app/Services/Mobile/MobileDashboardService.php'
       - 'educore/app/Services/Mobile/MobileModuleService.php'
@@ -39,8 +41,10 @@ on:
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/routes/mobile-*.php'
+      - 'educore/routes/web-report-compute.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/WebReportComputeRouteTest.php'
       - 'educore/tests/Feature/IntraClassTransferTest.php'
       - 'educore/tests/Feature/SensitiveDocumentStorageTest.php'
       - 'educore/tests/Feature/StudentClassTransferTest.php'
@@ -112,6 +116,7 @@ jobs:
             tests/Feature/MobileReportComputationTest.php \
             tests/Feature/MobileTransfersTest.php \
             tests/Feature/MobileOperationsTest.php \
+            tests/Feature/WebReportComputeRouteTest.php \
             tests/Feature/IntraClassTransferTest.php \
             tests/Feature/SensitiveDocumentStorageTest.php \
             tests/Feature/StudentClassTransferTest.php \
