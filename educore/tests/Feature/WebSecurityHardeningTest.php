@@ -279,11 +279,11 @@ class WebSecurityHardeningTest extends TestCase
     private function portalRequest(string $method, string $url, string $name, ?string $app = null): Request
     {
         $request = Request::create($url, $method);
-        $route = new Route([$method], ltrim(parse_url($url, PHP_URL_PATH), '/'), fn () => response('ok'));
+        $path = ltrim((string) parse_url($url, PHP_URL_PATH), '/');
+        $uri = $app === null ? $path : preg_replace('#/[^/]+$#', '/{app}', $path);
+        $route = new Route([$method], $uri, fn () => response('ok'));
         $route->name($name);
-        if ($app !== null) {
-            $route->setParameter('app', $app);
-        }
+        $route->bind($request);
         $request->setRouteResolver(fn () => $route);
 
         return $request;
