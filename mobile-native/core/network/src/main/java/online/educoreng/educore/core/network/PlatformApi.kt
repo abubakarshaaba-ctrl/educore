@@ -1,5 +1,8 @@
 package online.educoreng.educore.core.network
 
+import online.educoreng.educore.core.network.dto.PlatformAgentCreateRequestDto
+import online.educoreng.educore.core.network.dto.PlatformAgentMutationResponseDto
+import online.educoreng.educore.core.network.dto.PlatformAgentUpdateRequestDto
 import online.educoreng.educore.core.network.dto.PlatformAgentsDto
 import online.educoreng.educore.core.network.dto.PlatformAnalyticsDto
 import online.educoreng.educore.core.network.dto.PlatformBillingDto
@@ -66,6 +69,15 @@ interface PlatformApi {
 
     @GET("platform/agents")
     suspend fun agents(): PlatformAgentsDto
+
+    @POST("platform/agents")
+    suspend fun createAgent(@Body body: PlatformAgentCreateRequestDto): PlatformAgentMutationResponseDto
+
+    @PATCH("platform/agents/{agent}")
+    suspend fun updateAgent(
+        @Path("agent") agent: Long,
+        @Body body: PlatformAgentUpdateRequestDto,
+    ): PlatformAgentMutationResponseDto
 
     @GET("platform/analytics")
     suspend fun analytics(): PlatformAnalyticsDto
