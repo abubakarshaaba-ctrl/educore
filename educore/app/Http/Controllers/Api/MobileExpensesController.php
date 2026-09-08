@@ -161,7 +161,7 @@ class MobileExpensesController extends Controller
             'title' => $expense->title,
             'category' => $expense->category,
             'amount' => (float) $expense->amount,
-            'expense_date' => (string) $expense->expense_date,
+            'expense_date' => $expense->expense_date?->toDateString(),
             'payment_method' => $expense->payment_method,
             'reference' => $expense->reference,
             'description' => $expense->description,
