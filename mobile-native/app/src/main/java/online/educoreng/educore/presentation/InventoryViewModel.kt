@@ -39,8 +39,11 @@ internal data class InventoryDraft(
     val status: String = "in_storage",
     val notes: String = "",
 ) {
+    val purchaseCostValid: Boolean
+        get() = purchaseCost.isBlank() || purchaseCost.trim().toDoubleOrNull()?.let { it >= 0.0 } == true
+
     val valid: Boolean
-        get() = name.isNotBlank() && condition.isNotBlank() && status.isNotBlank()
+        get() = name.isNotBlank() && condition.isNotBlank() && status.isNotBlank() && purchaseCostValid
 
     fun toRequest() = InventoryAssetRequestDto(
         name = name.trim(),
@@ -49,7 +52,7 @@ internal data class InventoryDraft(
         location = location.trim().ifBlank { null },
         assignedTo = assignedTo,
         purchaseDate = purchaseDate.trim().ifBlank { null },
-        purchaseCost = purchaseCost.trim().toDoubleOrNull(),
+        purchaseCost = purchaseCost.trim().takeIf { it.isNotBlank() }?.toDouble(),
         condition = condition,
         status = status,
         notes = notes.trim().ifBlank { null },
@@ -140,7 +143,19 @@ internal class InventoryViewModel @Inject constructor(
 
     fun save() {
         val state = _uiState.value
-        if (!state.canManage || !state.draft.valid || state.isSaving) return
+        if (!state.canManage || state.isSaving) return
+        if (!state.draft.valid) {
+            _uiState.update {
+                it.copy(
+                    errorMessage = if (!state.draft.purchaseCostValid) {
+                        "Purchase cost must be a valid non-negative number."
+                    } else {
+                        "Asset name, condition and status are required."
+                    }
+                )
+            }
+            return
+        }
         val draft = state.draft
 
         viewModelScope.launch {
@@ -171,7 +186,14 @@ internal class InventoryViewModel @Inject constructor(
             _uiState.update { it.copy(isSaving = true, errorMessage = null, message = null) }
             runCatching { api.delete(assetId) }
                 .onSuccess { response ->
-                    _uiState.update { it.copy(isSaving = false, message = response.message) }
+                    _uiState.update {
+                        it.copy(
+                            editorOpen = false,
+                            draft = InventoryDraft(),
+                            isSaving = false,
+                            message = response.message,
+                        )
+                    }
                     loadPage(reset = true, preserveMessage = true)
                 }
                 .onFailure { error ->
