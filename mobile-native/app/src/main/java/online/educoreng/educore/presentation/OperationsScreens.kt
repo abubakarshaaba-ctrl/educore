@@ -14,28 +14,29 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
-import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
+import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTabs
@@ -63,6 +64,39 @@ internal fun OperationsScreen(
         modifier = Modifier.fillMaxSize(),
         onRetry = onRetry,
     )
+
+    if (workspace.module.key.equals("admissions", ignoreCase = true)) {
+        val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
+        val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(workspace.module.key) {
+            if (admissionsState.workspace == null && !admissionsState.isLoading) {
+                admissionsViewModel.load()
+            }
+        }
+        AdmissionsScreen(
+            state = admissionsState,
+            onBack = onBack,
+            onQuery = admissionsViewModel::setSearch,
+            onSearch = admissionsViewModel::search,
+            onStatusFilter = admissionsViewModel::selectStatus,
+            onOpen = admissionsViewModel::open,
+            onCloseDetail = admissionsViewModel::closeDetail,
+            onLoadMore = admissionsViewModel::loadMore,
+            onStartCreate = admissionsViewModel::startCreate,
+            onCloseCreate = admissionsViewModel::closeCreate,
+            onCreateField = admissionsViewModel::updateCreate,
+            onCreateGender = admissionsViewModel::selectCreateGender,
+            onCreateClassLevel = admissionsViewModel::selectCreateClassLevel,
+            onCreate = admissionsViewModel::create,
+            onStatusDraft = admissionsViewModel::setStatusDraft,
+            onClassArmDraft = admissionsViewModel::setClassArmDraft,
+            onReviewNotes = admissionsViewModel::setReviewNotes,
+            onSaveStatus = admissionsViewModel::saveStatus,
+            onRetry = admissionsViewModel::load,
+        )
+        return
+    }
+
     val section = workspace.sections.getOrNull(state.selectedSection)
     val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
     val metricColumns = when (width) {
