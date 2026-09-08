@@ -104,9 +104,10 @@ internal fun StaffModulesHubScreen(
             onClass = reportsViewModel::selectClass,
             onTerm = reportsViewModel::selectTerm,
             onNote = reportsViewModel::updatePublicationNote,
+            onCompute = reportsViewModel::requestCompute,
             onPublish = reportsViewModel::requestPublish,
             onUnpublish = reportsViewModel::requestUnpublish,
-            onConfirm = reportsViewModel::confirmPublicationAction,
+            onConfirm = reportsViewModel::confirmManagementAction,
             onDismissConfirmation = reportsViewModel::dismissConfirmation,
             onRetry = reportsViewModel::load,
         )
