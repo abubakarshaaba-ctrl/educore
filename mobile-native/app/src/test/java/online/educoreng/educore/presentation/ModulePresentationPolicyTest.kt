@@ -14,6 +14,17 @@ class ModulePresentationPolicyTest {
     }
 
     @Test
+    fun staff_and_student_cbt_modules_are_native() {
+        listOf("cbt", "cbt-exams", "examinations", "student.exams").forEach { key ->
+            assertEquals(
+                "$key must remain native",
+                ModulePresentation.NATIVE,
+                ModulePresentationPolicy.presentationFor(key),
+            )
+        }
+    }
+
+    @Test
     fun generic_operations_module_is_native_generic() {
         assertEquals(
             ModulePresentation.NATIVE_GENERIC,
