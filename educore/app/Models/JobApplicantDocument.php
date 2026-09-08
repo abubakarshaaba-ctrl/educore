@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\SensitiveDocumentStorage;
+use Illuminate\Support\Facades\Log;
+
 class JobApplicantDocument extends BaseTenantModel
 {
     protected $fillable = [
@@ -12,6 +15,28 @@ class JobApplicantDocument extends BaseTenantModel
     protected function casts(): array
     {
         return ['verified_at' => 'datetime'];
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (self $document): void {
+            try {
+                $result = app(SensitiveDocumentStorage::class)->migrateToPrivate($document->file_path);
+                if (in_array($result, ['failed', 'invalid', 'missing'], true)) {
+                    Log::warning('Recruitment document could not be secured in private storage.', [
+                        'document_id' => $document->id,
+                        'tenant_id' => $document->tenant_id,
+                        'result' => $result,
+                    ]);
+                }
+            } catch (\Throwable $exception) {
+                Log::error('Recruitment document private-storage migration failed.', [
+                    'document_id' => $document->id,
+                    'tenant_id' => $document->tenant_id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
     }
 
     public function applicant()
