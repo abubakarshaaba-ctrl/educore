@@ -9,17 +9,23 @@ use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\User;
+use App\Services\GuardianNotifier;
 use App\Services\LifecycleAuditLogger;
+use App\Services\ReportCardComputationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MobileReportsController extends Controller
 {
-    public function __construct(private readonly LifecycleAuditLogger $auditLogger)
-    {
+    public function __construct(
+        private readonly LifecycleAuditLogger $auditLogger,
+        private readonly ReportCardComputationService $computation,
+        private readonly GuardianNotifier $guardianNotifier,
+    ) {
     }
 
     public function index(Request $request): JsonResponse
@@ -81,14 +87,14 @@ class MobileReportsController extends Controller
         }
 
         return response()->json([
-            'contract_version' => 1,
+            'contract_version' => 2,
             'module' => [
                 'key' => 'reports',
                 'title' => 'Report Cards',
             ],
             'capabilities' => [
                 'view' => true,
-                'compute' => false,
+                'compute' => $this->canPublish($user),
                 'publish' => $this->canPublish($user),
                 'unpublish' => $this->canPublish($user),
                 'edit_remarks' => $user->canAccessModule('reports.remarks'),
@@ -131,22 +137,38 @@ class MobileReportsController extends Controller
         ]);
     }
 
+    public function compute(Request $request): JsonResponse
+    {
+        $user = $this->guard($request);
+        abort_unless($this->canPublish($user), 403, 'Only academic administrators can compute report cards.');
+        $tenantId = (int) $user->tenant_id;
+        $data = $this->validateSelection($request, $tenantId);
+
+        $published = ReportCardPublication::where('tenant_id', $tenantId)
+            ->where('class_arm_id', (int) $data['class_arm_id'])
+            ->where('term_id', (int) $data['term_id'])
+            ->where('status', 'published')
+            ->exists();
+        abort_if($published, 423, 'These report cards are published. Return them to draft before recomputing.');
+
+        $computed = $this->computation->compute(
+            $tenantId,
+            (int) $data['class_arm_id'],
+            (int) $data['term_id'],
+        );
+
+        return response()->json([
+            'message' => "{$computed} report card(s) computed.",
+            'computed' => $computed,
+        ]);
+    }
+
     public function publish(Request $request): JsonResponse
     {
         $user = $this->guard($request);
         abort_unless($this->canPublish($user), 403, 'Only academic administrators can publish report cards.');
         $tenantId = (int) $user->tenant_id;
-        $data = $request->validate([
-            'class_arm_id' => [
-                'required', 'integer',
-                Rule::exists('class_arms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
-            ],
-            'term_id' => [
-                'required', 'integer',
-                Rule::exists('terms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
-            ],
-            'note' => ['nullable', 'string', 'max:2000'],
-        ]);
+        $data = $this->validateSelection($request, $tenantId, includeNote: true);
 
         $computed = TermlySummary::where('tenant_id', $tenantId)
             ->where('class_arm_id', (int) $data['class_arm_id'])
@@ -207,9 +229,17 @@ class MobileReportsController extends Controller
             return $publication->fresh(['publishedBy:id,name']);
         });
 
+        $notified = $this->notifyPublishedResults(
+            $tenantId,
+            (int) $data['class_arm_id'],
+            (int) $data['term_id'],
+            $user,
+        );
+
         return response()->json([
             'message' => 'Report cards published. Parent and student result access is now unlocked.',
             'publication' => $this->publicationPayload($publication),
+            'guardians_notified' => $notified,
         ]);
     }
 
@@ -218,16 +248,7 @@ class MobileReportsController extends Controller
         $user = $this->guard($request);
         abort_unless($this->canPublish($user), 403, 'Only academic administrators can unpublish report cards.');
         $tenantId = (int) $user->tenant_id;
-        $data = $request->validate([
-            'class_arm_id' => [
-                'required', 'integer',
-                Rule::exists('class_arms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
-            ],
-            'term_id' => [
-                'required', 'integer',
-                Rule::exists('terms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
-            ],
-        ]);
+        $data = $this->validateSelection($request, $tenantId);
 
         $publication = DB::transaction(function () use ($tenantId, $user, $data, $request): ReportCardPublication {
             $publication = ReportCardPublication::where('tenant_id', $tenantId)
@@ -274,6 +295,68 @@ class MobileReportsController extends Controller
             'message' => 'Report cards returned to draft. Score entry is unlocked again.',
             'publication' => $this->publicationPayload($publication),
         ]);
+    }
+
+    private function validateSelection(Request $request, int $tenantId, bool $includeNote = false): array
+    {
+        $rules = [
+            'class_arm_id' => [
+                'required', 'integer',
+                Rule::exists('class_arms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
+            'term_id' => [
+                'required', 'integer',
+                Rule::exists('terms', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
+        ];
+        if ($includeNote) {
+            $rules['note'] = ['nullable', 'string', 'max:2000'];
+        }
+
+        return $request->validate($rules);
+    }
+
+    private function notifyPublishedResults(int $tenantId, int $classArmId, int $termId, User $actor): int
+    {
+        if (!Schema::hasTable('guardians') || !Schema::hasTable('guardian_student')) {
+            return 0;
+        }
+
+        $term = Term::where('tenant_id', $tenantId)->whereKey($termId)->first();
+        $schoolName = $actor->tenant?->name;
+        $summaries = TermlySummary::where('tenant_id', $tenantId)
+            ->where('class_arm_id', $classArmId)
+            ->where('term_id', $termId)
+            ->with('student.guardians')
+            ->get();
+        $notified = 0;
+        foreach ($summaries as $summary) {
+            $student = $summary->student;
+            if (!$student) {
+                continue;
+            }
+            $guardian = $student->guardians->firstWhere('pivot.is_primary_contact', true)
+                ?? $student->guardians->first();
+            if (!$guardian) {
+                continue;
+            }
+
+            $this->guardianNotifier->send(
+                $guardian,
+                'Results published — '.$student->full_name,
+                [
+                    ($term?->name ?? 'Term').' results for '.$student->full_name.' are now available.',
+                    'Sign in to the parent portal to view the full report card.',
+                ],
+                smsBody: 'Dear Parent, '.$student->full_name.'\'s '.($term?->name ?? 'term').' results are now available on the EduCore parent portal.',
+                actionLabel: 'View Results',
+                actionUrl: route('login'),
+                schoolName: $schoolName,
+            );
+            $notified++;
+        }
+
+        return $notified;
     }
 
     private function summaryPayload(TermlySummary $summary): array
