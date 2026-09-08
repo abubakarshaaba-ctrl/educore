@@ -17,6 +17,7 @@ class MobileModuleService
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
         'staff-attendance' => ['Staff Attendance', '/staff-attendance/my', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
+        'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
         'reports' => ['Report Cards', '/reports', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
