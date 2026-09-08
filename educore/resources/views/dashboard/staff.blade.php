@@ -78,7 +78,6 @@ tbody tr:last-child td{border-bottom:none}
 @endpush
 @section('content')
 
-{{-- ── Welcome banner ─────────────────────────────────────────────── --}}
 <div class="welcome-banner">
     <div>
         <div class="wb-greeting">Good {{ hour() < 12 ? 'Morning' : (hour() < 17 ? 'Afternoon' : 'Evening') }}, {{ explode(' ', $user->name)[0] }} 👋</div>
@@ -88,9 +87,9 @@ tbody tr:last-child td{border-bottom:none}
 </div>
 @php
 function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
+$canOpenSkillRatings = $user->canAccessModule('skills') && ($formClass || $user->canAccessExactModule('students'));
 @endphp
 
-{{-- ── Form Class card (if assigned) ─────────────────────────────── --}}
 @if($formClass)
 <div class="class-card">
     <div class="class-card-head">
@@ -131,7 +130,7 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
             @can('attendance')
             <a href="{{ route('attendance.index') }}" class="btn" style="font-size:12px;padding:7px 14px;background:var(--indigo);color:white;text-decoration:none;border-radius:8px">📋 Mark Attendance</a>
             @endcan
-            @if($user->canAccessModule('skills'))
+            @if($canOpenSkillRatings)
             <a href="{{ route('skills.index') }}" class="btn" style="font-size:12px;padding:7px 14px;background:white;border:1px solid var(--border);color:var(--midnight);text-decoration:none;border-radius:8px">⭐ Skill Ratings</a>
             @endif
             @if($user->canAccessModule('scores.view'))
@@ -146,7 +145,6 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
 </div>
 @endif
 
-{{-- ── Quick links ──────────────────────────────────────────────── --}}
 <div class="quick-links" style="margin-bottom:16px">
     @if($user->canAccessModule('scores.entry'))
     <a href="{{ route('scores.index') }}" class="ql"><div class="ql-icon">✏️</div><div class="ql-label">Score Entry</div></a>
@@ -154,7 +152,7 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
     @if($user->canAccessModule('attendance'))
     <a href="{{ route('attendance.index') }}" class="ql"><div class="ql-icon">📋</div><div class="ql-label">Attendance</div></a>
     @endif
-    @if($user->canAccessModule('skills'))
+    @if($canOpenSkillRatings)
     <a href="{{ route('skills.index') }}" class="ql"><div class="ql-icon">⭐</div><div class="ql-label">Skill Ratings</div></a>
     @endif
     @if($user->canAccessModule('timetable.view') || $user->canAccessModule('timetable'))
@@ -166,7 +164,6 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
     <a href="{{ route('staff-attendance.my') }}" class="ql"><div class="ql-icon">🕐</div><div class="ql-label">My Attendance</div></a>
 </div>
 
-{{-- ── Subjects I teach ─────────────────────────────────────────── --}}
 <div class="card">
     <div class="card-head">
         📚 My Subjects
@@ -210,7 +207,6 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
     @endif
 </div>
 
-{{-- ── Live CBT exams ────────────────────────────────────────────── --}}
 @if($pendingExams->isNotEmpty())
 <div class="card">
     <div class="card-head">
@@ -234,7 +230,6 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
 </div>
 @endif
 
-{{-- ── Announcements ────────────────────────────────────────────── --}}
 @if(!empty($announcements) && count($announcements))
 <div class="card">
     <div class="card-head">📢 Announcements</div>
