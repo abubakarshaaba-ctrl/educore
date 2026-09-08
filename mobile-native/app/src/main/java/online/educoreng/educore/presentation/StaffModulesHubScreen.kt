@@ -2,24 +2,30 @@ package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -59,34 +65,72 @@ internal fun StaffModulesHubScreen(
     val cbtViewModel: StaffCbtViewModel = hiltViewModel()
     val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
+    var cbtCreating by rememberSaveable { mutableStateOf(false) }
     var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
 
+    LaunchedEffect(cbtState.createdExamId) {
+        cbtState.createdExamId?.let { examId ->
+            cbtCreating = false
+            cbtExamId = examId
+            cbtViewModel.consumeCreatedExam()
+            cbtViewModel.openExam(examId)
+        }
+    }
+
     if (cbtOpen) {
-        if (cbtExamId > 0L) {
-            StaffCbtDetailScreen(
-                state = cbtState,
-                onBack = {
-                    cbtExamId = 0L
-                    cbtViewModel.load()
-                },
-                onPublish = cbtViewModel::publish,
-                onClose = cbtViewModel::close,
-                onReschedule = cbtViewModel::reschedule,
-                onRetry = { cbtViewModel.openExam(cbtExamId) },
-            )
-        } else {
-            StaffCbtListScreen(
-                state = cbtState,
-                onBack = { cbtOpen = false },
-                onQuery = cbtViewModel::setQuery,
-                onSearch = cbtViewModel::search,
-                onStatus = cbtViewModel::selectStatus,
-                onOpen = { examId ->
-                    cbtExamId = examId
-                    cbtViewModel.openExam(examId)
-                },
-                onRetry = cbtViewModel::load,
-            )
+        when {
+            cbtCreating -> {
+                StaffCbtCreateScreen(
+                    state = cbtState,
+                    onBack = { cbtCreating = false },
+                    onCreate = cbtViewModel::createExam,
+                    onRetry = cbtViewModel::loadCreateOptions,
+                )
+            }
+            cbtExamId > 0L -> {
+                StaffCbtDetailScreen(
+                    state = cbtState,
+                    onBack = {
+                        cbtExamId = 0L
+                        cbtViewModel.load()
+                    },
+                    onPublish = cbtViewModel::publish,
+                    onClose = cbtViewModel::close,
+                    onReschedule = cbtViewModel::reschedule,
+                    onRetry = { cbtViewModel.openExam(cbtExamId) },
+                )
+            }
+            else -> {
+                Box(Modifier.fillMaxSize()) {
+                    StaffCbtListScreen(
+                        state = cbtState,
+                        onBack = { cbtOpen = false },
+                        onQuery = cbtViewModel::setQuery,
+                        onSearch = cbtViewModel::search,
+                        onStatus = cbtViewModel::selectStatus,
+                        onOpen = { examId ->
+                            cbtExamId = examId
+                            cbtViewModel.openExam(examId)
+                        },
+                        onRetry = cbtViewModel::load,
+                    )
+                    if (cbtState.capabilities.createExam) {
+                        FloatingActionButton(
+                            onClick = {
+                                cbtCreating = true
+                                cbtViewModel.loadCreateOptions()
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(eduCoreScreenPadding()),
+                            containerColor = EduCoreColors.Gold500,
+                            contentColor = EduCoreColors.Navy900,
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Create examination")
+                        }
+                    }
+                }
+            }
         }
         return
     }
@@ -103,6 +147,7 @@ internal fun StaffModulesHubScreen(
     fun openModule(module: ModuleDescriptor) {
         if (module.key.lowercase() in CBT_MODULE_KEYS) {
             cbtExamId = 0L
+            cbtCreating = false
             cbtOpen = true
             cbtViewModel.load()
         } else {
