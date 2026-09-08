@@ -6,18 +6,25 @@ data class TransferCapabilitiesDto(
     @param:Json(name = "cross_school_request") val crossSchoolRequest: Boolean = false,
     @param:Json(name = "cross_school_approve") val crossSchoolApprove: Boolean = false,
     @param:Json(name = "cross_school_reject") val crossSchoolReject: Boolean = false,
+    @param:Json(name = "intra_class_view") val intraClassView: Boolean = false,
+    @param:Json(name = "intra_class_request") val intraClassRequest: Boolean = false,
+    @param:Json(name = "intra_class_approve") val intraClassApprove: Boolean = false,
+    @param:Json(name = "intra_class_reject") val intraClassReject: Boolean = false,
+    @param:Json(name = "intra_class_cancel") val intraClassCancel: Boolean = false,
     @param:Json(name = "interclass_view") val interclassView: Boolean = false,
     @param:Json(name = "interclass_request") val interclassRequest: Boolean = false,
     @param:Json(name = "interclass_approve") val interclassApprove: Boolean = false,
     @param:Json(name = "interclass_reject") val interclassReject: Boolean = false,
     @param:Json(name = "interclass_cancel") val interclassCancel: Boolean = false,
-    @param:Json(name = "interclass_mobile_mutation") val interclassMobileMutation: Boolean = false,
+    @param:Json(name = "class_transfer_mobile_mutation") val classTransferMobileMutation: Boolean = false,
 )
 
 data class TransferMetricsDto(
     @param:Json(name = "cross_outgoing") val crossOutgoing: Int = 0,
     @param:Json(name = "cross_incoming") val crossIncoming: Int = 0,
     @param:Json(name = "cross_pending") val crossPending: Int = 0,
+    @param:Json(name = "intra_class_pending") val intraClassPending: Int = 0,
+    @param:Json(name = "intra_class_completed") val intraClassCompleted: Int = 0,
     @param:Json(name = "interclass_pending") val interclassPending: Int = 0,
     @param:Json(name = "interclass_completed") val interclassCompleted: Int = 0,
 )
@@ -39,11 +46,14 @@ data class CrossSchoolTransferDto(
 
 data class InterclassTransferDto(
     val id: Long,
+    @param:Json(name = "movement_type") val movementType: String = "interclass",
     @param:Json(name = "student_id") val studentId: Long,
     @param:Json(name = "student_name") val studentName: String,
     @param:Json(name = "admission_number") val admissionNumber: String? = null,
     @param:Json(name = "from_class") val fromClass: String? = null,
     @param:Json(name = "to_class") val toClass: String? = null,
+    @param:Json(name = "from_class_level_id") val fromClassLevelId: Long? = null,
+    @param:Json(name = "to_class_level_id") val toClassLevelId: Long? = null,
     @param:Json(name = "effective_date") val effectiveDate: String? = null,
     val status: String,
     val reason: String? = null,
@@ -62,11 +72,13 @@ data class TransferStudentOptionDto(
     val name: String,
     @param:Json(name = "admission_number") val admissionNumber: String? = null,
     @param:Json(name = "class_arm_id") val classArmId: Long? = null,
+    @param:Json(name = "class_level_id") val classLevelId: Long? = null,
 )
 
 data class TransferClassOptionDto(
     val id: Long,
     val name: String,
+    @param:Json(name = "class_level_id") val classLevelId: Long? = null,
 )
 
 data class TransferOptionsDto(
@@ -80,6 +92,7 @@ data class TransfersWorkspaceDto(
     val capabilities: TransferCapabilitiesDto = TransferCapabilitiesDto(),
     val metrics: TransferMetricsDto = TransferMetricsDto(),
     @param:Json(name = "cross_school") val crossSchool: List<CrossSchoolTransferDto> = emptyList(),
+    @param:Json(name = "intra_class") val intraClass: List<InterclassTransferDto> = emptyList(),
     val interclass: List<InterclassTransferDto> = emptyList(),
     val options: TransferOptionsDto = TransferOptionsDto(),
 )
