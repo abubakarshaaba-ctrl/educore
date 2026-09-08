@@ -100,7 +100,11 @@ class StaffAttendanceApiController extends Controller
             'year'   => $year,
             'counts' => [
                 'early'   => $records->where('status', 'early')->count(),
-                'present' => $records->where('status', 'present')->count(),
+                // The native dashboard exposes Present, Late and Absent as its
+                // headline buckets. An early arrival is still an on-time
+                // presence, so include it in Present instead of showing 0 when
+                // the user's only attendance record is classified as early.
+                'present' => $records->whereIn('status', ['early', 'present'])->count(),
                 'late'    => $records->where('status', 'late')->count(),
                 'absent'  => $records->where('status', 'absent')->count(),
             ],
