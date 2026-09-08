@@ -81,7 +81,30 @@ internal fun OperationsScreen(
     }
 
     if (workspace.module.key.equals("library", ignoreCase = true)) {
-        LibraryScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        val libraryManagementViewModel: LibraryManagementViewModel = hiltViewModel()
+        val libraryManagementState by libraryManagementViewModel.uiState.collectAsStateWithLifecycle()
+        LaunchedEffect(libraryManagementState.refreshVersion) {
+            if (libraryManagementState.refreshVersion > 0) {
+                onRetry()
+                libraryManagementViewModel.consumeRefresh()
+            }
+        }
+        LibraryScreen(
+            state = state,
+            management = libraryManagementState,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+            onOpenIssue = libraryManagementViewModel::openIssue,
+            onCloseIssue = libraryManagementViewModel::closeIssue,
+            onBook = libraryManagementViewModel::selectBook,
+            onBorrowerType = libraryManagementViewModel::selectBorrowerType,
+            onBorrower = libraryManagementViewModel::selectBorrower,
+            onDueDate = libraryManagementViewModel::setDueDate,
+            onNotes = libraryManagementViewModel::setNotes,
+            onIssue = libraryManagementViewModel::issue,
+            onReturn = libraryManagementViewModel::returnLoan,
+        )
         return
     }
 
