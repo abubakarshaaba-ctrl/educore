@@ -33,6 +33,7 @@ class MobileModuleService
         'inventory' => ['Inventory', '/inventory', 'inventory'],
         'hostels' => ['Hostels', '/hostels', 'hostels'],
         'analytics' => ['Analytics', '/analytics', 'analytics'],
+        'risk' => ['Risk Flags', '/risk', 'risk'],
         'exports' => ['Exports', '/exports', 'exports'],
         'cbt' => ['CBT', '/cbt', 'cbt'],
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
