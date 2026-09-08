@@ -51,12 +51,13 @@ internal class StaffDirectoryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StaffDirectoryUiState())
     val uiState: StateFlow<StaffDirectoryUiState> = _uiState.asStateFlow()
     private var searchJob: Job? = null
+    private var requestJob: Job? = null
 
     fun load() = loadPage(reset = true)
 
     fun loadMore() {
         val state = _uiState.value
-        if (!state.hasMore || state.isLoading || state.isLoadingMore) return
+        if (!state.hasMore || state.isLoading || state.isLoadingMore || requestJob?.isActive == true) return
         loadPage(reset = false)
     }
 
@@ -78,14 +79,17 @@ internal class StaffDirectoryViewModel @Inject constructor(
 
     private fun loadPage(reset: Boolean) {
         val snapshot = _uiState.value
-        if (reset && snapshot.isLoading) return
-        if (!reset && snapshot.isLoadingMore) return
+        if (!reset && (snapshot.isLoadingMore || requestJob?.isActive == true)) return
+
+        if (reset) {
+            requestJob?.cancel()
+        }
 
         val targetPage = if (reset) 1 else snapshot.page + 1
         val query = snapshot.query.trim().takeIf(String::isNotBlank)
         val status = snapshot.filter.wireValue
 
-        viewModelScope.launch {
+        requestJob = viewModelScope.launch {
             _uiState.update {
                 if (reset) {
                     it.copy(isLoading = true, isLoadingMore = false, errorMessage = null)
