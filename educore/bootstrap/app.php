@@ -10,20 +10,6 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-        then: function (): void {
-            // Deployment control-plane endpoint. Register it in the stateless
-            // API middleware group so direct server/API calls do not depend on
-            // a browser session or CSRF cookie. The controller performs its own
-            // constant-time deploy-token authentication.
-            \Illuminate\Support\Facades\Route::middleware('api')
-                ->prefix('api')
-                ->group(function (): void {
-                    \Illuminate\Support\Facades\Route::post('deploy/commit', [
-                        \App\Http\Controllers\GitHubCommitController::class,
-                        'commit',
-                    ])->middleware('throttle:2,1');
-                });
-        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Trust Cloudflare (and any other reverse proxy) so X-Forwarded-Proto/Host/IP are read correctly
