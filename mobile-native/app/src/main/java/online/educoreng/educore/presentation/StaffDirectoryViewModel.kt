@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,30 +27,19 @@ internal data class StaffDirectoryUiState(
     val members: List<StaffDirectoryMemberDto> = emptyList(),
     val query: String = "",
     val filter: StaffDirectoryFilter = StaffDirectoryFilter.ALL,
+    val totalCount: Int = 0,
+    val activeCount: Int = 0,
+    val inactiveCount: Int = 0,
+    val page: Int = 1,
+    val lastPage: Int = 1,
+    val hasMore: Boolean = false,
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
     val savingMemberId: Long? = null,
     val errorMessage: String? = null,
     val message: String? = null,
 ) {
-    val visibleMembers: List<StaffDirectoryMemberDto>
-        get() {
-            val needle = query.trim()
-            return members.filter { member ->
-                val matchesStatus = when (filter) {
-                    StaffDirectoryFilter.ALL -> true
-                    StaffDirectoryFilter.ACTIVE -> member.active
-                    StaffDirectoryFilter.INACTIVE -> !member.active
-                }
-                val matchesQuery = needle.isBlank() ||
-                    member.name.contains(needle, ignoreCase = true) ||
-                    member.staffId?.contains(needle, ignoreCase = true) == true ||
-                    member.role.contains(needle, ignoreCase = true)
-                matchesStatus && matchesQuery
-            }
-        }
-
-    val activeCount: Int get() = members.count(StaffDirectoryMemberDto::active)
-    val inactiveCount: Int get() = members.size - activeCount
+    val visibleMembers: List<StaffDirectoryMemberDto> get() = members
 }
 
 @HiltViewModel
@@ -58,29 +49,87 @@ internal class StaffDirectoryViewModel @Inject constructor(
     private val api: StaffAdminApi = factory.create(StaffAdminApi::class.java)
     private val _uiState = MutableStateFlow(StaffDirectoryUiState())
     val uiState: StateFlow<StaffDirectoryUiState> = _uiState.asStateFlow()
+    private var searchJob: Job? = null
 
-    fun load() {
-        if (_uiState.value.isLoading) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            runCatching { api.staff() }
-                .onSuccess { response ->
-                    _uiState.update {
-                        it.copy(
-                            members = response.staff.sortedBy { member -> member.name.lowercase() },
-                            isLoading = false,
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false, errorMessage = error.staffDirectoryMessage()) }
-                }
+    fun load() = loadPage(reset = true)
+
+    fun loadMore() {
+        val state = _uiState.value
+        if (!state.hasMore || state.isLoading || state.isLoadingMore) return
+        loadPage(reset = false)
+    }
+
+    fun setQuery(value: String) {
+        _uiState.update { it.copy(query = value) }
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(350)
+            loadPage(reset = true)
         }
     }
 
-    fun setQuery(value: String) = _uiState.update { it.copy(query = value) }
+    fun setFilter(value: StaffDirectoryFilter) {
+        if (_uiState.value.filter == value) return
+        _uiState.update { it.copy(filter = value) }
+        searchJob?.cancel()
+        loadPage(reset = true)
+    }
 
-    fun setFilter(value: StaffDirectoryFilter) = _uiState.update { it.copy(filter = value) }
+    private fun loadPage(reset: Boolean) {
+        val snapshot = _uiState.value
+        if (reset && snapshot.isLoading) return
+        if (!reset && snapshot.isLoadingMore) return
+
+        val targetPage = if (reset) 1 else snapshot.page + 1
+        val query = snapshot.query.trim().takeIf(String::isNotBlank)
+        val status = snapshot.filter.wireValue
+
+        viewModelScope.launch {
+            _uiState.update {
+                if (reset) {
+                    it.copy(isLoading = true, isLoadingMore = false, errorMessage = null)
+                } else {
+                    it.copy(isLoadingMore = true, errorMessage = null)
+                }
+            }
+
+            runCatching {
+                api.staff(
+                    query = query,
+                    status = status,
+                    page = targetPage,
+                    perPage = PAGE_SIZE,
+                )
+            }.onSuccess { response ->
+                _uiState.update { state ->
+                    val merged = if (reset) {
+                        response.staff
+                    } else {
+                        (state.members + response.staff).distinctBy(StaffDirectoryMemberDto::id)
+                    }
+                    state.copy(
+                        members = merged,
+                        totalCount = response.counts.total,
+                        activeCount = response.counts.active,
+                        inactiveCount = response.counts.inactive,
+                        page = response.meta.page,
+                        lastPage = response.meta.lastPage,
+                        hasMore = response.meta.hasMore,
+                        isLoading = false,
+                        isLoadingMore = false,
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        errorMessage = error.staffDirectoryMessage(),
+                    )
+                }
+            }
+        }
+    }
 
     fun setActive(member: StaffDirectoryMemberDto, active: Boolean) {
         if (_uiState.value.savingMemberId != null || member.active == active) return
@@ -98,6 +147,7 @@ internal class StaffDirectoryViewModel @Inject constructor(
                         message = response.message,
                     )
                 }
+                loadPage(reset = true)
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(savingMemberId = null, errorMessage = error.staffDirectoryMessage())
@@ -108,6 +158,17 @@ internal class StaffDirectoryViewModel @Inject constructor(
 
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
     fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+
+    private val StaffDirectoryFilter.wireValue: String
+        get() = when (this) {
+            StaffDirectoryFilter.ALL -> "all"
+            StaffDirectoryFilter.ACTIVE -> "active"
+            StaffDirectoryFilter.INACTIVE -> "inactive"
+        }
+
+    private companion object {
+        const val PAGE_SIZE = 50
+    }
 }
 
 private fun Throwable.staffDirectoryMessage(): String = when (this) {
