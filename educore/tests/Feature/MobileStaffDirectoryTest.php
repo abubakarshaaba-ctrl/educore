@@ -44,7 +44,7 @@ class MobileStaffDirectoryTest extends TestCase
             'password' => bcrypt('password'),
             'role' => 'admin',
             'is_active' => true,
-            'employment_status' => 'active',
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -56,13 +56,14 @@ class MobileStaffDirectoryTest extends TestCase
             'password' => bcrypt('password'),
             'role' => 'subject_teacher',
             'is_active' => true,
-            'employment_status' => 'active',
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
         $rows = [];
         for ($i = 1; $i <= 58; $i++) {
+            $active = $i % 4 !== 0;
             $rows[] = [
                 'tenant_id' => $this->tenantId,
                 'name' => sprintf('Staff Member %02d', $i),
@@ -70,9 +71,9 @@ class MobileStaffDirectoryTest extends TestCase
                 'email' => sprintf('staff%02d@example.test', $i),
                 'phone' => sprintf('0800000%04d', $i),
                 'password' => bcrypt('password'),
-                'role' => 'teacher',
-                'is_active' => $i % 4 !== 0,
-                'employment_status' => $i % 4 !== 0 ? 'active' : 'inactive',
+                'role' => 'subject_teacher',
+                'is_active' => $active,
+                'employment_status' => $active ? User::STAFF_STATUS_ACTIVE : User::STAFF_STATUS_LEFT,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -86,9 +87,9 @@ class MobileStaffDirectoryTest extends TestCase
             'email' => 'foreign.staff@example.test',
             'phone' => '08009999999',
             'password' => bcrypt('password'),
-            'role' => 'teacher',
+            'role' => 'subject_teacher',
             'is_active' => true,
-            'employment_status' => 'active',
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
