@@ -21,6 +21,7 @@ class MobileModuleService
         'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
         'reports' => ['Report Cards', '/reports', 'reports'],
+        'gradebook' => ['Gradebook & Remarks', '/gradebook', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
@@ -100,6 +101,22 @@ class MobileModuleService
                         return false;
                     }
                     if ($user->canAccessExactModule('students')) {
+                        return true;
+                    }
+
+                    return ClassArm::where('tenant_id', $user->tenant_id)
+                        ->where('form_tutor_id', $user->id)
+                        ->exists();
+                }
+
+                if ($key === 'gradebook') {
+                    $hasPermission = $user->canAccessExactModule('gradebook')
+                        || $user->canAccessExactModule('reports')
+                        || $user->canAccessModule('reports.remarks');
+                    if (!$hasPermission) {
+                        return false;
+                    }
+                    if ($user->canAccessExactModule('students') || $user->canAccessExactModule('reports')) {
                         return true;
                     }
 
