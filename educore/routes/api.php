@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
+use App\Http\Controllers\Api\MobileStaffDirectoryController;
 use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PushController;
@@ -183,7 +184,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admin')->group(function () {
             Route::get('dashboard', [AdminController::class, 'dashboard']);
             Route::get('students', [AdminController::class, 'students']);
-            Route::get('staff', [AdminController::class, 'staff']);
+            Route::get('staff', MobileStaffDirectoryController::class);
             Route::get('academics', [AdminController::class, 'academics']);
             Route::get('finance', [AdminController::class, 'finance']);
             Route::patch('students/{student}', [AdminController::class, 'updateStudent']);
