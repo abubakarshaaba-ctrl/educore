@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -171,13 +172,13 @@ class MobilePlatformExtendedTest extends TestCase
     {
         $tenant = $this->tenant('Grouped School');
         $this->student($tenant->id, 'AN001');
-        $groupId = Schema::getConnection()->table('school_groups')->insertGetId([
+        $groupId = DB::table('school_groups')->insertGetId([
             'name' => 'Northern Schools',
             'slug' => 'northern-schools',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        Schema::getConnection()->table('school_group_members')->insert([
+        DB::table('school_group_members')->insert([
             'group_id' => $groupId,
             'tenant_id' => $tenant->id,
             'role' => 'lead',
