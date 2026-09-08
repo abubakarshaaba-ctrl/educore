@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApiToken;
+use App\Models\PushSubscription;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentStatusHistory;
@@ -13,6 +14,7 @@ use App\Models\TransportAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -173,8 +175,6 @@ class CrossSchoolStudentTransferService
                 'religion' => $sourceStudent->religion,
                 'blood_group' => $sourceStudent->blood_group,
                 'genotype' => $sourceStudent->genotype,
-                // Do not inherit a source-school storage path across tenant
-                // boundaries. The receiving school may upload its own passport.
                 'passport_photo_path' => null,
                 'current_class_arm_id' => null,
                 'status' => Student::STATUS_ACTIVE,
@@ -204,7 +204,6 @@ class CrossSchoolStudentTransferService
                 ->where('is_active', true)
                 ->update(['is_active' => false]);
 
-            // A transport assignment is operational state, not academic history.
             TransportAssignment::withoutTenantScope()
                 ->where('tenant_id', $transfer->from_tenant_id)
                 ->where('student_id', $sourceStudent->id)
@@ -358,5 +357,15 @@ class CrossSchoolStudentTransferService
             ->update(['is_active' => false]);
 
         ApiToken::whereIn('user_id', $userIds)->delete();
+
+        // Browser/web-push subscriptions are independent from API bearer tokens.
+        // Disable them too so a transferred student cannot continue receiving
+        // source-school push notifications after portal access is revoked.
+        if (Schema::hasTable('push_subscriptions')) {
+            PushSubscription::withoutTenantScope()
+                ->where('tenant_id', $sourceTenantId)
+                ->whereIn('user_id', $userIds)
+                ->update(['is_active' => false]);
+        }
     }
 }
