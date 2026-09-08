@@ -101,7 +101,6 @@ class AdmissionController extends Controller
             'decision_date' => now()->toDateString(),
         ]);
 
-        // If admitted → create student record
         if ($data['status'] === 'admitted' && !$admission->enrolled_as_student_id) {
             $this->enrollStudent($admission, $data['class_arm_id'] ?? null);
         }
@@ -158,7 +157,6 @@ class AdmissionController extends Controller
             $tenant  = auth()->user()->tenant;
             $session = \App\Models\AcademicSession::where('is_current', true)->first();
 
-            // Generate admission number scoped to this tenant to avoid cross-tenant collisions
             $maxNum = Student::withoutTenantScope()
                 ->where('tenant_id', $tenant->id)
                 ->whereRaw("admission_number REGEXP '^STU[0-9]+$'")
@@ -180,7 +178,6 @@ class AdmissionController extends Controller
                 'admission_date'       => now(),
             ]);
 
-            // Split guardian_name into first/last
             $nameParts  = explode(' ', trim($admission->guardian_name), 2);
             $firstName  = $nameParts[0];
             $lastName   = $nameParts[1] ?? '';
@@ -195,7 +192,6 @@ class AdmissionController extends Controller
                 'occupation'   => $admission->guardian_occupation,
                 'address'      => $admission->guardian_address,
             ]);
-            // Link guardian to student via pivot (not a direct FK on guardian)
             $student->guardians()->attach($guardian->id, ['is_primary_contact' => true, 'tenant_id' => $tenant->id]);
 
             $admission->update(['enrolled_as_student_id' => $student->id]);
@@ -232,7 +228,6 @@ class AdmissionController extends Controller
         return redirect()->route('admissions.index')->with('success', 'Application deleted.');
     }
 
-    // ── Schedule Interview ────────────────────────────────────────────
     public function scheduleInterview(Request $request, Admission $admission)
     {
         $data = $request->validate([
@@ -273,7 +268,6 @@ class AdmissionController extends Controller
         return back()->with('success', 'Interview scheduled and guardian notified.');
     }
 
-    // ── Record Interview Score ────────────────────────────────────────
     public function recordInterview(Request $request, Admission $admission)
     {
         $data = $request->validate([
@@ -284,7 +278,6 @@ class AdmissionController extends Controller
         return back()->with('success', 'Interview score recorded.');
     }
 
-    // ── Send Offer Letter ─────────────────────────────────────────────
     public function sendOffer(Admission $admission)
     {
         if ($admission->status !== 'admitted') {
@@ -321,7 +314,7 @@ class AdmissionController extends Controller
             app(\App\Services\GuardianNotifier::class)->send(
                 $guardian,
                 'Admission Offer — ' . $admission->first_name . ' ' . $admission->last_name,
-                [], // email already sent above with the PDF attached; this call is SMS-only
+                [],
                 smsBody: $smsBody,
                 schoolName: $tenant->name,
             );
@@ -333,7 +326,6 @@ class AdmissionController extends Controller
         return back()->with('success', 'Offer letter emailed to guardian with PDF attached, and SMS sent.');
     }
 
-    // ── Download Offer Letter PDF (admin re-download) ────────────────
     public function downloadOfferLetter(Admission $admission)
     {
         $tenant = auth()->user()->tenant;
@@ -347,7 +339,6 @@ class AdmissionController extends Controller
         return $pdf->download("Admission-Offer-{$admission->application_number}.pdf");
     }
 
-    /** Merge the tenant's (customisable) admission-offer letter template with this application's details. */
     private function offerLetterVars(Admission $admission, \App\Models\Tenant $tenant): array
     {
         $template = \App\Models\LetterTemplate::forTenant($tenant->id, \App\Models\LetterTemplate::TYPE_ADMISSION_OFFER);
@@ -370,25 +361,28 @@ class AdmissionController extends Controller
         ];
     }
 
-    // ── Documents view ────────────────────────────────────────────────
     public function documents(Admission $admission)
     {
         $docs = \App\Models\AdmissionDocument::where('admission_id', $admission->id)->get();
         return view('admissions.documents', compact('admission', 'docs'));
     }
 
-    // ── Download a single document ────────────────────────────────────
     public function downloadDocument(Admission $admission, \App\Models\AdmissionDocument $doc)
     {
         abort_if($doc->admission_id !== $admission->id, 403);
-        $path = storage_path('app/public/' . $doc->file_path);
-        if (!file_exists($path)) {
+
+        $path = app(\App\Services\SensitiveDocumentStorage::class)
+            ->resolveAbsolutePath($doc->file_path);
+        if ($path === null || !is_file($path)) {
             return back()->withErrors(['error' => 'File not found on server.']);
         }
-        return response()->download($path, $doc->original_name);
+
+        return response()->download($path, $doc->original_name, [
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
-    // ── Verify / reject a single document ────────────────────────────
     public function verifyDocument(Request $request, Admission $admission, \App\Models\AdmissionDocument $doc)
     {
         abort_if($doc->admission_id !== $admission->id, 403);
@@ -414,7 +408,6 @@ class AdmissionController extends Controller
         return back()->with('success', ucwords(str_replace('_', ' ', $doc->document_type)) . ' document ' . $label . '.');
     }
 
-    // ── Bulk status update ────────────────────────────────────────────
     public function bulkStatus(Request $request)
     {
         $data = $request->validate([
@@ -430,7 +423,6 @@ class AdmissionController extends Controller
         return back()->with('success', count($data['ids']) . ' applications updated to ' . $data['status'] . '.');
     }
 
-    // ── Export applications CSV ───────────────────────────────────────
     public function exportCsv(Request $request)
     {
         $query = Admission::with('applyingForClassLevel')->latest();
@@ -458,5 +450,4 @@ class AdmissionController extends Controller
             'Content-Type' => 'text/csv',
         ]);
     }
-
 }
