@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
+use App\Http\Controllers\Api\MobileHostelController;
 use App\Http\Controllers\Api\MobileInventoryController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileLibraryController;
@@ -82,6 +83,14 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [MobileInventoryController::class, 'store']);
             Route::patch('{asset}', [MobileInventoryController::class, 'update'])->whereNumber('asset');
             Route::delete('{asset}', [MobileInventoryController::class, 'destroy'])->whereNumber('asset');
+        });
+
+        Route::prefix('hostels')->group(function () {
+            Route::get('/', [MobileHostelController::class, 'index']);
+            Route::post('/', [MobileHostelController::class, 'storeHostel']);
+            Route::post('{hostel}/rooms', [MobileHostelController::class, 'storeRoom'])->whereNumber('hostel');
+            Route::post('allocations', [MobileHostelController::class, 'allocate']);
+            Route::post('allocations/{allocation}/vacate', [MobileHostelController::class, 'vacate'])->whereNumber('allocation');
         });
 
         Route::prefix('academic-repository')->group(function () {
