@@ -77,6 +77,7 @@ class MobileSpecialistOperationsTest extends TestCase
             $table->string('admission_number');
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
+            $table->string('other_names')->nullable();
             $table->unsignedBigInteger('current_class_arm_id')->nullable();
             $table->string('status')->default('active');
             $table->timestamps();
@@ -152,6 +153,34 @@ class MobileSpecialistOperationsTest extends TestCase
             ->assertJsonPath('metrics.students', 0);
 
         $this->assertSame($tenant->id, $user->tenant_id);
+    }
+
+    public function test_health_dashboard_searches_and_paginates_active_students(): void
+    {
+        [$tenant, $user] = $this->school('Paged Health School', 'health_technician');
+        foreach (range(1, 12) as $index) {
+            Student::create([
+                'tenant_id' => $tenant->id,
+                'admission_number' => sprintf('HLT-%03d', $index),
+                'first_name' => $index === 12 ? 'Target' : 'Student',
+                'last_name' => 'Number '.$index,
+                'status' => Student::STATUS_ACTIVE,
+            ]);
+        }
+
+        $token = ApiToken::issue($user, 'health-page');
+        $this->withToken($token)
+            ->getJson('/api/v1/health-officer/dashboard?per_page=10&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 12)
+            ->assertJsonPath('meta.has_more', true)
+            ->assertJsonCount(10, 'students');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/health-officer/dashboard?search=Target&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('students.0.name', 'Target Number 12');
     }
 
     public function test_custom_health_deny_overrides_role_access(): void
@@ -230,6 +259,77 @@ class MobileSpecialistOperationsTest extends TestCase
                 'direction' => 'both',
             ])
             ->assertUnprocessable();
+    }
+
+    public function test_transport_officer_can_unassign_only_own_tenant_students(): void
+    {
+        [$tenant, $officer] = $this->school('Unassign Transport School', 'transport_officer');
+        [$foreignTenant] = $this->school('Foreign Unassign School', 'transport_officer');
+        $localStudent = Student::create([
+            'tenant_id' => $tenant->id,
+            'admission_number' => 'LOCAL-001',
+            'first_name' => 'Local',
+            'last_name' => 'Rider',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+        $foreignStudent = Student::create([
+            'tenant_id' => $foreignTenant->id,
+            'admission_number' => 'FOREIGN-002',
+            'first_name' => 'Foreign',
+            'last_name' => 'Rider',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+        $localRoute = DB::table('transport_routes')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'name' => 'Local Route',
+            'fare' => 1000,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $foreignRoute = DB::table('transport_routes')->insertGetId([
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Foreign Route',
+            'fare' => 1000,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('transport_assignments')->insert([
+            [
+                'tenant_id' => $tenant->id,
+                'student_id' => $localStudent->id,
+                'route_id' => $localRoute,
+                'direction' => 'both',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => $foreignTenant->id,
+                'student_id' => $foreignStudent->id,
+                'route_id' => $foreignRoute,
+                'direction' => 'both',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $token = ApiToken::issue($officer, 'transport-unassign');
+        $this->withToken($token)
+            ->deleteJson('/api/v1/transport-officer/assignments/'.$localStudent->id)
+            ->assertOk();
+        $this->assertDatabaseMissing('transport_assignments', [
+            'tenant_id' => $tenant->id,
+            'student_id' => $localStudent->id,
+        ]);
+
+        $this->withToken($token)
+            ->deleteJson('/api/v1/transport-officer/assignments/'.$foreignStudent->id)
+            ->assertNotFound();
+        $this->assertDatabaseHas('transport_assignments', [
+            'tenant_id' => $foreignTenant->id,
+            'student_id' => $foreignStudent->id,
+        ]);
     }
 
     public function test_health_update_rejects_foreign_student(): void
