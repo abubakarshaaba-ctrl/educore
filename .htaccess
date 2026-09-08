@@ -13,6 +13,11 @@ Options -Indexes
 RewriteEngine On
 RewriteRule ^educore/ - [F,L]
 
+# Sensitive applicant/admission files must only be served through
+# authenticated Laravel download actions. This also protects legacy
+# files that were historically written to the public filesystem disk.
+RewriteRule ^storage/(admissions|recruitment)(?:/|$) - [F,L,NC]
+
 # Belt-and-braces: deny dotfiles and sensitive extensions everywhere
 <FilesMatch "(^\.env|\.(env|log|sqlite|ini|sh|bak))$">
     Require all denied
