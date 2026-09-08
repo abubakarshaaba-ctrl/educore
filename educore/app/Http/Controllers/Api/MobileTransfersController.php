@@ -10,14 +10,17 @@ use App\Models\StudentTransfer;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CrossSchoolStudentTransferService;
+use App\Services\StudentClassTransferService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class MobileTransfersController extends Controller
 {
-    public function __construct(private readonly CrossSchoolStudentTransferService $transfers)
-    {
+    public function __construct(
+        private readonly CrossSchoolStudentTransferService $crossSchoolTransfers,
+        private readonly StudentClassTransferService $interclassTransfers,
+    ) {
     }
 
     public function index(Request $request): JsonResponse
@@ -26,7 +29,7 @@ class MobileTransfersController extends Controller
         $tenantId = (int) $user->tenant_id;
         $data = $request->validate([
             'scope' => ['nullable', Rule::in(['all', 'cross_school', 'interclass'])],
-            'status' => ['nullable', Rule::in(array_merge(StudentTransfer::STATUSES, StudentClassTransfer::STATUSES))],
+            'status' => ['nullable', Rule::in(array_values(array_unique(array_merge(StudentTransfer::STATUSES, StudentClassTransfer::STATUSES))))],
             'q' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -58,8 +61,14 @@ class MobileTransfersController extends Controller
             ->values();
         $tenantNames = Tenant::whereIn('id', $tenantIds)->pluck('name', 'id');
 
+        $canViewInterclass = $this->canInterclass($user, 'student.transfer.view');
+        $canRequestInterclass = $this->canInterclass($user, 'student.transfer.request');
+        $canApproveInterclass = $this->canInterclass($user, 'student.transfer.approve');
+        $canRejectInterclass = $this->canInterclass($user, 'student.transfer.reject');
+        $canCancelInterclass = $this->canInterclass($user, 'student.transfer.cancel');
+
         $interclass = collect();
-        if ($scope !== 'cross_school' && $this->canViewInterclass($user)) {
+        if ($scope !== 'cross_school' && $canViewInterclass) {
             $interclass = StudentClassTransfer::where('tenant_id', $tenantId)
                 ->with([
                     'student:id,tenant_id,admission_number,first_name,middle_name,last_name',
@@ -120,14 +129,12 @@ class MobileTransfersController extends Controller
                 'cross_school_request' => true,
                 'cross_school_approve' => true,
                 'cross_school_reject' => true,
-                'interclass_view' => $this->canViewInterclass($user),
-                'interclass_request' => $user->can('student.transfer.request'),
-                'interclass_approve' => $user->can('student.transfer.approve'),
-                'interclass_reject' => $user->can('student.transfer.reject'),
-                'interclass_cancel' => $user->can('student.transfer.cancel'),
-                // Interclass lifecycle mutations remain web-only until their
-                // enrollment transaction is extracted into a shared service.
-                'interclass_mobile_mutation' => false,
+                'interclass_view' => $canViewInterclass,
+                'interclass_request' => $canRequestInterclass,
+                'interclass_approve' => $canApproveInterclass,
+                'interclass_reject' => $canRejectInterclass,
+                'interclass_cancel' => $canCancelInterclass,
+                'interclass_mobile_mutation' => $canRequestInterclass || $canApproveInterclass || $canRejectInterclass || $canCancelInterclass,
             ],
             'metrics' => [
                 'cross_outgoing' => StudentTransfer::where('from_tenant_id', $tenantId)->count(),
@@ -161,6 +168,7 @@ class MobileTransfersController extends Controller
                 'status' => $transfer->status,
                 'reason' => $transfer->reason,
                 'requested_by' => $transfer->requestedBy?->name,
+                'requested_by_id' => $transfer->requested_by,
                 'created_at' => optional($transfer->created_at)?->toIso8601String(),
             ])->values(),
             'options' => [
@@ -195,7 +203,7 @@ class MobileTransfersController extends Controller
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $transfer = $this->transfers->request(
+        $transfer = $this->crossSchoolTransfers->request(
             $user,
             (int) $data['student_id'],
             (int) $data['to_tenant_id'],
@@ -212,7 +220,7 @@ class MobileTransfersController extends Controller
     public function approveCrossSchool(Request $request, int $transfer): JsonResponse
     {
         $user = $this->guard($request);
-        $completed = $this->transfers->approve($user, $transfer, $request);
+        $completed = $this->crossSchoolTransfers->approve($user, $transfer, $request);
 
         return response()->json([
             'message' => 'Incoming transfer approved. A fresh receiving-school student record has been created while source-school history remains archived.',
@@ -223,9 +231,82 @@ class MobileTransfersController extends Controller
     public function rejectCrossSchool(Request $request, int $transfer): JsonResponse
     {
         $user = $this->guard($request);
-        $this->transfers->reject($user, $transfer, $request);
+        $this->crossSchoolTransfers->reject($user, $transfer, $request);
 
         return response()->json(['message' => 'Incoming transfer rejected.']);
+    }
+
+    public function requestInterclass(Request $request): JsonResponse
+    {
+        $user = $this->guard($request);
+        $this->authorizeInterclass($user, 'student.transfer.request');
+        $tenantId = (int) $user->tenant_id;
+        $data = $request->validate([
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(fn ($q) => $q
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', Student::STATUS_ACTIVE)
+                    ->whereNotNull('current_class_arm_id')
+                    ->whereNull('deleted_at')),
+            ],
+            'to_class_arm_id' => [
+                'required',
+                'integer',
+                Rule::exists('class_arms', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+            'effective_date' => ['required', 'date'],
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $transfer = $this->interclassTransfers->request(
+            $user,
+            (int) $data['student_id'],
+            (int) $data['to_class_arm_id'],
+            $data['effective_date'],
+            $data['reason'],
+            null,
+            $request,
+        );
+
+        return response()->json([
+            'message' => 'Interclass transfer request created.',
+            'transfer_id' => $transfer->id,
+        ], 201);
+    }
+
+    public function approveInterclass(Request $request, int $transfer): JsonResponse
+    {
+        $user = $this->guard($request);
+        $this->authorizeInterclass($user, 'student.transfer.approve');
+        $this->interclassTransfers->approve($user, $transfer, $request);
+
+        return response()->json(['message' => 'Interclass transfer approved and completed.']);
+    }
+
+    public function rejectInterclass(Request $request, int $transfer): JsonResponse
+    {
+        $user = $this->guard($request);
+        $this->authorizeInterclass($user, 'student.transfer.reject');
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+        $this->interclassTransfers->reject($user, $transfer, $data['reason'], $request);
+
+        return response()->json(['message' => 'Interclass transfer request rejected.']);
+    }
+
+    public function cancelInterclass(Request $request, int $transfer): JsonResponse
+    {
+        $user = $this->guard($request);
+        $this->authorizeInterclass($user, 'student.transfer.cancel');
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+        $this->interclassTransfers->cancel($user, $transfer, $data['reason'], $request);
+
+        return response()->json(['message' => 'Interclass transfer request cancelled.']);
     }
 
     private function crossSchoolQuery(int $tenantId)
@@ -236,9 +317,14 @@ class MobileTransfersController extends Controller
         });
     }
 
-    private function canViewInterclass(User $user): bool
+    private function canInterclass(User $user, string $permission): bool
     {
-        return $user->can('student.transfer.view');
+        return $user->can($permission);
+    }
+
+    private function authorizeInterclass(User $user, string $permission): void
+    {
+        abort_unless($this->canInterclass($user, $permission), 403, 'Interclass transfer permission required.');
     }
 
     private function studentName(Student $student): string
