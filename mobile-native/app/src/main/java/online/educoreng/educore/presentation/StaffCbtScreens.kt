@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CheckCircle
@@ -28,11 +29,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import online.educoreng.educore.core.designsystem.component.EduCoreBottomSheet
+import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
+import online.educoreng.educore.core.designsystem.component.EduCoreDatePicker
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -45,6 +60,8 @@ import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButt
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
+import online.educoreng.educore.core.designsystem.component.EduCoreTextField
+import online.educoreng.educore.core.designsystem.component.EduCoreTimePicker
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
@@ -143,6 +160,7 @@ internal fun StaffCbtDetailScreen(
     onBack: () -> Unit,
     onPublish: () -> Unit,
     onClose: () -> Unit,
+    onReschedule: (start: String, end: String, duration: Int) -> Unit,
     onRetry: () -> Unit,
 ) {
     if (state.isLoading && state.selectedExam == null) {
@@ -152,6 +170,124 @@ internal fun StaffCbtDetailScreen(
     val exam = state.selectedExam ?: run {
         EduCoreErrorState(state.errorMessage ?: "This CBT examination is unavailable.", Modifier.fillMaxSize(), onRetry = onRetry)
         return
+    }
+
+    var confirmPublish by rememberSaveable(exam.id) { mutableStateOf(false) }
+    var confirmClose by rememberSaveable(exam.id) { mutableStateOf(false) }
+    var showReschedule by rememberSaveable(exam.id) { mutableStateOf(false) }
+    var startMillis by rememberSaveable(exam.id) { mutableLongStateOf(cbtWallClockMillis(exam.scheduledStart)) }
+    var endMillis by rememberSaveable(exam.id) { mutableLongStateOf(cbtWallClockMillis(exam.scheduledEnd, fallbackOffsetMinutes = 60)) }
+    var duration by rememberSaveable(exam.id) { mutableStateOf(exam.durationMinutes.toString()) }
+    var dateTarget by rememberSaveable(exam.id) { mutableStateOf<CbtScheduleTarget?>(null) }
+    var timeTarget by rememberSaveable(exam.id) { mutableStateOf<CbtScheduleTarget?>(null) }
+
+    EduCoreConfirmationDialog(
+        visible = confirmPublish,
+        title = "Publish examination?",
+        message = "Students assigned to this examination will be able to access it once the configured schedule allows.",
+        confirmLabel = "Publish",
+        onConfirm = {
+            confirmPublish = false
+            onPublish()
+        },
+        onDismiss = { confirmPublish = false },
+    )
+    EduCoreConfirmationDialog(
+        visible = confirmClose,
+        title = "Close examination?",
+        message = "Closing the examination prevents further submissions. Completed graded attempts will be synchronized to results.",
+        confirmLabel = "Close exam",
+        onConfirm = {
+            confirmClose = false
+            onClose()
+        },
+        onDismiss = { confirmClose = false },
+        destructive = true,
+    )
+
+    EduCoreBottomSheet(
+        visible = showReschedule,
+        onDismiss = { showReschedule = false },
+    ) {
+        Text("Reschedule examination", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = EduCoreColors.Navy900)
+        Text(
+            if (exam.status == "closed") "Saving this schedule will reopen the examination." else "Set the revised examination window and duration.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        CbtSchedulePickerRow(
+            label = "Start",
+            millis = startMillis,
+            enabled = !state.isSaving,
+            onDate = { dateTarget = CbtScheduleTarget.START },
+            onTime = { timeTarget = CbtScheduleTarget.START },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        CbtSchedulePickerRow(
+            label = "End",
+            millis = endMillis,
+            enabled = !state.isSaving,
+            onDate = { dateTarget = CbtScheduleTarget.END },
+            onTime = { timeTarget = CbtScheduleTarget.END },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCoreTextField(
+            value = duration,
+            onValueChange = { candidate -> if (candidate.length <= 4 && candidate.all(Char::isDigit)) duration = candidate },
+            label = "Duration (minutes)",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isSaving,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            supportingText = "Allowed range: 5–1440 minutes",
+        )
+        val durationValue = duration.toIntOrNull()
+        val scheduleValid = durationValue != null && durationValue in 5..1440 && endMillis > startMillis
+        if (endMillis <= startMillis) {
+            Text("End time must be later than start time.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Danger600)
+        }
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        EduCorePrimaryButton(
+            text = if (exam.status == "closed") "Save and reopen" else "Save schedule",
+            onClick = {
+                val minutes = duration.toIntOrNull() ?: return@EduCorePrimaryButton
+                showReschedule = false
+                onReschedule(cbtApiDateTime(startMillis), cbtApiDateTime(endMillis), minutes)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = scheduleValid && !state.isSaving,
+            loading = state.isSaving,
+            leadingIcon = { Icon(Icons.Default.Schedule, null) },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreSecondaryButton("Cancel", { showReschedule = false }, Modifier.fillMaxWidth(), enabled = !state.isSaving)
+    }
+
+    dateTarget?.let { target ->
+        val current = if (target == CbtScheduleTarget.START) startMillis else endMillis
+        EduCoreDatePicker(
+            visible = true,
+            initialDateMillis = cbtUtcDateMillis(current),
+            onDateSelected = { selected ->
+                if (target == CbtScheduleTarget.START) startMillis = cbtReplaceDate(startMillis, selected)
+                else endMillis = cbtReplaceDate(endMillis, selected)
+            },
+            onDismiss = { dateTarget = null },
+        )
+    }
+    timeTarget?.let { target ->
+        val current = if (target == CbtScheduleTarget.START) startMillis else endMillis
+        val calendar = Calendar.getInstance().apply { timeInMillis = current }
+        EduCoreTimePicker(
+            visible = true,
+            initialHour = calendar.get(Calendar.HOUR_OF_DAY),
+            initialMinute = calendar.get(Calendar.MINUTE),
+            onTimeSelected = { hour, minute ->
+                if (target == CbtScheduleTarget.START) startMillis = cbtReplaceTime(startMillis, hour, minute)
+                else endMillis = cbtReplaceTime(endMillis, hour, minute)
+            },
+            onDismiss = { timeTarget = null },
+        )
     }
 
     LazyColumn(
@@ -209,7 +345,7 @@ internal fun StaffCbtDetailScreen(
                 if (exam.canPublish) {
                     EduCorePrimaryButton(
                         "Publish exam",
-                        onPublish,
+                        { confirmPublish = true },
                         Modifier.fillMaxWidth(),
                         enabled = !state.isSaving,
                         loading = state.isSaving,
@@ -217,9 +353,10 @@ internal fun StaffCbtDetailScreen(
                     )
                 }
                 if (exam.canClose) {
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
                     EduCorePrimaryButton(
                         "Close exam",
-                        onClose,
+                        { confirmClose = true },
                         Modifier.fillMaxWidth(),
                         enabled = !state.isSaving,
                         loading = state.isSaving,
@@ -227,15 +364,18 @@ internal fun StaffCbtDetailScreen(
                     )
                 }
                 if (exam.canReschedule) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Schedule, null, tint = EduCoreColors.Gold700)
-                        Spacer(Modifier.width(EduCoreSpacing.Sm))
-                        Text(
-                            "Rescheduling is permitted for this exam. The native date/time editor will be added in the next CBT pass.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = EduCoreColors.Slate600,
-                        )
-                    }
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    EduCoreSecondaryButton(
+                        "Reschedule exam",
+                        {
+                            startMillis = cbtWallClockMillis(exam.scheduledStart)
+                            endMillis = cbtWallClockMillis(exam.scheduledEnd, fallbackOffsetMinutes = 60)
+                            duration = exam.durationMinutes.coerceAtLeast(5).toString()
+                            showReschedule = true
+                        },
+                        Modifier.fillMaxWidth(),
+                        enabled = !state.isSaving,
+                    )
                 }
                 if (!exam.canPublish && !exam.canClose && !exam.canReschedule) {
                     Text("No state-changing action is currently permitted for this exam.", color = EduCoreColors.Slate600)
@@ -243,6 +383,24 @@ internal fun StaffCbtDetailScreen(
             }
         }
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
+    }
+}
+
+@Composable
+private fun CbtSchedulePickerRow(
+    label: String,
+    millis: Long,
+    enabled: Boolean,
+    onDate: () -> Unit,
+    onTime: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Navy900)
+        Text(cbtDisplayDateTime(millis), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900)
+        Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+            EduCoreSecondaryButton("Choose date", onDate, Modifier.weight(1f), enabled)
+            EduCoreSecondaryButton("Choose time", onTime, Modifier.weight(1f), enabled)
+        }
     }
 }
 
@@ -293,6 +451,51 @@ private fun CbtLine(label: String, value: String) {
         Text(value, Modifier.weight(1.4f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900)
     }
 }
+
+private enum class CbtScheduleTarget { START, END }
+
+private fun cbtWallClockMillis(raw: String?, fallbackOffsetMinutes: Int = 0): Long {
+    val fallback = System.currentTimeMillis() + fallbackOffsetMinutes * 60_000L
+    val normalized = raw?.trim()?.takeIf(String::isNotEmpty)?.take(16) ?: return fallback
+    return runCatching {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).apply { isLenient = false }.parse(normalized)?.time
+    }.getOrNull() ?: fallback
+}
+
+private fun cbtDisplayDateTime(millis: Long): String =
+    SimpleDateFormat("EEE, d MMM yyyy · HH:mm", Locale.getDefault()).format(Date(millis))
+
+private fun cbtApiDateTime(millis: Long): String =
+    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date(millis))
+
+private fun cbtUtcDateMillis(localMillis: Long): Long {
+    val local = Calendar.getInstance().apply { timeInMillis = localMillis }
+    return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+    }.timeInMillis
+}
+
+private fun cbtReplaceDate(existingMillis: Long, selectedUtcDateMillis: Long): Long {
+    val selected = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = selectedUtcDateMillis }
+    return Calendar.getInstance().apply {
+        timeInMillis = existingMillis
+        set(Calendar.YEAR, selected.get(Calendar.YEAR))
+        set(Calendar.MONTH, selected.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, selected.get(Calendar.DAY_OF_MONTH))
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+}
+
+private fun cbtReplaceTime(existingMillis: Long, hour: Int, minute: Int): Long =
+    Calendar.getInstance().apply {
+        timeInMillis = existingMillis
+        set(Calendar.HOUR_OF_DAY, hour)
+        set(Calendar.MINUTE, minute)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
 private fun String.cbtTone(): EduCoreTone = when (lowercase()) {
     "published", "active" -> EduCoreTone.Success
