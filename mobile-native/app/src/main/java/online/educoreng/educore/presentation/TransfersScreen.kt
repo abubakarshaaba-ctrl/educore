@@ -257,7 +257,7 @@ internal fun TransfersScreen(
                     item {
                         EduCoreSectionHeader(
                             title = "Cross-school transfers",
-                            subtitle = "Incoming and outgoing requests visible to your school",
+                            supportingText = "Incoming and outgoing requests visible to your school",
                         )
                     }
                     if (data.crossSchool.isEmpty()) {
@@ -303,7 +303,7 @@ internal fun TransfersScreen(
                     item {
                         EduCoreSectionHeader(
                             title = "Interclass transfers",
-                            subtitle = if (data.capabilities.interclassMobileMutation)
+                            supportingText = if (data.capabilities.interclassMobileMutation)
                                 "Managed through the same enrollment transaction as the web workspace"
                             else
                                 "Read-only lifecycle history on mobile",
@@ -492,7 +492,7 @@ private fun TransferFormCard(
             modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
-            EduCoreSectionHeader(title = title, subtitle = subtitle)
+            EduCoreSectionHeader(title = title, supportingText = subtitle)
             content()
         }
     }
