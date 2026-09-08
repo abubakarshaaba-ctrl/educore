@@ -39,7 +39,11 @@ class MobileCurriculumController extends Controller
 
         $tracks = AcademicTrack::query()
             ->forTenant($tenantId)
-            ->withCount(['classArms', 'subjectRules', 'studentSubjectSelections'])
+            ->withCount([
+                'classArms' => fn ($query) => $query->where('tenant_id', $tenantId),
+                'subjectRules' => fn ($query) => $query->where('tenant_id', $tenantId),
+                'studentSubjectSelections' => fn ($query) => $query->where('tenant_id', $tenantId),
+            ])
             ->get()
             ->map(fn (AcademicTrack $track): array => $this->trackPayload($track, $tenantId));
 
@@ -52,8 +56,10 @@ class MobileCurriculumController extends Controller
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($nested) use ($search): void {
                     $nested->whereHas('subject', fn ($subject) => $subject
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('code', 'like', "%{$search}%"))
+                        ->where(function ($subjectSearch) use ($search): void {
+                            $subjectSearch->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
+                        }))
                         ->orWhereHas('classLevel', fn ($level) => $level->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('academicTrack', fn ($track) => $track->where('name', 'like', "%{$search}%"))
                         ->orWhere('elective_group', 'like', "%{$search}%");
@@ -117,7 +123,7 @@ class MobileCurriculumController extends Controller
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:80',
-                Rule::unique('academic_tracks', 'name')->where('tenant_id', $tenantId),
+                $this->trackNameRule($tenantId),
             ],
             'section' => ['required', Rule::in(self::SECTIONS)],
             'is_active' => ['required', 'boolean'],
@@ -131,7 +137,7 @@ class MobileCurriculumController extends Controller
             'is_active' => (bool) $data['is_active'],
             'sort_order' => ((int) AcademicTrack::where('tenant_id', $tenantId)->max('sort_order')) + 1,
         ]);
-        $track->loadCount(['classArms', 'subjectRules', 'studentSubjectSelections']);
+        $this->loadTrackCounts($track, $tenantId);
 
         return response()->json([
             'message' => 'Academic track created.',
@@ -147,7 +153,7 @@ class MobileCurriculumController extends Controller
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:80',
-                Rule::unique('academic_tracks', 'name')->where('tenant_id', $tenantId)->ignore($record->id),
+                $this->trackNameRule($tenantId, $record->id),
             ],
             'section' => ['required', Rule::in(self::SECTIONS)],
             'is_active' => ['required', 'boolean'],
@@ -159,7 +165,8 @@ class MobileCurriculumController extends Controller
             'section' => $data['section'],
             'is_active' => (bool) $data['is_active'],
         ]);
-        $record->refresh()->loadCount(['classArms', 'subjectRules', 'studentSubjectSelections']);
+        $record->refresh();
+        $this->loadTrackCounts($record, $tenantId);
 
         return response()->json([
             'message' => 'Academic track updated.',
@@ -172,7 +179,7 @@ class MobileCurriculumController extends Controller
         $user = $this->guard($request, manage: true);
         $tenantId = (int) $user->tenant_id;
         $record = AcademicTrack::where('tenant_id', $tenantId)->findOrFail($track);
-        $record->loadCount(['classArms', 'subjectRules', 'studentSubjectSelections']);
+        $this->loadTrackCounts($record, $tenantId);
         $references = (int) $record->class_arms_count + (int) $record->subject_rules_count + (int) $record->student_subject_selections_count;
         if ($references > 0) {
             throw ValidationException::withMessages([
@@ -291,6 +298,25 @@ class MobileCurriculumController extends Controller
                 $query->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
             })
             ->firstOrFail();
+    }
+
+    private function trackNameRule(int $tenantId, ?int $ignoreId = null)
+    {
+        $rule = Rule::unique('academic_tracks', 'name')->where(fn ($query) => $query
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
+            }));
+
+        return $ignoreId === null ? $rule : $rule->ignore($ignoreId);
+    }
+
+    private function loadTrackCounts(AcademicTrack $track, int $tenantId): void
+    {
+        $track->loadCount([
+            'classArms' => fn ($query) => $query->where('tenant_id', $tenantId),
+            'subjectRules' => fn ($query) => $query->where('tenant_id', $tenantId),
+            'studentSubjectSelections' => fn ($query) => $query->where('tenant_id', $tenantId),
+        ]);
     }
 
     private function trackPayload(AcademicTrack $track, int $tenantId): array
