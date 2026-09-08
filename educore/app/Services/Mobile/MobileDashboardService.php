@@ -25,6 +25,21 @@ use Illuminate\Support\Facades\Schema;
 
 class MobileDashboardService
 {
+    /**
+     * These workspaces are intentionally hosted inside the staff More hub.
+     * Keeping them out of Home quick actions prevents a dashboard tile from
+     * bypassing the hub-owned native navigation state.
+     */
+    private const STAFF_MORE_ONLY_MODULES = [
+        'staff',
+        'transfers',
+        'risk',
+        'exports',
+        'cbt',
+        'cbt-exams',
+        'examinations',
+    ];
+
     public function __construct(private readonly MobileModuleService $modules) {}
 
     public function for(Request $request): array
@@ -284,8 +299,16 @@ class MobileDashboardService
 
     private function quickActions(User $user): array
     {
-        return collect($this->modules->forUser($user))
-            ->reject(fn (array $module): bool => str_ends_with($module['key'], 'dashboard') || $module['key'] === 'dashboard')
+        $modules = collect($this->modules->forUser($user))
+            ->reject(fn (array $module): bool => str_ends_with($module['key'], 'dashboard') || $module['key'] === 'dashboard');
+
+        if (!$user->isSuperAdmin() && !$user->isStudent() && !$user->isParent()) {
+            $modules = $modules->reject(
+                fn (array $module): bool => in_array(strtolower($module['key']), self::STAFF_MORE_ONLY_MODULES, true)
+            );
+        }
+
+        return $modules
             ->take(6)
             ->map(fn (array $module): array => [
                 'module_key' => $module['key'],
