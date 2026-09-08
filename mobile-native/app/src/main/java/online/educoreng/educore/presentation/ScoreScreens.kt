@@ -1,8 +1,10 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,15 +14,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -38,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -47,7 +54,10 @@ import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
+import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
@@ -66,7 +76,9 @@ internal fun ScoreAssignmentsScreen(
     onOpen: (ScoreAssignment, Long?) -> Unit,
     onRetry: () -> Unit,
 ) {
-    if (state.isLoading && state.assignments == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading score workspaces")
+    if (state.isLoading && state.assignments == null) {
+        return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading score workspaces")
+    }
     val assignments = state.assignments ?: return EduCoreErrorState(
         state.errorMessage ?: "Score workspaces are unavailable.",
         Modifier.fillMaxSize(),
@@ -74,61 +86,162 @@ internal fun ScoreAssignmentsScreen(
     )
     val filtered = remember(assignments.assignments, state.search) {
         assignments.assignments.filter {
-            state.search.isBlank() || it.className.contains(state.search, true) || it.subjectName.contains(state.search, true)
+            state.search.isBlank() ||
+                it.className.contains(state.search, true) ||
+                it.subjectName.contains(state.search, true)
         }
     }
+    val classCount = remember(assignments.assignments) {
+        assignments.assignments.map(ScoreAssignment::classId).distinct().size
+    }
+    val subjectCount = remember(assignments.assignments) {
+        assignments.assignments.map(ScoreAssignment::subjectId).distinct().size
+    }
+
     LazyColumn(
-        Modifier.fillMaxSize().imePadding(),
+        modifier = Modifier.fillMaxSize().imePadding().background(EduCoreColors.Page50),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
         item {
-            EduCorePageHeader(
+            EduCoreShowcaseHero(
+                eyebrow = "ASSESSMENT WORKSPACE",
                 title = "Score Entry",
-                subtitle = listOfNotNull(assignments.termName, assignments.sessionName).joinToString(" · "),
+                subtitle = listOfNotNull(assignments.termName, assignments.sessionName)
+                    .filter(String::isNotBlank)
+                    .joinToString(" · ")
+                    .ifBlank { "Enter scores only for your authorised teaching assignments." },
+                trailing = {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = EduCoreColors.Gold100,
+                        contentColor = EduCoreColors.Navy900,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Assessment, contentDescription = null, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                },
             )
         }
-        if (assignments.isFromCache) item { EduCoreWarningBanner("Showing saved assignments while EduCore reconnects.") }
-        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        item { EduCoreSearchBar(state.search, onSearch, placeholder = "Search class or subject") }
-        if (filtered.isEmpty()) item {
-            EduCoreEmptyState("No score workspaces", "No current teaching assignment is available for score entry.")
+
+        if (assignments.isFromCache) {
+            item { EduCoreWarningBanner("Showing saved assignments while EduCore reconnects.") }
         }
+        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreShowcaseStat(
+                    label = "Workspaces",
+                    value = assignments.assignments.size.toString(),
+                    icon = Icons.Default.Assessment,
+                    tone = EduCoreTone.Accent,
+                    modifier = Modifier.weight(1f),
+                )
+                EduCoreShowcaseStat(
+                    label = "Classes",
+                    value = classCount.toString(),
+                    icon = Icons.Default.School,
+                    tone = EduCoreTone.Brand,
+                    modifier = Modifier.weight(1f),
+                )
+                EduCoreShowcaseStat(
+                    label = "Subjects",
+                    value = subjectCount.toString(),
+                    icon = Icons.Default.Assessment,
+                    tone = EduCoreTone.Info,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        item {
+            EduCoreSectionHeader(
+                title = "Teaching assignments",
+                supportingText = "Open a class-subject workspace to enter or review scores",
+            )
+        }
+        item {
+            EduCoreSearchBar(
+                value = state.search,
+                onValueChange = onSearch,
+                placeholder = "Search class or subject",
+            )
+        }
+
+        if (filtered.isEmpty()) {
+            item {
+                EduCoreShowcaseSectionCard {
+                    EduCoreEmptyState(
+                        "No score workspaces",
+                        if (state.search.isBlank()) {
+                            "No current teaching assignment is available for score entry."
+                        } else {
+                            "No authorised class or subject matches your search."
+                        },
+                    )
+                }
+            }
+        }
+
         items(filtered, key = { "${it.classId}:${it.subjectId}" }) { assignment ->
             Card(
                 onClick = { onOpen(assignment, assignments.termId) },
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
                 shape = MaterialTheme.shapes.large,
             ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                    modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                 ) {
-                    Surface(shape = MaterialTheme.shapes.medium, color = EduCoreColors.Gold50) {
-                        Icon(
-                            Icons.Default.Assessment,
-                            null,
-                            Modifier.padding(EduCoreSpacing.Md),
-                            tint = EduCoreColors.Navy900,
-                        )
+                    Surface(
+                        modifier = Modifier.size(44.dp),
+                        shape = CircleShape,
+                        color = EduCoreColors.Gold50,
+                        contentColor = EduCoreColors.Navy900,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Assessment, contentDescription = null, modifier = Modifier.size(21.dp))
+                        }
                     }
-                    Spacer(Modifier.width(EduCoreSpacing.Md))
                     Column(Modifier.weight(1f)) {
-                        Text(assignment.subjectName, style = MaterialTheme.typography.titleMedium)
-                        Text(assignment.className, color = EduCoreColors.Slate600)
+                        Text(
+                            assignment.subjectName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = EduCoreColors.Ink900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            assignment.className,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     EduCoreStatusBadge("Open", EduCoreTone.Accent)
                 }
             }
         }
+
+        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
 
 /**
- * Compact score grid modelled on the approved August concept. Assessment
- * columns scroll horizontally inside each student card so the page remains
- * readable on small Android devices without opening a web table.
+ * Compact native score grid modelled on the approved August concept.
+ * Assessment columns scroll horizontally inside each student card so the page
+ * remains usable on small Android devices without falling back to a web table.
  */
 @Composable
 internal fun ScoreSheetScreen(
@@ -139,7 +252,9 @@ internal fun ScoreSheetScreen(
     onSubmit: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    if (state.isLoading && state.sheet == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Opening score sheet")
+    if (state.isLoading && state.sheet == null) {
+        return EduCoreLoadingState(Modifier.fillMaxSize(), "Opening score sheet")
+    }
     val sheet = state.sheet ?: return EduCoreErrorState(
         state.errorMessage ?: "The score sheet is unavailable.",
         Modifier.fillMaxSize(),
@@ -148,30 +263,79 @@ internal fun ScoreSheetScreen(
     var studentQuery by remember { mutableStateOf("") }
     val students = remember(sheet.students, studentQuery) {
         sheet.students.filter {
-            studentQuery.isBlank() || it.name.contains(studentQuery, true) || it.admissionNumber.contains(studentQuery, true)
+            studentQuery.isBlank() ||
+                it.name.contains(studentQuery, true) ||
+                it.admissionNumber.contains(studentQuery, true)
         }
     }
 
-    Column(Modifier.fillMaxSize().imePadding()) {
+    Column(
+        modifier = Modifier.fillMaxSize().imePadding().background(EduCoreColors.Page50),
+    ) {
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(eduCoreScreenPadding()),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             item { ScoreHeader(sheet, onBack) }
-            if (sheet.locked) item { EduCoreWarningBanner(sheet.lockReason ?: "This score sheet is locked.") }
-            if (sheet.isDraftStale) item {
-                EduCoreWarningBanner("This device draft is older than the server sheet. Discard it and reload before saving.")
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    EduCoreShowcaseStat(
+                        label = "Students",
+                        value = sheet.students.size.toString(),
+                        icon = Icons.Default.Groups,
+                        tone = EduCoreTone.Brand,
+                        modifier = Modifier.weight(1f),
+                    )
+                    EduCoreShowcaseStat(
+                        label = "Assessments",
+                        value = sheet.assessments.size.toString(),
+                        icon = Icons.Default.Assessment,
+                        tone = EduCoreTone.Accent,
+                        modifier = Modifier.weight(1f),
+                    )
+                    EduCoreShowcaseStat(
+                        label = "Status",
+                        value = if (sheet.locked) "Locked" else "Open",
+                        icon = if (sheet.locked) Icons.Default.Lock else Icons.Default.Save,
+                        tone = if (sheet.locked) EduCoreTone.Warning else EduCoreTone.Success,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
-            if (sheet.syncState != SyncState.NONE) item {
-                val message = sheet.syncMessage ?: "This explicit submission is waiting to synchronize."
-                if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) {
-                    EduCoreInfoBanner(message, title = "Sync pending")
-                } else {
-                    EduCoreWarningBanner(message, title = "Sync needs attention")
+
+            if (sheet.locked) {
+                item { EduCoreWarningBanner(sheet.lockReason ?: "This score sheet is locked.") }
+            }
+            if (sheet.isDraftStale) {
+                item {
+                    EduCoreWarningBanner(
+                        "This device draft is older than the server sheet. Discard it and reload before saving."
+                    )
+                }
+            }
+            if (sheet.syncState != SyncState.NONE) {
+                item {
+                    val message = sheet.syncMessage ?: "This explicit submission is waiting to synchronize."
+                    if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) {
+                        EduCoreInfoBanner(message, title = "Sync pending")
+                    } else {
+                        EduCoreWarningBanner(message, title = "Sync needs attention")
+                    }
                 }
             }
             state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+            item {
+                EduCoreSectionHeader(
+                    title = "Students",
+                    supportingText = "Enter scores in the assessment cells below; locked cells remain read-only",
+                )
+            }
             item {
                 EduCoreSearchBar(
                     value = studentQuery,
@@ -179,18 +343,39 @@ internal fun ScoreSheetScreen(
                     placeholder = "Search students",
                 )
             }
-            if (students.isEmpty()) item {
-                EduCoreEmptyState(
-                    if (sheet.students.isEmpty()) "No active students" else "No students found",
-                    if (sheet.students.isEmpty()) "This class has no active students available for score entry." else "Try another name or admission number.",
-                )
+
+            if (students.isEmpty()) {
+                item {
+                    EduCoreShowcaseSectionCard {
+                        EduCoreEmptyState(
+                            if (sheet.students.isEmpty()) "No active students" else "No students found",
+                            if (sheet.students.isEmpty()) {
+                                "This class has no active students available for score entry."
+                            } else {
+                                "Try another name or admission number."
+                            },
+                        )
+                    }
+                }
             }
+
             items(students, key = { it.id }) { student ->
                 EduCoreShowcaseSectionCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(student.name, style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Ink900)
-                            Text(student.admissionNumber, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            Text(
+                                student.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = EduCoreColors.Ink900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                student.admissionNumber,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
                         }
                     }
                     Spacer(Modifier.height(EduCoreSpacing.Md))
@@ -207,7 +392,7 @@ internal fun ScoreSheetScreen(
                                 border = BorderStroke(1.dp, EduCoreColors.Line200),
                             ) {
                                 Column(
-                                    Modifier.padding(EduCoreSpacing.Sm),
+                                    modifier = Modifier.padding(EduCoreSpacing.Sm),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
                                 ) {
@@ -216,16 +401,20 @@ internal fun ScoreSheetScreen(
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        "/${if (assessment.isSplit) assessment.theoryMaximum ?: 0.0 else assessment.maximum}".replace(".0", ""),
+                                        "/${if (assessment.isSplit) assessment.theoryMaximum ?: 0.0 else assessment.maximum}"
+                                            .replace(".0", ""),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = EduCoreColors.Muted500,
                                     )
                                     OutlinedTextField(
                                         value = cell?.value?.formatScore().orEmpty(),
                                         onValueChange = { onValue(student.id, assessment.id, it) },
-                                        enabled = !sheet.locked && cell?.locked != true && sheet.syncState == SyncState.NONE,
+                                        enabled = !sheet.locked &&
+                                            cell?.locked != true &&
+                                            sheet.syncState == SyncState.NONE,
                                         modifier = Modifier.width(70.dp),
                                         singleLine = true,
                                         keyboardOptions = KeyboardOptions(
@@ -233,7 +422,7 @@ internal fun ScoreSheetScreen(
                                             imeAction = ImeAction.Done,
                                         ),
                                         trailingIcon = if (cell?.locked == true) ({
-                                            Icon(Icons.Default.Lock, null)
+                                            Icon(Icons.Default.Lock, contentDescription = "Locked")
                                         }) else null,
                                     )
                                 }
@@ -242,6 +431,7 @@ internal fun ScoreSheetScreen(
                     }
                 }
             }
+
             item { Spacer(Modifier.height(EduCoreSpacing.Md)) }
         }
 
@@ -259,12 +449,15 @@ internal fun ScoreSheetScreen(
                     androidx.compose.material3.TextButton(
                         onClick = onDiscard,
                         enabled = !state.isSaving,
-                    ) { Text("Discard", color = EduCoreColors.Slate700) }
+                    ) {
+                        Text("Discard", color = EduCoreColors.Slate700)
+                    }
                     EduCorePrimaryButton(
                         text = if (sheet.syncState == SyncState.FAILED) "Retry sync" else "Save scores",
                         onClick = onSubmit,
                         modifier = Modifier.weight(1f),
-                        enabled = !state.isSaving && !sheet.locked &&
+                        enabled = !state.isSaving &&
+                            !sheet.locked &&
                             sheet.syncState != SyncState.QUEUED &&
                             sheet.syncState != SyncState.SYNCING &&
                             sheet.syncState != SyncState.CONFLICT,
@@ -279,72 +472,201 @@ internal fun ScoreSheetScreen(
 
 @Composable
 private fun ScoreHeader(sheet: ScoreSheet, onBack: () -> Unit) {
-    EduCorePageHeader(
+    EduCoreShowcaseHero(
+        eyebrow = "SCORE ENTRY",
         title = sheet.subjectName,
         subtitle = "${sheet.className} · ${sheet.termName}",
-        onBack = onBack,
+        actions = {
+            androidx.compose.material3.TextButton(onClick = onBack) {
+                Text("Back", color = EduCoreColors.White)
+            }
+        },
     )
 }
 
 @Composable
-internal fun PublishedResultsScreen(state: ScoresUiState, onBack: () -> Unit, onRetry: () -> Unit) {
-    if (state.isLoading && state.publishedResults == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading published results")
+internal fun PublishedResultsScreen(
+    state: ScoresUiState,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    if (state.isLoading && state.publishedResults == null) {
+        return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading published results")
+    }
     val results = state.publishedResults ?: return EduCoreErrorState(
         state.errorMessage ?: "Published results are unavailable.",
         Modifier.fillMaxSize(),
         onRetry = onRetry,
     )
+
     LazyColumn(
-        Modifier.fillMaxSize().imePadding(),
+        modifier = Modifier.fillMaxSize().imePadding().background(EduCoreColors.Page50),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
         item {
             EduCorePageHeader(
-                "Published results",
-                listOfNotNull(results.studentName, results.admissionNumber, results.className).joinToString(" · "),
+                title = "Published results",
+                subtitle = listOfNotNull(results.studentName, results.admissionNumber, results.className)
+                    .joinToString(" · "),
                 onBack = onBack,
             )
         }
-        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        if (results.results.isEmpty()) item {
-            EduCoreEmptyState("No published results", "Your school has not published a report card for this account yet.")
+        item {
+            EduCoreShowcaseHero(
+                eyebrow = "ACADEMIC REPORT",
+                title = results.studentName.ifBlank { "Published report card" },
+                subtitle = listOfNotNull(results.className, results.admissionNumber)
+                    .filter(String::isNotBlank)
+                    .joinToString(" · "),
+                trailing = {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = EduCoreColors.Gold100,
+                        contentColor = EduCoreColors.Navy900,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Assessment, contentDescription = null, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                },
+            )
         }
+        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+        if (results.results.isEmpty()) {
+            item {
+                EduCoreShowcaseSectionCard {
+                    EduCoreEmptyState(
+                        "No published results",
+                        "Your school has not published a report card for this account yet.",
+                    )
+                }
+            }
+        }
+
         items(results.results, key = PublishedResult::id) { result ->
             Card(
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
                 shape = MaterialTheme.shapes.large,
             ) {
                 Column(
-                    Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                    modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                 ) {
-                    Row {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Column(Modifier.weight(1f)) {
-                            Text(result.term.orEmpty(), style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                result.term.orEmpty().ifBlank { "Published term" },
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = EduCoreColors.Ink900,
+                            )
                             Text(result.session.orEmpty(), color = EduCoreColors.Slate600)
                         }
-                        EduCoreStatusBadge("${result.average.formatScore()}%", EduCoreTone.Success)
+                        EduCoreStatusBadge("${result.average.formatScore()}%", result.average.averageTone())
                     }
-                    Text("Position ${result.position ?: "—"} of ${result.classSize ?: "—"} · ${result.promotionStatus.replace('_', ' ')}")
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        EduCoreShowcaseStat(
+                            label = "Average",
+                            value = "${result.average.formatScore()}%",
+                            icon = Icons.Default.Assessment,
+                            tone = result.average.averageTone(),
+                            modifier = Modifier.weight(1f),
+                        )
+                        EduCoreShowcaseStat(
+                            label = "Position",
+                            value = result.position?.toString() ?: "—",
+                            icon = Icons.Default.Groups,
+                            tone = EduCoreTone.Brand,
+                            modifier = Modifier.weight(1f),
+                        )
+                        EduCoreShowcaseStat(
+                            label = "Class size",
+                            value = result.classSize?.toString() ?: "—",
+                            icon = Icons.Default.School,
+                            tone = EduCoreTone.Info,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    if (result.promotionStatus.isNotBlank()) {
+                        EduCoreStatusBadge(
+                            result.promotionStatus.replace('_', ' ').replaceFirstChar(Char::uppercase),
+                            promotionTone(result.promotionStatus),
+                        )
+                    }
+
+                    EduCoreSectionHeader(
+                        title = "Subjects",
+                        supportingText = "Published subject totals, grades and remarks",
+                    )
                     result.subjects.forEach { subject ->
-                        Surface(color = EduCoreColors.Page50, shape = MaterialTheme.shapes.medium) {
-                            Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md)) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = EduCoreColors.Page50,
+                            shape = MaterialTheme.shapes.medium,
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(subject.name, fontWeight = FontWeight.SemiBold)
-                                    Text("${subject.grade} · ${subject.remark}", color = EduCoreColors.Slate600)
+                                    Text(
+                                        subject.name,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EduCoreColors.Ink900,
+                                    )
+                                    Text(
+                                        "${subject.grade} · ${subject.remark}",
+                                        color = EduCoreColors.Slate600,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
                                 }
-                                Text(subject.total.formatScore(), fontWeight = FontWeight.Bold)
+                                Text(
+                                    subject.total.formatScore(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = EduCoreColors.Navy900,
+                                )
                             }
                         }
                     }
-                    result.formTutorRemark?.let { Text("Form tutor: $it", style = MaterialTheme.typography.bodySmall) }
-                    result.principalRemark?.let { Text("Principal: $it", style = MaterialTheme.typography.bodySmall) }
+
+                    result.formTutorRemark?.takeIf(String::isNotBlank)?.let {
+                        Text("Form tutor: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate700)
+                    }
+                    result.principalRemark?.takeIf(String::isNotBlank)?.let {
+                        Text("Principal: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate700)
+                    }
                 }
             }
         }
+
+        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
 
 private fun Double.formatScore(): String = if (this % 1.0 == 0.0) toInt().toString() else toString()
+
+private fun Double.averageTone(): EduCoreTone = when {
+    this >= 50.0 -> EduCoreTone.Success
+    this >= 40.0 -> EduCoreTone.Warning
+    else -> EduCoreTone.Danger
+}
+
+private fun promotionTone(status: String): EduCoreTone = when (status.lowercase()) {
+    "promoted", "passed", "graduated" -> EduCoreTone.Success
+    "repeated", "repeat", "failed", "not_promoted" -> EduCoreTone.Danger
+    else -> EduCoreTone.Warning
+}
