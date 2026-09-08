@@ -96,3 +96,83 @@ data class PlatformAgentDto(
 )
 
 data class PlatformAgentsDto(val agents: List<PlatformAgentDto> = emptyList())
+
+data class PlatformAnalyticsMetricsDto(
+    val schools: Int = 0,
+    @param:Json(name = "active_subscriptions") val activeSubscriptions: Int = 0,
+    val students: Int = 0,
+    @param:Json(name = "top_tier") val topTier: String = "None",
+)
+
+data class PlatformGrowthDto(val month: Int, val year: Int, val count: Int)
+data class PlatformPlanDistributionDto(val plan: String, val count: Int)
+data class PlatformAnalyticsDto(
+    val metrics: PlatformAnalyticsMetricsDto = PlatformAnalyticsMetricsDto(),
+    val growth: List<PlatformGrowthDto> = emptyList(),
+    @param:Json(name = "plan_distribution") val planDistribution: List<PlatformPlanDistributionDto> = emptyList(),
+)
+
+data class PlatformGroupDto(
+    val id: Long,
+    val name: String,
+    val slug: String? = null,
+    val description: String? = null,
+    @param:Json(name = "owner_name") val ownerName: String? = null,
+    @param:Json(name = "owner_email") val ownerEmail: String? = null,
+    @param:Json(name = "member_count") val memberCount: Int = 0,
+    @param:Json(name = "created_at") val createdAt: String? = null,
+)
+data class PlatformGroupsDto(val groups: List<PlatformGroupDto> = emptyList())
+
+data class PlatformSupportSummaryDto(
+    val open: Int = 0,
+    val replied: Int = 0,
+    val closed: Int = 0,
+)
+data class PlatformSupportTicketDto(
+    val id: Long,
+    @param:Json(name = "tenant_id") val tenantId: Long,
+    val school: String? = null,
+    val requester: String? = null,
+    val subject: String,
+    val body: String,
+    val status: String,
+    @param:Json(name = "admin_reply") val adminReply: String? = null,
+    @param:Json(name = "replied_at") val repliedAt: String? = null,
+    @param:Json(name = "created_at") val createdAt: String? = null,
+)
+data class PlatformSupportDto(
+    val summary: PlatformSupportSummaryDto = PlatformSupportSummaryDto(),
+    val tickets: List<PlatformSupportTicketDto> = emptyList(),
+)
+
+data class PlatformBroadcastDto(
+    val id: Long,
+    val title: String,
+    val body: String,
+    val target: String,
+    val creator: String? = null,
+    @param:Json(name = "expires_at") val expiresAt: String? = null,
+    @param:Json(name = "created_at") val createdAt: String? = null,
+    val active: Boolean = true,
+)
+data class PlatformBroadcastsDto(val broadcasts: List<PlatformBroadcastDto> = emptyList())
+
+data class PlatformSettingDto(
+    val key: String,
+    val label: String,
+    val group: String,
+    val type: String,
+    val value: Any? = null,
+)
+data class PlatformSettingsDto(val settings: List<PlatformSettingDto> = emptyList())
+
+data class PlatformGatewayDto(
+    val provider: String,
+    @param:Json(name = "public_identifier") val publicIdentifier: String? = null,
+    @param:Json(name = "contract_code") val contractCode: String? = null,
+    @param:Json(name = "secret_configured") val secretConfigured: Boolean = false,
+    val live: Boolean = false,
+    val configured: Boolean = false,
+)
+data class PlatformGatewaysDto(val gateways: List<PlatformGatewayDto> = emptyList())
