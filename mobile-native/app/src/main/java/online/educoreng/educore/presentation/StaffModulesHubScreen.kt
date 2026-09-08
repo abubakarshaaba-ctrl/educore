@@ -50,10 +50,9 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT and the administrator staff directory are hosted directly inside this
- * native hub while the surrounding staff navigation is progressively migrated
- * to explicit feature routes. Neither permitted workspace falls back to a
- * browser or an "in progress" placeholder.
+ * CBT, staff directory and data exports are hosted directly inside this native
+ * hub while the surrounding staff navigation is progressively migrated to
+ * explicit feature routes. These workspaces never fall back to a browser.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -66,11 +65,14 @@ internal fun StaffModulesHubScreen(
     val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
     val staffDirectoryViewModel: StaffDirectoryViewModel = hiltViewModel()
     val staffDirectoryState by staffDirectoryViewModel.uiState.collectAsStateWithLifecycle()
+    val exportsViewModel: ExportsViewModel = hiltViewModel()
+    val exportsState by exportsViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
     var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
     var staffDirectoryOpen by rememberSaveable { mutableStateOf(false) }
+    var exportsOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -79,6 +81,21 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (exportsOpen) {
+        ExportsScreen(
+            state = exportsState,
+            onBack = { exportsOpen = false },
+            onType = exportsViewModel::selectType,
+            onClass = exportsViewModel::selectClass,
+            onTerm = exportsViewModel::selectTerm,
+            onSession = exportsViewModel::selectSession,
+            onDownload = exportsViewModel::download,
+            onRetry = exportsViewModel::load,
+            onDocumentOpened = exportsViewModel::consumeDocument,
+        )
+        return
     }
 
     if (staffDirectoryOpen) {
@@ -167,6 +184,10 @@ internal fun StaffModulesHubScreen(
             "staff" -> {
                 staffDirectoryOpen = true
                 staffDirectoryViewModel.load()
+            }
+            "exports" -> {
+                exportsOpen = true
+                exportsViewModel.load()
             }
             in CBT_MODULE_KEYS -> {
                 cbtExamId = 0L
@@ -293,6 +314,8 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "cbt", "cbt-exams", "examinations" -> "Examinations"
     "academic-cycle" -> "Sessions"
     "fees" -> "Fees & Payments"
+    "analytics" -> "Analytics"
+    "exports" -> "Exports"
     else -> module.title
 }
 
