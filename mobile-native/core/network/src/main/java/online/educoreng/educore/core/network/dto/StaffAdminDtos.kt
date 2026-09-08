@@ -17,8 +17,26 @@ data class StaffDirectoryMemberDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class StaffDirectoryCountsDto(
+    val total: Int = 0,
+    val active: Int = 0,
+    val inactive: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class StaffDirectoryMetaDto(
+    val page: Int = 1,
+    @Json(name = "per_page") val perPage: Int = 50,
+    val total: Int = 0,
+    @Json(name = "last_page") val lastPage: Int = 1,
+    @Json(name = "has_more") val hasMore: Boolean = false,
+)
+
+@JsonClass(generateAdapter = true)
 data class StaffDirectoryResponseDto(
     val staff: List<StaffDirectoryMemberDto> = emptyList(),
+    val counts: StaffDirectoryCountsDto = StaffDirectoryCountsDto(),
+    val meta: StaffDirectoryMetaDto = StaffDirectoryMetaDto(),
 )
 
 @JsonClass(generateAdapter = true)
