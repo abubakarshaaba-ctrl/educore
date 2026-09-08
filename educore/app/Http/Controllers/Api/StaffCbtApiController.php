@@ -46,9 +46,7 @@ class StaffCbtApiController extends Controller
             'generated_at' => now()->toIso8601String(),
             'capabilities' => [
                 'full_access' => $this->hasFullAccess($user),
-                // Creation remains on the web builder until the native create
-                // contract includes bank/class/term options and section review.
-                'create_exam' => false,
+                'create_exam' => true,
                 'publish_exam' => true,
                 'close_exam' => true,
                 'reschedule_exam' => true,
