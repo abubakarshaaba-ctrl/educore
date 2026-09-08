@@ -19,8 +19,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
+import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
@@ -41,9 +43,46 @@ internal fun PlatformScreen(
     onSearchChange: (String) -> Unit,
     onSearch: () -> Unit,
     onStatus: (String?) -> Unit,
+    onEditReply: (Long, String?) -> Unit,
+    onReplyDraft: (String) -> Unit,
+    onSendReply: () -> Unit,
+    onCancelReply: () -> Unit,
+    onRequestCloseTicket: (Long) -> Unit,
+    onOpenBroadcastEditor: () -> Unit,
+    onCloseBroadcastEditor: () -> Unit,
+    onBroadcastTitle: (String) -> Unit,
+    onBroadcastBody: (String) -> Unit,
+    onBroadcastTarget: (String) -> Unit,
+    onBroadcastExpiresAt: (String) -> Unit,
+    onCreateBroadcast: () -> Unit,
+    onRequestExpireBroadcast: (Long) -> Unit,
+    onConfirmPendingAction: () -> Unit,
+    onDismissPendingAction: () -> Unit,
     onRetry: () -> Unit,
     onLogout: (() -> Unit)? = null,
 ) {
+    EduCoreConfirmationDialog(
+        visible = state.pendingAction != null,
+        title = when (state.pendingAction) {
+            PlatformPendingAction.CLOSE_SUPPORT -> "Close support ticket?"
+            PlatformPendingAction.EXPIRE_BROADCAST -> "Expire platform broadcast?"
+            null -> "Confirm platform action"
+        },
+        message = when (state.pendingAction) {
+            PlatformPendingAction.CLOSE_SUPPORT -> "The ticket will be marked closed and no further platform reply can be added from the native workflow."
+            PlatformPendingAction.EXPIRE_BROADCAST -> "The broadcast will stop appearing as an active platform notice immediately."
+            null -> "Confirm this platform action."
+        },
+        confirmLabel = when (state.pendingAction) {
+            PlatformPendingAction.CLOSE_SUPPORT -> "Close ticket"
+            PlatformPendingAction.EXPIRE_BROADCAST -> "Expire"
+            null -> "Confirm"
+        },
+        destructive = true,
+        onConfirm = onConfirmPendingAction,
+        onDismiss = onDismissPendingAction,
+    )
+
     Column(Modifier.fillMaxSize()) {
         EduCorePageHeader("Platform Administration", "EduCore network control centre", onBack = onBack)
         LazyColumn(
@@ -60,20 +99,20 @@ internal fun PlatformScreen(
             }
             item {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     PlatformSection.entries.forEach { section ->
                         FilterChip(
                             selected = state.section == section,
                             onClick = { onSection(section) },
+                            enabled = !state.isMutating,
                             label = { Text(section.label()) },
                         )
                     }
                 }
             }
+            state.message?.let { item { EduCoreInfoBanner(it, title = "Platform updated") } }
             state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
             if (state.isLoading) item { EduCoreLoadingState(message = "Loading platform data") }
 
@@ -100,11 +139,12 @@ internal fun PlatformScreen(
                             value = state.search,
                             onValueChange = onSearchChange,
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isMutating,
                             label = { Text("Search school or slug") },
                             singleLine = true,
                         )
                     }
-                    item { EduCorePrimaryButton("Search schools", onSearch, Modifier.fillMaxWidth()) }
+                    item { EduCorePrimaryButton("Search schools", onSearch, Modifier.fillMaxWidth(), enabled = !state.isMutating) }
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -114,6 +154,7 @@ internal fun PlatformScreen(
                                 FilterChip(
                                     selected = state.status == status,
                                     onClick = { onStatus(status) },
+                                    enabled = !state.isMutating,
                                     label = { Text(status?.replace('_', ' ') ?: "All") },
                                 )
                             }
@@ -209,13 +250,13 @@ internal fun PlatformScreen(
                         PlatformMetricCard(
                             "Tickets",
                             (support.summary.open + support.summary.replied + support.summary.closed).toString(),
-                            "${support.summary.open} open · ${support.summary.replied} replied · ${support.summary.closed} closed",
+                            "${support.summary.open} open · ${support.summary.replied} answered · ${support.summary.closed} closed",
                         )
                     }
                     if (support.tickets.isEmpty()) item { EduCoreEmptyState("No support tickets", "Incoming school support requests will appear here.") }
                     items(support.tickets, key = { it.id }) { ticket ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
-                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(ticket.subject, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                     EduCoreStatusBadge(ticket.status, ticket.status.supportTone())
@@ -225,6 +266,27 @@ internal fun PlatformScreen(
                                 ticket.adminReply?.takeIf(String::isNotBlank)?.let {
                                     Text("Platform reply: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                                 }
+                                if (state.replyTicketId == ticket.id) {
+                                    OutlinedTextField(
+                                        value = state.replyDraft,
+                                        onValueChange = onReplyDraft,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                        label = { Text("Platform reply") },
+                                        minLines = 3,
+                                        maxLines = 8,
+                                        supportingText = { Text("${state.replyDraft.length}/3000") },
+                                    )
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                                        EduCorePrimaryButton("Send reply", onSendReply, Modifier.weight(1f), enabled = state.replyValid, loading = state.isMutating)
+                                        EduCoreSecondaryButton("Cancel", onCancelReply, Modifier.weight(1f), enabled = !state.isMutating)
+                                    }
+                                } else if (ticket.status != "closed") {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                                        EduCoreSecondaryButton("Reply", { onEditReply(ticket.id, ticket.adminReply) }, Modifier.weight(1f), enabled = !state.isMutating)
+                                        EduCoreSecondaryButton("Close ticket", { onRequestCloseTicket(ticket.id) }, Modifier.weight(1f), enabled = !state.isMutating)
+                                    }
+                                }
                             }
                         }
                     }
@@ -232,10 +294,65 @@ internal fun PlatformScreen(
 
                 PlatformSection.BROADCASTS -> state.broadcasts?.let { broadcasts ->
                     item { EduCoreSectionHeader("Platform broadcasts", "Network-wide notices and targeted announcements") }
+                    item {
+                        if (!state.broadcastEditorOpen) {
+                            EduCorePrimaryButton("Create broadcast", onOpenBroadcastEditor, Modifier.fillMaxWidth(), enabled = !state.isMutating)
+                        } else {
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                                Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                                    Text("New platform broadcast", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    OutlinedTextField(
+                                        value = state.broadcastTitle,
+                                        onValueChange = onBroadcastTitle,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                        label = { Text("Title") },
+                                        singleLine = true,
+                                    )
+                                    OutlinedTextField(
+                                        value = state.broadcastBody,
+                                        onValueChange = onBroadcastBody,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                        label = { Text("Message") },
+                                        minLines = 4,
+                                        maxLines = 10,
+                                    )
+                                    Text("Audience", style = MaterialTheme.typography.labelLarge)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                                    ) {
+                                        listOf("all", "active", "trial", "expired").forEach { target ->
+                                            FilterChip(
+                                                selected = state.broadcastTarget == target,
+                                                onClick = { onBroadcastTarget(target) },
+                                                enabled = !state.isMutating,
+                                                label = { Text(target.replaceFirstChar(Char::uppercase)) },
+                                            )
+                                        }
+                                    }
+                                    OutlinedTextField(
+                                        value = state.broadcastExpiresAt,
+                                        onValueChange = onBroadcastExpiresAt,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                        label = { Text("Expires at (optional)") },
+                                        supportingText = { Text("Use a future date/time, e.g. 2026-09-30 18:00:00") },
+                                        singleLine = true,
+                                    )
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                                        EduCorePrimaryButton("Publish", onCreateBroadcast, Modifier.weight(1f), enabled = state.broadcastValid, loading = state.isMutating)
+                                        EduCoreSecondaryButton("Cancel", onCloseBroadcastEditor, Modifier.weight(1f), enabled = !state.isMutating)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if (broadcasts.broadcasts.isEmpty()) item { EduCoreEmptyState("No broadcasts", "Platform broadcasts will appear here after creation.") }
                     items(broadcasts.broadcasts, key = { it.id }) { broadcast ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
-                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(broadcast.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                     EduCoreStatusBadge(if (broadcast.active) "Active" else "Expired", if (broadcast.active) EduCoreTone.Success else EduCoreTone.Neutral)
@@ -243,6 +360,14 @@ internal fun PlatformScreen(
                                 Text("Target: ${broadcast.target.replace('_', ' ')}", style = MaterialTheme.typography.bodySmall)
                                 Text(broadcast.body)
                                 Text(listOfNotNull(broadcast.creator, broadcast.createdAt, broadcast.expiresAt?.let { "Expires $it" }).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+                                if (broadcast.active) {
+                                    EduCoreSecondaryButton(
+                                        "Expire broadcast",
+                                        { onRequestExpireBroadcast(broadcast.id) },
+                                        Modifier.fillMaxWidth(),
+                                        enabled = !state.isMutating,
+                                    )
+                                }
                             }
                         }
                     }
@@ -290,6 +415,7 @@ internal fun PlatformScreen(
                         text = "Sign out of Platform",
                         onClick = logout,
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating,
                     )
                 }
             }
@@ -339,7 +465,7 @@ private fun PlatformSection.label(): String = when (this) {
 
 private fun String.supportTone(): EduCoreTone = when (lowercase()) {
     "closed" -> EduCoreTone.Neutral
-    "replied" -> EduCoreTone.Info
+    "answered", "replied" -> EduCoreTone.Info
     else -> EduCoreTone.Warning
 }
 
