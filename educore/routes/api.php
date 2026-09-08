@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePortalController;
+use App\Http\Controllers\Api\MobileRiskController;
 use App\Http\Controllers\Api\MobileScheduleController;
 use App\Http\Controllers\Api\MobileStaffDirectoryController;
 use App\Http\Controllers\Api\ParentController;
@@ -58,6 +59,16 @@ Route::prefix('v1')->group(function () {
         Route::get('schedule', MobileScheduleController::class);
         Route::get('operations/{module}', [MobileOperationsController::class, 'show'])
             ->where('module', '[A-Za-z0-9.-]+');
+
+        Route::prefix('risk')->group(function () {
+            Route::get('/', [MobileRiskController::class, 'index']);
+            Route::post('compute', [MobileRiskController::class, 'compute']);
+            Route::put('config', [MobileRiskController::class, 'updateConfig']);
+            Route::get('{flag}', [MobileRiskController::class, 'show'])->whereNumber('flag');
+            Route::post('{flag}/acknowledge', [MobileRiskController::class, 'acknowledge'])->whereNumber('flag');
+            Route::post('{flag}/resolve', [MobileRiskController::class, 'resolve'])->whereNumber('flag');
+        });
+
         Route::prefix('academic-repository')->group(function () {
             Route::get('classes', [ApiAcademicRepositoryController::class, 'classes']);
             Route::get('resources', [ApiAcademicRepositoryController::class, 'resources']);
