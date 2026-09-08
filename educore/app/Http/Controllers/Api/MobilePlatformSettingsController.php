@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MobilePlatformSettingsController extends Controller
 {
@@ -63,18 +64,18 @@ class MobilePlatformSettingsController extends Controller
 
         $rules = match ($provider) {
             'paystack' => [
-                'public_key' => ['required', 'string', 'max:255', 'regex:/^pk_(test|live)_[A-Za-z0-9]+$/'],
+                'public_key' => ['nullable', 'string', 'max:255', 'regex:/^pk_(test|live)_[A-Za-z0-9]+$/'],
                 'secret_key' => ['nullable', 'string', 'max:255', 'regex:/^sk_(test|live)_[A-Za-z0-9]+$/'],
                 'live' => ['required', 'boolean'],
             ],
             'monnify' => [
-                'public_key' => ['required', 'string', 'max:255'],
+                'public_key' => ['nullable', 'string', 'max:255'],
                 'secret_key' => ['nullable', 'string', 'max:255'],
-                'contract_code' => ['required', 'string', 'max:100'],
+                'contract_code' => ['nullable', 'string', 'max:100'],
                 'live' => ['required', 'boolean'],
             ],
             default => [
-                'public_key' => ['required', 'string', 'max:255'],
+                'public_key' => ['nullable', 'string', 'max:255'],
                 'secret_key' => ['nullable', 'string', 'max:255'],
                 'live' => ['required', 'boolean'],
             ],
@@ -101,27 +102,46 @@ class MobilePlatformSettingsController extends Controller
             ],
         };
 
-        PlatformSetting::setValue($mapping['public_key'], trim($data['public_key']), 'string', 'payments', Str::headline($mapping['public_key']));
-        if (filled($data['secret_key'] ?? null)) {
-            PlatformSetting::setValue($mapping['secret_key'], trim($data['secret_key']), 'encrypted', 'payments', Str::headline($mapping['secret_key']));
+        $existingPublic = PlatformSetting::valueFor($mapping['public_key']);
+        $existingSecret = PlatformSetting::valueFor($mapping['secret_key']);
+        $existingContract = isset($mapping['contract_code']) ? PlatformSetting::valueFor($mapping['contract_code']) : null;
+        $newPublic = trim((string) ($data['public_key'] ?? ''));
+        $newSecret = trim((string) ($data['secret_key'] ?? ''));
+        $newContract = trim((string) ($data['contract_code'] ?? ''));
+
+        if ($newPublic === '' && blank($existingPublic)) {
+            throw ValidationException::withMessages(['public_key' => 'A public identifier is required for first-time gateway configuration.']);
         }
-        if (isset($mapping['contract_code'])) {
-            PlatformSetting::setValue($mapping['contract_code'], trim($data['contract_code']), 'string', 'payments', Str::headline($mapping['contract_code']));
+        if ($newSecret === '' && blank($existingSecret)) {
+            throw ValidationException::withMessages(['secret_key' => 'A secret credential is required for first-time gateway configuration.']);
+        }
+        if (isset($mapping['contract_code']) && $newContract === '' && blank($existingContract)) {
+            throw ValidationException::withMessages(['contract_code' => 'A Monnify contract code is required for first-time configuration.']);
+        }
+
+        if ($newPublic !== '') {
+            PlatformSetting::setValue($mapping['public_key'], $newPublic, 'string', 'payments', Str::headline($mapping['public_key']));
+        }
+        if ($newSecret !== '') {
+            PlatformSetting::setValue($mapping['secret_key'], $newSecret, 'encrypted', 'payments', Str::headline($mapping['secret_key']));
+        }
+        if (isset($mapping['contract_code']) && $newContract !== '') {
+            PlatformSetting::setValue($mapping['contract_code'], $newContract, 'string', 'payments', Str::headline($mapping['contract_code']));
         }
         PlatformSetting::setValue($mapping['live'], (bool) $data['live'], 'boolean', 'payments', Str::headline($mapping['live']));
 
         $this->audit($request, $user, 'platform.gateway.updated', [
             'provider' => $provider,
-            'public_identifier_changed' => true,
-            'secret_replaced' => filled($data['secret_key'] ?? null),
-            'contract_code_changed' => isset($mapping['contract_code']),
+            'public_identifier_changed' => $newPublic !== '',
+            'secret_replaced' => $newSecret !== '',
+            'contract_code_changed' => isset($mapping['contract_code']) && $newContract !== '',
             'live' => (bool) $data['live'],
         ], trim($data['reason']));
 
         return response()->json([
             'message' => Str::headline($provider).' gateway settings saved.',
             'provider' => $provider,
-            'secret_replaced' => filled($data['secret_key'] ?? null),
+            'secret_replaced' => $newSecret !== '',
             'live' => (bool) $data['live'],
         ]);
     }
