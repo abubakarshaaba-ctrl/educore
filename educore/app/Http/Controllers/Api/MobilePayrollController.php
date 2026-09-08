@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PayrollItem;
 use App\Models\PayrollPeriod;
 use App\Models\User;
+use App\Services\PayrollGenerationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -58,6 +59,28 @@ class MobilePayrollController extends Controller
                 'has_more' => $periods->hasMorePages(),
             ],
         ]);
+    }
+
+    public function generate(Request $request, PayrollGenerationService $generator)
+    {
+        $user = $this->guard($request, manage: true);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+        ]);
+
+        $result = $generator->generate((int) $user->tenant_id, $data);
+        $period = $result['period'];
+        $skippedNames = $result['skipped_staff_names'];
+
+        return response()->json([
+            'message' => $skippedNames === []
+                ? 'Payroll generated successfully.'
+                : 'Payroll generated. '.count($skippedNames).' staff member(s) with no configured basic salary were skipped.',
+            'period' => $this->periodPayload($period),
+            'skipped_staff' => $skippedNames,
+        ], 201);
     }
 
     public function show(Request $request, int $period)
