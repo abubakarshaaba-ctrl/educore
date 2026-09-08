@@ -1,11 +1,10 @@
 package online.educoreng.educore.presentation
 
-import android.content.Intent
 import android.content.ClipData
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,15 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,16 +40,20 @@ import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
+import online.educoreng.educore.core.designsystem.component.EduCoreExpandableSection
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
-import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
+import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
+import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
+import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
+import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.RepositoryResource
 
@@ -85,11 +87,16 @@ internal fun AcademicRepositoryScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { RepositoryHeader("Academic Repository", "Class · term · subject", onBack) }
-        if (hierarchy.isFromCache || catalogue?.isFromCache == true) item { EduCoreWarningBanner("Showing repository information saved on this device.") }
+        item { RepositoryHeader("Academic Repository", "Notes, schemes and prepared resources", onBack) }
+        if (hierarchy.isFromCache || catalogue?.isFromCache == true) item {
+            EduCoreWarningBanner("Showing repository information saved on this device.")
+        }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
                 RepositoryMetric("Resources", hierarchy.metrics.resources.toString())
                 RepositoryMetric("Classes", hierarchy.metrics.classes.toString())
                 RepositoryMetric("Subjects", hierarchy.metrics.subjects.toString())
@@ -105,39 +112,59 @@ internal fun AcademicRepositoryScreen(
         }
         item { FilterLabel("Class") }
         item {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
                 EduCoreFilterChip("All", state.selectedClass == null, { onClass(null) })
-                hierarchy.classes.forEach { group -> EduCoreFilterChip("${group.name} (${group.resourceCount})", state.selectedClass == group.name, { onClass(group.name) }) }
+                hierarchy.classes.forEach { group ->
+                    EduCoreFilterChip("${group.name} (${group.resourceCount})", state.selectedClass == group.name, { onClass(group.name) })
+                }
             }
         }
         if (classGroup != null) {
             item { FilterLabel("Term") }
             item {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
                     EduCoreFilterChip("All", state.selectedTerm == null, { onTerm(null) })
-                    classGroup.terms.forEach { term -> EduCoreFilterChip("${term.name} (${term.resourceCount})", state.selectedTerm == term.name, { onTerm(term.name) }) }
+                    classGroup.terms.forEach { term ->
+                        EduCoreFilterChip("${term.name} (${term.resourceCount})", state.selectedTerm == term.name, { onTerm(term.name) })
+                    }
                 }
             }
         }
         if (termGroup != null) {
             item { FilterLabel("Subject") }
             item {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
                     EduCoreFilterChip("All", state.selectedSubject == null, { onSubject(null) })
-                    termGroup.subjects.forEach { subject -> EduCoreFilterChip("${subject.name} (${subject.resourceCount})", state.selectedSubject == subject.name, { onSubject(subject.name) }) }
+                    termGroup.subjects.forEach { subject ->
+                        EduCoreFilterChip("${subject.name} (${subject.resourceCount})", state.selectedSubject == subject.name, { onSubject(subject.name) })
+                    }
                 }
             }
         }
         item {
             Text(
-                listOfNotNull(state.selectedClass, state.selectedTerm, state.selectedSubject).ifEmpty { listOf("All resources") }.joinToString(" · "),
+                listOfNotNull(state.selectedClass, state.selectedTerm, state.selectedSubject)
+                    .ifEmpty { listOf("All resources") }.joinToString(" · "),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
         }
         val resources = catalogue?.resources.orEmpty()
-        if (resources.isEmpty()) item { EduCoreEmptyState("No resources found", "Choose another class, term or subject, or clear the search.") }
-        items(resources, key = RepositoryResource::id) { resource -> RepositoryResourceCard(resource) { onOpen(resource.id) } }
+        if (resources.isEmpty()) item {
+            EduCoreEmptyState("No resources found", "Choose another class, term or subject, or clear the search.")
+        }
+        items(resources, key = RepositoryResource::id) { resource ->
+            RepositoryResourceCard(resource) { onOpen(resource.id) }
+        }
         if (catalogue != null && catalogue.currentPage < catalogue.lastPage) {
             item {
                 EduCoreSecondaryButton(
@@ -152,6 +179,10 @@ internal fun AcademicRepositoryScreen(
     }
 }
 
+/**
+ * Note detail follows the approved concept: strong title bar, metadata chips,
+ * an overview card, accordion-like content sections and an attachment action.
+ */
 @Composable
 internal fun AcademicResourceDetailScreen(
     state: AcademicContentUiState,
@@ -172,31 +203,93 @@ internal fun AcademicResourceDetailScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { RepositoryHeader(detail.resource.title, "${detail.resource.className} · ${detail.resource.term} · ${detail.resource.subject}", onBack) }
+        item { RepositoryHeader(detail.resource.title, "Academic Repository", onBack) }
         if (detail.isFromCache) item { EduCoreWarningBanner("Showing the latest content saved on this device.") }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                EduCorePrimaryButton("Download original", onDownload, loading = state.isSaving, leadingIcon = { Icon(Icons.Default.Download, null) })
-                Text("${detail.fragments.size} sections", Modifier.align(Alignment.CenterVertically), color = EduCoreColors.Slate600)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreStatusBadge(detail.resource.subject, EduCoreTone.Brand)
+                EduCoreStatusBadge(detail.resource.className, EduCoreTone.Accent)
+                EduCoreStatusBadge(detail.resource.term, EduCoreTone.Neutral)
             }
         }
-        if (detail.fragments.isEmpty()) item { EduCoreEmptyState("No readable sections", "Download the original resource to view it.") }
+        item {
+            EduCoreShowcaseSectionCard {
+                Text("Overview", style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                Text(
+                    "${detail.fragments.size} prepared section${if (detail.fragments.size == 1) "" else "s"} for ${detail.resource.subject}. " +
+                        "Use the sections below for reading, then open the original file when you need the source document.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EduCoreColors.Slate700,
+                )
+            }
+        }
+        if (detail.fragments.isEmpty()) item {
+            EduCoreEmptyState("No readable sections", "Download the original resource to view it.")
+        }
         items(detail.fragments, key = { it.id }) { fragment ->
-            Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-                Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    fragment.theme?.takeIf(String::isNotBlank)?.let { Text(it.uppercase(), color = EduCoreColors.Gold600, style = MaterialTheme.typography.labelMedium) }
-                    Text(fragment.topic, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    fragment.subtopic?.takeIf(String::isNotBlank)?.let { Text(it, color = EduCoreColors.Navy900, fontWeight = FontWeight.SemiBold) }
-                    Text(fragment.content, style = MaterialTheme.typography.bodyLarge)
+            EduCoreExpandableSection(
+                title = fragment.topic,
+                supportingText = listOfNotNull(fragment.theme, fragment.subtopic).filter { it.isNotBlank() }.joinToString(" · "),
+                initiallyExpanded = detail.fragments.firstOrNull()?.id == fragment.id,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(
+                        start = EduCoreSpacing.Lg,
+                        end = EduCoreSpacing.Lg,
+                        bottom = EduCoreSpacing.Lg,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    Text(fragment.content, style = MaterialTheme.typography.bodyLarge, color = EduCoreColors.Ink900)
                     fragment.learningExpectation?.takeIf(String::isNotBlank)?.let {
-                        Surface(color = EduCoreColors.Info100, shape = MaterialTheme.shapes.small) {
-                            Text("Learning expectation: $it", Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), style = MaterialTheme.typography.bodySmall)
+                        Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.small) {
+                            Text(
+                                "Learning expectation: $it",
+                                Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Navy900,
+                            )
                         }
                     }
                 }
             }
         }
+        item {
+            Text("Attachment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                border = BorderStroke(1.dp, EduCoreColors.Line200),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.medium) {
+                        Icon(Icons.Default.Description, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900)
+                    }
+                    Spacer(Modifier.width(EduCoreSpacing.Md))
+                    Column(Modifier.weight(1f)) {
+                        Text(detail.resource.filename ?: detail.resource.title, style = MaterialTheme.typography.titleSmall)
+                        Text("Original academic resource", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                    }
+                    EduCorePrimaryButton(
+                        text = "Open",
+                        onClick = onDownload,
+                        loading = state.isSaving,
+                        leadingIcon = { Icon(Icons.Default.Download, null) },
+                    )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
 
@@ -207,28 +300,53 @@ private fun RepositoryHeader(title: String, subtitle: String, onBack: () -> Unit
 
 @Composable
 private fun RepositoryMetric(label: String, value: String) {
-    Card(Modifier.width(132.dp), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-        Column(Modifier.padding(EduCoreSpacing.Lg)) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
+    Card(
+        Modifier.width(118.dp),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Column(Modifier.padding(EduCoreSpacing.Md)) {
+            Text(value, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
             Text(label, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
-@Composable private fun FilterLabel(value: String) = Text(value.uppercase(), style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
+@Composable
+private fun FilterLabel(value: String) = Text(
+    value.uppercase(),
+    style = MaterialTheme.typography.labelMedium,
+    color = EduCoreColors.Slate600,
+)
 
 @Composable
 private fun RepositoryResourceCard(resource: RepositoryResource, onOpen: () -> Unit) {
-    Card(onClick = onOpen, colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
+    Card(
+        onClick = onOpen,
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        shape = MaterialTheme.shapes.large,
+    ) {
         Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = EduCoreColors.Info100, shape = MaterialTheme.shapes.medium) {
+            Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.medium) {
                 Icon(Icons.Default.Description, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900)
             }
             Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
                 Text(resource.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${resource.className} · ${resource.term} · ${resource.subject}", color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
-                Text("${resource.fragmentsCount} sections · ${resource.filename.orEmpty()}", color = EduCoreColors.Muted500, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${resource.className} · ${resource.term} · ${resource.subject}",
+                    color = EduCoreColors.Slate600,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "${resource.fragmentsCount} sections · ${resource.filename.orEmpty()}",
+                    color = EduCoreColors.Muted500,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Icon(Icons.Default.Folder, null, tint = EduCoreColors.Gold600)
         }
