@@ -48,6 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-reports.php'));
 
+            Route::prefix('api/v1')
+                ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
+                ->group(base_path('routes/mobile-platform.php'));
+
             // Override the older student/parent attendance endpoints with one
             // tenant-scoped contract shared by both native portal experiences.
             Route::prefix('api/v1')
