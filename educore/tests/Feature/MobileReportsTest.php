@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ReportCardController;
 use App\Models\ApiToken;
 use App\Models\Student;
 use App\Models\Tenant;
@@ -9,6 +10,7 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Tests\TestCase;
 
 class MobileReportsTest extends TestCase
@@ -280,6 +282,70 @@ class MobileReportsTest extends TestCase
             'class_arm_id' => $classId,
             'term_id' => $period['term'],
         ])->assertUnprocessable();
+    }
+
+    public function test_report_pdf_uses_summary_class_without_persisting_student_move(): void
+    {
+        $school = $this->school('PDF Reports', 'admin');
+        $period = $this->period($school['tenant']->id, true);
+        $historicalClass = $this->classArm($school['tenant']->id, 'Year 10', 'A');
+        $currentClass = $this->classArm($school['tenant']->id, 'Year 11', 'B');
+        $studentId = $this->student($school['tenant']->id, $currentClass, 'PDF001', 'Historic', 'Student');
+        $summaryId = $this->summary(
+            $school['tenant']->id,
+            $studentId,
+            $historicalClass,
+            $period['term'],
+            $period['session'],
+        );
+
+        $renderer = Mockery::mock(ReportCardController::class);
+        $renderer->shouldReceive('pdf')
+            ->once()
+            ->withArgs(function ($request, $student) use ($studentId, $historicalClass, $period): bool {
+                return (int) $student->id === $studentId
+                    && (int) $student->current_class_arm_id === $historicalClass
+                    && (int) $request->input('term_id') === $period['term'];
+            })
+            ->andReturn(response('PDF-CONTENT', 200, ['Content-Type' => 'application/pdf']));
+        $this->app->instance(ReportCardController::class, $renderer);
+
+        $token = ApiToken::issue($school['user'], 'reports-pdf');
+        $this->withToken($token)
+            ->get('/api/v1/reports/'.$summaryId.'/pdf')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertSeeText('PDF-CONTENT');
+
+        $this->assertDatabaseHas('students', [
+            'id' => $studentId,
+            'current_class_arm_id' => $currentClass,
+        ]);
+    }
+
+    public function test_report_pdf_hides_foreign_summary_ids(): void
+    {
+        $local = $this->school('Local PDF', 'admin');
+        $foreign = $this->school('Foreign PDF', 'admin');
+        $foreignPeriod = $this->period($foreign['tenant']->id, true);
+        $foreignClass = $this->classArm($foreign['tenant']->id, 'Year 12', 'A');
+        $foreignStudent = $this->student($foreign['tenant']->id, $foreignClass, 'FPDF01', 'Foreign', 'Student');
+        $foreignSummary = $this->summary(
+            $foreign['tenant']->id,
+            $foreignStudent,
+            $foreignClass,
+            $foreignPeriod['term'],
+            $foreignPeriod['session'],
+        );
+
+        $renderer = Mockery::mock(ReportCardController::class);
+        $renderer->shouldNotReceive('pdf');
+        $this->app->instance(ReportCardController::class, $renderer);
+
+        $token = ApiToken::issue($local['user'], 'reports-pdf-foreign');
+        $this->withToken($token)
+            ->get('/api/v1/reports/'.$foreignSummary.'/pdf')
+            ->assertNotFound();
     }
 
     private function school(string $name, string $role): array
