@@ -139,6 +139,8 @@ fun EduCoreModuleCard(
     enabled: Boolean = true,
     badge: String? = null,
 ) {
+    val supportingSubtitle = subtitle?.trim()?.takeIf(::isHumanReadableSubtitle)
+
     Card(
         onClick = onClick,
         enabled = enabled,
@@ -175,7 +177,7 @@ fun EduCoreModuleCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            subtitle?.let {
+            supportingSubtitle?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
@@ -186,6 +188,12 @@ fun EduCoreModuleCard(
             }
         }
     }
+}
+
+private fun isHumanReadableSubtitle(value: String): Boolean {
+    if (value.isBlank()) return false
+    if (value.any(Char::isWhitespace)) return true
+    return value.none { it == '.' || it == '_' || it == '-' || it == '/' }
 }
 
 @Composable
