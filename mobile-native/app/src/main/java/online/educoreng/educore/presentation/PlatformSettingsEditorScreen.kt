@@ -18,6 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
@@ -64,7 +67,7 @@ internal fun PlatformSettingsEditorScreen(
         ) {
             state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
             state.message?.let { item { SettingsInfoCard(it) } }
-            if (state.isLoading) item { EduCoreLoadingState("Loading platform settings") }
+            if (state.isLoading) item { EduCoreLoadingState(message = "Loading platform settings") }
             if (!state.isLoading && state.values.isEmpty()) item { EduCoreEmptyState("Settings unavailable", "Refresh the platform settings contract.") }
 
             if (state.values.isNotEmpty()) {
@@ -77,7 +80,7 @@ internal fun PlatformSettingsEditorScreen(
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(label) },
                             enabled = !state.isMutating,
-                            singleLine = key !in setOf("office_address"),
+                            singleLine = key != "office_address",
                             minLines = if (key == "office_address") 2 else 1,
                         )
                     }
@@ -147,7 +150,7 @@ internal fun PlatformGatewayEditorScreen(
         ) {
             state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
             state.message?.let { item { SettingsInfoCard(it) } }
-            if (state.isLoading) item { EduCoreLoadingState("Loading payment gateways") }
+            if (state.isLoading) item { EduCoreLoadingState(message = "Loading payment gateways") }
 
             if (state.selectedProvider == null) {
                 item { EduCoreSectionHeader("Choose gateway", "Secret credentials are never downloaded to this device") }
@@ -197,6 +200,9 @@ internal fun PlatformGatewayEditorScreen(
                         label = { Text("Replacement secret credential") },
                         placeholder = { Text(if (current?.secretConfigured == true) "Leave blank to preserve existing secret" else "Required for first-time configuration") },
                         enabled = !state.isMutating,
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     )
                 }
                 if (state.selectedProvider == "monnify") {
