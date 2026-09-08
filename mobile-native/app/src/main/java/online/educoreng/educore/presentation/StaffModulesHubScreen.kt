@@ -50,9 +50,9 @@ import online.educoreng.educore.core.model.SessionSnapshot
  * already represented by Home, Classes, Timetable and Inbox are intentionally
  * removed here so More does not become a second, confusing navigation system.
  *
- * CBT, staff directory, transfers, gradebook/remarks, risk intelligence and
- * data exports are hosted directly inside this native hub. These workspaces
- * never fall back to a browser.
+ * CBT, staff directory, transfers, gradebook/remarks, report-card publication,
+ * risk intelligence and data exports are hosted directly inside this native hub.
+ * These workspaces never fall back to a browser.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -73,6 +73,8 @@ internal fun StaffModulesHubScreen(
     val transfersState by transfersViewModel.uiState.collectAsStateWithLifecycle()
     val gradebookViewModel: GradebookViewModel = hiltViewModel()
     val gradebookState by gradebookViewModel.uiState.collectAsStateWithLifecycle()
+    val reportsViewModel: ReportsViewModel = hiltViewModel()
+    val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -84,6 +86,7 @@ internal fun StaffModulesHubScreen(
     var riskFlagId by rememberSaveable { mutableLongStateOf(0L) }
     var transfersOpen by rememberSaveable { mutableStateOf(false) }
     var gradebookOpen by rememberSaveable { mutableStateOf(false) }
+    var reportsOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -92,6 +95,22 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (reportsOpen) {
+        ReportsScreen(
+            state = reportsState,
+            onBack = { reportsOpen = false },
+            onClass = reportsViewModel::selectClass,
+            onTerm = reportsViewModel::selectTerm,
+            onNote = reportsViewModel::updatePublicationNote,
+            onPublish = reportsViewModel::requestPublish,
+            onUnpublish = reportsViewModel::requestUnpublish,
+            onConfirm = reportsViewModel::confirmPublicationAction,
+            onDismissConfirmation = reportsViewModel::dismissConfirmation,
+            onRetry = reportsViewModel::load,
+        )
+        return
     }
 
     if (gradebookOpen) {
@@ -289,6 +308,10 @@ internal fun StaffModulesHubScreen(
             "gradebook" -> {
                 gradebookOpen = true
                 gradebookViewModel.load()
+            }
+            "reports", "report-cards" -> {
+                reportsOpen = true
+                reportsViewModel.load()
             }
             "transfers" -> {
                 transfersOpen = true
