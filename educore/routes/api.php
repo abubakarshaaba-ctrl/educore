@@ -93,6 +93,7 @@ Route::prefix('v1')->group(function () {
         Route::get('classes/{classArm}', [MobileClassController::class, 'show']);
         Route::get('classes/{classArm}/students', [MobileClassController::class, 'students']);
         Route::get('classes/{classArm}/students/{student}', [MobileClassController::class, 'student']);
+        Route::get('classes/{classArm}/students/{student}/results', [MobileClassController::class, 'results']);
         Route::get('announcements', [TeacherController::class, 'announcements']);
         Route::get('notifications', [MobileCommunicationController::class, 'notifications']);
         Route::post('notifications/read-all', [MobileCommunicationController::class, 'readAll']);
