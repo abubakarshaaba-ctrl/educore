@@ -1,5 +1,6 @@
 package online.educoreng.educore.core.network
 
+import okhttp3.ResponseBody
 import online.educoreng.educore.core.network.dto.ReportComputeResponseDto
 import online.educoreng.educore.core.network.dto.ReportMutationResponseDto
 import online.educoreng.educore.core.network.dto.ReportPublishRequestDto
@@ -7,7 +8,9 @@ import online.educoreng.educore.core.network.dto.ReportsWorkspaceDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ReportsApi {
     @GET("reports")
@@ -24,4 +27,8 @@ interface ReportsApi {
 
     @POST("reports/unpublish")
     suspend fun unpublish(@Body body: ReportPublishRequestDto): ReportMutationResponseDto
+
+    @Streaming
+    @GET("reports/{summary}/pdf")
+    suspend fun downloadPdf(@Path("summary") summaryId: Long): ResponseBody
 }
