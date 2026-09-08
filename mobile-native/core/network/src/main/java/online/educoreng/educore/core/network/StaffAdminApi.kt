@@ -7,6 +7,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Narrow native staff-management contract.
@@ -14,7 +15,12 @@ import retrofit2.http.Path
  */
 interface StaffAdminApi {
     @GET("admin/staff")
-    suspend fun staff(): StaffDirectoryResponseDto
+    suspend fun staff(
+        @Query("query") query: String? = null,
+        @Query("status") status: String = "all",
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 50,
+    ): StaffDirectoryResponseDto
 
     @PATCH("admin/staff/{member}")
     suspend fun updateActiveState(
