@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
@@ -49,7 +50,7 @@ internal fun PayrollGenerationScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
-                border = BorderStroke(EduCoreSpacing.Hairline, EduCoreColors.Info200),
+                border = BorderStroke(1.dp, EduCoreColors.Info200),
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
