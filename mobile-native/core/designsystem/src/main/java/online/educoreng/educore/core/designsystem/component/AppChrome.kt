@@ -86,7 +86,7 @@ fun EduCoreTopAppBar(
             containerColor = EduCoreColors.Navy900,
             titleContentColor = Color.White,
             navigationIconContentColor = Color.White,
-            actionIconContentColor = EduCoreColors.Gold400,
+            actionIconContentColor = Color.White,
         ),
     )
 }
@@ -122,7 +122,7 @@ fun EduCoreBottomNavigation(
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = EduCoreColors.Gold100,
+                    indicatorColor = EduCoreColors.Info100,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
@@ -166,11 +166,6 @@ fun EduCoreTenantHeader(
     }
 }
 
-/**
- * Premium feature header used on score entry, timetable, repository and other
- * deep workspaces. The approved mobile direction uses a solid navy identity
- * bar with white copy and gold actions rather than a pale web-style panel.
- */
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -182,12 +177,12 @@ fun EduCorePageHeader(
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        color = EduCoreColors.Navy900,
-        border = BorderStroke(1.dp, EduCoreColors.Navy800),
-        shadowElevation = 2.dp,
+        shape = MaterialTheme.shapes.large,
+        color = EduCoreColors.White,
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        shadowElevation = 0.dp,
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm)) {
             if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) { PageHeaderIdentity(title, subtitle, onBack) }
@@ -203,7 +198,6 @@ fun EduCorePageHeader(
     }
 }
 
-/** Compatibility overload for older native call sites that pass onBack positionally. */
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -221,11 +215,27 @@ fun EduCorePageHeader(
 @Composable
 private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
     if (onBack != null) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White) }
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = EduCoreColors.Navy900)
+        }
         Spacer(Modifier.width(EduCoreSpacing.Xs))
     }
     Column(Modifier.weight(1f)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        subtitle?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.72f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            color = EduCoreColors.Ink900,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        subtitle?.takeIf(String::isNotBlank)?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
