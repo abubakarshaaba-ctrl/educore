@@ -3,10 +3,10 @@ package online.educoreng.educore.core.network.dto
 import com.squareup.moshi.Json
 
 data class AdmissionModuleDto(
-    val key: String,
-    val title: String,
-    val description: String,
-    @param:Json(name = "mobile_policy") val mobilePolicy: String,
+    val key: String = "admissions",
+    val title: String = "Admissions",
+    val description: String = "",
+    @param:Json(name = "mobile_policy") val mobilePolicy: String = "native",
 )
 
 data class AdmissionCapabilitiesDto(
@@ -42,19 +42,19 @@ data class AdmissionClassArmDto(
 
 data class AdmissionItemDto(
     val id: Long,
-    @param:Json(name = "application_number") val applicationNumber: String,
-    val name: String,
-    @param:Json(name = "first_name") val firstName: String,
-    @param:Json(name = "last_name") val lastName: String,
+    @param:Json(name = "application_number") val applicationNumber: String = "",
+    val name: String = "",
+    @param:Json(name = "first_name") val firstName: String = "",
+    @param:Json(name = "last_name") val lastName: String = "",
     @param:Json(name = "other_names") val otherNames: String? = null,
     val gender: String? = null,
     @param:Json(name = "date_of_birth") val dateOfBirth: String? = null,
     @param:Json(name = "class_level_id") val classLevelId: Long? = null,
     @param:Json(name = "class_level") val classLevel: String? = null,
-    @param:Json(name = "guardian_name") val guardianName: String,
-    @param:Json(name = "guardian_phone") val guardianPhone: String,
+    @param:Json(name = "guardian_name") val guardianName: String = "",
+    @param:Json(name = "guardian_phone") val guardianPhone: String = "",
     @param:Json(name = "guardian_email") val guardianEmail: String? = null,
-    val status: String,
+    val status: String = "pending",
     val notes: String? = null,
     @param:Json(name = "application_date") val applicationDate: String? = null,
     @param:Json(name = "interview_date") val interviewDate: String? = null,
@@ -81,8 +81,8 @@ data class AdmissionMetaDto(
 )
 
 data class AdmissionsWorkspaceDto(
-    @param:Json(name = "contract_version") val contractVersion: Int,
-    val module: AdmissionModuleDto,
+    @param:Json(name = "contract_version") val contractVersion: Int = 1,
+    val module: AdmissionModuleDto = AdmissionModuleDto(),
     val capabilities: AdmissionCapabilitiesDto = AdmissionCapabilitiesDto(),
     val stats: AdmissionStatsDto = AdmissionStatsDto(),
     @param:Json(name = "status_options") val statusOptions: List<AdmissionKeyLabelDto> = emptyList(),
@@ -91,7 +91,7 @@ data class AdmissionsWorkspaceDto(
     val admissions: List<AdmissionItemDto> = emptyList(),
     val selected: AdmissionSelectedDto = AdmissionSelectedDto(),
     val meta: AdmissionMetaDto = AdmissionMetaDto(),
-    @param:Json(name = "generated_at") val generatedAt: String,
+    @param:Json(name = "generated_at") val generatedAt: String = "",
 )
 
 data class CreateAdmissionRequestDto(
