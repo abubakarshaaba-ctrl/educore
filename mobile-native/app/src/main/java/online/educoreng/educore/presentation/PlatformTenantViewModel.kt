@@ -15,6 +15,7 @@ import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.PlatformApi
 import online.educoreng.educore.core.network.dto.PlatformTenantDetailDto
 import online.educoreng.educore.core.network.dto.PlatformTenantExtendRequestDto
+import online.educoreng.educore.core.network.dto.PlatformTenantRemovalRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantUpdateRequestDto
 import retrofit2.HttpException
 
@@ -27,12 +28,20 @@ internal data class PlatformTenantUiState(
     val extensionMonths: Int = 3,
     val pendingAction: PlatformTenantPendingAction? = null,
     val pendingStatus: String? = null,
+    val removalOpen: Boolean = false,
+    val removalConfirmation: String = "",
+    val removalPassword: String = "",
+    val removalReason: String = "",
     val isLoading: Boolean = false,
     val isMutating: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
 ) {
     val reasonValid: Boolean get() = reason.trim().length >= 5
+    val removalValid: Boolean get() = detail != null &&
+        removalConfirmation == detail.tenant.name &&
+        removalPassword.isNotBlank() &&
+        removalReason.trim().length in 10..500
 }
 
 @HiltViewModel
@@ -94,17 +103,11 @@ internal class PlatformTenantViewModel @Inject constructor(factory: ApiClientFac
                 val response = when (action) {
                     PlatformTenantPendingAction.STATUS -> api.updateTenant(
                         tenantId,
-                        PlatformTenantUpdateRequestDto(
-                            status = requireNotNull(state.pendingStatus),
-                            reason = state.reason.trim(),
-                        ),
+                        PlatformTenantUpdateRequestDto(status = requireNotNull(state.pendingStatus), reason = state.reason.trim()),
                     )
                     PlatformTenantPendingAction.EXTEND -> api.extendTenant(
                         tenantId,
-                        PlatformTenantExtendRequestDto(
-                            months = state.extensionMonths,
-                            reason = state.reason.trim(),
-                        ),
+                        PlatformTenantExtendRequestDto(months = state.extensionMonths, reason = state.reason.trim()),
                     )
                 }
                 val detail = api.tenant(tenantId)
@@ -125,6 +128,70 @@ internal class PlatformTenantViewModel @Inject constructor(factory: ApiClientFac
             }
         }
     }
+
+    fun openRemoval() = _uiState.update {
+        if (it.isMutating) it else it.copy(
+            removalOpen = true,
+            removalConfirmation = "",
+            removalPassword = "",
+            removalReason = "",
+            errorMessage = null,
+            message = null,
+        )
+    }
+
+    fun closeRemoval() = _uiState.update {
+        it.copy(removalOpen = false, removalConfirmation = "", removalPassword = "", removalReason = "", errorMessage = null)
+    }
+
+    fun setRemovalConfirmation(value: String) = _uiState.update {
+        if (it.isMutating) it else it.copy(removalConfirmation = value.take(150), errorMessage = null)
+    }
+    fun setRemovalPassword(value: String) = _uiState.update {
+        if (it.isMutating) it else it.copy(removalPassword = value.take(255), errorMessage = null)
+    }
+    fun setRemovalReason(value: String) = _uiState.update {
+        if (it.isMutating) it else it.copy(removalReason = value.take(500), errorMessage = null)
+    }
+
+    fun removeSchool(onRemoved: () -> Unit) {
+        val state = _uiState.value
+        val tenantId = state.tenantId ?: return
+        if (!state.removalValid || state.isMutating) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null, message = null) }
+            try {
+                api.removeTenant(
+                    tenantId,
+                    PlatformTenantRemovalRequestDto(
+                        confirmation = state.removalConfirmation,
+                        currentPassword = state.removalPassword,
+                        reason = state.removalReason.trim(),
+                    ),
+                )
+                _uiState.update {
+                    it.copy(
+                        removalOpen = false,
+                        removalConfirmation = "",
+                        removalPassword = "",
+                        removalReason = "",
+                        isMutating = false,
+                    )
+                }
+                onRemoved()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(
+                        removalPassword = "",
+                        isMutating = false,
+                        errorMessage = error.tenantPlatformMessage(),
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun Throwable.tenantPlatformMessage(): String = when (this) {
@@ -132,9 +199,8 @@ private fun Throwable.tenantPlatformMessage(): String = when (this) {
         401 -> "Your platform session has expired. Sign in again."
         403 -> "Platform Super Admin access is required."
         404 -> "This school is no longer available."
-        422 -> "The school lifecycle change was rejected. Review the reason, status and subscription state."
+        422 -> "The school lifecycle change was rejected. Review the confirmation, password, reason and current state."
         else -> "The platform service returned an error (${code()})."
     }
-    else -> localizedMessage?.takeIf(String::isNotBlank)
-        ?: "Unable to reach the platform service."
+    else -> localizedMessage?.takeIf(String::isNotBlank) ?: "Unable to reach the platform service."
 }
