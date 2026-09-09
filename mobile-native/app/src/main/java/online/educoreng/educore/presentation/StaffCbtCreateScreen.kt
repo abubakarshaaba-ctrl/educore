@@ -487,4 +487,7 @@ private fun utcDateOnlyMillis(value: Long): Long {
 
 private fun createDateLabel(value: Long): String = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(value))
 private fun createTimeLabel(value: Long): String = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(value))
-private fun createApiDateTime(value: Long): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date(value))
+private fun createApiDateTime(value: Long): String {
+    val raw = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US).format(Date(value))
+    return if (raw.length >= 5) raw.dropLast(2) + ":" + raw.takeLast(2) else raw
+}
