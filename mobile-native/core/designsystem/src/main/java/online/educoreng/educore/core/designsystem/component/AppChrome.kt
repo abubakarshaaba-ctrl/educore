@@ -120,9 +120,9 @@ fun EduCoreBottomNavigation(
                 },
                 label = { Text(item.label, maxLines = 1) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EduCoreColors.Navy900,
-                    selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = EduCoreColors.Info100,
+                    selectedIconColor = EduCoreColors.Gold600,
+                    selectedTextColor = EduCoreColors.Gold600,
+                    indicatorColor = Color.Transparent,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
