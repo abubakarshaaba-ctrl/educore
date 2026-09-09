@@ -19,8 +19,9 @@ private val EduCoreColorScheme = lightColorScheme(
     onPrimaryContainer = EduCoreColors.Navy900,
     secondary = EduCoreColors.Gold600,
     onSecondary = EduCoreColors.Ink900,
-    secondaryContainer = EduCoreColors.Gold100,
-    onSecondaryContainer = EduCoreColors.Navy900,
+    // Gold is an accent/text colour, not a large filled surface.
+    secondaryContainer = EduCoreColors.White,
+    onSecondaryContainer = EduCoreColors.Gold700,
     background = EduCoreColors.Page50,
     onBackground = EduCoreColors.Ink900,
     surface = EduCoreColors.White,
