@@ -22,10 +22,10 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -49,8 +51,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import online.educoreng.educore.core.designsystem.component.EduCoreBottomNavigation
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
@@ -246,9 +246,7 @@ internal fun AuthorizedShell(
                 }
             },
         ) { contentPadding ->
-            Row(
-                modifier = Modifier.fillMaxSize().padding(contentPadding),
-            ) {
+            Row(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
                 if (width != EduCoreWindowWidth.Compact && !secureAttempt) {
                     NavigationRail(containerColor = EduCoreColors.White) {
                         tabs.forEach { tab ->
@@ -279,100 +277,147 @@ internal fun AuthorizedShell(
                     ) {
                         tabs.forEach { tab ->
                             composable(tab.id.route) {
-                                if (tab.id == ShellTabId.INBOX) {
-                                    LaunchedEffect(Unit) { communicationViewModel.loadAll() }
-                                    CommunicationCenterScreen(
-                                        state = communicationState,
-                                        onBack = { navigate(tabs.first()) },
-                                        onTab = communicationViewModel::selectTab,
-                                        onNoticeFilter = communicationViewModel::setNoticeFilter,
-                                        onMarkRead = communicationViewModel::markRead,
-                                        onMarkAllRead = communicationViewModel::markAllRead,
-                                        onOpenThread = { threadId ->
-                                            communicationViewModel.openThread(threadId)
-                                            navController.navigate("native/communications/messages/$threadId")
-                                        },
-                                        onCompose = {
-                                            communicationViewModel.prepareCompose()
-                                            navController.navigate(NativeRoute.COMPOSE_MESSAGE)
-                                        },
-                                        onRetry = communicationViewModel::loadAll,
-                                    )
-                                } else ShellTabScreen(
-                                    tab = tab,
-                                    session = session,
-                                    width = width,
-                                    dashboard = dashboard,
-                                    onRefreshDashboard = onRefreshDashboard,
-                                    onModuleClick = { module ->
-                                        when (module.key) {
-                                            "classes", "students", "attendance" -> {
-                                                classesViewModel.loadClasses()
-                                                navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
-                                            }
-                                            "student.attendance", "parent.attendance" -> {
-                                                portalAttendanceViewModel.load(session.user.portal)
-                                                navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
-                                            }
-                                            "staff-attendance", "staff-attendance.self" -> {
-                                                classesViewModel.loadStaffAttendance()
-                                                navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
-                                            }
-                                            "scores", "scores.entry" -> {
-                                                if (session.can("scores") || session.can("scores.entry")) {
+                                when {
+                                    tab.id == ShellTabId.INBOX -> {
+                                        LaunchedEffect(Unit) { communicationViewModel.loadAll() }
+                                        CommunicationCenterScreen(
+                                            state = communicationState,
+                                            onBack = { navigate(tabs.first()) },
+                                            onTab = communicationViewModel::selectTab,
+                                            onNoticeFilter = communicationViewModel::setNoticeFilter,
+                                            onMarkRead = communicationViewModel::markRead,
+                                            onMarkAllRead = communicationViewModel::markAllRead,
+                                            onOpenThread = { threadId ->
+                                                communicationViewModel.openThread(threadId)
+                                                navController.navigate("native/communications/messages/$threadId")
+                                            },
+                                            onCompose = {
+                                                communicationViewModel.prepareCompose()
+                                                navController.navigate(NativeRoute.COMPOSE_MESSAGE)
+                                            },
+                                            onRetry = communicationViewModel::loadAll,
+                                        )
+                                    }
+                                    tab.id == ShellTabId.MORE && session.user.portal in setOf("staff", "admin") -> {
+                                        StaffModulesHubScreen(
+                                            session = session,
+                                            width = width,
+                                            onModuleClick = { module ->
+                                                when (module.key) {
+                                                    "classes", "students", "attendance" -> {
+                                                        classesViewModel.loadClasses()
+                                                        navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
+                                                    }
+                                                    "staff-attendance", "staff-attendance.self" -> {
+                                                        classesViewModel.loadStaffAttendance()
+                                                        navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
+                                                    }
+                                                    "scores", "scores.entry" -> {
+                                                        scoresViewModel.loadAssignments()
+                                                        navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                    }
+                                                    "timetable" -> {
+                                                        scheduleViewModel.load()
+                                                        navController.navigate("native/schedule/0") { launchSingleTop = true }
+                                                    }
+                                                    "academic-repository" -> {
+                                                        academicContentViewModel.loadRepository()
+                                                        navController.navigate(NativeRoute.REPOSITORY) { launchSingleTop = true }
+                                                    }
+                                                    "lesson-planner" -> {
+                                                        academicContentViewModel.loadLessons()
+                                                        navController.navigate(NativeRoute.LESSON_PLANS) { launchSingleTop = true }
+                                                    }
+                                                    in NativeRoute.COMMUNICATION_MODULES -> {
+                                                        communicationViewModel.selectTab(
+                                                            when {
+                                                                module.key.contains("message") -> CommunicationTab.MESSAGES.ordinal
+                                                                module.key.contains("calendar") -> CommunicationTab.EVENTS.ordinal
+                                                                else -> CommunicationTab.NOTICES.ordinal
+                                                            },
+                                                        )
+                                                        navController.navigate(ShellTabId.INBOX.route) { launchSingleTop = true }
+                                                    }
+                                                    in NativeRoute.OPERATIONS_MODULES -> {
+                                                        operationsViewModel.load(module.key)
+                                                        navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
+                                                    }
+                                                    else -> onOpenWebModule(module.path)
+                                                }
+                                            },
+                                            onLogout = { confirmLogout = true },
+                                        )
+                                    }
+                                    else -> ShellTabScreen(
+                                        tab = tab,
+                                        session = session,
+                                        width = width,
+                                        dashboard = dashboard,
+                                        onRefreshDashboard = onRefreshDashboard,
+                                        onModuleClick = { module ->
+                                            when (module.key) {
+                                                "classes", "students", "attendance" -> {
+                                                    classesViewModel.loadClasses()
+                                                    navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
+                                                }
+                                                "student.attendance", "parent.attendance" -> {
+                                                    portalAttendanceViewModel.load(session.user.portal)
+                                                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
+                                                }
+                                                "staff-attendance", "staff-attendance.self" -> {
+                                                    classesViewModel.loadStaffAttendance()
+                                                    navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
+                                                }
+                                                "scores", "scores.entry" -> {
                                                     scoresViewModel.loadAssignments()
                                                     navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
-                                                } else {
-                                                    onOpenWebModule(module.path)
                                                 }
-                                            }
-                                            "timetable", "student.timetable" -> {
-                                                scheduleViewModel.load()
-                                                navController.navigate("native/schedule/0") { launchSingleTop = true }
-                                            }
-                                            "student.exams", "cbt", "cbt-exams", "examinations" -> {
-                                                if (session.user.portal == "student") {
+                                                "timetable", "student.timetable" -> {
+                                                    scheduleViewModel.load()
+                                                    navController.navigate("native/schedule/0") { launchSingleTop = true }
+                                                }
+                                                "student.exams" -> {
                                                     cbtViewModel.loadExams()
                                                     navController.navigate(NativeRoute.CBT_EXAMS) { launchSingleTop = true }
-                                                } else {
-                                                    onOpenWebModule(module.path)
                                                 }
-                                            }
-                                            "results", "report-cards", "student.results", "parent.results" -> {
-                                                if (session.user.portal == "student" || session.user.portal == "parent") {
+                                                "cbt", "cbt-exams", "examinations" -> {
+                                                    tabs.firstOrNull { it.id == ShellTabId.MORE }?.let(::navigate)
+                                                }
+                                                "results", "student.results", "parent.results" -> {
                                                     scoresViewModel.loadResults()
                                                     navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
-                                                } else {
-                                                    onOpenWebModule(module.path)
                                                 }
+                                                "report-cards" -> {
+                                                    tabs.firstOrNull { it.id == ShellTabId.MORE }?.let(::navigate)
+                                                }
+                                                "academic-repository" -> {
+                                                    academicContentViewModel.loadRepository()
+                                                    navController.navigate(NativeRoute.REPOSITORY) { launchSingleTop = true }
+                                                }
+                                                "lesson-planner" -> {
+                                                    academicContentViewModel.loadLessons()
+                                                    navController.navigate(NativeRoute.LESSON_PLANS) { launchSingleTop = true }
+                                                }
+                                                in NativeRoute.COMMUNICATION_MODULES -> {
+                                                    communicationViewModel.selectTab(
+                                                        when {
+                                                            module.key.contains("message") -> CommunicationTab.MESSAGES.ordinal
+                                                            module.key.contains("calendar") -> CommunicationTab.EVENTS.ordinal
+                                                            else -> CommunicationTab.NOTICES.ordinal
+                                                        },
+                                                    )
+                                                    navController.navigate(ShellTabId.INBOX.route) { launchSingleTop = true }
+                                                }
+                                                in NativeRoute.OPERATIONS_MODULES -> {
+                                                    operationsViewModel.load(module.key)
+                                                    navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
+                                                }
+                                                else -> onOpenWebModule(module.path)
                                             }
-                                            "academic-repository" -> {
-                                                academicContentViewModel.loadRepository()
-                                                navController.navigate(NativeRoute.REPOSITORY) { launchSingleTop = true }
-                                            }
-                                            "lesson-planner" -> {
-                                                academicContentViewModel.loadLessons()
-                                                navController.navigate(NativeRoute.LESSON_PLANS) { launchSingleTop = true }
-                                            }
-                                            in NativeRoute.COMMUNICATION_MODULES -> {
-                                                communicationViewModel.selectTab(
-                                                    when {
-                                                        module.key.contains("message") -> CommunicationTab.MESSAGES.ordinal
-                                                        module.key.contains("calendar") -> CommunicationTab.EVENTS.ordinal
-                                                        else -> CommunicationTab.NOTICES.ordinal
-                                                    },
-                                                )
-                                                navController.navigate(ShellTabId.INBOX.route) { launchSingleTop = true }
-                                            }
-                                            in NativeRoute.OPERATIONS_MODULES -> {
-                                                operationsViewModel.load(module.key)
-                                                navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
-                                            }
-                                            else -> onOpenWebModule(module.path)
-                                        }
-                                    },
-                                    onLogout = { confirmLogout = true },
-                                )
+                                        },
+                                        onLogout = { confirmLogout = true },
+                                    )
+                                }
                             }
                         }
                         composable(NativeRoute.CLASSES) {
