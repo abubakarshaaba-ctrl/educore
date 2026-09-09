@@ -1,16 +1,22 @@
 package online.educoreng.educore.presentation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import online.educoreng.educore.core.data.repository.saveDownloadedDocument
+import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.PlatformBillingApi
 import online.educoreng.educore.core.network.dto.PlatformInvoiceCreateRequestDto
@@ -47,12 +53,17 @@ internal data class PlatformBillingUiState(
     val settlementDraft: PlatformSettlementDraft = PlatformSettlementDraft(),
     val isLoading: Boolean = false,
     val isMutating: Boolean = false,
+    val downloadingInvoiceId: Long? = null,
+    val document: DownloadedDocument? = null,
     val errorMessage: String? = null,
     val message: String? = null,
 )
 
 @HiltViewModel
-internal class PlatformBillingViewModel @Inject constructor(factory: ApiClientFactory) : ViewModel() {
+internal class PlatformBillingViewModel @Inject constructor(
+    factory: ApiClientFactory,
+    @ApplicationContext private val context: Context,
+) : ViewModel() {
     private val api = factory.create(PlatformBillingApi::class.java)
     private val _uiState = MutableStateFlow(PlatformBillingUiState())
     val uiState: StateFlow<PlatformBillingUiState> = _uiState.asStateFlow()
@@ -111,6 +122,38 @@ internal class PlatformBillingViewModel @Inject constructor(factory: ApiClientFa
         }
     }
 
+    fun downloadInvoice(invoice: PlatformInvoiceDto) {
+        val state = _uiState.value
+        if (state.downloadingInvoiceId != null || state.isMutating) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(downloadingInvoiceId = invoice.id, document = null, errorMessage = null, message = null) }
+            try {
+                val body = api.invoicePdf(invoice.id)
+                val document = withContext(Dispatchers.IO) {
+                    saveDownloadedDocument(
+                        context = context,
+                        body = body,
+                        requestedName = "EduCore-Invoice-${safeInvoicePart(invoice.invoiceNumber)}.pdf",
+                        requestedMimeType = "application/pdf",
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        downloadingInvoiceId = null,
+                        document = document,
+                        message = "${invoice.invoiceNumber} downloaded successfully.",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.update { it.copy(downloadingInvoiceId = null, errorMessage = error.platformBillingMessage()) }
+            }
+        }
+    }
+
+    fun consumeDocument() = _uiState.update { it.copy(document = null) }
+
     fun requestSettlement(invoice: PlatformInvoiceDto) {
         if (_uiState.value.isMutating || invoice.status == "paid") return
         _uiState.update { it.copy(settlementDraft = PlatformSettlementDraft(invoice = invoice), errorMessage = null, message = null) }
@@ -159,6 +202,8 @@ internal class PlatformBillingViewModel @Inject constructor(factory: ApiClientFa
             }
         }
     }
+
+    private fun safeInvoicePart(value: String): String = value.replace(Regex("[^A-Za-z0-9_-]+"), "-").trim('-').take(60)
 }
 
 private fun Throwable.platformBillingMessage(): String = when (this) {
