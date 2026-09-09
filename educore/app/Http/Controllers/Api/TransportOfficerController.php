@@ -54,6 +54,7 @@ class TransportOfficerController extends Controller
             ]);
 
         return response()->json([
+            'capabilities' => ['manage' => true],
             'metrics' => [
                 'routes' => $routes->count(),
                 'active_buses' => $buses->where('active', true)->count(),
@@ -63,6 +64,14 @@ class TransportOfficerController extends Controller
             'routes' => $routes,
             'buses' => $buses,
             'unassigned_students' => $unassigned,
+            'selected' => ['search' => ''],
+            'meta' => [
+                'page' => 1,
+                'per_page' => 100,
+                'total' => $unassignedCount,
+                'last_page' => 1,
+                'has_more' => false,
+            ],
         ]);
     }
 
@@ -72,6 +81,7 @@ class TransportOfficerController extends Controller
         abort_unless((int) $route->tenant_id === (int) $user->tenant_id, 404);
         $items = TransportAssignment::where('tenant_id', $user->tenant_id)->where('route_id', $route->id)
             ->with('student.currentClassArm.classLevel:id,name')->get()->map(fn (TransportAssignment $assignment) => [
+                'assignment_id' => $assignment->id,
                 'student_id' => $assignment->student_id,
                 'name' => trim(($assignment->student?->first_name ?? '').' '.($assignment->student?->last_name ?? '')),
                 'admission_number' => $assignment->student?->admission_number,
@@ -79,7 +89,11 @@ class TransportOfficerController extends Controller
                 'pickup_stop' => $assignment->pickup_stop,
                 'direction' => $assignment->direction,
             ]);
-        return response()->json(['route' => ['id' => $route->id, 'name' => $route->name], 'manifest' => $items]);
+        return response()->json([
+            'capabilities' => ['manage' => true],
+            'route' => ['id' => $route->id, 'name' => $route->name],
+            'manifest' => $items,
+        ]);
     }
 
     public function assign(Request $request)
