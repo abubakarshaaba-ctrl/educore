@@ -57,37 +57,17 @@ fun EduCoreTopAppBar(
         modifier = modifier,
         title = {
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.74f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Text(text = title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                subtitle?.let { Text(text = it, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.74f), maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         },
         navigationIcon = {
             if (navigationIcon != null && onNavigationClick != null) {
-                IconButton(onClick = onNavigationClick) {
-                    Icon(navigationIcon, contentDescription = navigationDescription)
-                }
+                IconButton(onClick = onNavigationClick) { Icon(navigationIcon, contentDescription = navigationDescription) }
             }
         },
         actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = EduCoreColors.Navy900,
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White,
-            actionIconContentColor = EduCoreColors.Gold400,
-        ),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = EduCoreColors.Navy900, titleContentColor = Color.White, navigationIconContentColor = Color.White, actionIconContentColor = EduCoreColors.Gold400),
     )
 }
 
@@ -98,34 +78,18 @@ fun EduCoreBottomNavigation(
     onSelect: (EduCoreNavigationItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    NavigationBar(
-        modifier = modifier,
-        containerColor = Color.White,
-        tonalElevation = EduCoreSpacing.Xs,
-    ) {
+    NavigationBar(modifier = modifier, containerColor = Color.White, tonalElevation = EduCoreSpacing.Xs) {
         items.forEach { item ->
             NavigationBarItem(
                 selected = selectedKey == item.key,
                 onClick = { onSelect(item) },
                 icon = {
-                    BadgedBox(
-                        badge = {
-                            if (item.badgeCount > 0) {
-                                Badge {
-                                    Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "")
-                                }
-                            }
-                        },
-                    ) { Icon(item.icon, contentDescription = item.label) }
+                    BadgedBox(badge = { if (item.badgeCount > 0) Badge { Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "") } }) {
+                        Icon(item.icon, contentDescription = item.label)
+                    }
                 },
                 label = { Text(item.label, maxLines = 1) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EduCoreColors.Navy900,
-                    selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = EduCoreColors.Gold100,
-                    unselectedIconColor = EduCoreColors.Muted500,
-                    unselectedTextColor = EduCoreColors.Muted500,
-                ),
+                colors = NavigationBarItemDefaults.colors(selectedIconColor = EduCoreColors.Navy900, selectedTextColor = EduCoreColors.Navy900, indicatorColor = EduCoreColors.Gold100, unselectedIconColor = EduCoreColors.Muted500, unselectedTextColor = EduCoreColors.Muted500),
             )
         }
     }
@@ -139,38 +103,15 @@ fun EduCoreTenantHeader(
     session: String? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(EduCoreColors.Navy900)
-            .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(modifier = modifier.fillMaxWidth().background(EduCoreColors.Navy900).padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(
-                text = schoolName,
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = listOfNotNull(role, session).joinToString(" · "),
-                color = Color.White.copy(alpha = 0.76f),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(text = schoolName, color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = listOfNotNull(role, session).joinToString(" · "), color = Color.White.copy(alpha = 0.76f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         trailing()
     }
 }
 
-/**
- * Premium feature header used on score entry, timetable, repository and other
- * deep workspaces. The approved mobile direction uses a solid navy identity
- * bar with white copy and gold actions rather than a pale web-style panel.
- */
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -190,14 +131,8 @@ fun EduCorePageHeader(
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md)) {
             if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        PageHeaderIdentity(title, subtitle, onBack)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
-                        content = actions,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) { PageHeaderIdentity(title, subtitle, onBack) }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End), content = actions)
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -209,30 +144,22 @@ fun EduCorePageHeader(
     }
 }
 
+/** Compatibility overload for older native call sites that pass onBack positionally. */
+@Composable
+fun EduCorePageHeader(
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+) = EduCorePageHeader(title = title, subtitle = subtitle, onBack = onBack)
+
 @Composable
 private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
     if (onBack != null) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-        }
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White) }
         Spacer(Modifier.width(EduCoreSpacing.Xs))
     }
     Column(Modifier.weight(1f)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        subtitle?.takeIf(String::isNotBlank)?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.72f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        subtitle?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.72f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
     }
 }
