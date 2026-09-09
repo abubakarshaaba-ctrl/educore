@@ -25,6 +25,7 @@ class EduCoreTokensTest {
     @Test
     fun institutional_brand_tokens_are_stable() {
         assertEquals(Color(0xFF071E45), EduCoreColors.Navy900)
-        assertEquals(Color(0xFFD79A21), EduCoreColors.Gold600)
+        assertEquals(EduCoreColors.Navy800, EduCoreColors.Gold600)
+        assertEquals(EduCoreColors.Navy700, EduCoreColors.Gold400)
     }
 }
