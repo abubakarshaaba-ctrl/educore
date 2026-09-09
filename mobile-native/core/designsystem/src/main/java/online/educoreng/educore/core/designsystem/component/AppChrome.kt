@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
@@ -104,8 +105,9 @@ fun EduCoreBottomNavigation(
         tonalElevation = EduCoreSpacing.Xs,
     ) {
         items.forEach { item ->
+            val selected = selectedKey == item.key
             NavigationBarItem(
-                selected = selectedKey == item.key,
+                selected = selected,
                 onClick = { onSelect(item) },
                 icon = {
                     BadgedBox(
@@ -118,7 +120,13 @@ fun EduCoreBottomNavigation(
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
                 },
-                label = { Text(item.label, maxLines = 1) },
+                label = {
+                    Text(
+                        item.label,
+                        maxLines = 1,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Gold600,
                     selectedTextColor = EduCoreColors.Gold600,
