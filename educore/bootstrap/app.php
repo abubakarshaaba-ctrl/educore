@@ -17,8 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             // intentionally additive so the established web/API surface stays
             // stable while newer Android contracts are rolled onto production.
             Route::middleware(AuthenticateApiToken::class)
-                ->prefix('api/v1/platform')
-                ->group(base_path('routes/mobile-platform-compat.php'));
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-platform.php'));
 
             Route::middleware(AuthenticateApiToken::class)
                 ->prefix('api/v1')
