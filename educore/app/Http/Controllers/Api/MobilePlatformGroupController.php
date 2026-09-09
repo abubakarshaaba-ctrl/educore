@@ -106,19 +106,20 @@ class MobilePlatformGroupController extends Controller
             'tenant_id' => ['required', 'integer', Rule::exists('tenants', 'id')->whereNull('deleted_at')],
             'role' => ['nullable', Rule::in(['member', 'lead'])],
         ]);
-        $groupRecord = DB::table('school_groups')->where('id', $group)->first();
-        abort_unless($groupRecord, 404);
-
         $tenantId = (int) $data['tenant_id'];
-        $otherMembership = DB::table('school_group_members')
-            ->where('tenant_id', $tenantId)
-            ->where('group_id', '!=', $group)
-            ->exists();
-        if ($otherMembership) {
-            throw ValidationException::withMessages(['tenant_id' => 'This school already belongs to another school group.']);
-        }
 
         DB::transaction(function () use ($group, $tenantId, $data, $request, $user): void {
+            $groupRecord = DB::table('school_groups')->where('id', $group)->lockForUpdate()->first();
+            abort_unless($groupRecord, 404);
+            Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
+
+            $existingMembership = DB::table('school_group_members')
+                ->where('tenant_id', $tenantId)
+                ->first();
+            if ($existingMembership && (int) $existingMembership->group_id !== $group) {
+                throw ValidationException::withMessages(['tenant_id' => 'This school already belongs to another school group.']);
+            }
+
             $role = $data['role'] ?? 'member';
             if ($role === 'lead') {
                 DB::table('school_group_members')->where('group_id', $group)
@@ -140,19 +141,23 @@ class MobilePlatformGroupController extends Controller
     public function removeMember(Request $request, int $group, int $tenant): JsonResponse
     {
         $user = $this->guard($request);
-        $groupRecord = DB::table('school_groups')->where('id', $group)->first();
-        abort_unless($groupRecord, 404);
-        $member = DB::table('school_group_members')
-            ->where('group_id', $group)
-            ->where('tenant_id', $tenant)
-            ->first();
-        abort_unless($member, 404);
 
-        if ($member->role === 'lead' && DB::table('school_group_members')->where('group_id', $group)->where('tenant_id', '!=', $tenant)->exists()) {
-            throw ValidationException::withMessages(['tenant' => 'Choose another lead campus before removing the current lead.']);
-        }
+        DB::transaction(function () use ($group, $tenant, $request, $user): void {
+            $groupRecord = DB::table('school_groups')->where('id', $group)->lockForUpdate()->first();
+            abort_unless($groupRecord, 404);
+            Tenant::query()->whereKey($tenant)->lockForUpdate()->firstOrFail();
 
-        DB::transaction(function () use ($group, $tenant, $member, $request, $user): void {
+            $member = DB::table('school_group_members')
+                ->where('group_id', $group)
+                ->where('tenant_id', $tenant)
+                ->lockForUpdate()
+                ->first();
+            abort_unless($member, 404);
+
+            if ($member->role === 'lead' && DB::table('school_group_members')->where('group_id', $group)->where('tenant_id', '!=', $tenant)->exists()) {
+                throw ValidationException::withMessages(['tenant' => 'Choose another lead campus before removing the current lead.']);
+            }
+
             DB::table('school_group_members')->where('id', $member->id)->delete();
             $this->audit($request, $user, 'platform.group.member_removed', $group, [
                 'tenant_id' => $tenant,
@@ -166,15 +171,19 @@ class MobilePlatformGroupController extends Controller
     public function setLead(Request $request, int $group, int $tenant): JsonResponse
     {
         $user = $this->guard($request);
-        $groupRecord = DB::table('school_groups')->where('id', $group)->first();
-        abort_unless($groupRecord, 404);
-        $member = DB::table('school_group_members')
-            ->where('group_id', $group)
-            ->where('tenant_id', $tenant)
-            ->first();
-        abort_unless($member, 404, 'The selected school is not a member of this group.');
 
         DB::transaction(function () use ($group, $tenant, $request, $user): void {
+            $groupRecord = DB::table('school_groups')->where('id', $group)->lockForUpdate()->first();
+            abort_unless($groupRecord, 404);
+            Tenant::query()->whereKey($tenant)->lockForUpdate()->firstOrFail();
+
+            $member = DB::table('school_group_members')
+                ->where('group_id', $group)
+                ->where('tenant_id', $tenant)
+                ->lockForUpdate()
+                ->first();
+            abort_unless($member, 404, 'The selected school is not a member of this group.');
+
             $oldLead = DB::table('school_group_members')->where('group_id', $group)->where('role', 'lead')->value('tenant_id');
             DB::table('school_group_members')->where('group_id', $group)
                 ->update(['role' => 'member', 'updated_at' => now()]);
