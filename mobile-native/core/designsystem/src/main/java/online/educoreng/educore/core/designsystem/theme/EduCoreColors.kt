@@ -7,13 +7,15 @@ object EduCoreColors {
     val Navy800 = Color(0xFF0B2D63)
     val Navy700 = Color(0xFF15447F)
 
-    val Gold700 = Color(0xFFB77B0B)
-    val Gold600 = Color(0xFFD79A21)
-    val Gold500 = Gold600
-    val Gold400 = Color(0xFFF5B72E)
-    val Gold200 = Color(0xFFF7D98A)
-    val Gold100 = Color(0xFFFFD35A)
-    val Gold50 = Color(0xFFFFE08A)
+    // Compatibility aliases retained so existing screens compile while the
+    // visual system is now strictly navy/white rather than navy/gold.
+    val Gold700 = Navy900
+    val Gold600 = Navy800
+    val Gold500 = Navy800
+    val Gold400 = Navy700
+    val Gold200 = Color(0xFFC9D5E8)
+    val Gold100 = Color(0xFFEDF2F8)
+    val Gold50 = Color(0xFFF6F8FB)
 
     val Ink900 = Color(0xFF101828)
     val Slate700 = Color(0xFF344054)
@@ -30,9 +32,9 @@ object EduCoreColors {
     val Success600 = Color(0xFF16794B)
     val Success100 = Color(0xFFDDF7E9)
 
-    val Warning700 = Gold700
-    val Warning600 = Gold600
-    val Warning100 = Gold100
+    val Warning700 = Navy900
+    val Warning600 = Navy800
+    val Warning100 = Color(0xFFEDF2F8)
 
     val Danger700 = Color(0xFF912018)
     val Danger600 = Color(0xFFB42318)
@@ -43,7 +45,7 @@ object EduCoreColors {
     val Info100 = Color(0xFFEDF2F8)
 
     val Purple700 = Navy700
-    val Purple100 = Gold50
+    val Purple100 = Color(0xFFEDF2F8)
 
     val White = Color(0xFFFFFFFF)
 }
