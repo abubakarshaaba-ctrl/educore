@@ -13,11 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            // Native Platform Administration endpoints that are being converged
-            // onto the live backend without replacing the established API file.
+            // Compatibility/convergence routes for native clients. These are
+            // intentionally additive so the established web/API surface stays
+            // stable while newer Android contracts are rolled onto production.
             Route::middleware(AuthenticateApiToken::class)
                 ->prefix('api/v1/platform')
                 ->group(base_path('routes/mobile-platform-compat.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-academic-cycle-compat.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
