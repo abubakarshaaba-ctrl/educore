@@ -68,8 +68,6 @@ fun EduCoreTopAppBar(
             }
         },
         navigationIcon = {
-            // Back arrows are intentionally removed from the native app. Root
-            // navigation and Android system back remain the navigation model.
             if (navigationIcon != null && onNavigationClick != null && navigationDescription != "Back") {
                 IconButton(onClick = onNavigationClick) {
                     Icon(navigationIcon, contentDescription = navigationDescription)
@@ -136,6 +134,12 @@ fun EduCoreBottomNavigation(
 
 private fun bottomNavigationSelected(itemKey: String, selectedKey: String): Boolean = when {
     selectedKey == itemKey -> true
+    selectedKey.startsWith("native/classes") ||
+        selectedKey.startsWith("native/scores") ||
+        selectedKey.startsWith("native/results") ||
+        selectedKey.startsWith("native/repository") ||
+        selectedKey.startsWith("native/lesson-plans") -> itemKey == "primary"
+    selectedKey.startsWith("native/schedule") -> itemKey == "secondary"
     selectedKey.startsWith("native/communications/") -> itemKey == "inbox"
     selectedKey.startsWith("native/operations/") -> itemKey == "secondary"
     selectedKey.startsWith("native/staff-attendance") -> itemKey == "more"
@@ -177,10 +181,6 @@ fun EduCoreTenantHeader(
     }
 }
 
-/**
- * Compact in-page heading. Back arrows and decorative descriptive copy are
- * deliberately omitted; the persistent app bar already provides context.
- */
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun EduCorePageHeader(
