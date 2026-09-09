@@ -6,6 +6,10 @@ workflows:
     working_directory: mobile-native
     environment:
       java: 21
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
     scripts:
       - name: Configure Android SDK
         script: |
