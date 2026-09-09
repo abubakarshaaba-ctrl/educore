@@ -71,6 +71,7 @@ on:
       - 'educore/tests/Feature/AuthenticatedIdentityAssetStorageTest.php'
       - 'educore/tests/Feature/ReportCardPublicationServiceTest.php'
       - 'educore/tests/Feature/ReportCardDocumentServiceTest.php'
+      - 'educore/tests/Feature/PlatformRouteConvergenceTest.php'
       - 'educore/tests/Feature/WebPlatformBillingRouteTest.php'
       - 'educore/tests/Feature/WebPlatformTenantRemovalRouteTest.php'
       - 'educore/tests/Feature/WebPlatformInvoicePaymentGuardTest.php'
@@ -161,10 +162,12 @@ jobs:
             tests/Feature/MobilePlatformAgentTest.php \
             tests/Feature/MobilePlatformProvisioningTest.php \
             tests/Feature/MobilePlatformBillingTest.php \
+            tests/Feature/MobilePlatformInvoicePdfTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/AuthenticatedIdentityAssetStorageTest.php \
             tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/ReportCardDocumentServiceTest.php \
+            tests/Feature/PlatformRouteConvergenceTest.php \
             tests/Feature/WebPlatformBillingRouteTest.php \
             tests/Feature/WebPlatformTenantRemovalRouteTest.php \
             tests/Feature/WebPlatformInvoicePaymentGuardTest.php \
