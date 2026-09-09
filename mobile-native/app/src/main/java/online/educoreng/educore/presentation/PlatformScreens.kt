@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,18 +8,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -83,7 +87,7 @@ internal fun PlatformScreen(
         onDismiss = onDismissPendingAction,
     )
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         EduCorePageHeader("Platform Administration", "EduCore network control centre", onBack = onBack)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -94,7 +98,7 @@ internal fun PlatformScreen(
                 EduCoreShowcaseHero(
                     eyebrow = "PLATFORM",
                     title = state.dashboard?.operator?.name ?: "Super Admin",
-                    subtitle = "Monitor schools, subscriptions, payments, support and platform operations without leaving the native app.",
+                    subtitle = "Schools, subscriptions, payments and platform operations.",
                 )
             }
             item {
@@ -103,11 +107,11 @@ internal fun PlatformScreen(
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     PlatformSection.entries.forEach { section ->
-                        FilterChip(
+                        PlatformFilterChip(
                             selected = state.section == section,
                             onClick = { onSection(section) },
                             enabled = !state.isMutating,
-                            label = { Text(section.label()) },
+                            label = section.label(),
                         )
                     }
                 }
@@ -118,12 +122,12 @@ internal fun PlatformScreen(
 
             when (state.section) {
                 PlatformSection.OVERVIEW -> state.dashboard?.let { dashboard ->
-                    item { EduCoreSectionHeader("Network overview", "Live platform-wide totals") }
+                    item { EduCoreSectionHeader("Network overview") }
                     item { PlatformMetricCard("Schools", dashboard.metrics.schools.toString(), "${dashboard.metrics.activeSchools} active") }
                     item { PlatformMetricCard("Students", dashboard.metrics.students.toString(), "Across all schools") }
                     item { PlatformMetricCard("Platform users", dashboard.metrics.platformUsers.toString(), "Tenant-linked accounts") }
                     item { PlatformMetricCard("Revenue this month", money(dashboard.metrics.monthlyRevenue), "Confirmed payments") }
-                    item { PlatformMetricCard("Total revenue", money(dashboard.metrics.totalRevenue), "All confirmed platform payments") }
+                    item { PlatformMetricCard("Total revenue", money(dashboard.metrics.totalRevenue), "Confirmed payments") }
                     item {
                         EduCoreSectionHeader(
                             "Attention",
@@ -151,11 +155,11 @@ internal fun PlatformScreen(
                             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                         ) {
                             listOf(null, "active", "pending", "suspended", "subscription_expired").forEach { status ->
-                                FilterChip(
+                                PlatformFilterChip(
                                     selected = state.status == status,
                                     onClick = { onStatus(status) },
                                     enabled = !state.isMutating,
-                                    label = { Text(status?.replace('_', ' ') ?: "All") },
+                                    label = status?.replace('_', ' ') ?: "All",
                                 )
                             }
                         }
@@ -166,15 +170,19 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.BILLING -> state.billing?.let { billing ->
-                    item { PlatformMetricCard("Confirmed revenue", money(billing.summary.confirmed), "All confirmed platform payments") }
+                    item { PlatformMetricCard("Confirmed revenue", money(billing.summary.confirmed), "All confirmed payments") }
                     item { PlatformMetricCard("Pending", money(billing.summary.pending), "Awaiting confirmation") }
                     item { PlatformMetricCard("This month", money(billing.summary.thisMonth), "Confirmed this month") }
                     item { EduCoreSectionHeader("Recent payments") }
                     if (billing.payments.isEmpty()) item { EduCoreEmptyState("No payments", "Platform payments will appear here when recorded.") }
                     items(billing.payments, key = { it.id }) { payment ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                                Text(payment.school, fontWeight = FontWeight.Bold)
+                                Text(payment.school, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                 Text(money(payment.amount) + (payment.currency?.let { " $it" } ?: ""))
                                 Text(listOfNotNull(payment.reference, payment.method, payment.paidAt).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                                 EduCoreStatusBadge(payment.status, if (payment.status == "confirmed") EduCoreTone.Success else EduCoreTone.Warning)
@@ -186,10 +194,14 @@ internal fun PlatformScreen(
                 PlatformSection.PLANS -> state.plans?.let { plans ->
                     item { EduCoreSectionHeader("Pricing", plans.model) }
                     items(plans.plans, key = { it.id }) { plan ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                                Text(plan.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("${money(plan.rate)} · ${plan.cycle}")
+                                Text(plan.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
+                                Text("${money(plan.rate)} · ${plan.cycle}", color = EduCoreColors.Gold700)
                                 plan.features.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
                             }
                         }
@@ -197,12 +209,16 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.AGENTS -> state.agents?.let { agents ->
-                    item { EduCoreSectionHeader("Platform agents", "Referral network performance") }
+                    item { EduCoreSectionHeader("Platform agents") }
                     if (agents.agents.isEmpty()) item { EduCoreEmptyState("No agents", "Registered platform agents will appear here.") }
                     items(agents.agents, key = { it.id }) { agent ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                                Text(agent.name, fontWeight = FontWeight.Bold)
+                                Text(agent.name, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                 Text(agent.email)
                                 Text("${agent.referrals} referrals · ${agent.commissionRate}% commission")
                                 Text("Earned ${money(agent.earned)} · Paid ${money(agent.paid)}")
@@ -213,11 +229,11 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.ANALYTICS -> state.analytics?.let { analytics ->
-                    item { EduCoreSectionHeader("Platform analytics", "Growth and pricing distribution") }
+                    item { EduCoreSectionHeader("Platform analytics") }
                     item { PlatformMetricCard("Schools", analytics.metrics.schools.toString(), "${analytics.metrics.activeSubscriptions} active subscriptions") }
-                    item { PlatformMetricCard("Students", analytics.metrics.students.toString(), "Active enrollment across the network") }
-                    item { PlatformMetricCard("Largest pricing segment", analytics.metrics.topTier, "By number of schools") }
-                    item { EduCoreSectionHeader("School growth", "New tenants created this year") }
+                    item { PlatformMetricCard("Students", analytics.metrics.students.toString(), "Active enrollment") }
+                    item { PlatformMetricCard("Largest pricing segment", analytics.metrics.topTier, "By schools") }
+                    item { EduCoreSectionHeader("School growth") }
                     if (analytics.growth.isEmpty()) item { EduCoreEmptyState("No growth records", "No school creation activity is recorded for the current year.") }
                     items(analytics.growth, key = { "${it.year}-${it.month}" }) { point ->
                         PlatformMetricCard(monthLabel(point.month), point.count.toString(), point.year.toString())
@@ -229,12 +245,16 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.GROUPS -> state.groups?.let { groups ->
-                    item { EduCoreSectionHeader("School groups", "Chains and shared-subscription campuses") }
+                    item { EduCoreSectionHeader("School groups") }
                     if (groups.groups.isEmpty()) item { EduCoreEmptyState("No school groups", "School groups created on the platform will appear here.") }
                     items(groups.groups, key = { it.id }) { group ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                                Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                 Text("${group.memberCount} member school(s)")
                                 group.ownerName?.let { Text("Owner: $it", style = MaterialTheme.typography.bodySmall) }
                                 group.ownerEmail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
@@ -245,7 +265,7 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.SUPPORT -> state.support?.let { support ->
-                    item { EduCoreSectionHeader("Support inbox", "School requests requiring platform attention") }
+                    item { EduCoreSectionHeader("Support inbox") }
                     item {
                         PlatformMetricCard(
                             "Tickets",
@@ -255,10 +275,14 @@ internal fun PlatformScreen(
                     }
                     if (support.tickets.isEmpty()) item { EduCoreEmptyState("No support tickets", "Incoming school support requests will appear here.") }
                     items(support.tickets, key = { it.id }) { ticket ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(ticket.subject, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    Text(ticket.subject, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900, modifier = Modifier.weight(1f))
                                     EduCoreStatusBadge(ticket.status, ticket.status.supportTone())
                                 }
                                 Text(listOfNotNull(ticket.school, ticket.requester, ticket.createdAt).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
@@ -293,14 +317,18 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.BROADCASTS -> state.broadcasts?.let { broadcasts ->
-                    item { EduCoreSectionHeader("Platform broadcasts", "Network-wide notices and targeted announcements") }
+                    item { EduCoreSectionHeader("Platform broadcasts") }
                     item {
                         if (!state.broadcastEditorOpen) {
                             EduCorePrimaryButton("Create broadcast", onOpenBroadcastEditor, Modifier.fillMaxWidth(), enabled = !state.isMutating)
                         } else {
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                            Card(
+                                Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                                border = BorderStroke(1.dp, EduCoreColors.Line200),
+                            ) {
                                 Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                                    Text("New platform broadcast", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text("New platform broadcast", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                     OutlinedTextField(
                                         value = state.broadcastTitle,
                                         onValueChange = onBroadcastTitle,
@@ -324,11 +352,11 @@ internal fun PlatformScreen(
                                         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                                     ) {
                                         listOf("all", "active", "trial", "expired").forEach { target ->
-                                            FilterChip(
+                                            PlatformFilterChip(
                                                 selected = state.broadcastTarget == target,
                                                 onClick = { onBroadcastTarget(target) },
                                                 enabled = !state.isMutating,
-                                                label = { Text(target.replaceFirstChar(Char::uppercase)) },
+                                                label = target.replaceFirstChar(Char::uppercase),
                                             )
                                         }
                                     }
@@ -338,7 +366,7 @@ internal fun PlatformScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         enabled = !state.isMutating,
                                         label = { Text("Expires at (optional)") },
-                                        supportingText = { Text("Use a future date/time, e.g. 2026-09-30 18:00:00") },
+                                        supportingText = { Text("Future date/time, e.g. 2026-09-30 18:00:00") },
                                         singleLine = true,
                                     )
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
@@ -351,10 +379,14 @@ internal fun PlatformScreen(
                     }
                     if (broadcasts.broadcasts.isEmpty()) item { EduCoreEmptyState("No broadcasts", "Platform broadcasts will appear here after creation.") }
                     items(broadcasts.broadcasts, key = { it.id }) { broadcast ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(broadcast.title, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    Text(broadcast.title, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900, modifier = Modifier.weight(1f))
                                     EduCoreStatusBadge(if (broadcast.active) "Active" else "Expired", if (broadcast.active) EduCoreTone.Success else EduCoreTone.Neutral)
                                 }
                                 Text("Target: ${broadcast.target.replace('_', ' ')}", style = MaterialTheme.typography.bodySmall)
@@ -374,12 +406,16 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.SETTINGS -> state.settings?.let { settings ->
-                    item { EduCoreSectionHeader("Platform settings", "Operational settings; encrypted secrets are intentionally excluded") }
+                    item { EduCoreSectionHeader("Platform settings") }
                     if (settings.settings.isEmpty()) item { EduCoreEmptyState("No platform settings", "Operational settings will appear here after configuration.") }
                     items(settings.settings, key = { it.key }) { setting ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                                Text(setting.label, fontWeight = FontWeight.Bold)
+                                Text(setting.label, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                 Text(setting.value?.toString() ?: "Not configured")
                                 Text("${setting.group} · ${setting.type}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                             }
@@ -388,12 +424,16 @@ internal fun PlatformScreen(
                 }
 
                 PlatformSection.GATEWAYS -> state.gateways?.let { gateways ->
-                    item { EduCoreSectionHeader("Payment gateways", "Credential status only; secret keys never leave the server") }
+                    item { EduCoreSectionHeader("Payment gateways") }
                     items(gateways.gateways, key = { it.provider }) { gateway ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                            border = BorderStroke(1.dp, EduCoreColors.Line200),
+                        ) {
                             Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(gateway.provider.replaceFirstChar(Char::uppercase), fontWeight = FontWeight.Bold)
+                                    Text(gateway.provider.replaceFirstChar(Char::uppercase), fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
                                     EduCoreStatusBadge(if (gateway.configured) "Configured" else "Incomplete", if (gateway.configured) EduCoreTone.Success else EduCoreTone.Warning)
                                 }
                                 Text(if (gateway.live) "LIVE mode" else "Test mode", style = MaterialTheme.typography.bodySmall)
@@ -424,11 +464,54 @@ internal fun PlatformScreen(
 }
 
 @Composable
+private fun PlatformFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    label: String,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = {
+            Text(
+                text = label,
+                color = if (selected) EduCoreColors.Gold700 else EduCoreColors.Navy900,
+                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = EduCoreColors.White,
+            selectedContainerColor = EduCoreColors.White,
+            disabledContainerColor = EduCoreColors.Surface100,
+            disabledSelectedContainerColor = EduCoreColors.Surface100,
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = enabled,
+            selected = selected,
+            borderColor = EduCoreColors.Line300,
+            selectedBorderColor = if (selected) EduCoreColors.Gold600 else EduCoreColors.Line300,
+        ),
+    )
+}
+
+@Composable
 private fun PlatformTenantCard(tenant: PlatformTenantDto) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
         Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(tenant.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(
+                    tenant.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = EduCoreColors.Navy900,
+                    modifier = Modifier.weight(1f),
+                )
                 EduCoreStatusBadge(tenant.status.replace('_', ' '), if (tenant.status == "active") EduCoreTone.Success else EduCoreTone.Warning)
             }
             Text(tenant.slug, style = MaterialTheme.typography.bodySmall)
@@ -440,10 +523,14 @@ private fun PlatformTenantCard(tenant: PlatformTenantDto) {
 
 @Composable
 private fun PlatformMetricCard(label: String, value: String, supporting: String) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
         Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Slate600)
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
             Text(supporting, style = MaterialTheme.typography.bodySmall)
         }
     }
