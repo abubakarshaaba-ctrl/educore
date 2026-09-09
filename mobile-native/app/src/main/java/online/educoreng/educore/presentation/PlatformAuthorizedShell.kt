@@ -152,6 +152,7 @@ internal fun PlatformAuthorizedShell(
             state = billingState,
             onBack = {
                 billingManagementOpen = false
+                billingViewModel.consumeDocument()
                 viewModel.load(PlatformSection.BILLING)
             },
             onStatus = billingViewModel::setStatus,
@@ -164,6 +165,8 @@ internal fun PlatformAuthorizedShell(
             onDueDate = billingViewModel::setDueDate,
             onNotes = billingViewModel::setNotes,
             onCreateInvoice = billingViewModel::createInvoice,
+            onDownloadInvoice = billingViewModel::downloadInvoice,
+            onDocumentOpened = billingViewModel::consumeDocument,
             onRequestSettlement = billingViewModel::requestSettlement,
             onCancelSettlement = billingViewModel::cancelSettlement,
             onSettlementMethod = billingViewModel::setSettlementMethod,
