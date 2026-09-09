@@ -12,7 +12,9 @@ on:
       - 'educore/app/Console/Commands/MigrateSensitiveDocuments.php'
       - 'educore/app/Http/Controllers/Api/**'
       - 'educore/app/Http/Controllers/AdmissionController.php'
+      - 'educore/app/Http/Controllers/BillingController.php'
       - 'educore/app/Http/Controllers/PlatformBillingMutationController.php'
+      - 'educore/app/Http/Controllers/PlatformImpersonationController.php'
       - 'educore/app/Http/Controllers/PlatformTenantRemovalController.php'
       - 'educore/app/Http/Controllers/PushNotificationController.php'
       - 'educore/app/Http/Controllers/RecruitmentController.php'
@@ -27,6 +29,7 @@ on:
       - 'educore/app/Models/AcademicTrack.php'
       - 'educore/app/Models/AdmissionDocument.php'
       - 'educore/app/Models/JobApplicantDocument.php'
+      - 'educore/app/Models/PlatformSetting.php'
       - 'educore/app/Models/StudentTransfer.php'
       - 'educore/app/Models/StudentClassTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
@@ -50,6 +53,7 @@ on:
       - 'educore/routes/deploy.php'
       - 'educore/routes/mobile-*.php'
       - 'educore/routes/web-platform-billing.php'
+      - 'educore/routes/web-platform-impersonation.php'
       - 'educore/routes/web-platform-tenant-removal.php'
       - 'educore/routes/web-report-compute.php'
       - 'educore/routes/web-report-publication.php'
@@ -61,6 +65,8 @@ on:
       - 'educore/tests/Feature/WebPlatformBillingRouteTest.php'
       - 'educore/tests/Feature/WebPlatformTenantRemovalRouteTest.php'
       - 'educore/tests/Feature/WebPlatformInvoicePaymentGuardTest.php'
+      - 'educore/tests/Feature/WebPlatformImpersonationRouteTest.php'
+      - 'educore/tests/Feature/WebPlatformImpersonationSecurityTest.php'
       - 'educore/tests/Feature/WebReportComputeRouteTest.php'
       - 'educore/tests/Feature/WebReportPublicationRouteTest.php'
       - 'educore/tests/Feature/WebReportPdfRouteTest.php'
@@ -150,6 +156,8 @@ jobs:
             tests/Feature/WebPlatformBillingRouteTest.php \
             tests/Feature/WebPlatformTenantRemovalRouteTest.php \
             tests/Feature/WebPlatformInvoicePaymentGuardTest.php \
+            tests/Feature/WebPlatformImpersonationRouteTest.php \
+            tests/Feature/WebPlatformImpersonationSecurityTest.php \
             tests/Feature/WebReportComputeRouteTest.php \
             tests/Feature/WebReportPublicationRouteTest.php \
             tests/Feature/WebReportPdfRouteTest.php \
