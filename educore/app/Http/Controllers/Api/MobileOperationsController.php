@@ -22,6 +22,10 @@ class MobileOperationsController extends Controller
             return app(MobileExportsController::class)($request);
         }
 
+        if ($module === 'subjects' && $user->isStudent()) {
+            return app(MobileStudentSubjectsController::class)($request);
+        }
+
         return response()->json($operations->for($user, $module));
     }
 }
