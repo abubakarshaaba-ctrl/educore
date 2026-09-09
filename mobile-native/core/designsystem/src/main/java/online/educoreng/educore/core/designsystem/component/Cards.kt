@@ -43,7 +43,7 @@ enum class EduCoreTone {
 internal fun EduCoreTone.foreground(): Color = when (this) {
     EduCoreTone.Neutral -> EduCoreColors.Slate700
     EduCoreTone.Brand -> EduCoreColors.Navy900
-    EduCoreTone.Accent -> EduCoreColors.Warning700
+    EduCoreTone.Accent -> EduCoreColors.Navy900
     EduCoreTone.Success -> EduCoreColors.Success700
     EduCoreTone.Warning -> EduCoreColors.Warning700
     EduCoreTone.Danger -> EduCoreColors.Danger700
@@ -54,7 +54,7 @@ internal fun EduCoreTone.foreground(): Color = when (this) {
 internal fun EduCoreTone.container(): Color = when (this) {
     EduCoreTone.Neutral -> EduCoreColors.Surface100
     EduCoreTone.Brand -> EduCoreColors.Info100
-    EduCoreTone.Accent -> EduCoreColors.Gold100
+    EduCoreTone.Accent -> EduCoreColors.Info100
     EduCoreTone.Success -> EduCoreColors.Success100
     EduCoreTone.Warning -> EduCoreColors.Warning100
     EduCoreTone.Danger -> EduCoreColors.Danger100
@@ -70,9 +70,9 @@ fun EduCoreDashboardCard(
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line300),
-        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(Modifier.padding(EduCoreSpacing.Lg)) { content() }
     }
@@ -149,7 +149,7 @@ fun EduCoreModuleCard(
         modifier = modifier.heightIn(min = EduCoreSizes.ModuleCardMinHeight),
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
-        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(
             modifier = Modifier.padding(EduCoreSpacing.Md),
@@ -162,9 +162,9 @@ fun EduCoreModuleCard(
             ) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
-                    color = EduCoreColors.Gold50,
+                    color = EduCoreColors.Info100,
                     contentColor = EduCoreColors.Navy900,
-                    border = BorderStroke(1.dp, EduCoreColors.Gold200),
+                    border = BorderStroke(1.dp, EduCoreColors.Line200),
                 ) {
                     Icon(
                         imageVector = icon,
@@ -172,7 +172,7 @@ fun EduCoreModuleCard(
                         modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.Icon),
                     )
                 }
-                badge?.let { EduCoreStatusBadge(it, EduCoreTone.Accent) }
+                badge?.let { EduCoreStatusBadge(it, EduCoreTone.Neutral) }
             }
             Text(
                 text = title,
@@ -212,8 +212,9 @@ fun EduCoreQuickAction(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.Gold50),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Gold200),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Row(
             modifier = Modifier.padding(EduCoreSpacing.Md),
