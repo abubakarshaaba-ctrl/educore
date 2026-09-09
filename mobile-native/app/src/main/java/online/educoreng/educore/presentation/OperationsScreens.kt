@@ -65,22 +65,29 @@ internal fun OperationsScreen(
         onRetry = onRetry,
     )
 
-    if (workspace.module.key.equals("fees", ignoreCase = true)) {
+    // API-generation negotiation: legacy/live backends expose the authoritative
+    // synchronized data through /operations/{module} with mobile_policy=read_first.
+    // Only use newer dedicated mutation APIs when the server explicitly declares
+    // native_full support. This prevents route-404 and DTO-drift failures while
+    // keeping the web app and Android app on the same tenant data source.
+    val useNativeWorkspace = workspace.module.mobilePolicy.equals("native_full", ignoreCase = true)
+
+    if (useNativeWorkspace && workspace.module.key.equals("fees", ignoreCase = true)) {
         FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
-    if (workspace.module.key.equals("payroll", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("payroll", ignoreCase = true)) {
         PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
-    if (workspace.module.key.equals("expenses", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("expenses", ignoreCase = true)) {
         ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
-    if (workspace.module.key.equals("library", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("library", ignoreCase = true)) {
         val libraryManagementViewModel: LibraryManagementViewModel = hiltViewModel()
         val libraryManagementState by libraryManagementViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(libraryManagementState.refreshVersion) {
@@ -108,7 +115,7 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("transport", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("transport", ignoreCase = true)) {
         val transportViewModel: TransportViewModel = hiltViewModel()
         val transportState by transportViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(workspace.module.key) {
@@ -137,7 +144,7 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("health", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("health", ignoreCase = true)) {
         val healthViewModel: HealthViewModel = hiltViewModel()
         val healthState by healthViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(workspace.module.key) {
@@ -160,7 +167,7 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("inventory", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("inventory", ignoreCase = true)) {
         val inventoryViewModel: InventoryViewModel = hiltViewModel()
         val inventoryState by inventoryViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(workspace.module.key) {
@@ -189,7 +196,7 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("hostels", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("hostels", ignoreCase = true)) {
         val hostelViewModel: HostelViewModel = hiltViewModel()
         val hostelState by hostelViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(workspace.module.key) {
@@ -227,17 +234,17 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("subjects", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("subjects", ignoreCase = true)) {
         SubjectsScreen(state = state, onBack = onBack, onQuery = onQuery)
         return
     }
 
-    if (workspace.module.key.equals("curriculum", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("curriculum", ignoreCase = true)) {
         CurriculumScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
 
-    if (workspace.module.key.equals("academic-cycle", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("academic-cycle", ignoreCase = true)) {
         AcademicCycleScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         return
     }
@@ -247,7 +254,7 @@ internal fun OperationsScreen(
         return
     }
 
-    if (workspace.module.key.equals("admissions", ignoreCase = true)) {
+    if (useNativeWorkspace && workspace.module.key.equals("admissions", ignoreCase = true)) {
         val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
         val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(workspace.module.key) {
