@@ -21,6 +21,9 @@ on:
       - 'educore/app/Http/Controllers/ReportCardComputeController.php'
       - 'educore/app/Http/Controllers/ReportCardPublicationController.php'
       - 'educore/app/Http/Controllers/ReportCardPdfController.php'
+      - 'educore/app/Http/Controllers/SchoolSettingController.php'
+      - 'educore/app/Http/Controllers/StaffAttendanceEvidenceController.php'
+      - 'educore/app/Http/Controllers/StaffIdentityAssetController.php'
       - 'educore/app/Http/Controllers/SelfDeployController.php'
       - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Http/Controllers/StudentTransferController.php'
@@ -33,6 +36,7 @@ on:
       - 'educore/app/Models/StudentTransfer.php'
       - 'educore/app/Models/StudentClassTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
+      - 'educore/app/Services/AuthenticatedIdentityAssetStorage.php'
       - 'educore/app/Services/CrossSchoolStudentTransferService.php'
       - 'educore/app/Services/PlatformBillingService.php'
       - 'educore/app/Services/PlatformTenantRemovalService.php'
@@ -47,11 +51,15 @@ on:
       - 'educore/app/Services/TenantUrlGenerator.php'
       - 'educore/database/migrations/**'
       - 'educore/resources/views/dashboard/staff.blade.php'
+      - 'educore/resources/views/settings/index.blade.php'
+      - 'educore/resources/views/staff-attendance/id-card.blade.php'
+      - 'educore/resources/views/staff-attendance/proxy-review.blade.php'
       - 'educore/resources/views/students/class-transfers/**'
       - 'educore/resources/views/portal/admissions/success.blade.php'
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/routes/mobile-*.php'
+      - 'educore/routes/web-settings-assets.php'
       - 'educore/routes/web-platform-billing.php'
       - 'educore/routes/web-platform-impersonation.php'
       - 'educore/routes/web-platform-tenant-removal.php'
@@ -60,6 +68,7 @@ on:
       - 'educore/routes/web-report-pdf.php'
       - 'educore/bootstrap/app.php'
       - 'educore/tests/Feature/Mobile*.php'
+      - 'educore/tests/Feature/AuthenticatedIdentityAssetStorageTest.php'
       - 'educore/tests/Feature/ReportCardPublicationServiceTest.php'
       - 'educore/tests/Feature/ReportCardDocumentServiceTest.php'
       - 'educore/tests/Feature/WebPlatformBillingRouteTest.php'
@@ -151,6 +160,7 @@ jobs:
             tests/Feature/MobilePlatformProvisioningTest.php \
             tests/Feature/MobilePlatformBillingTest.php \
             tests/Feature/MobileOperationsTest.php \
+            tests/Feature/AuthenticatedIdentityAssetStorageTest.php \
             tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/ReportCardDocumentServiceTest.php \
             tests/Feature/WebPlatformBillingRouteTest.php \
