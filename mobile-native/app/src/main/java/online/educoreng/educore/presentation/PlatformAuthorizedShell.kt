@@ -85,6 +85,7 @@ internal fun PlatformAuthorizedShell(
         selectedTenantId != null -> PlatformTenantScreen(
             state = tenantState,
             onBack = {
+                tenantViewModel.closeRemoval()
                 selectedTenantId = null
                 viewModel.load(PlatformSection.SCHOOLS)
             },
@@ -94,6 +95,18 @@ internal fun PlatformAuthorizedShell(
             onExtend = tenantViewModel::requestExtension,
             onConfirm = tenantViewModel::confirm,
             onDismissConfirmation = tenantViewModel::dismissConfirmation,
+            onOpenRemoval = tenantViewModel::openRemoval,
+            onCloseRemoval = tenantViewModel::closeRemoval,
+            onRemovalConfirmation = tenantViewModel::setRemovalConfirmation,
+            onRemovalPassword = tenantViewModel::setRemovalPassword,
+            onRemovalReason = tenantViewModel::setRemovalReason,
+            onRemoveSchool = {
+                tenantViewModel.removeSchool {
+                    selectedTenantId = null
+                    schoolDirectoryOpen = false
+                    viewModel.load(PlatformSection.SCHOOLS)
+                }
+            },
             onRetry = { selectedTenantId?.let(tenantViewModel::load) },
         )
 
