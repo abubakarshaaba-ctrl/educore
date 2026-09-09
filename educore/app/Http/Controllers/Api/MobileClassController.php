@@ -8,6 +8,7 @@ use App\Models\ClassArm;
 use App\Models\Student;
 use App\Models\Term;
 use App\Services\Mobile\MobileClassAccessService;
+use App\Services\MobileReportCardService;
 use Illuminate\Http\Request;
 
 class MobileClassController extends Controller
@@ -121,6 +122,37 @@ class MobileClassController extends Controller
                     'rate' => $records->isNotEmpty() ? round(($present / $records->count()) * 100, 1) : 0,
                 ],
             ]),
+        ]);
+    }
+
+    public function results(
+        Request $request,
+        int $classArmId,
+        int $studentId,
+        MobileReportCardService $reports,
+    ) {
+        $classArm = ClassArm::with('classLevel')->findOrFail($classArmId);
+        abort_unless(
+            $this->access->canViewClass($request->user(), $classArm),
+            403,
+            'You are not assigned to this class.'
+        );
+
+        $student = $classArm->students()->active()->findOrFail($studentId);
+
+        return response()->json([
+            'contract_version' => 2,
+            'generated_at' => now()->toIso8601String(),
+            'student' => [
+                'id' => $student->id,
+                'name' => $student->full_name,
+                'admission_number' => $student->admission_number,
+                'class' => [
+                    'id' => $classArm->id,
+                    'name' => trim(($classArm->classLevel?->name ?? '').' '.$classArm->name),
+                ],
+            ],
+            'results' => $reports->forStudent($student, $classArm->id),
         ]);
     }
 
