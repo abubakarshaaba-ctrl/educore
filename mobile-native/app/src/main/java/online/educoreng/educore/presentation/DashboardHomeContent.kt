@@ -14,7 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
@@ -41,6 +44,10 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
     onModuleClick: (ModuleDescriptor) -> Unit,
     onRetry: () -> Unit,
 ) {
+    item(key = "personal-welcome", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+        DashboardWelcome(session)
+    }
+
     val snapshot = state.snapshot
     if (snapshot == null) {
         val dashboardError = state.errorMessage
@@ -111,6 +118,37 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
                 compact = width == EduCoreWindowWidth.Compact,
             )
         }
+    }
+}
+
+@Composable
+private fun DashboardWelcome(session: SessionSnapshot) {
+    val firstName = session.user.name.trim().substringBefore(' ').ifBlank { "there" }
+    val now = Calendar.getInstance()
+    val greeting = when (now.get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        else -> "Good evening"
+    }
+    val date = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now.time)
+    val academic = listOfNotNull(session.academicPeriod.sessionName, session.academicPeriod.termName)
+        .filter(String::isNotBlank)
+        .joinToString(" · ")
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = EduCoreSpacing.Xs),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xxs),
+    ) {
+        Text(
+            text = "$greeting, $firstName",
+            style = MaterialTheme.typography.titleLarge,
+            color = EduCoreColors.Navy900,
+        )
+        Text(
+            text = listOf(date, academic).filter(String::isNotBlank).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
     }
 }
 
