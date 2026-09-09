@@ -12,8 +12,8 @@ object EduCoreColors {
     val Gold500 = Gold600
     val Gold400 = Color(0xFFF5B72E)
     val Gold200 = Color(0xFFF7D98A)
-    val Gold100 = Color(0xFFFFF3D6)
-    val Gold50 = Color(0xFFFFFAED)
+    val Gold100 = Color(0xFFFFD35A)
+    val Gold50 = Color(0xFFFFE08A)
 
     val Ink900 = Color(0xFF101828)
     val Slate700 = Color(0xFF344054)
