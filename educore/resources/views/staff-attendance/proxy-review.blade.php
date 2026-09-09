@@ -40,7 +40,7 @@
             <div class="photo-label">Passport photo</div>
             <div class="photo-box">
                 @if(optional($rec->staff)->passport_photo)
-                    <img src="{{ asset('storage/' . $rec->staff->passport_photo) }}" alt="Passport photo">
+                    <img src="{{ route('staff-attendance.evidence', ['record' => $rec->id, 'kind' => 'passport']) }}" alt="Passport photo">
                 @else
                     <span style="font-size:11px;color:var(--slate-light)">No photo on file</span>
                 @endif
@@ -50,7 +50,7 @@
             <div class="photo-label">Captured at clock-in</div>
             <div class="photo-box">
                 @if($rec->proxy_photo)
-                    <img src="{{ asset('storage/' . $rec->proxy_photo) }}" alt="Captured photo">
+                    <img src="{{ route('staff-attendance.evidence', ['record' => $rec->id, 'kind' => 'proxy']) }}" alt="Captured photo">
                 @else
                     <span style="font-size:11px;color:var(--slate-light)">No photo captured</span>
                 @endif
