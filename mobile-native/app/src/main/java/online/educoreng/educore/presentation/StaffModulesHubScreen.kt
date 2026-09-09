@@ -68,6 +68,8 @@ internal fun StaffModulesHubScreen(
     val portalAccountsState by portalAccountsViewModel.uiState.collectAsStateWithLifecycle()
     val schoolSettingsViewModel: SchoolSettingsViewModel = hiltViewModel()
     val schoolSettingsState by schoolSettingsViewModel.uiState.collectAsStateWithLifecycle()
+    val skillsViewModel: SkillsViewModel = hiltViewModel()
+    val skillsState by skillsViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -83,6 +85,7 @@ internal fun StaffModulesHubScreen(
     var profileOpen by rememberSaveable { mutableStateOf(false) }
     var portalAccountsOpen by rememberSaveable { mutableStateOf(false) }
     var schoolSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    var skillsOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -135,6 +138,30 @@ internal fun StaffModulesHubScreen(
             onSlogan = schoolSettingsViewModel::setSlogan,
             onSave = schoolSettingsViewModel::save,
             onRetry = schoolSettingsViewModel::load,
+        )
+        return
+    }
+
+    if (skillsOpen) {
+        SkillsScreen(
+            state = skillsState,
+            onBack = {
+                if (skillsState.inSheet) skillsViewModel.requestCloseSheet() else skillsOpen = false
+            },
+            onClass = skillsViewModel::selectClass,
+            onTerm = skillsViewModel::selectTerm,
+            onOpenSheet = skillsViewModel::openSheet,
+            onCategory = skillsViewModel::setCategory,
+            onPreviousStudent = skillsViewModel::previousStudent,
+            onNextStudent = skillsViewModel::nextStudent,
+            onRate = skillsViewModel::rate,
+            onSave = skillsViewModel::save,
+            onRetry = skillsViewModel::load,
+            onCancelDiscard = skillsViewModel::cancelDiscard,
+            onConfirmDiscard = {
+                skillsViewModel.confirmDiscard()
+                if (!skillsState.inSheet) skillsOpen = false
+            },
         )
         return
     }
@@ -315,6 +342,7 @@ internal fun StaffModulesHubScreen(
             "profile" -> profileOpen = true
             "portal-accounts" -> { portalAccountsOpen = true; portalAccountsViewModel.load() }
             "settings" -> { schoolSettingsOpen = true; schoolSettingsViewModel.load() }
+            "skills" -> { skillsOpen = true; skillsViewModel.load() }
             "staff" -> { staffDirectoryOpen = true; staffDirectoryViewModel.load() }
             "gradebook" -> { gradebookOpen = true; gradebookViewModel.load() }
             "reports", "report-cards" -> { reportsOpen = true; reportsViewModel.load() }
@@ -433,7 +461,7 @@ private val ROOT_WORKFLOW_KEYS = setOf(
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 private val ACADEMIC_KEYS = setOf(
     "subjects", "curriculum", "reports", "report-cards", "results", "gradebook", "cbt", "cbt-exams",
-    "examinations", "lesson-planner", "academic-repository", "library",
+    "examinations", "lesson-planner", "academic-repository", "library", "skills",
 )
 private val OPERATION_KEYS = setOf(
     "staff", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
