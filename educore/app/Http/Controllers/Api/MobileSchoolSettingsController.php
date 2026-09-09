@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\SchoolSetting;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,28 +22,7 @@ class MobileSchoolSettingsController extends Controller
         $tenant = $user->tenant;
         abort_unless($tenant, 404, 'School account unavailable.');
 
-        $extras = SchoolSetting::where('tenant_id', $tenant->id)
-            ->whereIn('key', self::EXTRA_KEYS)
-            ->pluck('value', 'key');
-
-        return response()->json([
-            'contract_version' => 1,
-            'capabilities' => ['manage' => $user->canManage('settings')],
-            'school' => [
-                'id' => $tenant->id,
-                'name' => $tenant->name,
-                'motto' => $tenant->motto,
-                'address' => $tenant->address,
-                'phone' => $tenant->phone,
-                'email' => $tenant->email,
-                'website' => $extras->get('website'),
-                'established_year' => $extras->get('established_year'),
-                'proprietor' => $extras->get('proprietor'),
-                'slogan' => $extras->get('slogan'),
-                'logo_configured' => filled($tenant->logo_path),
-                'authorized_signature_configured' => filled($tenant->authorized_signature_path),
-            ],
-        ]);
+        return response()->json($this->payload($user, $tenant));
     }
 
     public function update(Request $request): JsonResponse
@@ -96,7 +76,7 @@ class MobileSchoolSettingsController extends Controller
                 AuditLog::create([
                     'tenant_id' => $tenant->id,
                     'actor_user_id' => $user->id,
-                    'auditable_type' => $tenant::class,
+                    'auditable_type' => Tenant::class,
                     'auditable_id' => $tenant->id,
                     'action' => 'school.settings.updated.via_mobile',
                     'old_values' => $before,
@@ -115,10 +95,36 @@ class MobileSchoolSettingsController extends Controller
             }
         });
 
-        return $this->show($request)->setData([
+        return response()->json([
             'message' => 'School settings updated.',
-            ...$this->show($request)->getData(true),
+            ...$this->payload($user, $tenant->fresh()),
         ]);
+    }
+
+    private function payload(User $user, Tenant $tenant): array
+    {
+        $extras = SchoolSetting::where('tenant_id', $tenant->id)
+            ->whereIn('key', self::EXTRA_KEYS)
+            ->pluck('value', 'key');
+
+        return [
+            'contract_version' => 1,
+            'capabilities' => ['manage' => $user->canManage('settings')],
+            'school' => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'motto' => $tenant->motto,
+                'address' => $tenant->address,
+                'phone' => $tenant->phone,
+                'email' => $tenant->email,
+                'website' => $extras->get('website'),
+                'established_year' => $extras->get('established_year'),
+                'proprietor' => $extras->get('proprietor'),
+                'slogan' => $extras->get('slogan'),
+                'logo_configured' => filled($tenant->logo_path),
+                'authorized_signature_configured' => filled($tenant->authorized_signature_path),
+            ],
+        ];
     }
 
     private function guard(Request $request, bool $manage = false): User
