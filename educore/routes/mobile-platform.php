@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\MobilePlatformGroupController;
 use App\Http\Controllers\Api\MobilePlatformProvisioningController;
 use App\Http\Controllers\Api\MobilePlatformSettingsController;
 use App\Http\Controllers\Api\MobilePlatformTenantController;
+use App\Http\Controllers\PlatformTenantRemovalController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('platform')->group(function (): void {
@@ -40,4 +41,5 @@ Route::prefix('platform')->group(function (): void {
     Route::post('tenants', [MobilePlatformProvisioningController::class, 'store']);
     Route::get('tenants/{tenant}', [MobilePlatformTenantController::class, 'show'])->whereNumber('tenant');
     Route::post('tenants/{tenant}/extend', [MobilePlatformTenantController::class, 'extend'])->whereNumber('tenant');
+    Route::delete('tenants/{tenant}', [PlatformTenantRemovalController::class, 'destroy'])->whereNumber('tenant');
 });
