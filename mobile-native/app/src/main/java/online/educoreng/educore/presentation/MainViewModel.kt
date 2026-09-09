@@ -33,10 +33,14 @@ class MainViewModel @Inject constructor(
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     init {
+        FirebaseMessaging.getInstance().isAutoInitEnabled = true
         viewModelScope.launch {
             connectivityMonitor.isOnline.collect { online ->
                 _uiState.update { it.copy(isOnline = online) }
-                if (online) syncCoordinator.schedule()
+                if (online) {
+                    syncCoordinator.schedule()
+                    if (_uiState.value.phase == AppPhase.READY) registerPushToken()
+                }
             }
         }
         restoreSession()
@@ -153,18 +157,16 @@ class MainViewModel @Inject constructor(
 
     fun logout() {
         if (_uiState.value.isBusy) return
+        val online = _uiState.value.isOnline
         _uiState.update { it.copy(isBusy = true, message = null) }
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            viewModelScope.launch {
-                task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
-                    communicationRepository.unregisterPushToken(token)
-                }
-                sessionRepository.logout()
-                _uiState.value = AppUiState(
-                    phase = AppPhase.SIGNED_OUT,
-                    isOnline = _uiState.value.isOnline,
-                )
-            }
+        viewModelScope.launch {
+            // The repository bounds network revocation to a short timeout, so
+            // sign-out never waits for FCM token retrieval or a slow endpoint.
+            sessionRepository.logout()
+            _uiState.value = AppUiState(
+                phase = AppPhase.SIGNED_OUT,
+                isOnline = online,
+            )
         }
     }
 
@@ -237,6 +239,7 @@ class MainViewModel @Inject constructor(
     }
 
     private fun registerPushToken() {
+        if (!_uiState.value.isOnline || _uiState.value.phase != AppPhase.READY) return
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
                 viewModelScope.launch { communicationRepository.registerPushToken(token) }
@@ -288,9 +291,6 @@ class MainViewModel @Inject constructor(
             .filterValues(String::isNotBlank)
 
     private companion object {
-        // Phase A: browser handoff is opt-in only. Keep this empty until a route has been
-        // deliberately reviewed and approved as web-only. Unknown modules must never
-        // escape the native app automatically.
         val EXPLICIT_WEB_ONLY_PATHS: Set<String> = emptySet()
     }
 }
