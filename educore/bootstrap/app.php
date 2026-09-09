@@ -27,6 +27,14 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(AuthenticateApiToken::class)
                 ->prefix('api/v1')
                 ->group(base_path('routes/mobile-reports.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-staff-cbt.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-class-results.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
