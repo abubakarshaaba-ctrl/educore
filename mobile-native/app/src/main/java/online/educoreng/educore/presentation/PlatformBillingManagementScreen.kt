@@ -52,6 +52,8 @@ internal fun PlatformBillingManagementScreen(
     onDueDate: (String) -> Unit,
     onNotes: (String) -> Unit,
     onCreateInvoice: () -> Unit,
+    onDownloadInvoice: (PlatformInvoiceDto) -> Unit,
+    onDocumentOpened: () -> Unit,
     onRequestSettlement: (PlatformInvoiceDto) -> Unit,
     onCancelSettlement: () -> Unit,
     onSettlementMethod: (String) -> Unit,
@@ -59,6 +61,8 @@ internal fun PlatformBillingManagementScreen(
     onConfirmSettlement: () -> Unit,
     onRetry: () -> Unit,
 ) {
+    OpenDocumentEffect(state.document, onDocumentOpened)
+
     if (state.isLoading && state.workspace == null) {
         return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading platform invoices")
     }
@@ -73,7 +77,7 @@ internal fun PlatformBillingManagementScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { EduCorePageHeader("Invoices & Billing", "Generate invoices and confirm verified offline payments", onBack = onBack) }
+        item { EduCorePageHeader("Invoices & Billing", "Generate invoices, download official PDFs and confirm verified offline payments", onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         state.message?.let { item { Text(it, color = EduCoreColors.Success700) } }
 
@@ -104,7 +108,7 @@ internal fun PlatformBillingManagementScreen(
                 }
             }
         }
-        item { EduCorePrimaryButton("Generate invoice", onOpenInvoice, Modifier.fillMaxWidth(), enabled = !state.isMutating) }
+        item { EduCorePrimaryButton("Generate invoice", onOpenInvoice, Modifier.fillMaxWidth(), enabled = !state.isMutating && state.downloadingInvoiceId == null) }
 
         if (state.invoiceEditorOpen) {
             item {
@@ -125,7 +129,13 @@ internal fun PlatformBillingManagementScreen(
             item { EduCoreEmptyState("No invoices", "Invoices matching the selected filters will appear here.") }
         } else {
             items(workspace.invoices, key = { "platform-invoice-${it.id}" }) { invoice ->
-                PlatformInvoiceCard(invoice, state.isMutating) { onRequestSettlement(invoice) }
+                PlatformInvoiceCard(
+                    invoice = invoice,
+                    busy = state.isMutating,
+                    downloading = state.downloadingInvoiceId == invoice.id,
+                    onDownload = { onDownloadInvoice(invoice) },
+                    onSettle = { onRequestSettlement(invoice) },
+                )
             }
         }
 
@@ -181,7 +191,13 @@ private fun BillingEditorCard(
 }
 
 @Composable
-private fun PlatformInvoiceCard(invoice: PlatformInvoiceDto, busy: Boolean, onSettle: () -> Unit) {
+private fun PlatformInvoiceCard(
+    invoice: PlatformInvoiceDto,
+    busy: Boolean,
+    downloading: Boolean,
+    onDownload: () -> Unit,
+    onSettle: () -> Unit,
+) {
     Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
         Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -193,8 +209,14 @@ private fun PlatformInvoiceCard(invoice: PlatformInvoiceDto, busy: Boolean, onSe
             }
             Text("₦${invoice.amount.toLong()} · ${invoice.studentCount} students · ${invoice.billingCycle.replaceFirstChar(Char::uppercase)}", style = MaterialTheme.typography.bodyMedium)
             Text("Due ${invoice.dueDate ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            EduCoreSecondaryButton(
+                text = if (downloading) "Downloading PDF…" else "Download PDF",
+                onClick = onDownload,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && !downloading,
+            )
             if (invoice.status != "paid") {
-                EduCoreSecondaryButton("Confirm payment", onSettle, Modifier.fillMaxWidth(), enabled = !busy)
+                EduCoreSecondaryButton("Confirm payment", onSettle, Modifier.fillMaxWidth(), enabled = !busy && !downloading)
             } else {
                 Text("Paid ${invoice.paidAt ?: ""} · ${invoice.paymentMethod ?: "payment"}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Success700)
             }
