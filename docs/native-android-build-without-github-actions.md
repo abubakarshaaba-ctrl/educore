@@ -1,16 +1,21 @@
 # EduCore Native Android builds without GitHub Actions
 
-GitHub Actions is optional for the EduCore native Android application.
+GitHub Actions is not required for the EduCore native Android application.
 
-The primary cloud fallback is Codemagic using the repository-root `codemagic.yaml`. The workflow builds the Kotlin/Jetpack Compose application under `mobile-native/`, runs unit tests and Android lint, and produces a debug APK. If protected signing variables are configured, the same workflow also produces a signed release APK and SHA-256 checksum.
+The primary cloud CI is Codemagic using the repository-root `codemagic.yaml`. The workflow builds the Kotlin/Jetpack Compose application under `mobile-native/`, runs unit tests and Android lint, and produces a debug APK. If protected signing variables are configured, the same workflow also produces a signed release APK and SHA-256 checksum.
+
+The previous GitHub Actions workflows have been removed from `mobile-overhaul` so ordinary commits no longer create failed Actions runs or notification noise while GitHub-hosted runners are unavailable on the account. The workflow files remain recoverable from Git history if GitHub Actions is restored later.
 
 ## Codemagic setup
 
 1. Sign in to Codemagic with the repository owner account.
 2. Add the `abubakarshaaba-ctrl/educore` repository.
 3. Select configuration from `codemagic.yaml`.
-4. Run the `native-android-validation` workflow against `mobile-overhaul`.
-5. Download `app-debug.apk` from the build artifacts after a successful validation build.
+4. Select branch `mobile-overhaul`.
+5. Run the `native-android-validation` workflow manually.
+6. Download `app-debug.apk` from the build artifacts after a successful validation build.
+
+The workflow intentionally has no automatic push trigger. This protects the free build-minute allowance while the overhaul is changing frequently. Gradle caches are retained between builds to reduce repeat build time.
 
 ## Optional signed release
 
@@ -58,4 +63,5 @@ Release verification must preserve the production package name and signing certi
 - Native Firebase configuration is owned by `mobile-native/app/firebase/google-services.json`; generated debug/release copies are ignored by Git.
 - `/deploy/validate-source` remains available for source-contract checks that do not execute Gradle.
 - `/deploy/validate-android` and its GitHub-Actions-specific validator have been retired.
+- Root GitHub Actions workflows are intentionally absent while Codemagic is the active cloud CI.
 - A source-only check is never equivalent to a successful compile, lint, test and signed APK verification.
