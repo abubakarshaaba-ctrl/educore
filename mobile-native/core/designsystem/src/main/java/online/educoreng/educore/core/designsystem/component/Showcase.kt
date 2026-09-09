@@ -1,7 +1,6 @@
 package online.educoreng.educore.core.designsystem.component
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +27,13 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
+/**
+ * Compact contextual strip. The former marketing-style hero cards duplicated
+ * page titles and consumed too much vertical space in operational screens.
+ * Eyebrow/subtitle are kept in the API for call-site compatibility but are not
+ * rendered.
+ */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun EduCoreShowcaseHero(
     title: String,
@@ -41,60 +45,37 @@ fun EduCoreShowcaseHero(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.linearGradient(listOf(EduCoreColors.Navy900, EduCoreColors.Navy800)))
-                .padding(EduCoreSpacing.Lg),
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
         ) {
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        eyebrow?.takeIf(String::isNotBlank)?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.68f),
-                            )
-                        }
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        subtitle.takeIf(String::isNotBlank)?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.74f),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    trailing?.invoke()
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                    content = actions,
+                Text(
+                    text = title,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = EduCoreColors.Navy900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                trailing?.invoke()
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
         }
     }
 }
@@ -116,29 +97,29 @@ fun EduCoreShowcaseStat(
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(
-            modifier = Modifier.padding(EduCoreSpacing.Md),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            modifier = Modifier.padding(EduCoreSpacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
         ) {
             Surface(
-                modifier = Modifier.size(34.dp),
+                modifier = Modifier.size(28.dp),
                 shape = CircleShape,
                 color = tone.container(),
                 contentColor = tone.foreground(),
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(15.dp))
                 }
             }
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
                 color = EduCoreColors.Ink900,
                 maxLines = 1,
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = EduCoreColors.Slate600,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -175,18 +156,18 @@ fun EduCoreShowcaseTile(
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Sm),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
         ) {
             Surface(
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(30.dp),
                 shape = CircleShape,
                 color = EduCoreColors.Info100,
                 contentColor = EduCoreColors.Navy900,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(19.dp))
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
             }
             Text(
@@ -215,6 +196,6 @@ fun EduCoreShowcaseSectionCard(
         border = BorderStroke(1.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
-        Column(Modifier.padding(EduCoreSpacing.Lg)) { content() }
+        Column(Modifier.padding(EduCoreSpacing.Md)) { content() }
     }
 }
