@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\Tenant\SubscriptionRenewedNotification;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,15 @@ class PlatformBillingService
     ): object {
         abort_unless(Schema::hasTable('platform_invoices'), 503, 'Platform invoice storage is unavailable.');
 
+        if (!in_array($billingCycle, ['termly', 'annual'], true)) {
+            throw ValidationException::withMessages(['billing_cycle' => 'Billing cycle must be termly or annual.']);
+        }
+
+        $parsedDueDate = Carbon::parse($dueDate)->startOfDay();
+        if ($parsedDueDate->lt(today())) {
+            throw ValidationException::withMessages(['due_date' => 'Invoice due date cannot be in the past.']);
+        }
+
         $studentCount = PricingService::activeStudentCount($tenant->id);
         $capacity = max($studentCount, $requestedCapacity);
         if (PricingService::isFree($capacity)) {
@@ -40,7 +50,7 @@ class PlatformBillingService
             : PricingService::termlyAmount($capacity);
         $reference = $this->uniqueInvoiceReference();
 
-        $id = DB::transaction(function () use ($tenant, $billingCycle, $capacity, $dueDate, $notes, $amount, $reference, $actor, $request): int {
+        $id = DB::transaction(function () use ($tenant, $billingCycle, $capacity, $parsedDueDate, $notes, $amount, $reference, $actor, $request): int {
             $id = DB::table('platform_invoices')->insertGetId([
                 'tenant_id' => $tenant->id,
                 'plan_id' => null,
@@ -49,7 +59,7 @@ class PlatformBillingService
                 'student_count' => $capacity,
                 'billing_cycle' => $billingCycle,
                 'status' => 'pending',
-                'due_date' => $dueDate,
+                'due_date' => $parsedDueDate->toDateString(),
                 'notes' => trim((string) $notes) ?: ($capacity.' anticipated students'),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -67,7 +77,7 @@ class PlatformBillingService
                     'amount' => (float) $amount,
                     'student_count' => $capacity,
                     'billing_cycle' => $billingCycle,
-                    'due_date' => $dueDate,
+                    'due_date' => $parsedDueDate->toDateString(),
                 ],
             );
 
@@ -86,6 +96,10 @@ class PlatformBillingService
     ): array {
         abort_unless(Schema::hasTable('platform_invoices') && Schema::hasTable('platform_payments'), 503, 'Platform billing storage is unavailable.');
 
+        if (!in_array($paymentMethod, ['bank_transfer', 'card', 'cash', 'pos', 'other'], true)) {
+            throw ValidationException::withMessages(['payment_method' => 'Unsupported payment method.']);
+        }
+
         $reference = trim((string) $paymentReference) ?: $this->uniquePaymentReference();
         $settled = DB::transaction(function () use ($invoiceId, $paymentMethod, $reference, $actor, $request): array {
             $invoice = DB::table('platform_invoices')->where('id', $invoiceId)->lockForUpdate()->first();
@@ -95,6 +109,13 @@ class PlatformBillingService
                 $tenant = Tenant::findOrFail($invoice->tenant_id);
                 return ['invoice' => $invoice, 'tenant' => $tenant, 'processed' => false];
             }
+
+            if (!in_array($invoice->status, ['pending', 'overdue'], true)) {
+                throw ValidationException::withMessages([
+                    'invoice' => "Invoices with status '{$invoice->status}' cannot be settled.",
+                ]);
+            }
+
             if (DB::table('platform_payments')->where('reference', $reference)->exists()) {
                 throw ValidationException::withMessages(['payment_ref' => 'This payment reference has already been used.']);
             }
