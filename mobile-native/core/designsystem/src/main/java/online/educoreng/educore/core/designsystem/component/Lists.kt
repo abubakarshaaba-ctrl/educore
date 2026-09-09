@@ -71,27 +71,35 @@ fun EduCoreSectionHeader(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    // Root workspaces already identify themselves in the navy app bar. Repeating
+    // the same label directly below it adds visual noise and wastes compact space.
+    if (supportingText == "Only modules permitted by the server are shown.") return
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
-        color = EduCoreColors.Gold50,
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Gold200),
+        color = EduCoreColors.White,
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
     ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            supportingText?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = EduCoreColors.Navy900,
+                )
+                supportingText?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+                }
+            }
+            if (actionLabel != null && onAction != null) {
+                EduCoreTextButton(actionLabel, onAction)
             }
         }
-        if (actionLabel != null && onAction != null) {
-            EduCoreTextButton(actionLabel, onAction)
-        }
-    }
     }
 }
 
