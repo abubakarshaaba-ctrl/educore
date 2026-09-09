@@ -33,6 +33,7 @@ object ModulePresentationPolicy {
         "staff-attendance.self",
         "skills",
         "transfers",
+        "portal-accounts",
         "gradebook",
         "reports",
         "report-cards",
@@ -83,7 +84,5 @@ object ModulePresentationPolicy {
         "parent.results",
     )
 
-    // Intentionally empty during the overhaul. A module may be added here only after
-    // its web-only status and Laravel destination have been reviewed explicitly.
     private val EXPLICIT_WEB_ONLY_MODULES: Set<String> = emptySet()
 }
