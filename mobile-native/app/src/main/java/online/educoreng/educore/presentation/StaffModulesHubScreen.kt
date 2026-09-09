@@ -46,13 +46,9 @@ import online.educoreng.educore.core.model.SessionSnapshot
 /**
  * Grouped secondary-workspace hub for staff.
  *
- * RBAC rule: every tile originates from SessionSnapshot.modules. Root workflows
- * already represented by Home, Classes, Timetable and Inbox are intentionally
- * removed here so More does not become a second, confusing navigation system.
- *
- * CBT, staff directory, transfers, gradebook/remarks, report-card publication,
- * risk intelligence and data exports are hosted directly inside this native hub.
- * These workspaces never fall back to a browser.
+ * Every tile originates from SessionSnapshot.modules. Specialized native
+ * workspaces are hosted here so modules declared native cannot silently fall
+ * through to a browser route.
  */
 @Composable
 internal fun StaffModulesHubScreen(
@@ -75,6 +71,8 @@ internal fun StaffModulesHubScreen(
     val gradebookState by gradebookViewModel.uiState.collectAsStateWithLifecycle()
     val reportsViewModel: ReportsViewModel = hiltViewModel()
     val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
+    val portalAccountsViewModel: PortalAccountsViewModel = hiltViewModel()
+    val portalAccountsState by portalAccountsViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -87,6 +85,8 @@ internal fun StaffModulesHubScreen(
     var transfersOpen by rememberSaveable { mutableStateOf(false) }
     var gradebookOpen by rememberSaveable { mutableStateOf(false) }
     var reportsOpen by rememberSaveable { mutableStateOf(false) }
+    var profileOpen by rememberSaveable { mutableStateOf(false) }
+    var portalAccountsOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -95,6 +95,33 @@ internal fun StaffModulesHubScreen(
             cbtViewModel.consumeCreatedExam()
             cbtViewModel.openExam(examId)
         }
+    }
+
+    if (profileOpen) {
+        ProfileScreen(session = session, onBack = { profileOpen = false })
+        return
+    }
+
+    if (portalAccountsOpen) {
+        PortalAccountsScreen(
+            state = portalAccountsState,
+            onBack = { portalAccountsOpen = false },
+            onTab = portalAccountsViewModel::setTab,
+            onQuery = portalAccountsViewModel::setQuery,
+            onCreateStudent = portalAccountsViewModel::createStudent,
+            onCreateParent = portalAccountsViewModel::createParent,
+            onResetPassword = portalAccountsViewModel::resetPassword,
+            onToggle = portalAccountsViewModel::requestToggle,
+            onBulkStudents = portalAccountsViewModel::requestBulkStudents,
+            onEmail = portalAccountsViewModel::setEmail,
+            onPassword = portalAccountsViewModel::setPassword,
+            onSaveEditor = portalAccountsViewModel::saveEditor,
+            onCloseEditor = portalAccountsViewModel::closeEditor,
+            onConfirm = portalAccountsViewModel::confirmPendingAction,
+            onCancelConfirm = portalAccountsViewModel::cancelPendingAction,
+            onRetry = portalAccountsViewModel::load,
+        )
+        return
     }
 
     if (reportsOpen) {
@@ -161,49 +188,34 @@ internal fun StaffModulesHubScreen(
 
     if (riskOpen) {
         when {
-            riskConfigOpen -> {
-                RiskConfigScreen(
-                    state = riskState,
-                    onBack = { riskConfigOpen = false },
-                    onValue = riskViewModel::updateConfig,
-                    onFeeRisk = riskViewModel::setIncludeFeeRisk,
-                    onSave = riskViewModel::saveConfig,
-                    onReset = riskViewModel::resetConfigDraft,
-                )
-            }
-            riskFlagId > 0L -> {
-                RiskDetailScreen(
-                    state = riskState,
-                    onBack = {
-                        riskFlagId = 0L
-                        riskViewModel.clearDetail()
-                    },
-                    onNote = riskViewModel::setInterventionNote,
-                    onAcknowledge = riskViewModel::acknowledge,
-                    onResolve = riskViewModel::resolve,
-                    onRetry = { riskViewModel.openFlag(riskFlagId) },
-                )
-            }
-            else -> {
-                RiskDashboardScreen(
-                    state = riskState,
-                    onBack = { riskOpen = false },
-                    onTerm = riskViewModel::selectTerm,
-                    onStatus = riskViewModel::selectStatus,
-                    onRiskLevel = riskViewModel::selectRiskLevel,
-                    onOpen = { flagId ->
-                        riskFlagId = flagId
-                        riskViewModel.openFlag(flagId)
-                    },
-                    onLoadMore = riskViewModel::loadMore,
-                    onCompute = riskViewModel::compute,
-                    onConfig = {
-                        riskViewModel.resetConfigDraft()
-                        riskConfigOpen = true
-                    },
-                    onRetry = riskViewModel::load,
-                )
-            }
+            riskConfigOpen -> RiskConfigScreen(
+                state = riskState,
+                onBack = { riskConfigOpen = false },
+                onValue = riskViewModel::updateConfig,
+                onFeeRisk = riskViewModel::setIncludeFeeRisk,
+                onSave = riskViewModel::saveConfig,
+                onReset = riskViewModel::resetConfigDraft,
+            )
+            riskFlagId > 0L -> RiskDetailScreen(
+                state = riskState,
+                onBack = { riskFlagId = 0L; riskViewModel.clearDetail() },
+                onNote = riskViewModel::setInterventionNote,
+                onAcknowledge = riskViewModel::acknowledge,
+                onResolve = riskViewModel::resolve,
+                onRetry = { riskViewModel.openFlag(riskFlagId) },
+            )
+            else -> RiskDashboardScreen(
+                state = riskState,
+                onBack = { riskOpen = false },
+                onTerm = riskViewModel::selectTerm,
+                onStatus = riskViewModel::selectStatus,
+                onRiskLevel = riskViewModel::selectRiskLevel,
+                onOpen = { flagId -> riskFlagId = flagId; riskViewModel.openFlag(flagId) },
+                onLoadMore = riskViewModel::loadMore,
+                onCompute = riskViewModel::compute,
+                onConfig = { riskViewModel.resetConfigDraft(); riskConfigOpen = true },
+                onRetry = riskViewModel::load,
+            )
         }
         return
     }
@@ -239,56 +251,37 @@ internal fun StaffModulesHubScreen(
 
     if (cbtOpen) {
         when {
-            cbtCreating -> {
-                StaffCbtCreateScreen(
+            cbtCreating -> StaffCbtCreateScreen(
+                state = cbtState,
+                onBack = { cbtCreating = false },
+                onCreate = cbtViewModel::createExam,
+                onRetry = cbtViewModel::loadCreateOptions,
+            )
+            cbtExamId > 0L -> StaffCbtDetailScreen(
+                state = cbtState,
+                onBack = { cbtExamId = 0L; cbtViewModel.load() },
+                onPublish = cbtViewModel::publish,
+                onClose = cbtViewModel::close,
+                onReschedule = cbtViewModel::reschedule,
+                onRetry = { cbtViewModel.openExam(cbtExamId) },
+            )
+            else -> Box(Modifier.fillMaxSize()) {
+                StaffCbtListScreen(
                     state = cbtState,
-                    onBack = { cbtCreating = false },
-                    onCreate = cbtViewModel::createExam,
-                    onRetry = cbtViewModel::loadCreateOptions,
+                    onBack = { cbtOpen = false },
+                    onQuery = cbtViewModel::setQuery,
+                    onSearch = cbtViewModel::search,
+                    onStatus = cbtViewModel::selectStatus,
+                    onOpen = { examId -> cbtExamId = examId; cbtViewModel.openExam(examId) },
+                    onRetry = cbtViewModel::load,
                 )
-            }
-            cbtExamId > 0L -> {
-                StaffCbtDetailScreen(
-                    state = cbtState,
-                    onBack = {
-                        cbtExamId = 0L
-                        cbtViewModel.load()
-                    },
-                    onPublish = cbtViewModel::publish,
-                    onClose = cbtViewModel::close,
-                    onReschedule = cbtViewModel::reschedule,
-                    onRetry = { cbtViewModel.openExam(cbtExamId) },
-                )
-            }
-            else -> {
-                Box(Modifier.fillMaxSize()) {
-                    StaffCbtListScreen(
-                        state = cbtState,
-                        onBack = { cbtOpen = false },
-                        onQuery = cbtViewModel::setQuery,
-                        onSearch = cbtViewModel::search,
-                        onStatus = cbtViewModel::selectStatus,
-                        onOpen = { examId ->
-                            cbtExamId = examId
-                            cbtViewModel.openExam(examId)
-                        },
-                        onRetry = cbtViewModel::load,
-                    )
-                    if (cbtState.capabilities.createExam) {
-                        FloatingActionButton(
-                            onClick = {
-                                cbtCreating = true
-                                cbtViewModel.loadCreateOptions()
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(eduCoreScreenPadding()),
-                            containerColor = EduCoreColors.Gold500,
-                            contentColor = EduCoreColors.Navy900,
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Create examination")
-                        }
-                    }
+                if (cbtState.capabilities.createExam) {
+                    FloatingActionButton(
+                        onClick = { cbtCreating = true; cbtViewModel.loadCreateOptions() },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(eduCoreScreenPadding()),
+                        containerColor = EduCoreColors.Gold500,
+                        contentColor = EduCoreColors.Navy900,
+                    ) { Icon(Icons.Default.Add, contentDescription = "Create examination") }
                 }
             }
         }
@@ -304,26 +297,16 @@ internal fun StaffModulesHubScreen(
 
     fun openModule(module: ModuleDescriptor) {
         when (module.key.lowercase()) {
-            "staff" -> {
-                staffDirectoryOpen = true
-                staffDirectoryViewModel.load()
+            "profile" -> profileOpen = true
+            "portal-accounts" -> {
+                portalAccountsOpen = true
+                portalAccountsViewModel.load()
             }
-            "gradebook" -> {
-                gradebookOpen = true
-                gradebookViewModel.load()
-            }
-            "reports", "report-cards" -> {
-                reportsOpen = true
-                reportsViewModel.load()
-            }
-            "transfers" -> {
-                transfersOpen = true
-                transfersViewModel.load()
-            }
-            "exports" -> {
-                exportsOpen = true
-                exportsViewModel.load()
-            }
+            "staff" -> { staffDirectoryOpen = true; staffDirectoryViewModel.load() }
+            "gradebook" -> { gradebookOpen = true; gradebookViewModel.load() }
+            "reports", "report-cards" -> { reportsOpen = true; reportsViewModel.load() }
+            "transfers" -> { transfersOpen = true; transfersViewModel.load() }
+            "exports" -> { exportsOpen = true; exportsViewModel.load() }
             "risk" -> {
                 riskFlagId = 0L
                 riskConfigOpen = false
@@ -355,21 +338,14 @@ internal fun StaffModulesHubScreen(
                 subtitle = "Only additional workspaces granted to ${session.user.roleLabel} are shown here. Core teaching and communication tasks stay in the main navigation.",
             )
         }
-
         if (groups.all { it.modules.isEmpty() }) {
             item(key = "hub-empty", span = { GridItemSpan(maxLineSpan) }) {
-                EduCoreEmptyState(
-                    title = "No additional modules",
-                    message = "Your available workspaces are already accessible from the main navigation.",
-                )
+                EduCoreEmptyState("No additional modules", "Your available workspaces are already accessible from the main navigation.")
             }
         } else {
             groups.filter { it.modules.isNotEmpty() }.forEach { group ->
                 item(key = "hub-heading-${group.key}", span = { GridItemSpan(maxLineSpan) }) {
-                    EduCoreSectionHeader(
-                        title = group.title,
-                        supportingText = group.supportingText,
-                    )
+                    EduCoreSectionHeader(group.title, group.supportingText)
                 }
                 items(group.modules, key = { "hub-${group.key}-${it.key}" }) { module ->
                     EduCoreShowcaseTile(
@@ -381,7 +357,6 @@ internal fun StaffModulesHubScreen(
                 }
             }
         }
-
         item(key = "hub-signout", span = { GridItemSpan(maxLineSpan) }) {
             EduCorePrimaryButton(
                 text = "Sign out",
@@ -401,40 +376,17 @@ private data class ModuleHubGroup(
 )
 
 private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHubGroup> {
-    val normalized = modules
-        .filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }
-        .sortedBy { it.title.lowercase() }
-
-    val deduped = normalized
-        .groupBy { canonicalHubKey(it.key) }
-        .mapNotNull { (_, candidates) ->
-            candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
-                ?: candidates.firstOrNull()
-        }
-
+    val normalized = modules.filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }.sortedBy { it.title.lowercase() }
+    val deduped = normalized.groupBy { canonicalHubKey(it.key) }.mapNotNull { (_, candidates) ->
+        candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) } ?: candidates.firstOrNull()
+    }
     fun group(keys: Set<String>) = deduped.filter { it.key.lowercase() in keys }
     val known = ACADEMIC_KEYS + OPERATION_KEYS + ACCOUNT_KEYS
     val other = deduped.filter { it.key.lowercase() !in known }
-
     return listOf(
-        ModuleHubGroup(
-            key = "academics",
-            title = "Academics",
-            supportingText = "Planning, resources, reporting and examinations",
-            modules = group(ACADEMIC_KEYS),
-        ),
-        ModuleHubGroup(
-            key = "operations",
-            title = "Operations",
-            supportingText = "Attendance, transfers, risk intelligence and school support services",
-            modules = group(OPERATION_KEYS) + other,
-        ),
-        ModuleHubGroup(
-            key = "account",
-            title = "Account",
-            supportingText = "Profile and account tools granted to your role",
-            modules = group(ACCOUNT_KEYS),
-        ),
+        ModuleHubGroup("academics", "Academics", "Planning, resources, reporting and examinations", group(ACADEMIC_KEYS)),
+        ModuleHubGroup("operations", "Operations", "Attendance, transfers, risk intelligence and school support services", group(OPERATION_KEYS) + other),
+        ModuleHubGroup("account", "Account", "Profile and account tools granted to your role", group(ACCOUNT_KEYS)),
     )
 }
 
@@ -454,6 +406,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "academic-cycle" -> "Sessions"
     "fees" -> "Fees & Payments"
     "transfers" -> "Student Transfers"
+    "portal-accounts" -> "Portal Accounts"
     "analytics" -> "Analytics"
     "risk" -> "Risk Flags"
     "exports" -> "Exports"
@@ -464,21 +417,16 @@ private val ROOT_WORKFLOW_KEYS = setOf(
     "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
     "student.timetable", "messages", "notifications.view", "announcements", "calendar.view",
 )
-
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
-
 private val ACADEMIC_KEYS = setOf(
     "subjects", "curriculum", "reports", "report-cards", "results", "gradebook", "cbt", "cbt-exams",
     "examinations", "lesson-planner", "academic-repository", "library",
 )
-
 private val OPERATION_KEYS = setOf(
-    "staff", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses",
-    "payroll", "admissions", "transfers", "transport", "health", "inventory", "hostels",
-    "analytics", "risk", "exports",
+    "staff", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
+    "admissions", "transfers", "transport", "health", "inventory", "hostels", "analytics", "risk", "exports",
 )
-
-private val ACCOUNT_KEYS = setOf("profile", "settings")
+private val ACCOUNT_KEYS = setOf("profile", "portal-accounts", "settings")
 
 private fun moduleHubIcon(key: String): ImageVector = when {
     key.equals("profile", ignoreCase = true) -> Icons.Default.Person
