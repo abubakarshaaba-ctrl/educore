@@ -4,9 +4,9 @@
     android:height="48dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
-    <!-- Canonical EduCore app mark: navy tile, learning core and four data pixels. -->
+    <!-- Canonical EduCore icon, matching brand/educore-icon.svg. -->
     <path
-        android:fillColor="#13294F"
+        android:fillColor="#FFFFFF"
         android:pathData="M112,0H400A112,112 0,0 1,512 112V400A112,112 0,0 1,400 512H112A112,112 0,0 1,0 400V112A112,112 0,0 1,112 0Z" />
     <group
         android:scaleX="0.875"
@@ -14,13 +14,13 @@
         android:translateX="32"
         android:translateY="32">
         <path
-            android:fillColor="#FFFFFF"
+            android:fillColor="#071E45"
             android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
         <path
-            android:fillColor="#E89A1C"
+            android:fillColor="#D79A21"
             android:pathData="M271,178A78,78 0,0 0,271 334Z" />
         <path
-            android:fillColor="#13294F"
+            android:fillColor="#FFFFFF"
             android:pathData="M302,256A30,30 0,1 1,242 256A30,30 0,1 1,302 256Z" />
         <path
             android:fillColor="#F2C35B"
