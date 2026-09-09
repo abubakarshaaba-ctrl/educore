@@ -48,6 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
+                ->group(base_path('routes/mobile-portal-accounts.php'));
+
+            Route::prefix('api/v1')
+                ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-portal-attendance.php'));
         },
     )
