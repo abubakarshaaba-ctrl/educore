@@ -16,8 +16,9 @@
     RewriteEngine On
 
     # Sensitive uploads must never be served through the public storage
-    # symlink. Authenticated controllers provide controlled access instead.
-    RewriteRule ^storage/(admissions|recruitment|passports|signatures|attendance-photos)(?:/|$) - [F,L,NC]
+    # symlink. Attendance evidence still has one legacy dashboard reference
+    # and is migrated separately before its direct path is blocked.
+    RewriteRule ^storage/(admissions|recruitment|passports|signatures)(?:/|$) - [F,L,NC]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
