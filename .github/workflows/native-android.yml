@@ -12,6 +12,8 @@ on:
       - 'educore/app/Console/Commands/MigrateSensitiveDocuments.php'
       - 'educore/app/Http/Controllers/Api/**'
       - 'educore/app/Http/Controllers/AdmissionController.php'
+      - 'educore/app/Http/Controllers/PlatformBillingMutationController.php'
+      - 'educore/app/Http/Controllers/PlatformTenantRemovalController.php'
       - 'educore/app/Http/Controllers/PushNotificationController.php'
       - 'educore/app/Http/Controllers/RecruitmentController.php'
       - 'educore/app/Http/Controllers/ReportCardComputeController.php'
@@ -30,6 +32,7 @@ on:
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/app/Services/CrossSchoolStudentTransferService.php'
       - 'educore/app/Services/PlatformBillingService.php'
+      - 'educore/app/Services/PlatformTenantRemovalService.php'
       - 'educore/app/Services/ReportCardComputationService.php'
       - 'educore/app/Services/ReportCardPublicationService.php'
       - 'educore/app/Services/ReportCardDocumentService.php'
@@ -46,6 +49,8 @@ on:
       - 'educore/routes/api.php'
       - 'educore/routes/deploy.php'
       - 'educore/routes/mobile-*.php'
+      - 'educore/routes/web-platform-billing.php'
+      - 'educore/routes/web-platform-tenant-removal.php'
       - 'educore/routes/web-report-compute.php'
       - 'educore/routes/web-report-publication.php'
       - 'educore/routes/web-report-pdf.php'
@@ -53,6 +58,8 @@ on:
       - 'educore/tests/Feature/Mobile*.php'
       - 'educore/tests/Feature/ReportCardPublicationServiceTest.php'
       - 'educore/tests/Feature/ReportCardDocumentServiceTest.php'
+      - 'educore/tests/Feature/WebPlatformBillingRouteTest.php'
+      - 'educore/tests/Feature/WebPlatformTenantRemovalRouteTest.php'
       - 'educore/tests/Feature/WebReportComputeRouteTest.php'
       - 'educore/tests/Feature/WebReportPublicationRouteTest.php'
       - 'educore/tests/Feature/WebReportPdfRouteTest.php'
@@ -130,6 +137,7 @@ jobs:
             tests/Feature/MobilePlatformExtendedTest.php \
             tests/Feature/MobilePlatformMutationTest.php \
             tests/Feature/MobilePlatformTenantTest.php \
+            tests/Feature/MobilePlatformTenantRemovalTest.php \
             tests/Feature/MobilePlatformGroupTest.php \
             tests/Feature/MobilePlatformSettingsTest.php \
             tests/Feature/MobilePlatformAgentTest.php \
@@ -138,6 +146,8 @@ jobs:
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/ReportCardDocumentServiceTest.php \
+            tests/Feature/WebPlatformBillingRouteTest.php \
+            tests/Feature/WebPlatformTenantRemovalRouteTest.php \
             tests/Feature/WebReportComputeRouteTest.php \
             tests/Feature/WebReportPublicationRouteTest.php \
             tests/Feature/WebReportPdfRouteTest.php \
