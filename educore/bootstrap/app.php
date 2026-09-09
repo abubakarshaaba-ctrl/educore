@@ -73,6 +73,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RestrictCbtLanSession::class,
             \App\Http\Middleware\ProtectPublicTenantPortal::class,
             \App\Http\Middleware\EnforceTenantFormReferences::class,
+            \App\Http\Middleware\EnsurePayablePlatformInvoice::class,
         ]);
 
         $middleware->alias([
