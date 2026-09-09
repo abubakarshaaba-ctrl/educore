@@ -1,8 +1,9 @@
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\SchoolSetting;
+use App\Services\AuthenticatedIdentityAssetStorage;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class SchoolSettingController extends Controller
@@ -14,7 +15,7 @@ class SchoolSettingController extends Controller
         return view('settings.index', compact('tenant', 'settings'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, AuthenticatedIdentityAssetStorage $assets)
     {
         $tenant = auth()->user()->tenant;
         $data   = $request->validate([
@@ -30,22 +31,20 @@ class SchoolSettingController extends Controller
 
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store("logos/{$tenant->id}", 'public');
-            // Delete old logo if different
             if ($tenant->logo_path && $tenant->logo_path !== $path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($tenant->logo_path);
+                Storage::disk('public')->delete($tenant->logo_path);
             }
-            $tenant->update(['logo_path' => $path]); // store clean relative path e.g. logos/1/abc.png
+            $tenant->update(['logo_path' => $path]);
         }
 
         if ($request->hasFile('authorized_signature')) {
-            $path = $request->file('authorized_signature')
-                ->store("signatures/{$tenant->id}", 'public');
-
-            if ($tenant->authorized_signature_path && $tenant->authorized_signature_path !== $path) {
-                Storage::disk('public')->delete($tenant->authorized_signature_path);
-            }
-
+            $oldPath = $tenant->authorized_signature_path;
+            $path = $assets->store($request->file('authorized_signature'), "signatures/{$tenant->id}");
             $tenant->update(['authorized_signature_path' => $path]);
+
+            if ($oldPath && $oldPath !== $path) {
+                $assets->delete($oldPath);
+            }
         }
 
         $tenant->update([
@@ -56,7 +55,6 @@ class SchoolSettingController extends Controller
             'email'         => $data['email'] ?? null,
         ]);
 
-        // Save extra settings
         $extras = ['website', 'established_year', 'proprietor', 'slogan'];
         foreach ($extras as $key) {
             if ($request->filled($key)) {
@@ -70,4 +68,19 @@ class SchoolSettingController extends Controller
         return back()->with('success', 'School settings updated.');
     }
 
+    /** Authenticated tenant-scoped preview for the authorized signature. */
+    public function signatureFile(Request $request, AuthenticatedIdentityAssetStorage $assets)
+    {
+        $tenant = $request->user()->tenant;
+        $path = $assets->resolveAbsolutePath($tenant?->authorized_signature_path);
+        if (!$path) {
+            abort(404, 'No authorized signature on file.');
+        }
+
+        return response()->file($path, [
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ]);
+    }
 }
