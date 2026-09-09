@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseTile
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
@@ -321,8 +320,8 @@ internal fun StaffModulesHubScreen(
                     FloatingActionButton(
                         onClick = { cbtCreating = true; cbtViewModel.loadCreateOptions() },
                         modifier = Modifier.align(Alignment.BottomEnd).padding(eduCoreScreenPadding()),
-                        containerColor = EduCoreColors.Gold500,
-                        contentColor = EduCoreColors.Navy900,
+                        containerColor = EduCoreColors.Navy900,
+                        contentColor = EduCoreColors.White,
                     ) { Icon(Icons.Default.Add, contentDescription = "Create examination") }
                 }
             }
@@ -372,21 +371,14 @@ internal fun StaffModulesHubScreen(
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
-        item(key = "hub-hero", span = { GridItemSpan(maxLineSpan) }) {
-            EduCoreShowcaseHero(
-                eyebrow = "MORE",
-                title = "Secondary tools, kept out of your way.",
-                subtitle = "Only additional workspaces granted to ${session.user.roleLabel} are shown here. Core teaching and communication tasks stay in the main navigation.",
-            )
-        }
         if (groups.all { it.modules.isEmpty() }) {
             item(key = "hub-empty", span = { GridItemSpan(maxLineSpan) }) {
-                EduCoreEmptyState("No additional modules", "Your available workspaces are already accessible from the main navigation.")
+                EduCoreEmptyState("No additional modules", "No additional tools are available.")
             }
         } else {
             groups.filter { it.modules.isNotEmpty() }.forEach { group ->
                 item(key = "hub-heading-${group.key}", span = { GridItemSpan(maxLineSpan) }) {
-                    EduCoreSectionHeader(group.title, group.supportingText)
+                    EduCoreSectionHeader(group.title)
                 }
                 items(group.modules, key = { "hub-${group.key}-${it.key}" }) { module ->
                     EduCoreShowcaseTile(
@@ -412,7 +404,6 @@ internal fun StaffModulesHubScreen(
 private data class ModuleHubGroup(
     val key: String,
     val title: String,
-    val supportingText: String,
     val modules: List<ModuleDescriptor>,
 )
 
@@ -425,9 +416,9 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
     val known = ACADEMIC_KEYS + OPERATION_KEYS + ACCOUNT_KEYS
     val other = deduped.filter { it.key.lowercase() !in known }
     return listOf(
-        ModuleHubGroup("academics", "Academics", "Planning, resources, reporting and examinations", group(ACADEMIC_KEYS)),
-        ModuleHubGroup("operations", "Operations", "Attendance, transfers, risk intelligence and school support services", group(OPERATION_KEYS) + other),
-        ModuleHubGroup("account", "Account", "Profile and account tools granted to your role", group(ACCOUNT_KEYS)),
+        ModuleHubGroup("academics", "Academics", group(ACADEMIC_KEYS)),
+        ModuleHubGroup("operations", "Operations", group(OPERATION_KEYS) + other),
+        ModuleHubGroup("account", "Account", group(ACCOUNT_KEYS)),
     )
 }
 
@@ -438,15 +429,15 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
 
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
     "staff" -> "Staff Directory"
-    "staff-attendance", "staff-attendance.self" -> "My Attendance"
+    "staff-attendance", "staff-attendance.self" -> "Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
-    "gradebook" -> "Gradebook & Remarks"
+    "gradebook" -> "Gradebook"
     "reports", "report-cards", "results" -> "Report Cards"
     "cbt", "cbt-exams", "examinations" -> "Examinations"
     "academic-cycle" -> "Sessions"
-    "fees" -> "Fees & Payments"
-    "transfers" -> "Student Transfers"
+    "fees" -> "Fees"
+    "transfers" -> "Transfers"
     "portal-accounts" -> "Portal Accounts"
     "analytics" -> "Analytics"
     "risk" -> "Risk Flags"
