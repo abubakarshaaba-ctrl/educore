@@ -28,6 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreTheme
 
+private val NATIVE_PORTALS = setOf("staff", "parent")
+
 @Composable
 fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -36,9 +38,11 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     ReportDrawnWhen { state.phase != AppPhase.STARTING }
 
-    LaunchedEffect(state.phase) {
+    LaunchedEffect(state.phase, state.session?.user?.portal) {
+        val portal = state.session?.user?.portal?.lowercase()
         if (
             state.phase == AppPhase.READY &&
+            portal in NATIVE_PORTALS &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
