@@ -105,7 +105,7 @@
       <div class="cb" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
         <div class="signature-preview" id="signaturePreviewWrap">
           @if($tenant->authorized_signature_path)
-            <img id="signaturePreviewImg" src="{{ asset('storage/' . preg_replace('#^storage/#', '', ltrim($tenant->authorized_signature_path, '/'))) }}" alt="Authorized signature">
+            <img id="signaturePreviewImg" src="{{ route('settings.authorized-signature') }}" alt="Authorized signature">
           @else
             <span id="signaturePlaceholder" style="font-size:11px;color:var(--slate-light)">No signature uploaded</span>
           @endif
@@ -149,10 +149,8 @@ document.getElementById('logoFileInput').addEventListener('change', function(e) 
     const reader = new FileReader();
     reader.onload = function(ev) {
         const wrap = document.getElementById('logoPreviewWrap');
-        // Remove text initial if present
         const initial = document.getElementById('logoInitial');
         if (initial) initial.remove();
-        // Update or create img
         let img = document.getElementById('logoPreviewImg');
         if (!img) {
             img = document.createElement('img');
@@ -183,6 +181,5 @@ document.getElementById('signatureFileInput').addEventListener('change', functio
 });
 </script>
 @endpush
-
 
 @endsection
