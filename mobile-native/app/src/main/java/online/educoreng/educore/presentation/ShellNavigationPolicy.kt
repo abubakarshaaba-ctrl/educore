@@ -41,7 +41,7 @@ object ShellNavigationPolicy {
             portal == "parent" -> "Academics"
             else -> "Timetable"
         }
-        val inboxLabel = if (session.modules.any { it.key.contains("message") || it.key.contains("support") }) {
+        val inboxLabel = if (visibleModules(session).any { it.key.contains("message") || it.key.contains("support") }) {
             "Inbox"
         } else {
             "Notices"
@@ -57,35 +57,54 @@ object ShellNavigationPolicy {
     }
 
     fun modulesFor(tab: ShellTabId, session: SessionSnapshot): List<ModuleDescriptor> {
-        val grouped = session.modules.groupBy(::groupFor)
+        val modules = visibleModules(session)
+        val grouped = modules.groupBy(::groupFor)
         return when (tab) {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal) {
-                "platform" -> session.modules.filter {
+                "platform" -> modules.filter {
                     it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
                 }
-                "parent" -> session.modules.filter {
+                "parent" -> modules.filter {
                     it.key.contains("result") || it.key.contains("attendance")
                 }
-                "staff", "admin" -> session.modules.filter { it.key in CLASS_WORKSPACE_ENTRY_KEYS }
+                "staff", "admin" -> modules.filter { it.key in CLASS_WORKSPACE_ENTRY_KEYS }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
                 "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
-                "parent" -> session.modules.filter {
+                "parent" -> modules.filter {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
                 else -> grouped[ModuleGroup.SCHEDULE].orEmpty()
             }
             ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
-            ShellTabId.MORE -> session.modules
+            ShellTabId.MORE -> modules
+        }
+    }
+
+    /**
+     * The bootstrap response is the only source of module authority. The
+     * client never invents privileges. It only removes duplicate/inapplicable
+     * surfaces from the server-granted list.
+     *
+     * Staff see My Attendance only. Administrators retain both their own
+     * attendance entitlement and the separate all-staff attendance module.
+     */
+    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
+        val modules = session.modules.distinctBy { it.key.lowercase() }
+        if (session.user.portal == "admin" || session.user.portal == "platform") return modules
+
+        val hasSelfAttendance = modules.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
+        return modules.filterNot { module ->
+            hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
         }
     }
 
     fun groupedModules(session: SessionSnapshot): Map<ModuleGroup, List<ModuleDescriptor>> =
         ModuleGroup.entries.mapNotNull { group ->
-            val modules = session.modules.filter { groupFor(it) == group }
+            val modules = visibleModules(session).filter { groupFor(it) == group }
             if (modules.isEmpty()) null else group to modules
         }.toMap()
 
@@ -111,29 +130,13 @@ object ShellNavigationPolicy {
     )
 
     private val ACADEMIC_KEYS = listOf(
-        "student",
-        "class",
-        "subject",
-        "curriculum",
-        "attendance",
-        "score",
-        "report",
-        "result",
-        "lesson",
-        "repository",
-        "cbt",
-        "exam",
+        "student", "class", "subject", "curriculum", "attendance", "score",
+        "report", "result", "lesson", "repository", "cbt", "exam",
     )
     private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
     private val COMMUNICATION_KEYS = listOf(
-        "message",
-        "notice",
-        "notification",
-        "announcement",
-        "calendar",
-        "event",
-        "support",
-        "broadcast",
+        "message", "notice", "notification", "announcement", "calendar",
+        "event", "support", "broadcast",
     )
     private val ACCOUNT_KEYS = listOf("profile", "setting", "help")
 }
