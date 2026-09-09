@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -101,7 +100,6 @@ internal fun StaffCbtCreateScreen(
     LaunchedEffect(options.generatedAt) {
         if (bankId == 0L) bankId = options.banks.firstOrNull()?.id ?: 0L
         if (termId == 0L) termId = options.defaults.termId ?: options.terms.firstOrNull()?.id ?: 0L
-        if (duration.isBlank()) duration = options.defaults.durationMinutes.toString()
     }
 
     LaunchedEffect(bankId) {
@@ -123,8 +121,11 @@ internal fun StaffCbtCreateScreen(
             visible = true,
             initialDateMillis = utcDateOnlyMillis(current),
             onDateSelected = { selected ->
-                if (target == CreateCbtScheduleTarget.START) startMillis = replaceCreateDate(startMillis, selected)
-                else endMillis = replaceCreateDate(endMillis, selected)
+                if (target == CreateCbtScheduleTarget.START) {
+                    startMillis = replaceCreateDate(startMillis, selected)
+                } else {
+                    endMillis = replaceCreateDate(endMillis, selected)
+                }
             },
             onDismiss = { dateTarget = null },
         )
@@ -138,8 +139,11 @@ internal fun StaffCbtCreateScreen(
             initialHour = calendar.get(Calendar.HOUR_OF_DAY),
             initialMinute = calendar.get(Calendar.MINUTE),
             onTimeSelected = { hour, minute ->
-                if (target == CreateCbtScheduleTarget.START) startMillis = replaceCreateTime(startMillis, hour, minute)
-                else endMillis = replaceCreateTime(endMillis, hour, minute)
+                if (target == CreateCbtScheduleTarget.START) {
+                    startMillis = replaceCreateTime(startMillis, hour, minute)
+                } else {
+                    endMillis = replaceCreateTime(endMillis, hour, minute)
+                }
             },
             onDismiss = { timeTarget = null },
         )
@@ -148,24 +152,26 @@ internal fun StaffCbtCreateScreen(
     val selectedBank = options.banks.firstOrNull { it.id == bankId }
     val availableClasses = options.classes.filter { it.classLevelId == selectedBank?.classLevel?.id }
     val assessments = options.assessmentTypes.filter { it.termId == termId }
-    val durationValue = duration.toIntOrNull()
-    val maxFocusValue = maxFocusLosses.toIntOrNull()
+    val durationValue: Int? = duration.toIntOrNull()
+    val maxFocusValue: Int? = maxFocusLosses.toIntOrNull()
+    val durationValid = durationValue?.let { value -> value >= 5 && value <= 1440 } == true
+    val focusValid = maxFocusValue?.let { value -> value >= 0 && value <= 20 } == true
+    val bankValid = (selectedBank?.questionCount ?: 0) > 0
     val scheduleValid = startMillis > System.currentTimeMillis() && endMillis > startMillis
-    val formValid = title.isNotBlank()
-        && selectedBank != null
-        && selectedBank.questionCount > 0
-        && selectedClasses.isNotEmpty()
-        && termId > 0L
-        && durationValue != null && durationValue in 5..1440
-        && maxFocusValue != null && maxFocusValue in 0..20
-        && scheduleValid
+    val formValid = title.isNotBlank() && bankValid && selectedClasses.isNotEmpty() && termId > 0L && durationValid && focusValid && scheduleValid
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { EduCorePageHeader("New Examination", "CBT Management", onBack) }
+        item {
+            EduCorePageHeader(
+                title = "New Examination",
+                subtitle = "CBT Management",
+                onBack = onBack,
+            )
+        }
         item {
             EduCoreShowcaseHero(
                 eyebrow = "CREATE DRAFT",
@@ -182,7 +188,7 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 EduCoreTextField(
                     value = title,
-                    onValueChange = { if (it.length <= 150) title = it },
+                    onValueChange = { candidate -> if (candidate.length <= 150) title = candidate },
                     label = "Examination title",
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isCreating,
@@ -191,7 +197,7 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 Text("Question bank", style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Ink900)
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     options.banks.forEach { bank ->
@@ -216,17 +222,13 @@ internal fun StaffCbtCreateScreen(
         item {
             EduCoreShowcaseSectionCard {
                 Text("Classes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.Navy900)
-                Text(
-                    "Choose one or more ${selectedBank?.classLevel?.name ?: "matching"} classes.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.Slate600,
-                )
+                Text("Choose one or more ${selectedBank?.classLevel?.name ?: "matching"} classes.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 if (availableClasses.isEmpty()) {
                     Text("No permitted classes match this question bank.", color = EduCoreColors.Danger600, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Row(
-                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     ) {
                         availableClasses.forEach { classOption ->
@@ -234,11 +236,7 @@ internal fun StaffCbtCreateScreen(
                                 label = classOption.name,
                                 selected = classOption.id in selectedClasses,
                                 onClick = {
-                                    selectedClasses = if (classOption.id in selectedClasses) {
-                                        selectedClasses - classOption.id
-                                    } else {
-                                        selectedClasses + classOption.id
-                                    }
+                                    selectedClasses = if (classOption.id in selectedClasses) selectedClasses - classOption.id else selectedClasses + classOption.id
                                 },
                                 enabled = !state.isCreating,
                             )
@@ -254,7 +252,7 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 Text("Term", style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Ink900)
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     options.terms.forEach { term ->
@@ -269,10 +267,15 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 Text("Assessment link", style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Ink900)
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
-                    EduCoreFilterChip("None", assessmentId == 0L, { assessmentId = 0L }, enabled = !state.isCreating)
+                    EduCoreFilterChip(
+                        label = "None",
+                        selected = assessmentId == 0L,
+                        onClick = { assessmentId = 0L },
+                        enabled = !state.isCreating,
+                    )
                     assessments.forEach { assessment ->
                         EduCoreFilterChip(
                             label = assessment.name,
@@ -315,11 +318,7 @@ internal fun StaffCbtCreateScreen(
                     supportingText = "Allowed range: 5–1440 minutes",
                 )
                 if (!scheduleValid) {
-                    Text(
-                        "Start must be in the future and end must be later than start.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = EduCoreColors.Danger600,
-                    )
+                    Text("Start must be in the future and end must be later than start.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Danger600)
                 }
             }
         }
@@ -333,11 +332,16 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 Text("Focus-loss policy", style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Ink900)
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     listOf("submit" to "Auto-submit", "warn" to "Warn", "log" to "Log only").forEach { (value, label) ->
-                        EduCoreFilterChip(label, focusLossPolicy == value, { focusLossPolicy = value }, enabled = !state.isCreating)
+                        EduCoreFilterChip(
+                            label = label,
+                            selected = focusLossPolicy == value,
+                            onClick = { focusLossPolicy = value },
+                            enabled = !state.isCreating,
+                        )
                     }
                 }
                 Spacer(Modifier.height(EduCoreSpacing.Md))
@@ -359,6 +363,7 @@ internal fun StaffCbtCreateScreen(
                 onClick = {
                     val validDuration = duration.toIntOrNull() ?: return@EduCorePrimaryButton
                     val validFocusLosses = maxFocusLosses.toIntOrNull() ?: return@EduCorePrimaryButton
+                    val linkedAssessmentId: Long? = if (assessmentId > 0L) assessmentId else null
                     onCreate(
                         StaffCbtCreateRequestDto(
                             title = title.trim(),
@@ -368,7 +373,7 @@ internal fun StaffCbtCreateScreen(
                             durationMinutes = validDuration,
                             scheduledStart = createApiDateTime(startMillis),
                             scheduledEnd = createApiDateTime(endMillis),
-                            assessmentTypeId = assessmentId.takeIf { it > 0L },
+                            assessmentTypeId = linkedAssessmentId,
                             malpracticeEnabled = malpracticeEnabled,
                             focusLossPolicy = focusLossPolicy,
                             maxFocusLosses = validFocusLosses,
@@ -379,14 +384,10 @@ internal fun StaffCbtCreateScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = formValid && !state.isCreating,
                 loading = state.isCreating,
-                leadingIcon = { Icon(Icons.Default.AddCircle, null) },
+                leadingIcon = { Icon(Icons.Default.AddCircle, contentDescription = null) },
             )
             if (selectedBank?.questionCount == 0) {
-                Text(
-                    "The selected bank has no questions. Add questions before creating a native examination draft.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.Danger600,
-                )
+                Text("The selected bank has no questions. Add questions before creating a native examination draft.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Danger600)
             }
         }
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
@@ -408,8 +409,20 @@ private fun CreateScheduleRow(
             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            EduCoreFilterChip(createDateLabel(millis), false, onDate, Modifier.weight(1f), enabled)
-            EduCoreFilterChip(createTimeLabel(millis), false, onTime, Modifier.weight(1f), enabled)
+            EduCoreFilterChip(
+                label = createDateLabel(millis),
+                selected = false,
+                onClick = onDate,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+            )
+            EduCoreFilterChip(
+                label = createTimeLabel(millis),
+                selected = false,
+                onClick = onTime,
+                modifier = Modifier.weight(1f),
+                enabled = enabled,
+            )
         }
     }
 }
@@ -472,11 +485,6 @@ private fun utcDateOnlyMillis(value: Long): Long {
     }.timeInMillis
 }
 
-private fun createDateLabel(value: Long): String =
-    SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(value))
-
-private fun createTimeLabel(value: Long): String =
-    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(value))
-
-private fun createApiDateTime(value: Long): String =
-    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date(value))
+private fun createDateLabel(value: Long): String = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(value))
+private fun createTimeLabel(value: Long): String = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(value))
+private fun createApiDateTime(value: Long): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date(value))
