@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
@@ -53,10 +55,20 @@ internal fun PlatformSchoolDirectoryScreen(
                 item { EduCoreEmptyState("No schools available", "Provision a school or return to Schools and refresh the directory.") }
             }
             items(schools, key = { it.id }) { tenant ->
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                ) {
                     Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(tenant.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text(
+                                tenant.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = EduCoreColors.Navy900,
+                                modifier = Modifier.weight(1f),
+                            )
                             EduCoreStatusBadge(
                                 tenant.status.replace('_', ' '),
                                 if (tenant.status == "active") EduCoreTone.Success else if (tenant.status == "pending") EduCoreTone.Warning else EduCoreTone.Danger,
