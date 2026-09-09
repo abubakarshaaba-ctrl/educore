@@ -2,57 +2,58 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
 use App\Models\Guardian;
+use App\Models\Student;
 use App\Models\User;
+use App\Services\PortalAccountService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
- * PortalAccountController
- *
- * Admin page to create / manage student and parent login accounts.
- * Accessed at /portal-accounts
+ * Admin page to create and manage student/parent portal identities.
  */
 class PortalAccountController extends Controller
 {
-    private function tid(): int { return auth()->user()->tenant_id; }
+    public function __construct(private PortalAccountService $accounts) {}
 
-    private function ensureTenantPortalUser(User $user): void
+    private function tid(): int
     {
-        abort_if(
-            (int) $user->tenant_id !== $this->tid()
-                || !in_array($user->roleKey(), User::ROLES_PORTAL, true),
-            404
-        );
+        $tenantId = auth()->user()?->tenant_id;
+        abort_unless($tenantId, 403, 'School account required.');
+        return (int) $tenantId;
     }
 
     public function index()
     {
-        // Students with and without portal accounts
-        $students = Student::where('tenant_id', $this->tid())
+        $tid = $this->tid();
+        $students = Student::where('tenant_id', $tid)
             ->where('status', Student::STATUS_ACTIVE)
             ->with(['currentClassArm.classLevel'])
-            ->orderBy('first_name')->get();
+            ->orderBy('first_name')
+            ->get();
 
-        $studentUsersById = User::where('tenant_id', $this->tid())
+        $studentUserIds = $students->pluck('user_id')->filter()->unique();
+        $studentUsers = User::where('tenant_id', $tid)
+            ->whereIn('id', $studentUserIds)
             ->where('role', 'student')
-            ->get()->keyBy('id');
+            ->get()
+            ->keyBy('id');
+        $studentAccountMap = $students->mapWithKeys(
+            fn (Student $student) => [$student->id => $student->user_id ? $studentUsers->get($student->user_id) : null]
+        );
 
-        // Map student → user
-        $studentAccountMap = $students->mapWithKeys(function ($s) {
-            return [$s->id => $s->user_id ? User::where('tenant_id', $this->tid())->find($s->user_id) : null];
-        });
-
-        // Guardians with and without portal accounts
-        $guardians = Guardian::where('tenant_id', $this->tid())
+        $guardians = Guardian::where('tenant_id', $tid)
             ->with(['students.currentClassArm.classLevel'])
-            ->orderBy('first_name')->get();
-
-        $guardianAccountMap = $guardians->mapWithKeys(function ($g) {
-            return [$g->id => $g->user_id ? User::where('tenant_id', $this->tid())->find($g->user_id) : null];
-        });
+            ->orderBy('first_name')
+            ->get();
+        $guardianUserIds = $guardians->pluck('user_id')->filter()->unique();
+        $guardianUsers = User::where('tenant_id', $tid)
+            ->whereIn('id', $guardianUserIds)
+            ->where('role', 'parent')
+            ->get()
+            ->keyBy('id');
+        $guardianAccountMap = $guardians->mapWithKeys(
+            fn (Guardian $guardian) => [$guardian->id => $guardian->user_id ? $guardianUsers->get($guardian->user_id) : null]
+        );
 
         return view('portal.accounts', compact(
             'students', 'studentAccountMap',
@@ -60,107 +61,89 @@ class PortalAccountController extends Controller
         ));
     }
 
-    // ── Create student portal account ─────────────────────────────────
     public function createStudentAccount(Request $request, Student $student)
     {
-        if ($student->user_id && User::where('tenant_id', $this->tid())->find($student->user_id)) {
-            return back()->withErrors(['error' => 'Portal account already exists for this student.']);
-        }
-
+        $tid = $this->tid();
+        abort_unless((int) $student->tenant_id === $tid, 404);
         $data = $request->validate([
-            'email'    => ['required', 'email', 'unique:users,email'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'email' => ['required', 'email', 'max:180', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'max:255'],
         ]);
 
-        $password = !empty($data['password'] ?? null) ? $data['password'] : $student->admission_number;
+        $this->accounts->createStudentAccount(
+            tenantId: $tid,
+            student: $student,
+            email: $data['email'],
+            password: $data['password'],
+            actor: $request->user(),
+            request: $request,
+        );
 
-        $user = User::create([
-            'tenant_id' => $this->tid(),
-            'name'      => $student->full_name,
-            'email'     => $data['email'],
-            'password'  => Hash::make($password),
-            'role'      => 'student',
-            'is_active' => true,
-        ]);
-
-        $student->update(['user_id' => $user->id]);
-
-        return back()->with('success', "Portal account created for {$student->full_name}. Login: {$data['email']} / Password: {$password}");
+        return back()->with('success', "Portal account created for {$student->full_name}. The temporary password was not stored or displayed; share the password you entered through an approved private channel.");
     }
 
-    // ── Create parent portal account ──────────────────────────────────
     public function createGuardianAccount(Request $request, Guardian $guardian)
     {
-        if ($guardian->user_id && User::where('tenant_id', $this->tid())->find($guardian->user_id)) {
-            return back()->withErrors(['error' => 'Portal account already exists for this guardian.']);
-        }
-
+        $tid = $this->tid();
+        abort_unless((int) $guardian->tenant_id === $tid, 404);
         $data = $request->validate([
-            'email'    => ['required', 'email', 'unique:users,email'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'email' => ['required', 'email', 'max:180', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'max:255'],
         ]);
 
-        $password = !empty($data['password'] ?? null) ? $data['password'] : 'portal' . rand(1000, 9999);
+        $this->accounts->createGuardianAccount(
+            tenantId: $tid,
+            guardian: $guardian,
+            email: $data['email'],
+            password: $data['password'],
+            actor: $request->user(),
+            request: $request,
+        );
 
-        $user = User::create([
-            'tenant_id' => $this->tid(),
-            'name'      => $guardian->full_name,
-            'email'     => $data['email'],
-            'password'  => Hash::make($password),
-            'role'      => 'parent',
-            'is_active' => true,
-        ]);
-
-        $guardian->update(['user_id' => $user->id]);
-
-        return back()->with('success', "Portal account created for {$guardian->full_name}. Login: {$data['email']} / Password: {$password}");
+        return back()->with('success', "Portal account created for {$guardian->full_name}. The temporary password was not stored or displayed; share the password you entered through an approved private channel.");
     }
 
-    // ── Reset portal password ─────────────────────────────────────────
     public function resetPassword(Request $request, User $user)
     {
-        $this->ensureTenantPortalUser($user);
-        $data     = $request->validate(['password' => ['required', 'string', 'min:6']]);
-        $user->update(['password' => Hash::make($data['password'])]);
-        return back()->with('success', "Password reset for {$user->name}.");
+        $tid = $this->tid();
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'max:255'],
+        ]);
+
+        $updated = $this->accounts->resetPassword(
+            tenantId: $tid,
+            portalUser: $user,
+            password: $data['password'],
+            actor: $request->user(),
+            request: $request,
+        );
+
+        return back()->with('success', "Password reset for {$updated->name}. Existing app/browser sessions and push subscriptions were revoked.");
     }
 
-    // ── Toggle portal access ──────────────────────────────────────────
-    public function toggleAccess(User $user)
+    public function toggleAccess(Request $request, User $user)
     {
-        $this->ensureTenantPortalUser($user);
-        $user->update(['is_active' => !$user->is_active]);
-        return back()->with('success', "{$user->name} portal access " . ($user->is_active ? 'enabled' : 'disabled') . '.');
+        $updated = $this->accounts->toggleAccess(
+            tenantId: $this->tid(),
+            portalUser: $user,
+            actor: $request->user(),
+            request: $request,
+        );
+
+        return back()->with('success', "{$updated->name} portal access ".($updated->is_active ? 'enabled' : 'disabled').'.');
     }
 
-    // ── Bulk create student accounts ───────────────────────────────────
     public function bulkCreateStudents(Request $request)
     {
-        $tid = $this->tid();
-        $created = 0;
-        $skipped = 0;
+        $result = $this->accounts->bulkCreateStudents(
+            tenantId: $this->tid(),
+            actor: $request->user(),
+            request: $request,
+        );
 
-        $students = Student::where('tenant_id', $tid)
-            ->where('status', Student::STATUS_ACTIVE)
-            ->whereNull('user_id')
-            ->get();
-
-        foreach ($students as $student) {
-            if (!$student->email) { $skipped++; continue; }
-            if (User::where('email', $student->email)->exists()) { $skipped++; continue; }
-
-            $user = User::create([
-                'tenant_id' => $tid,
-                'name'      => $student->full_name,
-                'email'     => $student->email,
-                'password'  => Hash::make($student->admission_number),
-                'role'      => 'student',
-                'is_active' => true,
-            ]);
-            $student->update(['user_id' => $user->id]);
-            $created++;
-        }
-
-        return back()->with('success', "{$created} student portal accounts created. {$skipped} skipped (no email or already exists).");
+        return back()->with(
+            'success',
+            "{$result['created']} student portal accounts created with secure random credentials; users must use Forgot Password to set their own password. {$result['skipped']} skipped."
+        );
     }
 }
