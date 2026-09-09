@@ -1,18 +1,11 @@
 package online.educoreng.educore.core.designsystem.component
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
@@ -64,11 +56,11 @@ fun EduCoreTopAppBar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                subtitle?.let {
+                subtitle?.takeIf(String::isNotBlank)?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.74f),
+                        color = Color.White.copy(alpha = 0.72f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -76,7 +68,9 @@ fun EduCoreTopAppBar(
             }
         },
         navigationIcon = {
-            if (navigationIcon != null && onNavigationClick != null) {
+            // Back arrows are intentionally removed from the native app. Root
+            // navigation and Android system back remain the navigation model.
+            if (navigationIcon != null && onNavigationClick != null && navigationDescription != "Back") {
                 IconButton(onClick = onNavigationClick) {
                     Icon(navigationIcon, contentDescription = navigationDescription)
                 }
@@ -124,13 +118,14 @@ fun EduCoreBottomNavigation(
                     Text(
                         item.label,
                         maxLines = 1,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = EduCoreColors.Gold600,
-                    selectedTextColor = EduCoreColors.Gold600,
-                    indicatorColor = Color.Transparent,
+                    selectedIconColor = EduCoreColors.Navy900,
+                    selectedTextColor = EduCoreColors.Navy900,
+                    indicatorColor = EduCoreColors.Info100,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
@@ -172,7 +167,7 @@ fun EduCoreTenantHeader(
             )
             Text(
                 text = listOfNotNull(role, session).joinToString(" · "),
-                color = Color.White.copy(alpha = 0.76f),
+                color = Color.White.copy(alpha = 0.74f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -182,6 +177,11 @@ fun EduCoreTenantHeader(
     }
 }
 
+/**
+ * Compact in-page heading. Back arrows and decorative descriptive copy are
+ * deliberately omitted; the persistent app bar already provides context.
+ */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -191,37 +191,23 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    // These root screens already have the same title in the persistent navy app bar.
-    // Keep only a compact back affordance instead of repeating a full title card.
-    if (title in setOf("Admissions", "Inbox")) {
-        if (onBack != null) {
-            IconButton(onClick = onBack, modifier = modifier) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = EduCoreColors.Navy900)
-            }
-        }
-        return
-    }
+    if (title in setOf("Admissions", "Inbox")) return
 
-    androidx.compose.material3.Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = EduCoreColors.White,
-        border = BorderStroke(1.dp, EduCoreColors.Line200),
-        shadowElevation = 0.dp,
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = EduCoreSpacing.Xs, vertical = EduCoreSpacing.Xs),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm)) {
-            if (maxWidth < 520.dp && compactActions) {
-                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { PageHeaderIdentity(title, subtitle, onBack) }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End), content = actions)
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PageHeaderIdentity(title, subtitle, onBack)
-                    actions()
-                }
-            }
-        }
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            color = EduCoreColors.Ink900,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        actions()
     }
 }
 
@@ -237,32 +223,4 @@ fun EduCorePageHeader(
         modifier = Modifier,
         onBack = onBack,
     )
-}
-
-@Composable
-private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
-    if (onBack != null) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = EduCoreColors.Navy900)
-        }
-        Spacer(Modifier.width(EduCoreSpacing.Xs))
-    }
-    Column(Modifier.weight(1f)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleMedium,
-            color = EduCoreColors.Ink900,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        subtitle?.takeIf(String::isNotBlank)?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
 }
