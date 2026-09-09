@@ -71,9 +71,12 @@ fun EduCoreSectionHeader(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    // Root workspaces already identify themselves in the navy app bar. Repeating
-    // the same label directly below it adds visual noise and wastes compact space.
-    if (supportingText == "Only modules permitted by the server are shown.") return
+    // Root workspaces and tabbed communication screens already identify the
+    // active context elsewhere. Repeating those labels adds visual noise.
+    if (
+        supportingText == "Only modules permitted by the server are shown." ||
+        title in setOf("School notices", "Conversations", "School events")
+    ) return
 
     Surface(
         modifier = modifier.fillMaxWidth(),
