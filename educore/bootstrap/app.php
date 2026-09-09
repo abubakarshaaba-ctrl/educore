@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group(base_path('routes/web-report-publication.php'));
             Route::group(base_path('routes/web-report-pdf.php'));
 
+            // Converge Super Admin invoice generation/manual settlement on the
+            // same idempotent billing service used by the native Platform app.
+            Route::group(base_path('routes/web-platform-billing.php'));
+
             // Focused native route files share the same bearer-authenticated
             // /api/v1 contract without making routes/api.php a monolith.
             Route::prefix('api/v1/staff/cbt')
