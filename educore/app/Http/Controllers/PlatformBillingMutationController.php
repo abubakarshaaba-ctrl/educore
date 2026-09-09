@@ -18,7 +18,7 @@ class PlatformBillingMutationController extends Controller
             'tenant_id' => ['required', Rule::exists('tenants', 'id')],
             'billing_cycle' => ['required', Rule::in(['termly', 'annual'])],
             'capacity' => ['required', 'integer', 'min:1', 'max:1000000'],
-            'due_date' => ['required', 'date'],
+            'due_date' => ['required', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         $tenant = Tenant::findOrFail($data['tenant_id']);
