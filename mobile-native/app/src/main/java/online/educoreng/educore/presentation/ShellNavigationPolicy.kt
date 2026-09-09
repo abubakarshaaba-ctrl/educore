@@ -68,7 +68,7 @@ object ShellNavigationPolicy {
                 "parent" -> modules.filter {
                     it.key.contains("result") || it.key.contains("attendance")
                 }
-                "staff", "admin" -> modules.filter { it.key in CLASS_WORKSPACE_ENTRY_KEYS }
+                "staff", "admin" -> modules.filter { it.key.lowercase() in CLASS_WORKSPACE_ENTRY_KEYS }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
@@ -80,26 +80,48 @@ object ShellNavigationPolicy {
                 else -> grouped[ModuleGroup.SCHEDULE].orEmpty()
             }
             ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
-            ShellTabId.MORE -> modules
+            ShellTabId.MORE -> {
+                val alreadyPlaced = (
+                    modulesFor(ShellTabId.PRIMARY, session) +
+                        modulesFor(ShellTabId.SECONDARY, session) +
+                        modulesFor(ShellTabId.INBOX, session)
+                    ).map { canonicalKey(it.key) }.toSet()
+                modules.filterNot { canonicalKey(it.key) in alreadyPlaced }
+            }
         }
     }
 
     /**
-     * The bootstrap response is the only source of module authority. The
-     * client never invents privileges. It only removes duplicate/inapplicable
-     * surfaces from the server-granted list.
-     *
-     * Staff see My Attendance only. Administrators retain both their own
-     * attendance entitlement and the separate all-staff attendance module.
+     * Server bootstrap remains authoritative. This client-side layer is a
+     * fail-closed safety net for stale bootstrap payloads and removes duplicate
+     * aliases from navigation; it never grants a module that the server omitted.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
-        val modules = session.modules.distinctBy { it.key.lowercase() }
-        if (session.user.portal == "admin" || session.user.portal == "platform") return modules
-
-        val hasSelfAttendance = modules.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
-        return modules.filterNot { module ->
-            hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
+        val roleKeys = buildSet {
+            add(session.user.roleKey.lowercase())
+            session.user.roles.mapTo(this) { it.lowercase() }
         }
+        val isAccountant = roleKeys.any { it in ACCOUNTANT_ROLE_KEYS }
+
+        val filtered = session.modules.filterNot { module ->
+            isAccountant && module.key.lowercase() in ACCOUNTANT_DENIED_KEYS
+        }
+
+        val hasSelfAttendance = filtered.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
+        val attendanceAware = if (session.user.portal == "admin" || session.user.portal == "platform") {
+            filtered
+        } else {
+            filtered.filterNot { module ->
+                hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
+            }
+        }
+
+        return attendanceAware
+            .groupBy { canonicalKey(it.key) }
+            .mapNotNull { (_, candidates) ->
+                candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
+                    ?: candidates.firstOrNull()
+            }
     }
 
     fun groupedModules(session: SessionSnapshot): Map<ModuleGroup, List<ModuleDescriptor>> =
@@ -119,6 +141,13 @@ object ShellNavigationPolicy {
         }
     }
 
+    private fun canonicalKey(key: String): String = when (key.lowercase()) {
+        "staff-attendance.self" -> "staff-attendance"
+        "report-cards", "results" -> "reports"
+        "cbt-exams", "examinations" -> "cbt"
+        else -> key.lowercase()
+    }
+
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf(
         "classes",
         "students",
@@ -127,6 +156,15 @@ object ShellNavigationPolicy {
         "scores.entry",
         "lesson-planner",
         "academic-repository",
+    )
+
+    private val ACCOUNTANT_ROLE_KEYS = setOf("accountant", "accounts", "finance", "bursar")
+    private val ACCOUNTANT_DENIED_KEYS = setOf(
+        "attendance",
+        "student-attendance",
+        "scores",
+        "scores.entry",
+        "subjects",
     )
 
     private val ACADEMIC_KEYS = listOf(
