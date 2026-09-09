@@ -116,6 +116,7 @@ android {
 
 dependencies {
     implementation(libs.moshi.core)
+    implementation(libs.retrofit.core)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.work.runtime)
     implementation(project(":core:common"))
