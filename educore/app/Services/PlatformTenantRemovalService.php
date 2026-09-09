@@ -53,6 +53,16 @@ class PlatformTenantRemovalService
             if ($userIds->isNotEmpty() && Schema::hasTable('push_subscriptions')) {
                 DB::table('push_subscriptions')->whereIn('user_id', $userIds)->delete();
             }
+            if ($userIds->isNotEmpty() && Schema::hasTable('device_tokens')) {
+                DB::table('device_tokens')->whereIn('user_id', $userIds)->delete();
+            }
+            if (
+                $userIds->isNotEmpty()
+                && Schema::hasTable('sessions')
+                && Schema::hasColumn('sessions', 'user_id')
+            ) {
+                DB::table('sessions')->whereIn('user_id', $userIds)->delete();
+            }
 
             User::query()->where('tenant_id', $locked->id)->update([
                 'is_active' => false,
@@ -75,7 +85,9 @@ class PlatformTenantRemovalService
                         'status' => Tenant::STATUS_SUSPENDED,
                         'removed_at' => now()->toIso8601String(),
                         'api_sessions_revoked' => true,
+                        'browser_sessions_revoked' => Schema::hasTable('sessions') && Schema::hasColumn('sessions', 'user_id'),
                         'push_subscriptions_revoked' => true,
+                        'device_tokens_revoked' => Schema::hasTable('device_tokens'),
                     ],
                     'reason' => $reason,
                     'ip_address' => $request?->ip(),
