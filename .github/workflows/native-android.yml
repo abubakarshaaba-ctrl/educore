@@ -157,6 +157,7 @@ jobs:
             tests/Feature/MobilePlatformTenantRemovalTest.php \
             tests/Feature/MobilePlatformGroupTest.php \
             tests/Feature/MobilePlatformSettingsTest.php \
+            tests/Feature/MobilePlatformGatewayModeTest.php \
             tests/Feature/MobilePlatformAgentTest.php \
             tests/Feature/MobilePlatformProvisioningTest.php \
             tests/Feature/MobilePlatformBillingTest.php \
