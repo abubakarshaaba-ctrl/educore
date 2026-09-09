@@ -105,7 +105,7 @@ fun EduCoreBottomNavigation(
         tonalElevation = EduCoreSpacing.Xs,
     ) {
         items.forEach { item ->
-            val selected = selectedKey == item.key
+            val selected = bottomNavigationSelected(item.key, selectedKey)
             NavigationBarItem(
                 selected = selected,
                 onClick = { onSelect(item) },
@@ -137,6 +137,14 @@ fun EduCoreBottomNavigation(
             )
         }
     }
+}
+
+private fun bottomNavigationSelected(itemKey: String, selectedKey: String): Boolean = when {
+    selectedKey == itemKey -> true
+    selectedKey.startsWith("native/communications/") -> itemKey == "inbox"
+    selectedKey.startsWith("native/operations/") -> itemKey == "secondary"
+    selectedKey.startsWith("native/staff-attendance") -> itemKey == "more"
+    else -> false
 }
 
 @Composable
@@ -183,6 +191,17 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    // These root screens already have the same title in the persistent navy app bar.
+    // Keep only a compact back affordance instead of repeating a full title card.
+    if (title in setOf("Admissions", "Inbox")) {
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = modifier) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = EduCoreColors.Navy900)
+            }
+        }
+        return
+    }
+
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
