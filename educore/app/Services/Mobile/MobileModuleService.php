@@ -16,7 +16,7 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        'staff-attendance' => ['Staff Attendance', '/staff-attendance/my', 'staff-attendance'],
+        'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
@@ -44,6 +44,19 @@ class MobileModuleService
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
+    ];
+
+    private const ACCOUNTANT_MODULES = [
+        'dashboard',
+        'staff-attendance.self',
+        'fees',
+        'expenses',
+        'payroll',
+        'reports',
+        'messages',
+        'notifications.view',
+        'calendar.view',
+        'profile',
     ];
 
     public function forUser(User $user): array
@@ -84,8 +97,6 @@ class MobileModuleService
                 ['key' => 'student.timetable', 'title' => 'Timetable', 'path' => '/student/timetable', 'icon' => 'timetable'],
                 ['key' => 'student.attendance', 'title' => 'Attendance', 'path' => '/student/attendance', 'icon' => 'attendance'],
                 ['key' => 'student.exams', 'title' => 'Examinations', 'path' => '/student/exams', 'icon' => 'cbt'],
-                // Reuse the existing native Subjects operations route. The API
-                // returns a read-only student-specific subject selection workspace.
                 ['key' => 'subjects', 'title' => 'Subjects', 'path' => '/student/subjects', 'icon' => 'subjects'],
                 ['key' => 'student.messages', 'title' => 'Messages', 'path' => '/student/messages', 'icon' => 'messages'],
                 ['key' => 'student.notifications', 'title' => 'Notifications', 'path' => '/student/notifications', 'icon' => 'notifications'],
@@ -93,14 +104,33 @@ class MobileModuleService
             ];
         }
 
+        $roleKey = strtolower((string) $user->roleKey());
+        $isAccountant = $user->isAccountant() || in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
+        $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, [
+            'admin',
+            'principal',
+            'head',
+            'head_teacher',
+            'vice_principal',
+            'academic_administrator',
+        ], true);
+
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin): bool {
+                if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
+                    return false;
+                }
+
+                if ($key === 'staff-attendance' && ! $isSchoolAdmin) {
+                    return false;
+                }
+
                 if ($key === 'academic-repository') {
                     return $user->isAdmin() || $user->isTeacher();
                 }
 
                 if ($key === 'skills') {
-                    if (!$user->canAccessModule('skills')) {
+                    if (! $user->canAccessModule('skills')) {
                         return false;
                     }
                     if ($user->canAccessExactModule('students')) {
@@ -125,7 +155,7 @@ class MobileModuleService
                     $hasPermission = $user->canAccessExactModule('gradebook')
                         || $user->canAccessExactModule('reports')
                         || $user->canAccessModule('reports.remarks');
-                    if (!$hasPermission) {
+                    if (! $hasPermission) {
                         return false;
                     }
                     if ($user->canAccessExactModule('students') || $user->canAccessExactModule('reports')) {
