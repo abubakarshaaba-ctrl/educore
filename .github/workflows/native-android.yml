@@ -151,6 +151,7 @@ jobs:
             tests/Feature/MobileReportsTest.php \
             tests/Feature/MobileReportComputationTest.php \
             tests/Feature/MobileTransfersTest.php \
+            tests/Feature/MobileAccountWorkspacesTest.php \
             tests/Feature/MobilePlatformTest.php \
             tests/Feature/MobilePlatformExtendedTest.php \
             tests/Feature/MobilePlatformMutationTest.php \
