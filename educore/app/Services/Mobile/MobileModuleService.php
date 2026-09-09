@@ -28,6 +28,7 @@ class MobileModuleService
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
         'transfers' => ['Student Transfers', '/students/transfers', 'transfers'],
+        'portal-accounts' => ['Portal Accounts', '/portal-accounts', 'profile'],
         'messages' => ['Messages', '/messages', 'messages'],
         'notifications.view' => ['Notifications', '/notifications', 'notifications'],
         'calendar.view' => ['Calendar', '/calendar', 'calendar'],
@@ -110,16 +111,11 @@ class MobileModuleService
                 }
 
                 if ($key === 'scores') {
-                    // Read-only broadsheet users already have the native Gradebook.
-                    // Keep the Scores tile only for genuine score-entry authority so
-                    // a form tutor is never sent to a browser-backed score page.
                     return $user->canAccessExactModule('scores')
                         || $user->canAccessExactModule('scores.entry');
                 }
 
                 if ($key === 'reports') {
-                    // Form tutors use Gradebook & Remarks. The Report Cards tile is
-                    // reserved for full report-management authority.
                     return $user->canAccessExactModule('reports');
                 }
 
