@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MobilePlatformAgentController;
+use App\Http\Controllers\Api\MobilePlatformBillingController;
 use App\Http\Controllers\Api\MobilePlatformExtendedController;
 use App\Http\Controllers\Api\MobilePlatformGroupController;
 use App\Http\Controllers\Api\MobilePlatformProvisioningController;
@@ -19,6 +20,10 @@ Route::prefix('platform')->group(function (): void {
 
     Route::post('agents', [MobilePlatformAgentController::class, 'store']);
     Route::patch('agents/{agent}', [MobilePlatformAgentController::class, 'update'])->whereNumber('agent');
+
+    Route::get('billing/invoices', [MobilePlatformBillingController::class, 'index']);
+    Route::post('billing/invoices', [MobilePlatformBillingController::class, 'store']);
+    Route::post('billing/invoices/{invoice}/settle', [MobilePlatformBillingController::class, 'settle'])->whereNumber('invoice');
 
     Route::get('support', [MobilePlatformExtendedController::class, 'support']);
     Route::post('support/{ticket}/reply', [MobilePlatformExtendedController::class, 'replySupport'])->whereNumber('ticket');
