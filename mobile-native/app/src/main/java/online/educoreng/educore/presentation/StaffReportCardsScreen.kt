@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Card
@@ -28,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -37,7 +35,6 @@ import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
@@ -69,41 +66,31 @@ internal fun StaffReportCardsScreen(
     ) {
         item {
             EduCorePageHeader(
-                title = if (selectedClass == null) "Report Cards" else selectedClass.name,
-                subtitle = if (selectedClass == null) "Published academic reports for your authorised classes" else "Choose a student to open the published report",
+                title = "Report cards",
+                subtitle = selectedClass?.name,
                 onBack = onBack,
-            )
-        }
-        item {
-            EduCoreShowcaseHero(
-                eyebrow = if (selectedClass == null) "REPORTING WORKSPACE" else "SELECTED CLASS",
-                title = if (selectedClass == null) "Reports without the web detour." else selectedClass.name,
-                subtitle = if (selectedClass == null) "Move from your assigned class to a student report entirely inside the EduCore app. Only published results are displayed." else "${selectedClass.studentCount} students · ${selectedClass.subjects.size} subjects available in this class workspace.",
-                trailing = {
-                    Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = EduCoreColors.Gold100, contentColor = EduCoreColors.Navy900) {
-                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(24.dp)) }
-                    }
-                },
             )
         }
         if (selectedClass == null && catalogueClasses.isNotEmpty()) {
             item {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    EduCoreShowcaseStat(label = "Authorised classes", value = catalogueClasses.size.toString(), icon = Icons.Default.School, tone = EduCoreTone.Brand, modifier = Modifier.weight(1f))
-                    EduCoreShowcaseStat(label = "Students in scope", value = totalStudents.toString(), icon = Icons.Default.Groups, tone = EduCoreTone.Success, modifier = Modifier.weight(1f))
+                    EduCoreShowcaseStat("Classes", catalogueClasses.size.toString(), Icons.Default.School, modifier = Modifier.weight(1f))
+                    EduCoreShowcaseStat("Students", totalStudents.toString(), Icons.Default.Groups, tone = EduCoreTone.Success, modifier = Modifier.weight(1f))
                 }
             }
         }
         if (selectedClass == null) {
             item { EduCoreSearchBar(value = state.classSearch, onValueChange = onClassSearch, placeholder = "Search class or subject") }
             when {
-                state.isLoadingClasses && state.catalogue == null -> item { EduCoreLoadingState(message = "Loading your classes") }
+                state.isLoadingClasses && state.catalogue == null -> item { EduCoreLoadingState(message = "Loading classes") }
                 state.errorMessage != null && state.catalogue == null -> item { EduCoreErrorState(message = state.errorMessage, onRetry = onRetryClasses) }
                 else -> {
-                    val classes = catalogueClasses.filter { summary -> state.classSearch.isBlank() || summary.name.contains(state.classSearch, true) || summary.subjects.any { it.name.contains(state.classSearch, true) } }
-                    item { EduCoreSectionHeader(title = "Choose a class", supportingText = "Only classes granted to this account are listed") }
+                    val classes = catalogueClasses.filter { summary ->
+                        state.classSearch.isBlank() || summary.name.contains(state.classSearch, true) || summary.subjects.any { it.name.contains(state.classSearch, true) }
+                    }
+                    item { EduCoreSectionHeader(title = "Classes") }
                     if (classes.isEmpty()) {
-                        item { EduCoreEmptyState(title = if (state.classSearch.isBlank()) "No report classes" else "No classes found", message = if (state.classSearch.isBlank()) "No class with report-card access is currently available to this account." else "No authorised class matches your search.") }
+                        item { EduCoreEmptyState(title = "No classes found", message = "Try another search.") }
                     } else {
                         items(classes, key = ClassSummary::id) { classRoom -> ReportClassCard(classRoom) { onOpenClass(classRoom.id) } }
                     }
@@ -115,16 +102,29 @@ internal fun StaffReportCardsScreen(
                 state.isLoadingWorkspace && state.classStudents?.students.isNullOrEmpty() -> item { EduCoreLoadingState(message = "Loading students") }
                 state.errorMessage != null && state.classStudents?.students.isNullOrEmpty() -> item { EduCoreErrorState(message = state.errorMessage, onRetry = { onOpenClass(selectedClass.id) }) }
                 else -> {
-                    val students = state.classStudents?.students.orEmpty().filter { student -> state.studentSearch.isBlank() || student.name.contains(state.studentSearch, true) || student.admissionNumber.contains(state.studentSearch, true) }
-                    item { EduCoreSectionHeader(title = "Students", supportingText = "Open a student to view the published report card") }
+                    val students = state.classStudents?.students.orEmpty().filter { student ->
+                        state.studentSearch.isBlank() || student.name.contains(state.studentSearch, true) || student.admissionNumber.contains(state.studentSearch, true)
+                    }
+                    item { EduCoreSectionHeader(title = "Students") }
                     if (students.isEmpty()) {
-                        item { EduCoreEmptyState(title = "No students found", message = if (state.studentSearch.isBlank()) "No active student is available in this class." else "Try another student name or admission number.") }
+                        item { EduCoreEmptyState(title = "No students found", message = "Try another search.") }
                     } else {
-                        items(students, key = StudentSummary::id) { student -> ReportStudentCard(student) { onOpenStudentResults(selectedClass.id, student.id) } }
+                        items(students, key = StudentSummary::id) { student ->
+                            ReportStudentCard(student) { onOpenStudentResults(selectedClass.id, student.id) }
+                        }
                         if ((state.classStudents?.currentPage ?: 1) < (state.classStudents?.lastPage ?: 1)) {
                             item {
-                                Card(modifier = Modifier.fillMaxWidth().clickable(enabled = !state.isLoadingMoreStudents, onClick = onLoadMoreStudents), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-                                    Text(text = if (state.isLoadingMoreStudents) "Loading more students…" else "Load more students", modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().clickable(enabled = !state.isLoadingMoreStudents, onClick = onLoadMoreStudents),
+                                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                                ) {
+                                    Text(
+                                        text = if (state.isLoadingMoreStudents) "Loading…" else "Load more",
+                                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = EduCoreColors.Navy900,
+                                    )
                                 }
                             }
                         }
@@ -137,30 +137,51 @@ internal fun StaffReportCardsScreen(
 
 @Composable
 private fun ReportClassCard(classRoom: ClassSummary, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(44.dp), shape = CircleShape, color = EduCoreColors.Navy900, contentColor = EduCoreColors.White) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(21.dp)) } }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                Text(classRoom.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.Ink900, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${classRoom.studentCount} students · ${classRoom.subjects.size} subjects", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
-                classRoom.subjects.takeIf { it.isNotEmpty() }?.let { subjects -> Text(subjects.joinToString(" • ") { it.name }, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(modifier = Modifier.size(40.dp), shape = CircleShape, color = EduCoreColors.Info100, contentColor = EduCoreColors.Navy900) {
+                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(20.dp)) }
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = "Open class", tint = EduCoreColors.Gold700)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Text(classRoom.name, style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Ink900, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${classRoom.studentCount} students · ${classRoom.subjects.size} subjects", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = "Open class", tint = EduCoreColors.Slate600)
         }
     }
 }
 
 @Composable
 private fun ReportStudentCard(student: StudentSummary, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(44.dp), shape = CircleShape, color = EduCoreColors.Gold50, contentColor = EduCoreColors.Navy900) { Box(contentAlignment = Alignment.Center) { Text(student.initials, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) } }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(modifier = Modifier.size(40.dp), shape = CircleShape, color = EduCoreColors.Info100, contentColor = EduCoreColors.Navy900) {
+                Box(contentAlignment = Alignment.Center) { Text(student.initials, style = MaterialTheme.typography.labelLarge) }
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                Text(student.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(student.name, style = MaterialTheme.typography.titleSmall, color = EduCoreColors.Ink900, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(student.admissionNumber, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
             }
-            EduCoreStatusBadge("Published only", EduCoreTone.Success)
-            Icon(Icons.Default.ChevronRight, contentDescription = "Open report card", tint = EduCoreColors.Gold700)
+            EduCoreStatusBadge("Published", EduCoreTone.Success)
+            Icon(Icons.Default.ChevronRight, contentDescription = "Open report card", tint = EduCoreColors.Slate600)
         }
     }
 }
