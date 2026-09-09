@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(AuthenticateApiToken::class)
                 ->prefix('api/v1')
                 ->group(base_path('routes/mobile-academic-cycle-compat.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-reports.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
