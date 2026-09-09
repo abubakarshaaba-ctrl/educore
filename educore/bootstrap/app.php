@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             Route::group(base_path('routes/web-platform-billing.php'));
             Route::group(base_path('routes/web-platform-tenant-removal.php'));
+            Route::group(base_path('routes/web-platform-impersonation.php'));
 
             Route::prefix('api/v1/staff/cbt')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
