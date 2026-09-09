@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -108,32 +109,41 @@ class MobilePlatformGroupController extends Controller
         ]);
         $tenantId = (int) $data['tenant_id'];
 
-        DB::transaction(function () use ($group, $tenantId, $data, $request, $user): void {
-            $groupRecord = DB::table('school_groups')->where('id', $group)->lockForUpdate()->first();
-            abort_unless($groupRecord, 404);
-            Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
+        try {
+            DB::transaction(function () use ($group, $tenantId, $data, $request, $user): void {
+                $groupRecord = DB::table('school_groups')->where('id', $group)->lockForUpdate()->first();
+                abort_unless($groupRecord, 404);
+                Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
 
-            $existingMembership = DB::table('school_group_members')
-                ->where('tenant_id', $tenantId)
-                ->first();
-            if ($existingMembership && (int) $existingMembership->group_id !== $group) {
-                throw ValidationException::withMessages(['tenant_id' => 'This school already belongs to another school group.']);
-            }
+                $existingMembership = DB::table('school_group_members')
+                    ->where('tenant_id', $tenantId)
+                    ->first();
+                if ($existingMembership && (int) $existingMembership->group_id !== $group) {
+                    throw ValidationException::withMessages(['tenant_id' => 'This school already belongs to another school group.']);
+                }
 
-            $role = $data['role'] ?? 'member';
-            if ($role === 'lead') {
-                DB::table('school_group_members')->where('group_id', $group)
-                    ->update(['role' => 'member', 'updated_at' => now()]);
+                $role = $data['role'] ?? 'member';
+                if ($role === 'lead') {
+                    DB::table('school_group_members')->where('group_id', $group)
+                        ->update(['role' => 'member', 'updated_at' => now()]);
+                }
+                DB::table('school_group_members')->updateOrInsert(
+                    ['group_id' => $group, 'tenant_id' => $tenantId],
+                    ['role' => $role, 'created_at' => now(), 'updated_at' => now()]
+                );
+                $this->audit($request, $user, 'platform.group.member_added', $group, [], [
+                    'tenant_id' => $tenantId,
+                    'role' => $role,
+                ]);
+            });
+        } catch (QueryException $error) {
+            if ($this->isUniqueViolation($error)) {
+                throw ValidationException::withMessages([
+                    'tenant_id' => 'This school already belongs to another school group. Refresh the group and try again.',
+                ]);
             }
-            DB::table('school_group_members')->updateOrInsert(
-                ['group_id' => $group, 'tenant_id' => $tenantId],
-                ['role' => $role, 'created_at' => now(), 'updated_at' => now()]
-            );
-            $this->audit($request, $user, 'platform.group.member_added', $group, [], [
-                'tenant_id' => $tenantId,
-                'role' => $role,
-            ]);
-        });
+            throw $error;
+        }
 
         return response()->json(['message' => 'School added to group.']);
     }
@@ -196,6 +206,16 @@ class MobilePlatformGroupController extends Controller
         });
 
         return response()->json(['message' => 'Lead campus updated.']);
+    }
+
+    private function isUniqueViolation(QueryException $error): bool
+    {
+        $sqlState = (string) ($error->errorInfo[0] ?? $error->getCode());
+        $driverCode = (string) ($error->errorInfo[1] ?? '');
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || $driverCode === '1062'
+            || str_contains(strtolower($error->getMessage()), 'unique constraint');
     }
 
     private function guard(Request $request): User
