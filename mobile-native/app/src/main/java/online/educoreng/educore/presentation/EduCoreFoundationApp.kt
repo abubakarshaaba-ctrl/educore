@@ -87,10 +87,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                 AppPhase.READY -> {
                     val rawSession = requireNotNull(state.session)
                     val session = rawSession.copy(modules = ShellNavigationPolicy.visibleModules(rawSession))
-                    when (session.user.portal) {
-                        "platform" -> PlatformAuthorizedShell(
-                            onLogout = viewModel::logout,
-                        )
+                    when (session.user.portal.lowercase()) {
                         "staff" -> StaffWorkspaceShell(
                             session = session,
                             online = state.isOnline,
@@ -101,7 +98,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                             onRefreshDashboard = viewModel::retryDashboard,
                             onLogout = viewModel::logout,
                         )
-                        else -> AuthorizedShell(
+                        "parent" -> AuthorizedShell(
                             session = session,
                             online = state.isOnline,
                             busy = state.isBusy,
@@ -110,6 +107,11 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                             onRefresh = viewModel::retryBootstrap,
                             onRefreshDashboard = viewModel::retryDashboard,
                             onOpenWebModule = viewModel::openWebModule,
+                            onLogout = viewModel::logout,
+                        )
+                        else -> WebOnlyPortalScreen(
+                            portal = session.user.portal,
+                            accountName = session.user.name,
                             onLogout = viewModel::logout,
                         )
                     }
