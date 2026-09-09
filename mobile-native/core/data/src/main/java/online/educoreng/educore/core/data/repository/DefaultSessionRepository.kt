@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import online.educoreng.educore.core.common.AppError
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.local.EduCoreDatabase
@@ -119,8 +120,13 @@ class DefaultSessionRepository(
     }
 
     override suspend fun logout(): AppResult<Unit> = withContext(Dispatchers.IO) {
+        // Never hold the UI on a slow network during sign-out. Give the server
+        // a short best-effort window to revoke the token, then clear the local
+        // credential and all tenant data immediately.
         if (tokenVault.hasToken()) {
-            safeApiCall(moshi) { api.logout() }
+            withTimeoutOrNull(600L) {
+                safeApiCall(moshi) { api.logout() }
+            }
         }
         clearLocalSession()
         AppResult.Success(Unit)
