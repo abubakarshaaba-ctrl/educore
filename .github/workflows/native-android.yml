@@ -25,7 +25,6 @@ on:
       - 'educore/app/Http/Controllers/StaffAttendanceEvidenceController.php'
       - 'educore/app/Http/Controllers/StaffIdentityAssetController.php'
       - 'educore/app/Http/Controllers/SelfDeployController.php'
-      - 'educore/app/Http/Controllers/SelfWorkflowValidationController.php'
       - 'educore/app/Http/Controllers/StudentTransferController.php'
       - 'educore/app/Http/Controllers/StudentClassTransferController.php'
       - 'educore/app/Http/Middleware/**'
@@ -91,7 +90,6 @@ on:
       - 'educore/tests/Feature/CbtRestructuringTest.php'
       - 'educore/tests/Feature/PushRegistrationTest.php'
       - 'educore/tests/Feature/TenantAccessEnforcementTest.php'
-      - 'educore/tests/Feature/SelfWorkflowValidationControllerTest.php'
       - '.htaccess'
       - 'educore/public/.htaccess'
       - '.github/workflows/native-android.yml'
@@ -183,8 +181,7 @@ jobs:
             tests/Feature/WebSecurityHardeningTest.php \
             tests/Feature/WebPushSecurityTest.php \
             tests/Feature/PublicDiagnosticBoundaryTest.php \
-            tests/Feature/TenantHostResolutionTest.php \
-            tests/Feature/SelfWorkflowValidationControllerTest.php
+            tests/Feature/TenantHostResolutionTest.php
 
       - name: Build and test debug app
         working-directory: mobile-native
