@@ -15,7 +15,7 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        'staff-attendance' => ['Staff Attendance', '/staff-attendance/my', 'staff-attendance'],
+        'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
         'reports' => ['Report Cards', '/reports', 'reports'],
@@ -38,6 +38,24 @@ class MobileModuleService
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
+    ];
+
+    /**
+     * Accountant access is deliberately explicit. Finance staff must not gain
+     * academic workspaces merely because a broad legacy permission was attached
+     * to their account.
+     */
+    private const ACCOUNTANT_MODULES = [
+        'dashboard',
+        'staff-attendance.self',
+        'fees',
+        'expenses',
+        'payroll',
+        'reports',
+        'messages',
+        'notifications.view',
+        'calendar.view',
+        'profile',
     ];
 
     public function forUser(User $user): array
@@ -85,8 +103,30 @@ class MobileModuleService
             ];
         }
 
+        $roleKey = strtolower((string) $user->roleKey());
+        $isAccountant = in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
+        $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, [
+            'admin',
+            'principal',
+            'head',
+            'head_teacher',
+            'vice_principal',
+            'academic_administrator',
+        ], true);
+
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin): bool {
+                if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
+                    return false;
+                }
+
+                // Only administrators may view the school-wide staff attendance
+                // workspace. Every tenant staff member can still access their
+                // own attendance through staff-attendance.self when permitted.
+                if ($key === 'staff-attendance' && ! $isSchoolAdmin) {
+                    return false;
+                }
+
                 if ($key === 'academic-repository') {
                     return $user->isAdmin() || $user->isTeacher();
                 }
