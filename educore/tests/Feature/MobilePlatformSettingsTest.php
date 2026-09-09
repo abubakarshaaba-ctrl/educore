@@ -107,6 +107,48 @@ class MobilePlatformSettingsTest extends TestCase
         $this->assertSame('sk_test_EXISTING123456', PlatformSetting::valueFor('paystack_secret_key'));
     }
 
+    public function test_secret_key_forces_encrypted_storage_even_when_caller_requests_string_type(): void
+    {
+        $secret = 'sk_test_FORCEDENCRYPTION123456';
+        PlatformSetting::setValue('paystack_secret_key', $secret, 'string', 'payments', 'Paystack Secret');
+
+        $row = DB::table('platform_settings')->where('key', 'paystack_secret_key')->first();
+        $this->assertNotNull($row);
+        $this->assertSame('encrypted', $row->type);
+        $this->assertNotSame($secret, $row->value);
+        $this->assertSame($secret, PlatformSetting::valueFor('paystack_secret_key'));
+    }
+
+    public function test_corrupted_encrypted_secret_fails_closed_instead_of_returning_raw_storage_value(): void
+    {
+        DB::table('platform_settings')->insert([
+            'key' => 'paystack_secret_key',
+            'value' => 'not-valid-laravel-ciphertext',
+            'type' => 'encrypted',
+            'group' => 'payments',
+            'label' => 'Paystack Secret',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertNull(PlatformSetting::valueFor('paystack_secret_key'));
+    }
+
+    public function test_unmigrated_plaintext_secret_row_fails_closed(): void
+    {
+        DB::table('platform_settings')->insert([
+            'key' => 'monnify_secret_key',
+            'value' => 'legacy-plaintext-secret',
+            'type' => 'string',
+            'group' => 'payments',
+            'label' => 'Monnify Secret',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertNull(PlatformSetting::valueFor('monnify_secret_key'));
+    }
+
     public function test_operational_settings_are_whitelisted_validated_and_audited(): void
     {
         $super = $this->user('Operations Admin', true, null);
