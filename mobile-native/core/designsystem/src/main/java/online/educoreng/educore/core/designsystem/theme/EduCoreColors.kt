@@ -2,15 +2,6 @@ package online.educoreng.educore.core.designsystem.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * EduCore mobile brand palette.
- *
- * Primary UI: navy, white and gold.
- * Semantic exceptions: green for success/present/active and red for
- * danger/absent/error. Warning resolves to gold; informational and legacy
- * purple tones resolve back into the navy family so feature screens cannot
- * drift into unrelated accent colours.
- */
 object EduCoreColors {
     val Navy900 = Color(0xFF071E45)
     val Navy800 = Color(0xFF0B2D63)
@@ -18,6 +9,7 @@ object EduCoreColors {
 
     val Gold700 = Color(0xFFB77B0B)
     val Gold600 = Color(0xFFD79A21)
+    val Gold500 = Gold600
     val Gold400 = Color(0xFFF5B72E)
     val Gold200 = Color(0xFFF7D98A)
     val Gold100 = Color(0xFFFFF3D6)
@@ -38,7 +30,6 @@ object EduCoreColors {
     val Success600 = Color(0xFF16794B)
     val Success100 = Color(0xFFDDF7E9)
 
-    // Warning is intentionally a gold-family semantic state.
     val Warning700 = Gold700
     val Warning600 = Gold600
     val Warning100 = Gold100
@@ -47,13 +38,10 @@ object EduCoreColors {
     val Danger600 = Color(0xFFB42318)
     val Danger100 = Color(0xFFFFE4E1)
 
-    // Informational UI stays inside the navy brand family.
     val Info700 = Navy700
     val Info200 = Color(0xFFC9D5E8)
     val Info100 = Color(0xFFEDF2F8)
 
-    // Legacy aliases retained for binary/source compatibility only.
-    // They intentionally do not introduce purple into the mobile interface.
     val Purple700 = Navy700
     val Purple100 = Gold50
 
