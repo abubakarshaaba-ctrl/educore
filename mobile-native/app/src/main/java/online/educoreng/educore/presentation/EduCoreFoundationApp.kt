@@ -85,7 +85,8 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     onLogout = viewModel::logout,
                 )
                 AppPhase.READY -> {
-                    val session = requireNotNull(state.session)
+                    val rawSession = requireNotNull(state.session)
+                    val session = rawSession.copy(modules = ShellNavigationPolicy.visibleModules(rawSession))
                     when (session.user.portal) {
                         "platform" -> PlatformAuthorizedShell(
                             onLogout = viewModel::logout,
