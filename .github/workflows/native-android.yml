@@ -60,6 +60,7 @@ on:
       - 'educore/tests/Feature/ReportCardDocumentServiceTest.php'
       - 'educore/tests/Feature/WebPlatformBillingRouteTest.php'
       - 'educore/tests/Feature/WebPlatformTenantRemovalRouteTest.php'
+      - 'educore/tests/Feature/WebPlatformInvoicePaymentGuardTest.php'
       - 'educore/tests/Feature/WebReportComputeRouteTest.php'
       - 'educore/tests/Feature/WebReportPublicationRouteTest.php'
       - 'educore/tests/Feature/WebReportPdfRouteTest.php'
@@ -148,6 +149,7 @@ jobs:
             tests/Feature/ReportCardDocumentServiceTest.php \
             tests/Feature/WebPlatformBillingRouteTest.php \
             tests/Feature/WebPlatformTenantRemovalRouteTest.php \
+            tests/Feature/WebPlatformInvoicePaymentGuardTest.php \
             tests/Feature/WebReportComputeRouteTest.php \
             tests/Feature/WebReportPublicationRouteTest.php \
             tests/Feature/WebReportPdfRouteTest.php \
