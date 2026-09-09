@@ -18,11 +18,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
@@ -39,6 +41,12 @@ internal fun PlatformTenantScreen(
     onExtend: () -> Unit,
     onConfirm: () -> Unit,
     onDismissConfirmation: () -> Unit,
+    onOpenRemoval: () -> Unit,
+    onCloseRemoval: () -> Unit,
+    onRemovalConfirmation: (String) -> Unit,
+    onRemovalPassword: (String) -> Unit,
+    onRemovalReason: (String) -> Unit,
+    onRemoveSchool: () -> Unit,
     onRetry: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -155,16 +163,65 @@ internal fun PlatformTenantScreen(
                         }
                     }
                 }
+
+                item { EduCoreSectionHeader("Danger zone", "Permanent platform access removal with recoverable audit history") }
+                item {
+                    Card(
+                        Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = EduCoreColors.Danger100),
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                            Text("Remove school", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.Danger700)
+                            Text(
+                                "This disables all school accounts, revokes mobile sessions and push subscriptions, and removes the school from active platform access. Records remain soft-deleted for audit/recovery.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            if (!state.removalOpen) {
+                                EduCoreSecondaryButton("Start removal", onOpenRemoval, Modifier.fillMaxWidth(), enabled = !state.isMutating)
+                            } else {
+                                Text("Type the school name exactly: ${tenant.name}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                OutlinedTextField(
+                                    value = state.removalConfirmation,
+                                    onValueChange = onRemovalConfirmation,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text("School name confirmation") },
+                                    enabled = !state.isMutating,
+                                )
+                                OutlinedTextField(
+                                    value = state.removalPassword,
+                                    onValueChange = onRemovalPassword,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text("Your current password") },
+                                    visualTransformation = PasswordVisualTransformation(),
+                                    singleLine = true,
+                                    enabled = !state.isMutating,
+                                )
+                                OutlinedTextField(
+                                    value = state.removalReason,
+                                    onValueChange = onRemovalReason,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = { Text("Removal reason") },
+                                    minLines = 2,
+                                    maxLines = 4,
+                                    enabled = !state.isMutating,
+                                )
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                                    EduCoreSecondaryButton("Cancel", onCloseRemoval, Modifier.weight(1f), enabled = !state.isMutating)
+                                    EduCorePrimaryButton(
+                                        text = if (state.isMutating) "Removing…" else "Remove school",
+                                        onClick = onRemoveSchool,
+                                        modifier = Modifier.weight(1f),
+                                        enabled = state.removalValid && !state.isMutating,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if (!state.isLoading && state.detail == null) {
-                item {
-                    EduCorePrimaryButton(
-                        text = "Retry",
-                        onClick = onRetry,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                item { EduCorePrimaryButton("Retry", onRetry, Modifier.fillMaxWidth()) }
             }
         }
     }
