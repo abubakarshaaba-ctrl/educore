@@ -72,7 +72,7 @@ data class TransportManifestRouteDto(
 )
 
 data class TransportManifestItemDto(
-    @param:Json(name = "assignment_id") val assignmentId: Long,
+    @param:Json(name = "assignment_id") val assignmentId: Long = 0L,
     @param:Json(name = "student_id") val studentId: Long,
     val name: String,
     @param:Json(name = "admission_number") val admissionNumber: String? = null,
