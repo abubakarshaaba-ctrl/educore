@@ -423,9 +423,6 @@ internal fun ScoreSheetScreen(
                                                 }
                                             },
                                         ),
-                                        trailingIcon = if (cell?.locked == true) ({
-                                            Icon(Icons.Default.Lock, contentDescription = "Locked")
-                                        }) else null,
                                     )
                                 }
                             }
