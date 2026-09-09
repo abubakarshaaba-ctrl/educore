@@ -142,6 +142,7 @@ jobs:
             tests/Feature/MobilePayrollTest.php \
             tests/Feature/MobileExpensesTest.php \
             tests/Feature/MobileSubjectsTest.php \
+            tests/Feature/MobileStudentSubjectsTest.php \
             tests/Feature/MobileCurriculumTest.php \
             tests/Feature/MobileAcademicCycleTest.php \
             tests/Feature/MobileSkillsTest.php \
