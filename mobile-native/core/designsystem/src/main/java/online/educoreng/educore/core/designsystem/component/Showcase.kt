@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,11 +30,6 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
-/**
- * Visual primitives for the premium mobile direction approved for EduCore.
- * These components deliberately keep brand colour to navy/white/gold while
- * semantic success/error states remain green/red through [EduCoreTone].
- */
 @Composable
 fun EduCoreShowcaseHero(
     title: String,
@@ -47,23 +41,19 @@ fun EduCoreShowcaseHero(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
-        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Raised),
+        elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        listOf(EduCoreColors.Navy900, EduCoreColors.Navy800),
-                    ),
-                )
-                .padding(EduCoreSpacing.Xl),
+                .background(Brush.linearGradient(listOf(EduCoreColors.Navy900, EduCoreColors.Navy800)))
+                .padding(EduCoreSpacing.Lg),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -74,25 +64,27 @@ fun EduCoreShowcaseHero(
                         eyebrow?.takeIf(String::isNotBlank)?.let {
                             Text(
                                 text = it,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = EduCoreColors.Gold400,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.68f),
                             )
                         }
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color.White,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.76f),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        subtitle.takeIf(String::isNotBlank)?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.74f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                     trailing?.invoke()
                 }
@@ -118,7 +110,7 @@ fun EduCoreShowcaseStat(
 ) {
     Card(
         modifier = modifier,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
@@ -140,13 +132,13 @@ fun EduCoreShowcaseStat(
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 color = EduCoreColors.Ink900,
                 maxLines = 1,
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = EduCoreColors.Slate600,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -177,7 +169,7 @@ fun EduCoreShowcaseTile(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
@@ -190,7 +182,7 @@ fun EduCoreShowcaseTile(
             Surface(
                 modifier = Modifier.size(36.dp),
                 shape = CircleShape,
-                color = EduCoreColors.Gold50,
+                color = EduCoreColors.Info100,
                 contentColor = EduCoreColors.Navy900,
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -205,7 +197,7 @@ fun EduCoreShowcaseTile(
                 overflow = TextOverflow.Ellipsis,
             )
             badge?.takeIf(String::isNotBlank)?.let {
-                EduCoreStatusBadge(it, EduCoreTone.Accent)
+                EduCoreStatusBadge(it, EduCoreTone.Neutral)
             }
         }
     }
@@ -218,7 +210,7 @@ fun EduCoreShowcaseSectionCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
