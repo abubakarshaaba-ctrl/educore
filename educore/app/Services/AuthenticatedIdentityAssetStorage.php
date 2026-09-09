@@ -6,7 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Authenticated storage boundary for staff passport photos and school signing assets.
+ * Authenticated storage boundary for staff identity and attendance evidence.
  *
  * New uploads are stored on the private local disk. Existing public-disk files remain
  * readable while they are migrated, but callers never need to expose a /storage URL.
@@ -16,7 +16,7 @@ class AuthenticatedIdentityAssetStorage
     public const PRIVATE_DISK = 'local';
     public const LEGACY_DISK = 'public';
 
-    private const PREFIXES = ['passports/', 'signatures/'];
+    private const PREFIXES = ['passports/', 'signatures/', 'attendance-photos/'];
 
     public function normalize(?string $path): ?string
     {
@@ -68,6 +68,38 @@ class AuthenticatedIdentityAssetStorage
         return null;
     }
 
+    public function read(?string $path): ?string
+    {
+        $normalized = $this->normalize($path);
+        if ($normalized === null) {
+            return null;
+        }
+
+        foreach ([self::PRIVATE_DISK, self::LEGACY_DISK] as $disk) {
+            if (Storage::disk($disk)->exists($normalized)) {
+                return Storage::disk($disk)->get($normalized);
+            }
+        }
+
+        return null;
+    }
+
+    public function mimeType(?string $path): ?string
+    {
+        $normalized = $this->normalize($path);
+        if ($normalized === null) {
+            return null;
+        }
+
+        foreach ([self::PRIVATE_DISK, self::LEGACY_DISK] as $disk) {
+            if (Storage::disk($disk)->exists($normalized)) {
+                return Storage::disk($disk)->mimeType($normalized) ?: null;
+            }
+        }
+
+        return null;
+    }
+
     public function store(UploadedFile $file, string $directory): string
     {
         $directory = trim(str_replace('\\', '/', $directory), '/');
@@ -77,6 +109,16 @@ class AuthenticatedIdentityAssetStorage
         }
 
         return $file->store($directory, self::PRIVATE_DISK);
+    }
+
+    public function put(string $path, string $contents): bool
+    {
+        $normalized = $this->normalize($path);
+        if ($normalized === null) {
+            return false;
+        }
+
+        return (bool) Storage::disk(self::PRIVATE_DISK)->put($normalized, $contents);
     }
 
     public function delete(?string $path): void
@@ -93,9 +135,7 @@ class AuthenticatedIdentityAssetStorage
         }
     }
 
-    /**
-     * Idempotently move a legacy public identity asset into private storage.
-     */
+    /** Idempotently move a legacy public identity asset into private storage. */
     public function migrateToPrivate(?string $path): string
     {
         $normalized = $this->normalize($path);
