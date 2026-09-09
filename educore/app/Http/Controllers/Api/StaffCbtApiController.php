@@ -28,6 +28,17 @@ class StaffCbtApiController extends Controller
         $status = trim((string) $request->query('status', ''));
         $query = trim((string) $request->query('query', ''));
 
+        // Counts are calculated from the complete authorised CBT workspace,
+        // independent of the active search/status filter. This keeps the
+        // mobile counters stable while the visible list is filtered.
+        $countQuery = $this->scopedExams($user);
+        $counts = [
+            'all' => (clone $countQuery)->count(),
+            'draft' => (clone $countQuery)->where('status', 'draft')->count(),
+            'published' => (clone $countQuery)->whereIn('status', ['published', 'active'])->count(),
+            'closed' => (clone $countQuery)->where('status', 'closed')->count(),
+        ];
+
         $exams = $this->scopedExams($user)
             ->when($status !== '', fn (Builder $builder) => $builder->where('status', $status))
             ->when($query !== '', function (Builder $builder) use ($query): void {
@@ -51,12 +62,7 @@ class StaffCbtApiController extends Controller
                 'close_exam' => true,
                 'reschedule_exam' => true,
             ],
-            'counts' => [
-                'all' => $exams->count(),
-                'draft' => $exams->where('status', 'draft')->count(),
-                'published' => $exams->whereIn('status', ['published', 'active'])->count(),
-                'closed' => $exams->where('status', 'closed')->count(),
-            ],
+            'counts' => $counts,
             'exams' => $exams->map(fn (CbtExam $exam) => $this->payload($exam))->values(),
         ]);
     }
