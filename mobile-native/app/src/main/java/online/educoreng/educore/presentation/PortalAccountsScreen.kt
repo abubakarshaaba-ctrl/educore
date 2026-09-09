@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -66,13 +70,7 @@ internal fun PortalAccountsScreen(
     )
 
     if (state.editorOpen) {
-        PortalAccountEditor(
-            state = state,
-            onBack = onCloseEditor,
-            onEmail = onEmail,
-            onPassword = onPassword,
-            onSave = onSaveEditor,
-        )
+        PortalAccountEditor(state, onCloseEditor, onEmail, onPassword, onSaveEditor)
         return
     }
 
@@ -83,9 +81,7 @@ internal fun PortalAccountsScreen(
             it.account?.email.orEmpty().contains(query, true)
     }
     val parents = workspace.guardians.filter {
-        query.isBlank() || it.name.contains(query, true) ||
-            it.email.orEmpty().contains(query, true) ||
-            it.phone.orEmpty().contains(query, true)
+        query.isBlank() || it.name.contains(query, true) || it.email.orEmpty().contains(query, true) || it.phone.orEmpty().contains(query, true)
     }
 
     LazyColumn(
@@ -93,13 +89,7 @@ internal fun PortalAccountsScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item {
-            EduCorePageHeader(
-                title = "Portal Accounts",
-                subtitle = "Student and parent login identities",
-                onBack = onBack,
-            )
-        }
+        item { EduCorePageHeader("Portal Accounts", "Student and parent login identities", onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         state.message?.let { item { Text(it, color = EduCoreColors.Success700) } }
         item {
@@ -118,47 +108,34 @@ internal fun PortalAccountsScreen(
         }
         item { EduCoreSearchBar(state.query, onQuery, "Search name, ID, email or phone") }
         if (state.canManage && state.tab == PortalAccountsTab.STUDENTS) {
-            item {
-                EduCoreSecondaryButton(
-                    text = "Create missing student accounts",
-                    onClick = onBulkStudents,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isMutating,
-                )
-            }
+            item { EduCoreSecondaryButton("Create missing student accounts", onBulkStudents, Modifier.fillMaxWidth(), enabled = !state.isMutating) }
         }
 
         if (state.tab == PortalAccountsTab.STUDENTS) {
-            if (students.isEmpty()) {
-                item { EduCoreEmptyState("No matching students", "No student portal records match this search.") }
-            } else {
-                items(students, key = { "portal-student-${it.id}" }) { row ->
-                    PortalAccountCard(
-                        name = row.name,
-                        subtitle = listOfNotNull(row.admissionNumber, row.classLevel, row.className).joinToString(" · "),
-                        account = row.account,
-                        canManage = state.canManage,
-                        onCreate = { onCreateStudent(row.id, row.name, row.email) },
-                        onReset = { row.account?.let { onResetPassword(it.userId, row.name) } },
-                        onToggle = { row.account?.let { onToggle(it.userId, row.name, it.active) } },
-                    )
-                }
+            if (students.isEmpty()) item { EduCoreEmptyState("No matching students", "No student portal records match this search.") }
+            else items(students, key = { "portal-student-${it.id}" }) { row ->
+                PortalAccountCard(
+                    row.name,
+                    listOfNotNull(row.admissionNumber, row.classLevel, row.className).joinToString(" · "),
+                    row.account,
+                    state.canManage,
+                    { onCreateStudent(row.id, row.name, row.email) },
+                    { row.account?.let { onResetPassword(it.userId, row.name) } },
+                    { row.account?.let { onToggle(it.userId, row.name, it.active) } },
+                )
             }
         } else {
-            if (parents.isEmpty()) {
-                item { EduCoreEmptyState("No matching parents", "No parent portal records match this search.") }
-            } else {
-                items(parents, key = { "portal-parent-${it.id}" }) { row ->
-                    PortalAccountCard(
-                        name = row.name,
-                        subtitle = listOfNotNull(row.phone, row.children.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.name }).joinToString(" · "),
-                        account = row.account,
-                        canManage = state.canManage,
-                        onCreate = { onCreateParent(row.id, row.name, row.email) },
-                        onReset = { row.account?.let { onResetPassword(it.userId, row.name) } },
-                        onToggle = { row.account?.let { onToggle(it.userId, row.name, it.active) } },
-                    )
-                }
+            if (parents.isEmpty()) item { EduCoreEmptyState("No matching parents", "No parent portal records match this search.") }
+            else items(parents, key = { "portal-parent-${it.id}" }) { row ->
+                PortalAccountCard(
+                    row.name,
+                    listOfNotNull(row.phone, row.children.takeIf { it.isNotEmpty() }?.joinToString(", ") { it.name }).joinToString(" · "),
+                    row.account,
+                    state.canManage,
+                    { onCreateParent(row.id, row.name, row.email) },
+                    { row.account?.let { onResetPassword(it.userId, row.name) } },
+                    { row.account?.let { onToggle(it.userId, row.name, it.active) } },
+                )
             }
         }
     }
@@ -208,26 +185,15 @@ private fun PortalAccountCard(
                     account?.email?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 EduCoreStatusBadge(
-                    text = when {
-                        account == null -> "No account"
-                        account.active -> "Active"
-                        else -> "Disabled"
-                    },
-                    tone = when {
-                        account == null -> EduCoreTone.Neutral
-                        account.active -> EduCoreTone.Success
-                        else -> EduCoreTone.Warning
-                    },
+                    when { account == null -> "No account"; account.active -> "Active"; else -> "Disabled" },
+                    when { account == null -> EduCoreTone.Neutral; account.active -> EduCoreTone.Success; else -> EduCoreTone.Warning },
                 )
             }
             if (canManage) {
-                if (account == null) {
-                    EduCorePrimaryButton("Create account", onCreate, Modifier.fillMaxWidth())
-                } else {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                        EduCoreSecondaryButton("Reset password", onReset, Modifier.weight(1f))
-                        EduCoreSecondaryButton(if (account.active) "Disable" else "Enable", onToggle, Modifier.weight(1f))
-                    }
+                if (account == null) EduCorePrimaryButton("Create account", onCreate, Modifier.fillMaxWidth())
+                else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    EduCoreSecondaryButton("Reset password", onReset, Modifier.weight(1f))
+                    EduCoreSecondaryButton(if (account.active) "Disable" else "Enable", onToggle, Modifier.weight(1f))
                 }
             }
         }
@@ -248,36 +214,52 @@ private fun PortalAccountEditor(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item {
-            EduCorePageHeader(
-                title = if (creating) "Create Portal Account" else "Reset Password",
-                subtitle = state.editorTargetName,
-                onBack = onBack,
-            )
-        }
+        item { EduCorePageHeader(if (creating) "Create Portal Account" else "Reset Password", state.editorTargetName, onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        if (creating) {
-            item { EduCoreTextField(state.emailDraft, onEmail, "Email address", Modifier.fillMaxWidth(), enabled = !state.isMutating) }
-        }
+        if (creating) item { EduCoreTextField(state.emailDraft, onEmail, "Email address", Modifier.fillMaxWidth(), enabled = !state.isMutating) }
         item {
-            EduCoreTextField(
+            SecurePortalPasswordField(
                 value = state.passwordDraft,
                 onValueChange = onPassword,
                 label = if (creating) "Temporary password" else "New password",
-                modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isMutating,
-                supportingText = "Minimum 8 characters. EduCore does not store or redisplay this plaintext password.",
+            )
+        }
+        item {
+            Text(
+                "Minimum 8 characters. The plaintext password is concealed, never redisplayed by EduCore, and cleared from app state after the operation.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         item {
             EduCorePrimaryButton(
-                text = if (creating) "Create account" else "Reset password",
-                onClick = onSave,
-                modifier = Modifier.fillMaxWidth(),
+                if (creating) "Create account" else "Reset password",
+                onSave,
+                Modifier.fillMaxWidth(),
                 enabled = if (creating) state.createValid else state.resetValid,
                 loading = state.isMutating,
             )
         }
         item { EduCoreSecondaryButton("Cancel", onBack, Modifier.fillMaxWidth(), enabled = !state.isMutating) }
     }
+}
+
+@Composable
+private fun SecurePortalPasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        enabled = enabled,
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+    )
 }
