@@ -50,7 +50,6 @@ import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
-import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
@@ -90,9 +89,9 @@ internal fun AcademicRepositoryScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { RepositoryHeader("Academic Repository", "Notes, schemes and prepared resources", onBack) }
+        item { RepositoryHeader("Academic Repository", "Notes, schemes and resources", onBack) }
         if (hierarchy.isFromCache || catalogue?.isFromCache == true) item {
-            EduCoreWarningBanner("Showing repository information saved on this device.")
+            EduCoreWarningBanner("Showing saved repository data while EduCore reconnects.")
         }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
@@ -108,7 +107,7 @@ internal fun AcademicRepositoryScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                EduCoreSearchBar(state.query, onQuery, Modifier.weight(1f), "Search prepared notes")
+                EduCoreSearchBar(state.query, onQuery, Modifier.weight(1f), "Search notes")
                 Spacer(Modifier.width(EduCoreSpacing.Sm))
                 EduCorePrimaryButton("Search", onSearch)
             }
@@ -158,7 +157,7 @@ internal fun AcademicRepositoryScreen(
                 listOfNotNull(state.selectedClass, state.selectedTerm, state.selectedSubject)
                     .ifEmpty { listOf("All resources") }.joinToString(" · "),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
             )
         }
         val resources = catalogue?.resources.orEmpty()
@@ -171,7 +170,7 @@ internal fun AcademicRepositoryScreen(
         if (catalogue != null && catalogue.currentPage < catalogue.lastPage) {
             item {
                 EduCoreSecondaryButton(
-                    text = if (state.isLoadingMore) "Loading more…" else "Load more (${resources.size} of ${catalogue.total})",
+                    text = if (state.isLoadingMore) "Loading…" else "Load more (${resources.size} of ${catalogue.total})",
                     onClick = onLoadMore,
                     enabled = !state.isLoadingMore,
                     modifier = Modifier.fillMaxWidth(),
@@ -182,11 +181,6 @@ internal fun AcademicRepositoryScreen(
     }
 }
 
-/**
- * Repository content is kept faithful to the source while being presented as
- * a conventional lesson note: headings, paragraphs, bullets and numbered
- * points are separated instead of rendering extracted text as one dense block.
- */
 @Composable
 internal fun AcademicResourceDetailScreen(
     state: AcademicContentUiState,
@@ -208,7 +202,7 @@ internal fun AcademicResourceDetailScreen(
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
         item { RepositoryHeader(detail.resource.title, "Academic Repository", onBack) }
-        if (detail.isFromCache) item { EduCoreWarningBanner("Showing the latest content saved on this device.") }
+        if (detail.isFromCache) item { EduCoreWarningBanner("Showing saved content while EduCore reconnects.") }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
             Row(
@@ -220,20 +214,8 @@ internal fun AcademicResourceDetailScreen(
                 EduCoreStatusBadge(detail.resource.term, EduCoreTone.Neutral)
             }
         }
-        item {
-            EduCoreShowcaseSectionCard {
-                Text("Overview", style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(EduCoreSpacing.Sm))
-                Text(
-                    "${detail.fragments.size} prepared section${if (detail.fragments.size == 1) "" else "s"} for ${detail.resource.subject}. " +
-                        "The note reader separates headings, paragraphs and lists for comfortable mobile reading while preserving the source content.",
-                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 21.sp),
-                    color = EduCoreColors.Slate700,
-                )
-            }
-        }
         if (detail.fragments.isEmpty()) item {
-            EduCoreEmptyState("No readable sections", "Download the original resource to view it.")
+            EduCoreEmptyState("No readable sections", "Open the original resource to view it.")
         }
         items(detail.fragments, key = { it.id }) { fragment ->
             EduCoreExpandableSection(
@@ -251,7 +233,7 @@ internal fun AcademicResourceDetailScreen(
                 ) {
                     AcademicNoteContent(fragment.content)
                     fragment.learningExpectation?.takeIf(String::isNotBlank)?.let { expectation ->
-                        Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.small) {
+                        Surface(color = EduCoreColors.Gold100, shape = MaterialTheme.shapes.small) {
                             Column(
                                 Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
                                 verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
@@ -259,7 +241,7 @@ internal fun AcademicResourceDetailScreen(
                                 Text(
                                     "Learning expectation",
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = EduCoreColors.Navy900,
                                 )
                                 Text(
@@ -273,9 +255,7 @@ internal fun AcademicResourceDetailScreen(
                 }
             }
         }
-        item {
-            Text("Attachment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
+        item { Text("Attachment", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
@@ -286,13 +266,13 @@ internal fun AcademicResourceDetailScreen(
                     Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.medium) {
+                    Surface(color = EduCoreColors.Gold100, shape = MaterialTheme.shapes.medium) {
                         Icon(Icons.Default.Description, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900)
                     }
                     Spacer(Modifier.width(EduCoreSpacing.Md))
                     Column(Modifier.weight(1f)) {
                         Text(detail.resource.filename ?: detail.resource.title, style = MaterialTheme.typography.titleSmall)
-                        Text("Original academic resource", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                        Text("Original resource", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                     }
                     EduCorePrimaryButton(
                         text = "Open",
@@ -319,18 +299,18 @@ private fun AcademicNoteContent(content: String) {
         return
     }
 
-    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp)
+    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 23.sp)
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         blocks.forEach { block ->
             when (block) {
                 is AcademicNoteBlock.Heading -> Text(
                     text = block.text,
-                    modifier = Modifier.padding(top = EduCoreSpacing.Xs),
-                    style = MaterialTheme.typography.titleSmall.copy(lineHeight = 22.sp),
-                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = EduCoreSpacing.Sm),
+                    style = MaterialTheme.typography.titleMedium.copy(lineHeight = 23.sp),
+                    fontWeight = FontWeight.SemiBold,
                     color = EduCoreColors.Navy900,
                 )
 
@@ -348,7 +328,7 @@ private fun AcademicNoteContent(content: String) {
                         "•",
                         modifier = Modifier.width(22.dp),
                         style = bodyStyle,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         color = EduCoreColors.Gold700,
                     )
                     Text(
@@ -366,8 +346,8 @@ private fun AcademicNoteContent(content: String) {
                     Text(
                         block.marker,
                         modifier = Modifier.width(38.dp),
-                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 25.sp),
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 23.sp),
+                        fontWeight = FontWeight.Medium,
                         color = EduCoreColors.Gold700,
                     )
                     Text(
@@ -393,7 +373,12 @@ private val academicHtmlTag = Regex("</?[A-Za-z][^>]*>")
 private val academicMarkdownHeading = Regex("^#{1,6}\\s+(.+)$")
 private val academicNumberedPoint = Regex("^((?:\\d+(?:\\.\\d+)*)|[A-Za-z])[.)]\\s+(.+)$")
 private val academicBulletPrefixes = listOf("• ", "● ", "◦ ", "▪ ", "‣ ", "- ", "* ", "– ", "— ")
+private val academicStructuralHeading = Regex(
+    "(?<!^)(?=\\b(?:SUBTOPICS?|INTRODUCTION|MEANING OF|DEFINITION OF|DEFINITIONS OF|CAUSES OF|EFFECTS OF|TYPES OF|FEATURES OF|CHARACTERISTICS OF|IMPORTANCE OF|FUNCTIONS OF|ADVANTAGES OF|DISADVANTAGES OF|APPLICATIONS OF|SUMMARY|CONCLUSION|REVISION|EVALUATION)\\b)"
+)
 private val academicHeadingLabels = setOf(
+    "subtopic",
+    "subtopics",
     "introduction",
     "meaning",
     "definition",
@@ -418,6 +403,7 @@ private val academicHeadingLabels = setOf(
     "conclusion",
     "revision",
     "evaluation",
+    "weather vs. climate",
 )
 
 private fun parseAcademicNote(raw: String): List<AcademicNoteBlock> {
@@ -495,6 +481,8 @@ private fun normaliseAcademicNote(raw: String): String {
 
     return readable
         .replace('\u00A0', ' ')
+        .replace(Regex("[•●◦▪‣]+\\s*"), "\n• ")
+        .replace(academicStructuralHeading, "\n")
         .replace(Regex("[ \\t]+\\n"), "\n")
         .replace(Regex("\\n[ \\t]+"), "\n")
         .replace(Regex("\\n{3,}"), "\n\n")
@@ -530,7 +518,7 @@ private fun RepositoryMetric(label: String, value: String) {
         shape = MaterialTheme.shapes.large,
     ) {
         Column(Modifier.padding(EduCoreSpacing.Md)) {
-            Text(value, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
+            Text(value, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Navy900, fontWeight = FontWeight.SemiBold)
             Text(label, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -538,8 +526,9 @@ private fun RepositoryMetric(label: String, value: String) {
 
 @Composable
 private fun FilterLabel(value: String) = Text(
-    value.uppercase(),
+    value,
     style = MaterialTheme.typography.labelMedium,
+    fontWeight = FontWeight.Medium,
     color = EduCoreColors.Slate600,
 )
 
@@ -552,12 +541,12 @@ private fun RepositoryResourceCard(resource: RepositoryResource, onOpen: () -> U
         shape = MaterialTheme.shapes.large,
     ) {
         Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = EduCoreColors.Gold50, shape = MaterialTheme.shapes.medium) {
+            Surface(color = EduCoreColors.Gold100, shape = MaterialTheme.shapes.medium) {
                 Icon(Icons.Default.Description, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900)
             }
             Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
-                Text(resource.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(resource.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 Text(
                     "${resource.className} · ${resource.term} · ${resource.subject}",
                     color = EduCoreColors.Slate600,
