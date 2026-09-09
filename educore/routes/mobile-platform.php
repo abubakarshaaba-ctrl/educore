@@ -24,6 +24,7 @@ Route::prefix('platform')->group(function (): void {
 
     Route::get('billing/invoices', [MobilePlatformBillingController::class, 'index']);
     Route::post('billing/invoices', [MobilePlatformBillingController::class, 'store']);
+    Route::get('billing/invoices/{invoice}/pdf', [MobilePlatformBillingController::class, 'pdf'])->whereNumber('invoice');
     Route::post('billing/invoices/{invoice}/settle', [MobilePlatformBillingController::class, 'settle'])->whereNumber('invoice');
 
     Route::get('support', [MobilePlatformExtendedController::class, 'support']);
