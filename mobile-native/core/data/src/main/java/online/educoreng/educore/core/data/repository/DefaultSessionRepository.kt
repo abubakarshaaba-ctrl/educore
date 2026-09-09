@@ -39,7 +39,7 @@ class DefaultSessionRepository(
             if (tenantKey == null) {
                 flowOf(null)
             } else {
-                database.sessionDao().observe(tenantKey).map { it?.toDomain() }
+                database.sessionDao().observe(tenantKey).map { it?.toDomain()?.normalizedForClient() }
             }
         }
 
@@ -82,7 +82,7 @@ class DefaultSessionRepository(
         when (val result = safeApiCall(moshi) { api.bootstrap() }) {
             is AppResult.Failure -> result
             is AppResult.Success -> {
-                val snapshot = result.value.toDomain()
+                val snapshot = result.value.toDomain().normalizedForClient()
                 persist(snapshot)
                 AppResult.Success(snapshot)
             }
@@ -120,9 +120,6 @@ class DefaultSessionRepository(
     }
 
     override suspend fun logout(): AppResult<Unit> = withContext(Dispatchers.IO) {
-        // Never hold the UI on a slow network during sign-out. Give the server
-        // a short best-effort window to revoke the token, then clear the local
-        // credential and all tenant data immediately.
         if (tokenVault.hasToken()) {
             withTimeoutOrNull(600L) {
                 safeApiCall(moshi) { api.logout() }
@@ -144,6 +141,20 @@ class DefaultSessionRepository(
             )
         }
         tenantContextStore.setActiveTenant(snapshot.school.tenantKey)
+    }
+
+    private fun SessionSnapshot.normalizedForClient(): SessionSnapshot {
+        val granted = modules.distinctBy { it.key.lowercase() }
+        if (user.portal == "admin" || user.portal == "platform") {
+            return copy(modules = granted)
+        }
+
+        val hasSelfAttendance = granted.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
+        return copy(
+            modules = granted.filterNot { module ->
+                hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
+            }
+        )
     }
 
     private suspend fun clearLocalSession() {
