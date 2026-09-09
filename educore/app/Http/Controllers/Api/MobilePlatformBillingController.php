@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PlatformBillingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 class MobilePlatformBillingController extends Controller
 {
@@ -115,6 +117,37 @@ class MobilePlatformBillingController extends Controller
                 'students_capacity' => $result['tenant']->students_capacity,
             ],
         ]);
+    }
+
+    public function pdf(Request $request, int $invoice): Response
+    {
+        $this->guard($request);
+        abort_unless(Schema::hasTable('platform_invoices'), 503, 'Platform invoice storage is unavailable.');
+
+        $record = DB::table('platform_invoices')
+            ->join('tenants', 'tenants.id', '=', 'platform_invoices.tenant_id')
+            ->select(
+                'platform_invoices.*',
+                'tenants.name as school_name',
+                'tenants.address as school_address',
+                'tenants.email as school_email'
+            )
+            ->where('platform_invoices.id', $invoice)
+            ->first();
+        abort_unless($record, 404);
+
+        $superSettings = Schema::hasTable('platform_settings')
+            ? DB::table('platform_settings')->pluck('value', 'key')
+            : collect();
+
+        $document = Pdf::loadView('super.invoice-pdf', [
+            'invoice' => $record,
+            'superSettings' => $superSettings,
+        ])->setPaper('a4');
+
+        $safeReference = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) $record->invoice_number) ?: 'invoice';
+
+        return $document->download("EduCore-Invoice-{$safeReference}.pdf");
     }
 
     private function invoicePayload(object $invoice, ?string $schoolName = null): array
