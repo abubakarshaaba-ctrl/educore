@@ -62,6 +62,10 @@ class PlatformSetting extends Model
     ): self {
         $type = strtolower($type);
 
+        if (self::isSecretKey($key)) {
+            $type = 'encrypted';
+        }
+
         return self::query()->updateOrCreate(
             ['key' => $key],
             [
@@ -80,11 +84,24 @@ class PlatformSetting extends Model
 
     private static function castStoredValue(?string $value, ?string $type, ?string $key = null): mixed
     {
-        if ($value !== null && ($type === 'encrypted' || ($key && self::isSecretKey($key)))) {
+        $isSecret = $key && self::isSecretKey($key);
+        if ($isSecret || $type === 'encrypted') {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            // Secret rows must be encrypted at rest. Legacy plaintext rows are
+            // upgraded by the 2026-09-09 migration. If ciphertext is corrupt
+            // or was encrypted with a different APP_KEY, fail closed instead
+            // of returning raw storage contents as if they were credentials.
+            if ($isSecret && strtolower((string) $type) !== 'encrypted') {
+                return null;
+            }
+
             try {
                 return Crypt::decryptString($value);
             } catch (DecryptException) {
-                return $value;
+                return null;
             }
         }
 
