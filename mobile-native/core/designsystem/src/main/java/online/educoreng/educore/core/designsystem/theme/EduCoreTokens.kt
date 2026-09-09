@@ -24,13 +24,13 @@ object EduCoreElevation {
 }
 
 object EduCoreSizes {
-    val TouchTarget = 48.dp
-    val SmallIcon = 18.dp
-    val Icon = 22.dp
-    val LargeIcon = 32.dp
-    val Avatar = 42.dp
-    val LargeAvatar = 64.dp
+    val TouchTarget = 44.dp
+    val SmallIcon = 16.dp
+    val Icon = 18.dp
+    val LargeIcon = 26.dp
+    val Avatar = 36.dp
+    val LargeAvatar = 52.dp
     val ContentMaxWidth = 760.dp
-    val MetricCardHeight = 96.dp
-    val ModuleCardMinHeight = 104.dp
+    val MetricCardHeight = 84.dp
+    val ModuleCardMinHeight = 92.dp
 }
