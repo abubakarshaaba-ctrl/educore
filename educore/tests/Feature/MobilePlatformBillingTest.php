@@ -102,6 +102,22 @@ class MobilePlatformBillingTest extends TestCase
         $this->assertDatabaseCount('platform_invoices', 0);
     }
 
+    public function test_invoice_due_date_cannot_be_in_the_past(): void
+    {
+        $tenant = $this->tenant('Past Due School');
+        $this->students($tenant->id, 60);
+        $super = $this->user('Past Due Operator', true, null);
+
+        $this->withToken(ApiToken::issue($super, 'billing-past-due'))->postJson('/api/v1/platform/billing/invoices', [
+            'tenant_id' => $tenant->id,
+            'billing_cycle' => 'termly',
+            'capacity' => 80,
+            'due_date' => now()->subDay()->toDateString(),
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('platform_invoices', 0);
+    }
+
     public function test_invoice_settlement_is_idempotent_and_extends_subscription_and_capacity(): void
     {
         $tenant = $this->tenant('Settlement School', Tenant::STATUS_SUSPENDED, now()->addDays(10));
@@ -128,6 +144,60 @@ class MobilePlatformBillingTest extends TestCase
         $this->withToken($token)->postJson("/api/v1/platform/billing/invoices/{$invoiceId}/settle", [
             'payment_method' => 'bank_transfer', 'payment_ref' => 'BANK-SETTLE-002',
         ])->assertOk()->assertJsonPath('processed', false);
+        $this->assertDatabaseCount('platform_payments', 1);
+    }
+
+    public function test_cancelled_invoice_cannot_be_settled(): void
+    {
+        $tenant = $this->tenant('Cancelled Invoice School', Tenant::STATUS_SUSPENDED, now()->addDays(5));
+        $super = $this->user('Cancelled Invoice Operator', true, null);
+        $beforeExpiry = $tenant->subscription_expires_at?->copy();
+        $invoiceId = DB::table('platform_invoices')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'invoice_number' => 'INV-CANCEL01',
+            'amount' => 50000,
+            'student_count' => 100,
+            'billing_cycle' => 'annual',
+            'status' => 'cancelled',
+            'due_date' => now()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withToken(ApiToken::issue($super, 'billing-cancelled'))->postJson("/api/v1/platform/billing/invoices/{$invoiceId}/settle", [
+            'payment_method' => 'bank_transfer',
+            'payment_ref' => 'BANK-CANCELLED-001',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('platform_invoices', ['id' => $invoiceId, 'status' => 'cancelled']);
+        $this->assertDatabaseCount('platform_payments', 0);
+        $tenant->refresh();
+        $this->assertSame(Tenant::STATUS_SUSPENDED, $tenant->status);
+        $this->assertEquals($beforeExpiry?->toDateTimeString(), $tenant->subscription_expires_at?->toDateTimeString());
+    }
+
+    public function test_overdue_invoice_can_still_be_settled(): void
+    {
+        $tenant = $this->tenant('Overdue Invoice School', Tenant::STATUS_SUBSCRIPTION_EXPIRED, now()->subDay());
+        $super = $this->user('Overdue Invoice Operator', true, null);
+        $invoiceId = DB::table('platform_invoices')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'invoice_number' => 'INV-OVERDUE01',
+            'amount' => 25000,
+            'student_count' => 80,
+            'billing_cycle' => 'termly',
+            'status' => 'overdue',
+            'due_date' => now()->subDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withToken(ApiToken::issue($super, 'billing-overdue'))->postJson("/api/v1/platform/billing/invoices/{$invoiceId}/settle", [
+            'payment_method' => 'cash',
+            'payment_ref' => 'OVERDUE-PAID-001',
+        ])->assertOk()->assertJsonPath('processed', true)->assertJsonPath('tenant.status', Tenant::STATUS_ACTIVE);
+
+        $this->assertDatabaseHas('platform_invoices', ['id' => $invoiceId, 'status' => 'paid']);
         $this->assertDatabaseCount('platform_payments', 1);
     }
 
