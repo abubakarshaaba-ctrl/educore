@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group(base_path('routes/web-report-compute.php'));
             Route::group(base_path('routes/web-report-publication.php'));
             Route::group(base_path('routes/web-report-pdf.php'));
+            Route::group(base_path('routes/web-settings-assets.php'));
 
             Route::group(base_path('routes/web-platform-billing.php'));
             Route::group(base_path('routes/web-platform-tenant-removal.php'));
