@@ -10,14 +10,13 @@ use Symfony\Component\HttpFoundation\Response;
 class MobileOperationsController extends Controller
 {
     /**
-     * This convergence branch only advertises dedicated native mutations for
-     * modules whose contracts have actually been ported to the live backend.
-     * Every other module remains read_first and is rendered from the generic,
-     * tenant-scoped operations payload by compatible Android builds.
+     * Only advertise dedicated native mutations for contracts that have been
+     * converged onto this production-compatible backend generation.
      */
     private const NATIVE_FULL_MODULES = [
         'admissions',
         'transport',
+        'academic-cycle',
     ];
 
     public function show(Request $request, string $module, MobileOperationsService $operations): Response
