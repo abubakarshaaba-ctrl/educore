@@ -20,7 +20,7 @@ class MobilePlatformTenantRemovalTest extends TestCase
             $this->markTestSkipped('Platform tenant removal tests require sqlite :memory:.');
         }
 
-        foreach (['audit_logs', 'push_subscriptions', 'api_tokens', 'users', 'tenants'] as $table) {
+        foreach (['audit_logs', 'sessions', 'device_tokens', 'push_subscriptions', 'api_tokens', 'users', 'tenants'] as $table) {
             Schema::dropIfExists($table);
         }
         Schema::create('tenants', function (Blueprint $table): void {
@@ -40,6 +40,14 @@ class MobilePlatformTenantRemovalTest extends TestCase
         Schema::create('push_subscriptions', function (Blueprint $table): void {
             $table->id(); $table->unsignedBigInteger('user_id'); $table->unsignedBigInteger('tenant_id'); $table->text('endpoint');
             $table->string('public_key')->nullable(); $table->string('auth_token')->nullable(); $table->timestamps();
+        });
+        Schema::create('device_tokens', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('user_id'); $table->string('token')->unique(); $table->string('platform')->nullable();
+            $table->timestamp('last_seen_at')->nullable(); $table->timestamps();
+        });
+        Schema::create('sessions', function (Blueprint $table): void {
+            $table->string('id')->primary(); $table->unsignedBigInteger('user_id')->nullable()->index(); $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable(); $table->longText('payload'); $table->integer('last_activity')->index();
         });
         Schema::create('audit_logs', function (Blueprint $table): void {
             $table->id(); $table->unsignedBigInteger('tenant_id')->nullable(); $table->unsignedBigInteger('actor_user_id')->nullable();
@@ -88,6 +96,14 @@ class MobilePlatformTenantRemovalTest extends TestCase
             'user_id' => $schoolAdmin->id, 'tenant_id' => $tenant->id, 'endpoint' => 'https://push.example/subscription',
             'public_key' => 'public', 'auth_token' => 'auth', 'created_at' => now(), 'updated_at' => now(),
         ]);
+        DB::table('device_tokens')->insert([
+            'user_id' => $schoolAdmin->id, 'token' => 'fcm-removal-token', 'platform' => 'android',
+            'last_seen_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('sessions')->insert([
+            'id' => 'school-browser-session', 'user_id' => $schoolAdmin->id, 'ip_address' => '127.0.0.1',
+            'user_agent' => 'Removal test', 'payload' => 'serialized-session', 'last_activity' => now()->timestamp,
+        ]);
 
         $this->withToken(ApiToken::issue($super, 'remove-school'))
             ->deleteJson('/api/v1/platform/tenants/'.$tenant->id, [
@@ -101,6 +117,8 @@ class MobilePlatformTenantRemovalTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $schoolAdmin->id, 'is_active' => false]);
         $this->assertDatabaseMissing('api_tokens', ['id' => $schoolToken->id]);
         $this->assertDatabaseMissing('push_subscriptions', ['user_id' => $schoolAdmin->id]);
+        $this->assertDatabaseMissing('device_tokens', ['user_id' => $schoolAdmin->id]);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $schoolAdmin->id]);
         $this->assertDatabaseHas('audit_logs', [
             'tenant_id' => $tenant->id,
             'actor_user_id' => $super->id,
