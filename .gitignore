@@ -51,14 +51,16 @@ nc_assets/
 # Android signing (NEVER commit)
 *.jks
 *.keystore
-mobile/android/key.properties
-mobile/android/app/key.properties
+mobile-native/release.properties
+mobile-native/.ci-signing/
 
-# Flutter build outputs
-mobile/build/
-mobile/.dart_tool/
-mobile/.packages
-mobile/.pub-cache/
+# Native Android generated/build outputs
+mobile-native/.gradle/
+mobile-native/local.properties
+mobile-native/**/build/
+mobile-native/app/src/debug/google-services.json
+mobile-native/app/src/release/google-services.json
+mobile-native/.release-candidate/
 
 # Build artifacts & worktree
 .fix-worktree/
