@@ -6,6 +6,7 @@ use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class BillingController extends Controller
 {
@@ -15,6 +16,7 @@ class BillingController extends Controller
         if (!$user->isAdmin() && !$user->isSuperAdmin()) abort(403);
 
         $tenant = $user->tenant;
+        abort_unless($tenant, 403, 'A school account is required for self-service billing.');
 
         $invoices = DB::table('platform_invoices')
             ->where('tenant_id', $tenant->id)
@@ -46,7 +48,9 @@ class BillingController extends Controller
             && filled($paymentSettings['bank_transfer_account_number'] ?? null);
         $paymentConfigured = $gatewayConfigured || $bankTransferConfigured;
 
-        $hasOutstandingInvoice = $invoices->contains(fn ($inv) => $inv->status !== 'paid');
+        $hasOutstandingInvoice = $invoices->contains(
+            fn ($inv) => in_array($inv->status, ['pending', 'overdue'], true)
+        );
 
         $studentCount = PricingService::activeStudentCount($tenant->id);
         $capacity     = PricingService::capacityFor($tenant);
@@ -71,6 +75,7 @@ class BillingController extends Controller
         if (!$user->isAdmin() && !$user->isSuperAdmin()) abort(403);
 
         $tenant = $user->tenant;
+        abort_unless($tenant, 403, 'A school account is required for self-service billing.');
 
         $data = $request->validate([
             'billing_cycle'          => ['required', 'in:termly,annual'],
@@ -144,26 +149,41 @@ class BillingController extends Controller
         $user = $request->user();
         abort_unless($user && ($user->isAdmin() || $user->isSuperAdmin()), 403);
 
-        $record = DB::table('platform_invoices')->where('id', $invoice)->first();
-        abort_if(!$record, 404);
-        abort_if(!$user->isSuperAdmin() && (int) $user->tenant_id !== (int) $record->tenant_id, 403);
-
-        if ($record->status === 'paid') {
-            return back()->withErrors(['payment' => 'This invoice has already been paid.']);
-        }
-        if ((float) $record->amount <= 0) {
-            return back()->withErrors(['payment' => 'This invoice has no payable amount. Recalculate it from the billing page first.']);
-        }
-
         $data = $request->validate([
-            'transfer_reference' => ['required', 'string', 'min:3', 'max:100'],
+            'transfer_reference' => [
+                'required', 'string', 'min:3', 'max:100',
+                Rule::unique('platform_invoices', 'payment_ref')->ignore($invoice),
+            ],
         ]);
 
-        DB::table('platform_invoices')->where('id', $record->id)->update([
-            'payment_method' => 'bank_transfer',
-            'payment_ref' => trim($data['transfer_reference']),
-            'updated_at' => now(),
-        ]);
+        DB::transaction(function () use ($invoice, $user, $data): void {
+            $record = DB::table('platform_invoices')->where('id', $invoice)->lockForUpdate()->first();
+            abort_if(!$record, 404);
+            abort_if(!$user->isSuperAdmin() && (int) $user->tenant_id !== (int) $record->tenant_id, 403);
+
+            if (!in_array($record->status, ['pending', 'overdue'], true)) {
+                abort(422, "Invoices with status '{$record->status}' cannot accept a bank transfer reference.");
+            }
+            if ((float) $record->amount <= 0) {
+                abort(422, 'This invoice has no payable amount. Recalculate it from the billing page first.');
+            }
+
+            $reference = trim($data['transfer_reference']);
+            $referenceUsed = DB::table('platform_invoices')
+                ->where('payment_ref', $reference)
+                ->where('id', '!=', $record->id)
+                ->exists()
+                || DB::table('platform_payments')->where('reference', $reference)->exists();
+            if ($referenceUsed) {
+                abort(422, 'This transfer reference has already been used.');
+            }
+
+            DB::table('platform_invoices')->where('id', $record->id)->update([
+                'payment_method' => 'bank_transfer',
+                'payment_ref' => $reference,
+                'updated_at' => now(),
+            ]);
+        });
 
         $route = $user->isSuperAdmin() ? 'super.billing' : 'billing.subscription';
 
