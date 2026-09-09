@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
@@ -41,6 +42,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -105,12 +108,12 @@ internal fun ScoreAssignmentsScreen(
     ) {
         item {
             EduCoreShowcaseHero(
-                eyebrow = "ASSESSMENT WORKSPACE",
+                eyebrow = "SCORE ENTRY",
                 title = "Score Entry",
                 subtitle = listOfNotNull(assignments.termName, assignments.sessionName)
                     .filter(String::isNotBlank)
                     .joinToString(" · ")
-                    .ifBlank { "Enter scores only for your authorised teaching assignments." },
+                    .ifBlank { "Authorised teaching assignments" },
                 trailing = {
                     Surface(
                         modifier = Modifier.size(48.dp),
@@ -163,7 +166,7 @@ internal fun ScoreAssignmentsScreen(
         item {
             EduCoreSectionHeader(
                 title = "Teaching assignments",
-                supportingText = "Open a class-subject workspace to enter or review scores",
+                supportingText = "Open a class and subject",
             )
         }
         item {
@@ -180,9 +183,9 @@ internal fun ScoreAssignmentsScreen(
                     EduCoreEmptyState(
                         "No score workspaces",
                         if (state.search.isBlank()) {
-                            "No current teaching assignment is available for score entry."
+                            "No teaching assignment is available for score entry."
                         } else {
-                            "No authorised class or subject matches your search."
+                            "No class or subject matches your search."
                         },
                     )
                 }
@@ -238,11 +241,6 @@ internal fun ScoreAssignmentsScreen(
     }
 }
 
-/**
- * Compact native score grid modelled on the approved August concept.
- * Assessment columns scroll horizontally inside each student card so the page
- * remains usable on small Android devices without falling back to a web table.
- */
 @Composable
 internal fun ScoreSheetScreen(
     state: ScoresUiState,
@@ -260,6 +258,7 @@ internal fun ScoreSheetScreen(
         Modifier.fillMaxSize(),
         onRetry = onRetry,
     )
+    val focusManager = LocalFocusManager.current
     var studentQuery by remember { mutableStateOf("") }
     val students = remember(sheet.students, studentQuery) {
         sheet.students.filter {
@@ -312,15 +311,11 @@ internal fun ScoreSheetScreen(
                 item { EduCoreWarningBanner(sheet.lockReason ?: "This score sheet is locked.") }
             }
             if (sheet.isDraftStale) {
-                item {
-                    EduCoreWarningBanner(
-                        "This device draft is older than the server sheet. Discard it and reload before saving."
-                    )
-                }
+                item { EduCoreWarningBanner("Server scores changed. Discard this draft and reload.") }
             }
             if (sheet.syncState != SyncState.NONE) {
                 item {
-                    val message = sheet.syncMessage ?: "This explicit submission is waiting to synchronize."
+                    val message = sheet.syncMessage ?: "Score changes are waiting to synchronize."
                     if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) {
                         EduCoreInfoBanner(message, title = "Sync pending")
                     } else {
@@ -333,7 +328,7 @@ internal fun ScoreSheetScreen(
             item {
                 EduCoreSectionHeader(
                     title = "Students",
-                    supportingText = "Enter scores in the assessment cells below; locked cells remain read-only",
+                    supportingText = "Enter scores. Press Next/Enter to move to the next cell.",
                 )
             }
             item {
@@ -350,7 +345,7 @@ internal fun ScoreSheetScreen(
                         EduCoreEmptyState(
                             if (sheet.students.isEmpty()) "No active students" else "No students found",
                             if (sheet.students.isEmpty()) {
-                                "This class has no active students available for score entry."
+                                "No active students are available for this class."
                             } else {
                                 "Try another name or admission number."
                             },
@@ -399,7 +394,7 @@ internal fun ScoreSheetScreen(
                                     Text(
                                         assessment.name,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontWeight = FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -419,7 +414,14 @@ internal fun ScoreSheetScreen(
                                         singleLine = true,
                                         keyboardOptions = KeyboardOptions(
                                             keyboardType = KeyboardType.Decimal,
-                                            imeAction = ImeAction.Done,
+                                            imeAction = ImeAction.Next,
+                                        ),
+                                        keyboardActions = KeyboardActions(
+                                            onNext = {
+                                                if (!focusManager.moveFocus(FocusDirection.Next)) {
+                                                    focusManager.clearFocus()
+                                                }
+                                            },
                                         ),
                                         trailingIcon = if (cell?.locked == true) ({
                                             Icon(Icons.Default.Lock, contentDescription = "Locked")
@@ -540,7 +542,7 @@ internal fun PublishedResultsScreen(
                 EduCoreShowcaseSectionCard {
                     EduCoreEmptyState(
                         "No published results",
-                        "Your school has not published a report card for this account yet.",
+                        "No report card has been published for this account yet.",
                     )
                 }
             }
@@ -565,7 +567,7 @@ internal fun PublishedResultsScreen(
                             Text(
                                 result.term.orEmpty().ifBlank { "Published term" },
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = EduCoreColors.Ink900,
                             )
                             Text(result.session.orEmpty(), color = EduCoreColors.Slate600)
@@ -609,7 +611,7 @@ internal fun PublishedResultsScreen(
 
                     EduCoreSectionHeader(
                         title = "Subjects",
-                        supportingText = "Published subject totals, grades and remarks",
+                        supportingText = "Published totals, grades and remarks",
                     )
                     result.subjects.forEach { subject ->
                         Surface(
@@ -625,7 +627,7 @@ internal fun PublishedResultsScreen(
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         subject.name,
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontWeight = FontWeight.Medium,
                                         color = EduCoreColors.Ink900,
                                     )
                                     Text(
@@ -636,7 +638,7 @@ internal fun PublishedResultsScreen(
                                 }
                                 Text(
                                     subject.total.formatScore(),
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = EduCoreColors.Navy900,
                                 )
                             }
