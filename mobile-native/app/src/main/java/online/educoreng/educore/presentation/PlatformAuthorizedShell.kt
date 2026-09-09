@@ -26,6 +26,7 @@ internal fun PlatformAuthorizedShell(
     settingsViewModel: PlatformSettingsViewModel = hiltViewModel(),
     agentViewModel: PlatformAgentViewModel = hiltViewModel(),
     provisioningViewModel: PlatformProvisioningViewModel = hiltViewModel(),
+    billingViewModel: PlatformBillingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tenantState by tenantViewModel.uiState.collectAsStateWithLifecycle()
@@ -33,6 +34,7 @@ internal fun PlatformAuthorizedShell(
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val agentState by agentViewModel.uiState.collectAsStateWithLifecycle()
     val provisioningState by provisioningViewModel.uiState.collectAsStateWithLifecycle()
+    val billingState by billingViewModel.uiState.collectAsStateWithLifecycle()
     var schoolDirectoryOpen by remember { mutableStateOf(false) }
     var provisioningOpen by remember { mutableStateOf(false) }
     var selectedTenantId by remember { mutableStateOf<Long?>(null) }
@@ -41,6 +43,7 @@ internal fun PlatformAuthorizedShell(
     var settingsEditorOpen by remember { mutableStateOf(false) }
     var gatewayEditorOpen by remember { mutableStateOf(false) }
     var agentManagementOpen by remember { mutableStateOf(false) }
+    var billingManagementOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) viewModel.load(PlatformSection.OVERVIEW)
@@ -50,6 +53,7 @@ internal fun PlatformAuthorizedShell(
     LaunchedEffect(settingsEditorOpen) { if (settingsEditorOpen) settingsViewModel.loadSettings() }
     LaunchedEffect(gatewayEditorOpen) { if (gatewayEditorOpen) settingsViewModel.loadGateways() }
     LaunchedEffect(agentManagementOpen) { if (agentManagementOpen) agentViewModel.load() }
+    LaunchedEffect(billingManagementOpen) { if (billingManagementOpen) billingViewModel.load() }
 
     when {
         provisioningOpen -> PlatformProvisioningScreen(
@@ -129,6 +133,30 @@ internal fun PlatformAuthorizedShell(
                     viewModel.load(PlatformSection.GROUPS)
                 }
             },
+        )
+
+        billingManagementOpen -> PlatformBillingManagementScreen(
+            state = billingState,
+            onBack = {
+                billingManagementOpen = false
+                viewModel.load(PlatformSection.BILLING)
+            },
+            onStatus = billingViewModel::setStatus,
+            onTenant = billingViewModel::setTenant,
+            onOpenInvoice = billingViewModel::openInvoiceEditor,
+            onCloseInvoice = billingViewModel::closeInvoiceEditor,
+            onInvoiceTenant = billingViewModel::setInvoiceTenant,
+            onCycle = billingViewModel::setCycle,
+            onCapacity = billingViewModel::setCapacity,
+            onDueDate = billingViewModel::setDueDate,
+            onNotes = billingViewModel::setNotes,
+            onCreateInvoice = billingViewModel::createInvoice,
+            onRequestSettlement = billingViewModel::requestSettlement,
+            onCancelSettlement = billingViewModel::cancelSettlement,
+            onSettlementMethod = billingViewModel::setSettlementMethod,
+            onSettlementReference = billingViewModel::setSettlementReference,
+            onConfirmSettlement = billingViewModel::confirmSettlement,
+            onRetry = billingViewModel::load,
         )
 
         settingsEditorOpen -> PlatformSettingsEditorScreen(
@@ -216,6 +244,11 @@ internal fun PlatformAuthorizedShell(
                 state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> EduCorePrimaryButton(
                     text = "Manage schools",
                     onClick = { schoolDirectoryOpen = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                )
+                state.section == PlatformSection.BILLING && !state.isLoading && state.billing != null -> EduCorePrimaryButton(
+                    text = "Manage invoices",
+                    onClick = { billingManagementOpen = true },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
                 )
                 state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> EduCorePrimaryButton(
