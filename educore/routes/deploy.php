@@ -2,19 +2,7 @@
 
 use App\Http\Controllers\SelfGitCommitController;
 use App\Http\Controllers\SelfSourceValidationController;
-use App\Http\Controllers\SelfWorkflowValidationController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
-// Shell-free native Android source/workflow validation. This legacy diagnostic
-// can classify GitHub Actions state, but repository commits do not depend on it.
-Route::get('/deploy/validate-android', function (Request $request, SelfWorkflowValidationController $controller) {
-    abort_if($request->has('gh'), 400, 'GitHub credentials must be configured on the server, not supplied in the URL.');
-
-    return $controller->android($request);
-})
-    ->middleware('throttle:5,10')
-    ->name('deploy.validate-android');
 
 // Source-only preflight. It reads the branch and critical source contracts
 // through repository APIs only and never queries or reruns GitHub Actions.
