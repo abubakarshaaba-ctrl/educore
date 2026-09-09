@@ -334,7 +334,9 @@ internal fun StaffModulesHubScreen(
         EduCoreWindowWidth.Medium -> 4
         EduCoreWindowWidth.Expanded -> 6
     }
-    val groups = remember(session.modules) { buildModuleHubGroups(session.modules) }
+    val groups = remember(session.modules, session.user.portal) {
+        buildModuleHubGroups(session.modules, session.user.portal)
+    }
 
     fun openModule(module: ModuleDescriptor) {
         when (module.key.lowercase()) {
@@ -407,7 +409,7 @@ private data class ModuleHubGroup(
     val modules: List<ModuleDescriptor>,
 )
 
-private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHubGroup> {
+private fun buildModuleHubGroups(modules: List<ModuleDescriptor>, portal: String): List<ModuleHubGroup> {
     val normalized = modules.filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }.sortedBy { it.title.lowercase() }
     val deduped = normalized.groupBy { canonicalHubKey(it.key) }.mapNotNull { (_, candidates) ->
         candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) } ?: candidates.firstOrNull()
@@ -415,9 +417,10 @@ private fun buildModuleHubGroups(modules: List<ModuleDescriptor>): List<ModuleHu
     fun group(keys: Set<String>) = deduped.filter { it.key.lowercase() in keys }
     val known = ACADEMIC_KEYS + OPERATION_KEYS + ACCOUNT_KEYS
     val other = deduped.filter { it.key.lowercase() !in known }
+    val operations = if (portal == "admin") other else group(OPERATION_KEYS) + other
     return listOf(
         ModuleHubGroup("academics", "Academics", group(ACADEMIC_KEYS)),
-        ModuleHubGroup("operations", "Operations", group(OPERATION_KEYS) + other),
+        ModuleHubGroup("operations", if (portal == "admin") "Other" else "Operations", operations),
         ModuleHubGroup("account", "Account", group(ACCOUNT_KEYS)),
     )
 }
