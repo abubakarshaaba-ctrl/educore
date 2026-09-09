@@ -29,6 +29,7 @@ on:
       - 'educore/app/Models/StudentClassTransfer.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/app/Services/CrossSchoolStudentTransferService.php'
+      - 'educore/app/Services/PlatformBillingService.php'
       - 'educore/app/Services/ReportCardComputationService.php'
       - 'educore/app/Services/ReportCardPublicationService.php'
       - 'educore/app/Services/ReportCardDocumentService.php'
@@ -133,6 +134,7 @@ jobs:
             tests/Feature/MobilePlatformSettingsTest.php \
             tests/Feature/MobilePlatformAgentTest.php \
             tests/Feature/MobilePlatformProvisioningTest.php \
+            tests/Feature/MobilePlatformBillingTest.php \
             tests/Feature/MobileOperationsTest.php \
             tests/Feature/ReportCardPublicationServiceTest.php \
             tests/Feature/ReportCardDocumentServiceTest.php \
