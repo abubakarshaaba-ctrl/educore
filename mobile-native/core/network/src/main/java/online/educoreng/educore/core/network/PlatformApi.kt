@@ -27,11 +27,13 @@ import online.educoreng.educore.core.network.dto.PlatformTenantExtendRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantMutationResponseDto
 import online.educoreng.educore.core.network.dto.PlatformTenantProvisionRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantProvisionResponseDto
+import online.educoreng.educore.core.network.dto.PlatformTenantRemovalRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantUpdateRequestDto
 import online.educoreng.educore.core.network.dto.PlatformTenantsDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -65,6 +67,12 @@ interface PlatformApi {
         @Path("tenant") tenant: Long,
         @Body body: PlatformTenantExtendRequestDto,
     ): PlatformTenantMutationResponseDto
+
+    @HTTP(method = "DELETE", path = "platform/tenants/{tenant}", hasBody = true)
+    suspend fun removeTenant(
+        @Path("tenant") tenant: Long,
+        @Body body: PlatformTenantRemovalRequestDto,
+    ): PlatformMutationResponseDto
 
     @GET("platform/billing")
     suspend fun billing(): PlatformBillingDto
