@@ -43,13 +43,6 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
-/**
- * Grouped secondary-workspace hub for staff.
- *
- * Every tile originates from SessionSnapshot.modules. Specialized native
- * workspaces are hosted here so modules declared native cannot silently fall
- * through to a browser route.
- */
 @Composable
 internal fun StaffModulesHubScreen(
     session: SessionSnapshot,
@@ -73,6 +66,8 @@ internal fun StaffModulesHubScreen(
     val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
     val portalAccountsViewModel: PortalAccountsViewModel = hiltViewModel()
     val portalAccountsState by portalAccountsViewModel.uiState.collectAsStateWithLifecycle()
+    val schoolSettingsViewModel: SchoolSettingsViewModel = hiltViewModel()
+    val schoolSettingsState by schoolSettingsViewModel.uiState.collectAsStateWithLifecycle()
 
     var cbtOpen by rememberSaveable { mutableStateOf(false) }
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
@@ -87,6 +82,7 @@ internal fun StaffModulesHubScreen(
     var reportsOpen by rememberSaveable { mutableStateOf(false) }
     var profileOpen by rememberSaveable { mutableStateOf(false) }
     var portalAccountsOpen by rememberSaveable { mutableStateOf(false) }
+    var schoolSettingsOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(cbtState.createdExamId) {
         cbtState.createdExamId?.let { examId ->
@@ -120,6 +116,25 @@ internal fun StaffModulesHubScreen(
             onConfirm = portalAccountsViewModel::confirmPendingAction,
             onCancelConfirm = portalAccountsViewModel::cancelPendingAction,
             onRetry = portalAccountsViewModel::load,
+        )
+        return
+    }
+
+    if (schoolSettingsOpen) {
+        SchoolSettingsScreen(
+            state = schoolSettingsState,
+            onBack = { schoolSettingsOpen = false },
+            onName = schoolSettingsViewModel::setName,
+            onMotto = schoolSettingsViewModel::setMotto,
+            onAddress = schoolSettingsViewModel::setAddress,
+            onPhone = schoolSettingsViewModel::setPhone,
+            onEmail = schoolSettingsViewModel::setEmail,
+            onWebsite = schoolSettingsViewModel::setWebsite,
+            onEstablishedYear = schoolSettingsViewModel::setEstablishedYear,
+            onProprietor = schoolSettingsViewModel::setProprietor,
+            onSlogan = schoolSettingsViewModel::setSlogan,
+            onSave = schoolSettingsViewModel::save,
+            onRetry = schoolSettingsViewModel::load,
         )
         return
     }
@@ -298,10 +313,8 @@ internal fun StaffModulesHubScreen(
     fun openModule(module: ModuleDescriptor) {
         when (module.key.lowercase()) {
             "profile" -> profileOpen = true
-            "portal-accounts" -> {
-                portalAccountsOpen = true
-                portalAccountsViewModel.load()
-            }
+            "portal-accounts" -> { portalAccountsOpen = true; portalAccountsViewModel.load() }
+            "settings" -> { schoolSettingsOpen = true; schoolSettingsViewModel.load() }
             "staff" -> { staffDirectoryOpen = true; staffDirectoryViewModel.load() }
             "gradebook" -> { gradebookOpen = true; gradebookViewModel.load() }
             "reports", "report-cards" -> { reportsOpen = true; reportsViewModel.load() }
