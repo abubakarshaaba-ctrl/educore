@@ -102,7 +102,9 @@ class PlatformController extends Controller
         $plans = collect(PricingService::tiers())->values()->map(fn (array $tier, int $index) => [
             'id' => $index + 1,
             'name' => $tier['range'],
-            'rate' => $tier['rate'],
+            // The Android contract expects a numeric rate. Keep the formatted
+            // human-readable pricing string in PricingService for web views.
+            'rate' => $index === 0 ? 0.0 : (float) PricingService::PAID_RATE,
             'cycle' => $tier['cycle'],
             'active' => true,
             'features' => ['All EduCore modules', 'Role-based access', 'Unlimited staff accounts'],

@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -10,6 +12,30 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function (): void {
+            // Compatibility/convergence routes for native clients. These are
+            // intentionally additive so the established web/API surface stays
+            // stable while newer Android contracts are rolled onto production.
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-platform.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-academic-cycle-compat.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-reports.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-staff-cbt.php'));
+
+            Route::middleware(AuthenticateApiToken::class)
+                ->prefix('api/v1')
+                ->group(base_path('routes/mobile-class-results.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Trust Cloudflare (and any other reverse proxy) so X-Forwarded-Proto/Host/IP are read correctly

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
+use App\Models\DeviceToken;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginUserResolver;
 use App\Services\TenantAccessService;
@@ -104,6 +105,14 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        if ($user) {
+            // The Android client signs out locally immediately. Revoke every
+            // push destination owned by this account server-side so a signed-
+            // out device cannot continue receiving school notifications.
+            DeviceToken::where('user_id', $user->id)->delete();
+        }
+
         $token = $request->attributes->get('api_token');
         $token?->delete();
 
@@ -115,7 +124,6 @@ class AuthController extends Controller
         $data = $request->validate(['email' => ['required', 'email']]);
         Password::sendResetLink(['email' => strtolower(trim($data['email']))]);
 
-        // Deliberately identical response whether the address exists or not.
         return response()->json(['message' => 'If that email is registered, a password reset link has been sent.']);
     }
 }
