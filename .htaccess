@@ -14,9 +14,9 @@ RewriteEngine On
 RewriteRule ^educore/ - [F,L]
 
 # Sensitive uploads must only be served through authenticated Laravel
-# actions. This also protects legacy files that were historically written
-# to the public filesystem disk.
-RewriteRule ^storage/(admissions|recruitment|passports|signatures|attendance-photos)(?:/|$) - [F,L,NC]
+# actions. Attendance evidence is migrated separately once the final legacy
+# dashboard image reference is replaced.
+RewriteRule ^storage/(admissions|recruitment|passports|signatures)(?:/|$) - [F,L,NC]
 
 # Belt-and-braces: deny dotfiles and sensitive extensions everywhere
 <FilesMatch "(^\.env|\.(env|log|sqlite|ini|sh|bak))$">
