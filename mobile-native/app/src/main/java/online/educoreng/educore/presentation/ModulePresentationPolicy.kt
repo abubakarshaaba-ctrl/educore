@@ -70,6 +70,7 @@ object ModulePresentationPolicy {
         "parent.calendar",
         "student.calendar",
         "announcements",
+        "profile",
     )
 
     private val NATIVE_GENERIC_MODULES: Set<String> = setOf(
