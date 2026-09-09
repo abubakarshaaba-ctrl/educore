@@ -124,6 +124,22 @@ class MobilePlatformSettingsController extends Controller
             throw ValidationException::withMessages(['contract_code' => 'A Monnify contract code is required for first-time configuration.']);
         }
 
+        if ($provider === 'paystack') {
+            $effectivePublic = $newPublic !== '' ? $newPublic : (string) $existingPublic;
+            $effectiveSecret = $newSecret !== '' ? $newSecret : (string) $existingSecret;
+            $expectedMode = (bool) $data['live'] ? 'live' : 'test';
+            if (!str_starts_with($effectivePublic, "pk_{$expectedMode}_")) {
+                throw ValidationException::withMessages([
+                    'public_key' => "Paystack {$expectedMode} mode requires a pk_{$expectedMode}_ public key.",
+                ]);
+            }
+            if (!str_starts_with($effectiveSecret, "sk_{$expectedMode}_")) {
+                throw ValidationException::withMessages([
+                    'secret_key' => "Paystack {$expectedMode} mode requires an sk_{$expectedMode}_ secret key.",
+                ]);
+            }
+        }
+
         DB::transaction(function () use ($mapping, $newPublic, $newSecret, $newContract, $data, $provider, $request, $user): void {
             if ($newPublic !== '') {
                 PlatformSetting::setValue($mapping['public_key'], $newPublic, 'string', 'payments', Str::headline($mapping['public_key']));
