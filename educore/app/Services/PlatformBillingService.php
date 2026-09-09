@@ -77,10 +77,6 @@ class PlatformBillingService
         return DB::table('platform_invoices')->where('id', $id)->first();
     }
 
-    /**
-     * Settle a pending invoice exactly once and credit the school subscription.
-     * Returns ['invoice' => object, 'tenant' => Tenant, 'processed' => bool].
-     */
     public function settleInvoice(
         int $invoiceId,
         string $paymentMethod,
@@ -166,7 +162,11 @@ class PlatformBillingService
 
         if ($settled['processed']) {
             $tenant = $settled['tenant'];
-            AgentController::recordReferralCommission($tenant->id, (float) $settled['invoice']->amount);
+            try {
+                AgentController::recordReferralCommission($tenant->id, (float) $settled['invoice']->amount);
+            } catch (\Throwable $error) {
+                Log::error("Referral commission recording failed after settled invoice {$settled['invoice']->id}: {$error->getMessage()}");
+            }
             try {
                 $tenant->notifyAdmins(new SubscriptionRenewedNotification(
                     $tenant,
