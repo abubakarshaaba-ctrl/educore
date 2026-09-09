@@ -12,26 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            // Deployment/validation endpoints authenticate with the deploy token
-            // and must remain callable even when the normal web application is in
-            // maintenance mode. Their individual routes apply throttling.
             Route::group(base_path('routes/deploy.php'));
 
-            // Replace only the legacy web report-card lifecycle/document handlers
-            // after routes/web.php has loaded. These focused route files preserve
-            // the same authenticated tenant/staff/module middleware boundary while
-            // routing compute, publication and PDF rendering through shared services
-            // also used by the native app.
             Route::group(base_path('routes/web-report-compute.php'));
             Route::group(base_path('routes/web-report-publication.php'));
             Route::group(base_path('routes/web-report-pdf.php'));
 
-            // Converge Super Admin invoice generation/manual settlement on the
-            // same idempotent billing service used by the native Platform app.
             Route::group(base_path('routes/web-platform-billing.php'));
+            Route::group(base_path('routes/web-platform-tenant-removal.php'));
 
-            // Focused native route files share the same bearer-authenticated
-            // /api/v1 contract without making routes/api.php a monolith.
             Route::prefix('api/v1/staff/cbt')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-staff-cbt.php'));
@@ -56,15 +45,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-platform.php'));
 
-            // Override the older student/parent attendance endpoints with one
-            // tenant-scoped contract shared by both native portal experiences.
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-portal-attendance.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Trust Cloudflare (and any other reverse proxy) so X-Forwarded-Proto/Host/IP are read correctly
         $middleware->trustProxies(
             at: '*',
             headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
@@ -73,7 +59,6 @@ return Application::configure(basePath: dirname(__DIR__))
                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
         );
 
-        // Run on every HTTP request (outermost layer)
         $middleware->prepend([
             \App\Http\Middleware\ForceHttps::class,
         ]);
@@ -82,7 +67,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
-        // Runs inside the routed "web" group so route()/routeIs() are available.
         $middleware->web(append: [
             \App\Http\Middleware\BlockPublicDiagnostics::class,
             \App\Http\Middleware\MaintenanceMode::class,
@@ -107,7 +91,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // CSRF token mismatch (419) — redirect to the unified login with a user-friendly message.
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Your session has expired. Please refresh and try again.'], 419);
