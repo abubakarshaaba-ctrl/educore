@@ -139,9 +139,9 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
 private fun DashboardWelcome(session: SessionSnapshot, profilePhoto: ByteArray?) {
     val firstName = session.user.name.trim().substringBefore(' ').ifBlank { "there" }
     val serverOffset = session.serverTime?.let { value -> runCatching { OffsetDateTime.parse(value).offset }.getOrNull() }
-    val now = serverOffset?.let(OffsetDateTime::now) ?: OffsetDateTime.now()
+    val now = serverOffset?.let { offset -> OffsetDateTime.now(offset) } ?: OffsetDateTime.now()
     val greeting = when (now.hour) {
-        in 5..11 -> "Good morning"
+        in 0..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
@@ -150,7 +150,7 @@ private fun DashboardWelcome(session: SessionSnapshot, profilePhoto: ByteArray?)
         .filter(String::isNotBlank)
         .joinToString(" · ")
     val bitmap = remember(profilePhoto) {
-        profilePhoto?.takeIf(ByteArray::isNotEmpty)?.let { bytes ->
+        profilePhoto?.takeIf { it.isNotEmpty() }?.let { bytes ->
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         }
     }
