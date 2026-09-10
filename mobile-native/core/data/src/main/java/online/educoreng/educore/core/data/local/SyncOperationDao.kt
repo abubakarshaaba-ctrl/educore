@@ -13,6 +13,9 @@ interface SyncOperationDao {
     @Query("SELECT * FROM pending_sync_operations WHERE tenant_key=:tenantKey AND user_id=:userId AND kind=:kind AND state IN ('pending','syncing','failed') ORDER BY created_at_epoch_ms")
     suspend fun actionable(tenantKey: String, userId: Long, kind: String): List<SyncOperationEntity>
 
+    @Query("SELECT * FROM pending_sync_operations WHERE tenant_key=:tenantKey AND user_id=:userId AND kind=:kind ORDER BY created_at_epoch_ms DESC")
+    suspend fun allForKind(tenantKey: String, userId: Long, kind: String): List<SyncOperationEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: SyncOperationEntity)
 
