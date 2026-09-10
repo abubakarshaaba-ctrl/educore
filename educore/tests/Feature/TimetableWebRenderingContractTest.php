@@ -15,6 +15,6 @@ class TimetableWebRenderingContractTest extends TestCase
         $this->assertStringContainsString('optional($match->subject)->name', $teacher);
         $this->assertStringContainsString('optional(optional($match->classArm)->classLevel)->name', $teacher);
         $this->assertStringContainsString("where('tenant_id', auth()->user()->tenant_id)", $teacher);
-        $this->assertStringContainsString("substr((string) $p->start_time, 0, 5)", $teacher);
+        $this->assertStringContainsString('substr((string) $p->start_time, 0, 5)', $teacher);
     }
 }
