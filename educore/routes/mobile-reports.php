@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileReportPdfController;
 use App\Http\Controllers\Api\MobileReportsController;
 use Illuminate\Support\Facades\Route;
@@ -11,3 +12,8 @@ Route::prefix('reports')->group(function (): void {
     Route::post('unpublish', [MobileReportsController::class, 'unpublish']);
     Route::get('{summary}/pdf', MobileReportPdfController::class)->whereNumber('summary');
 });
+
+// Staff-facing published result route used by the native Report Cards flow.
+Route::get('classes/{classArm}/students/{student}/results', [MobileClassController::class, 'results'])
+    ->whereNumber('classArm')
+    ->whereNumber('student');
