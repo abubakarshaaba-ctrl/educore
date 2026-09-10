@@ -61,12 +61,13 @@ class AdminStaffAttendanceOfflineController extends Controller
 
         $staffById = User::query()
             ->where('tenant_id', $actor->tenant_id)
-            ->whereIn('id', $rejectedEvents->pluck('staff_user_id')->filter()->unique())
+            ->whereIn('id', $rejectedEvents->pluck('staff_user_id')->filter()->unique()->values())
             ->get(['id', 'name', 'staff_id'])
             ->keyBy('id');
 
         $rejected = $rejectedEvents->map(function ($event) use ($staffById): array {
             $staff = $staffById->get($event->staff_user_id);
+            $payload = is_string($event->payload) ? json_decode($event->payload, true) : (array) $event->payload;
 
             return [
                 // Negative ids keep list keys distinct from attendance-record ids
@@ -77,14 +78,18 @@ class AdminStaffAttendanceOfflineController extends Controller
                 'staff_number' => $staff?->staff_id,
                 'recorded_by' => null,
                 'date' => (string) $event->attendance_date,
-                'clock_in' => null,
-                'clock_out' => null,
+                'clock_in' => $event->action === 'clock_in'
+                    ? substr((string) ($event->local_timestamp ?? ''), 11, 8)
+                    : null,
+                'clock_out' => $event->action === 'clock_out'
+                    ? substr((string) ($event->local_timestamp ?? ''), 11, 8)
+                    : null,
                 'status' => 'rejected',
                 'attendance_status' => null,
                 'client_uuid' => $event->client_uuid,
-                'latitude' => null,
-                'longitude' => null,
-                'accuracy' => null,
+                'latitude' => isset($payload['latitude']) ? (float) $payload['latitude'] : null,
+                'longitude' => isset($payload['longitude']) ? (float) $payload['longitude'] : null,
+                'accuracy' => isset($payload['accuracy']) ? (float) $payload['accuracy'] : null,
                 'rejection_reason' => $event->rejection_reason,
                 'updated_at' => $event->updated_at,
             ];
