@@ -21,6 +21,10 @@ class MobileLiveBackendContractTest extends TestCase
             'api/v1/school-messages/recipients',
             'api/v1/calendar/events',
             'api/v1/classes/{classArm}/students/{student}/results',
+            'api/v1/parent/attendance',
+            'api/v1/staff-card/payslips',
+            'api/v1/staff-card/payslips/{payrollItem}',
+            'api/v1/staff-card/payslips/{payrollItem}/pdf',
             'api/v1/fees',
             'api/v1/fees/generate',
             'api/v1/expenses',
@@ -28,6 +32,27 @@ class MobileLiveBackendContractTest extends TestCase
         ] as $uri) {
             $this->assertStringContainsString($uri, $routes, "Missing required mobile route: {$uri}");
         }
+    }
+
+    public function test_parent_attendance_matches_the_native_contract(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Api/ParentController.php'));
+
+        $this->assertStringContainsString("'contract_version' => 1", $controller);
+        $this->assertStringContainsString("'portal' => 'parent'", $controller);
+        $this->assertStringContainsString("'children' =>", $controller);
+        $this->assertStringContainsString("'date' => \$record->attendance_date?->toDateString()", $controller);
+        $this->assertStringContainsString("'generated_at' => now()->toIso8601String()", $controller);
+    }
+
+    public function test_staff_payslips_are_self_service_and_tenant_scoped(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Api/StaffCardController.php'));
+
+        $this->assertStringContainsString('isTenantStaff()', $controller);
+        $this->assertStringContainsString("->where('tenant_id', \$user->tenant_id)", $controller);
+        $this->assertStringContainsString("->where('status', '!=', 'draft')", $controller);
+        $this->assertStringContainsString('authorizePayslip', $controller);
     }
 
     public function test_school_communication_controller_keeps_privacy_and_staff_messaging_contract(): void
