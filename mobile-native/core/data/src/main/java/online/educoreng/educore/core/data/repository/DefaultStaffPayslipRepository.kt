@@ -35,7 +35,7 @@ class DefaultStaffPayslipRepository(
                     context = context,
                     body = result.value,
                     requestedName = "Payslip_${slug(periodTitle)}.pdf",
-                    mimeType = "application/pdf",
+                    requestedMimeType = "application/pdf",
                 )
             }.fold(
                 onSuccess = { AppResult.Success(it) },
