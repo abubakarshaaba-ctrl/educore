@@ -81,18 +81,35 @@ class StaffAttendanceApiController extends Controller
 
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
         $token = $data['qr_token'] ?? null;
-        if ($data['action'] === 'clock_in' && $token) {
+
+        if ($data['action'] === 'clock_in') {
+            if (!$token) {
+                return $this->rejectOfflineSync($user->tenant_id, $user->id, $data, 'A school attendance QR is required for clock-in.');
+            }
+
             $this->normaliseScannedToken($request, 'qr_token');
             $token = (string) $request->input('qr_token', $token);
             if (! $settings->verifyStaticQrToken($token)) {
-                $this->recordRejectedSync($user->tenant_id, $user->id, $data, 'The attendance QR is no longer valid.');
+                return $this->rejectOfflineSync($user->tenant_id, $user->id, $data, 'The attendance QR is no longer valid.');
+            }
 
-                return response()->json([
-                    'success' => false,
-                    'idempotent' => false,
-                    'status' => 'rejected',
-                    'message' => 'The attendance QR is no longer valid.',
-                ], 422);
+            if ($settings->geo_enabled) {
+                if (!isset($data['latitude'], $data['longitude'])) {
+                    return $this->rejectOfflineSync($user->tenant_id, $user->id, $data, 'Location is required because the school geofence is enabled.');
+                }
+                if ($settings->geo_lat === null || $settings->geo_lng === null || (int) $settings->geo_radius_meters <= 0) {
+                    return $this->rejectOfflineSync($user->tenant_id, $user->id, $data, 'School location has not been configured.');
+                }
+
+                $distance = $settings->distanceTo((float) $data['latitude'], (float) $data['longitude']);
+                if ($distance > (int) $settings->geo_radius_meters) {
+                    return $this->rejectOfflineSync(
+                        $user->tenant_id,
+                        $user->id,
+                        $data,
+                        'Attendance was recorded outside the permitted school location.'
+                    );
+                }
             }
         }
 
@@ -156,9 +173,22 @@ class StaffAttendanceApiController extends Controller
         return response()->json([
             'success' => true,
             'idempotent' => false,
+            'status' => 'synced',
             'message' => 'Offline attendance synchronized successfully.',
             'record_id' => $record->id,
         ]);
+    }
+
+    private function rejectOfflineSync(int $tenantId, int $userId, array $data, string $reason)
+    {
+        $this->recordRejectedSync($tenantId, $userId, $data, $reason);
+
+        return response()->json([
+            'success' => false,
+            'idempotent' => false,
+            'status' => 'rejected',
+            'message' => $reason,
+        ], 422);
     }
 
     private function recordRejectedSync(int $tenantId, int $userId, array $data, string $reason): void
@@ -218,8 +248,7 @@ class StaffAttendanceApiController extends Controller
                 'date'      => $r->attendance_date instanceof \DateTimeInterface
                     ? $r->attendance_date->format('Y-m-d')
                     : (string) $r->attendance_date,
-                'status'    => $r->status,
-                'clock_in'  => $r->clock_in_time,
+                'status'    => $r->status,\n                'clock_in'  => $r->clock_in_time,
                 'clock_out' => $r->clock_out_time,
                 'method'    => $r->clock_in_method,
             ]);
