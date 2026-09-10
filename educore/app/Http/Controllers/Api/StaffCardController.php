@@ -174,7 +174,7 @@ class StaffCardController extends Controller
         ]);
     }
 
-    /** Stream the official PDF for a released payslip. */
+    /** Stream the single canonical A4 payslip PDF used by web and Android. */
     public function payslipPdf(Request $request, PayrollItem $item)
     {
         $user = $this->staffUser($request);
@@ -184,7 +184,8 @@ class StaffCardController extends Controller
         $period = $item->period;
         $tenant = $user->tenant;
 
-        $pdf = Pdf::loadView('payroll.payslip-pdf', compact('period', 'item', 'tenant'));
+        $pdf = Pdf::loadView('payroll.payslip-pdf', compact('period', 'item', 'tenant'))
+            ->setPaper('a4', 'portrait');
         $name = 'Payslip_' . str_replace([' ', '/'], '_', (string) optional($period)->title) . '.pdf';
 
         return $pdf->download($name);
