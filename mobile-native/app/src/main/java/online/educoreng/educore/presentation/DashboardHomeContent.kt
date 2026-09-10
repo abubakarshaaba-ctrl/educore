@@ -14,8 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.text.DateFormat
-import java.text.SimpleDateFormat
-import java.util.Calendar
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -124,13 +124,14 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
 @Composable
 private fun DashboardWelcome(session: SessionSnapshot) {
     val firstName = session.user.name.trim().substringBefore(' ').ifBlank { "there" }
-    val now = Calendar.getInstance()
-    val greeting = when (now.get(Calendar.HOUR_OF_DAY)) {
+    val serverOffset = runCatching { OffsetDateTime.parse(session.serverTime).offset }.getOrNull()
+    val now = serverOffset?.let(OffsetDateTime::now) ?: OffsetDateTime.now()
+    val greeting = when (now.hour) {
         in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
-    val date = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now.time)
+    val date = now.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
     val academic = listOfNotNull(session.academicPeriod.sessionName, session.academicPeriod.termName)
         .filter(String::isNotBlank)
         .joinToString(" · ")
