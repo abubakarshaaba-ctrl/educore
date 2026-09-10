@@ -29,6 +29,7 @@ data class AppUiState(
 
 data class DashboardUiState(
     val snapshot: DashboardSnapshot? = null,
+    val profilePhoto: ByteArray? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
