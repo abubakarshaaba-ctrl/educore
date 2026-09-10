@@ -29,7 +29,8 @@ class AdminStaffAttendancePayloadContractTest {
     }
 
     private fun assertJsonName(type: Class<*>, fieldName: String, expected: String) {
-        val field = type.getDeclaredField(fieldName)
-        assertEquals(expected, field.getAnnotation(Json::class.java)?.name)
+        val field = type.declaredFields.first { it.name == fieldName }
+        val json = field.annotations.filterIsInstance<Json>().firstOrNull()
+        assertEquals(expected, json?.name)
     }
 }
