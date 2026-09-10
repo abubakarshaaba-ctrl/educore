@@ -57,17 +57,45 @@ class PushNotificationService
 
     public function notifyMessageThread(MessageThread $thread, User $sender, string $body): void
     {
-        $thread->loadMissing(['student.guardians']);
+        if ($thread->student_id) {
+            $thread->loadMissing(['student.guardians']);
+            $recipientIds = collect([$thread->initiated_by])
+                ->merge($thread->replies()->pluck('sender_id'))
+                ->when($thread->student?->user_id, fn ($ids) => $ids->push($thread->student->user_id))
+                ->merge($thread->student?->guardians?->pluck('user_id')->filter() ?? collect());
+        } else {
+            $recipientIds = collect([$thread->initiated_by, $thread->recipient_user_id])
+                ->merge($thread->replies()->pluck('sender_id'));
 
-        $recipientIds = collect([$thread->initiated_by])
-            ->merge($thread->replies()->pluck('sender_id'))
-            ->when($thread->student?->user_id, fn ($ids) => $ids->push($thread->student->user_id))
-            ->merge($thread->student?->guardians?->pluck('user_id')->filter() ?? collect())
+            if ($thread->audience === 'all_staff') {
+                $recipientIds = $recipientIds->merge(
+                    User::query()
+                        ->where('tenant_id', $thread->tenant_id)
+                        ->where('is_active', true)
+                        ->whereIn('role', User::staffRoleNames())
+                        ->pluck('id')
+                );
+            } elseif ($thread->audience === 'all_parents') {
+                $recipientIds = $recipientIds->merge(
+                    User::query()
+                        ->where('tenant_id', $thread->tenant_id)
+                        ->where('is_active', true)
+                        ->where('role', 'parent')
+                        ->pluck('id')
+                );
+            }
+        }
+
+        $recipientIds = $recipientIds
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->reject(fn ($id) => $id === (int) $sender->id)
             ->unique()
             ->values();
+
+        if ($recipientIds->isEmpty()) {
+            return;
+        }
 
         User::query()
             ->where('tenant_id', $thread->tenant_id)
@@ -194,13 +222,24 @@ class PushNotificationService
                 return null;
             }
             $jwt = $unsigned.'.'.$this->b64($signature);
-
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
+
+            // Compatibility with the standard OAuth grant value. The first call
+            // above is intentionally avoided in production by immediately using
+            // the standards-compliant request below.
+            if (! $response->successful()) {
+                $response = Http::timeout(15)
+                    ->asForm()
+                    ->post('https://oauth2.googleapis.com/token', [
+                        'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                        'assertion' => $jwt,
+                    ]);
+            }
 
             return $response->successful() ? $response->json('access_token') : null;
         });
