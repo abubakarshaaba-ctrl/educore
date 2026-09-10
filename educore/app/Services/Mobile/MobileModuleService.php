@@ -13,8 +13,6 @@ class MobileModuleService
         'staff' => ['Staff', '/staff', 'staff'],
         'classes' => ['Classes', '/classes', 'classes'],
         'subjects' => ['Subjects', '/subjects', 'subjects'],
-        'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
-        'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
         'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
@@ -65,8 +63,6 @@ class MobileModuleService
     private const ACADEMIC_MODULES = [
         'classes',
         'subjects',
-        'curriculum',
-        'academic-cycle',
         'attendance',
         'skills',
         'scores',
@@ -99,8 +95,6 @@ class MobileModuleService
     private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
         'classes' => ['classes', 'classes.view'],
         'subjects' => ['subjects', 'subjects.view'],
-        'curriculum' => ['curriculum', 'curriculum.view'],
-        'academic-cycle' => ['academic-cycle', 'academic-session'],
         'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
         'skills' => ['skills', 'skills.rate'],
         'scores' => ['scores', 'scores.entry'],
@@ -178,6 +172,18 @@ class MobileModuleService
                 if (! $isAcademicStaff && in_array($key, self::ACADEMIC_MODULES, true)
                     && ! $this->hasExplicitAcademicGrant($user, $key)) {
                     return false;
+                }
+
+                // The mobile operational shell guarantees these administrator tools.
+                // Detailed endpoint authorization remains tenant-scoped server-side.
+                if ($isSchoolAdmin && in_array($key, [
+                    'staff',
+                    'students',
+                    'staff-attendance',
+                    'staff-attendance.self',
+                    'reports',
+                ], true)) {
+                    return true;
                 }
 
                 if ($key === 'staff-attendance' && ! $isSchoolAdmin) {
