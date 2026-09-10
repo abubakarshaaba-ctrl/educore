@@ -12,11 +12,16 @@ class AdminStaffAttendanceQrController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $user = $request->user();
+        $allowedRoles = ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'];
+
         abort_unless(
             $user
                 && $user->tenant_id
                 && $user->isTenantStaff()
-                && $user->canManage('staff-attendance'),
+                && (
+                    in_array($user->roleKey(), $allowedRoles, true)
+                    || $user->canManage('staff-attendance')
+                ),
             403,
             'Staff attendance management permission required.'
         );
