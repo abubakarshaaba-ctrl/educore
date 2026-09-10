@@ -103,11 +103,13 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
 
             when (val result = safeApiCall(moshi) { api.sync(request) }) {
                 is AppResult.Success -> {
+                    val response = result.value
+                    val accepted = response.success && !response.status.equals("rejected", ignoreCase = true)
                     database.syncOperationDao().upsert(
                         operation.copy(
-                            state = "synced",
+                            state = if (accepted) "synced" else "rejected",
                             attemptCount = operation.attemptCount + 1,
-                            lastError = null,
+                            lastError = if (accepted) null else response.message ?: "Attendance was rejected by the server.",
                             updatedAtEpochMs = System.currentTimeMillis(),
                         )
                     )
