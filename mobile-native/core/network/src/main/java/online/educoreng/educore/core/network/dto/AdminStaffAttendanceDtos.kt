@@ -28,21 +28,32 @@ data class AdminStaffAttendancePendingDto(
     @Json(name = "proxy") val proxy: Int = 0,
 )
 
+/** Canonical record returned by AdminStaffAttendanceController::recordPayload(). */
 @JsonClass(generateAdapter = true)
 data class AdminStaffAttendanceRecordDto(
     @Json(name = "id") val id: Long? = null,
-    @Json(name = "user_id") val userId: Long,
-    @Json(name = "staff") val staff: String? = null,
-    @Json(name = "staff_id") val staffId: String? = null,
+    @Json(name = "staff_id") val userId: Long,
+    @Json(name = "staff_name") val staff: String? = null,
+    @Json(name = "staff_number") val staffId: String? = null,
+    @Json(name = "date") val attendanceDate: String? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "clock_in") val clockIn: String? = null,
     @Json(name = "clock_out") val clockOut: String? = null,
     @Json(name = "method") val method: String? = null,
-    @Json(name = "clocked_in_by") val clockedInBy: String? = null,
-    @Json(name = "geo_verified") val geoVerified: Boolean = false,
+    @Json(name = "recorded_by") val clockedInBy: String? = null,
+    @Json(name = "recorded_by_proxy") val recordedByProxy: Boolean = false,
+    @Json(name = "proxy_reason") val proxyReason: String? = null,
+    @Json(name = "client_uuid") val clientUuid: String? = null,
     @Json(name = "offline") val offline: Boolean = false,
-    @Json(name = "notes") val notes: String? = null,
-    @Json(name = "proxy_review_status") val proxyReviewStatus: String? = null,
+    @Json(name = "rejection_reason") val rejectionReason: String? = null,
+    @Json(name = "latitude") val latitude: Double? = null,
+    @Json(name = "longitude") val longitude: Double? = null,
+    @Json(name = "accuracy") val accuracy: Double? = null,
+    @Json(name = "updated_at") val updatedAt: String? = null,
+    // Kept for presentation compatibility while the UI migrates to the canonical fields above.
+    val geoVerified: Boolean = false,
+    val notes: String? = null,
+    val proxyReviewStatus: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -94,14 +105,17 @@ data class AdminStaffOfflineQueueDto(
 @JsonClass(generateAdapter = true)
 data class AdminStaffOfflineRecordDto(
     @Json(name = "id") val id: Long,
-    @Json(name = "user_id") val userId: Long,
-    @Json(name = "staff") val staff: String? = null,
-    @Json(name = "staff_id") val staffId: String? = null,
-    @Json(name = "clocked_by") val clockedBy: String? = null,
-    @Json(name = "attendance_date") val attendanceDate: String? = null,
+    @Json(name = "staff_id") val userId: Long,
+    @Json(name = "staff_name") val staff: String? = null,
+    @Json(name = "staff_number") val staffId: String? = null,
+    @Json(name = "recorded_by") val clockedBy: String? = null,
+    @Json(name = "date") val attendanceDate: String? = null,
     @Json(name = "clock_in") val clockIn: String? = null,
-    @Json(name = "lat") val lat: Double? = null,
-    @Json(name = "lng") val lng: Double? = null,
+    @Json(name = "latitude") val lat: Double? = null,
+    @Json(name = "longitude") val lng: Double? = null,
+    @Json(name = "accuracy") val accuracy: Double? = null,
+    @Json(name = "client_uuid") val clientUuid: String? = null,
+    @Json(name = "rejection_reason") val rejectionReason: String? = null,
     @Json(name = "status") val status: String? = null,
 )
 
@@ -113,13 +127,15 @@ data class AdminStaffProxyReviewQueueDto(
 @JsonClass(generateAdapter = true)
 data class AdminStaffProxyReviewDto(
     @Json(name = "id") val id: Long,
-    @Json(name = "user_id") val userId: Long,
-    @Json(name = "staff") val staff: String? = null,
-    @Json(name = "staff_id") val staffId: String? = null,
-    @Json(name = "attendance_date") val attendanceDate: String? = null,
+    @Json(name = "staff_id") val userId: Long,
+    @Json(name = "staff_name") val staff: String? = null,
+    @Json(name = "staff_number") val staffId: String? = null,
+    @Json(name = "date") val attendanceDate: String? = null,
     @Json(name = "clock_in") val clockIn: String? = null,
-    @Json(name = "clocked_in_by") val clockedInBy: String? = null,
-    @Json(name = "proxy_review_status") val proxyReviewStatus: String? = null,
+    @Json(name = "recorded_by") val clockedInBy: String? = null,
+    @Json(name = "proxy_reason") val proxyReason: String? = null,
+    @Json(name = "recorded_by_proxy") val recordedByProxy: Boolean = false,
+    // These are optional compatibility fields from the previous review implementation.
     @Json(name = "has_proxy_photo") val hasProxyPhoto: Boolean = false,
     @Json(name = "has_profile_photo") val hasProfilePhoto: Boolean = false,
 )
