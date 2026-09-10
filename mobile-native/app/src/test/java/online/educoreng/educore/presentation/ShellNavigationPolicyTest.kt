@@ -12,12 +12,11 @@ import org.junit.Test
 
 class ShellNavigationPolicyTest {
     @Test
-    fun cbt_and_results_are_absent_from_mobile_for_every_role() {
+    fun cbt_is_absent_from_mobile_for_every_role() {
         val modules = baseModules() + listOf(
             ModuleDescriptor("cbt", "CBT", "/cbt", "cbt"),
             ModuleDescriptor("cbt-exams", "CBT Exams", "/cbt/exams", "cbt"),
-            ModuleDescriptor("results", "Results", "/results", "results"),
-            ModuleDescriptor("report-cards", "Report Cards", "/report-cards", "results"),
+            ModuleDescriptor("examinations", "Examinations", "/examinations", "cbt"),
         )
         listOf(
             session("admin", "administrator", setOf("*"), modules),
@@ -25,8 +24,27 @@ class ShellNavigationPolicyTest {
             session("parent", "parent", emptySet(), modules),
         ).forEach { snapshot ->
             val keys = ShellNavigationPolicy.visibleModules(snapshot).map { it.key.lowercase() }.toSet()
-            assertFalse(keys.any { it in setOf("cbt", "cbt-exams", "results", "report-cards") })
+            assertFalse(keys.any { it in setOf("cbt", "cbt-exams", "examinations") })
         }
+    }
+
+    @Test
+    fun results_and_report_cards_are_visible_only_to_parent_portal() {
+        val modules = baseModules() + listOf(
+            ModuleDescriptor("results", "Results", "/results", "results"),
+            ModuleDescriptor("report-cards", "Report Cards", "/report-cards", "results"),
+        )
+
+        val adminKeys = ShellNavigationPolicy.visibleModules(session("admin", "administrator", setOf("*"), modules)).map { it.key }.toSet()
+        val staffKeys = ShellNavigationPolicy.visibleModules(session("staff", "subject_teacher", setOf("classes.view"), modules)).map { it.key }.toSet()
+        val parent = session("parent", "parent", emptySet(), modules)
+        val parentKeys = ShellNavigationPolicy.visibleModules(parent).map { it.key }.toSet()
+        val parentPrimaryKeys = ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, parent).map { it.key }.toSet()
+
+        assertFalse("results" in adminKeys || "report-cards" in adminKeys)
+        assertFalse("results" in staffKeys || "report-cards" in staffKeys)
+        assertTrue(parentKeys.any { it in setOf("results", "report-cards") })
+        assertTrue(parentPrimaryKeys.any { it in setOf("results", "report-cards") })
     }
 
     @Test
