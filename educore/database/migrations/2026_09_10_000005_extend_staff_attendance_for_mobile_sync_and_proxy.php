@@ -39,6 +39,7 @@ return new class extends Migration {
                 $table->json('payload')->nullable();
                 $table->timestamps();
                 $table->unique(['tenant_id', 'client_uuid'], 'staff_attendance_sync_uuid_unique');
+                $table->index(['tenant_id', 'status', 'attendance_date'], 'staff_attendance_sync_review_index');
             });
         }
     }
