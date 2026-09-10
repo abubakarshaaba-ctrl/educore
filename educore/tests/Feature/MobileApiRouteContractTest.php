@@ -69,6 +69,7 @@ class MobileApiRouteContractTest extends TestCase
             'POST api/v1/notifications/read-all',
             'POST api/v1/notifications/{announcement}/read',
             'GET api/v1/calendar/events',
+            'POST api/v1/calendar/events',
 
             // Platform/support workspaces.
             'GET api/v1/platform/dashboard',
