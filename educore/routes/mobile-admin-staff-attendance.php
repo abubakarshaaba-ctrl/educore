@@ -2,7 +2,13 @@
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceLegacyController;
+use App\Http\Controllers\Api\StaffAttendanceApiController;
 use Illuminate\Support\Facades\Route;
+
+// Self-service offline reconciliation for the authenticated staff member.
+// This intentionally sits outside the admin prefix so ordinary staff with
+// attendance.self can replay queued clock-in/out events after connectivity returns.
+Route::post('staff-attendance/offline/sync', [StaffAttendanceApiController::class, 'syncOffline']);
 
 Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('daily', [AdminStaffAttendanceController::class, 'daily']);
