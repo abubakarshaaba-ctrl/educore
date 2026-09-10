@@ -54,7 +54,10 @@ object ShellNavigationPolicy {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal.lowercase()) {
                 "platform" -> modules.filter { it.key.contains("school", true) || it.key.contains("tenant", true) || it.key.contains("group", true) }
-                "parent" -> modules.filter { it.key.contains("attendance", true) }
+                "parent" -> modules.filter {
+                    it.key.contains("attendance", true) ||
+                        it.key.lowercase() in PARENT_RESULT_MODULES
+                }
                 "staff", "admin" -> modules.filter { it.key.lowercase() in CLASS_WORKSPACE_ENTRY_KEYS }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
@@ -83,7 +86,8 @@ object ShellNavigationPolicy {
 
         var filtered = session.modules.filterNot { module ->
             val key = module.key.lowercase()
-            key in MOBILE_REMOVED_MODULES ||
+            key in MOBILE_CBT_REMOVED_MODULES ||
+                (key in PARENT_RESULT_MODULES && portal != "parent") ||
                 (accountant && !accountantAcademicOverride && key in ACCOUNTANT_DENIED_KEYS) ||
                 (key == "staff-attendance" && !canManageStaffAttendance)
         }
@@ -142,6 +146,7 @@ object ShellNavigationPolicy {
 
     private fun canonicalKey(key: String): String = when (key.lowercase()) {
         "staff-attendance.self" -> "staff-attendance"
+        "report-cards", "results" -> "results"
         else -> key.lowercase()
     }
 
@@ -150,7 +155,8 @@ object ShellNavigationPolicy {
         return normalized in ADMIN_OPERATIONAL_KEYS || ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
     }
 
-    private val MOBILE_REMOVED_MODULES = setOf("cbt", "cbt-exams", "examinations", "report-cards", "results")
+    private val MOBILE_CBT_REMOVED_MODULES = setOf("cbt", "cbt-exams", "examinations")
+    private val PARENT_RESULT_MODULES = setOf("report-cards", "results")
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf("classes", "students", "attendance", "scores", "scores.entry", "lesson-planner", "academic-repository")
     private val ADMIN_OPERATIONAL_KEYS = setOf(
         "staff", "staff-directory", "classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects",
@@ -160,7 +166,7 @@ object ShellNavigationPolicy {
     private val ADMIN_OPERATIONAL_PREFIXES = listOf("message", "notification", "announcement", "calendar", "event", "finance", "fee", "invoice", "payment", "expense", "payroll")
     private val ACCOUNTANT_ROLE_KEYS = setOf("accountant", "accounts", "finance", "bursar")
     private val ACCOUNTANT_DENIED_KEYS = setOf("classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects", "lesson-planner", "academic-repository", "timetable")
-    private val ACADEMIC_KEYS = listOf("student", "class", "subject", "attendance", "score", "lesson", "repository")
+    private val ACADEMIC_KEYS = listOf("student", "class", "subject", "attendance", "score", "report", "result", "lesson", "repository")
     private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
     private val COMMUNICATION_KEYS = listOf("message", "notice", "notification", "announcement", "calendar", "event", "support", "broadcast")
     private val ACCOUNT_KEYS = listOf("profile", "setting", "help", "payslip")
