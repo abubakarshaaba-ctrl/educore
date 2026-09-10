@@ -16,10 +16,11 @@ use Illuminate\Support\Collection;
  */
 class MobileReportCardService
 {
-    public function forStudent(Student $student): Collection
+    public function forStudent(Student $student, ?int $classArmId = null): Collection
     {
         $summaries = TermlySummary::with(['term.session'])
             ->where('student_id', $student->id)
+            ->when($classArmId, fn ($query, int $id) => $query->where('class_arm_id', $id))
             ->latest('computed_at')
             ->get();
 
