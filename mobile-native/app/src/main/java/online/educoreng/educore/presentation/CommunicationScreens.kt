@@ -111,7 +111,7 @@ internal fun CommunicationCenterScreen(
             EduCoreShowcaseHero(
                 eyebrow = "COMMUNICATION CENTRE",
                 title = "Stay current without leaving EduCore.",
-                subtitle = "Read school notices, continue student-linked conversations and review upcoming events from one native inbox.",
+                subtitle = "Read notices, message permitted staff or School Administration, and review upcoming events from one native inbox.",
                 trailing = {
                     Surface(
                         modifier = Modifier.size(48.dp),
@@ -257,7 +257,7 @@ private fun LazyListScope.messagesContent(
     item {
         EduCoreSectionHeader(
             title = "Conversations",
-            supportingText = "${state.messagePage?.unreadCount ?: 0} unread · student-linked secure messaging",
+            supportingText = "${state.messagePage?.unreadCount ?: 0} unread · secure school messaging",
         )
     }
     item {
@@ -275,7 +275,7 @@ private fun LazyListScope.messagesContent(
             EduCoreShowcaseSectionCard {
                 EduCoreEmptyState(
                     title = "No conversations",
-                    message = "Start a message when you need to contact the school or a student family.",
+                    message = "Start a message to School Administration or another recipient permitted for your account.",
                     icon = Icons.Default.MarkEmailRead,
                 )
             }
@@ -299,7 +299,7 @@ private fun LazyListScope.eventsContent(state: CommunicationUiState) {
             EduCoreShowcaseSectionCard {
                 EduCoreEmptyState(
                     title = "No upcoming events",
-                    message = "Published school events will appear here.",
+                    message = "Published school events will appear here. Events are notices and do not require RSVP.",
                     icon = Icons.Default.CalendarMonth,
                 )
             }
@@ -339,20 +339,26 @@ internal fun MessageThreadScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { CommunicationHeader(thread.summary.subject, thread.summary.studentName ?: "School conversation", onBack) }
+        item {
+            CommunicationHeader(
+                thread.summary.subject,
+                thread.summary.otherName ?: thread.summary.studentName ?: "School conversation",
+                onBack,
+            )
+        }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         items(thread.replies, key = MessageReply::id) { reply -> ReplyCard(reply, onDownload) }
         if (thread.summary.status == "open") {
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                    border = BorderStroke(1.dp, EduCoreColors.Line300),
                 ) {
                     Column(
                         Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
                         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     ) {
-                        EduCoreSectionHeader("Reply", "Continue this secure conversation")
+                        EduCoreSectionHeader("Reply", "Continue this private school conversation")
                         OutlinedTextField(
                             value = state.replyBody,
                             onValueChange = onReplyChange,
@@ -411,7 +417,7 @@ internal fun ComposeMessageScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { CommunicationHeader("New message", "Student-linked secure conversation", onBack) }
+        item { CommunicationHeader("New message", "Secure school conversation", onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
             EduCoreShowcaseSectionCard {
@@ -420,7 +426,11 @@ internal fun ComposeMessageScreen(
                     Box(Modifier.fillMaxWidth()) {
                         OutlinedButton(onClick = { recipientsOpen = true }, modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                selected?.let { "${it.name} · ${it.className.orEmpty()}" } ?: "Choose student",
+                                selected?.let { recipient ->
+                                    listOf(recipient.name, recipient.admissionNumber)
+                                        .filter(String::isNotBlank)
+                                        .joinToString(" · ")
+                                } ?: "Choose recipient",
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -432,7 +442,13 @@ internal fun ComposeMessageScreen(
                         ) {
                             state.recipients.forEach { recipient ->
                                 DropdownMenuItem(
-                                    text = { Text("${recipient.name} · ${recipient.admissionNumber}") },
+                                    text = {
+                                        Text(
+                                            listOf(recipient.name, recipient.admissionNumber)
+                                                .filter(String::isNotBlank)
+                                                .joinToString(" · ")
+                                        )
+                                    },
                                     onClick = {
                                         onRecipient(recipient.studentId)
                                         recipientsOpen = false
@@ -484,7 +500,7 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
         colors = CardDefaults.cardColors(
             containerColor = if (notice.isRead) EduCoreColors.White else EduCoreColors.Info100,
         ),
-        border = BorderStroke(1.dp, if (notice.isRead) EduCoreColors.Line200 else EduCoreColors.Info700),
+        border = BorderStroke(1.dp, if (notice.isRead) EduCoreColors.Line300 else EduCoreColors.Info700),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -530,7 +546,7 @@ private fun MessageThreadCard(thread: MessageThreadSummary, onOpen: () -> Unit) 
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        border = BorderStroke(1.dp, EduCoreColors.Line300),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -564,8 +580,8 @@ private fun MessageThreadCard(thread: MessageThreadSummary, onOpen: () -> Unit) 
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    listOfNotNull(thread.studentName, thread.otherName).joinToString(" · "),
-                    color = EduCoreColors.Slate600,
+                    listOfNotNull(thread.otherName, thread.studentName).distinct().joinToString(" · "),
+                    color = EduCoreColors.Slate700,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -594,7 +610,7 @@ private fun SchoolEventCard(event: SchoolEvent) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        border = BorderStroke(1.dp, EduCoreColors.Line300),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -615,12 +631,12 @@ private fun SchoolEventCard(event: SchoolEvent) {
                 Text(event.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     if (event.endDate != null && event.endDate != event.startDate) "${event.startDate} – ${event.endDate}" else event.startDate,
-                    color = EduCoreColors.Gold600,
+                    color = EduCoreColors.Gold700,
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodySmall,
                 )
                 event.description?.takeIf(String::isNotBlank)?.let {
-                    Text(it, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = EduCoreColors.Slate700, style = MaterialTheme.typography.bodySmall)
                 }
             }
             EduCoreStatusBadge(
@@ -641,7 +657,7 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
             modifier = Modifier.fillMaxWidth(.88f),
             color = if (reply.isMine) EduCoreColors.Navy900 else EduCoreColors.White,
             shape = MaterialTheme.shapes.medium,
-            border = if (reply.isMine) null else BorderStroke(1.dp, EduCoreColors.Line200),
+            border = if (reply.isMine) null else BorderStroke(1.dp, EduCoreColors.Line300),
         ) {
             Column(
                 Modifier.padding(EduCoreSpacing.Lg),
@@ -649,7 +665,7 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
             ) {
                 Text(
                     reply.senderName ?: if (reply.isMine) "You" else "School",
-                    color = if (reply.isMine) EduCoreColors.Gold400 else EduCoreColors.Gold600,
+                    color = if (reply.isMine) EduCoreColors.Gold400 else EduCoreColors.Gold700,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(reply.body, color = if (reply.isMine) EduCoreColors.White else EduCoreColors.Ink900)
@@ -663,7 +679,7 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
                 Text(
                     reply.createdAt,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (reply.isMine) EduCoreColors.Line300 else EduCoreColors.Muted500,
+                    color = if (reply.isMine) EduCoreColors.Line200 else EduCoreColors.Muted500,
                 )
             }
         }
