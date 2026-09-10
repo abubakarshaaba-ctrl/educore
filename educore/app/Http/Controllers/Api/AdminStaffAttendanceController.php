@@ -40,6 +40,6 @@ class AdminStaffAttendanceController extends Controller
         return response()->json(['message'=>'Staff attendance settings updated.']);
     }
 
-    private function guard(Request $request): User { $user=$request->user(); abort_unless($user && in_array($user->roleKey(),['admin','principal','head','head_teacher','vice_principal'],true),403,'School administrator access required.'); return $user; }
+    private function guard(Request $request): User { $user=$request->user(); abort_unless($user && in_array($user->roleKey(),['admin','principal','head','head_teacher','vice_principal','academic_administrator'],true),403,'School administrator access required.'); return $user; }
     private function settingsPayload($s):array{return ['resumption_time'=>substr((string)$s->resumption_time,0,5),'grace_minutes'=>$s->grace_minutes,'closing_time'=>substr((string)$s->closing_time,0,5),'geo_enabled'=>(bool)$s->geo_enabled,'geo_lat'=>$s->geo_lat,'geo_lng'=>$s->geo_lng,'geo_radius_meters'=>$s->geo_radius_meters];}
 }
