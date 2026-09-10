@@ -13,7 +13,9 @@ import online.educoreng.educore.core.data.repository.ScoreWorkspaceRepository
 class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val dependencies = EntryPointAccessors.fromApplication(applicationContext, Dependencies::class.java)
-        val shouldRetry = dependencies.classes().syncPendingAttendance() or dependencies.scores().syncPendingScores()
+        val shouldRetry = dependencies.classes().syncPendingAttendance() or
+            dependencies.scores().syncPendingScores() or
+            dependencies.selfAttendance().syncPending()
         return if (shouldRetry) Result.retry() else Result.success()
     }
 
@@ -22,5 +24,6 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
     interface Dependencies {
         fun classes(): ClassWorkspaceRepository
         fun scores(): ScoreWorkspaceRepository
+        fun selfAttendance(): SelfAttendanceOfflineSyncRepository
     }
 }
