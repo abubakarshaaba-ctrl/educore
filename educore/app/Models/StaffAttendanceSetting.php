@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class StaffAttendanceSetting extends Model
@@ -12,7 +13,7 @@ class StaffAttendanceSetting extends Model
         'tenant_id', 'resumption_time', 'grace_minutes', 'closing_time',
         'geo_lat', 'geo_lng', 'geo_radius_meters', 'geo_enabled',
         'qr_secret', 'qr_secret_date',
-        'permanent_qr_secret',   // ← static display-screen QR
+        'permanent_qr_secret',
     ];
 
     protected function casts(): array
@@ -41,37 +42,41 @@ class StaffAttendanceSetting extends Model
         );
     }
 
-    // ── Time classification ───────────────────────────────────────────
     public function classifyClockIn(string $clockInTime): string
     {
         $cin   = Carbon::parse($clockInTime);
         $res   = Carbon::parse($this->resumption_time);
         $grace = (clone $res)->addMinutes($this->grace_minutes);
 
-        if ($cin->lt($res))    return 'early';
+        if ($cin->lt($res)) return 'early';
         if ($cin->lte($grace)) return 'present';
         return 'late';
     }
 
-    // ── STATIC display-screen QR (never changes) ──────────────────────
     /**
-     * Get or generate the school's permanent display-screen QR secret.
-     * This never rotates — the QR printed/displayed in the room is always valid.
+     * Return the static school QR secret. Older deployments may not yet have
+     * permanent_qr_secret, so use the existing qr_secret column as a safe
+     * persistent fallback until migrations are applied.
      */
     public function permanentQrSecret(): string
     {
-        if (!$this->permanent_qr_secret) {
-            $secret = bin2hex(random_bytes(16));
-            $this->update(['permanent_qr_secret' => $secret]);
+        if (Schema::hasColumn($this->getTable(), 'permanent_qr_secret')) {
+            $secret = (string) ($this->getAttribute('permanent_qr_secret') ?? '');
+            if ($secret === '') {
+                $secret = bin2hex(random_bytes(16));
+                $this->update(['permanent_qr_secret' => $secret]);
+            }
+            return $secret;
         }
-        return $this->permanent_qr_secret;
+
+        $secret = (string) ($this->qr_secret ?? '');
+        if ($secret === '') {
+            $secret = bin2hex(random_bytes(16));
+            $this->update(['qr_secret' => $secret, 'qr_secret_date' => null]);
+        }
+        return $secret;
     }
 
-    /**
-     * Build the static screen QR payload.
-     * Contains: tenant_id + HMAC signature.
-     * No date — valid indefinitely unless admin resets it.
-     */
     public function staticQrPayload(): string
     {
         $secret  = $this->permanentQrSecret();
@@ -81,35 +86,33 @@ class StaffAttendanceSetting extends Model
         return base64_encode(json_encode($payload));
     }
 
-    /**
-     * Verify a static screen QR token.
-     */
     public function verifyStaticQrToken(string $token): bool
     {
         try {
-            $data   = json_decode(base64_decode($token), true);
-            $sig    = $data['sig'] ?? '';
+            $data = json_decode(base64_decode($token, true), true);
+            if (! is_array($data)) return false;
+            $sig = (string) ($data['sig'] ?? '');
             unset($data['sig']);
             if (($data['type'] ?? '') !== 'screen') return false;
-            if (($data['tid']  ?? 0) != $this->tenant_id) return false;
-            $secret   = $this->permanentQrSecret();
-            $expected = hash_hmac('sha256', json_encode($data), $secret);
-            return hash_equals($expected, $sig);
+            if (($data['tid'] ?? 0) != $this->tenant_id) return false;
+            $expected = hash_hmac('sha256', json_encode($data), $this->permanentQrSecret());
+            return $sig !== '' && hash_equals($expected, $sig);
         } catch (\Throwable) {
             return false;
         }
     }
 
-    /**
-     * Reset the static QR — generates a new secret, invalidating all old QR prints.
-     * Call this if the QR is ever compromised.
-     */
     public function resetStaticQr(): void
     {
-        $this->update(['permanent_qr_secret' => bin2hex(random_bytes(16))]);
+        $secret = bin2hex(random_bytes(16));
+        if (Schema::hasColumn($this->getTable(), 'permanent_qr_secret')) {
+            $this->update(['permanent_qr_secret' => $secret]);
+            return;
+        }
+
+        $this->update(['qr_secret' => $secret, 'qr_secret_date' => null]);
     }
 
-    // ── Legacy daily QR kept for offline compatibility ────────────────
     /** @deprecated Use staticQrPayload() for display screen */
     public function todayQrSecret(): string
     {
@@ -124,10 +127,10 @@ class StaffAttendanceSetting extends Model
     /** @deprecated */
     public function todayQrPayload(): string
     {
-        $date    = today()->toDateString();
-        $secret  = $this->todayQrSecret();
+        $date = today()->toDateString();
+        $secret = $this->todayQrSecret();
         $payload = ['tid' => $this->tenant_id, 'date' => $date, 'ts' => time()];
-        $sig     = hash_hmac('sha256', json_encode($payload), $secret);
+        $sig = hash_hmac('sha256', json_encode($payload), $secret);
         $payload['sig'] = $sig;
         return base64_encode(json_encode($payload));
     }
@@ -136,22 +139,19 @@ class StaffAttendanceSetting extends Model
     public function verifyQrToken(string $token): bool
     {
         try {
-            $data   = json_decode(base64_decode($token), true);
-            $sig    = $data['sig'] ?? '';
+            $data = json_decode(base64_decode($token), true);
+            $sig = $data['sig'] ?? '';
             unset($data['sig']);
-            // Reject if it's a screen-type token — use verifyStaticQrToken for those
             if (($data['type'] ?? '') === 'screen') return false;
-            $secret   = $this->todayQrSecret();
-            $expected = hash_hmac('sha256', json_encode($data), $secret);
+            $expected = hash_hmac('sha256', json_encode($data), $this->todayQrSecret());
             return hash_equals($expected, $sig)
                 && ($data['date'] ?? '') === today()->toDateString()
-                && ($data['tid']  ?? 0) == $this->tenant_id;
+                && ($data['tid'] ?? 0) == $this->tenant_id;
         } catch (\Throwable) {
             return false;
         }
     }
 
-    // ── Personal staff QR ─────────────────────────────────────────────
     public function verifyPersonalQrToken(string $token): ?\App\Models\User
     {
         $user = \App\Models\User::verifyPersonalQr($token);
@@ -159,16 +159,15 @@ class StaffAttendanceSetting extends Model
         return $user->tenant_id == $this->tenant_id ? $user : null;
     }
 
-    // ── Geo-fence ─────────────────────────────────────────────────────
     public function distanceTo(float $lat, float $lng): float
     {
         if (!$this->geo_lat || !$this->geo_lng) return 0;
-        $R  = 6371000;
+        $R = 6371000;
         $φ1 = deg2rad($this->geo_lat);
         $φ2 = deg2rad($lat);
         $Δφ = deg2rad($lat - $this->geo_lat);
         $Δλ = deg2rad($lng - $this->geo_lng);
-        $a  = sin($Δφ/2)**2 + cos($φ1)*cos($φ2)*sin($Δλ/2)**2;
+        $a = sin($Δφ/2)**2 + cos($φ1)*cos($φ2)*sin($Δλ/2)**2;
         return $R * 2 * atan2(sqrt($a), sqrt(1-$a));
     }
 }
