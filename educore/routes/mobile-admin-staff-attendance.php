@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceLegacyController;
+use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,7 +16,7 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('monthly', [AdminStaffAttendanceController::class, 'monthly']);
     Route::get('settings', [AdminStaffAttendanceController::class, 'settings']);
     Route::put('settings', [AdminStaffAttendanceController::class, 'updateSettings']);
-    Route::get('offline', [AdminStaffAttendanceController::class, 'offline']);
+    Route::get('offline', AdminStaffAttendanceOfflineController::class);
     Route::post('offline/sync', [AdminStaffAttendanceController::class, 'syncOffline']);
     Route::get('proxy-reviews', [AdminStaffAttendanceController::class, 'proxyReviews']);
     Route::post('proxy-clock', [AdminStaffAttendanceController::class, 'proxyClock']);
