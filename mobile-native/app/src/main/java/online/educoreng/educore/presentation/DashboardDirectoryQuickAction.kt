@@ -19,11 +19,8 @@ import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
 /**
- * Home-only native directory launcher.
- *
- * The More hub already owns these directory screens. Home quick actions need
- * the same native behaviour instead of falling through to the class workspace
- * (students) or the generic "being completed" message (staff).
+ * Home-native launcher for operational workspaces that must not fall through
+ * to generic class navigation.
  */
 @Composable
 internal fun DashboardDirectoryQuickAction(
@@ -48,7 +45,6 @@ internal fun DashboardDirectoryQuickAction(
     when (module.key.lowercase()) {
         "staff" -> StaffDirectoryHomeAction(
             session = session,
-            module = module,
             label = label,
             icon = icon,
             modifier = modifier,
@@ -56,7 +52,21 @@ internal fun DashboardDirectoryQuickAction(
 
         "students" -> if (session.user.portal.equals("admin", ignoreCase = true)) {
             StudentDirectoryHomeAction(
-                module = module,
+                label = label,
+                icon = icon,
+                modifier = modifier,
+            )
+        } else {
+            EduCoreQuickAction(
+                label = label,
+                icon = icon,
+                onClick = { onFallback(module) },
+                modifier = modifier,
+            )
+        }
+
+        "staff-attendance" -> if (session.user.portal.equals("admin", ignoreCase = true)) {
+            AdminStaffAttendanceHomeAction(
                 label = label,
                 icon = icon,
                 modifier = modifier,
@@ -82,7 +92,6 @@ internal fun DashboardDirectoryQuickAction(
 @Composable
 private fun StaffDirectoryHomeAction(
     session: SessionSnapshot,
-    module: ModuleDescriptor,
     label: String,
     icon: ImageVector,
     modifier: Modifier,
@@ -102,7 +111,7 @@ private fun StaffDirectoryHomeAction(
     )
 
     if (open) {
-        FullScreenDirectoryDialog(onDismiss = { open = false }) {
+        FullScreenOperationalDialog(onDismiss = { open = false }) {
             StaffDirectoryScreen(
                 state = state,
                 currentUserId = session.user.id,
@@ -119,7 +128,6 @@ private fun StaffDirectoryHomeAction(
 
 @Composable
 private fun StudentDirectoryHomeAction(
-    module: ModuleDescriptor,
     label: String,
     icon: ImageVector,
     modifier: Modifier,
@@ -139,7 +147,7 @@ private fun StudentDirectoryHomeAction(
     )
 
     if (open) {
-        FullScreenDirectoryDialog(onDismiss = { open = false }) {
+        FullScreenOperationalDialog(onDismiss = { open = false }) {
             AdminStudentDirectoryScreen(
                 state = state,
                 onBack = { open = false },
@@ -150,7 +158,38 @@ private fun StudentDirectoryHomeAction(
 }
 
 @Composable
-private fun FullScreenDirectoryDialog(
+private fun AdminStaffAttendanceHomeAction(
+    label: String,
+    icon: ImageVector,
+    modifier: Modifier,
+) {
+    val viewModel: AdminStaffAttendanceViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var open by remember { mutableStateOf(false) }
+
+    EduCoreQuickAction(
+        label = label,
+        icon = icon,
+        onClick = {
+            open = true
+            viewModel.loadDaily()
+        },
+        modifier = modifier,
+    )
+
+    if (open) {
+        FullScreenOperationalDialog(onDismiss = { open = false }) {
+            AdminStaffAttendanceScreen(
+                state = state,
+                onBack = { open = false },
+                onRefresh = viewModel::loadDaily,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FullScreenOperationalDialog(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) {
