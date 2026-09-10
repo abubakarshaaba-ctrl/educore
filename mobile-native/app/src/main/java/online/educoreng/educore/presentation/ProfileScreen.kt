@@ -9,15 +9,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
+import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreProfileHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
@@ -31,6 +41,24 @@ internal fun ProfileScreen(
     session: SessionSnapshot,
     onBack: () -> Unit,
 ) {
+    val payslipViewModel: StaffPayslipViewModel = hiltViewModel()
+    val payslipState by payslipViewModel.uiState.collectAsStateWithLifecycle()
+    var payslipsOpen by remember { mutableStateOf(false) }
+
+    if (payslipsOpen) {
+        StaffPayslipScreen(
+            state = payslipState,
+            onBack = {
+                if (payslipState.selectedSummary != null) payslipViewModel.closeDetail() else payslipsOpen = false
+            },
+            onOpen = payslipViewModel::open,
+            onDownload = payslipViewModel::download,
+            onRetry = payslipViewModel::load,
+            onDocumentOpened = payslipViewModel::consumeDocument,
+        )
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
@@ -50,6 +78,33 @@ internal fun ProfileScreen(
                 identifier = session.user.staffId ?: session.user.email,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        if (session.user.portal in setOf("staff", "admin")) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
+                    border = BorderStroke(1.dp, EduCoreColors.Navy700),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = EduCoreColors.Gold400)
+                        Text("Monthly payslips", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.White)
+                        Text("Review every issued payroll month, earnings, deductions and net pay, then download the official PDF.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Line200)
+                        EduCorePrimaryButton(
+                            text = "Open My Payslips",
+                            onClick = {
+                                payslipsOpen = true
+                                payslipViewModel.load()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Default.ReceiptLong, contentDescription = null) },
+                        )
+                    }
+                }
+            }
         }
         item {
             ProfileSectionCard("Account") {
