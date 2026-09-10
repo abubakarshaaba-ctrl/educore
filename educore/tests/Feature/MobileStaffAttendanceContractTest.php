@@ -80,4 +80,13 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertNotNull($route);
         $this->assertStringContainsString(AdminStaffAttendanceOfflineController::class, $route->getActionName());
     }
+
+    public function test_offline_sync_service_contract_uses_separate_event_ledger(): void
+    {
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
+        $this->assertStringContainsString('staff_attendance_sync_events', $source);
+        $this->assertStringContainsString("status' => 'rejected'", $source);
+        $this->assertStringContainsString('verifyStaticQrToken', $source);
+        $this->assertStringContainsString('distanceTo', $source);
+    }
 }
