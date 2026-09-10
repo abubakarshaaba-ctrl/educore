@@ -148,7 +148,9 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
             item(key = "section-${section.key}", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 DashboardSectionCard(
                     title = section.title,
-                    items = section.items.filterNot { item -> item.moduleKey?.lowercase() in discardedHomeModules },
+                    items = section.items.filterNot { item ->
+                        item.moduleKey?.lowercase()?.let(discardedHomeModules::contains) == true
+                    },
                     modules = session.modules,
                     onModuleClick = onModuleClick,
                     compact = width == EduCoreWindowWidth.Compact,
