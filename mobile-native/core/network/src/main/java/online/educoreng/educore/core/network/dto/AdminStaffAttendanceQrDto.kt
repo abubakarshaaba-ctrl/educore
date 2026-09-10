@@ -5,10 +5,19 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class AdminStaffAttendanceQrDto(
-    @Json(name = "payload") val payload: String,
-    @Json(name = "type") val type: String,
-    @Json(name = "tenant_id") val tenantId: Long,
-    @Json(name = "school") val school: String? = null,
+    @Json(name = "success") val success: Boolean = true,
+    @Json(name = "data") val data: AdminStaffAttendanceQrDataDto,
+) {
+    val payload: String get() = data.qrToken
+    val school: String? get() = data.schoolName
+    val generatedAt: String? get() = data.generatedAt
+    val note: String? get() = "This QR stays valid until an authorized administrator resets it."
+}
+
+@JsonClass(generateAdapter = true)
+data class AdminStaffAttendanceQrDataDto(
+    @Json(name = "qr_token") val qrToken: String,
+    @Json(name = "school_name") val schoolName: String? = null,
     @Json(name = "generated_at") val generatedAt: String? = null,
-    @Json(name = "note") val note: String? = null,
+    @Json(name = "expires_at") val expiresAt: String? = null,
 )
