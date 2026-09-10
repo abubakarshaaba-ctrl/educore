@@ -1,6 +1,7 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,13 +23,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
-import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreProfileHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
@@ -37,10 +39,7 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.SessionSnapshot
 
 @Composable
-internal fun ProfileScreen(
-    session: SessionSnapshot,
-    onBack: () -> Unit,
-) {
+internal fun ProfileScreen(session: SessionSnapshot, onBack: () -> Unit) {
     val payslipViewModel: StaffPayslipViewModel = hiltViewModel()
     val payslipState by payslipViewModel.uiState.collectAsStateWithLifecycle()
     var payslipsOpen by remember { mutableStateOf(false) }
@@ -48,9 +47,7 @@ internal fun ProfileScreen(
     if (payslipsOpen) {
         StaffPayslipScreen(
             state = payslipState,
-            onBack = {
-                if (payslipState.selectedSummary != null) payslipViewModel.closeDetail() else payslipsOpen = false
-            },
+            onBack = { if (payslipState.selectedSummary != null) payslipViewModel.closeDetail() else payslipsOpen = false },
             onOpen = payslipViewModel::open,
             onDownload = payslipViewModel::download,
             onRetry = payslipViewModel::load,
@@ -64,13 +61,7 @@ internal fun ProfileScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item {
-            EduCorePageHeader(
-                title = "My Profile",
-                subtitle = "Your EduCore identity and current school context",
-                onBack = onBack,
-            )
-        }
+        item { EduCorePageHeader("My Profile", "Your EduCore identity and current school context", onBack = onBack) }
         item {
             EduCoreProfileHeader(
                 name = session.user.name,
@@ -82,26 +73,26 @@ internal fun ProfileScreen(
         if (session.user.portal in setOf("staff", "admin")) {
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            payslipsOpen = true
+                            payslipViewModel.load()
+                        },
                     colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
                     border = BorderStroke(1.dp, EduCoreColors.Navy700),
                 ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                     ) {
                         Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = EduCoreColors.Gold400)
-                        Text("Monthly payslips", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.White)
-                        Text("Review every issued payroll month, earnings, deductions and net pay, then download the official PDF.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Line200)
-                        EduCorePrimaryButton(
-                            text = "Open My Payslips",
-                            onClick = {
-                                payslipsOpen = true
-                                payslipViewModel.load()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.ReceiptLong, contentDescription = null) },
-                        )
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("My Payslips", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = EduCoreColors.White)
+                            Text("View and download monthly payslips", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Line200)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Open payslips", tint = EduCoreColors.Gold400)
                     }
                 }
             }
@@ -147,10 +138,7 @@ internal fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileSectionCard(
-    title: String,
-    content: @Composable () -> Unit,
-) {
+private fun ProfileSectionCard(title: String, content: @Composable () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
@@ -168,21 +156,8 @@ private fun ProfileSectionCard(
 
 @Composable
 private fun ProfileRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(0.42f),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(0.58f),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-        )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+        Text(label, Modifier.weight(0.42f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, Modifier.weight(0.58f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Normal)
     }
 }
