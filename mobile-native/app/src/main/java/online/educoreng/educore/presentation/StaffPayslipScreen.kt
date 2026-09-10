@@ -52,18 +52,19 @@ internal fun StaffPayslipScreen(
 ) {
     OpenDocumentEffect(state.document, onDocumentOpened)
     val detail = state.selected
+    val selectedSummary = state.selectedSummary
     if (state.isLoading && state.items.isEmpty() && detail == null) {
         EduCoreLoadingState(Modifier.fillMaxSize(), "Loading your payslips")
         return
     }
 
-    if (state.selectedSummary != null) {
+    if (selectedSummary != null) {
         StaffPayslipDetail(
             state = state,
             detail = detail,
             onBack = onBack,
             onDownload = onDownload,
-            onRetry = { onOpen(state.selectedSummary) },
+            onRetry = { onOpen(selectedSummary) },
         )
         return
     }
