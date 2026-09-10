@@ -22,7 +22,7 @@ class MobileDashboardController extends Controller
         // academic lifecycle remain off Home, while personal attendance is a
         // first-class daily action. Every action is still constrained by the
         // server-authoritative module list returned for this user.
-        if ($user && in_array($user->portalKey(), ['staff', 'admin'], true)) {
+        if ($user && ! $user->isSuperAdmin() && ! $user->isStudent() && ! $user->isParent()) {
             $granted = collect($modules->forUser($user))->keyBy(
                 fn (array $module): string => strtolower($module['key'])
             );
