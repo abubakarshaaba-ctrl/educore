@@ -1,6 +1,8 @@
 package online.educoreng.educore.core.network
 
 import com.squareup.moshi.Json
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.memberProperties
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceRecordDto
 import online.educoreng.educore.core.network.dto.AdminStaffOfflineRecordDto
 import online.educoreng.educore.core.network.dto.AdminStaffProxyReviewDto
@@ -10,27 +12,26 @@ import org.junit.Test
 class AdminStaffAttendancePayloadContractTest {
     @Test
     fun `daily record DTO uses canonical Laravel staff payload keys`() {
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "userId", "staff_id")
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "staff", "staff_name")
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "staffId", "staff_number")
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "clockedInBy", "recorded_by")
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "latitude", "latitude")
-        assertJsonName(AdminStaffAttendanceRecordDto::class.java, "longitude", "longitude")
+        assertJsonName<AdminStaffAttendanceRecordDto>("userId", "staff_id")
+        assertJsonName<AdminStaffAttendanceRecordDto>("staff", "staff_name")
+        assertJsonName<AdminStaffAttendanceRecordDto>("staffId", "staff_number")
+        assertJsonName<AdminStaffAttendanceRecordDto>("clockedInBy", "recorded_by")
+        assertJsonName<AdminStaffAttendanceRecordDto>("latitude", "latitude")
+        assertJsonName<AdminStaffAttendanceRecordDto>("longitude", "longitude")
     }
 
     @Test
     fun `review DTOs use the same canonical record payload`() {
-        assertJsonName(AdminStaffOfflineRecordDto::class.java, "userId", "staff_id")
-        assertJsonName(AdminStaffOfflineRecordDto::class.java, "attendanceDate", "date")
-        assertJsonName(AdminStaffOfflineRecordDto::class.java, "rejectionReason", "rejection_reason")
-        assertJsonName(AdminStaffProxyReviewDto::class.java, "userId", "staff_id")
-        assertJsonName(AdminStaffProxyReviewDto::class.java, "clockedInBy", "recorded_by")
-        assertJsonName(AdminStaffProxyReviewDto::class.java, "proxyReason", "proxy_reason")
+        assertJsonName<AdminStaffOfflineRecordDto>("userId", "staff_id")
+        assertJsonName<AdminStaffOfflineRecordDto>("attendanceDate", "date")
+        assertJsonName<AdminStaffOfflineRecordDto>("rejectionReason", "rejection_reason")
+        assertJsonName<AdminStaffProxyReviewDto>("userId", "staff_id")
+        assertJsonName<AdminStaffProxyReviewDto>("clockedInBy", "recorded_by")
+        assertJsonName<AdminStaffProxyReviewDto>("proxyReason", "proxy_reason")
     }
 
-    private fun assertJsonName(type: Class<*>, fieldName: String, expected: String) {
-        val field = type.declaredFields.first { it.name == fieldName }
-        val json = field.annotations.filterIsInstance<Json>().firstOrNull()
-        assertEquals(expected, json?.name)
+    private inline fun <reified T : Any> assertJsonName(propertyName: String, expected: String) {
+        val property = T::class.memberProperties.first { it.name == propertyName }
+        assertEquals(expected, property.findAnnotation<Json>()?.name)
     }
 }
