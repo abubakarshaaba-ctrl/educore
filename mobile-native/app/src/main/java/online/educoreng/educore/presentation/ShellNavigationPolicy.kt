@@ -118,7 +118,7 @@ object ShellNavigationPolicy {
 
         val hasSelfAttendance = filtered.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
         val attendanceAware = if (portal == "admin") {
-            // Administrators need both their own attendance and the staff report.
+            // Administrators need both their own attendance and the all-staff report.
             filtered
         } else {
             filtered.filterNot { module ->
@@ -187,6 +187,8 @@ object ShellNavigationPolicy {
     )
 
     private val ADMIN_OPERATIONAL_KEYS = setOf(
+        "staff",
+        "staff-directory",
         "classes",
         "students",
         "attendance",
