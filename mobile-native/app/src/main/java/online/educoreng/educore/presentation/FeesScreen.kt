@@ -2,10 +2,10 @@ package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,12 +16,18 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,9 +51,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.network.dto.FeesClassLevelDto
 import online.educoreng.educore.core.network.dto.FeesInvoiceDto
-import online.educoreng.educore.core.network.dto.FeesTermDto
 import online.educoreng.educore.core.network.dto.FeesTransactionDto
 
 @Composable
@@ -292,6 +296,11 @@ private fun FeesGenerationForm(
     onGenerate: () -> Unit,
 ) {
     val workspace = state.workspace ?: return
+    val termOptions = workspace.terms.map { term ->
+        term.id to listOfNotNull(term.name, term.session).joinToString(" · ")
+    }
+    val classOptions = workspace.classLevels.map { level -> level.id to level.name }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
@@ -299,26 +308,85 @@ private fun FeesGenerationForm(
     ) {
         item { EduCorePageHeader("Generate Fee Bills", "Create missing invoices from active fee structures", onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        item { Text("Academic term", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold) }
-        if (workspace.terms.isEmpty()) {
+
+        if (termOptions.isEmpty()) {
             item { EduCoreEmptyState("No terms available", "Configure the academic cycle before generating bills.") }
         } else {
-            items(workspace.terms, key = { "fee-term-${it.id}" }) { term ->
-                SelectTermCard(term, state.generation.termId == term.id) { onTerm(term.id) }
+            item {
+                FinanceDropdown(
+                    label = "Academic term",
+                    options = termOptions,
+                    selectedId = state.generation.termId,
+                    enabled = !state.isSaving,
+                    onSelected = onTerm,
+                )
             }
         }
-        item { Text("Class level", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold) }
-        if (workspace.classLevels.isEmpty()) {
+
+        if (classOptions.isEmpty()) {
             item { EduCoreEmptyState("No class levels available", "Configure class levels before generating bills.") }
         } else {
-            items(workspace.classLevels, key = { "fee-level-${it.id}" }) { level ->
-                SelectClassCard(level, state.generation.classLevelId == level.id) { onClass(level.id) }
+            item {
+                FinanceDropdown(
+                    label = "Class level",
+                    options = classOptions,
+                    selectedId = state.generation.classLevelId,
+                    enabled = !state.isSaving,
+                    onSelected = onClass,
+                )
             }
         }
+
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCoreSecondaryButton("Cancel", onBack, Modifier.weight(1f), enabled = !state.isSaving)
                 EduCorePrimaryButton("Generate", onGenerate, Modifier.weight(1f), enabled = state.generation.valid, loading = state.isSaving)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinanceDropdown(
+    label: String,
+    options: List<Pair<Long, String>>,
+    selectedId: Long?,
+    enabled: Boolean,
+    onSelected: (Long?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.first == selectedId }?.second ?: "Select $label"
+
+    Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                enabled = enabled && options.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = selectedLabel,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text("▾")
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(.92f),
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.second, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        onClick = {
+                            expanded = false
+                            onSelected(option.first)
+                        },
+                    )
+                }
             }
         }
     }
@@ -401,34 +469,6 @@ private fun NativePaymentCard(payment: FeesTransactionDto) {
                 Text("${payment.amount.money()} · ${payment.gateway.replace('_', ' ')} · ${payment.paidAt.orEmpty()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             EduCoreStatusBadge("Verified", EduCoreTone.Success)
-        }
-    }
-}
-
-@Composable
-private fun SelectTermCard(term: FeesTermDto, selected: Boolean, onClick: () -> Unit) {
-    SelectFinanceOption(title = term.name, subtitle = term.session, selected = selected, onClick = onClick)
-}
-
-@Composable
-private fun SelectClassCard(level: FeesClassLevelDto, selected: Boolean, onClick: () -> Unit) {
-    SelectFinanceOption(title = level.name, subtitle = null, selected = selected, onClick = onClick)
-}
-
-@Composable
-private fun SelectFinanceOption(title: String, subtitle: String?, selected: Boolean, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = if (selected) EduCoreColors.Info100 else EduCoreColors.White),
-        border = BorderStroke(1.dp, if (selected) EduCoreColors.Info700 else EduCoreColors.Line200),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-            if (selected) EduCoreStatusBadge("Selected", EduCoreTone.Info)
         }
     }
 }
