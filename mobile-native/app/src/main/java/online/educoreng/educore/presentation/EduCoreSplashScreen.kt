@@ -13,14 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -65,18 +64,13 @@ internal fun EduCoreSplashScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Surface(
-                modifier = Modifier.size(96.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.07f),
-                shadowElevation = 2.dp,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_educore_mark),
-                    contentDescription = "EduCore",
-                    modifier = Modifier.padding(8.dp),
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.ic_educore_mark),
+                contentDescription = "EduCore",
+                modifier = Modifier
+                    .size(92.dp)
+                    .shadow(elevation = 2.dp, clip = false),
+            )
 
             Spacer(Modifier.height(24.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
