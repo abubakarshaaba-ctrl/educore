@@ -134,9 +134,9 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
         shouldRetry
     }
 
-    suspend fun pendingStatus(): List<SelfAttendanceQueuedStatus> = withContext(Dispatchers.IO) {
+    suspend fun statuses(): List<SelfAttendanceQueuedStatus> = withContext(Dispatchers.IO) {
         val scope = scope() ?: return@withContext emptyList()
-        database.syncOperationDao().actionable(scope.tenantKey, scope.userId, KIND).mapNotNull { operation ->
+        database.syncOperationDao().allForKind(scope.tenantKey, scope.userId, KIND).mapNotNull { operation ->
             val request = runCatching { adapter.fromJson(operation.payloadJson) }.getOrNull() ?: return@mapNotNull null
             SelfAttendanceQueuedStatus(
                 clientUuid = request.clientUuid,
