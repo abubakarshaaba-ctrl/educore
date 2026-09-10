@@ -8,13 +8,15 @@ use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Staff self-attendance for the mobile app.
  *
  * Clock-in/out reuse the existing StaffAttendanceController JSON endpoints
  * (QR + geo-fence rules identical to the web PWA); this controller only
- * adds the mobile summary feed.
+ * adds the mobile summary feed and durable replay for offline mobile actions.
  */
 class StaffAttendanceApiController extends Controller
 {
@@ -32,6 +34,99 @@ class StaffAttendanceApiController extends Controller
         $this->normaliseScannedToken($request, 'token');
 
         return $web->clockInQr($request);
+    }
+
+    /**
+     * Reconcile one locally queued self-attendance action.
+     *
+     * The client_uuid is tenant-scoped and idempotent so WorkManager can retry
+     * safely after process death, flaky connectivity, or duplicate delivery.
+     */
+    public function syncOffline(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->tenant_id, 401, 'Unauthenticated.');
+
+        $data = $request->validate([
+            'client_uuid' => ['required', 'uuid'],
+            'staff_id' => ['required', 'integer'],
+            'action' => ['required', Rule::in(['clock_in', 'clock_out'])],
+            'attendance_date' => ['required', 'date_format:Y-m-d'],
+            'local_timestamp' => ['required', 'date'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'qr_token' => ['nullable', 'string', 'max:4096'],
+        ]);
+
+        abort_unless((int) $data['staff_id'] === (int) $user->id, 403, 'You can only synchronize your own attendance.');
+
+        $existing = StaffAttendanceRecord::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->where('client_uuid', $data['client_uuid'])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'idempotent' => true,
+                'message' => 'Attendance already synchronized.',
+                'record_id' => $existing->id,
+            ]);
+        }
+
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $token = $data['qr_token'] ?? null;
+        if ($data['action'] === 'clock_in' && $token) {
+            $this->normaliseScannedToken($request, 'qr_token');
+            $token = (string) $request->input('qr_token', $token);
+            if (! $settings->verifyStaticQrToken($token)) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'rejected',
+                    'message' => 'The attendance QR is no longer valid.',
+                ], 422);
+            }
+        }
+
+        $timestamp = Carbon::parse($data['local_timestamp']);
+        $record = DB::transaction(function () use ($data, $user, $settings, $timestamp) {
+            $record = StaffAttendanceRecord::firstOrNew([
+                'tenant_id' => $user->tenant_id,
+                'user_id' => $user->id,
+                'attendance_date' => $data['attendance_date'],
+            ]);
+
+            if ($data['action'] === 'clock_in') {
+                if (! $record->exists || ! $record->clock_in_time) {
+                    $record->clock_in_time = $timestamp->format('H:i:s');
+                    $record->status = $settings->classifyClockIn($timestamp->format('H:i:s'));
+                }
+                $record->clock_in_method = 'offline';
+                $record->clocked_in_by = $user->id;
+                $record->clock_in_lat = $data['latitude'] ?? null;
+                $record->clock_in_lng = $data['longitude'] ?? null;
+                $record->location_accuracy = $data['accuracy'] ?? null;
+            } else {
+                abort_unless($record->exists && $record->clock_in_time, 422, 'A clock-in record is required before clock-out.');
+                if (! $record->clock_out_time) {
+                    $record->clock_out_time = $timestamp->format('H:i:s');
+                }
+            }
+
+            $record->client_uuid = $data['client_uuid'];
+            $record->is_offline_upload = true;
+            $record->save();
+
+            return $record;
+        });
+
+        return response()->json([
+            'success' => true,
+            'idempotent' => false,
+            'message' => 'Offline attendance synchronized successfully.',
+            'record_id' => $record->id,
+        ]);
     }
 
     /**
