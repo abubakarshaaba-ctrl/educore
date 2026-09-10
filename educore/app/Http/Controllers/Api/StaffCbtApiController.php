@@ -208,6 +208,7 @@ class StaffCbtApiController extends Controller
     private function teacherSubjectIds($user)
     {
         return ClassArmSubject::where('teacher_id', $user->id)
+            ->whereHas('classArm', fn (Builder $query) => $query->where('tenant_id', $user->tenant_id))
             ->pluck('subject_id')
             ->unique();
     }
@@ -220,22 +221,30 @@ class StaffCbtApiController extends Controller
 
         return ClassArmSubject::where('teacher_id', $user->id)
             ->where('subject_id', $bank->subject_id)
-            ->whereHas('classArm', fn (Builder $query) => $query->where('class_level_id', $bank->class_level_id))
+            ->whereHas('classArm', fn (Builder $query) => $query
+                ->where('tenant_id', $user->tenant_id)
+                ->where('class_level_id', $bank->class_level_id))
             ->exists();
     }
 
     private function scopedExams($user): Builder
     {
-        $query = CbtExam::with([
-            'questionBank.subject',
-            'questionBank.classLevel',
-            'classArm.classLevel',
-            'classArms.classLevel',
-            'term.session',
-        ])->withCount('studentSessions');
+        $query = CbtExam::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->with([
+                'questionBank.subject',
+                'questionBank.classLevel',
+                'classArm.classLevel',
+                'classArms.classLevel',
+                'term.session',
+            ])
+            ->withCount('studentSessions');
 
         if (! $this->hasFullAccess($user)) {
-            $bankIds = CbtQuestionBank::whereIn('subject_id', $this->teacherSubjectIds($user))->pluck('id');
+            $bankIds = CbtQuestionBank::query()
+                ->where('tenant_id', $user->tenant_id)
+                ->whereIn('subject_id', $this->teacherSubjectIds($user))
+                ->pluck('id');
             $query->whereIn('question_bank_id', $bankIds);
         }
 
