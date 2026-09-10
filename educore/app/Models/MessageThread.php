@@ -1,7 +1,7 @@
 <?php
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MessageThread extends BaseTenantModel
 {
@@ -10,13 +10,41 @@ class MessageThread extends BaseTenantModel
     protected $fillable = [
         'tenant_id',
         'student_id',
+        'conversation_type',
+        'recipient_user_id',
+        'audience',
         'subject',
         'initiated_by',
         'status',
     ];
 
-    public function replies()  { return $this->hasMany(MessageThreadReply::class, 'thread_id'); }
-    public function student()  { return $this->belongsTo(\App\Models\Student::class); }
-    public function initiator(){ return $this->belongsTo(\App\Models\User::class, 'initiated_by'); }
-    public function unread()   { return $this->replies()->where('is_read', false); }
+    public function replies()
+    {
+        return $this->hasMany(MessageThreadReply::class, 'thread_id');
+    }
+
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(Student::class);
+    }
+
+    public function initiator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'initiated_by');
+    }
+
+    public function recipient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recipient_user_id');
+    }
+
+    public function unread()
+    {
+        return $this->replies()->where('is_read', false);
+    }
+
+    public function isBroadcast(): bool
+    {
+        return filled($this->audience);
+    }
 }
