@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
+use App\Http\Controllers\Api\StaffAttendanceApiController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -25,6 +26,7 @@ class MobileStaffAttendanceContractTest extends TestCase
             'POST api/v1/admin/staff-attendance/proxy-clock',
             'GET api/v1/admin/staff-attendance/qr',
             'POST api/v1/admin/staff-attendance/qr/reset',
+            'POST api/v1/staff-attendance/offline/sync',
         ];
 
         foreach ($expected as $signature) {
@@ -51,5 +53,7 @@ class MobileStaffAttendanceContractTest extends TestCase
                 "Missing AdminStaffAttendanceController::{$method}",
             );
         }
+
+        $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
     }
 }
