@@ -26,6 +26,7 @@ import online.educoreng.educore.core.model.StudentProfile
 import online.educoreng.educore.core.model.SyncState
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 import online.educoreng.educore.sync.SelfAttendanceOfflineSyncRepository
+import online.educoreng.educore.sync.SelfAttendanceQueuedStatus
 
 data class ClassesUiState(
     val catalogue: ClassCatalogue? = null,
@@ -33,6 +34,7 @@ data class ClassesUiState(
     val studentProfile: StudentProfile? = null,
     val attendanceSheet: AttendanceSheet? = null,
     val staffAttendance: StaffAttendanceSnapshot? = null,
+    val selfAttendanceSync: List<SelfAttendanceQueuedStatus> = emptyList(),
     val classSearch: String = "",
     val studentSearch: String = "",
     val isLoadingClasses: Boolean = false,
@@ -241,12 +243,21 @@ class ClassesViewModel @Inject constructor(
     fun loadStaffAttendance() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingWorkspace = true, errorMessage = null) }
+            val syncStatuses = selfAttendanceOffline.statuses()
             when (val result = repository.loadStaffAttendance()) {
                 is AppResult.Success -> _uiState.update {
-                    it.copy(staffAttendance = result.value, isLoadingWorkspace = false)
+                    it.copy(
+                        staffAttendance = result.value,
+                        selfAttendanceSync = syncStatuses,
+                        isLoadingWorkspace = false,
+                    )
                 }
                 is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage)
+                    it.copy(
+                        selfAttendanceSync = syncStatuses,
+                        isLoadingWorkspace = false,
+                        errorMessage = result.error.userMessage,
+                    )
                 }
             }
         }
@@ -271,7 +282,14 @@ class ClassesViewModel @Inject constructor(
                         )) {
                             is AppResult.Success -> {
                                 syncCoordinator.schedule()
-                                _uiState.update { it.copy(isSaving = false, message = queued.value, errorMessage = null) }
+                                _uiState.update {
+                                    it.copy(
+                                        isSaving = false,
+                                        message = queued.value,
+                                        errorMessage = null,
+                                        selfAttendanceSync = selfAttendanceOffline.statuses(),
+                                    )
+                                }
                             }
                             is AppResult.Failure -> _uiState.update {
                                 it.copy(isSaving = false, errorMessage = queued.error.userMessage)
@@ -299,7 +317,14 @@ class ClassesViewModel @Inject constructor(
                         when (val queued = selfAttendanceOffline.queue(action = "clock_out")) {
                             is AppResult.Success -> {
                                 syncCoordinator.schedule()
-                                _uiState.update { it.copy(isSaving = false, message = queued.value, errorMessage = null) }
+                                _uiState.update {
+                                    it.copy(
+                                        isSaving = false,
+                                        message = queued.value,
+                                        errorMessage = null,
+                                        selfAttendanceSync = selfAttendanceOffline.statuses(),
+                                    )
+                                }
                             }
                             is AppResult.Failure -> _uiState.update {
                                 it.copy(isSaving = false, errorMessage = queued.error.userMessage)
