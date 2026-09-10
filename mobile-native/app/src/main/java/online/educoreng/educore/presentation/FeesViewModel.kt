@@ -162,11 +162,15 @@ class FeesViewModel @Inject constructor(
         val current = _uiState.value
         if (!current.canManage) return
         val defaultTermId = current.workspace?.terms?.firstOrNull()?.id
+        val defaultClassId = current.workspace?.classLevels?.firstOrNull()?.id
         _uiState.update {
             it.copy(
                 generationOpen = true,
                 paymentOpen = false,
-                generation = FeesGenerationDraft(termId = defaultTermId),
+                generation = FeesGenerationDraft(
+                    termId = defaultTermId,
+                    classLevelId = defaultClassId,
+                ),
                 errorMessage = null,
                 message = null,
             )
