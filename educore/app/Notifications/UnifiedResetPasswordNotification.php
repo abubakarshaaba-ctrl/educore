@@ -23,11 +23,15 @@ class UnifiedResetPasswordNotification extends Notification
     {
         $email = $notifiable->getEmailForPasswordReset();
         $url = route('password.reset', ['token' => $this->token, 'email' => $email]);
+        $expires = (int) config('auth.passwords.users.expire', 60);
 
         return (new MailMessage)
-            ->subject('EduCore password reset')
-            ->line('A password reset was requested for your EduCore account.')
+            ->subject('Reset your EduCore password')
+            ->greeting('Reset your password')
+            ->line('We received a request to reset the password for your EduCore account.')
+            ->line('Use the secure button below to choose a new password. For your protection, this link expires in ' . $expires . ' minutes.')
             ->action('Reset Password', $url)
-            ->line('If you did not request a password reset, no further action is required.');
+            ->line('If you did not request this change, you can safely ignore this email. Your current password will remain unchanged.')
+            ->salutation('EduCore Security');
     }
 }
