@@ -1,6 +1,7 @@
 package online.educoreng.educore.presentation
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -61,6 +62,10 @@ internal fun AdminStaffAttendanceScreen(
     @Suppress("UNUSED_VARIABLE")
     val initialState = state
 
+    fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
     fun saveLocation(location: Location?) {
         locating = false
         if (location == null) {
@@ -91,7 +96,14 @@ internal fun AdminStaffAttendanceScreen(
         locationMessage = "School location captured: %.6f, %.6f".format(location.latitude, location.longitude)
     }
 
+    @SuppressLint("MissingPermission")
     fun captureCurrentLocation() {
+        if (!hasLocationPermission()) {
+            locating = false
+            locationMessage = "Location permission is required to capture the school coordinates."
+            return
+        }
+
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         locating = true
         locationMessage = null
@@ -123,7 +135,7 @@ internal fun AdminStaffAttendanceScreen(
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (grants.values.any { it }) captureCurrentLocation()
+        if (grants.values.any { it } && hasLocationPermission()) captureCurrentLocation()
         else locationMessage = "Location permission is required to capture the school coordinates."
     }
 
@@ -164,9 +176,7 @@ internal fun AdminStaffAttendanceScreen(
         if (liveState.section == AdminAttendanceSection.SETTINGS) {
             OutlinedButton(
                 onClick = {
-                    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    if (fine || coarse) {
+                    if (hasLocationPermission()) {
                         captureCurrentLocation()
                     } else {
                         locationPermission.launch(
