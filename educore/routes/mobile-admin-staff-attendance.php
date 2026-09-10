@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
+use App\Http\Controllers\Api\AdminStaffAttendanceQrController;
 use Illuminate\Support\Facades\Route;
 
 // Additional school-administrator attendance operations. The daily overview,
@@ -16,5 +17,6 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::post('proxy-reviews/{record}', [AdminStaffAttendanceController::class, 'decideProxy'])
         ->whereNumber('record');
 
+    Route::get('qr', AdminStaffAttendanceQrController::class);
     Route::post('reset-qr', [AdminStaffAttendanceController::class, 'resetQr']);
 });
