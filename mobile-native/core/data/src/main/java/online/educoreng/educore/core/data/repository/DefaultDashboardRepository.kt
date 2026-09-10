@@ -61,4 +61,13 @@ class DefaultDashboardRepository(
             }
         }
     }
+
+    override suspend fun loadProfilePhoto(): AppResult<ByteArray?> = withContext(Dispatchers.IO) {
+        // The photo is a non-critical dashboard enhancement. A missing or
+        // temporarily unavailable photo must never block the authenticated app.
+        when (val result = safeApiCall(moshi) { api.profilePhoto() }) {
+            is AppResult.Success -> AppResult.Success(result.value.use { body -> body.bytes() })
+            is AppResult.Failure -> AppResult.Success(null)
+        }
+    }
 }
