@@ -141,7 +141,14 @@ private fun StaffPayslipDetail(
         if (state.isLoading && detail == null) {
             item { EduCoreLoadingState(message = "Loading payslip") }
         } else if (detail == null) {
-            item { EduCoreEmptyState("Unable to load payslip", state.errorMessage ?: "The payslip is unavailable.", "Retry", onRetry) }
+            item {
+                EduCoreEmptyState(
+                    title = "Unable to load payslip",
+                    message = state.errorMessage ?: "The payslip is unavailable.",
+                    actionLabel = "Retry",
+                    onAction = onRetry,
+                )
+            }
         } else {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
