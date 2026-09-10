@@ -160,8 +160,6 @@ class MainViewModel @Inject constructor(
         val online = _uiState.value.isOnline
         _uiState.update { it.copy(isBusy = true, message = null) }
         viewModelScope.launch {
-            // The repository bounds network revocation to a short timeout, so
-            // sign-out never waits for FCM token retrieval or a slow endpoint.
             sessionRepository.logout()
             _uiState.value = AppUiState(
                 phase = AppPhase.SIGNED_OUT,
@@ -254,13 +252,20 @@ class MainViewModel @Inject constructor(
         }
         viewModelScope.launch {
             when (val result = dashboardRepository.load()) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(
-                        dashboard = DashboardUiState(
-                            snapshot = result.value,
-                            isLoading = false,
-                        ),
-                    )
+                is AppResult.Success -> {
+                    val profilePhoto = when (val photo = dashboardRepository.loadProfilePhoto()) {
+                        is AppResult.Success -> photo.value
+                        is AppResult.Failure -> null
+                    }
+                    _uiState.update {
+                        it.copy(
+                            dashboard = DashboardUiState(
+                                snapshot = result.value,
+                                profilePhoto = profilePhoto,
+                                isLoading = false,
+                            ),
+                        )
+                    }
                 }
                 is AppResult.Failure -> _uiState.update {
                     it.copy(
