@@ -5,6 +5,7 @@ import online.educoreng.educore.core.network.dto.AdminAttendanceMutationResponse
 import online.educoreng.educore.core.network.dto.AdminAttendanceProxyDecisionRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceReviewRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceSettingsRequestDto
+import online.educoreng.educore.core.network.dto.AdminStaffAttendanceQrDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceReportDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.AdminStaffOfflineQueueDto
@@ -50,6 +51,9 @@ interface AdminStaffAttendanceApi {
         @Path("record") recordId: Long,
         @Body body: AdminAttendanceProxyDecisionRequestDto,
     ): AdminAttendanceMutationResponseDto
+
+    @GET("admin/staff-attendance/qr")
+    suspend fun qr(): AdminStaffAttendanceQrDto
 
     @PUT("admin/staff-attendance/settings")
     suspend fun updateSettings(@Body body: AdminAttendanceSettingsRequestDto): AdminAttendanceMutationResponseDto
