@@ -90,6 +90,7 @@ internal fun StaffCbtCreateScreen(
     var requireFullscreen by rememberSaveable { mutableStateOf(options.defaults.requireFullscreen) }
     var focusLossPolicy by rememberSaveable { mutableStateOf(options.defaults.focusLossPolicy) }
     var maxFocusLosses by rememberSaveable { mutableStateOf(options.defaults.maxFocusLosses.toString()) }
+    var validationMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val initialStart = remember { roundedFutureMillis(60) }
     var startMillis by rememberSaveable { mutableLongStateOf(initialStart) }
@@ -104,9 +105,14 @@ internal fun StaffCbtCreateScreen(
 
     LaunchedEffect(bankId) {
         val levelId = options.banks.firstOrNull { it.id == bankId }?.classLevel?.id
+        val matchingClasses = options.classes.filter { it.classLevelId == levelId }
         selectedClasses = selectedClasses.filterTo(mutableSetOf()) { selectedId ->
-            options.classes.any { it.id == selectedId && it.classLevelId == levelId }
+            matchingClasses.any { it.id == selectedId }
         }
+        if (selectedClasses.isEmpty() && matchingClasses.size == 1) {
+            selectedClasses = setOf(matchingClasses.first().id)
+        }
+        validationMessage = null
     }
 
     LaunchedEffect(termId) {
@@ -126,6 +132,7 @@ internal fun StaffCbtCreateScreen(
                 } else {
                     endMillis = replaceCreateDate(endMillis, selected)
                 }
+                validationMessage = null
             },
             onDismiss = { dateTarget = null },
         )
@@ -144,6 +151,7 @@ internal fun StaffCbtCreateScreen(
                 } else {
                     endMillis = replaceCreateTime(endMillis, hour, minute)
                 }
+                validationMessage = null
             },
             onDismiss = { timeTarget = null },
         )
@@ -154,11 +162,21 @@ internal fun StaffCbtCreateScreen(
     val assessments = options.assessmentTypes.filter { it.termId == termId }
     val durationValue: Int? = duration.toIntOrNull()
     val maxFocusValue: Int? = maxFocusLosses.toIntOrNull()
-    val durationValid = durationValue?.let { value -> value >= 5 && value <= 1440 } == true
-    val focusValid = maxFocusValue?.let { value -> value >= 0 && value <= 20 } == true
+    val durationValid = durationValue?.let { value -> value in 5..1440 } == true
+    val focusValid = maxFocusValue?.let { value -> value in 0..20 } == true
     val bankValid = (selectedBank?.questionCount ?: 0) > 0
     val scheduleValid = startMillis > System.currentTimeMillis() && endMillis > startMillis
-    val formValid = title.isNotBlank() && bankValid && selectedClasses.isNotEmpty() && termId > 0L && durationValid && focusValid && scheduleValid
+    val formIssues = buildList {
+        if (title.isBlank()) add("enter an examination title")
+        if (selectedBank == null) add("select a question bank")
+        else if (!bankValid) add("add questions to the selected question bank")
+        if (selectedClasses.isEmpty()) add("select at least one matching class")
+        if (termId <= 0L) add("select an academic term")
+        if (!durationValid) add("set duration between 5 and 1440 minutes")
+        if (!focusValid) add("set maximum focus losses between 0 and 20")
+        if (!scheduleValid) add("set a future start time and a later end time")
+    }
+    val formValid = formIssues.isEmpty()
 
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
@@ -188,7 +206,10 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 EduCoreTextField(
                     value = title,
-                    onValueChange = { candidate -> if (candidate.length <= 150) title = candidate },
+                    onValueChange = { candidate ->
+                        if (candidate.length <= 150) title = candidate
+                        validationMessage = null
+                    },
                     label = "Examination title",
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isCreating,
@@ -237,6 +258,7 @@ internal fun StaffCbtCreateScreen(
                                 selected = classOption.id in selectedClasses,
                                 onClick = {
                                     selectedClasses = if (classOption.id in selectedClasses) selectedClasses - classOption.id else selectedClasses + classOption.id
+                                    validationMessage = null
                                 },
                                 enabled = !state.isCreating,
                             )
@@ -259,7 +281,10 @@ internal fun StaffCbtCreateScreen(
                         EduCoreFilterChip(
                             label = listOfNotNull(term.name, term.session).joinToString(" · "),
                             selected = term.id == termId,
-                            onClick = { termId = term.id },
+                            onClick = {
+                                termId = term.id
+                                validationMessage = null
+                            },
                             enabled = !state.isCreating,
                         )
                     }
@@ -310,7 +335,10 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 EduCoreTextField(
                     value = duration,
-                    onValueChange = { candidate -> if (candidate.length <= 4 && candidate.all(Char::isDigit)) duration = candidate },
+                    onValueChange = { candidate ->
+                        if (candidate.length <= 4 && candidate.all(Char::isDigit)) duration = candidate
+                        validationMessage = null
+                    },
                     label = "Duration (minutes)",
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isCreating,
@@ -347,7 +375,10 @@ internal fun StaffCbtCreateScreen(
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 EduCoreTextField(
                     value = maxFocusLosses,
-                    onValueChange = { candidate -> if (candidate.length <= 2 && candidate.all(Char::isDigit)) maxFocusLosses = candidate },
+                    onValueChange = { candidate ->
+                        if (candidate.length <= 2 && candidate.all(Char::isDigit)) maxFocusLosses = candidate
+                        validationMessage = null
+                    },
                     label = "Maximum focus losses",
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isCreating,
@@ -358,12 +389,36 @@ internal fun StaffCbtCreateScreen(
         }
 
         item {
+            if (!formValid) {
+                EduCoreShowcaseSectionCard {
+                    Text(
+                        "Before creating this draft",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = EduCoreColors.Navy900,
+                    )
+                    Spacer(Modifier.height(EduCoreSpacing.Xs))
+                    formIssues.forEach { issue ->
+                        Text("• ${issue.replaceFirstChar(Char::uppercase)}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate700)
+                    }
+                }
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+            }
+            validationMessage?.let { message ->
+                EduCoreErrorBanner(message)
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+            }
             EduCorePrimaryButton(
                 text = "Create examination draft",
                 onClick = {
+                    if (!formValid) {
+                        validationMessage = "Complete the highlighted requirements before creating the examination draft."
+                        return@EduCorePrimaryButton
+                    }
                     val validDuration = duration.toIntOrNull() ?: return@EduCorePrimaryButton
                     val validFocusLosses = maxFocusLosses.toIntOrNull() ?: return@EduCorePrimaryButton
                     val linkedAssessmentId: Long? = if (assessmentId > 0L) assessmentId else null
+                    validationMessage = null
                     onCreate(
                         StaffCbtCreateRequestDto(
                             title = title.trim(),
@@ -382,7 +437,7 @@ internal fun StaffCbtCreateScreen(
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = formValid && !state.isCreating,
+                enabled = !state.isCreating,
                 loading = state.isCreating,
                 leadingIcon = { Icon(Icons.Default.AddCircle, contentDescription = null) },
             )
