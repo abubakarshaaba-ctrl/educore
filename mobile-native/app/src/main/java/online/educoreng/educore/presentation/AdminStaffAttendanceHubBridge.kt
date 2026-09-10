@@ -31,13 +31,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
-/** Compatibility alias retained for the More hub call site. */
+/** Compatibility alias retained for existing module-hub call sites. */
 internal fun AdminStaffAttendanceViewModel.load() = loadDaily()
 
 /**
- * Compatibility host used by the More hub. It keeps the entire administrator
- * attendance workspace native while the routed staff shell can continue to
- * call the lower-level screen directly.
+ * Full native administrator attendance workspace.
+ *
+ * This host deliberately owns one route-scoped attendance ViewModel so the
+ * daily report, monthly report, reviews, settings, geofence capture and QR
+ * controls all mutate the same observable state.
  */
 @Composable
 internal fun AdminStaffAttendanceScreen(
@@ -47,11 +49,17 @@ internal fun AdminStaffAttendanceScreen(
 ) {
     val context = LocalContext.current
     val viewModel: AdminStaffAttendanceViewModel = hiltViewModel()
+    val liveState by viewModel.uiState.collectAsStateWithLifecycle()
     val qrViewModel: AdminStaffAttendanceQrViewModel = hiltViewModel()
     val qrState by qrViewModel.uiState.collectAsStateWithLifecycle()
     var qrOpen by remember { mutableStateOf(false) }
     var locating by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf<String?>(null) }
+
+    // The argument is retained for source compatibility with existing callers.
+    // Once this routed host is mounted, its route-scoped state is authoritative.
+    @Suppress("UNUSED_VARIABLE")
+    val initialState = state
 
     fun saveLocation(location: Location?) {
         locating = false
@@ -59,10 +67,10 @@ internal fun AdminStaffAttendanceScreen(
             locationMessage = "Current location could not be determined. Turn on Location and try again."
             return
         }
-        val settings = state.snapshot?.settings
+        val settings = liveState.snapshot?.settings
         if (settings == null) {
             locationMessage = "Load attendance settings before setting the school location."
-            onRefresh()
+            viewModel.loadDaily()
             return
         }
         viewModel.saveSettings(
@@ -74,7 +82,7 @@ internal fun AdminStaffAttendanceScreen(
             lng = location.longitude,
             radius = settings.geoRadiusMeters ?: 500,
         )
-        locationMessage = "School location captured from this device."
+        locationMessage = "School location captured: %.6f, %.6f".format(location.latitude, location.longitude)
     }
 
     fun captureCurrentLocation() {
@@ -94,6 +102,7 @@ internal fun AdminStaffAttendanceScreen(
                     manager.getCurrentLocation(provider, null, context.mainExecutor, ::saveLocation)
                 }
             } else {
+                @Suppress("DEPRECATION")
                 val location = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
                     .mapNotNull { provider -> runCatching { manager.getLastKnownLocation(provider) }.getOrNull() }
                     .maxByOrNull { it.time }
@@ -113,7 +122,7 @@ internal fun AdminStaffAttendanceScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (state.snapshot == null) onRefresh()
+        if (liveState.snapshot == null) viewModel.loadDaily()
     }
 
     BackHandler {
@@ -146,7 +155,7 @@ internal fun AdminStaffAttendanceScreen(
             Text("School attendance QR")
         }
 
-        if (state.section == AdminAttendanceSection.SETTINGS) {
+        if (liveState.section == AdminAttendanceSection.SETTINGS) {
             OutlinedButton(
                 onClick = {
                     val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -162,7 +171,7 @@ internal fun AdminStaffAttendanceScreen(
                         )
                     }
                 },
-                enabled = !locating && !state.isMutating,
+                enabled = !locating && !liveState.isMutating,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = eduCoreScreenPadding()),
@@ -179,7 +188,7 @@ internal fun AdminStaffAttendanceScreen(
 
         Box(Modifier.weight(1f)) {
             AdminStaffAttendanceScreen(
-                state = state,
+                state = liveState,
                 onSection = viewModel::selectSection,
                 onDailyDate = viewModel::setDailyDate,
                 onDailyQuery = viewModel::setDailyQuery,
