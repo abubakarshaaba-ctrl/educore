@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
-                ->group(base_path('routes/mobile-admin-staff-attendance-qr.php'));
+                ->group(base_path('routes/mobile-admin-staff-attendance.php'));
 
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
@@ -30,7 +30,6 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Trust Cloudflare (and any other reverse proxy) so X-Forwarded-Proto/Host/IP are read correctly
         $middleware->trustProxies(
             at: '*',
             headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
@@ -39,7 +38,6 @@ return Application::configure(basePath: dirname(__DIR__))
                    | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
         );
 
-        // Run on every HTTP request (outermost layer)
         $middleware->prepend([
             \App\Http\Middleware\ForceHttps::class,
         ]);
@@ -48,7 +46,6 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
-        // Runs inside the routed "web" group so route()/routeIs() are available.
         $middleware->web(append: [
             \App\Http\Middleware\MaintenanceMode::class,
             \App\Http\Middleware\RestrictCbtLanSession::class,
@@ -70,7 +67,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // CSRF token mismatch (419) — redirect to the unified login with a user-friendly message.
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Your session has expired. Please refresh and try again.'], 419);
