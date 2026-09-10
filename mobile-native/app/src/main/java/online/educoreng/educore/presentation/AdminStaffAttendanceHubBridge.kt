@@ -54,7 +54,9 @@ internal fun AdminStaffAttendanceScreen(
     var proxyOpen by remember { mutableStateOf(false) }
     var locating by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf<String?>(null) }
-    var capturedLocation by remember { mutableStateOf<Location?>(null) }
+    var capturedLatitude by remember { mutableStateOf<Double?>(null) }
+    var capturedLongitude by remember { mutableStateOf<Double?>(null) }
+    var capturedAccuracy by remember { mutableStateOf<Float?>(null) }
 
     @Suppress("UNUSED_VARIABLE")
     val initialState = state
@@ -63,42 +65,17 @@ internal fun AdminStaffAttendanceScreen(
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-    fun persistCapturedLocation(location: Location) {
-        val settings = liveState.snapshot?.settings
-        if (settings == null) {
-            capturedLocation = location
-            locationMessage = "Location captured. Loading attendance settings…"
-            viewModel.loadDaily()
-            return
-        }
-        val resumptionTime = settings.resumptionTime
-        val closingTime = settings.closingTime
-        if (resumptionTime.isNullOrBlank() || closingTime.isNullOrBlank()) {
-            capturedLocation = location
-            locationMessage = "Location captured, but attendance times must be configured before the school location can be saved."
-            return
-        }
-        viewModel.saveSettings(
-            resumption = resumptionTime,
-            grace = settings.graceMinutes,
-            closing = closingTime,
-            geoEnabled = true,
-            lat = location.latitude,
-            lng = location.longitude,
-            radius = settings.geoRadiusMeters?.takeIf { it > 0 } ?: 500,
-        )
-        capturedLocation = null
-        val accuracy = if (location.hasAccuracy()) " · accuracy ±${location.accuracy.toInt()} m" else ""
-        locationMessage = "Location captured: %.6f, %.6f%s".format(location.latitude, location.longitude, accuracy)
-    }
-
     fun acceptLocation(location: Location?) {
         locating = false
         if (location == null) {
             locationMessage = "Unable to determine location. Ensure GPS or network location is available and try again."
             return
         }
-        persistCapturedLocation(location)
+        capturedLatitude = location.latitude
+        capturedLongitude = location.longitude
+        capturedAccuracy = location.accuracy.takeIf { location.hasAccuracy() }
+        val accuracy = capturedAccuracy?.let { " · accuracy ±${it.toInt()} m" }.orEmpty()
+        locationMessage = "Location captured: %.6f, %.6f%s".format(location.latitude, location.longitude, accuracy)
     }
 
     @SuppressLint("MissingPermission")
@@ -164,13 +141,6 @@ internal fun AdminStaffAttendanceScreen(
 
     LaunchedEffect(Unit) {
         if (liveState.snapshot == null) viewModel.loadDaily()
-    }
-
-    LaunchedEffect(liveState.snapshot?.settings, capturedLocation) {
-        val pending = capturedLocation ?: return@LaunchedEffect
-        if (liveState.snapshot?.settings != null && !liveState.isMutating) {
-            persistCapturedLocation(pending)
-        }
     }
 
     BackHandler {
@@ -265,23 +235,34 @@ internal fun AdminStaffAttendanceScreen(
         }
 
         Box(Modifier.weight(1f)) {
-            AdminStaffAttendanceScreen(
-                state = liveState,
-                onSection = viewModel::selectSection,
-                onDailyDate = viewModel::setDailyDate,
-                onDailyQuery = viewModel::setDailyQuery,
-                onDailyStatus = viewModel::setDailyStatus,
-                onReportMonth = viewModel::setReportMonth,
-                onReportYear = viewModel::setReportYear,
-                onRefreshDaily = viewModel::loadDaily,
-                onRefreshReport = viewModel::loadReport,
-                onRefreshReviews = viewModel::loadReviews,
-                onManualOverride = viewModel::manualOverride,
-                onProcessOffline = viewModel::processOffline,
-                onDecideProxy = viewModel::decideProxy,
-                onSaveSettings = viewModel::saveSettings,
-                onResetQr = viewModel::resetQr,
-            )
+            if (liveState.section == AdminAttendanceSection.SETTINGS) {
+                AdminAttendanceSettingsEditor(
+                    state = liveState,
+                    capturedLatitude = capturedLatitude,
+                    capturedLongitude = capturedLongitude,
+                    capturedAccuracyMetres = capturedAccuracy,
+                    onSection = viewModel::selectSection,
+                    onSave = viewModel::saveSettings,
+                )
+            } else {
+                AdminStaffAttendanceScreen(
+                    state = liveState,
+                    onSection = viewModel::selectSection,
+                    onDailyDate = viewModel::setDailyDate,
+                    onDailyQuery = viewModel::setDailyQuery,
+                    onDailyStatus = viewModel::setDailyStatus,
+                    onReportMonth = viewModel::setReportMonth,
+                    onReportYear = viewModel::setReportYear,
+                    onRefreshDaily = viewModel::loadDaily,
+                    onRefreshReport = viewModel::loadReport,
+                    onRefreshReviews = viewModel::loadReviews,
+                    onManualOverride = viewModel::manualOverride,
+                    onProcessOffline = viewModel::processOffline,
+                    onDecideProxy = viewModel::decideProxy,
+                    onSaveSettings = viewModel::saveSettings,
+                    onResetQr = viewModel::resetQr,
+                )
+            }
         }
     }
 }
