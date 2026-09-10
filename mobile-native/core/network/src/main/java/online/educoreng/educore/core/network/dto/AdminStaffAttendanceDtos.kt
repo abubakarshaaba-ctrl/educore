@@ -28,14 +28,12 @@ data class AdminStaffAttendancePendingDto(
     @Json(name = "proxy") val proxy: Int = 0,
 )
 
-/** Canonical record returned by AdminStaffAttendanceController::recordPayload(). */
 @JsonClass(generateAdapter = true)
 data class AdminStaffAttendanceRecordDto(
     @Json(name = "id") val id: Long? = null,
     @Json(name = "staff_id") val userId: Long,
     @Json(name = "staff_name") val staff: String? = null,
     @Json(name = "staff_number") val staffId: String? = null,
-    @Json(name = "date") val attendanceDate: String? = null,
     @Json(name = "status") val status: String? = null,
     @Json(name = "clock_in") val clockIn: String? = null,
     @Json(name = "clock_out") val clockOut: String? = null,
@@ -43,17 +41,9 @@ data class AdminStaffAttendanceRecordDto(
     @Json(name = "recorded_by") val clockedInBy: String? = null,
     @Json(name = "recorded_by_proxy") val recordedByProxy: Boolean = false,
     @Json(name = "proxy_reason") val proxyReason: String? = null,
-    @Json(name = "client_uuid") val clientUuid: String? = null,
     @Json(name = "offline") val offline: Boolean = false,
     @Json(name = "rejection_reason") val rejectionReason: String? = null,
-    @Json(name = "latitude") val latitude: Double? = null,
-    @Json(name = "longitude") val longitude: Double? = null,
-    @Json(name = "accuracy") val accuracy: Double? = null,
-    @Json(name = "updated_at") val updatedAt: String? = null,
-    // Kept for presentation compatibility while the UI migrates to the canonical fields above.
-    val geoVerified: Boolean = false,
-    val notes: String? = null,
-    val proxyReviewStatus: String? = null,
+    @Json(name = "notes") val notes: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -117,6 +107,7 @@ data class AdminStaffOfflineRecordDto(
     @Json(name = "client_uuid") val clientUuid: String? = null,
     @Json(name = "rejection_reason") val rejectionReason: String? = null,
     @Json(name = "status") val status: String? = null,
+    @Json(name = "attendance_status") val attendanceStatus: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
