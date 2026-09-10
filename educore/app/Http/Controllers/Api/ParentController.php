@@ -103,7 +103,7 @@ class ParentController extends Controller
 
     public function attendance(Request $request)
     {
-        [, , $student] = $this->context($request);
+        [, $students, $student] = $this->context($request);
         $terms = Term::with('session')->latest('start_date')->get();
         $term = $request->filled('term_id')
             ? $terms->firstWhere('id', $request->integer('term_id'))
@@ -117,16 +117,27 @@ class ParentController extends Controller
             ? AttendanceRecord::where('student_id', $student->id)
                 ->when($term, fn ($query) => $query->where('term_id', $term->id))
                 ->orderByDesc('attendance_date')
-                ->limit(100)
+                ->limit(366)
                 ->get(['attendance_date', 'status', 'remark'])
+                ->map(fn (AttendanceRecord $record) => [
+                    'date' => $record->attendance_date?->toDateString(),
+                    'status' => (string) $record->status,
+                    'remark' => $record->remark,
+                ])
+                ->filter(fn (array $record) => filled($record['date']))
+                ->values()
             : collect();
 
         return response()->json([
+            'contract_version' => 1,
+            'portal' => 'parent',
             'student' => $student ? $this->studentPayload($student) : null,
+            'children' => $students->map(fn (Student $child) => $this->studentPayload($child))->values(),
             'terms' => $terms->map(fn (Term $item) => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'session' => $item->session?->name,
+                'is_current' => (bool) $item->is_current,
             ])->values(),
             'selected_term_id' => $term?->id,
             'records' => $records,
@@ -139,6 +150,7 @@ class ParentController extends Controller
                     ? round(($records->whereIn('status', ['present', 'late'])->count() / $records->count()) * 100, 1)
                     : 0,
             ],
+            'generated_at' => now()->toIso8601String(),
         ]);
     }
 

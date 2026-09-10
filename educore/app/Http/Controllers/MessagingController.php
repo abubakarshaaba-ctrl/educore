@@ -88,15 +88,30 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
         abort_unless($user->tenant_id && ($user->isTenantStaff() || $user->isParent()), 403);
-        $staff = collect(); $parents = collect();
+        $staff = collect();
+        $parents = collect();
 
+        if ($user->isTenantStaff()) {
+            $staff = User::tenantStaff($this->tenantId())
+                ->where('id','!=',$user->id)
+                ->where('is_active',true)
+                ->orderBy('name')
+                ->get(['id','name','role','staff_id']);
+        }
         if ($this->canOverseeAllThreads($user)) {
-            $staff = User::tenantStaff($this->tenantId())->where('id','!=',$user->id)->where('is_active',true)->orderBy('name')->get(['id','name','role','staff_id']);
-            $parents = User::query()->where('tenant_id',$this->tenantId())->where('role','parent')->where('is_active',true)->orderBy('name')->get(['id','name','role','phone']);
+            $parents = User::query()
+                ->where('tenant_id',$this->tenantId())
+                ->where('role','parent')
+                ->where('is_active',true)
+                ->orderBy('name')
+                ->get(['id','name','role','phone']);
         }
 
         return view('messages.compose-internal', [
-            'staff'=>$staff, 'parents'=>$parents, 'canBroadcast'=>$this->canOverseeAllThreads($user),
+            'staff'=>$staff,
+            'parents'=>$parents,
+            'canBroadcast'=>$this->canOverseeAllThreads($user),
+            'canMessageStaff'=>$user->isTenantStaff(),
         ]);
     }
 
@@ -104,7 +119,9 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
         abort_unless($user->tenant_id && ($user->isTenantStaff() || $user->isParent()), 403);
-        $allowedTargets = $this->canOverseeAllThreads($user) ? ['all_staff','staff','all_parents','parent'] : ['admin'];
+        $allowedTargets = $this->canOverseeAllThreads($user)
+            ? ['all_staff','staff','all_parents','parent']
+            : ($user->isTenantStaff() ? ['admin','staff'] : ['admin']);
         $data = $request->validate([
             'target_type'=>['required',Rule::in($allowedTargets)], 'recipient_id'=>['nullable','integer'],
             'subject'=>['required','string','max:150'], 'body'=>['required','string','max:10000'],
@@ -115,6 +132,8 @@ class MessagingController extends Controller
             abort_unless($request->filled('recipient_id'), 422, 'Select a recipient.');
             $recipient = User::query()->where('tenant_id',$this->tenantId())->whereKey($data['recipient_id'])->where('is_active',true)->firstOrFail();
             abort_unless($data['target_type']==='staff' ? $recipient->isTenantStaff() : $recipient->isParent(), 422, 'Select a valid recipient.');
+            abort_if((int)$recipient->id === (int)$user->id, 422, 'Select another staff member.');
+            if ($data['target_type'] === 'parent') abort_unless($this->canOverseeAllThreads($user), 403);
         } elseif ($data['target_type']==='admin') {
             $recipient = User::query()->where('tenant_id',$this->tenantId())->where('is_active',true)
                 ->whereIn('role',['admin','principal','head','head_teacher','vice_principal','academic_administrator'])
@@ -136,6 +155,7 @@ class MessagingController extends Controller
             return $thread;
         });
 
+        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
         return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Broadcast sent.' : 'Message sent.');
     }
 
@@ -174,6 +194,7 @@ class MessagingController extends Controller
                 ]);
                 return $private;
             });
+            app(PushNotificationService::class)->notifyMessageThread($private,$user,$data['body']);
             return redirect()->route('messages.thread',$private)->with('success','Your reply was sent privately to school administration.');
         }
 
@@ -181,7 +202,7 @@ class MessagingController extends Controller
             'tenant_id'=>$this->tenantId(), 'thread_id'=>$thread->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
         ]);
         $thread->touch();
-        if ($thread->student_id) app(PushNotificationService::class)->notifyMessageThread($thread,$user,$data['body']);
+        app(PushNotificationService::class)->notifyMessageThread($thread,$user,$data['body']);
         return back()->with('success','Reply sent.');
     }
 

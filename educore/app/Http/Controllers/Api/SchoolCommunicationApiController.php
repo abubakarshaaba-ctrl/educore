@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\User;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -77,7 +78,17 @@ class SchoolCommunicationApiController extends Controller
                 ->each(fn (User $parent) => $recipients->push(
                     $this->target('parent:'.$parent->id, 'parent', $parent->name, 'Individual parent')
                 ));
+        } elseif ($user->isTenantStaff()) {
+            $recipients->push($this->target('school_admin', 'admin', 'School Administration', 'Private conversation with school administration'));
+            User::activeStaff($user->tenant_id)
+                ->whereKeyNot($user->id)
+                ->orderBy('name')
+                ->get(['id', 'name', 'role'])
+                ->each(fn (User $member) => $recipients->push(
+                    $this->target('staff:'.$member->id, 'staff', $member->name, 'Individual staff member')
+                ));
         } else {
+            // Parents can contact administration without receiving a staff directory.
             $recipients->push($this->target('school_admin', 'admin', 'School Administration', 'Private conversation with school administration'));
         }
 
@@ -122,6 +133,7 @@ class SchoolCommunicationApiController extends Controller
         });
 
         $thread->load(['initiator:id,name,role', 'recipient:id,name,role', 'replies.sender:id,name']);
+        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
 
         return response()->json([
             'message' => $audience ? 'Broadcast sent.' : 'Message sent.',
@@ -170,6 +182,8 @@ class SchoolCommunicationApiController extends Controller
             });
 
             $privateThread->load(['initiator:id,name,role', 'recipient:id,name,role', 'replies.sender:id,name']);
+            app(PushNotificationService::class)->notifyMessageThread($privateThread, $user, $data['body']);
+
             return response()->json([
                 'message' => 'Your reply was sent privately to School Administration.',
                 'redirected_from_broadcast' => true,
@@ -184,6 +198,7 @@ class SchoolCommunicationApiController extends Controller
             'body' => trim($data['body']),
         ]);
         $thread->touch();
+        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
 
         return response()->json([
             'message' => 'Reply sent.',
@@ -198,20 +213,32 @@ class SchoolCommunicationApiController extends Controller
             abort_unless(! $this->canOversee($user), 422, 'Select a staff member, parent, or broadcast audience.');
             return ['admin', $this->schoolAdministrator($user)->id, null];
         }
+
         if ($target === 'all_staff' || $target === 'all_parents') {
             abort_unless($this->canOversee($user), 403);
             return [$target, null, $target];
         }
-        if (preg_match('/^(staff|parent):(\d+)$/', $target, $match)) {
-            abort_unless($this->canOversee($user), 403);
-            $type = $match[1];
+
+        if (preg_match('/^staff:(\d+)$/', $target, $match)) {
+            abort_unless($user->isTenantStaff(), 403);
             $recipient = User::query()
                 ->where('tenant_id', $user->tenant_id)
-                ->whereKey((int) $match[2])
+                ->whereKey((int) $match[1])
                 ->where('is_active', true)
                 ->firstOrFail();
-            abort_unless($type === 'staff' ? $recipient->isTenantStaff() : $recipient->isParent(), 422, 'Invalid recipient.');
-            return [$type, $recipient->id, null];
+            abort_unless($recipient->isTenantStaff() && (int) $recipient->id !== (int) $user->id, 422, 'Invalid staff recipient.');
+            return ['staff', $recipient->id, null];
+        }
+
+        if (preg_match('/^parent:(\d+)$/', $target, $match)) {
+            abort_unless($this->canOversee($user), 403);
+            $recipient = User::query()
+                ->where('tenant_id', $user->tenant_id)
+                ->whereKey((int) $match[1])
+                ->where('is_active', true)
+                ->firstOrFail();
+            abort_unless($recipient->isParent(), 422, 'Invalid parent recipient.');
+            return ['parent', $recipient->id, null];
         }
 
         throw ValidationException::withMessages(['target' => 'Select a valid school communication recipient.']);

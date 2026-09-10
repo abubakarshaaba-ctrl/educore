@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\CalendarEvent;
 use App\Services\Mobile\MobileCommunicationService;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -102,6 +103,8 @@ class MobileCommunicationController extends Controller
             return [$event, $notice];
         });
 
+        app(PushNotificationService::class)->notifyAnnouncementPublished($notice);
+
         return response()->json([
             'message' => 'Event published as a notice.',
             'event' => [
@@ -113,7 +116,7 @@ class MobileCommunicationController extends Controller
                 'type' => $event->type,
                 'color' => $event->color,
                 'is_public' => (bool) $event->is_public,
-                'deep_link' => ['type' => 'event', 'id' => (string) $event->id],
+                'deep_link' => ['type' => 'calendar_event', 'id' => (string) $event->id],
             ],
             'notice_id' => $notice->id,
         ], 201);
