@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +20,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+
+/** Compatibility alias retained for the More hub call site. */
+internal fun AdminStaffAttendanceViewModel.load() = loadDaily()
 
 /**
  * Compatibility host used by the More hub. It keeps the entire administrator
