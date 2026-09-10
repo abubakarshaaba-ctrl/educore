@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,13 +18,11 @@ import androidx.compose.ui.text.style.TextAlign
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.designsystem.theme.EduCoreTypography
 
 /**
- * Native Android is intentionally focused on operational staff and parent
- * workflows. Platform administration, full school administration, and the
- * student portal remain web-only while the operational mobile surface is
- * hardened module-by-module.
+ * Native Android is intentionally focused on staff, school-admin operational,
+ * and parent workflows. Platform administration and the student portal remain
+ * web-only while the operational mobile surface is hardened module-by-module.
  */
 @Composable
 internal fun WebOnlyPortalScreen(
@@ -33,7 +32,6 @@ internal fun WebOnlyPortalScreen(
 ) {
     val title = when (portal.lowercase()) {
         "platform" -> "Platform administration"
-        "admin" -> "School administration"
         "student" -> "Student portal"
         else -> "Web-only account"
     }
@@ -48,7 +46,7 @@ internal fun WebOnlyPortalScreen(
     ) {
         Text(
             text = title,
-            style = EduCoreTypography.titleLarge,
+            style = MaterialTheme.typography.titleLarge,
             color = EduCoreColors.Navy900,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
@@ -56,7 +54,7 @@ internal fun WebOnlyPortalScreen(
         Spacer(Modifier.height(EduCoreSpacing.Sm))
         Text(
             text = "$accountName should use EduCore Web for this account type.",
-            style = EduCoreTypography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium,
             color = EduCoreColors.Slate600,
             textAlign = TextAlign.Center,
         )
