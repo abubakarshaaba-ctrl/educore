@@ -74,6 +74,10 @@ interface EduCoreApi {
     @GET("bootstrap")
     suspend fun bootstrap(): BootstrapResponseDto
 
+    @Streaming
+    @GET("id-card/photo-file")
+    suspend fun profilePhoto(): ResponseBody
+
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto
 
