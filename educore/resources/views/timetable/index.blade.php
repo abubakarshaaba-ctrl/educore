@@ -48,7 +48,6 @@
 </div>
 
 <div class="two-col">
-    {{-- View existing timetable --}}
     <div class="card">
         <div class="card-header">
             <div class="card-title">View Class Timetable</div>
@@ -61,7 +60,7 @@
                     <select name="class_arm_id" class="form-control" required>
                         <option value="">Select class</option>
                         @foreach($classArms as $arm)
-                            <option value="{{ $arm->id }}">{{ $arm->classLevel->name }} {{ $arm->name }}</option>
+                            <option value="{{ $arm->id }}">{{ optional($arm->classLevel)->name ?? 'Unassigned level' }} {{ $arm->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -81,7 +80,6 @@
         </div>
     </div>
 
-    {{-- Auto-generate — admin / principal only --}}
     @if(auth()->user()->canManage('timetable'))
     <div class="card">
         <div class="card-header">
@@ -93,9 +91,7 @@
                 <li class="step-item">
                     <div class="step-num step-done">1</div>
                     <span class="step-text">Configure school hours & periods</span>
-                    @if(auth()->user()->canManage('timetable'))
-                        <a href="{{ route('timetable.configure') }}" class="step-link">Edit →</a>
-                    @endif
+                    <a href="{{ route('timetable.configure') }}" class="step-link">Edit →</a>
                 </li>
                 <li class="step-item">
                     <div class="step-num step-done">2</div>
@@ -105,9 +101,7 @@
                 <li class="step-item">
                     <div class="step-num step-done">3</div>
                     <span class="step-text">Set subject frequency (periods/week)</span>
-                    @if(auth()->user()->canManage('timetable'))
-                        <a href="{{ route('timetable.frequency') }}" class="step-link">Edit →</a>
-                    @endif
+                    <a href="{{ route('timetable.frequency') }}" class="step-link">Edit →</a>
                 </li>
             </ul>
 
@@ -119,7 +113,7 @@
                     <select name="class_arm_id" class="form-control" required>
                         <option value="">Select class</option>
                         @foreach($classArms as $arm)
-                            <option value="{{ $arm->id }}">{{ $arm->classLevel->name }} {{ $arm->name }}</option>
+                            <option value="{{ $arm->id }}">{{ optional($arm->classLevel)->name ?? 'Unassigned level' }} {{ $arm->name }}</option>
                         @endforeach
                     </select>
                 </div>
