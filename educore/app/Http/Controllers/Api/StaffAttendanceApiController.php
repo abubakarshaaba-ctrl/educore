@@ -248,7 +248,8 @@ class StaffAttendanceApiController extends Controller
                 'date'      => $r->attendance_date instanceof \DateTimeInterface
                     ? $r->attendance_date->format('Y-m-d')
                     : (string) $r->attendance_date,
-                'status'    => $r->status,\n                'clock_in'  => $r->clock_in_time,
+                'status'    => $r->status,
+                'clock_in'  => $r->clock_in_time,
                 'clock_out' => $r->clock_out_time,
                 'method'    => $r->clock_in_method,
             ]);
