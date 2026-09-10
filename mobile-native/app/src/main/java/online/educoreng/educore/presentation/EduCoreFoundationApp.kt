@@ -1,12 +1,12 @@
 package online.educoreng.educore.presentation
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.ReportDrawnWhen
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,17 +18,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreTheme
 
-private val NATIVE_PORTALS = setOf("staff", "parent")
+/**
+ * Native mobile scope:
+ * - staff and operational officers
+ * - school administrators/heads for day-to-day school operations only
+ * - parents
+ *
+ * Platform Super Admin and students remain web-only.
+ */
+private val NATIVE_PORTALS = setOf("staff", "admin", "parent")
 
 @Composable
 fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
@@ -73,7 +81,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         ) {
             when (state.phase) {
-                AppPhase.STARTING -> StartupScreen()
+                AppPhase.STARTING -> EduCoreSplashScreen()
                 AppPhase.SIGNED_OUT -> AuthenticationScreen(
                     state = state,
                     onLogin = viewModel::login,
@@ -92,7 +100,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     val rawSession = requireNotNull(state.session)
                     val session = rawSession.copy(modules = ShellNavigationPolicy.visibleModules(rawSession))
                     when (session.user.portal.lowercase()) {
-                        "staff" -> StaffWorkspaceShell(
+                        "staff", "admin" -> StaffWorkspaceShell(
                             session = session,
                             online = state.isOnline,
                             busy = state.isBusy,
