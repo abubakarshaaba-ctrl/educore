@@ -140,7 +140,7 @@ internal fun AdminProxyClockScreen(
         val current = runCatching { LocalTime.parse(currentValue) }.getOrDefault(now)
         TimePickerDialog(
             context,
-            { _, hour, minute -> onPicked("%02d:%02d".format(Locale.US, hour, minute)) },
+            { _, hour, minute -> onPicked(String.format(Locale.US, "%02d:%02d", hour, minute)) },
             current.hour,
             current.minute,
             true,
