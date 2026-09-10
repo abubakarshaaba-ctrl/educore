@@ -99,6 +99,8 @@ internal fun StaffWorkspaceShell(
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
     val skillsViewModel: SkillsViewModel = hiltViewModel()
     val skillsState by skillsViewModel.uiState.collectAsStateWithLifecycle()
+    val adminAttendanceViewModel: AdminStaffAttendanceViewModel = hiltViewModel()
+    val adminAttendanceState by adminAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -128,6 +130,12 @@ internal fun StaffWorkspaceShell(
         communicationState.message?.let {
             snackbarHostState.showSnackbar(it)
             communicationViewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(adminAttendanceState.message) {
+        adminAttendanceState.message?.let {
+            snackbarHostState.showSnackbar(it)
+            adminAttendanceViewModel.consumeMessage()
         }
     }
 
@@ -165,7 +173,16 @@ internal fun StaffWorkspaceShell(
                 classesViewModel.loadClasses()
                 navigateRoot(StaffTab.CLASSES)
             }
-            "staff-attendance", "staff-attendance.self" -> {
+            "staff-attendance" -> {
+                if (session.user.portal.equals("admin", ignoreCase = true)) {
+                    adminAttendanceViewModel.loadDaily()
+                    navController.navigate(StaffRoutes.ADMIN_STAFF_ATTENDANCE)
+                } else {
+                    classesViewModel.loadStaffAttendance()
+                    navController.navigate(StaffRoutes.STAFF_ATTENDANCE)
+                }
+            }
+            "staff-attendance.self" -> {
                 classesViewModel.loadStaffAttendance()
                 navController.navigate(StaffRoutes.STAFF_ATTENDANCE)
             }
@@ -401,6 +418,26 @@ internal fun StaffWorkspaceShell(
                                 onRefresh = classesViewModel::loadStaffAttendance,
                                 onClockIn = classesViewModel::clockIn,
                                 onClockOut = classesViewModel::clockOut,
+                            )
+                        }
+                        composable(StaffRoutes.ADMIN_STAFF_ATTENDANCE) {
+                            LaunchedEffect(Unit) { adminAttendanceViewModel.loadDaily() }
+                            AdminStaffAttendanceScreen(
+                                state = adminAttendanceState,
+                                onSection = adminAttendanceViewModel::selectSection,
+                                onDailyDate = adminAttendanceViewModel::setDailyDate,
+                                onDailyQuery = adminAttendanceViewModel::setDailyQuery,
+                                onDailyStatus = adminAttendanceViewModel::setDailyStatus,
+                                onReportMonth = adminAttendanceViewModel::setReportMonth,
+                                onReportYear = adminAttendanceViewModel::setReportYear,
+                                onRefreshDaily = adminAttendanceViewModel::loadDaily,
+                                onRefreshReport = adminAttendanceViewModel::loadReport,
+                                onRefreshReviews = adminAttendanceViewModel::loadReviews,
+                                onManualOverride = adminAttendanceViewModel::manualOverride,
+                                onProcessOffline = adminAttendanceViewModel::processOffline,
+                                onDecideProxy = adminAttendanceViewModel::decideProxy,
+                                onSaveSettings = adminAttendanceViewModel::saveSettings,
+                                onResetQr = adminAttendanceViewModel::resetQr,
                             )
                         }
                         composable(StaffRoutes.SCORES) {
@@ -695,10 +732,16 @@ private fun StaffMoreRoot(
         EduCoreWindowWidth.Medium -> 3
         EduCoreWindowWidth.Expanded -> 4
     }
-    val modules = remember(session.modules) {
+    val modules = remember(session.modules, session.user.portal) {
         session.modules
             .filterNot { it.key.lowercase() in StaffRoutes.ROOT_MODULES }
-            .distinctBy { if (it.key == "staff-attendance.self") "staff-attendance" else it.key.lowercase() }
+            .distinctBy {
+                if (!session.user.portal.equals("admin", ignoreCase = true) && it.key.equals("staff-attendance.self", ignoreCase = true)) {
+                    "staff-attendance"
+                } else {
+                    it.key.lowercase()
+                }
+            }
     }
 
     LazyVerticalGrid(
@@ -758,6 +801,7 @@ private object StaffRoutes {
     const val STUDENT_PROFILE = "staff/classes/{classId}/students/{studentId}"
     const val ATTENDANCE = "staff/classes/{classId}/attendance"
     const val STAFF_ATTENDANCE = "staff/staff-attendance"
+    const val ADMIN_STAFF_ATTENDANCE = "staff/admin-staff-attendance"
     const val SCORES = "staff/scores"
     const val SCORE_SHEET = "staff/scores/{classId}/{subjectId}/{termId}"
     const val SCHEDULE = "staff/schedule/{classId}"
@@ -801,7 +845,7 @@ private fun rootFor(route: String): StaffTab = when {
     route.startsWith("staff-v2/classes") || route.startsWith("staff/classes") || route.startsWith("staff/scores") -> StaffTab.CLASSES
     route.startsWith("staff-v2/timetable") || route.startsWith("staff/schedule") -> StaffTab.TIMETABLE
     route.startsWith("staff-v2/inbox") || route.startsWith("staff/inbox") -> StaffTab.INBOX
-    route.startsWith("staff-v2/more") || route.startsWith("staff/staff-attendance") ||
+    route.startsWith("staff-v2/more") || route.startsWith("staff/staff-attendance") || route.startsWith("staff/admin-staff-attendance") ||
         route.startsWith("staff/report-cards") || route.startsWith("staff/skills") || route.startsWith("staff/profile") ||
         route.startsWith("staff/repository") || route.startsWith("staff/lesson-plans") ||
         route.startsWith("staff/operations") -> StaffTab.MORE
@@ -809,7 +853,8 @@ private fun rootFor(route: String): StaffTab = when {
 }
 
 private fun staffSubtitle(key: String): String? = when (key.lowercase()) {
-    "staff-attendance", "staff-attendance.self" -> "Clock in, clock out and review attendance"
+    "staff-attendance" -> "School-wide attendance control"
+    "staff-attendance.self" -> "Your clock-in, clock-out and history"
     "reports", "report-cards", "results" -> "Generate and review published report cards"
     "skills" -> "Behavioural and psychomotor ratings"
     "cbt", "cbt-exams", "examinations" -> "Manage computer-based examinations"
