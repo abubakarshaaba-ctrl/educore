@@ -29,6 +29,7 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 internal fun AdminAttendanceSettingsEditor(
@@ -48,12 +49,11 @@ internal fun AdminAttendanceSettingsEditor(
     var latitude by remember(settings) { mutableStateOf(settings?.geoLat?.toString().orEmpty()) }
     var longitude by remember(settings) { mutableStateOf(settings?.geoLng?.toString().orEmpty()) }
     var radius by remember(settings) { mutableStateOf(settings?.geoRadiusMeters?.toString().orEmpty()) }
-    var attemptedSave by remember { mutableStateOf(false) }
 
     LaunchedEffect(capturedLatitude, capturedLongitude) {
         if (capturedLatitude != null && capturedLongitude != null) {
-            latitude = "%.6f".format(capturedLatitude)
-            longitude = "%.6f".format(capturedLongitude)
+            latitude = String.format(Locale.US, "%.6f", capturedLatitude)
+            longitude = String.format(Locale.US, "%.6f", capturedLongitude)
             geoEnabled = true
             if (radius.isBlank()) radius = "500"
         }
@@ -66,15 +66,15 @@ internal fun AdminAttendanceSettingsEditor(
     val latValid = latValue != null && latValue in -90.0..90.0
     val lngValid = lngValue != null && lngValue in -180.0..180.0
     val radiusValid = radiusValue != null && radiusValue > 0
-    val resumptionValid = parseTime(resumption) != null
-    val closingValid = parseTime(closing) != null
+    val resumptionValid = parseAttendanceTime(resumption) != null
+    val closingValid = parseAttendanceTime(closing) != null
     val valid = latValid && lngValid && radiusValid && resumptionValid && closingValid
 
     fun pickTime(current: String, onPicked: (String) -> Unit) {
-        val parsed = parseTime(current) ?: LocalTime.now()
+        val parsed = parseAttendanceTime(current) ?: LocalTime.now()
         TimePickerDialog(
             context,
-            { _, hour, minute -> onPicked("%02d:%02d".format(hour, minute)) },
+            { _, hour, minute -> onPicked(String.format(Locale.US, "%02d:%02d", hour, minute)) },
             parsed.hour,
             parsed.minute,
             true,
@@ -116,9 +116,8 @@ internal fun AdminAttendanceSettingsEditor(
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Resumption time") },
-                supportingText = { if (attemptedSave && !resumptionValid) Text("Select a valid resumption time.") },
-                isError = attemptedSave && !resumptionValid,
-                trailingIcon = { Text("Select") },
+                supportingText = { if (!resumptionValid) Text("Select a valid resumption time.") },
+                isError = resumption.isNotBlank() && !resumptionValid,
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(
@@ -134,8 +133,8 @@ internal fun AdminAttendanceSettingsEditor(
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Closing time") },
-                supportingText = { if (attemptedSave && !closingValid) Text("Select a valid closing time.") },
-                isError = attemptedSave && !closingValid,
+                supportingText = { if (!closingValid) Text("Select a valid closing time.") },
+                isError = closing.isNotBlank() && !closingValid,
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(
@@ -177,11 +176,11 @@ internal fun AdminAttendanceSettingsEditor(
                     label = { Text("Latitude") },
                     supportingText = {
                         when {
-                            attemptedSave && latitude.isBlank() -> Text("Latitude is required.")
-                            attemptedSave && !latValid -> Text("Enter a value from -90 to 90.")
+                            latitude.isBlank() -> Text("Required · -90 to 90")
+                            !latValid -> Text("Enter a value from -90 to 90.")
                         }
                     },
-                    isError = attemptedSave && !latValid,
+                    isError = latitude.isNotBlank() && !latValid,
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -191,11 +190,11 @@ internal fun AdminAttendanceSettingsEditor(
                     label = { Text("Longitude") },
                     supportingText = {
                         when {
-                            attemptedSave && longitude.isBlank() -> Text("Longitude is required.")
-                            attemptedSave && !lngValid -> Text("Enter a value from -180 to 180.")
+                            longitude.isBlank() -> Text("Required · -180 to 180")
+                            !lngValid -> Text("Enter a value from -180 to 180.")
                         }
                     },
-                    isError = attemptedSave && !lngValid,
+                    isError = longitude.isNotBlank() && !lngValid,
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -209,12 +208,12 @@ internal fun AdminAttendanceSettingsEditor(
                 label = { Text("Radius (metres)") },
                 supportingText = {
                     when {
-                        attemptedSave && radius.isBlank() -> Text("Radius is required.")
-                        attemptedSave && !radiusValid -> Text("Radius must be a positive number.")
+                        radius.isBlank() -> Text("Required · enter a positive number")
+                        !radiusValid -> Text("Radius must be a positive number.")
                         capturedAccuracyMetres != null -> Text("Captured location accuracy: ±${capturedAccuracyMetres.toInt()} m")
                     }
                 },
-                isError = attemptedSave && !radiusValid,
+                isError = radius.isNotBlank() && !radiusValid,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -223,7 +222,6 @@ internal fun AdminAttendanceSettingsEditor(
         item {
             Button(
                 onClick = {
-                    attemptedSave = true
                     if (valid) {
                         onSave(
                             resumption,
@@ -255,6 +253,6 @@ internal fun AdminAttendanceSettingsEditor(
     }
 }
 
-private fun parseTime(value: String): LocalTime? = runCatching {
+private fun parseAttendanceTime(value: String): LocalTime? = runCatching {
     LocalTime.parse(value.take(5), DateTimeFormatter.ofPattern("HH:mm"))
 }.getOrNull()
