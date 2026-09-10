@@ -31,6 +31,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,10 +60,17 @@ class AdminProxyClockViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AdminProxyClockUiState())
     val uiState: StateFlow<AdminProxyClockUiState> = _uiState.asStateFlow()
 
-    fun submit(staffId: Long, date: String, clockIn: String, reason: String) {
+    fun submit(
+        staffId: Long,
+        date: String,
+        clockIn: String,
+        clockOut: String?,
+        reason: String,
+        status: String?,
+    ) {
         if (_uiState.value.isSaving) return
-        if (reason.trim().length < 3) {
-            _uiState.update { it.copy(errorMessage = "Enter the reason for clocking in on behalf of this staff member.") }
+        if (reason.trim().length < 5) {
+            _uiState.update { it.copy(errorMessage = "Enter a reason of at least 5 characters for this proxy attendance.") }
             return
         }
         viewModelScope.launch {
@@ -73,7 +81,9 @@ class AdminProxyClockViewModel @Inject constructor(
                         staffId = staffId,
                         date = date,
                         clockInTime = clockIn,
+                        clockOutTime = clockOut?.takeIf(String::isNotBlank),
                         reason = reason.trim(),
+                        status = status,
                         device = "android",
                     )
                 )
@@ -81,7 +91,7 @@ class AdminProxyClockViewModel @Inject constructor(
                 is AppResult.Success -> _uiState.update {
                     it.copy(
                         isSaving = false,
-                        message = result.value.message ?: "Proxy clock-in recorded.",
+                        message = result.value.message ?: "Attendance recorded by proxy.",
                         errorMessage = null,
                     )
                 }
@@ -105,7 +115,7 @@ data class AdminProxyClockUiState(
 internal fun AdminProxyClockScreen(
     state: AdminProxyClockUiState,
     staff: List<AdminStaffAttendanceRecordDto>,
-    onSubmit: (Long, String, String, String) -> Unit,
+    onSubmit: (Long, String, String, String?, String, String?) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -113,12 +123,29 @@ internal fun AdminProxyClockScreen(
     val now = remember { LocalTime.now().withSecond(0).withNano(0) }
     var selectedStaffId by remember(staff) { mutableStateOf(staff.firstOrNull()?.userId) }
     var staffExpanded by remember { mutableStateOf(false) }
+    var statusExpanded by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(today.toString()) }
     var clockIn by remember { mutableStateOf(now.format(DateTimeFormatter.ofPattern("HH:mm"))) }
+    var clockOut by remember { mutableStateOf("") }
     var reason by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
 
     val selectedStaff = staff.firstOrNull { it.userId == selectedStaffId }
-    val valid = selectedStaffId != null && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 3
+    val valid = selectedStaffId != null && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 5
+    val displayDate = runCatching {
+        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH))
+    }.getOrDefault(date)
+
+    fun showTimePicker(currentValue: String, onPicked: (String) -> Unit) {
+        val current = runCatching { LocalTime.parse(currentValue) }.getOrDefault(now)
+        TimePickerDialog(
+            context,
+            { _, hour, minute -> onPicked("%02d:%02d".format(Locale.US, hour, minute)) },
+            current.hour,
+            current.minute,
+            true,
+        ).show()
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(eduCoreScreenPadding()),
@@ -126,7 +153,7 @@ internal fun AdminProxyClockScreen(
     ) {
         EduCorePageHeader(
             title = "Clock in by proxy",
-            subtitle = "Record attendance on behalf of a staff member",
+            subtitle = "Administrative exception · recorded with an audit trail",
             onBack = onClose,
         )
 
@@ -169,43 +196,85 @@ internal fun AdminProxyClockScreen(
             }
         }
 
+        OutlinedButton(
+            onClick = {
+                val current = runCatching { LocalDate.parse(date) }.getOrDefault(today)
+                DatePickerDialog(
+                    context,
+                    { _, year, month, day -> date = LocalDate.of(year, month + 1, day).toString() },
+                    current.year,
+                    current.monthValue - 1,
+                    current.dayOfMonth,
+                ).show()
+            },
+            enabled = !state.isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Attendance date · $displayDate") }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             OutlinedButton(
-                onClick = {
-                    val current = runCatching { LocalDate.parse(date) }.getOrDefault(today)
-                    DatePickerDialog(
-                        context,
-                        { _, year, month, day -> date = LocalDate.of(year, month + 1, day).toString() },
-                        current.year,
-                        current.monthValue - 1,
-                        current.dayOfMonth,
-                    ).show()
-                },
+                onClick = { showTimePicker(clockIn) { clockIn = it } },
                 enabled = !state.isSaving,
                 modifier = Modifier.weight(1f),
-            ) { Text("Date: $date") }
+            ) { Text("Clock in · $clockIn") }
 
             OutlinedButton(
-                onClick = {
-                    val current = runCatching { LocalTime.parse(clockIn) }.getOrDefault(now)
-                    TimePickerDialog(
-                        context,
-                        { _, hour, minute -> clockIn = "%02d:%02d".format(hour, minute) },
-                        current.hour,
-                        current.minute,
-                        true,
-                    ).show()
-                },
+                onClick = { showTimePicker(clockOut.ifBlank { clockIn }) { clockOut = it } },
                 enabled = !state.isSaving,
                 modifier = Modifier.weight(1f),
-            ) { Text("Time: $clockIn") }
+            ) { Text(if (clockOut.isBlank()) "Clock out · Optional" else "Clock out · $clockOut") }
+        }
+
+        if (clockOut.isNotBlank()) {
+            OutlinedButton(
+                onClick = { clockOut = "" },
+                enabled = !state.isSaving,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Remove clock-out time") }
+        }
+
+        Text("Attendance status", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { statusExpanded = true },
+                enabled = !state.isSaving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(status?.replaceFirstChar(Char::uppercase) ?: "Automatic from clock-in time", modifier = Modifier.weight(1f))
+                Text("▾")
+            }
+            DropdownMenu(
+                expanded = statusExpanded,
+                onDismissRequest = { statusExpanded = false },
+                modifier = Modifier.fillMaxWidth(.92f),
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Automatic from clock-in time") },
+                    onClick = { status = null; statusExpanded = false },
+                )
+                listOf("early", "present", "late", "absent").forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
+                        onClick = { status = option; statusExpanded = false },
+                    )
+                }
+            }
         }
 
         OutlinedTextField(
             value = reason,
-            onValueChange = { reason = it.take(250) },
+            onValueChange = { reason = it.take(1000) },
             label = { Text("Reason") },
-            supportingText = { Text("Required for audit trail") },
+            supportingText = {
+                Text(
+                    if (reason.isNotEmpty() && reason.trim().length < 5) {
+                        "Reason must contain at least 5 characters."
+                    } else {
+                        "Required. This is retained in the proxy attendance audit trail."
+                    }
+                )
+            },
+            isError = reason.isNotEmpty() && reason.trim().length < 5,
             minLines = 3,
             enabled = !state.isSaving,
             modifier = Modifier.fillMaxWidth(),
@@ -222,12 +291,12 @@ internal fun AdminProxyClockScreen(
         Button(
             onClick = {
                 val id = selectedStaffId ?: return@Button
-                onSubmit(id, date, clockIn, reason)
+                onSubmit(id, date, clockIn, clockOut.ifBlank { null }, reason, status)
             },
             enabled = valid && !state.isSaving,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (state.isSaving) "Saving…" else "Clock in by proxy")
+            Text(if (state.isSaving) "Saving…" else "Record by proxy")
         }
     }
 }
