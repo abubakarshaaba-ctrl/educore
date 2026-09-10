@@ -73,10 +73,16 @@ internal fun AdminStaffAttendanceScreen(
             viewModel.loadDaily()
             return
         }
+        val resumptionTime = settings.resumptionTime
+        val closingTime = settings.closingTime
+        if (resumptionTime.isNullOrBlank() || closingTime.isNullOrBlank()) {
+            locationMessage = "Set valid resumption and closing times before capturing the school location."
+            return
+        }
         viewModel.saveSettings(
-            resumption = settings.resumptionTime,
+            resumption = resumptionTime,
             grace = settings.graceMinutes,
-            closing = settings.closingTime,
+            closing = closingTime,
             geoEnabled = true,
             lat = location.latitude,
             lng = location.longitude,
