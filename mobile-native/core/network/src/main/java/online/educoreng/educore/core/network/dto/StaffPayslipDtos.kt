@@ -38,7 +38,6 @@ data class StaffPayslipDeductionsDto(
     @Json(name = "pension_deduction") val pensionDeduction: Double = 0.0,
     @Json(name = "other_deductions") val otherDeductions: Double = 0.0,
     @Json(name = "total_deductions") val totalDeductions: Double = 0.0,
-    val breakdown: Map<String, Any?> = emptyMap(),
 )
 
 data class StaffPayslipBankDto(
