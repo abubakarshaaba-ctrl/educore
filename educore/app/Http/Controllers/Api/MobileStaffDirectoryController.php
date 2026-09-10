@@ -29,8 +29,6 @@ class MobileStaffDirectoryController extends Controller
         $status = $validated['status'] ?? 'all';
         $perPage = (int) ($validated['per_page'] ?? 50);
 
-        // School heads are explicitly allowed to use the native staff directory.
-        // Keep the projection tenant-scoped and exclude non-staff portal accounts.
         $base = User::query()
             ->where('tenant_id', $user->tenant_id)
             ->whereNotIn('role', ['student', 'parent', 'super_admin']);
@@ -42,7 +40,6 @@ class MobileStaffDirectoryController extends Controller
         ];
 
         $staffQuery = clone $base;
-
         if ($query !== '') {
             $staffQuery->where(function ($builder) use ($query) {
                 $like = '%'.$query.'%';
@@ -51,17 +48,13 @@ class MobileStaffDirectoryController extends Controller
                     ->orWhere('role', 'like', $like);
             });
         }
-
         if ($status === 'active') {
             $staffQuery->where('is_active', true);
         } elseif ($status === 'inactive') {
             $staffQuery->where('is_active', false);
         }
 
-        $page = $staffQuery
-            ->orderBy('name')
-            ->paginate($perPage)
-            ->withQueryString();
+        $page = $staffQuery->orderBy('name')->paginate($perPage)->withQueryString();
 
         return response()->json([
             'staff' => collect($page->items())->map(fn (User $member) => [
@@ -82,19 +75,34 @@ class MobileStaffDirectoryController extends Controller
         ]);
     }
 
+    public function update(Request $request, User $member)
+    {
+        $user = $this->administrator($request);
+        abort_unless((int) $member->tenant_id === (int) $user->tenant_id, 404);
+        abort_if($member->id === $user->id, 422, 'You cannot deactivate your own account.');
+        abort_if(in_array($member->roleKey(), ['student', 'parent', 'super_admin'], true), 404);
+
+        $data = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $member->update(['is_active' => (bool) $data['is_active']]);
+
+        return response()->json([
+            'message' => $member->is_active ? 'Staff account activated.' : 'Staff account deactivated.',
+            'active' => (bool) $member->is_active,
+        ]);
+    }
+
     private function administrator(Request $request): User
     {
         /** @var User|null $user */
         $user = $request->user();
-
         abort_unless(
-            $user
-                && $user->tenant_id
-                && in_array($user->roleKey(), self::ROLES, true),
+            $user && $user->tenant_id && in_array($user->roleKey(), self::ROLES, true),
             403,
             'This portal is restricted to school administrators.'
         );
-
         return $user;
     }
 }
