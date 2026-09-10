@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
+use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -55,6 +56,7 @@ class MobileStaffAttendanceContractTest extends TestCase
         }
 
         $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
+        $this->assertTrue(method_exists(AdminStaffAttendanceOfflineController::class, '__invoke'));
     }
 
     public function test_self_offline_sync_route_is_not_inside_admin_namespace(): void
@@ -66,5 +68,16 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         $this->assertNotNull($route, 'The ordinary-staff offline replay route is missing.');
         $this->assertStringNotContainsString('/admin/', '/'.$route->uri());
+    }
+
+    public function test_admin_offline_review_route_uses_durable_review_feed(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('GET', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/offline'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(AdminStaffAttendanceOfflineController::class, $route->getActionName());
     }
 }
