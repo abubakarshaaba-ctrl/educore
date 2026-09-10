@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -111,37 +111,19 @@ internal fun AdminAttendanceSettingsEditor(
         }
 
         item {
-            OutlinedTextField(
-                value = resumption,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Resumption time") },
-                supportingText = { if (!resumptionValid) Text("Select a valid resumption time.") },
-                isError = resumption.isNotBlank() && !resumptionValid,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
+            OutlinedButton(
                 onClick = { pickTime(resumption) { resumption = it } },
                 enabled = !state.isMutating,
-                modifier = Modifier.fillMaxWidth().padding(top = EduCoreSpacing.Xs),
-            ) { Text("Choose resumption time") }
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (resumptionValid) "Resumption time · $resumption" else "Select resumption time") }
         }
 
         item {
-            OutlinedTextField(
-                value = closing,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Closing time") },
-                supportingText = { if (!closingValid) Text("Select a valid closing time.") },
-                isError = closing.isNotBlank() && !closingValid,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
+            OutlinedButton(
                 onClick = { pickTime(closing) { closing = it } },
                 enabled = !state.isMutating,
-                modifier = Modifier.fillMaxWidth().padding(top = EduCoreSpacing.Xs),
-            ) { Text("Choose closing time") }
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (closingValid) "Closing time · $closing" else "Select closing time") }
         }
 
         item {
@@ -177,7 +159,7 @@ internal fun AdminAttendanceSettingsEditor(
                     supportingText = {
                         when {
                             latitude.isBlank() -> Text("Required · -90 to 90")
-                            !latValid -> Text("Enter a value from -90 to 90.")
+                            !latValid -> Text("Enter -90 to 90")
                         }
                     },
                     isError = latitude.isNotBlank() && !latValid,
@@ -191,7 +173,7 @@ internal fun AdminAttendanceSettingsEditor(
                     supportingText = {
                         when {
                             longitude.isBlank() -> Text("Required · -180 to 180")
-                            !lngValid -> Text("Enter a value from -180 to 180.")
+                            !lngValid -> Text("Enter -180 to 180")
                         }
                     },
                     isError = longitude.isNotBlank() && !lngValid,
@@ -208,9 +190,9 @@ internal fun AdminAttendanceSettingsEditor(
                 label = { Text("Radius (metres)") },
                 supportingText = {
                     when {
-                        radius.isBlank() -> Text("Required · enter a positive number")
-                        !radiusValid -> Text("Radius must be a positive number.")
-                        capturedAccuracyMetres != null -> Text("Captured location accuracy: ±${capturedAccuracyMetres.toInt()} m")
+                        radius.isBlank() -> Text("Required · positive number")
+                        !radiusValid -> Text("Radius must be positive")
+                        capturedAccuracyMetres != null -> Text("Location accuracy ±${capturedAccuracyMetres.toInt()} m")
                     }
                 },
                 isError = radius.isNotBlank() && !radiusValid,
@@ -220,7 +202,7 @@ internal fun AdminAttendanceSettingsEditor(
         }
 
         item {
-            Button(
+            OutlinedButton(
                 onClick = {
                     if (valid) {
                         onSave(
@@ -243,11 +225,7 @@ internal fun AdminAttendanceSettingsEditor(
 
         state.message?.let { message ->
             item {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.Success700,
-                )
+                Text(message, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Success700)
             }
         }
     }
