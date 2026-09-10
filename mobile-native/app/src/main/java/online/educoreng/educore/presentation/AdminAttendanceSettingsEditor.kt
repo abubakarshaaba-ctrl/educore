@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -201,19 +200,21 @@ internal fun AdminAttendanceSettingsEditor(
             )
         }
 
+        if (!valid) {
+            item {
+                Text(
+                    "Save becomes available when resumption time, closing time, latitude, longitude and radius are valid.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         item {
             OutlinedButton(
                 onClick = {
                     if (valid) {
-                        onSave(
-                            resumption,
-                            graceValue,
-                            closing,
-                            geoEnabled,
-                            latValue,
-                            lngValue,
-                            radiusValue,
-                        )
+                        onSave(resumption, graceValue, closing, geoEnabled, latValue, lngValue, radiusValue)
                     }
                 },
                 enabled = !state.isMutating && valid,
