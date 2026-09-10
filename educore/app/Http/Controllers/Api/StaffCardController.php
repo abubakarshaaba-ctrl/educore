@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Staff self-service: ID card data and payslips for the mobile app.
+ * Staff self-service: ID card data and monthly payslips for the mobile app.
  */
 class StaffCardController extends Controller
 {
@@ -32,8 +32,6 @@ class StaffCardController extends Controller
             'date_joined' => optional($user->employment_started_at ?? $user->created_at)->format('d M Y'),
             'email'       => $user->email,
             'phone'       => $user->phone,
-            // has_photo drives the app; it streams the image from photo_file
-            // (authenticated) which avoids any /storage symlink dependency.
             'has_photo'    => (bool) $hasPhoto,
             'photo_version'=> $hasPhoto ? substr(md5($user->passport_photo), 0, 10) : null,
             'photo'        => $this->absolutePhotoUrl($user->passport_photo),
@@ -113,19 +111,19 @@ class StaffCardController extends Controller
 
         $clean = preg_replace('#^storage/#', '', ltrim($path, '/'));
 
-        // Stored filenames are randomised per upload, so the URL is already
-        // unique; a short hash suffix defeats any intermediate caching.
         return asset('storage/' . $clean) . '?v=' . substr(md5($path), 0, 8);
     }
 
-    /** All payslips issued to this staff member. */
+    /** All released monthly payslips issued to the authenticated staff member. */
     public function payslips(Request $request)
     {
-        $user = $request->user();
+        $user = $this->staffUser($request);
 
         $items = PayrollItem::with('period')
             ->where('staff_id', $user->id)
-            ->whereHas('period', fn ($q) => $q->where('status', '!=', 'draft'))
+            ->whereHas('period', fn ($q) => $q
+                ->where('tenant_id', $user->tenant_id)
+                ->where('status', '!=', 'draft'))
             ->get()
             ->sortByDesc(fn ($i) => optional($i->period)->id)
             ->map(fn ($i) => [
@@ -137,14 +135,18 @@ class StaffCardController extends Controller
                 'status'       => $i->payment_status,
             ])->values();
 
-        return response()->json(['payslips' => $items]);
+        return response()->json([
+            'payslips' => $items,
+            'generated_at' => now()->toIso8601String(),
+        ]);
     }
 
-    /** One payslip with full breakdown. */
+    /** One released monthly payslip with full earnings and deduction breakdown. */
     public function payslip(Request $request, PayrollItem $item)
     {
-        abort_unless((int) $item->staff_id === (int) $request->user()->id, 403);
-        $item->load('period');
+        $user = $this->staffUser($request);
+        $this->authorizePayslip($user, $item);
+        $item->loadMissing('period');
 
         return response()->json([
             'id'           => $item->id,
@@ -172,18 +174,35 @@ class StaffCardController extends Controller
         ]);
     }
 
-    /** Stream the payslip PDF (reuses the web payslip-pdf view). */
+    /** Stream the official PDF for a released payslip. */
     public function payslipPdf(Request $request, PayrollItem $item)
     {
-        abort_unless((int) $item->staff_id === (int) $request->user()->id, 403);
+        $user = $this->staffUser($request);
+        $this->authorizePayslip($user, $item);
 
         $item->load('staff', 'period');
         $period = $item->period;
-        $tenant = $request->user()->tenant;
+        $tenant = $user->tenant;
 
         $pdf = Pdf::loadView('payroll.payslip-pdf', compact('period', 'item', 'tenant'));
         $name = 'Payslip_' . str_replace([' ', '/'], '_', (string) optional($period)->title) . '.pdf';
 
         return $pdf->download($name);
+    }
+
+    private function staffUser(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user && $user->tenant_id && $user->isTenantStaff(), 403, 'Staff self-service access only.');
+
+        return $user;
+    }
+
+    private function authorizePayslip($user, PayrollItem $item): void
+    {
+        $item->loadMissing('period');
+        abort_unless((int) $item->staff_id === (int) $user->id, 403, 'This payslip belongs to another staff account.');
+        abort_unless((int) optional($item->period)->tenant_id === (int) $user->tenant_id, 404);
+        abort_if(optional($item->period)->status === 'draft', 404, 'This payslip has not been released.');
     }
 }
