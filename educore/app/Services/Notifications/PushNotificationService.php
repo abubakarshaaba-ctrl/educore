@@ -225,21 +225,9 @@ class PushNotificationService
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
-
-            // Compatibility with the standard OAuth grant value. The first call
-            // above is intentionally avoided in production by immediately using
-            // the standards-compliant request below.
-            if (! $response->successful()) {
-                $response = Http::timeout(15)
-                    ->asForm()
-                    ->post('https://oauth2.googleapis.com/token', [
-                        'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                        'assertion' => $jwt,
-                    ]);
-            }
 
             return $response->successful() ? $response->json('access_token') : null;
         });
