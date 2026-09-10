@@ -13,13 +13,6 @@ enum class ModuleGroup(val label: String) {
     ACADEMICS("Academics"), SCHEDULE("Schedule"), OPERATIONS("Operations"), COMMUNICATION("Communication"), ACCOUNT("Account"),
 }
 
-/**
- * Single fail-closed mobile navigation policy.
- *
- * Laravel bootstrap is authoritative. This policy never grants a feature the
- * server omitted; it only removes mobile-only exclusions and applies local
- * safety rules to stale bootstrap payloads.
- */
 object ShellNavigationPolicy {
     fun tabs(session: SessionSnapshot): List<ShellTab> {
         val portal = session.user.portal.lowercase()
@@ -81,6 +74,7 @@ object ShellNavigationPolicy {
         }
     }
 
+    /** Server bootstrap remains authoritative; this layer only removes mobile-only exclusions. */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val portal = session.user.portal.lowercase()
         val accountant = roleKeys(session).any { it in ACCOUNTANT_ROLE_KEYS }
@@ -114,7 +108,10 @@ object ShellNavigationPolicy {
         session.hasModule("staff-attendance.self") || session.can("attendance.self") || session.can("staff_attendance.self")
 
     fun groupedModules(session: SessionSnapshot): Map<ModuleGroup, List<ModuleDescriptor>> =
-        ModuleGroup.entries.mapNotNull { group -> visibleModules(session).filter { groupFor(it) == group }.takeIf(List<*>::isNotEmpty)?.let { group to it } }.toMap()
+        ModuleGroup.entries.mapNotNull { group ->
+            val modules = visibleModules(session).filter { groupFor(it) == group }
+            if (modules.isEmpty()) null else group to modules
+        }.toMap()
 
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
         val key = module.key.lowercase()
@@ -153,9 +150,7 @@ object ShellNavigationPolicy {
         return normalized in ADMIN_OPERATIONAL_KEYS || ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
     }
 
-    private val MOBILE_REMOVED_MODULES = setOf(
-        "cbt", "cbt-exams", "examinations", "report-cards", "results",
-    )
+    private val MOBILE_REMOVED_MODULES = setOf("cbt", "cbt-exams", "examinations", "report-cards", "results")
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf("classes", "students", "attendance", "scores", "scores.entry", "lesson-planner", "academic-repository")
     private val ADMIN_OPERATIONAL_KEYS = setOf(
         "staff", "staff-directory", "classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects",
@@ -164,9 +159,7 @@ object ShellNavigationPolicy {
     )
     private val ADMIN_OPERATIONAL_PREFIXES = listOf("message", "notification", "announcement", "calendar", "event", "finance", "fee", "invoice", "payment", "expense", "payroll")
     private val ACCOUNTANT_ROLE_KEYS = setOf("accountant", "accounts", "finance", "bursar")
-    private val ACCOUNTANT_DENIED_KEYS = setOf(
-        "classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects", "lesson-planner", "academic-repository", "timetable",
-    )
+    private val ACCOUNTANT_DENIED_KEYS = setOf("classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects", "lesson-planner", "academic-repository", "timetable")
     private val ACADEMIC_KEYS = listOf("student", "class", "subject", "attendance", "score", "lesson", "repository")
     private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
     private val COMMUNICATION_KEYS = listOf("message", "notice", "notification", "announcement", "calendar", "event", "support", "broadcast")
