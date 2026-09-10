@@ -197,6 +197,9 @@ internal class PortalAccountsViewModel @Inject constructor(
         )
     }
 
+    // Compatibility name used by the shared confirmation-sheet callback.
+    fun cancelConfirmation() = cancelPendingAction()
+
     fun confirmPendingAction() {
         val state = _uiState.value
         if (!state.canManage || state.isMutating) return
