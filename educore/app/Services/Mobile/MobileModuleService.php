@@ -59,6 +59,59 @@ class MobileModuleService
         'profile',
     ];
 
+    /** Academic workspaces are invisible to non-academic staff unless a custom
+     * staff permission explicitly grants the workspace. The normal permission
+     * check still runs afterwards, so this guard can only remove access. */
+    private const ACADEMIC_MODULES = [
+        'classes',
+        'subjects',
+        'curriculum',
+        'academic-cycle',
+        'attendance',
+        'skills',
+        'scores',
+        'reports',
+        'gradebook',
+        'timetable',
+        'cbt',
+        'lesson-planner',
+        'academic-repository',
+    ];
+
+    private const ACADEMIC_ROLE_KEYS = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'head_of_schools',
+        'vice_principal',
+        'academic_administrator',
+        'director_of_studies',
+        'hod',
+        'head_of_department',
+        'teacher',
+        'subject_teacher',
+        'class_teacher',
+        'form_teacher',
+    ];
+
+    private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
+        'classes' => ['classes', 'classes.view'],
+        'subjects' => ['subjects', 'subjects.view'],
+        'curriculum' => ['curriculum', 'curriculum.view'],
+        'academic-cycle' => ['academic-cycle', 'academic-session'],
+        'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
+        'skills' => ['skills', 'skills.rate'],
+        'scores' => ['scores', 'scores.entry'],
+        'reports' => ['reports', 'reports.view'],
+        'gradebook' => ['gradebook', 'reports', 'reports.remarks'],
+        'timetable' => ['timetable', 'timetable.view'],
+        'cbt' => ['cbt', 'cbt-exams', 'examinations'],
+        'lesson-planner' => ['lesson-planner'],
+        'academic-repository' => ['academic-repository'],
+    ];
+
     public function forUser(User $user): array
     {
         if ($user->isSuperAdmin()) {
@@ -114,10 +167,16 @@ class MobileModuleService
             'vice_principal',
             'academic_administrator',
         ], true);
+        $isAcademicStaff = $this->isAcademicStaff($user);
 
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff): bool {
                 if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
+                    return false;
+                }
+
+                if (! $isAcademicStaff && in_array($key, self::ACADEMIC_MODULES, true)
+                    && ! $this->hasExplicitAcademicGrant($user, $key)) {
                     return false;
                 }
 
@@ -126,7 +185,7 @@ class MobileModuleService
                 }
 
                 if ($key === 'academic-repository') {
-                    return $user->isAdmin() || $user->isTeacher();
+                    return $user->isAdmin() || $user->isTeacher() || $this->hasExplicitAcademicGrant($user, $key);
                 }
 
                 if ($key === 'skills') {
@@ -177,5 +236,26 @@ class MobileModuleService
             ])
             ->values()
             ->all();
+    }
+
+    private function isAcademicStaff(User $user): bool
+    {
+        $roles = collect($user->getRoleNames())
+            ->map(fn ($role): string => strtolower((string) $role))
+            ->push(strtolower((string) $user->roleKey()))
+            ->unique();
+
+        return $roles->contains(fn (string $role): bool => in_array($role, self::ACADEMIC_ROLE_KEYS, true));
+    }
+
+    private function hasExplicitAcademicGrant(User $user, string $moduleKey): bool
+    {
+        foreach (self::EXPLICIT_ACADEMIC_PERMISSION_KEYS[$moduleKey] ?? [$moduleKey] as $permission) {
+            if ($user->hasGrantedPermission($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
