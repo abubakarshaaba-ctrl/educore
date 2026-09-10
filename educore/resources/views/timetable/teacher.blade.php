@@ -38,11 +38,15 @@
     <a href="{{ route('timetable.index') }}" class="page-tab">3. View / Generate</a>
     <a href="{{ route('timetable.teacher') }}" class="page-tab active">Teacher View</a>
     @else
-    {{-- Scoped teachers: show only tabs they can actually use --}}
     @if(auth()->user()->hasFormTeacherDuty())
-    @php $myArm = \App\Models\ClassArm::where('form_tutor_id', auth()->id())->first(); @endphp
-    @if($myArm)
-    <a href="{{ route('timetable.view', ['class_arm_id' => $myArm->id, 'session_id' => request('session_id', \App\Models\AcademicSession::where('is_current',true)->value('id'))]) }}" class="page-tab">📋 My Class Timetable</a>
+    @php
+        $myArm = \App\Models\ClassArm::where('tenant_id', auth()->user()->tenant_id)
+            ->where('form_tutor_id', auth()->id())->first();
+        $defaultSession = \App\Models\AcademicSession::where('tenant_id', auth()->user()->tenant_id)
+            ->where('is_current', true)->value('id');
+    @endphp
+    @if($myArm && request('session_id', $defaultSession))
+    <a href="{{ route('timetable.view', ['class_arm_id' => $myArm->id, 'session_id' => request('session_id', $defaultSession)]) }}" class="page-tab">📋 My Class Timetable</a>
     @endif
     @endif
     @if(auth()->user()->hasSubjectTeacherDuty())
@@ -50,14 +54,12 @@
     @endif
     @endif
 </div>
-</div>
 
 <form method="GET">
     <div class="filter-card">
         <div class="filter-group">
             <span class="filter-label">Teacher</span>
-            @if(count($teachers) === 1 && $teachers[0]->id === auth()->id())
-            {{-- Scoped teacher: hidden field, no dropdown needed --}}
+            @if(count($teachers) === 1 && optional($teachers->first())->id === auth()->id())
             <input type="hidden" name="teacher_id" value="{{ auth()->id() }}">
             <div style="font-size:13px;font-weight:600;color:var(--midnight);padding:8px 0">{{ auth()->user()->name }}</div>
             @else
@@ -74,7 +76,7 @@
             <select name="session_id" class="filter-control" required>
                 <option value="">Select session</option>
                 @foreach($sessions as $s)
-                    <option value="{{ $s->id }}" {{ (request('session_id') == $s->id || $s->is_current) ? 'selected' : '' }}>
+                    <option value="{{ $s->id }}" {{ (request('session_id') == $s->id || (!request('session_id') && $s->is_current)) ? 'selected' : '' }}>
                         {{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}
                     </option>
                 @endforeach
@@ -110,13 +112,16 @@
                     @foreach($days as $day)
                     @php
                         $match = $periods->get($day, collect())
-                            ->first(fn($p) => $p->start_time === $slot['start']);
+                            ->first(fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5));
                     @endphp
                     <td>
                         @if($match)
                         <div class="period-item">
-                            <div class="period-subject">{{ $match->subject->name }}</div>
-                            <div class="period-class">{{ $match->classArm->classLevel->name }} {{ $match->classArm->name }}</div>
+                            <div class="period-subject">{{ optional($match->subject)->name ?? 'Unassigned subject' }}</div>
+                            <div class="period-class">
+                                {{ optional(optional($match->classArm)->classLevel)->name ?? 'Unassigned level' }}
+                                {{ optional($match->classArm)->name ?? '' }}
+                            </div>
                         </div>
                         @endif
                     </td>
