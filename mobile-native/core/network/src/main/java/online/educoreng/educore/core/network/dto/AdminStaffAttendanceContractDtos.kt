@@ -31,3 +31,12 @@ data class AdminAttendanceProxyClockRequestDto(
     @Json(name = "status") val status: String? = null,
     @Json(name = "device") val device: String? = null,
 )
+
+@JsonClass(generateAdapter = true)
+data class SelfAttendanceOfflineSyncResponseDto(
+    val success: Boolean = false,
+    val idempotent: Boolean = false,
+    val status: String? = null,
+    val message: String? = null,
+    @Json(name = "record_id") val recordId: Long? = null,
+)
