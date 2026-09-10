@@ -51,6 +51,8 @@ import online.educoreng.educore.core.model.DashboardMetric
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
+private val discardedHomeModules = setOf("curriculum", "academic-cycle", "academic-session", "academic-sessions")
+
 internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeContent(
     session: SessionSnapshot,
     state: DashboardUiState,
@@ -93,10 +95,13 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
         }
     }
 
+    val visibleMetrics = snapshot.metrics.filterNot { metric ->
+        (metric.moduleKey ?: metric.key).lowercase() in discardedHomeModules
+    }
     item(key = "overview-header", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
         EduCoreSectionHeader(title = "Overview")
     }
-    items(snapshot.metrics, key = DashboardMetric::key) { metric ->
+    items(visibleMetrics, key = DashboardMetric::key) { metric ->
         EduCoreShowcaseStat(
             label = metric.label,
             value = metric.displayValue,
@@ -106,33 +111,50 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
         )
     }
 
-    if (snapshot.quickActions.isNotEmpty()) {
+    val visibleQuickActions = snapshot.quickActions.filterNot { it.moduleKey.lowercase() in discardedHomeModules }
+    val myAttendance = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
+    val hasMyAttendanceAction = visibleQuickActions.any { it.moduleKey.equals("staff-attendance.self", ignoreCase = true) }
+
+    if (visibleQuickActions.isNotEmpty() || myAttendance != null) {
         item(key = "actions-header", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
             EduCoreSectionHeader(title = "Quick links")
         }
-        items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
+        items(visibleQuickActions, key = { "action-${it.moduleKey}" }) { action ->
             val module = session.modules.firstOrNull { it.key.equals(action.moduleKey, ignoreCase = true) }
-            EduCoreQuickAction(
+            DashboardDirectoryQuickAction(
+                session = session,
+                module = module,
                 label = action.title,
                 icon = module?.let(::moduleIconForDashboard) ?: EduCoreIcons.Modules,
-                enabled = module != null,
-                onClick = { module?.let(onModuleClick) },
+                onFallback = onModuleClick,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
-
-    snapshot.sections.forEach { section ->
-        item(key = "section-${section.key}", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-            DashboardSectionCard(
-                title = section.title,
-                items = section.items,
-                modules = session.modules,
-                onModuleClick = onModuleClick,
-                compact = width == EduCoreWindowWidth.Compact,
-            )
+        if (myAttendance != null && !hasMyAttendanceAction) {
+            item(key = "action-staff-attendance.self") {
+                EduCoreQuickAction(
+                    label = "My Attendance",
+                    icon = EduCoreIcons.Attendance,
+                    onClick = { onModuleClick(myAttendance) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
+
+    snapshot.sections
+        .filterNot { it.key.lowercase() in discardedHomeModules }
+        .forEach { section ->
+            item(key = "section-${section.key}", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                DashboardSectionCard(
+                    title = section.title,
+                    items = section.items.filterNot { item -> item.moduleKey?.lowercase() in discardedHomeModules },
+                    modules = session.modules,
+                    onModuleClick = onModuleClick,
+                    compact = width == EduCoreWindowWidth.Compact,
+                )
+            }
+        }
 }
 
 @Composable
@@ -230,6 +252,7 @@ private fun DashboardSectionCard(
     onModuleClick: (ModuleDescriptor) -> Unit,
     compact: Boolean,
 ) {
+    if (items.isEmpty()) return
     EduCoreShowcaseSectionCard {
         EduCoreSectionHeader(title = title, actionLabel = null)
         Column(
@@ -297,6 +320,7 @@ private fun moduleIconForDashboard(module: ModuleDescriptor): ImageVector {
     val key = module.key.lowercase()
     return when {
         key.contains("student") -> EduCoreIcons.Students
+        key.contains("staff") -> EduCoreIcons.Teacher
         key.contains("class") -> EduCoreIcons.Classes
         key.contains("subject") || key.contains("curriculum") -> EduCoreIcons.Subjects
         key.contains("attendance") -> EduCoreIcons.Attendance
