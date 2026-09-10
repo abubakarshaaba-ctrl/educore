@@ -28,14 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreTheme
 
-/**
- * Native mobile scope:
- * - staff and operational officers
- * - school administrators/heads for day-to-day school operations only
- * - parents
- *
- * Platform Super Admin and students remain web-only.
- */
 private val NATIVE_PORTALS = setOf("staff", "admin", "parent")
 
 @Composable
@@ -48,40 +40,29 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
 
     LaunchedEffect(state.phase, state.session?.user?.portal) {
         val portal = state.session?.user?.portal?.lowercase()
-        if (
-            state.phase == AppPhase.READY &&
-            portal in NATIVE_PORTALS &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        if (state.phase == AppPhase.READY && portal in NATIVE_PORTALS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        ) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     LaunchedEffect(state.message) {
-        state.message?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.consumeMessage()
-        }
+        state.message?.let { snackbarHostState.showSnackbar(it); viewModel.consumeMessage() }
     }
 
     LaunchedEffect(state.portalUrl) {
         state.portalUrl?.let { url ->
-            runCatching {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }.onFailure {
-                snackbarHostState.showSnackbar("No browser is available to open this workspace.")
-            }
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                .onFailure { snackbarHostState.showSnackbar("No browser is available to open this workspace.") }
             viewModel.consumePortalUrl()
         }
     }
 
     EduCoreTheme {
-        Box(
-            modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
-        ) {
+        Box(Modifier.fillMaxSize().background(EduCoreColors.Page50)) {
             when (state.phase) {
-                AppPhase.STARTING -> EduCoreSplashScreen()
+                // Android itself owns the unavoidable launch transition. There is no
+                // branded/interstitial Compose splash and no artificial delay.
+                AppPhase.STARTING -> Unit
                 AppPhase.SIGNED_OUT -> AuthenticationScreen(
                     state = state,
                     onLogin = viewModel::login,
@@ -90,49 +71,29 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     onBackToLogin = viewModel::showLogin,
                 )
                 AppPhase.BLOCKED -> AccessBlockedScreen(
-                    session = requireNotNull(state.session),
-                    busy = state.isBusy,
-                    online = state.isOnline,
-                    onRetry = viewModel::retryBootstrap,
-                    onLogout = viewModel::logout,
+                    session = requireNotNull(state.session), busy = state.isBusy, online = state.isOnline,
+                    onRetry = viewModel::retryBootstrap, onLogout = viewModel::logout,
                 )
                 AppPhase.READY -> {
                     val rawSession = requireNotNull(state.session)
                     val session = rawSession.copy(modules = ShellNavigationPolicy.visibleModules(rawSession))
                     when (session.user.portal.lowercase()) {
                         "staff", "admin" -> StaffWorkspaceShell(
-                            session = session,
-                            online = state.isOnline,
-                            busy = state.isBusy,
-                            dashboard = state.dashboard,
-                            snackbarHostState = snackbarHostState,
-                            onRefresh = viewModel::retryBootstrap,
-                            onRefreshDashboard = viewModel::retryDashboard,
-                            onLogout = viewModel::logout,
+                            session = session, online = state.isOnline, busy = state.isBusy, dashboard = state.dashboard,
+                            snackbarHostState = snackbarHostState, onRefresh = viewModel::retryBootstrap,
+                            onRefreshDashboard = viewModel::retryDashboard, onLogout = viewModel::logout,
                         )
                         "parent" -> AuthorizedShell(
-                            session = session,
-                            online = state.isOnline,
-                            busy = state.isBusy,
-                            dashboard = state.dashboard,
-                            snackbarHostState = snackbarHostState,
-                            onRefresh = viewModel::retryBootstrap,
-                            onRefreshDashboard = viewModel::retryDashboard,
-                            onOpenWebModule = viewModel::openWebModule,
+                            session = session, online = state.isOnline, busy = state.isBusy, dashboard = state.dashboard,
+                            snackbarHostState = snackbarHostState, onRefresh = viewModel::retryBootstrap,
+                            onRefreshDashboard = viewModel::retryDashboard, onOpenWebModule = viewModel::openWebModule,
                             onLogout = viewModel::logout,
                         )
-                        else -> WebOnlyPortalScreen(
-                            portal = session.user.portal,
-                            accountName = session.user.name,
-                            onLogout = viewModel::logout,
-                        )
+                        else -> WebOnlyPortalScreen(session.user.portal, session.user.name, viewModel::logout)
                     }
                 }
             }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp),
-            )
+            SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp))
         }
     }
 }
