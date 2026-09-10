@@ -1,10 +1,11 @@
 package online.educoreng.educore.core.designsystem.component
 
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
@@ -37,6 +38,8 @@ fun EduCorePrimaryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Navy900,
             contentColor = Color.White,
+            disabledContainerColor = EduCoreColors.DisabledContainer,
+            disabledContentColor = EduCoreColors.DisabledContent,
         ),
     ) {
         if (loading) {
@@ -64,6 +67,11 @@ fun EduCoreSecondaryButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        border = BorderStroke(1.dp, if (enabled) EduCoreColors.Line300 else EduCoreColors.Line200),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = EduCoreColors.Navy900,
+            disabledContentColor = EduCoreColors.DisabledContent,
+        ),
     ) {
         leadingIcon?.invoke(this)
         Text(text)
@@ -84,6 +92,8 @@ fun EduCoreDangerButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Danger600,
             contentColor = Color.White,
+            disabledContainerColor = EduCoreColors.DisabledContainer,
+            disabledContentColor = EduCoreColors.DisabledContent,
         ),
     ) {
         Text(text)
@@ -101,6 +111,10 @@ fun EduCoreTextButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = EduCoreColors.Navy900,
+            disabledContentColor = EduCoreColors.DisabledContent,
+        ),
     ) {
         Text(text)
     }

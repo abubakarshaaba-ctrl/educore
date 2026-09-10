@@ -66,6 +66,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-admin-directory.php'));
+
+            Route::prefix('api/v1')
+                ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
+                ->group(base_path('routes/mobile-communication-admin.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
