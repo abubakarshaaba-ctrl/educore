@@ -4,12 +4,14 @@
     android:height="48dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
-    <!-- Transparent mark: framing/elevation belongs to the host surface, not the logo artwork. -->
+    <path
+        android:fillColor="#071E45"
+        android:pathData="M112,0H400A112,112 0,0 1,512 112V400A112,112 0,0 1,400 512H112A112,112 0,0 1,0 400V112A112,112 0,0 1,112 0Z" />
     <group
-        android:scaleX="0.94"
-        android:scaleY="0.94"
-        android:translateX="15.36"
-        android:translateY="15.36">
+        android:scaleX="0.875"
+        android:scaleY="0.875"
+        android:translateX="32"
+        android:translateY="32">
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
