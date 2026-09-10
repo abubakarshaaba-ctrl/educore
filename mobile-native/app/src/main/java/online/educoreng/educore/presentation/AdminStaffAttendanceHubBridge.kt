@@ -48,7 +48,10 @@ internal fun AdminStaffAttendanceScreen(
     val liveState by viewModel.uiState.collectAsStateWithLifecycle()
     val qrViewModel: AdminStaffAttendanceQrViewModel = hiltViewModel()
     val qrState by qrViewModel.uiState.collectAsStateWithLifecycle()
+    val proxyViewModel: AdminProxyClockViewModel = hiltViewModel()
+    val proxyState by proxyViewModel.uiState.collectAsStateWithLifecycle()
     var qrOpen by remember { mutableStateOf(false) }
+    var proxyOpen by remember { mutableStateOf(false) }
     var locating by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf<String?>(null) }
     var capturedLocation by remember { mutableStateOf<Location?>(null) }
@@ -171,7 +174,25 @@ internal fun AdminStaffAttendanceScreen(
     }
 
     BackHandler {
-        if (qrOpen) qrOpen = false else onBack()
+        when {
+            proxyOpen -> proxyOpen = false
+            qrOpen -> qrOpen = false
+            else -> onBack()
+        }
+    }
+
+    if (proxyOpen) {
+        AdminProxyClockScreen(
+            state = proxyState,
+            staff = liveState.snapshot?.records.orEmpty(),
+            onSubmit = proxyViewModel::submit,
+            onClose = {
+                proxyOpen = false
+                proxyViewModel.clearMessage()
+                viewModel.loadDaily()
+            },
+        )
+        return
     }
 
     if (qrOpen) {
@@ -189,13 +210,23 @@ internal fun AdminStaffAttendanceScreen(
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
     ) {
         OutlinedButton(
+            onClick = { proxyOpen = true },
+            enabled = !liveState.isLoading && !liveState.isMutating && liveState.snapshot?.records?.isNotEmpty() == true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = eduCoreScreenPadding(), vertical = EduCoreSpacing.Xs),
+        ) {
+            Text("Clock in by proxy")
+        }
+
+        OutlinedButton(
             onClick = {
                 qrOpen = true
                 qrViewModel.load()
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = eduCoreScreenPadding(), vertical = EduCoreSpacing.Xs),
+                .padding(horizontal = eduCoreScreenPadding()),
         ) {
             Text("School attendance QR")
         }
