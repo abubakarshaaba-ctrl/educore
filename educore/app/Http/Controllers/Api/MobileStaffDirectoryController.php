@@ -17,7 +17,6 @@ class MobileStaffDirectoryController extends Controller
     public function __invoke(Request $request)
     {
         $user = $this->administrator($request);
-        abort_unless($this->allows($user, 'staff'), 403, 'You do not have access to staff records.');
 
         $validated = $request->validate([
             'query' => ['nullable', 'string', 'max:120'],
@@ -30,6 +29,8 @@ class MobileStaffDirectoryController extends Controller
         $status = $validated['status'] ?? 'all';
         $perPage = (int) ($validated['per_page'] ?? 50);
 
+        // School heads are explicitly allowed to use the native staff directory.
+        // Keep the projection tenant-scoped and exclude non-staff portal accounts.
         $base = User::query()
             ->where('tenant_id', $user->tenant_id)
             ->whereNotIn('role', ['student', 'parent', 'super_admin']);
@@ -87,22 +88,13 @@ class MobileStaffDirectoryController extends Controller
         $user = $request->user();
 
         abort_unless(
-            $user && in_array($user->roleKey(), self::ROLES, true),
+            $user
+                && $user->tenant_id
+                && in_array($user->roleKey(), self::ROLES, true),
             403,
             'This portal is restricted to school administrators.'
         );
 
         return $user;
-    }
-
-    private function allows(User $user, string $module): bool
-    {
-        $access = User::ROLE_ACCESS[$user->roleKey()] ?? [];
-
-        return in_array('*', $access, true)
-            || in_array($module, $access, true)
-            || collect($access)->contains(
-                fn ($permission) => str_starts_with($permission, $module.'.')
-            );
     }
 }
