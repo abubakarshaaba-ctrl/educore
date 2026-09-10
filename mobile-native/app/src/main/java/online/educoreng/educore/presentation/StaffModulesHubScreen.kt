@@ -53,6 +53,10 @@ internal fun StaffModulesHubScreen(
     val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
     val staffDirectoryViewModel: StaffDirectoryViewModel = hiltViewModel()
     val staffDirectoryState by staffDirectoryViewModel.uiState.collectAsStateWithLifecycle()
+    val adminStudentViewModel: AdminStudentDirectoryViewModel = hiltViewModel()
+    val adminStudentState by adminStudentViewModel.uiState.collectAsStateWithLifecycle()
+    val adminAttendanceViewModel: AdminStaffAttendanceViewModel = hiltViewModel()
+    val adminAttendanceState by adminAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val exportsViewModel: ExportsViewModel = hiltViewModel()
     val exportsState by exportsViewModel.uiState.collectAsStateWithLifecycle()
     val riskViewModel: RiskViewModel = hiltViewModel()
@@ -74,6 +78,8 @@ internal fun StaffModulesHubScreen(
     var cbtCreating by rememberSaveable { mutableStateOf(false) }
     var cbtExamId by rememberSaveable { mutableLongStateOf(0L) }
     var staffDirectoryOpen by rememberSaveable { mutableStateOf(false) }
+    var studentDirectoryOpen by rememberSaveable { mutableStateOf(false) }
+    var adminAttendanceOpen by rememberSaveable { mutableStateOf(false) }
     var exportsOpen by rememberSaveable { mutableStateOf(false) }
     var riskOpen by rememberSaveable { mutableStateOf(false) }
     var riskConfigOpen by rememberSaveable { mutableStateOf(false) }
@@ -116,7 +122,7 @@ internal fun StaffModulesHubScreen(
             onSaveEditor = portalAccountsViewModel::saveEditor,
             onCloseEditor = portalAccountsViewModel::closeEditor,
             onConfirm = portalAccountsViewModel::confirmPendingAction,
-            onCancelConfirm = portalAccountsViewModel::cancelPendingAction,
+            onCancelConfirm = portalAccountsViewModel::cancelConfirmation,
             onRetry = portalAccountsViewModel::load,
         )
         return
@@ -276,6 +282,24 @@ internal fun StaffModulesHubScreen(
         return
     }
 
+    if (adminAttendanceOpen) {
+        AdminStaffAttendanceScreen(
+            state = adminAttendanceState,
+            onBack = { adminAttendanceOpen = false },
+            onRefresh = adminAttendanceViewModel::load,
+        )
+        return
+    }
+
+    if (studentDirectoryOpen) {
+        AdminStudentDirectoryScreen(
+            state = adminStudentState,
+            onBack = { studentDirectoryOpen = false },
+            onRefresh = adminStudentViewModel::load,
+        )
+        return
+    }
+
     if (staffDirectoryOpen) {
         StaffDirectoryScreen(
             state = staffDirectoryState,
@@ -345,6 +369,15 @@ internal fun StaffModulesHubScreen(
             "settings" -> { schoolSettingsOpen = true; schoolSettingsViewModel.load() }
             "skills" -> { skillsOpen = true; skillsViewModel.load() }
             "staff" -> { staffDirectoryOpen = true; staffDirectoryViewModel.load() }
+            "students" -> if (session.user.portal == "admin") {
+                studentDirectoryOpen = true
+                adminStudentViewModel.load()
+            } else onModuleClick(module)
+            "staff-attendance" -> if (session.user.portal == "admin") {
+                adminAttendanceOpen = true
+                adminAttendanceViewModel.load()
+            } else onModuleClick(module)
+            "staff-attendance.self" -> onModuleClick(module)
             "gradebook" -> { gradebookOpen = true; gradebookViewModel.load() }
             "reports", "report-cards" -> { reportsOpen = true; reportsViewModel.load() }
             "transfers" -> { transfersOpen = true; transfersViewModel.load() }
