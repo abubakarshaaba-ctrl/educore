@@ -410,20 +410,35 @@ private data class ModuleHubGroup(
 )
 
 private fun buildModuleHubGroups(modules: List<ModuleDescriptor>, portal: String): List<ModuleHubGroup> {
-    val normalized = modules.filterNot { it.key.lowercase() in ROOT_WORKFLOW_KEYS }.sortedBy { it.title.lowercase() }
-    val deduped = normalized.groupBy { canonicalHubKey(it.key) }.mapNotNull { (_, candidates) ->
-        candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) } ?: candidates.firstOrNull()
-    }
+    val normalized = modules
+        .filterNot { module -> module.key.lowercase() in rootWorkflowKeysFor(portal) }
+        .sortedBy { it.title.lowercase() }
+    val deduped = normalized
+        .groupBy { module ->
+            val key = module.key.lowercase()
+            if (portal == "admin" && key in ADMIN_DISTINCT_ATTENDANCE_KEYS) key else canonicalHubKey(key)
+        }
+        .mapNotNull { (_, candidates) ->
+            if (portal == "admin") {
+                candidates.firstOrNull()
+            } else {
+                candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
+                    ?: candidates.firstOrNull()
+            }
+        }
     fun group(keys: Set<String>) = deduped.filter { it.key.lowercase() in keys }
     val known = ACADEMIC_KEYS + OPERATION_KEYS + ACCOUNT_KEYS
     val other = deduped.filter { it.key.lowercase() !in known }
-    val operations = if (portal == "admin") other else group(OPERATION_KEYS) + other
+    val operations = (group(OPERATION_KEYS) + other).distinctBy { it.key.lowercase() }
     return listOf(
         ModuleHubGroup("academics", "Academics", group(ACADEMIC_KEYS)),
-        ModuleHubGroup("operations", if (portal == "admin") "Other" else "Operations", operations),
+        ModuleHubGroup("operations", "Operations", operations),
         ModuleHubGroup("account", "Account", group(ACCOUNT_KEYS)),
     )
 }
+
+private fun rootWorkflowKeysFor(portal: String): Set<String> =
+    if (portal == "admin") ROOT_WORKFLOW_KEYS - setOf("students") else ROOT_WORKFLOW_KEYS
 
 private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     "staff-attendance.self" -> "staff-attendance"
@@ -432,7 +447,9 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
 
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
     "staff" -> "Staff Directory"
-    "staff-attendance", "staff-attendance.self" -> "Attendance"
+    "students" -> "Student Directory"
+    "staff-attendance" -> "Staff Attendance"
+    "staff-attendance.self" -> "My Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
     "gradebook" -> "Gradebook"
@@ -452,13 +469,14 @@ private val ROOT_WORKFLOW_KEYS = setOf(
     "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
     "student.timetable", "messages", "notifications.view", "announcements", "calendar.view",
 )
+private val ADMIN_DISTINCT_ATTENDANCE_KEYS = setOf("staff-attendance", "staff-attendance.self")
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 private val ACADEMIC_KEYS = setOf(
     "subjects", "curriculum", "reports", "report-cards", "results", "gradebook", "cbt", "cbt-exams",
     "examinations", "lesson-planner", "academic-repository", "library", "skills",
 )
 private val OPERATION_KEYS = setOf(
-    "staff", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
+    "staff", "students", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
     "admissions", "transfers", "transport", "health", "inventory", "hostels", "analytics", "risk", "exports",
 )
 private val ACCOUNT_KEYS = setOf("profile", "portal-accounts", "settings")
