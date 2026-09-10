@@ -17,6 +17,11 @@ use Illuminate\Validation\Rule;
 
 class MobileReportsController extends Controller
 {
+    private const ADMIN_ROLES = [
+        'admin', 'principal', 'head', 'head_teacher',
+        'vice_principal', 'academic_administrator',
+    ];
+
     public function __construct(
         private readonly ReportCardComputationService $computation,
         private readonly ReportCardPublicationService $publication,
@@ -92,7 +97,7 @@ class MobileReportsController extends Controller
                 'compute' => $this->canPublish($user),
                 'publish' => $this->canPublish($user),
                 'unpublish' => $this->canPublish($user),
-                'edit_remarks' => $user->canAccessModule('reports.remarks'),
+                'edit_remarks' => $this->canEditRemarks($user),
             ],
             'options' => [
                 'class_arms' => $classArms->map(fn (ClassArm $arm): array => [
@@ -271,17 +276,31 @@ class MobileReportsController extends Controller
         abort_unless($user, 401);
         abort_if($user->isStudent() || $user->isParent() || $user->isSuperAdmin(), 403);
         abort_unless($user->tenant_id, 403);
-        abort_unless(
-            $user->canAccessExactModule('reports'),
-            403,
-            'Full report-card access is required for this workspace.'
-        );
+        abort_unless($this->canViewReports($user), 403, 'Report-card access is required for this workspace.');
 
         return $user;
     }
 
+    private function canViewReports(User $user): bool
+    {
+        if (in_array($user->roleKey(), self::ADMIN_ROLES, true)) {
+            return true;
+        }
+
+        return $user->canAccessExactModule('reports')
+            || $user->canAccessExactModule('report-cards')
+            || $user->canAccessExactModule('results');
+    }
+
     private function canPublish(User $user): bool
     {
-        return $user->canAccessExactModule('students');
+        return in_array($user->roleKey(), self::ADMIN_ROLES, true)
+            || $user->canAccessExactModule('students');
+    }
+
+    private function canEditRemarks(User $user): bool
+    {
+        return in_array($user->roleKey(), self::ADMIN_ROLES, true)
+            || $user->canAccessModule('reports.remarks');
     }
 }
