@@ -1,18 +1,32 @@
 package online.educoreng.educore.presentation
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
@@ -45,7 +59,7 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
     onRetry: () -> Unit,
 ) {
     item(key = "personal-welcome", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-        DashboardWelcome(session)
+        DashboardWelcome(session = session, profilePhoto = state.profilePhoto)
     }
 
     val snapshot = state.snapshot
@@ -122,9 +136,9 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
 }
 
 @Composable
-private fun DashboardWelcome(session: SessionSnapshot) {
+private fun DashboardWelcome(session: SessionSnapshot, profilePhoto: ByteArray?) {
     val firstName = session.user.name.trim().substringBefore(' ').ifBlank { "there" }
-    val serverOffset = runCatching { OffsetDateTime.parse(session.serverTime).offset }.getOrNull()
+    val serverOffset = session.serverTime?.let { value -> runCatching { OffsetDateTime.parse(value).offset }.getOrNull() }
     val now = serverOffset?.let(OffsetDateTime::now) ?: OffsetDateTime.now()
     val greeting = when (now.hour) {
         in 5..11 -> "Good morning"
@@ -135,21 +149,76 @@ private fun DashboardWelcome(session: SessionSnapshot) {
     val academic = listOfNotNull(session.academicPeriod.sessionName, session.academicPeriod.termName)
         .filter(String::isNotBlank)
         .joinToString(" · ")
+    val bitmap = remember(profilePhoto) {
+        profilePhoto?.takeIf(ByteArray::isNotEmpty)?.let { bytes ->
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }
+    }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = EduCoreSpacing.Xs),
-        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xxs),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = EduCoreColors.Navy900,
+        shadowElevation = 3.dp,
     ) {
-        Text(
-            text = "$greeting, $firstName",
-            style = MaterialTheme.typography.titleLarge,
-            color = EduCoreColors.Navy900,
-        )
-        Text(
-            text = listOf(date, academic).filter(String::isNotBlank).joinToString(" · "),
-            style = MaterialTheme.typography.bodySmall,
-            color = EduCoreColors.Slate600,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(66.dp)
+                    .clip(CircleShape)
+                    .background(EduCoreColors.Gold400),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "${session.user.name} profile photo",
+                        modifier = Modifier.size(66.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Text(
+                        text = session.user.name.trim().take(1).uppercase().ifBlank { "U" },
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = EduCoreColors.Navy900,
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xxs),
+            ) {
+                Text(
+                    text = "$greeting, $firstName",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EduCoreColors.White,
+                )
+                Text(
+                    text = session.user.roleLabel.ifBlank { "Staff" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EduCoreColors.Gold400,
+                )
+                Text(
+                    text = listOf(date, academic).filter(String::isNotBlank).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.White.copy(alpha = 0.78f),
+                )
+                if (session.school.name.isNotBlank()) {
+                    Text(
+                        text = session.school.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EduCoreColors.White.copy(alpha = 0.62f),
+                    )
+                }
+            }
+        }
     }
 }
 
