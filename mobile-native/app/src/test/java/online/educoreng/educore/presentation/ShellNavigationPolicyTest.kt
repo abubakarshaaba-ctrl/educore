@@ -7,6 +7,7 @@ import online.educoreng.educore.core.model.SessionSnapshot
 import online.educoreng.educore.core.model.TenantAccess
 import online.educoreng.educore.core.model.UserIdentity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,14 +29,16 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
-    fun module_hub_groups_every_backend_module_once() {
+    fun module_hub_groups_every_visible_admin_module_once() {
         val session = session(portal = "admin", role = "admin")
+        val visible = ShellNavigationPolicy.visibleModules(session)
         val grouped = ShellNavigationPolicy.groupedModules(session)
             .values
             .flatten()
 
-        assertEquals(session.modules.size, grouped.size)
-        assertEquals(session.modules.map { it.key }.toSet(), grouped.map { it.key }.toSet())
+        assertEquals(visible.size, grouped.size)
+        assertEquals(visible.map { it.key }.toSet(), grouped.map { it.key }.toSet())
+        assertFalse(grouped.any { it.key == "fees" })
     }
 
     private fun session(portal: String, role: String): SessionSnapshot = SessionSnapshot(
