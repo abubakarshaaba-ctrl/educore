@@ -33,7 +33,7 @@ object ShellNavigationPolicy {
         val primaryLabel = when {
             portal == "parent" -> "Children"
             portal == "platform" -> "Schools"
-            role.contains("teacher") || portal == "staff" -> "Classes"
+            role.contains("teacher") || portal in setOf("staff", "admin") -> "Classes"
             else -> "Academics"
         }
         val secondaryLabel = when {
@@ -95,20 +95,30 @@ object ShellNavigationPolicy {
      * Server bootstrap remains authoritative. This client-side layer is a
      * fail-closed safety net for stale bootstrap payloads and removes duplicate
      * aliases from navigation; it never grants a module that the server omitted.
+     *
+     * School administrators use the same operational shell as staff. Their
+     * native scope is deliberately limited to day-to-day school operations;
+     * full school configuration remains web-only.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val roleKeys = buildSet {
             add(session.user.roleKey.lowercase())
             session.user.roles.mapTo(this) { it.lowercase() }
         }
+        val portal = session.user.portal.lowercase()
         val isAccountant = roleKeys.any { it in ACCOUNTANT_ROLE_KEYS }
 
-        val filtered = session.modules.filterNot { module ->
+        var filtered = session.modules.filterNot { module ->
             isAccountant && module.key.lowercase() in ACCOUNTANT_DENIED_KEYS
         }
 
+        if (portal == "admin") {
+            filtered = filtered.filter { module -> adminOperationalModule(module.key) }
+        }
+
         val hasSelfAttendance = filtered.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
-        val attendanceAware = if (session.user.portal == "admin" || session.user.portal == "platform") {
+        val attendanceAware = if (portal == "admin") {
+            // Administrators need both their own attendance and the staff report.
             filtered
         } else {
             filtered.filterNot { module ->
@@ -117,10 +127,14 @@ object ShellNavigationPolicy {
         }
 
         return attendanceAware
-            .groupBy { canonicalKey(it.key) }
+            .groupBy { module -> dedupeKey(module.key, portal) }
             .mapNotNull { (_, candidates) ->
-                candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
-                    ?: candidates.firstOrNull()
+                if (portal == "admin") {
+                    candidates.firstOrNull()
+                } else {
+                    candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
+                        ?: candidates.firstOrNull()
+                }
             }
     }
 
@@ -141,11 +155,25 @@ object ShellNavigationPolicy {
         }
     }
 
+    private fun dedupeKey(key: String, portal: String): String {
+        val normalized = key.lowercase()
+        if (portal == "admin" && normalized in setOf("staff-attendance", "staff-attendance.self")) {
+            return normalized
+        }
+        return canonicalKey(normalized)
+    }
+
     private fun canonicalKey(key: String): String = when (key.lowercase()) {
         "staff-attendance.self" -> "staff-attendance"
         "report-cards", "results" -> "reports"
         "cbt-exams", "examinations" -> "cbt"
         else -> key.lowercase()
+    }
+
+    private fun adminOperationalModule(key: String): Boolean {
+        val normalized = key.lowercase()
+        return normalized in ADMIN_OPERATIONAL_KEYS ||
+            ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
     }
 
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf(
@@ -158,6 +186,40 @@ object ShellNavigationPolicy {
         "academic-repository",
     )
 
+    private val ADMIN_OPERATIONAL_KEYS = setOf(
+        "classes",
+        "students",
+        "attendance",
+        "student-attendance",
+        "scores",
+        "scores.entry",
+        "subjects",
+        "timetable",
+        "reports",
+        "report-cards",
+        "results",
+        "staff-attendance",
+        "staff-attendance.self",
+        "cbt",
+        "cbt-exams",
+        "examinations",
+        "lesson-planner",
+        "academic-repository",
+        "messages",
+        "announcements",
+        "notifications.view",
+        "calendar.view",
+        "profile",
+    )
+
+    private val ADMIN_OPERATIONAL_PREFIXES = listOf(
+        "message",
+        "notification",
+        "announcement",
+        "calendar",
+        "event",
+    )
+
     private val ACCOUNTANT_ROLE_KEYS = setOf("accountant", "accounts", "finance", "bursar")
     private val ACCOUNTANT_DENIED_KEYS = setOf(
         "attendance",
@@ -168,7 +230,7 @@ object ShellNavigationPolicy {
     )
 
     private val ACADEMIC_KEYS = listOf(
-        "student", "class", "subject", "curriculum", "attendance", "score",
+        "student", "class", "subject", "attendance", "score",
         "report", "result", "lesson", "repository", "cbt", "exam",
     )
     private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
