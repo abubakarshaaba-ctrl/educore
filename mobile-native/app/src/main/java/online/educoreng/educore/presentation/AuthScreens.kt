@@ -89,13 +89,20 @@ internal fun StartupScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        androidx.compose.foundation.Image(
-            painter = painterResource(R.drawable.ic_educore_mark),
-            contentDescription = null,
+        Surface(
             modifier = Modifier.size(82.dp),
-        )
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White.copy(alpha = 0.07f),
+            shadowElevation = 2.dp,
+        ) {
+            androidx.compose.foundation.Image(
+                painter = painterResource(R.drawable.ic_educore_mark),
+                contentDescription = null,
+                modifier = Modifier.padding(7.dp),
+            )
+        }
         Spacer(Modifier.height(EduCoreSpacing.Lg))
-        Text(text = "EduCore", color = Color.White, style = MaterialTheme.typography.displaySmall)
+        EduCoreWordmark(style = MaterialTheme.typography.displaySmall)
         Text(text = "School ERP", color = EduCoreColors.Gold400, style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(EduCoreSpacing.Xxl))
         CircularProgressIndicator(color = EduCoreColors.Gold400, strokeWidth = 3.dp)
@@ -107,6 +114,15 @@ internal fun StartupScreen() {
         )
     }
 }
+
+@Composable
+private fun EduCoreWordmark(style: androidx.compose.ui.text.TextStyle) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(text = "Edu", color = Color.White, style = style)
+        Text(text = "Core", color = EduCoreColors.Gold400, style = style)
+    }
+}
+
 @Composable
 internal fun AuthenticationScreen(
     state: AppUiState,
@@ -193,20 +209,18 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
             Surface(
                 modifier = Modifier.size(if (expanded) 86.dp else 66.dp),
                 shape = RoundedCornerShape(if (expanded) 24.dp else 20.dp),
-                color = Color.White.copy(alpha = 0.10f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                color = Color.White.copy(alpha = 0.08f),
+                shadowElevation = 2.dp,
             ) {
                 androidx.compose.foundation.Image(
                     painter = painterResource(R.drawable.ic_educore_mark),
                     contentDescription = "EduCore",
-                    modifier = Modifier.padding(if (expanded) 10.dp else 8.dp),
+                    modifier = Modifier.padding(if (expanded) 9.dp else 7.dp),
                 )
             }
             Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Md))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    "EduCore",
-                    color = Color.White,
+                EduCoreWordmark(
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontSize = if (expanded) 34.sp else 30.sp,
                         lineHeight = if (expanded) 40.sp else 36.sp,
