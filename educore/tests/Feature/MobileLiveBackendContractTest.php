@@ -47,8 +47,8 @@ class MobileLiveBackendContractTest extends TestCase
     {
         $service = file_get_contents(app_path('Services/Notifications/PushNotificationService.php'));
 
-        $this->assertStringContainsString("$thread->audience === 'all_staff'", $service);
-        $this->assertStringContainsString("$thread->audience === 'all_parents'", $service);
+        $this->assertStringContainsString("audience === 'all_staff'", $service);
+        $this->assertStringContainsString("audience === 'all_parents'", $service);
         $this->assertStringContainsString("'destination_type' => 'message_thread'", $service);
     }
 }
