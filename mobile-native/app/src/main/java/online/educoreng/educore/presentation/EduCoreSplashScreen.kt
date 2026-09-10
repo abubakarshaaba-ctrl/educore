@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +45,7 @@ internal fun EduCoreSplashScreen() {
                 center = Offset(size.width * 0.92f, size.height * 0.08f),
             )
             drawCircle(
-                color = Color.White.copy(alpha = 0.08f),
+                color = EduCoreColors.Gold400.copy(alpha = 0.12f),
                 radius = min * 0.28f,
                 center = Offset(size.width * 0.04f, size.height * 0.92f),
                 style = Stroke(width = 1.5.dp.toPx()),
@@ -65,24 +66,31 @@ internal fun EduCoreSplashScreen() {
             verticalArrangement = Arrangement.Center,
         ) {
             Surface(
-                modifier = Modifier.size(104.dp),
-                shape = RoundedCornerShape(28.dp),
-                color = Color.White,
-                shadowElevation = 10.dp,
+                modifier = Modifier.size(96.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White.copy(alpha = 0.07f),
+                shadowElevation = 2.dp,
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_educore_mark),
                     contentDescription = "EduCore",
-                    modifier = Modifier.padding(15.dp),
+                    modifier = Modifier.padding(8.dp),
                 )
             }
 
             Spacer(Modifier.height(24.dp))
-            Text(
-                text = "EduCore",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineLarge,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Edu",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineLarge,
+                )
+                Text(
+                    text = "Core",
+                    color = EduCoreColors.Gold400,
+                    style = MaterialTheme.typography.headlineLarge,
+                )
+            }
             Spacer(Modifier.height(6.dp))
             Text(
                 text = "Your school. Connected.",
@@ -96,7 +104,7 @@ internal fun EduCoreSplashScreen() {
                 modifier = Modifier
                     .fillMaxWidth(0.42f)
                     .height(3.dp),
-                color = Color.White,
+                color = EduCoreColors.Gold400,
                 trackColor = Color.White.copy(alpha = 0.16f),
             )
             Spacer(Modifier.height(14.dp))
