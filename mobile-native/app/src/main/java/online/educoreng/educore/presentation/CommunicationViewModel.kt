@@ -175,7 +175,7 @@ class CommunicationViewModel @Inject constructor(
         val state = _uiState.value
         val recipientId = state.selectedRecipientId
         if (recipientId == null || state.composeSubject.isBlank() || state.composeBody.isBlank()) {
-            return@launch fail("Choose a student, then enter a subject and message.")
+            return@launch fail("Choose a recipient, then enter a subject and message.")
         }
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.compose(recipientId, state.composeSubject.trim(), state.composeBody.trim(), state.attachment)) {
