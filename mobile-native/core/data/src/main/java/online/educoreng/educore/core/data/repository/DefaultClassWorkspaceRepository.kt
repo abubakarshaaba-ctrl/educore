@@ -17,6 +17,7 @@ import online.educoreng.educore.core.model.AttendanceSheet
 import online.educoreng.educore.core.model.AttendanceStatus
 import online.educoreng.educore.core.model.ClassCatalogue
 import online.educoreng.educore.core.model.ClassStudentsSnapshot
+import online.educoreng.educore.core.model.ProxyAttendanceColleague
 import online.educoreng.educore.core.model.StaffAttendanceSnapshot
 import online.educoreng.educore.core.model.StudentProfile
 import online.educoreng.educore.core.model.SyncState
@@ -26,6 +27,7 @@ import online.educoreng.educore.core.network.dto.AttendanceSheetResponseDto
 import online.educoreng.educore.core.network.dto.ClassListResponseDto
 import online.educoreng.educore.core.network.dto.ClassStudentsResponseDto
 import online.educoreng.educore.core.network.dto.ClockInRequestDto
+import online.educoreng.educore.core.network.dto.ProxyClockInRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceRequestDto
 import online.educoreng.educore.core.network.safeApiCall
 import online.educoreng.educore.core.network.toDomain
@@ -245,6 +247,43 @@ class DefaultClassWorkspaceRepository(
 
     override suspend fun clockOut(): AppResult<String> = withContext(Dispatchers.IO) {
         when (val result = safeApiCall(moshi) { api.clockOut() }) {
+            is AppResult.Success -> AppResult.Success(result.value.message)
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun loadProxyColleagues(search: String?): AppResult<List<ProxyAttendanceColleague>> =
+        withContext(Dispatchers.IO) {
+            when (val result = safeApiCall(moshi) { api.proxyAttendanceColleagues(search?.trim()?.takeIf(String::isNotEmpty)) }) {
+                is AppResult.Success -> AppResult.Success(
+                    result.value.staff.map { staff ->
+                        ProxyAttendanceColleague(
+                            id = staff.id,
+                            name = staff.name,
+                            staffId = staff.emp.orEmpty(),
+                            photoUrl = staff.photo,
+                        )
+                    },
+                )
+                is AppResult.Failure -> result
+            }
+        }
+
+    override suspend fun proxyClockIn(
+        staffId: Long,
+        token: String,
+        photoDataUrl: String,
+        latitude: Double?,
+        longitude: Double?,
+    ): AppResult<String> = withContext(Dispatchers.IO) {
+        val request = ProxyClockInRequestDto(
+            staffId = staffId,
+            token = token.trim(),
+            photo = photoDataUrl,
+            lat = latitude,
+            lng = longitude,
+        )
+        when (val result = safeApiCall(moshi) { api.proxyClockIn(request) }) {
             is AppResult.Success -> AppResult.Success(result.value.message)
             is AppResult.Failure -> result
         }
