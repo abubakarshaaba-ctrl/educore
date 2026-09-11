@@ -9,6 +9,18 @@ data class AdminStaffAttendanceSettingsResponseDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class SchoolOpenDaysRequestDto(
+    @Json(name = "school_open_days") val schoolOpenDays: List<String>,
+)
+
+@JsonClass(generateAdapter = true)
+data class SchoolOpenDaysResponseDto(
+    val success: Boolean = false,
+    val message: String? = null,
+    @Json(name = "school_open_days") val schoolOpenDays: List<String> = emptyList(),
+)
+
+@JsonClass(generateAdapter = true)
 data class AdminAttendanceOfflineSyncRequestDto(
     @Json(name = "client_uuid") val clientUuid: String,
     @Json(name = "staff_id") val staffId: Long,
