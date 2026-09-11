@@ -28,9 +28,11 @@ object ModulePresentationPolicy {
         "classes",
         "students",
         "attendance",
+        "student-attendance",
         "staff",
         "staff-attendance",
         "staff-attendance.self",
+        "staff-attendance.admin",
         "skills",
         "transfers",
         "portal-accounts",
@@ -76,5 +78,7 @@ object ModulePresentationPolicy {
         "scores.entry",
     )
 
+    // The mobile shell does not hand off visible module tiles to the browser.
+    // A future explicitly web-only module must be added here deliberately.
     private val EXPLICIT_WEB_ONLY_MODULES: Set<String> = emptySet()
 }
