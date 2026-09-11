@@ -136,6 +136,7 @@ class MainViewModel @Inject constructor(
     fun retryDashboard() {
         if (_uiState.value.dashboard.isLoading || _uiState.value.phase != AppPhase.READY) return
         loadDashboard()
+        _uiState.value.session?.let(::loadStaffPhoto)
     }
 
     fun logout() {
@@ -220,6 +221,7 @@ class MainViewModel @Inject constructor(
         if (session.access.allowed) {
             registerPushToken()
             loadDashboard()
+            loadStaffPhoto(session)
         }
     }
 
@@ -227,6 +229,21 @@ class MainViewModel @Inject constructor(
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
                 viewModelScope.launch { communicationRepository.registerPushToken(token) }
+            }
+        }
+    }
+
+    private fun loadStaffPhoto(session: SessionSnapshot) {
+        if (session.user.portal !in setOf("admin", "staff")) {
+            _uiState.update { it.copy(dashboard = it.dashboard.copy(staffPhoto = null)) }
+            return
+        }
+        viewModelScope.launch {
+            when (val result = dashboardRepository.loadStaffPhoto()) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(dashboard = it.dashboard.copy(staffPhoto = result.value))
+                }
+                is AppResult.Failure -> Unit // A missing/unavailable photo falls back to the standard avatar.
             }
         }
     }
@@ -240,9 +257,10 @@ class MainViewModel @Inject constructor(
             when (val result = dashboardRepository.load()) {
                 is AppResult.Success -> _uiState.update {
                     it.copy(
-                        dashboard = DashboardUiState(
+                        dashboard = it.dashboard.copy(
                             snapshot = result.value,
                             isLoading = false,
+                            errorMessage = null,
                         ),
                     )
                 }
