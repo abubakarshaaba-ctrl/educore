@@ -53,6 +53,20 @@ data class EventsResponseDto(
     val events: List<SchoolEventDto> = emptyList(),
     @param:Json(name = "generated_at") val generatedAt: String,
 )
+data class CreateEventRequestDto(
+    val title: String,
+    val description: String? = null,
+    @param:Json(name = "start_date") val startDate: String,
+    @param:Json(name = "end_date") val endDate: String? = null,
+    val type: String = "event",
+    val color: String = "#2563EB",
+    val audience: String,
+)
+data class CreateEventResponseDto(
+    val message: String,
+    val event: SchoolEventDto,
+    @param:Json(name = "notice_id") val noticeId: Long,
+)
 
 data class MessageAttachmentDto(
     val name: String,
