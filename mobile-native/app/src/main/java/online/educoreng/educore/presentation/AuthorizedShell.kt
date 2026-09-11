@@ -441,6 +441,9 @@ internal fun AuthorizedShell(
                                 onRefresh = classesViewModel::loadStaffAttendance,
                                 onClockIn = classesViewModel::clockIn,
                                 onClockOut = classesViewModel::clockOut,
+                                onProxySearch = classesViewModel::setProxySearch,
+                                onLoadProxyColleagues = { classesViewModel.loadProxyColleagues() },
+                                onProxyClockIn = classesViewModel::proxyClockIn,
                             )
                         }
                         composable(NativeRoute.SCORES) {
