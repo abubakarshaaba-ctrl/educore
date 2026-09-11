@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\CalendarEvent;
 use App\Services\Mobile\MobileCommunicationService;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -109,6 +110,8 @@ class MobileCommunicationController extends Controller
 
             return [$event, $notice];
         });
+
+        app(PushNotificationService::class)->notifyAnnouncementPublished($notice);
 
         return response()->json([
             'message' => 'Event published as a notice.',
