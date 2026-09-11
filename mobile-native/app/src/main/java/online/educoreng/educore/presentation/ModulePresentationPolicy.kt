@@ -13,6 +13,7 @@ object ModulePresentationPolicy {
         val normalized = key.trim().lowercase()
 
         return when {
+            normalized in MOBILE_REMOVED_MODULES -> ModulePresentation.UNSUPPORTED
             normalized in NATIVE_MODULES -> ModulePresentation.NATIVE
             normalized in NATIVE_GENERIC_MODULES -> ModulePresentation.NATIVE_GENERIC
             normalized in ROLE_CONDITIONAL_MODULES -> ModulePresentation.ROLE_CONDITIONAL
@@ -23,6 +24,17 @@ object ModulePresentationPolicy {
 
     fun allowsBrowserHandoff(key: String): Boolean =
         presentationFor(key) == ModulePresentation.WEB_ONLY
+
+    /** Modules intentionally absent from the Android product, even if a stale bootstrap advertises them. */
+    private val MOBILE_REMOVED_MODULES = setOf(
+        "cbt",
+        "cbt-exams",
+        "examinations",
+        "student.exams",
+        "student.cbt",
+        "staff.cbt",
+        "student.results",
+    )
 
     private val NATIVE_MODULES = setOf(
         "classes",
@@ -36,13 +48,8 @@ object ModulePresentationPolicy {
         "portal-accounts",
         "gradebook",
         "reports",
-        "report-cards",
         "timetable",
         "student.timetable",
-        "student.exams",
-        "cbt",
-        "cbt-exams",
-        "examinations",
         "academic-repository",
         "lesson-planner",
         "exports",
@@ -77,11 +84,12 @@ object ModulePresentationPolicy {
         "analytics",
     )
 
+    /** Result/report-card rendering is allowed only after the shell's parent-portal gate. */
     private val ROLE_CONDITIONAL_MODULES = setOf(
         "scores",
         "scores.entry",
         "results",
-        "student.results",
+        "report-cards",
         "parent.results",
     )
 
