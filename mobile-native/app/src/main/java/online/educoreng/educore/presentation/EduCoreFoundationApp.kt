@@ -69,7 +69,9 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         ) {
             when (state.phase) {
-                AppPhase.STARTING -> StartupScreen()
+                // Deliberately render only the app background while the encrypted
+                // session is restored. There is no custom branded splash page.
+                AppPhase.STARTING -> Box(Modifier.fillMaxSize())
                 AppPhase.SIGNED_OUT -> AuthenticationScreen(
                     state = state,
                     onLogin = viewModel::login,
