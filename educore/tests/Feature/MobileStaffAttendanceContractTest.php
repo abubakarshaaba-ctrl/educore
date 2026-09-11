@@ -32,6 +32,11 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         foreach ($expected as $signature) {
             $this->assertContains($signature, $registered, "Missing mobile attendance route: {$signature}");
+            $this->assertSame(
+                1,
+                count(array_keys($registered, $signature, true)),
+                "Mobile attendance route is registered more than once: {$signature}",
+            );
         }
     }
 
