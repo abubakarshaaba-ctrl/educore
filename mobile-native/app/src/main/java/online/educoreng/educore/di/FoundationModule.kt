@@ -29,8 +29,6 @@ import online.educoreng.educore.core.data.repository.DefaultScheduleRepository
 import online.educoreng.educore.core.data.repository.ScheduleRepository
 import online.educoreng.educore.core.data.repository.AcademicContentRepository
 import online.educoreng.educore.core.data.repository.DefaultAcademicContentRepository
-import online.educoreng.educore.core.data.repository.CbtRepository
-import online.educoreng.educore.core.data.repository.DefaultCbtRepository
 import online.educoreng.educore.core.data.repository.DefaultOperationsRepository
 import online.educoreng.educore.core.data.repository.OperationsRepository
 import online.educoreng.educore.core.data.repository.CommunicationRepository
@@ -178,10 +176,6 @@ object FoundationModule {
         database: EduCoreDatabase,
         tenantContextStore: TenantContextStore,
     ): AcademicContentRepository = DefaultAcademicContentRepository(context, api, moshi, database, tenantContextStore)
-
-    @Provides
-    @Singleton
-    fun provideCbtRepository(api: EduCoreApi, moshi: Moshi): CbtRepository = DefaultCbtRepository(api, moshi)
 
     @Provides
     @Singleton
