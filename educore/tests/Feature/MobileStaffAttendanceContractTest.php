@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
+use App\Http\Controllers\Api\SchoolOpenDaysController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use App\Http\Controllers\Api\StaffCardAttendanceScanController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,7 @@ class MobileStaffAttendanceContractTest extends TestCase
             'GET api/v1/admin/staff-attendance/monthly',
             'GET api/v1/admin/staff-attendance/settings',
             'PUT api/v1/admin/staff-attendance/settings',
+            'PUT api/v1/admin/staff-attendance/school-open-days',
             'GET api/v1/admin/staff-attendance/offline',
             'POST api/v1/admin/staff-attendance/offline/sync',
             'GET api/v1/admin/staff-attendance/proxy-reviews',
@@ -64,6 +66,7 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
         $this->assertTrue(method_exists(AdminStaffAttendanceOfflineController::class, '__invoke'));
         $this->assertTrue(method_exists(StaffCardAttendanceScanController::class, '__invoke'));
+        $this->assertTrue(method_exists(SchoolOpenDaysController::class, 'update'));
     }
 
     public function test_staff_card_scan_route_is_outside_admin_namespace_and_uses_real_time_controller(): void
@@ -109,10 +112,20 @@ class MobileStaffAttendanceContractTest extends TestCase
     public function test_school_open_days_drive_attendance_and_timetable_contracts(): void
     {
         $attendance = file_get_contents(app_path('Http/Controllers/Api/AdminStaffAttendanceController.php'));
+        $schoolDays = file_get_contents(app_path('Http/Controllers/Api/SchoolOpenDaysController.php'));
         $tenant = file_get_contents(app_path('Models/Tenant.php'));
         $timetable = file_get_contents(app_path('Services/TimetableGeneratorService.php'));
 
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('PUT', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/school-open-days'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(SchoolOpenDaysController::class, $route->getActionName());
         $this->assertStringContainsString("'school_open_days'", $attendance);
+        $this->assertStringContainsString("'school_open_days'", $schoolDays);
+        $this->assertStringContainsString("'array', 'min:1', 'max:7'", $schoolDays);
         $this->assertStringContainsString('isSchoolOpenOn', $attendance);
         $this->assertStringContainsString('schoolOpenDays()', $tenant);
         $this->assertStringContainsString('DEFAULT_SCHOOL_OPEN_DAYS', $tenant);
