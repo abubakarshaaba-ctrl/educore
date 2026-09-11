@@ -150,10 +150,10 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--indigo)}
                        value="{{ $settings->geo_radius_meters ?? 100 }}" style="max-width:200px">
                 <div class="hint">Staff must be within this radius to clock in. 100m recommended for most schools.</div>
             </div>
-            <button type="button" class="btn btn-g" style="font-size:12px;padding:7px 14px" onclick="useMyLocation()">
+            <button type="button" id="useLocationBtn" class="btn btn-g" style="font-size:12px;padding:7px 14px" onclick="useMyLocation()">
                 📍 Use My Current Location
             </button>
-            <div id="locStatus" style="font-size:12px;color:var(--slate-light);margin-top:6px"></div>
+            <div id="locStatus" role="status" aria-live="polite" style="font-size:12px;color:var(--slate-light);margin-top:6px"></div>
         </div>
     </div>
 </div>
@@ -168,17 +168,56 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--indigo)}
 
 @push('scripts')
 <script>
+function setLocationStatus(message, colour) {
+    const status = document.getElementById('locStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = colour || 'var(--slate-light)';
+}
+
 function useMyLocation() {
-    const s = document.getElementById('locStatus');
-    s.textContent = 'Getting location...';
+    const button = document.getElementById('useLocationBtn');
+
+    if (!window.isSecureContext) {
+        setLocationStatus('Location access requires HTTPS. Open EduCore using the secure https:// address and try again.', 'var(--crimson)');
+        return;
+    }
+
+    if (!('geolocation' in navigator)) {
+        setLocationStatus('Location is not supported by this browser or device. Enter the coordinates manually.', 'var(--crimson)');
+        return;
+    }
+
+    if (button) button.disabled = true;
+    setLocationStatus('Requesting your current location… Keep Location/GPS enabled.', 'var(--slate)');
+
     navigator.geolocation.getCurrentPosition(
-        p => {
-            document.getElementById('geoLat').value = p.coords.latitude.toFixed(7);
-            document.getElementById('geoLng').value = p.coords.longitude.toFixed(7);
-            s.textContent = '✓ Location set: ' + p.coords.latitude.toFixed(5) + ', ' + p.coords.longitude.toFixed(5);
-            s.style.color = 'var(--emerald)';
+        position => {
+            const lat = Number(position.coords.latitude);
+            const lng = Number(position.coords.longitude);
+            const accuracy = Number(position.coords.accuracy || 0);
+
+            document.getElementById('geoLat').value = lat.toFixed(7);
+            document.getElementById('geoLng').value = lng.toFixed(7);
+
+            const accuracyText = accuracy > 0 ? ` (accuracy ±${Math.round(accuracy)} m)` : '';
+            setLocationStatus(`✓ Location captured: ${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracyText}. Save Settings to apply it.`, 'var(--emerald)');
+            if (button) button.disabled = false;
         },
-        () => { s.textContent = 'Could not get location. Enter manually.'; s.style.color='var(--crimson)'; }
+        error => {
+            const messages = {
+                1: 'Location permission was denied. Allow location permission for EduCore in your browser/app settings, then try again.',
+                2: 'Your device could not determine its location. Turn on Location/GPS, move to an open area and try again.',
+                3: 'Location request timed out. Check GPS and internet/location services, then try again.'
+            };
+            setLocationStatus(messages[error.code] || `Location failed: ${error.message || 'unknown error'}.`, 'var(--crimson)');
+            if (button) button.disabled = false;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
+        }
     );
 }
 </script>
