@@ -17,9 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.ceil
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -50,7 +50,7 @@ internal fun LazyGridScope.dashboardHomeContent(
 ) {
     item(key = "profile", span = { GridItemSpan(maxLineSpan) }) {
         EduCoreProfileHeader(
-            name = session.user.name,
+            name = "${timeGreeting(session.serverTime)}, ${session.user.name}",
             role = session.user.roleLabel,
             identifier = session.user.staffId ?: session.user.email,
             modifier = Modifier.fillMaxWidth(),
@@ -172,26 +172,21 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
     val countdown = when {
         state == "free" -> "No expiry"
         expiryEpochMs == null -> statusLabel
+        state == "grace" && remainingMs != null && remainingMs > 0 -> {
+            val days = ceil(remainingMs / dayMs).toLong().coerceAtLeast(1L)
+            if (days == 1L) "1 day grace remaining" else "$days days grace remaining"
+        }
         remainingMs != null && remainingMs > 0 -> {
             val days = ceil(remainingMs / dayMs).toLong()
-            when (days) {
-                1L -> "1 day remaining"
-                else -> "$days days remaining"
-            }
+            if (days == 1L) "1 day remaining" else "$days days remaining"
         }
-        remainingMs != null && remainingMs == 0L -> "Expires today"
-        state == "grace" && remainingMs != null -> {
-            val daysPast = ceil(abs(remainingMs) / dayMs).toLong().coerceAtLeast(1L)
-            when (daysPast) {
-                1L -> "1 day past expiry"
-                else -> "$daysPast days past expiry"
-            }
-        }
+        remainingMs != null && remainingMs == 0L -> if (state == "grace") "Grace ends today" else "Expires today"
         else -> "Expired"
     }
 
     val dateLine = expiryEpochMs?.let {
-        "Expiry date: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it))}"
+        val label = if (state == "grace") "Grace ends" else "Expiry date"
+        "$label: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it))}"
     } ?: when (state) {
         "free" -> "Your school currently has no subscription expiry date."
         else -> "Subscription expiry date is not available."
@@ -317,7 +312,7 @@ private fun moduleIconForDashboard(module: ModuleDescriptor): ImageVector {
         key.contains("class") -> EduCoreIcons.Classes
         key.contains("subject") || key.contains("curriculum") -> EduCoreIcons.Subjects
         key.contains("attendance") -> EduCoreIcons.Attendance
-        key.contains("score") || key.contains("result") || key.contains("report") -> EduCoreIcons.Scores
+        key.contains("score") -> EduCoreIcons.Scores
         key.contains("timetable") || key.contains("schedule") -> EduCoreIcons.Schedule
         key.contains("lesson") -> EduCoreIcons.LessonPlan
         key.contains("repository") -> EduCoreIcons.Repository
@@ -344,6 +339,16 @@ private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
     "inactive", "failed", "suspended", "attention" -> EduCoreTone.Danger
     "pending", "review", "duty", "late" -> EduCoreTone.Warning
     else -> EduCoreTone.Neutral
+}
+
+private fun timeGreeting(serverTime: String?): String {
+    val calendar = Calendar.getInstance()
+    parseIsoEpoch(serverTime)?.let { calendar.timeInMillis = it }
+    return when (calendar.get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        else -> "Good evening"
+    }
 }
 
 private fun parseIsoEpoch(value: String?): Long? {
