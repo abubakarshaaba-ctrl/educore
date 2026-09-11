@@ -50,7 +50,7 @@ internal fun CbtAttemptScreen(
     onRetry: () -> Unit,
     onExit: () -> Unit,
 ) = CbtRemovedScreen(
-    onBack = onExit,
+    onExit,
     state,
     online,
     onSection,
