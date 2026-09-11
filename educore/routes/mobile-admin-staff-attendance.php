@@ -23,9 +23,9 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('qr', [AdminStaffAttendanceController::class, 'qr']);
     Route::post('qr/reset', [AdminStaffAttendanceController::class, 'resetQr']);
 
-    // Temporary compatibility endpoints for already-installed builds.
-    Route::get('/', [AdminStaffAttendanceController::class, 'daily']);
-    Route::get('report', [AdminStaffAttendanceController::class, 'monthly']);
+    // Compatibility endpoints that are not already registered in routes/api.php.
+    // The legacy root and report GET routes remain registered there; duplicating
+    // them here would make route resolution dependent on registration order.
     Route::post('manual', [AdminStaffAttendanceLegacyController::class, 'manual']);
     Route::post('offline/{record}', [AdminStaffAttendanceLegacyController::class, 'reviewOffline']);
     Route::post('proxy-reviews/{record}', [AdminStaffAttendanceLegacyController::class, 'reviewProxy']);
