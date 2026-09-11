@@ -42,6 +42,8 @@ import online.educoreng.educore.core.network.dto.CbtSaveRequestDto
 import online.educoreng.educore.core.network.dto.CbtSubmitRequestDto
 import online.educoreng.educore.core.network.dto.OperationsResponseDto
 import online.educoreng.educore.core.network.dto.EventsResponseDto
+import online.educoreng.educore.core.network.dto.CreateEventRequestDto
+import online.educoreng.educore.core.network.dto.CreateEventResponseDto
 import online.educoreng.educore.core.network.dto.MessageMutationResponseDto
 import online.educoreng.educore.core.network.dto.MessageRecipientsResponseDto
 import online.educoreng.educore.core.network.dto.MessagesResponseDto
@@ -176,6 +178,9 @@ interface EduCoreApi {
 
     @GET("calendar/events")
     suspend fun communicationEvents(@Query("from") from: String? = null, @Query("to") to: String? = null): EventsResponseDto
+
+    @POST("calendar/events")
+    suspend fun createCommunicationEvent(@Body request: CreateEventRequestDto): CreateEventResponseDto
 
     @GET("messages")
     suspend fun messages(@Query("per_page") perPage: Int = 50): MessagesResponseDto
