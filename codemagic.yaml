@@ -16,6 +16,27 @@ workflows:
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           chmod +x gradlew
 
+      - name: Prepare Firebase configuration
+        script: |
+          set -e
+          SOURCE="app/firebase/google-services.json"
+          if [ ! -f "$SOURCE" ]; then
+            echo "Missing $SOURCE"
+            exit 1
+          fi
+          mkdir -p app/src/debug app/src/release
+          cp "$SOURCE" app/src/release/google-services.json
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('app/firebase/google-services.json')
+          dst = Path('app/src/debug/google-services.json')
+          text = src.read_text()
+          text = text.replace('"package_name": "online.educoreng.educore"', '"package_name": "online.educoreng.educore.nativepreview"')
+          dst.write_text(text)
+          PY
+          test -s app/src/debug/google-services.json
+          test -s app/src/release/google-services.json
+
       - name: Run native unit tests, lint and debug build
         script: |
           ./gradlew --no-daemon --no-parallel \
