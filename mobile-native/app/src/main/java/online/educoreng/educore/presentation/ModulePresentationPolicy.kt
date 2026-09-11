@@ -37,7 +37,6 @@ object ModulePresentationPolicy {
         "gradebook",
         "timetable",
         "student.timetable",
-        "student.exams",
         "academic-repository",
         "lesson-planner",
         "exports",
