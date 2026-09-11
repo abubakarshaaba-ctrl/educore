@@ -1,21 +1,21 @@
 package online.educoreng.educore.core.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
@@ -41,6 +42,36 @@ data class EduCoreNavigationItem(
     val icon: ImageVector,
     val badgeCount: Int = 0,
 )
+
+@Composable
+fun EduCoreWordmark(
+    modifier: Modifier = Modifier,
+    trailingText: String? = null,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "Edu",
+            color = Color.White,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Core",
+            color = EduCoreColors.Gold400,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        trailingText?.takeIf(String::isNotBlank)?.let {
+            Text(
+                text = " · $it",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,12 +88,7 @@ fun EduCoreTopAppBar(
         modifier = modifier,
         title = {
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                EduCoreWordmark(trailingText = title)
                 subtitle?.let {
                     Text(
                         text = it,
@@ -179,25 +205,25 @@ fun EduCorePageHeader(
         color = EduCoreColors.Info100,
         border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
-        if (maxWidth < 520.dp && compactActions) {
-            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+            if (maxWidth < 520.dp && compactActions) {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PageHeaderIdentity(title, subtitle, onBack)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
+                        content = actions,
+                    )
+                }
+            } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PageHeaderIdentity(title, subtitle, onBack)
+                    actions()
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
-                    content = actions,
-                )
-            }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PageHeaderIdentity(title, subtitle, onBack)
-                actions()
             }
         }
-    }
     }
 }
 
