@@ -13,6 +13,8 @@ import online.educoreng.educore.core.network.dto.AdminStaffAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceSettingsResponseDto
 import online.educoreng.educore.core.network.dto.AdminStaffOfflineQueueDto
 import online.educoreng.educore.core.network.dto.AdminStaffProxyReviewQueueDto
+import online.educoreng.educore.core.network.dto.SchoolOpenDaysRequestDto
+import online.educoreng.educore.core.network.dto.SchoolOpenDaysResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -36,6 +38,9 @@ interface AdminStaffAttendanceApi {
 
     @PUT("admin/staff-attendance/settings")
     suspend fun updateSettings(@Body body: AdminAttendanceSettingsRequestDto): AdminAttendanceMutationResponseDto
+
+    @PUT("admin/staff-attendance/school-open-days")
+    suspend fun updateSchoolOpenDays(@Body body: SchoolOpenDaysRequestDto): SchoolOpenDaysResponseDto
 
     @GET("admin/staff-attendance/offline")
     suspend fun offlineQueue(): AdminStaffOfflineQueueDto
