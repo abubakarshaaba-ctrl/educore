@@ -101,5 +101,20 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Compatibility shim for a legacy staff report-card route that is no longer
+     * reachable from the filtered Android module graph. Keep this fail-closed
+     * until the legacy StaffWorkspaceShell route is physically removed.
+     */
+    fun loadStudentResults(classId: Long, studentId: Long) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                publishedResults = null,
+                errorMessage = "Report cards and results are available in the Android app only to parent accounts.",
+            )
+        }
+    }
+
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
 }
