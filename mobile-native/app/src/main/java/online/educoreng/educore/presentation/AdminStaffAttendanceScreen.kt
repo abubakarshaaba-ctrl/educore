@@ -1,6 +1,7 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,8 +28,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +41,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -250,8 +258,8 @@ data class AdminStaffAttendanceUiState(
     val dailyDate: String = "",
     val dailyQuery: String = "",
     val dailyStatus: String? = null,
-    val reportMonth: String = java.time.LocalDate.now().monthValue.toString(),
-    val reportYear: String = java.time.LocalDate.now().year.toString(),
+    val reportMonth: String = LocalDate.now().monthValue.toString(),
+    val reportYear: String = LocalDate.now().year.toString(),
     val errorMessage: String? = null,
     val message: String? = null,
 )
@@ -349,6 +357,7 @@ private fun DailyAttendanceSection(
     onEdit: (AdminStaffAttendanceRecordDto) -> Unit,
 ) {
     val snapshot = state.snapshot
+    var datePickerOpen by remember { mutableStateOf(false) }
     if (state.isLoading && snapshot == null) {
         EduCoreLoadingState(Modifier.fillMaxSize(), "Loading staff attendance")
         return
@@ -365,13 +374,13 @@ private fun DailyAttendanceSection(
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = state.dailyDate,
-                    onValueChange = onDate,
-                    label = { Text("Date") },
-                    singleLine = true,
+                OutlinedButton(
+                    onClick = { datePickerOpen = true },
+                    enabled = !state.isLoading,
                     modifier = Modifier.weight(1f),
-                )
+                ) {
+                    Text(state.dailyDate.ifBlank { snapshot.date.ifBlank { "Select date" } })
+                }
                 Button(onClick = onLoad, enabled = !state.isLoading) { Text("Load") }
             }
         }
@@ -416,6 +425,27 @@ private fun DailyAttendanceSection(
             }
         }
     }
+
+    if (datePickerOpen) {
+        val initial = runCatching { LocalDate.parse(state.dailyDate.ifBlank { snapshot.date }) }.getOrDefault(LocalDate.now())
+        val picker = rememberDatePickerState(
+            initialSelectedDateMillis = initial.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { datePickerOpen = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        picker.selectedDateMillis?.let { millis ->
+                            onDate(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString())
+                        }
+                        datePickerOpen = false
+                    },
+                ) { Text("Use date") }
+            },
+            dismissButton = { TextButton(onClick = { datePickerOpen = false }) { Text("Cancel") } },
+        ) { DatePicker(state = picker) }
+    }
 }
 
 @Composable
@@ -432,8 +462,22 @@ private fun MonthlyAttendanceSection(
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(state.reportMonth, onMonth, label = { Text("Month") }, singleLine = true, modifier = Modifier.weight(.7f))
-                OutlinedTextField(state.reportYear, onYear, label = { Text("Year") }, singleLine = true, modifier = Modifier.weight(1f))
+                AttendanceChoiceDropdown(
+                    label = "Month",
+                    value = state.reportMonth,
+                    options = (1..12).map { it.toString() to java.time.Month.of(it).name.lowercase().replaceFirstChar(Char::uppercase) },
+                    enabled = !state.isLoading,
+                    modifier = Modifier.weight(1f),
+                    onSelected = onMonth,
+                )
+                AttendanceChoiceDropdown(
+                    label = "Year",
+                    value = state.reportYear,
+                    options = ((LocalDate.now().year - 5)..(LocalDate.now().year + 1)).map { it.toString() to it.toString() }.reversed(),
+                    enabled = !state.isLoading,
+                    modifier = Modifier.weight(1f),
+                    onSelected = onYear,
+                )
                 Button(onClick = onLoad, enabled = !state.isLoading) { Text("Load") }
             }
         }
@@ -454,6 +498,37 @@ private fun MonthlyAttendanceSection(
                         Text("Punctuality ${row.punctuality}% · ${row.days} eligible days", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Navy900)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttendanceChoiceDropdown(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onSelected: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val display = options.firstOrNull { it.first == value }?.second ?: value.ifBlank { "Select" }
+    Box(modifier) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("$label: $display") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (key, text) ->
+                DropdownMenuItem(
+                    text = { Text(text) },
+                    onClick = {
+                        expanded = false
+                        onSelected(key)
+                    },
+                )
             }
         }
     }
