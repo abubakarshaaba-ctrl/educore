@@ -2,6 +2,7 @@ package online.educoreng.educore.presentation
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
@@ -38,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import online.educoreng.educore.PortraitCaptureActivity
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
@@ -60,7 +64,7 @@ class AdminProxyClockViewModel @Inject constructor(
     val uiState: StateFlow<AdminProxyClockUiState> = _uiState.asStateFlow()
 
     fun submit(
-        staffId: String,
+        staffQrToken: String,
         date: String,
         clockIn: String,
         clockOut: String?,
@@ -68,9 +72,9 @@ class AdminProxyClockViewModel @Inject constructor(
         status: String?,
     ) {
         if (_uiState.value.isSaving) return
-        val normalizedStaffId = staffId.trim()
-        if (normalizedStaffId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter the staff ID.") }
+        val normalizedToken = staffQrToken.trim()
+        if (normalizedToken.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Scan the staff ID card QR code first.") }
             return
         }
         if (reason.trim().length < 5) {
@@ -82,7 +86,7 @@ class AdminProxyClockViewModel @Inject constructor(
             when (val result = safeApiCall(parser) {
                 api.proxyClock(
                     AdminAttendanceProxyClockRequestDto(
-                        staffId = normalizedStaffId,
+                        staffQrToken = normalizedToken,
                         date = date,
                         clockInTime = clockIn,
                         clockOutTime = clockOut?.takeIf(String::isNotBlank),
@@ -124,7 +128,8 @@ internal fun AdminProxyClockScreen(
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
     val now = remember { LocalTime.now().withSecond(0).withNano(0) }
-    var staffId by remember { mutableStateOf("") }
+    var staffQrToken by remember { mutableStateOf("") }
+    var scanMessage by remember { mutableStateOf<String?>(null) }
     var statusExpanded by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(today.toString()) }
     var clockIn by remember { mutableStateOf(now.format(DateTimeFormatter.ofPattern("HH:mm"))) }
@@ -132,10 +137,20 @@ internal fun AdminProxyClockScreen(
     var reason by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
 
-    val valid = staffId.isNotBlank() && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 5
+    val valid = staffQrToken.isNotBlank() && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 5
     val displayDate = runCatching {
         LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH))
     }.getOrDefault(date)
+
+    val qrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val token = result.contents?.trim().orEmpty()
+        if (token.isBlank()) {
+            scanMessage = "No staff ID QR code was captured."
+        } else {
+            staffQrToken = token
+            scanMessage = "Staff ID card QR captured. Complete the attendance details and submit."
+        }
+    }
 
     fun showTimePicker(currentValue: String, onPicked: (String) -> Unit) {
         val current = runCatching { LocalTime.parse(currentValue) }.getOrDefault(now)
@@ -154,7 +169,7 @@ internal fun AdminProxyClockScreen(
     ) {
         EduCorePageHeader(
             title = "Clock in by proxy",
-            subtitle = "Enter Staff ID directly · administrative exception with audit trail",
+            subtitle = "Scan the QR code on the staff ID card · administrative exception with audit trail",
             onBack = onClose,
         )
 
@@ -163,15 +178,42 @@ internal fun AdminProxyClockScreen(
             Text(it, color = EduCoreColors.Success700, style = MaterialTheme.typography.bodyMedium)
         }
 
-        OutlinedTextField(
-            value = staffId,
-            onValueChange = { staffId = it.take(40) },
-            label = { Text("Staff ID") },
-            supportingText = { Text("Enter the staff ID printed/assigned to the staff account. No name lookup is required.") },
-            singleLine = true,
+        OutlinedButton(
+            onClick = {
+                scanMessage = null
+                qrScanner.launch(
+                    ScanOptions()
+                        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                        .setPrompt("Scan staff ID card QR")
+                        .setBeepEnabled(false)
+                        .setCaptureActivity(PortraitCaptureActivity::class.java)
+                        .setOrientationLocked(true),
+                )
+            },
             enabled = !state.isSaving,
             modifier = Modifier.fillMaxWidth(),
-        )
+        ) {
+            Text(if (staffQrToken.isBlank()) "Scan staff ID card" else "Rescan staff ID card")
+        }
+
+        scanMessage?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (staffQrToken.isNotBlank()) EduCoreColors.Success700 else MaterialTheme.colorScheme.error,
+            )
+        }
+
+        if (staffQrToken.isNotBlank()) {
+            OutlinedButton(
+                onClick = {
+                    staffQrToken = ""
+                    scanMessage = null
+                },
+                enabled = !state.isSaving,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Clear scanned staff card") }
+        }
 
         OutlinedButton(
             onClick = {
@@ -259,7 +301,7 @@ internal fun AdminProxyClockScreen(
 
         Button(
             onClick = {
-                onSubmit(staffId.trim(), date, clockIn, clockOut.ifBlank { null }, reason, status)
+                onSubmit(staffQrToken, date, clockIn, clockOut.ifBlank { null }, reason, status)
             },
             enabled = valid && !state.isSaving,
             modifier = Modifier.fillMaxWidth(),
