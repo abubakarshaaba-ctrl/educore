@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import android.app.DatePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -48,10 +49,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -109,12 +114,11 @@ internal fun CommunicationCenterScreen(
                 onBack = onBack,
             )
         }
-
         item {
             EduCoreShowcaseHero(
                 eyebrow = "COMMUNICATION CENTRE",
                 title = "Stay current without leaving EduCore.",
-                subtitle = "Read school and EduCore platform notices, message permitted staff or School Administration, and review upcoming events from one native inbox.",
+                subtitle = "Read school and platform notices, exchange permitted messages, and review or publish school events.",
                 trailing = {
                     Surface(
                         modifier = Modifier.size(48.dp),
@@ -129,12 +133,8 @@ internal fun CommunicationCenterScreen(
                 },
             )
         }
-
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCoreShowcaseStat(
                     label = "Unread notices",
                     value = state.totalUnreadNotices.toString(),
@@ -158,7 +158,6 @@ internal fun CommunicationCenterScreen(
                 )
             }
         }
-
         item {
             EduCoreTabs(
                 labels = CommunicationTab.entries.map { tab ->
@@ -192,7 +191,6 @@ internal fun CommunicationCenterScreen(
         if (state.errorMessage != null && state.notifications.isEmpty() && state.platformNotices.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
             item { EduCoreSecondaryButton("Try again", onRetry, Modifier.fillMaxWidth()) }
         }
-
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
@@ -206,14 +204,12 @@ private fun LazyListScope.noticesContent(
     onDismissPlatformNotice: (Long) -> Unit,
 ) {
     item {
-        Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                listOf("all" to "All", "unread" to "Unread", "read" to "Read").forEach { (key, label) ->
-                    EduCoreFilterChip(label, state.noticeFilter == key, { onFilter(key) })
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            listOf("all" to "All", "unread" to "Unread", "read" to "Read").forEach { (key, label) ->
+                EduCoreFilterChip(label, state.noticeFilter == key, { onFilter(key) })
             }
         }
     }
@@ -264,19 +260,13 @@ private fun LazyListScope.noticesContent(
                         "read" -> "No read notices"
                         else -> "No notices"
                     },
-                    message = when (state.noticeFilter) {
-                        "unread" -> "You have read every notice currently available to your account."
-                        "read" -> "Notices you have read will appear here."
-                        else -> "Published school and EduCore platform notices will appear here when available."
-                    },
+                    message = "Published school and EduCore platform notices will appear here when available.",
                     icon = Icons.Default.Notifications,
                 )
             }
         }
     } else if (state.notifications.isNotEmpty()) {
-        items(state.notifications, key = { "school-${it.id}" }) { notice ->
-            NotificationCard(notice, onMarkRead)
-        }
+        items(state.notifications, key = { "school-${it.id}" }) { notice -> NotificationCard(notice, onMarkRead) }
     }
 }
 
@@ -322,9 +312,18 @@ private fun LazyListScope.eventsContent(state: CommunicationUiState) {
     item {
         EduCoreSectionHeader(
             title = "School calendar",
-            supportingText = if (state.events.isEmpty()) "No published upcoming events" else "${state.events.size} upcoming event${if (state.events.size == 1) "" else "s"}",
+            supportingText = if (state.events.isEmpty()) {
+                "No published upcoming events"
+            } else {
+                "${state.events.size} upcoming event${if (state.events.size == 1) "" else "s"}"
+            },
         )
     }
+
+    if (state.canCreateEvent) {
+        item { EventCreateCard(state) }
+    }
+
     if (state.events.isEmpty()) {
         item {
             EduCoreShowcaseSectionCard {
@@ -337,6 +336,86 @@ private fun LazyListScope.eventsContent(state: CommunicationUiState) {
         }
     } else {
         items(state.events, key = SchoolEvent::id) { event -> SchoolEventCard(event) }
+    }
+}
+
+@Composable
+private fun EventCreateCard(state: CommunicationUiState) {
+    val viewModel: CommunicationViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    val context = LocalContext.current
+
+    fun chooseDate(current: String, onSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        if (current.isNotBlank()) {
+            runCatching { SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(current) }
+                .getOrNull()
+                ?.let { calendar.time = it }
+        }
+        DatePickerDialog(
+            context,
+            { _, year, month, day -> onSelected(String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day)) },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH),
+        ).show()
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line300),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            Text("Publish school event", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "This creates a calendar event and publishes the same information as a Notice. No response is required.",
+                color = EduCoreColors.Slate700,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedTextField(
+                value = state.eventTitle,
+                onValueChange = viewModel::setEventTitle,
+                label = { Text("Event title") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.eventDescription,
+                onValueChange = viewModel::setEventDescription,
+                label = { Text("Description (optional)") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                OutlinedButton(
+                    onClick = { chooseDate(state.eventStartDate, viewModel::setEventStartDate) },
+                    modifier = Modifier.weight(1f),
+                ) { Text(state.eventStartDate.ifBlank { "Start date" }) }
+                OutlinedButton(
+                    onClick = { chooseDate(state.eventEndDate, viewModel::setEventEndDate) },
+                    modifier = Modifier.weight(1f),
+                ) { Text(state.eventEndDate.ifBlank { "End date" }) }
+            }
+            Text("Audience", style = MaterialTheme.typography.labelLarge)
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                listOf("all" to "Everyone", "staff" to "Staff", "parents" to "Parents").forEach { (key, label) ->
+                    EduCoreFilterChip(label, state.eventAudience == key, { viewModel.setEventAudience(key) })
+                }
+            }
+            EduCorePrimaryButton(
+                text = "Publish event as notice",
+                onClick = viewModel::createEvent,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = state.eventTitle.isNotBlank() && state.eventStartDate.isNotBlank(),
+                loading = state.isSaving,
+                leadingIcon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
+            )
+        }
     }
 }
 
@@ -370,13 +449,7 @@ internal fun MessageThreadScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item {
-            CommunicationHeader(
-                thread.summary.subject,
-                thread.summary.otherName ?: thread.summary.studentName ?: "School conversation",
-                onBack,
-            )
-        }
+        item { CommunicationHeader(thread.summary.subject, thread.summary.otherName ?: thread.summary.studentName ?: "School conversation", onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         items(thread.replies, key = MessageReply::id) { reply -> ReplyCard(reply, onDownload) }
         if (thread.summary.status == "open") {
@@ -385,10 +458,7 @@ internal fun MessageThreadScreen(
                     colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
                     border = BorderStroke(1.dp, EduCoreColors.Line300),
                 ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-                    ) {
+                    Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                         EduCoreSectionHeader("Reply", "Continue this private school conversation")
                         OutlinedTextField(
                             value = state.replyBody,
@@ -458,9 +528,7 @@ internal fun ComposeMessageScreen(
                         OutlinedButton(onClick = { recipientsOpen = true }, modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 selected?.let { recipient ->
-                                    listOf(recipient.name, recipient.admissionNumber)
-                                        .filter(String::isNotBlank)
-                                        .joinToString(" · ")
+                                    listOf(recipient.name, recipient.admissionNumber).filter(String::isNotBlank).joinToString(" · ")
                                 } ?: "Choose recipient",
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -473,13 +541,7 @@ internal fun ComposeMessageScreen(
                         ) {
                             state.recipients.forEach { recipient ->
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            listOf(recipient.name, recipient.admissionNumber)
-                                                .filter(String::isNotBlank)
-                                                .joinToString(" · ")
-                                        )
-                                    },
+                                    text = { Text(listOf(recipient.name, recipient.admissionNumber).filter(String::isNotBlank).joinToString(" · ")) },
                                     onClick = {
                                         onRecipient(recipient.studentId)
                                         recipientsOpen = false
@@ -549,10 +611,7 @@ private fun PlatformNoticeCard(
             },
         ),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-        ) {
+        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("EDUCORE PLATFORM NOTICE", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Gold700)
@@ -564,19 +623,9 @@ private fun PlatformNoticeCard(
             notice.createdAt?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500) }
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 if (!notice.isRead) {
-                    EduCoreSecondaryButton(
-                        text = "Mark read",
-                        onClick = { onMarkRead(notice.id) },
-                        enabled = !busy,
-                        modifier = Modifier.weight(1f),
-                    )
+                    EduCoreSecondaryButton("Mark read", { onMarkRead(notice.id) }, Modifier.weight(1f), enabled = !busy)
                 }
-                EduCoreSecondaryButton(
-                    text = "Dismiss",
-                    onClick = { onDismiss(notice.id) },
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                )
+                EduCoreSecondaryButton("Dismiss", { onDismiss(notice.id) }, Modifier.weight(1f), enabled = !busy)
             }
         }
     }
@@ -588,9 +637,7 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
         onClick = { if (!notice.isRead) onMarkRead(notice.id) },
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = if (notice.isRead) EduCoreColors.White else EduCoreColors.Info100,
-        ),
+        colors = CardDefaults.cardColors(containerColor = if (notice.isRead) EduCoreColors.White else EduCoreColors.Info100),
         border = BorderStroke(1.dp, if (notice.isRead) EduCoreColors.Line300 else EduCoreColors.Info700),
     ) {
         Row(
@@ -605,22 +652,12 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
                 contentColor = EduCoreColors.Navy900,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        if (notice.isRead) Icons.Default.MarkEmailRead else Icons.Default.Notifications,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Icon(if (notice.isRead) Icons.Default.MarkEmailRead else Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(20.dp))
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        notice.title,
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = EduCoreColors.Ink900,
-                    )
+                    Text(notice.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
                 }
                 Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
@@ -648,49 +685,17 @@ private fun MessageThreadCard(thread: MessageThreadSummary, onOpen: () -> Unit) 
                 modifier = Modifier.size(42.dp),
                 color = if (thread.unreadCount > 0) EduCoreColors.Gold100 else EduCoreColors.Page50,
                 shape = CircleShape,
-                contentColor = EduCoreColors.Navy900,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        thread.unreadCount.takeIf { it > 0 }?.toString() ?: "✉",
-                        color = EduCoreColors.Navy900,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Text(thread.unreadCount.takeIf { it > 0 }?.toString() ?: "✉", fontWeight = FontWeight.Bold)
                 }
             }
-            Column(
-                Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
-            ) {
-                Text(
-                    thread.subject,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EduCoreColors.Ink900,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    listOfNotNull(thread.otherName, thread.studentName).distinct().joinToString(" · "),
-                    color = EduCoreColors.Slate700,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                thread.lastMessage?.let {
-                    Text(
-                        it,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = EduCoreColors.Ink900,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Text(thread.subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(listOfNotNull(thread.otherName, thread.studentName).distinct().joinToString(" · "), color = EduCoreColors.Slate700, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                thread.lastMessage?.let { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall) }
             }
-            EduCoreStatusBadge(
-                thread.status.replaceFirstChar(Char::uppercase),
-                if (thread.status == "open") EduCoreTone.Success else EduCoreTone.Neutral,
-            )
+            EduCoreStatusBadge(thread.status.replaceFirstChar(Char::uppercase), if (thread.status == "open") EduCoreTone.Success else EduCoreTone.Neutral)
         }
     }
 }
@@ -708,12 +713,7 @@ private fun SchoolEventCard(event: SchoolEvent) {
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
-            Surface(
-                modifier = Modifier.size(42.dp),
-                color = EduCoreColors.Info100,
-                shape = CircleShape,
-                contentColor = EduCoreColors.Navy900,
-            ) {
+            Surface(modifier = Modifier.size(42.dp), color = EduCoreColors.Info100, shape = CircleShape) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
                 }
@@ -726,39 +726,24 @@ private fun SchoolEventCard(event: SchoolEvent) {
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                event.description?.takeIf(String::isNotBlank)?.let {
-                    Text(it, color = EduCoreColors.Slate700, style = MaterialTheme.typography.bodySmall)
-                }
+                event.description?.takeIf(String::isNotBlank)?.let { Text(it, color = EduCoreColors.Slate700, style = MaterialTheme.typography.bodySmall) }
             }
-            EduCoreStatusBadge(
-                event.type.replace('_', ' ').replaceFirstChar(Char::uppercase),
-                EduCoreTone.Info,
-            )
+            EduCoreStatusBadge(event.type.replace('_', ' ').replaceFirstChar(Char::uppercase), EduCoreTone.Info)
         }
     }
 }
 
 @Composable
 private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = if (reply.isMine) Arrangement.End else Arrangement.Start,
-    ) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (reply.isMine) Arrangement.End else Arrangement.Start) {
         Surface(
             modifier = Modifier.fillMaxWidth(.88f),
             color = if (reply.isMine) EduCoreColors.Navy900 else EduCoreColors.White,
             shape = MaterialTheme.shapes.medium,
             border = if (reply.isMine) null else BorderStroke(1.dp, EduCoreColors.Line300),
         ) {
-            Column(
-                Modifier.padding(EduCoreSpacing.Lg),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                Text(
-                    reply.senderName ?: if (reply.isMine) "You" else "School",
-                    color = if (reply.isMine) EduCoreColors.Gold400 else EduCoreColors.Gold700,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            Column(Modifier.padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                Text(reply.senderName ?: if (reply.isMine) "You" else "School", color = if (reply.isMine) EduCoreColors.Gold400 else EduCoreColors.Gold700, fontWeight = FontWeight.SemiBold)
                 Text(reply.body, color = if (reply.isMine) EduCoreColors.White else EduCoreColors.Ink900)
                 reply.attachment?.let { attachment ->
                     OutlinedButton(onClick = { onDownload(attachment) }) {
@@ -767,37 +752,22 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
                         Text(attachment.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Text(
-                    reply.createdAt,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (reply.isMine) EduCoreColors.Line200 else EduCoreColors.Muted500,
-                )
+                Text(reply.createdAt, style = MaterialTheme.typography.bodySmall, color = if (reply.isMine) EduCoreColors.Line200 else EduCoreColors.Muted500)
             }
         }
     }
 }
 
 @Composable
-private fun AttachmentSelection(
-    state: CommunicationUiState,
-    onPick: () -> Unit,
-    onClear: () -> Unit,
-) {
-    Column(
-        Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-    ) {
+private fun AttachmentSelection(state: CommunicationUiState, onPick: () -> Unit, onClear: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
         EduCoreSecondaryButton(
             text = if (state.attachment == null) "Attach file" else "Replace attachment",
             onClick = onPick,
             modifier = Modifier.fillMaxWidth(),
         )
         state.attachment?.let { file ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm), verticalAlignment = Alignment.CenterVertically) {
                 Text(file.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 EduCoreSecondaryButton("Remove", onClear)
             }
