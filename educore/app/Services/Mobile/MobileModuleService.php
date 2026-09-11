@@ -22,7 +22,10 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        'staff-attendance' => ['Staff Attendance', '/staff-attendance/my', 'staff-attendance'],
+        // Full management workspace for administrators/heads. Keep this
+        // separate from staff-attendance.self so ordinary staff never land in
+        // an administrator surface simply because they can clock themselves in.
+        'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
