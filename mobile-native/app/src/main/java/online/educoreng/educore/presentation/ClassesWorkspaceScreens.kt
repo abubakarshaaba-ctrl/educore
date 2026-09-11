@@ -519,13 +519,22 @@ internal fun StaffAttendanceScreen(
         return
     }
     if (snapshot == null) {
-        EduCoreErrorState(state.errorMessage ?: "Attendance unavailable.", Modifier.fillMaxSize(), onRetry = onRefresh)
+        EduCoreErrorState(
+            state.errorMessage ?: "Attendance is unavailable. Connect once so EduCore can save your school's attendance settings for offline use.",
+            Modifier.fillMaxSize(),
+            onRetry = onRefresh,
+        )
         return
     }
 
-    val clockedIn = snapshot.today?.clockIn != null
-    val clockedOut = snapshot.today?.clockOut != null
+    val activeSyncStates = setOf("pending", "syncing")
+    val queuedClockIn = state.selfAttendanceSync.any { it.action == "clock_in" && it.state in activeSyncStates }
+    val queuedClockOut = state.selfAttendanceSync.any { it.action == "clock_out" && it.state in activeSyncStates }
+    val clockedIn = snapshot.today?.clockIn != null || queuedClockIn
+    val clockedOut = snapshot.today?.clockOut != null || queuedClockOut
     val statusLabel = when {
+        queuedClockOut -> "Clock-out queued"
+        queuedClockIn && snapshot.today?.clockIn == null -> "Clock-in queued"
         !clockedIn -> "Not clocked in"
         clockedOut -> "Completed"
         else -> "Clocked in"
@@ -546,7 +555,12 @@ internal fun StaffAttendanceScreen(
         }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
-        if (!online) item { EduCoreWarningBanner("Connect to use staff attendance.") }
+        if (!online) item {
+            EduCoreWarningBanner("Offline mode. Your attendance action will be stored securely on this device and synchronized automatically when connectivity returns.")
+        }
+        if (state.staffAttendanceFromCache) item {
+            EduCoreInfoBanner("Showing the last saved My Attendance snapshot. The server remains the source of truth.")
+        }
 
         item {
             EduCoreDashboardCard {
@@ -567,11 +581,13 @@ internal fun StaffAttendanceScreen(
                     }
                     EduCoreStatusBadge(
                         when {
+                            queuedClockIn || queuedClockOut -> "Queued"
                             !clockedIn -> "Pending"
                             clockedOut -> "Done"
                             else -> snapshot.today?.status?.roleLabel() ?: "Present"
                         },
                         when {
+                            queuedClockIn || queuedClockOut -> EduCoreTone.Warning
                             !clockedIn -> EduCoreTone.Neutral
                             snapshot.today?.status.equals("late", true) -> EduCoreTone.Warning
                             else -> EduCoreTone.Success
@@ -591,7 +607,7 @@ internal fun StaffAttendanceScreen(
 
         if (!clockedIn) item {
             EduCorePrimaryButton(
-                text = "Scan QR",
+                text = if (online) "Scan QR" else "Scan QR offline",
                 onClick = {
                     scanError = null
                     qrScanner.launch(
@@ -604,17 +620,44 @@ internal fun StaffAttendanceScreen(
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = online,
+                enabled = !state.isSaving,
                 loading = state.isSaving,
             )
         } else if (!clockedOut) item {
             EduCorePrimaryButton(
-                text = "Clock out",
+                text = if (online) "Clock out" else "Clock out offline",
                 onClick = onClockOut,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = online,
+                enabled = !state.isSaving,
                 loading = state.isSaving,
             )
+        }
+
+        if (state.selfAttendanceSync.isNotEmpty()) {
+            item { EduCoreSectionHeader(title = "Offline synchronization") }
+            items(state.selfAttendanceSync.take(8), key = { it.clientUuid }) { sync ->
+                val rejected = sync.state.equals("rejected", true)
+                val synchronized = sync.state.equals("synced", true)
+                EduCoreDashboardCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(sync.action.replace('_', ' ').roleLabel(), style = MaterialTheme.typography.titleSmall)
+                            Text(sync.attendanceDate, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            if (rejected && !sync.rejectionReason.isNullOrBlank()) {
+                                Text(sync.rejectionReason, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            }
+                        }
+                        EduCoreStatusBadge(
+                            sync.state.roleLabel(),
+                            when {
+                                rejected -> EduCoreTone.Danger
+                                synchronized -> EduCoreTone.Success
+                                else -> EduCoreTone.Warning
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         if (snapshot.records.isNotEmpty()) item { EduCoreSectionHeader(title = "Recent attendance") }
