@@ -33,12 +33,12 @@ object ShellNavigationPolicy {
         val hasAcademics = modules.any { groupFor(it) == ModuleGroup.ACADEMICS }
         val hasSchedule = modules.any { groupFor(it) == ModuleGroup.SCHEDULE }
         val hasOperations = modules.any { groupFor(it) == ModuleGroup.OPERATIONS }
-        val financeRole = role in FINANCE_ROLES || modules.any { it.key in FINANCE_KEYS }
+        val financeRole = role in FINANCE_ROLES
 
         val primaryLabel = when {
             portal == "parent" -> "Children"
             portal == "platform" -> "Schools"
-            financeRole && !hasAcademics -> "Finance"
+            financeRole -> "Finance"
             hasAcademics -> if (role.contains("teacher")) "Classes" else "Academics"
             hasOperations -> "Operations"
             else -> "Workspace"
@@ -46,7 +46,7 @@ object ShellNavigationPolicy {
         val secondaryLabel = when {
             management -> "Operations"
             portal == "parent" -> "Academics"
-            financeRole && !hasSchedule -> "Operations"
+            financeRole -> "Operations"
             hasSchedule -> "Timetable"
             hasOperations -> "Operations"
             else -> "Account"
@@ -72,7 +72,7 @@ object ShellNavigationPolicy {
         val role = session.user.roleKey.lowercase()
         val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
         val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
-        val financeRole = role in FINANCE_ROLES || visible.any { it.key in FINANCE_KEYS }
+        val financeRole = role in FINANCE_ROLES
 
         return when (tab) {
             ShellTabId.HOME -> emptyList()
@@ -82,7 +82,7 @@ object ShellNavigationPolicy {
                 }
                 "parent" -> visible.filter { it.key.contains("attendance") }
                 else -> when {
-                    financeRole && !hasAcademics -> grouped[ModuleGroup.OPERATIONS].orEmpty().filter { it.key in FINANCE_KEYS }
+                    financeRole -> visible.filter { it.key in FINANCE_KEYS }
                     hasAcademics -> grouped[ModuleGroup.ACADEMICS].orEmpty()
                     else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 }
@@ -94,8 +94,8 @@ object ShellNavigationPolicy {
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
                 else -> when {
-                    hasSchedule -> grouped[ModuleGroup.SCHEDULE].orEmpty()
                     financeRole -> grouped[ModuleGroup.OPERATIONS].orEmpty().filterNot { it.key in FINANCE_KEYS }
+                    hasSchedule -> grouped[ModuleGroup.SCHEDULE].orEmpty()
                     else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 }
             }
@@ -143,7 +143,7 @@ object ShellNavigationPolicy {
     }
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
-    private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports", "parent.fees")
+    private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports")
     private val ACADEMIC_KEYS = listOf(
         "student",
         "class",
