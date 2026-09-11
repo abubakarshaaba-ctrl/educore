@@ -74,7 +74,7 @@ fun EduCoreDashboardCard(
         border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
-        Column(Modifier.padding(EduCoreSpacing.Lg)) { content() }
+        Column(Modifier.padding(EduCoreSpacing.Md)) { content() }
     }
 }
 
@@ -101,10 +101,10 @@ fun EduCoreMetricCard(
                         modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.Icon),
                     )
                 }
-                Spacer(Modifier.size(EduCoreSpacing.Md))
+                Spacer(Modifier.size(EduCoreSpacing.Sm))
             }
             Column {
-                Text(value, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Ink900)
+                Text(value, style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Ink900)
                 Text(label, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                 supportingText?.let {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = tone.foreground())
@@ -123,7 +123,7 @@ fun EduCoreStatCard(
     tone: EduCoreTone = EduCoreTone.Neutral,
 ) {
     EduCoreDashboardCard(modifier) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = tone.foreground())
+        Text(value, style = MaterialTheme.typography.titleLarge, color = tone.foreground())
         Text(label, style = MaterialTheme.typography.labelLarge)
         supportingText?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
@@ -153,7 +153,7 @@ fun EduCoreModuleCard(
     ) {
         Column(
             modifier = Modifier.padding(EduCoreSpacing.Md),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -169,7 +169,7 @@ fun EduCoreModuleCard(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.Icon),
+                        modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.SmallIcon),
                     )
                 }
                 badge?.let { EduCoreStatusBadge(it, EduCoreTone.Neutral) }
@@ -211,17 +211,17 @@ fun EduCoreQuickAction(
     Card(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
+        modifier = modifier.heightIn(min = EduCoreSizes.TouchTarget),
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Row(
-            modifier = Modifier.padding(EduCoreSpacing.Md),
+            modifier = Modifier.padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
-            Icon(icon, contentDescription = null, tint = EduCoreColors.Navy900)
+            Icon(icon, contentDescription = null, tint = EduCoreColors.Navy900, modifier = Modifier.size(EduCoreSizes.Icon))
             Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Navy900)
         }
     }
