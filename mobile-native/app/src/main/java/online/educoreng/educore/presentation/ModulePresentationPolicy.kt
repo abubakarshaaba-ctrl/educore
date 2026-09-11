@@ -27,12 +27,6 @@ object ModulePresentationPolicy {
 
     /** Modules intentionally absent from the Android product, even if a stale bootstrap advertises them. */
     private val MOBILE_REMOVED_MODULES = setOf(
-        "cbt",
-        "cbt-exams",
-        "examinations",
-        "student.exams",
-        "student.cbt",
-        "staff.cbt",
         "student.results",
     )
 
