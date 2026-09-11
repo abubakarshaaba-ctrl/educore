@@ -25,30 +25,68 @@ class StaffCardAttendanceScanViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StaffCardAttendanceScanUiState())
     val uiState: StateFlow<StaffCardAttendanceScanUiState> = _uiState.asStateFlow()
 
-    fun scan(
+    fun scanStaffCard(
         qrToken: String,
         latitude: Double? = null,
         longitude: Double? = null,
         accuracy: Double? = null,
     ) {
-        if (_uiState.value.isSaving || qrToken.isBlank()) return
+        submit(
+            StaffCardAttendanceScanRequestDto(
+                staffQrToken = qrToken.trim(),
+                latitude = latitude,
+                longitude = longitude,
+                accuracy = accuracy,
+                device = "android",
+            )
+        )
+    }
+
+    fun scanSchoolQrFallback(
+        schoolQrToken: String,
+        staffId: String,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        accuracy: Double? = null,
+    ) {
+        if (staffId.trim().isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter the Staff ID when using the school QR fallback.") }
+            return
+        }
+        submit(
+            StaffCardAttendanceScanRequestDto(
+                schoolQrToken = schoolQrToken.trim(),
+                staffId = staffId.trim(),
+                latitude = latitude,
+                longitude = longitude,
+                accuracy = accuracy,
+                device = "android",
+            )
+        )
+    }
+
+    /** Compatibility for current call sites while the UI is migrated. */
+    fun scan(
+        qrToken: String,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        accuracy: Double? = null,
+    ) = scanStaffCard(qrToken, latitude, longitude, accuracy)
+
+    private fun submit(request: StaffCardAttendanceScanRequestDto) {
+        if (_uiState.value.isSaving) return
+        val hasStaffCard = !request.staffQrToken.isNullOrBlank()
+        val hasSchoolFallback = !request.schoolQrToken.isNullOrBlank() && !request.staffId.isNullOrBlank()
+        if (!hasStaffCard && !hasSchoolFallback) return
+
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, message = null, errorMessage = null) }
-            when (val result = safeApiCall(moshi) {
-                api.scan(
-                    StaffCardAttendanceScanRequestDto(
-                        staffQrToken = qrToken.trim(),
-                        latitude = latitude,
-                        longitude = longitude,
-                        accuracy = accuracy,
-                        device = "android",
-                    )
-                )
-            }) {
+            when (val result = safeApiCall(moshi) { api.scan(request) }) {
                 is AppResult.Success -> _uiState.update {
                     it.copy(
                         isSaving = false,
                         action = result.value.action,
+                        scanMethod = result.value.scanMethod,
                         serverTimestamp = result.value.serverTimestamp,
                         message = result.value.message,
                         errorMessage = null,
@@ -67,6 +105,7 @@ class StaffCardAttendanceScanViewModel @Inject constructor(
 data class StaffCardAttendanceScanUiState(
     val isSaving: Boolean = false,
     val action: String? = null,
+    val scanMethod: String? = null,
     val serverTimestamp: String? = null,
     val message: String? = null,
     val errorMessage: String? = null,
