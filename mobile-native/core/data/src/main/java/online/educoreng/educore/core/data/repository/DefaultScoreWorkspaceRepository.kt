@@ -155,13 +155,11 @@ class DefaultScoreWorkspaceRepository(
 
     override suspend fun loadPublishedResults(childId: Long?): AppResult<PublishedResults> = withContext(Dispatchers.IO) {
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
-        val key = "results:${childId ?: "self"}"
-        val response = if (scope.roleKey == "parent") {
-            safeApiCall(moshi) { api.parentResults(childId) }
-        } else {
-            safeApiCall(moshi) { api.studentResults() }
+        if (scope.roleKey != "parent") {
+            return@withContext AppResult.Failure(AppError.Forbidden("Published results are available in the Android app only to parent accounts."))
         }
-        when (val result = response) {
+        val key = "results:${childId ?: "self"}"
+        when (val result = safeApiCall(moshi) { api.parentResults(childId) }) {
             is AppResult.Success -> {
                 cache(scope, key, resultsAdapter.toJson(result.value))
                 AppResult.Success(result.value.toDomain())
@@ -169,21 +167,6 @@ class DefaultScoreWorkspaceRepository(
             is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let { AppResult.Success(it.toDomain()) } ?: result
         }
     }
-
-    override suspend fun loadStudentResults(classId: Long, studentId: Long): AppResult<PublishedResults> =
-        withContext(Dispatchers.IO) {
-            val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
-            val key = "staff-results:$classId:$studentId"
-            when (val result = safeApiCall(moshi) { api.staffStudentResults(classId, studentId) }) {
-                is AppResult.Success -> {
-                    cache(scope, key, resultsAdapter.toJson(result.value))
-                    AppResult.Success(result.value.toDomain())
-                }
-                is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let {
-                    AppResult.Success(it.toDomain())
-                } ?: result
-            }
-        }
 
     private suspend fun scope(): Scope? {
         val tenantKey = tenantContextStore.activeTenantKey.first() ?: return null
