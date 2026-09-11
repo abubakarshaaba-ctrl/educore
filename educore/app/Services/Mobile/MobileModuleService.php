@@ -6,6 +6,13 @@ use App\Models\User;
 
 class MobileModuleService
 {
+    /**
+     * Modules intentionally available to the native Android app.
+     *
+     * CBT and report/results workspaces are deliberately excluded from the
+     * mobile contract. They remain available on the web application where
+     * applicable, but the native app must neither advertise nor route to them.
+     */
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
         'students' => ['Students', '/students', 'students'],
@@ -18,7 +25,6 @@ class MobileModuleService
         'staff-attendance' => ['Staff Attendance', '/staff-attendance/my', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
-        'reports' => ['Report Cards', '/reports', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
@@ -34,7 +40,6 @@ class MobileModuleService
         'hostels' => ['Hostels', '/hostels', 'hostels'],
         'analytics' => ['Analytics', '/analytics', 'analytics'],
         'exports' => ['Exports', '/exports', 'exports'],
-        'cbt' => ['CBT', '/cbt', 'cbt'],
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
@@ -63,7 +68,6 @@ class MobileModuleService
             return [
                 ['key' => 'parent.dashboard', 'title' => 'Parent Dashboard', 'path' => '/parent/dashboard', 'icon' => 'dashboard'],
                 ['key' => 'parent.fees', 'title' => 'Fees & Payments', 'path' => '/parent/fees', 'icon' => 'fees'],
-                ['key' => 'parent.results', 'title' => 'Results', 'path' => '/parent/results', 'icon' => 'reports'],
                 ['key' => 'parent.attendance', 'title' => 'Attendance', 'path' => '/parent/attendance', 'icon' => 'attendance'],
                 ['key' => 'parent.messages', 'title' => 'Messages', 'path' => '/parent/messages', 'icon' => 'messages'],
                 ['key' => 'parent.notifications', 'title' => 'Notifications', 'path' => '/parent/notifications', 'icon' => 'notifications'],
@@ -74,10 +78,8 @@ class MobileModuleService
         if ($user->isStudent()) {
             return [
                 ['key' => 'student.dashboard', 'title' => 'Student Dashboard', 'path' => '/student/dashboard', 'icon' => 'dashboard'],
-                ['key' => 'student.results', 'title' => 'Results', 'path' => '/student/results', 'icon' => 'reports'],
                 ['key' => 'student.timetable', 'title' => 'Timetable', 'path' => '/student/timetable', 'icon' => 'timetable'],
                 ['key' => 'student.attendance', 'title' => 'Attendance', 'path' => '/student/attendance', 'icon' => 'attendance'],
-                ['key' => 'student.exams', 'title' => 'Examinations', 'path' => '/student/exams', 'icon' => 'cbt'],
                 ['key' => 'student.subjects', 'title' => 'Subjects', 'path' => '/student/subjects', 'icon' => 'subjects'],
                 ['key' => 'student.messages', 'title' => 'Messages', 'path' => '/student/messages', 'icon' => 'messages'],
                 ['key' => 'student.notifications', 'title' => 'Notifications', 'path' => '/student/notifications', 'icon' => 'notifications'],
