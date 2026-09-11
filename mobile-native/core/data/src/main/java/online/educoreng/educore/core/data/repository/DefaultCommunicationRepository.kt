@@ -12,6 +12,8 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.MessageAttachment
 import online.educoreng.educore.core.model.PendingAttachment
+import online.educoreng.educore.core.model.PlatformNotice
+import online.educoreng.educore.core.model.PlatformNoticeFeed
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.PushTokenRequestDto
 import online.educoreng.educore.core.network.dto.toDomain
@@ -26,6 +28,29 @@ class DefaultCommunicationRepository(
     override suspend fun notifications(status: String) = mapped { api.notifications(status = status).toDomain() }
     override suspend fun markNotificationRead(id: Long) = mapped { api.markNotificationRead(id).notification.toDomain() }
     override suspend fun markAllNotificationsRead() = mapped { api.markAllNotificationsRead().updated }
+
+    override suspend fun platformNotices() = mapped {
+        val response = api.platformNotices()
+        PlatformNoticeFeed(
+            notices = response.notices.map { notice ->
+                PlatformNotice(
+                    id = notice.id,
+                    title = notice.title,
+                    body = notice.body,
+                    priority = notice.priority,
+                    audience = notice.audience,
+                    isRead = notice.isRead,
+                    createdAt = notice.createdAt,
+                    expiresAt = notice.expiresAt,
+                )
+            },
+            unreadCount = response.unreadCount,
+        )
+    }
+
+    override suspend fun markPlatformNoticeRead(id: Long) = unitCall { api.markPlatformNoticeRead(id) }
+    override suspend fun dismissPlatformNotice(id: Long) = unitCall { api.dismissPlatformNotice(id) }
+
     override suspend fun events(from: String?, to: String?) = mapped { api.communicationEvents(from, to).events.map { it.toDomain() } }
     override suspend fun messages() = mapped { api.messages(perPage = 50).toDomain() }
     override suspend fun recipients() = mapped { api.messageRecipients().recipients.map { it.toDomain() } }
