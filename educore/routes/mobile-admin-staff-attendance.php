@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceLegacyController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
+use App\Http\Controllers\Api\SchoolOpenDaysController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use App\Http\Controllers\Api\StaffCardAttendanceScanController;
 use Illuminate\Support\Facades\Route;
@@ -12,9 +13,8 @@ use Illuminate\Support\Facades\Route;
 // attendance.self can replay queued clock-in/out events after connectivity returns.
 Route::post('staff-attendance/offline/sync', [StaffAttendanceApiController::class, 'syncOffline']);
 
-// Any authenticated tenant staff member may scan a signed staff ID-card QR.
-// The server uses the current server timestamp and automatically decides whether
-// the scan is today's clock-in or clock-out for the card owner.
+// Any authenticated tenant staff member may scan a signed staff ID-card QR or use
+// the school QR + Staff ID fallback. The server records the current server timestamp.
 Route::post('staff-attendance/scan-card', StaffCardAttendanceScanController::class);
 
 Route::prefix('admin/staff-attendance')->group(function (): void {
@@ -22,6 +22,7 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('monthly', [AdminStaffAttendanceController::class, 'monthly']);
     Route::get('settings', [AdminStaffAttendanceController::class, 'settings']);
     Route::put('settings', [AdminStaffAttendanceController::class, 'updateSettings']);
+    Route::put('school-open-days', [SchoolOpenDaysController::class, 'update']);
     Route::get('offline', AdminStaffAttendanceOfflineController::class);
     Route::post('offline/sync', [AdminStaffAttendanceController::class, 'syncOffline']);
     Route::get('proxy-reviews', [AdminStaffAttendanceController::class, 'proxyReviews']);
