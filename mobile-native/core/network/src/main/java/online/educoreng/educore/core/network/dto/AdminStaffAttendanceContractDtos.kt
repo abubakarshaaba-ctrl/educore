@@ -23,7 +23,7 @@ data class AdminAttendanceOfflineSyncRequestDto(
 
 @JsonClass(generateAdapter = true)
 data class AdminAttendanceProxyClockRequestDto(
-    @Json(name = "staff_id") val staffId: Long,
+    @Json(name = "staff_id") val staffId: String,
     @Json(name = "date") val date: String,
     @Json(name = "clock_in_time") val clockInTime: String,
     @Json(name = "clock_out_time") val clockOutTime: String? = null,
