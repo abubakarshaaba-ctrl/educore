@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,7 +24,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -174,7 +172,6 @@ internal fun OperationsScreen(
                         text = selectedDate?.let { "Date: $it" } ?: "Select date",
                         onClick = { showDatePicker = true },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                     )
                     if (selectedSession != null || selectedTerm != null || selectedClass != null || selectedDate != null) {
                         EduCoreSecondaryButton(
