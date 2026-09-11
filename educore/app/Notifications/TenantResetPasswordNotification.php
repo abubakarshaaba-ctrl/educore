@@ -33,12 +33,15 @@ class TenantResetPasswordNotification extends Notification
                 'token' => $this->token,
                 'email' => $email,
             ]);
+        $expires = (int) config('auth.passwords.users.expire', 60);
 
         return (new MailMessage)
-            ->subject($this->tenant->name . ' password reset')
-            ->line('A password reset was requested for your school staff account.')
+            ->subject('Reset your ' . $this->tenant->name . ' password')
+            ->greeting('Reset your password')
+            ->line('A password reset was requested for your ' . $this->tenant->name . ' staff account on EduCore.')
+            ->line('Use the secure button below to choose a new password. This link expires in ' . $expires . ' minutes.')
             ->action('Reset Password', $url)
-            ->line('This link expires in ' . config('auth.passwords.users.expire', 60) . ' minutes.')
-            ->line('If you did not request a password reset, no action is required.');
+            ->line('If you did not request this change, ignore this email. Your current password will remain unchanged.')
+            ->salutation($this->tenant->name . ' · Powered by EduCore');
     }
 }

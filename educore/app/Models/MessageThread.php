@@ -18,33 +18,10 @@ class MessageThread extends BaseTenantModel
         'status',
     ];
 
-    public function replies()
-    {
-        return $this->hasMany(MessageThreadReply::class, 'thread_id');
-    }
-
-    public function student(): BelongsTo
-    {
-        return $this->belongsTo(Student::class);
-    }
-
-    public function initiator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'initiated_by');
-    }
-
-    public function recipient(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'recipient_user_id');
-    }
-
-    public function unread()
-    {
-        return $this->replies()->where('is_read', false);
-    }
-
-    public function isBroadcast(): bool
-    {
-        return filled($this->audience);
-    }
+    public function replies(){ return $this->hasMany(MessageThreadReply::class, 'thread_id'); }
+    public function student(): BelongsTo { return $this->belongsTo(Student::class); }
+    public function initiator(): BelongsTo { return $this->belongsTo(User::class, 'initiated_by'); }
+    public function recipient(): BelongsTo { return $this->belongsTo(User::class, 'recipient_user_id'); }
+    public function unread(){ return $this->replies()->where('is_read', false); }
+    public function isBroadcast(): bool { return filled($this->audience); }
 }
