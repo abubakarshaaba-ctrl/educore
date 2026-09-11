@@ -3,6 +3,8 @@ package online.educoreng.educore.presentation
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 
@@ -61,6 +63,7 @@ import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import java.io.ByteArrayOutputStream
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -85,6 +88,7 @@ import online.educoreng.educore.core.model.AttendanceStatus
 import online.educoreng.educore.core.model.SyncState
 import online.educoreng.educore.core.model.ClassSummary
 import online.educoreng.educore.PortraitCaptureActivity
+import online.educoreng.educore.core.model.ProxyAttendanceColleague
 import online.educoreng.educore.core.model.StudentSummary
 
 @Composable
@@ -554,9 +558,17 @@ internal fun StaffAttendanceScreen(
     onRefresh: () -> Unit,
     onClockIn: (String, Double?, Double?) -> Unit,
     onClockOut: () -> Unit,
+    onProxySearch: (String) -> Unit,
+    onLoadProxyColleagues: () -> Unit,
+    onProxyClockIn: (Long, String, String, Double?, Double?) -> Unit,
 ) {
     var pendingToken by remember { mutableStateOf<String?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var proxyMode by remember { mutableStateOf(false) }
+    var selectedProxy by remember { mutableStateOf<ProxyAttendanceColleague?>(null) }
+    var pendingProxyToken by remember { mutableStateOf<String?>(null) }
+    var proxyLatitude by remember { mutableStateOf<Double?>(null) }
+    var proxyLongitude by remember { mutableStateOf<Double?>(null) }
     val snapshot = state.staffAttendance
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
@@ -605,6 +617,92 @@ internal fun StaffAttendanceScreen(
             submitScannedToken(token)
         }
     }
+
+    val proxyCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        val colleague = selectedProxy
+        val token = pendingProxyToken
+        if (bitmap == null) {
+            scanError = "Live photo capture was cancelled. Proxy clock-in was not submitted."
+            return@rememberLauncherForActivityResult
+        }
+        if (colleague == null || token.isNullOrBlank()) {
+            scanError = "Proxy attendance session expired. Select the colleague and scan the school QR again."
+            return@rememberLauncherForActivityResult
+        }
+        onProxyClockIn(
+            colleague.id,
+            token,
+            bitmap.toAttendancePhotoDataUrl(),
+            proxyLatitude,
+            proxyLongitude,
+        )
+        pendingProxyToken = null
+        proxyLatitude = null
+        proxyLongitude = null
+        selectedProxy = null
+        proxyMode = false
+    }
+    val proxyCameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) proxyCamera.launch(null) else scanError = "Camera permission is required for the colleague's live attendance photo."
+    }
+    fun captureProxyPhoto() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            proxyCamera.launch(null)
+        } else {
+            proxyCameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+    val proxyLocationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val token = pendingProxyToken
+        if (!granted || token == null) {
+            scanError = "Location permission is required by this school for proxy attendance verification."
+            pendingProxyToken = null
+        } else {
+            currentLocation(locationClient) { latitude, longitude, error ->
+                if (error != null) {
+                    scanError = error
+                    pendingProxyToken = null
+                } else {
+                    proxyLatitude = latitude
+                    proxyLongitude = longitude
+                    captureProxyPhoto()
+                }
+            }
+        }
+    }
+    fun handleProxyToken(token: String) {
+        pendingProxyToken = token
+        proxyLatitude = null
+        proxyLongitude = null
+        if (snapshot?.geoEnabled != true) {
+            captureProxyPhoto()
+            return
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            currentLocation(locationClient) { latitude, longitude, error ->
+                if (error != null) {
+                    scanError = error
+                    pendingProxyToken = null
+                } else {
+                    proxyLatitude = latitude
+                    proxyLongitude = longitude
+                    captureProxyPhoto()
+                }
+            }
+        } else {
+            proxyLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+    val proxyQrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val token = result.contents
+        if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
+        handleProxyToken(token)
+    }
+
     if (state.isLoadingWorkspace && snapshot == null) {
         EduCoreLoadingState(Modifier.fillMaxSize(), "Loading attendance")
         return
@@ -624,7 +722,7 @@ internal fun StaffAttendanceScreen(
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
         if (!online) item {
-            EduCoreWarningBanner("QR and geofence clock-in require a live server connection. No unverified clock-in is queued.")
+            EduCoreWarningBanner("QR, geofence and proxy clock-in require a live server connection. No unverified staff clock-in is queued.")
         }
         item {
             Surface(
@@ -691,6 +789,77 @@ internal fun StaffAttendanceScreen(
                 loading = state.isSaving,
             )
         }
+        item {
+            EduCoreSecondaryButton(
+                text = if (proxyMode) "Close colleague clock-in" else "Clock in for a colleague",
+                onClick = {
+                    proxyMode = !proxyMode
+                    scanError = null
+                    selectedProxy = null
+                    if (proxyMode) onLoadProxyColleagues()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !state.isSaving,
+            )
+        }
+        if (proxyMode) {
+            item {
+                EduCoreInfoBanner(
+                    title = "Proxy attendance verification",
+                    message = "Select the colleague who is physically present. EduCore will require the school QR, any enabled school geofence, and a live photo captured now. The attendance record identifies who performed the proxy clock-in.",
+                )
+            }
+            item {
+                EduCoreDashboardCard {
+                    Text("Select colleague", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    EduCoreSearchBar(
+                        value = state.proxySearch,
+                        onValueChange = onProxySearch,
+                        placeholder = "Search staff name",
+                    )
+                    Spacer(Modifier.height(EduCoreSpacing.Md))
+                    when {
+                        state.isLoadingProxy -> Text("Loading eligible colleagues…", color = EduCoreColors.Slate600)
+                        state.proxyColleagues.isEmpty() -> Text("No eligible unclocked staff found.", color = EduCoreColors.Slate600)
+                        else -> Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                            state.proxyColleagues.take(12).forEach { colleague ->
+                                EduCoreSecondaryButton(
+                                    text = buildString {
+                                        if (selectedProxy?.id == colleague.id) append("Selected · ")
+                                        append(colleague.name)
+                                        if (colleague.staffId.isNotBlank()) append(" · ${colleague.staffId}")
+                                    },
+                                    onClick = { selectedProxy = colleague },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !state.isSaving,
+                                )
+                            }
+                        }
+                    }
+                    selectedProxy?.let { colleague ->
+                        Spacer(Modifier.height(EduCoreSpacing.Md))
+                        EduCorePrimaryButton(
+                            text = "Scan school QR & capture ${colleague.name}'s photo",
+                            onClick = {
+                                scanError = null
+                                proxyQrScanner.launch(
+                                    ScanOptions()
+                                        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                        .setPrompt("Scan the SCHOOL attendance QR for ${colleague.name}")
+                                        .setBeepEnabled(false)
+                                        .setCaptureActivity(PortraitCaptureActivity::class.java)
+                                        .setOrientationLocked(true),
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = online && !state.isSaving,
+                            loading = state.isSaving,
+                        )
+                    }
+                }
+            }
+        }
         items(snapshot.records.take(31), key = { it.date }) { record ->
             EduCoreDashboardCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -731,6 +900,12 @@ private fun String.roleLabel(): String = replace('_', ' ')
     .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
 
 private fun Boolean?.orFalse(): Boolean = this == true
+
+private fun Bitmap.toAttendancePhotoDataUrl(): String {
+    val output = ByteArrayOutputStream()
+    compress(Bitmap.CompressFormat.JPEG, 82, output)
+    return "data:image/jpeg;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+}
 
 @SuppressLint("MissingPermission")
 private fun currentLocation(
