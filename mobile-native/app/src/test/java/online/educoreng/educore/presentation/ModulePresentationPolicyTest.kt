@@ -14,14 +14,31 @@ class ModulePresentationPolicyTest {
     }
 
     @Test
-    fun staff_and_student_cbt_modules_are_native() {
-        listOf("cbt", "cbt-exams", "examinations", "student.exams").forEach { key ->
+    fun cbt_modules_are_explicitly_unsupported_on_android() {
+        listOf("cbt", "cbt-exams", "examinations", "student.exams", "student.cbt", "staff.cbt").forEach { key ->
             assertEquals(
-                "$key must remain native",
-                ModulePresentation.NATIVE,
+                "$key must be absent from the Android product",
+                ModulePresentation.UNSUPPORTED,
                 ModulePresentationPolicy.presentationFor(key),
             )
+            assertFalse(ModulePresentationPolicy.allowsBrowserHandoff(key))
         }
+    }
+
+    @Test
+    fun student_results_alias_is_not_an_android_result_entry_point() {
+        assertEquals(
+            ModulePresentation.UNSUPPORTED,
+            ModulePresentationPolicy.presentationFor("student.results"),
+        )
+        assertEquals(
+            ModulePresentation.ROLE_CONDITIONAL,
+            ModulePresentationPolicy.presentationFor("parent.results"),
+        )
+        assertEquals(
+            ModulePresentation.ROLE_CONDITIONAL,
+            ModulePresentationPolicy.presentationFor("report-cards"),
+        )
     }
 
     @Test
