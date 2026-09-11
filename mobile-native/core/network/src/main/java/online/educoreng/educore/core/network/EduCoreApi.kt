@@ -38,6 +38,8 @@ import online.educoreng.educore.core.network.dto.MessagesResponseDto
 import online.educoreng.educore.core.network.dto.MessageThreadResponseDto
 import online.educoreng.educore.core.network.dto.NotificationResponseDto
 import online.educoreng.educore.core.network.dto.NotificationsResponseDto
+import online.educoreng.educore.core.network.dto.PlatformNoticeFeedDto
+import online.educoreng.educore.core.network.dto.PlatformNoticeMutationDto
 import online.educoreng.educore.core.network.dto.PushTokenRequestDto
 import online.educoreng.educore.core.network.dto.PortalSessionRequestDto
 import online.educoreng.educore.core.network.dto.PortalSessionResponseDto
@@ -156,6 +158,15 @@ interface EduCoreApi {
 
     @POST("notifications/read-all")
     suspend fun markAllNotificationsRead(): ReadAllResponseDto
+
+    @GET("platform-notices")
+    suspend fun platformNotices(): PlatformNoticeFeedDto
+
+    @POST("platform-notices/{broadcast}/read")
+    suspend fun markPlatformNoticeRead(@Path("broadcast") broadcastId: Long): PlatformNoticeMutationDto
+
+    @POST("platform-notices/{broadcast}/dismiss")
+    suspend fun dismissPlatformNotice(@Path("broadcast") broadcastId: Long): PlatformNoticeMutationDto
 
     @GET("calendar/events")
     suspend fun communicationEvents(@Query("from") from: String? = null, @Query("to") to: String? = null): EventsResponseDto
