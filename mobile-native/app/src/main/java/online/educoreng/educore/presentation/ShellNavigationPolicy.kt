@@ -146,7 +146,7 @@ object ShellNavigationPolicy {
 
     private fun canonicalKey(key: String): String = when (key.lowercase()) {
         "staff-attendance.self" -> "staff-attendance"
-        "report-cards", "results" -> "results"
+        "report-cards", "results", "parent.results", "student.results" -> "results"
         else -> key.lowercase()
     }
 
@@ -155,8 +155,10 @@ object ShellNavigationPolicy {
         return normalized in ADMIN_OPERATIONAL_KEYS || ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
     }
 
-    private val MOBILE_CBT_REMOVED_MODULES = setOf("cbt", "cbt-exams", "examinations")
-    private val PARENT_RESULT_MODULES = setOf("report-cards", "results")
+    private val MOBILE_CBT_REMOVED_MODULES = setOf(
+        "cbt", "cbt-exams", "examinations", "student.exams", "student.cbt", "staff.cbt", "staff-cbt",
+    )
+    private val PARENT_RESULT_MODULES = setOf("report-cards", "results", "parent.results", "student.results")
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf("classes", "students", "attendance", "scores", "scores.entry", "lesson-planner", "academic-repository")
     private val ADMIN_OPERATIONAL_KEYS = setOf(
         "staff", "staff-directory", "classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects",
