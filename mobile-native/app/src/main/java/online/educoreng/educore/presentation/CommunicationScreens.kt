@@ -74,6 +74,7 @@ import online.educoreng.educore.core.model.MessageAttachment
 import online.educoreng.educore.core.model.MessageReply
 import online.educoreng.educore.core.model.MessageThreadSummary
 import online.educoreng.educore.core.model.NotificationItem
+import online.educoreng.educore.core.model.PlatformNotice
 import online.educoreng.educore.core.model.SchoolEvent
 
 @Composable
@@ -87,8 +88,10 @@ internal fun CommunicationCenterScreen(
     onOpenThread: (Long) -> Unit,
     onCompose: () -> Unit,
     onRetry: () -> Unit,
+    onMarkPlatformRead: (Long) -> Unit = {},
+    onDismissPlatformNotice: (Long) -> Unit = {},
 ) {
-    if (state.isLoading && state.notifications.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
+    if (state.isLoading && state.notifications.isEmpty() && state.platformNotices.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
         return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading communications")
     }
 
@@ -102,7 +105,7 @@ internal fun CommunicationCenterScreen(
         item {
             EduCorePageHeader(
                 title = "Inbox",
-                subtitle = "School communication in one secure workspace",
+                subtitle = "School and EduCore platform communication in one secure workspace",
                 onBack = onBack,
             )
         }
@@ -111,7 +114,7 @@ internal fun CommunicationCenterScreen(
             EduCoreShowcaseHero(
                 eyebrow = "COMMUNICATION CENTRE",
                 title = "Stay current without leaving EduCore.",
-                subtitle = "Read notices, message permitted staff or School Administration, and review upcoming events from one native inbox.",
+                subtitle = "Read school and EduCore platform notices, message permitted staff or School Administration, and review upcoming events from one native inbox.",
                 trailing = {
                     Surface(
                         modifier = Modifier.size(48.dp),
@@ -134,9 +137,9 @@ internal fun CommunicationCenterScreen(
             ) {
                 EduCoreShowcaseStat(
                     label = "Unread notices",
-                    value = state.unreadNotifications.toString(),
+                    value = state.totalUnreadNotices.toString(),
                     icon = Icons.Default.Notifications,
-                    tone = if (state.unreadNotifications > 0) EduCoreTone.Accent else EduCoreTone.Neutral,
+                    tone = if (state.totalUnreadNotices > 0) EduCoreTone.Accent else EduCoreTone.Neutral,
                     modifier = Modifier.weight(1f),
                 )
                 EduCoreShowcaseStat(
@@ -160,7 +163,7 @@ internal fun CommunicationCenterScreen(
             EduCoreTabs(
                 labels = CommunicationTab.entries.map { tab ->
                     when (tab) {
-                        CommunicationTab.NOTICES -> if (state.unreadNotifications > 0) "${tab.label} (${state.unreadNotifications})" else tab.label
+                        CommunicationTab.NOTICES -> if (state.totalUnreadNotices > 0) "${tab.label} (${state.totalUnreadNotices})" else tab.label
                         CommunicationTab.MESSAGES -> if (unreadMessages > 0) "${tab.label} ($unreadMessages)" else tab.label
                         CommunicationTab.EVENTS -> tab.label
                     }
@@ -174,12 +177,19 @@ internal fun CommunicationCenterScreen(
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
 
         when (state.selectedTab) {
-            CommunicationTab.NOTICES -> noticesContent(state, onNoticeFilter, onMarkRead, onMarkAllRead)
+            CommunicationTab.NOTICES -> noticesContent(
+                state,
+                onNoticeFilter,
+                onMarkRead,
+                onMarkAllRead,
+                onMarkPlatformRead,
+                onDismissPlatformNotice,
+            )
             CommunicationTab.MESSAGES -> messagesContent(state, onOpenThread, onCompose)
             CommunicationTab.EVENTS -> eventsContent(state)
         }
 
-        if (state.errorMessage != null && state.notifications.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
+        if (state.errorMessage != null && state.notifications.isEmpty() && state.platformNotices.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
             item { EduCoreSecondaryButton("Try again", onRetry, Modifier.fillMaxWidth()) }
         }
 
@@ -192,18 +202,9 @@ private fun LazyListScope.noticesContent(
     onFilter: (String) -> Unit,
     onMarkRead: (Long) -> Unit,
     onMarkAllRead: () -> Unit,
+    onMarkPlatformRead: (Long) -> Unit,
+    onDismissPlatformNotice: (Long) -> Unit,
 ) {
-    item {
-        EduCoreSectionHeader(
-            title = "School notices",
-            supportingText = if (state.unreadNotifications > 0) {
-                "${state.unreadNotifications} notice${if (state.unreadNotifications == 1) "" else "s"} waiting for your attention"
-            } else {
-                "You are up to date"
-            },
-        )
-    }
-
     item {
         Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Row(
@@ -214,17 +215,47 @@ private fun LazyListScope.noticesContent(
                     EduCoreFilterChip(label, state.noticeFilter == key, { onFilter(key) })
                 }
             }
-            if (state.unreadNotifications > 0) {
-                EduCoreSecondaryButton(
-                    text = "Mark all notices as read",
-                    onClick = onMarkAllRead,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
     }
 
-    if (state.notifications.isEmpty()) {
+    if (state.platformNotices.isNotEmpty()) {
+        item {
+            EduCoreSectionHeader(
+                title = "EduCore platform notices",
+                supportingText = if (state.platformUnreadNotifications > 0) {
+                    "${state.platformUnreadNotifications} platform notice${if (state.platformUnreadNotifications == 1) "" else "s"} waiting for your attention"
+                } else {
+                    "Official service notices from the EduCore platform"
+                },
+            )
+        }
+        items(state.platformNotices, key = { "platform-${it.id}" }) { notice ->
+            PlatformNoticeCard(notice, state.isSaving, onMarkPlatformRead, onDismissPlatformNotice)
+        }
+    }
+
+    item {
+        EduCoreSectionHeader(
+            title = "School notices",
+            supportingText = if (state.unreadNotifications > 0) {
+                "${state.unreadNotifications} school notice${if (state.unreadNotifications == 1) "" else "s"} waiting for your attention"
+            } else {
+                "You are up to date with school notices"
+            },
+        )
+    }
+
+    if (state.unreadNotifications > 0) {
+        item {
+            EduCoreSecondaryButton(
+                text = "Mark all school notices as read",
+                onClick = onMarkAllRead,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+
+    if (state.notifications.isEmpty() && state.platformNotices.isEmpty()) {
         item {
             EduCoreShowcaseSectionCard {
                 EduCoreEmptyState(
@@ -236,14 +267,14 @@ private fun LazyListScope.noticesContent(
                     message = when (state.noticeFilter) {
                         "unread" -> "You have read every notice currently available to your account."
                         "read" -> "Notices you have read will appear here."
-                        else -> "Published school notices will appear here when they are available."
+                        else -> "Published school and EduCore platform notices will appear here when available."
                     },
                     icon = Icons.Default.Notifications,
                 )
             }
         }
-    } else {
-        items(state.notifications, key = NotificationItem::id) { notice ->
+    } else if (state.notifications.isNotEmpty()) {
+        items(state.notifications, key = { "school-${it.id}" }) { notice ->
             NotificationCard(notice, onMarkRead)
         }
     }
@@ -492,6 +523,66 @@ internal fun ComposeMessageScreen(
 }
 
 @Composable
+private fun PlatformNoticeCard(
+    notice: PlatformNotice,
+    busy: Boolean,
+    onMarkRead: (Long) -> Unit,
+    onDismiss: (Long) -> Unit,
+) {
+    Card(
+        onClick = { if (!notice.isRead) onMarkRead(notice.id) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                notice.priority.equals("urgent", true) && !notice.isRead -> EduCoreColors.Gold100
+                notice.isRead -> EduCoreColors.White
+                else -> EduCoreColors.Info100
+            },
+        ),
+        border = BorderStroke(
+            1.dp,
+            when {
+                notice.priority.equals("urgent", true) -> EduCoreColors.Gold700
+                notice.isRead -> EduCoreColors.Line300
+                else -> EduCoreColors.Info700
+            },
+        ),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("EDUCORE PLATFORM NOTICE", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Gold700)
+                    Text(notice.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
+            }
+            Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
+            notice.createdAt?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500) }
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                if (!notice.isRead) {
+                    EduCoreSecondaryButton(
+                        text = "Mark read",
+                        onClick = { onMarkRead(notice.id) },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                EduCoreSecondaryButton(
+                    text = "Dismiss",
+                    onClick = { onDismiss(notice.id) },
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Unit) {
     Card(
         onClick = { if (!notice.isRead) onMarkRead(notice.id) },
@@ -721,7 +812,7 @@ private fun CommunicationHeader(title: String, subtitle: String, onBack: () -> U
 
 private fun String.noticeTone(): EduCoreTone = when (lowercase()) {
     "urgent" -> EduCoreTone.Danger
-    "important" -> EduCoreTone.Warning
+    "high", "important" -> EduCoreTone.Warning
     else -> EduCoreTone.Info
 }
 
