@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class MobileStaffAttendanceContractTest extends TestCase
 {
-    public function test_canonical_staff_attendance_api_routes_are_registered(): void
+    public function test_canonical_staff_attendance_api_routes_are_registered_once(): void
     {
         $registered = collect(Route::getRoutes())->flatMap(function ($route) {
             return collect($route->methods())->map(fn (string $method): string => $method.' '.$route->uri());
@@ -86,12 +86,28 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertStringContainsString(AdminStaffAttendanceOfflineController::class, $route->getActionName());
     }
 
-    public function test_offline_sync_service_contract_uses_separate_event_ledger(): void
+    public function test_offline_sync_service_uses_separate_uuid_event_ledger_and_server_checks(): void
     {
         $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
+
         $this->assertStringContainsString('staff_attendance_sync_events', $source);
+        $this->assertStringContainsString("->where('tenant_id', $user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('client_uuid', $data['client_uuid'])", $source);
+        $this->assertStringContainsString("'idempotent' => true", $source);
         $this->assertStringContainsString("status' => 'rejected'", $source);
         $this->assertStringContainsString('verifyStaticQrToken', $source);
         $this->assertStringContainsString('distanceTo', $source);
+        $this->assertStringContainsString('A clock-in record is required before clock-out.', $source);
+        $this->assertStringContainsString('updateOrInsert', $source);
+    }
+
+    public function test_my_attendance_queries_are_tenant_and_user_scoped(): void
+    {
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
+
+        $this->assertStringContainsString("->where('tenant_id', $user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('user_id', $user->id)", $source);
+        $this->assertStringContainsString("'month' => ['nullable', 'integer', 'between:1,12']", $source);
+        $this->assertStringContainsString("'year' => ['nullable', 'integer', 'between:2000,2100']", $source);
     }
 }
