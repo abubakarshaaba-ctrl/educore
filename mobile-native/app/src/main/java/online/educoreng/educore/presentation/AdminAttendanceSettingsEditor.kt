@@ -24,6 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -42,6 +45,8 @@ internal fun AdminAttendanceSettingsEditor(
 ) {
     val context = LocalContext.current
     val settings = state.snapshot?.settings
+    val schoolDaysViewModel: SchoolOpenDaysSettingsViewModel = hiltViewModel()
+    val schoolDaysState by schoolDaysViewModel.uiState.collectAsStateWithLifecycle()
     var resumption by remember(settings) { mutableStateOf(settings?.resumptionTime.orEmpty()) }
     var closing by remember(settings) { mutableStateOf(settings?.closingTime.orEmpty()) }
     var grace by remember(settings) { mutableStateOf(settings?.graceMinutes?.toString().orEmpty()) }
@@ -104,10 +109,67 @@ internal fun AdminAttendanceSettingsEditor(
         item {
             Text("Attendance settings", style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Navy900)
             Text(
-                "Configure school hours and the location used for attendance verification.",
+                "Configure school hours, opening days and the location used for attendance verification.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        item {
+            Text("School opening days", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Only selected days count as school working days for staff attendance and timetable generation.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                ) {
+                    SchoolOpenDaysSettingsViewModel.SCHOOL_DAYS.take(4).forEach { day ->
+                        FilterChip(
+                            selected = day in schoolDaysState.selectedDays,
+                            onClick = { schoolDaysViewModel.toggle(day) },
+                            enabled = !schoolDaysState.isSaving,
+                            label = { Text(day.take(3).replaceFirstChar(Char::uppercase)) },
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                ) {
+                    SchoolOpenDaysSettingsViewModel.SCHOOL_DAYS.drop(4).forEach { day ->
+                        FilterChip(
+                            selected = day in schoolDaysState.selectedDays,
+                            onClick = { schoolDaysViewModel.toggle(day) },
+                            enabled = !schoolDaysState.isSaving,
+                            label = { Text(day.take(3).replaceFirstChar(Char::uppercase)) },
+                        )
+                    }
+                }
+            }
+        }
+
+        schoolDaysState.errorMessage?.let { error ->
+            item { EduCoreErrorBanner(error) }
+        }
+        schoolDaysState.message?.let { message ->
+            item { Text(message, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Success700) }
+        }
+
+        item {
+            OutlinedButton(
+                onClick = schoolDaysViewModel::save,
+                enabled = !schoolDaysState.isLoading && !schoolDaysState.isSaving && schoolDaysState.selectedDays.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (schoolDaysState.isSaving) "Saving school days…" else "Save school opening days")
+            }
         }
 
         item {
