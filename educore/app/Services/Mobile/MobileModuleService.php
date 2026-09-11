@@ -2,16 +2,17 @@
 
 namespace App\Services\Mobile;
 
+use App\Models\ClassArm;
 use App\Models\User;
 
 class MobileModuleService
 {
     /**
-     * Modules intentionally available to the native Android app.
+     * Native Android module contract.
      *
-     * CBT and report/results workspaces are deliberately excluded from the
-     * mobile contract. They remain available on the web application where
-     * applicable, but the native app must neither advertise nor route to them.
+     * CBT and report/results workspaces are intentionally excluded from the
+     * mobile app. They may remain available on the web application where
+     * applicable, but native clients must neither advertise nor route to them.
      */
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
@@ -22,16 +23,17 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        // Management-only workspace. Ordinary staff keep the separate
-        // staff-attendance.self entry for their personal attendance actions.
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
+        'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
+        'transfers' => ['Student Transfers', '/students/transfers', 'transfers'],
+        'portal-accounts' => ['Portal Accounts', '/portal-accounts', 'profile'],
         'messages' => ['Messages', '/messages', 'messages'],
         'notifications.view' => ['Notifications', '/notifications', 'notifications'],
         'calendar.view' => ['Calendar', '/calendar', 'calendar'],
@@ -41,10 +43,69 @@ class MobileModuleService
         'inventory' => ['Inventory', '/inventory', 'inventory'],
         'hostels' => ['Hostels', '/hostels', 'hostels'],
         'analytics' => ['Analytics', '/analytics', 'analytics'],
+        'risk' => ['Risk Flags', '/risk', 'risk'],
         'exports' => ['Exports', '/exports', 'exports'],
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
+    ];
+
+    private const ACCOUNTANT_MODULES = [
+        'dashboard',
+        'staff-attendance.self',
+        'fees',
+        'expenses',
+        'payroll',
+        'messages',
+        'notifications.view',
+        'calendar.view',
+        'profile',
+    ];
+
+    /** Academic workspaces remain invisible to non-academic staff unless an
+     * explicit custom permission grants that workspace. */
+    private const ACADEMIC_MODULES = [
+        'classes',
+        'subjects',
+        'curriculum',
+        'academic-cycle',
+        'attendance',
+        'skills',
+        'scores',
+        'timetable',
+        'lesson-planner',
+        'academic-repository',
+    ];
+
+    private const ACADEMIC_ROLE_KEYS = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'head_of_schools',
+        'vice_principal',
+        'academic_administrator',
+        'director_of_studies',
+        'hod',
+        'head_of_department',
+        'teacher',
+        'subject_teacher',
+        'class_teacher',
+        'form_teacher',
+    ];
+
+    private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
+        'classes' => ['classes', 'classes.view'],
+        'subjects' => ['subjects', 'subjects.view'],
+        'curriculum' => ['curriculum', 'curriculum.view'],
+        'academic-cycle' => ['academic-cycle', 'academic-session'],
+        'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
+        'skills' => ['skills', 'skills.rate'],
+        'scores' => ['scores', 'scores.entry'],
+        'timetable' => ['timetable', 'timetable.view'],
+        'lesson-planner' => ['lesson-planner'],
+        'academic-repository' => ['academic-repository'],
     ];
 
     private const STAFF_ATTENDANCE_MANAGEMENT_ROLES = [
@@ -98,10 +159,20 @@ class MobileModuleService
             ];
         }
 
+        $roleKey = strtolower((string) $user->roleKey());
+        $isAccountant = $user->isAccountant() || in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
+        $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, self::STAFF_ATTENDANCE_MANAGEMENT_ROLES, true);
+        $isAcademicStaff = $this->isAcademicStaff($user);
+
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user): bool {
-                if ($key === 'academic-repository') {
-                    return $user->isAdmin() || $user->isTeacher();
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff): bool {
+                if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
+                    return false;
+                }
+
+                if (! $isAcademicStaff && in_array($key, self::ACADEMIC_MODULES, true)
+                    && ! $this->hasExplicitAcademicGrant($user, $key)) {
+                    return false;
                 }
 
                 if ($key === 'staff-attendance.admin') {
@@ -110,6 +181,34 @@ class MobileModuleService
 
                 if ($key === 'staff-attendance.self') {
                     return $user->isTenantStaff() && $user->canAccessModule('staff-attendance.self');
+                }
+
+                // These leadership workspaces are guaranteed in the native shell;
+                // endpoint authorization remains tenant-scoped server-side.
+                if ($isSchoolAdmin && in_array($key, ['staff', 'students'], true)) {
+                    return true;
+                }
+
+                if ($key === 'academic-repository') {
+                    return $user->isAdmin() || $user->isTeacher() || $this->hasExplicitAcademicGrant($user, $key);
+                }
+
+                if ($key === 'skills') {
+                    if (! $user->canAccessModule('skills')) {
+                        return false;
+                    }
+                    if ($user->canAccessExactModule('students')) {
+                        return true;
+                    }
+
+                    return ClassArm::where('tenant_id', $user->tenant_id)
+                        ->where('form_tutor_id', $user->id)
+                        ->exists();
+                }
+
+                if ($key === 'scores') {
+                    return $user->canAccessExactModule('scores')
+                        || $user->canAccessExactModule('scores.entry');
                 }
 
                 return $user->canAccessModule($key);
@@ -122,6 +221,27 @@ class MobileModuleService
             ])
             ->values()
             ->all();
+    }
+
+    private function isAcademicStaff(User $user): bool
+    {
+        $roles = collect($user->getRoleNames())
+            ->map(fn ($role): string => strtolower((string) $role))
+            ->push(strtolower((string) $user->roleKey()))
+            ->unique();
+
+        return $roles->contains(fn (string $role): bool => in_array($role, self::ACADEMIC_ROLE_KEYS, true));
+    }
+
+    private function hasExplicitAcademicGrant(User $user, string $moduleKey): bool
+    {
+        foreach (self::EXPLICIT_ACADEMIC_PERMISSION_KEYS[$moduleKey] ?? [$moduleKey] as $permission) {
+            if ($user->hasGrantedPermission($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function canManageStaffAttendance(User $user): bool
