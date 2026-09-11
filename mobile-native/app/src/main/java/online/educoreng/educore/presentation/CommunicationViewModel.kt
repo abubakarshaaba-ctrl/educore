@@ -44,6 +44,11 @@ data class CommunicationUiState(
     val composeSubject: String = "",
     val composeBody: String = "",
     val replyBody: String = "",
+    val eventTitle: String = "",
+    val eventDescription: String = "",
+    val eventStartDate: String = "",
+    val eventEndDate: String = "",
+    val eventAudience: String = "all",
     val attachment: PendingAttachment? = null,
     val downloadedDocument: DownloadedDocument? = null,
     val isLoading: Boolean = false,
@@ -162,6 +167,12 @@ class CommunicationViewModel @Inject constructor(
     fun setReplyBody(value: String) = _uiState.update { it.copy(replyBody = value.take(10000)) }
     fun clearAttachment() = _uiState.update { it.copy(attachment = null) }
 
+    fun setEventTitle(value: String) = _uiState.update { it.copy(eventTitle = value.take(180)) }
+    fun setEventDescription(value: String) = _uiState.update { it.copy(eventDescription = value.take(5000)) }
+    fun setEventStartDate(value: String) = _uiState.update { it.copy(eventStartDate = value) }
+    fun setEventEndDate(value: String) = _uiState.update { it.copy(eventEndDate = value) }
+    fun setEventAudience(value: String) = _uiState.update { it.copy(eventAudience = value) }
+
     fun loadAttachment(uriValue: String) = viewModelScope.launch {
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         val attachment = withContext(Dispatchers.IO) { readAttachment(Uri.parse(uriValue)) }
@@ -175,7 +186,7 @@ class CommunicationViewModel @Inject constructor(
         val state = _uiState.value
         val recipientId = state.selectedRecipientId
         if (recipientId == null || state.composeSubject.isBlank() || state.composeBody.isBlank()) {
-            return@launch fail("Choose a student, then enter a subject and message.")
+            return@launch fail("Choose a recipient, then enter a subject and message.")
         }
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.compose(recipientId, state.composeSubject.trim(), state.composeBody.trim(), state.attachment)) {
@@ -199,6 +210,35 @@ class CommunicationViewModel @Inject constructor(
                     attachment = null,
                     isSaving = false,
                     message = "Reply sent.",
+                )
+            }
+            is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
+        }
+    }
+
+    fun createEvent() = viewModelScope.launch {
+        val state = _uiState.value
+        if (state.eventTitle.isBlank() || state.eventStartDate.isBlank()) {
+            return@launch fail("Enter an event title and start date.")
+        }
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        when (val result = repository.createEvent(
+            title = state.eventTitle.trim(),
+            description = state.eventDescription.trim().takeIf(String::isNotEmpty),
+            startDate = state.eventStartDate,
+            endDate = state.eventEndDate.takeIf(String::isNotBlank),
+            audience = state.eventAudience,
+        )) {
+            is AppResult.Success -> _uiState.update {
+                it.copy(
+                    events = (it.events + result.value).distinctBy(SchoolEvent::id).sortedBy(SchoolEvent::startDate),
+                    eventTitle = "",
+                    eventDescription = "",
+                    eventStartDate = "",
+                    eventEndDate = "",
+                    eventAudience = "all",
+                    isSaving = false,
+                    message = "Event published as a notice.",
                 )
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
