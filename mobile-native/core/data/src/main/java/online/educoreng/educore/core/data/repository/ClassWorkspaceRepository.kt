@@ -4,6 +4,7 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.AttendanceSheet
 import online.educoreng.educore.core.model.ClassCatalogue
 import online.educoreng.educore.core.model.ClassStudentsSnapshot
+import online.educoreng.educore.core.model.ProxyAttendanceColleague
 import online.educoreng.educore.core.model.StaffAttendanceSnapshot
 import online.educoreng.educore.core.model.StudentProfile
 
@@ -19,4 +20,12 @@ interface ClassWorkspaceRepository {
     suspend fun loadStaffAttendance(): AppResult<StaffAttendanceSnapshot>
     suspend fun clockIn(token: String, latitude: Double?, longitude: Double?): AppResult<String>
     suspend fun clockOut(): AppResult<String>
+    suspend fun loadProxyColleagues(search: String? = null): AppResult<List<ProxyAttendanceColleague>>
+    suspend fun proxyClockIn(
+        staffId: Long,
+        token: String,
+        photoDataUrl: String,
+        latitude: Double?,
+        longitude: Double?,
+    ): AppResult<String>
 }
