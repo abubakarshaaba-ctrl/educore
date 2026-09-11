@@ -17,6 +17,7 @@ interface CommunicationRepository {
     suspend fun markNotificationRead(id: Long): AppResult<NotificationItem>
     suspend fun markAllNotificationsRead(): AppResult<Int>
     suspend fun events(from: String? = null, to: String? = null): AppResult<List<SchoolEvent>>
+    suspend fun createEvent(title: String, description: String?, startDate: String, endDate: String?, audience: String): AppResult<SchoolEvent>
     suspend fun messages(): AppResult<MessagePage>
     suspend fun recipients(): AppResult<List<MessageRecipient>>
     suspend fun thread(id: Long): AppResult<MessageThread>
