@@ -61,4 +61,27 @@ class DefaultDashboardRepository(
             }
         }
     }
+
+    override suspend fun loadStaffPhoto(): AppResult<ByteArray?> = withContext(Dispatchers.IO) {
+        when (val result = safeApiCall(moshi) {
+            api.staffPhoto().use { body ->
+                val declaredSize = body.contentLength()
+                require(declaredSize < 0 || declaredSize <= MAX_STAFF_PHOTO_BYTES) {
+                    "Staff photo exceeds the supported size."
+                }
+                body.bytes().also { bytes ->
+                    require(bytes.size <= MAX_STAFF_PHOTO_BYTES) {
+                        "Staff photo exceeds the supported size."
+                    }
+                }
+            }
+        }) {
+            is AppResult.Success -> AppResult.Success(result.value.takeIf(ByteArray::isNotEmpty))
+            is AppResult.Failure -> result
+        }
+    }
+
+    private companion object {
+        const val MAX_STAFF_PHOTO_BYTES = 5L * 1024L * 1024L
+    }
 }
