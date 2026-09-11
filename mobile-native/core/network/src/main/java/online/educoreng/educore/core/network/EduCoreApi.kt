@@ -30,14 +30,6 @@ import online.educoreng.educore.core.network.dto.LessonPlanResponseDto
 import online.educoreng.educore.core.network.dto.LessonPlanMutationRequestDto
 import online.educoreng.educore.core.network.dto.VersionedRequestDto
 import online.educoreng.educore.core.network.dto.LessonNoteMutationRequestDto
-import online.educoreng.educore.core.network.dto.CbtAttemptResponseDto
-import online.educoreng.educore.core.network.dto.CbtBeginRequestDto
-import online.educoreng.educore.core.network.dto.CbtExamsResponseDto
-import online.educoreng.educore.core.network.dto.CbtIntegrityRequestDto
-import online.educoreng.educore.core.network.dto.CbtIntegrityResponseDto
-import online.educoreng.educore.core.network.dto.CbtPreflightResponseDto
-import online.educoreng.educore.core.network.dto.CbtSaveRequestDto
-import online.educoreng.educore.core.network.dto.CbtSubmitRequestDto
 import online.educoreng.educore.core.network.dto.OperationsResponseDto
 import online.educoreng.educore.core.network.dto.EventsResponseDto
 import online.educoreng.educore.core.network.dto.MessageMutationResponseDto
@@ -60,7 +52,6 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
-import retrofit2.http.PUT
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 
@@ -142,9 +133,7 @@ interface EduCoreApi {
     @POST("scores/save")
     suspend fun saveScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
 
-    @GET("student/results")
-    suspend fun studentResults(): PublishedResultsResponseDto
-
+    // Published results are intentionally parent-only in the Android product.
     @GET("parent/results")
     suspend fun parentResults(@Query("child_id") childId: Long? = null): PublishedResultsResponseDto
 
@@ -261,31 +250,6 @@ interface EduCoreApi {
     @Streaming
     @GET("lesson-plans/{lessonPlan}/note/pdf")
     suspend fun downloadLessonNotePdf(@Path("lessonPlan") lessonPlanId: Long): ResponseBody
-
-    @GET("cbt/exams")
-    suspend fun cbtExams(): CbtExamsResponseDto
-
-    @GET("cbt/exams/{exam}/preflight")
-    suspend fun cbtPreflight(@Path("exam") examId: Long): CbtPreflightResponseDto
-
-    @POST("cbt/exams/{exam}/begin")
-    suspend fun beginCbt(@Path("exam") examId: Long, @Body request: CbtBeginRequestDto): CbtAttemptResponseDto
-
-    @GET("cbt/sessions/{session}")
-    suspend fun cbtAttempt(@Path("session") sessionId: Long): CbtAttemptResponseDto
-
-    @PUT("cbt/sessions/{session}/answers")
-    suspend fun saveCbt(@Path("session") sessionId: Long, @Body request: CbtSaveRequestDto): CbtAttemptResponseDto
-
-    @POST("cbt/sessions/{session}/integrity")
-    suspend fun recordCbtIntegrity(@Path("session") sessionId: Long, @Body request: CbtIntegrityRequestDto): CbtIntegrityResponseDto
-
-    @POST("cbt/sessions/{session}/submit")
-    suspend fun submitCbt(@Path("session") sessionId: Long, @Body request: CbtSubmitRequestDto): CbtAttemptResponseDto
-
-    @Streaming
-    @GET("cbt/sessions/{session}/questions/{question}/image")
-    suspend fun cbtQuestionImage(@Path("session") sessionId: Long, @Path("question") questionId: Long): ResponseBody
 
     @POST("auth/logout")
     suspend fun logout(): MessageDto
