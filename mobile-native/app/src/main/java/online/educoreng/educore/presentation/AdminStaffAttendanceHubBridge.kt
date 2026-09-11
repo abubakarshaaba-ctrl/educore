@@ -154,7 +154,6 @@ internal fun AdminStaffAttendanceScreen(
     if (proxyOpen) {
         AdminProxyClockScreen(
             state = proxyState,
-            staff = liveState.snapshot?.records.orEmpty(),
             onSubmit = proxyViewModel::submit,
             onClose = {
                 proxyOpen = false
@@ -181,7 +180,7 @@ internal fun AdminStaffAttendanceScreen(
     ) {
         OutlinedButton(
             onClick = { proxyOpen = true },
-            enabled = !liveState.isLoading && !liveState.isMutating && liveState.snapshot?.records?.isNotEmpty() == true,
+            enabled = !liveState.isLoading && !liveState.isMutating,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = eduCoreScreenPadding(), vertical = EduCoreSpacing.Xs),
