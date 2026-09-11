@@ -27,6 +27,7 @@ import online.educoreng.educore.core.model.SyncState
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 import online.educoreng.educore.sync.SelfAttendanceOfflineSyncRepository
 import online.educoreng.educore.sync.SelfAttendanceQueuedStatus
+import online.educoreng.educore.sync.SelfAttendanceSnapshotCache
 
 data class ClassesUiState(
     val catalogue: ClassCatalogue? = null,
@@ -34,6 +35,7 @@ data class ClassesUiState(
     val studentProfile: StudentProfile? = null,
     val attendanceSheet: AttendanceSheet? = null,
     val staffAttendance: StaffAttendanceSnapshot? = null,
+    val staffAttendanceFromCache: Boolean = false,
     val selfAttendanceSync: List<SelfAttendanceQueuedStatus> = emptyList(),
     val classSearch: String = "",
     val studentSearch: String = "",
@@ -50,6 +52,7 @@ class ClassesViewModel @Inject constructor(
     private val repository: ClassWorkspaceRepository,
     private val syncCoordinator: OfflineSyncCoordinator,
     private val selfAttendanceOffline: SelfAttendanceOfflineSyncRepository,
+    private val selfAttendanceCache: SelfAttendanceSnapshotCache,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ClassesUiState())
     val uiState: StateFlow<ClassesUiState> = _uiState.asStateFlow()
@@ -245,19 +248,28 @@ class ClassesViewModel @Inject constructor(
             _uiState.update { it.copy(isLoadingWorkspace = true, errorMessage = null) }
             val syncStatuses = selfAttendanceOffline.statuses()
             when (val result = repository.loadStaffAttendance()) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(
-                        staffAttendance = result.value,
-                        selfAttendanceSync = syncStatuses,
-                        isLoadingWorkspace = false,
-                    )
+                is AppResult.Success -> {
+                    selfAttendanceCache.save(result.value)
+                    _uiState.update {
+                        it.copy(
+                            staffAttendance = result.value,
+                            staffAttendanceFromCache = false,
+                            selfAttendanceSync = syncStatuses,
+                            isLoadingWorkspace = false,
+                        )
+                    }
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(
-                        selfAttendanceSync = syncStatuses,
-                        isLoadingWorkspace = false,
-                        errorMessage = result.error.userMessage,
-                    )
+                is AppResult.Failure -> {
+                    val cached = selfAttendanceCache.load()
+                    _uiState.update {
+                        it.copy(
+                            staffAttendance = it.staffAttendance ?: cached?.snapshot,
+                            staffAttendanceFromCache = it.staffAttendance == null && cached != null,
+                            selfAttendanceSync = syncStatuses,
+                            isLoadingWorkspace = false,
+                            errorMessage = if (it.staffAttendance != null || cached != null) null else result.error.userMessage,
+                        )
+                    }
                 }
             }
         }
