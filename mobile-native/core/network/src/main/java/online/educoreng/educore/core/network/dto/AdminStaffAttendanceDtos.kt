@@ -55,6 +55,7 @@ data class AdminStaffAttendanceSettingsDto(
     @Json(name = "geo_lat") val geoLat: Double? = null,
     @Json(name = "geo_lng") val geoLng: Double? = null,
     @Json(name = "geo_radius_meters") val geoRadiusMeters: Int? = null,
+    @Json(name = "school_open_days") val schoolOpenDays: List<String> = listOf("monday", "tuesday", "wednesday", "thursday", "friday"),
 )
 
 @JsonClass(generateAdapter = true)
@@ -168,4 +169,5 @@ data class AdminAttendanceSettingsRequestDto(
     @Json(name = "geo_lat") val geoLat: Double? = null,
     @Json(name = "geo_lng") val geoLng: Double? = null,
     @Json(name = "geo_radius_meters") val geoRadiusMeters: Int? = null,
+    @Json(name = "school_open_days") val schoolOpenDays: List<String>? = null,
 )
