@@ -27,20 +27,29 @@ enum class ModuleGroup(val label: String) {
 object ShellNavigationPolicy {
     fun tabs(session: SessionSnapshot): List<ShellTab> {
         val portal = session.user.portal
-        val role = session.user.roleKey
+        val role = session.user.roleKey.lowercase()
         val management = portal == "admin" || portal == "platform"
         val modules = visibleModules(session)
+        val hasAcademics = modules.any { groupFor(it) == ModuleGroup.ACADEMICS }
+        val hasSchedule = modules.any { groupFor(it) == ModuleGroup.SCHEDULE }
+        val hasOperations = modules.any { groupFor(it) == ModuleGroup.OPERATIONS }
+        val financeRole = role in FINANCE_ROLES || modules.any { it.key in FINANCE_KEYS }
 
         val primaryLabel = when {
             portal == "parent" -> "Children"
             portal == "platform" -> "Schools"
-            role.contains("teacher") || portal == "staff" -> "Classes"
-            else -> "Academics"
+            financeRole && !hasAcademics -> "Finance"
+            hasAcademics -> if (role.contains("teacher")) "Classes" else "Academics"
+            hasOperations -> "Operations"
+            else -> "Workspace"
         }
         val secondaryLabel = when {
             management -> "Operations"
             portal == "parent" -> "Academics"
-            else -> "Timetable"
+            financeRole && !hasSchedule -> "Operations"
+            hasSchedule -> "Timetable"
+            hasOperations -> "Operations"
+            else -> "Account"
         }
         val inboxLabel = if (modules.any { it.key.contains("message") || it.key.contains("support") }) {
             "Inbox"
@@ -60,6 +69,11 @@ object ShellNavigationPolicy {
     fun modulesFor(tab: ShellTabId, session: SessionSnapshot): List<ModuleDescriptor> {
         val visible = visibleModules(session)
         val grouped = visible.groupBy(::groupFor)
+        val role = session.user.roleKey.lowercase()
+        val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
+        val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
+        val financeRole = role in FINANCE_ROLES || visible.any { it.key in FINANCE_KEYS }
+
         return when (tab) {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal) {
@@ -67,7 +81,11 @@ object ShellNavigationPolicy {
                     it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
                 }
                 "parent" -> visible.filter { it.key.contains("attendance") }
-                else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+                else -> when {
+                    financeRole && !hasAcademics -> grouped[ModuleGroup.OPERATIONS].orEmpty().filter { it.key in FINANCE_KEYS }
+                    hasAcademics -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+                    else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
+                }
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
                 "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
@@ -75,7 +93,11 @@ object ShellNavigationPolicy {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
-                else -> grouped[ModuleGroup.SCHEDULE].orEmpty()
+                else -> when {
+                    hasSchedule -> grouped[ModuleGroup.SCHEDULE].orEmpty()
+                    financeRole -> grouped[ModuleGroup.OPERATIONS].orEmpty().filterNot { it.key in FINANCE_KEYS }
+                    else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
+                }
             }
             ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
             ShellTabId.MORE -> visible
@@ -120,6 +142,8 @@ object ShellNavigationPolicy {
         }
     }
 
+    private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports", "parent.fees")
     private val ACADEMIC_KEYS = listOf(
         "student",
         "class",
