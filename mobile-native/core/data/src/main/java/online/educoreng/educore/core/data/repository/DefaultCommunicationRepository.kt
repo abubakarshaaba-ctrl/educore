@@ -13,6 +13,7 @@ import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.MessageAttachment
 import online.educoreng.educore.core.model.PendingAttachment
 import online.educoreng.educore.core.network.EduCoreApi
+import online.educoreng.educore.core.network.dto.CreateEventRequestDto
 import online.educoreng.educore.core.network.dto.PushTokenRequestDto
 import online.educoreng.educore.core.network.dto.toDomain
 import online.educoreng.educore.core.network.dto.toThread
@@ -27,6 +28,17 @@ class DefaultCommunicationRepository(
     override suspend fun markNotificationRead(id: Long) = mapped { api.markNotificationRead(id).notification.toDomain() }
     override suspend fun markAllNotificationsRead() = mapped { api.markAllNotificationsRead().updated }
     override suspend fun events(from: String?, to: String?) = mapped { api.communicationEvents(from, to).events.map { it.toDomain() } }
+    override suspend fun createEvent(title: String, description: String?, startDate: String, endDate: String?, audience: String) = mapped {
+        api.createCommunicationEvent(
+            CreateEventRequestDto(
+                title = title,
+                description = description,
+                startDate = startDate,
+                endDate = endDate,
+                audience = audience,
+            ),
+        ).event.toDomain()
+    }
     override suspend fun messages() = mapped { api.messages(perPage = 50).toDomain() }
     override suspend fun recipients() = mapped { api.messageRecipients().recipients.map { it.toDomain() } }
     override suspend fun thread(id: Long) = mapped { api.messageThread(id).thread.toThread() }
