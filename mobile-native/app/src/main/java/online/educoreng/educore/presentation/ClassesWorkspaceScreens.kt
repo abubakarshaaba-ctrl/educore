@@ -447,7 +447,8 @@ internal fun AttendanceScreen(
         EduCoreErrorState(state.errorMessage ?: "Attendance sheet is unavailable.", Modifier.fillMaxSize())
         return
     }
-    val complete = sheet.students.all { it.status != null }
+    val incompleteCount = sheet.students.count { it.status == null }
+    val complete = incompleteCount == 0
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
@@ -462,6 +463,12 @@ internal fun AttendanceScreen(
         } else if (sheet.hasLocalDraft) item {
             EduCoreInfoBanner("Draft saved safely on this device. Submission remains explicit.", title = "Local draft")
         }
+        if (!complete && !sheet.isDraftStale) item {
+            EduCoreInfoBanner(
+                message = "$incompleteCount ${if (incompleteCount == 1) "student still needs" else "students still need"} an attendance status. Mark every student Present, Absent, Late or Excused before submitting.",
+                title = "Attendance incomplete",
+            )
+        }
         if (sheet.syncState != SyncState.NONE) item {
             val message = sheet.syncMessage ?: when (sheet.syncState) {
                 SyncState.QUEUED, SyncState.SYNCING -> "Waiting for a stable connection. This submission will retry automatically."
@@ -472,7 +479,10 @@ internal fun AttendanceScreen(
             if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) EduCoreInfoBanner(message, title = "Sync pending") else EduCoreWarningBanner(message, title = "Sync needs attention")
         }
         if (!online) item {
-            EduCoreWarningBanner("You can continue editing this device draft. Connect before submitting attendance.")
+            EduCoreInfoBanner(
+                message = "You can finish marking this sheet offline. When every student has a status, tap Queue attendance. EduCore will send it automatically when the connection returns.",
+                title = "Offline mode",
+            )
         }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         item {
@@ -488,7 +498,12 @@ internal fun AttendanceScreen(
         }
         item {
             EduCorePrimaryButton(
-                text = if (sheet.syncState == SyncState.FAILED) "Retry sync" else if (complete) if (online) "Save attendance" else "Queue attendance" else "Complete all statuses",
+                text = when {
+                    sheet.syncState == SyncState.FAILED -> "Retry sync"
+                    !complete -> "Mark $incompleteCount remaining"
+                    online -> "Save attendance"
+                    else -> "Queue attendance"
+                },
                 onClick = onSubmit,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = complete && !sheet.isDraftStale && sheet.syncState != SyncState.QUEUED && sheet.syncState != SyncState.SYNCING && sheet.syncState != SyncState.CONFLICT,
