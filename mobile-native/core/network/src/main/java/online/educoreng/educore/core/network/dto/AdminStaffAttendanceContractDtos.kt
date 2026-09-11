@@ -33,6 +33,23 @@ data class AdminAttendanceOfflineSyncRequestDto(
     @Json(name = "qr_token") val qrToken: String? = null,
 )
 
+/**
+ * Durable replay envelope for the authenticated user's own attendance.
+ * Deliberately contains no staff/user ID: identity is derived server-side
+ * from the bearer token so a queued payload cannot clock in another account.
+ */
+@JsonClass(generateAdapter = true)
+data class SelfAttendanceOfflineSyncRequestDto(
+    @Json(name = "client_uuid") val clientUuid: String,
+    @Json(name = "action") val action: String,
+    @Json(name = "attendance_date") val attendanceDate: String,
+    @Json(name = "local_timestamp") val localTimestamp: String,
+    @Json(name = "latitude") val latitude: Double? = null,
+    @Json(name = "longitude") val longitude: Double? = null,
+    @Json(name = "accuracy") val accuracy: Double? = null,
+    @Json(name = "qr_token") val qrToken: String? = null,
+)
+
 @JsonClass(generateAdapter = true)
 data class AdminAttendanceProxyClockRequestDto(
     @Json(name = "staff_qr_token") val staffQrToken: String,
