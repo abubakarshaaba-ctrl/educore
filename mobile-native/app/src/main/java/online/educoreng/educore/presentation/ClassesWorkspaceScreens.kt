@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -475,10 +477,14 @@ internal fun StaffAttendanceScreen(
     onClockOut: () -> Unit,
 ) {
     var pendingToken by remember { mutableStateOf<String?>(null) }
+    var pendingCardToken by remember { mutableStateOf<String?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var schoolQrFallbackOpen by remember { mutableStateOf(false) }
     val snapshot = state.staffAttendance
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
+    val staffCardScanViewModel: StaffCardAttendanceScanViewModel = hiltViewModel()
+    val staffCardScanState by staffCardScanViewModel.uiState.collectAsStateWithLifecycle()
 
     fun submitScannedToken(token: String) {
         pendingToken = null
@@ -487,10 +493,31 @@ internal fun StaffAttendanceScreen(
             return
         }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            currentLocation(locationClient) { latitude, longitude, error ->
+            currentLocation(locationClient) { latitude, longitude, _, error ->
                 if (error != null) scanError = error else onClockIn(token, latitude, longitude)
             }
         } else pendingToken = token
+    }
+
+    fun submitStaffCardToken(token: String) {
+        pendingCardToken = null
+        if (!online) {
+            scanError = "Staff ID attendance scanning requires an internet connection because the server records the real-time attendance timestamp."
+            return
+        }
+        if (!snapshot?.geoEnabled.orFalse()) {
+            staffCardScanViewModel.scan(token)
+            return
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            currentLocation(locationClient) { latitude, longitude, accuracy, error ->
+                if (error != null) {
+                    scanError = error
+                } else {
+                    staffCardScanViewModel.scan(token, latitude, longitude, accuracy)
+                }
+            }
+        } else pendingCardToken = token
     }
 
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -499,9 +526,21 @@ internal fun StaffAttendanceScreen(
             scanError = "Location permission is required."
             pendingToken = null
         } else {
-            currentLocation(locationClient) { latitude, longitude, error ->
+            currentLocation(locationClient) { latitude, longitude, _, error ->
                 pendingToken = null
                 if (error != null) scanError = error else onClockIn(token, latitude, longitude)
+            }
+        }
+    }
+    val cardLocationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val token = pendingCardToken
+        if (!granted || token == null) {
+            scanError = "Location permission is required to scan staff ID attendance for this school."
+            pendingCardToken = null
+        } else {
+            currentLocation(locationClient) { latitude, longitude, accuracy, error ->
+                pendingCardToken = null
+                if (error != null) scanError = error else staffCardScanViewModel.scan(token, latitude, longitude, accuracy)
             }
         }
     }
@@ -513,19 +552,48 @@ internal fun StaffAttendanceScreen(
             locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else submitScannedToken(token)
     }
+    val staffCardScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val token = result.contents
+        if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
+        if (snapshot?.geoEnabled == true && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            pendingCardToken = token
+            cardLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else submitStaffCardToken(token)
+    }
 
     if (state.isLoadingWorkspace && snapshot == null) {
         EduCoreLoadingState(Modifier.fillMaxSize(), "Loading attendance")
         return
     }
     if (snapshot == null) {
-        EduCoreErrorState(state.errorMessage ?: "Attendance unavailable.", Modifier.fillMaxSize(), onRetry = onRefresh)
+        EduCoreErrorState(
+            state.errorMessage ?: "Attendance is unavailable. Connect once so EduCore can save your school's attendance settings for offline use.",
+            Modifier.fillMaxSize(),
+            onRetry = onRefresh,
+        )
         return
     }
 
-    val clockedIn = snapshot.today?.clockIn != null
-    val clockedOut = snapshot.today?.clockOut != null
+    if (schoolQrFallbackOpen) {
+        StaffSchoolQrProxyAttendanceScreen(
+            geoEnabled = snapshot.geoEnabled,
+            online = online,
+            onClose = {
+                schoolQrFallbackOpen = false
+                staffCardScanViewModel.clearMessage()
+            },
+        )
+        return
+    }
+
+    val activeSyncStates = setOf("pending", "syncing")
+    val queuedClockIn = state.selfAttendanceSync.any { it.action == "clock_in" && it.state in activeSyncStates }
+    val queuedClockOut = state.selfAttendanceSync.any { it.action == "clock_out" && it.state in activeSyncStates }
+    val clockedIn = snapshot.today?.clockIn != null || queuedClockIn
+    val clockedOut = snapshot.today?.clockOut != null || queuedClockOut
     val statusLabel = when {
+        queuedClockOut -> "Clock-out queued"
+        queuedClockIn && snapshot.today?.clockIn == null -> "Clock-in queued"
         !clockedIn -> "Not clocked in"
         clockedOut -> "Completed"
         else -> "Clocked in"
@@ -546,7 +614,14 @@ internal fun StaffAttendanceScreen(
         }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
-        if (!online) item { EduCoreWarningBanner("Connect to use staff attendance.") }
+        staffCardScanState.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
+        staffCardScanState.message?.let { message -> item { EduCoreInfoBanner(message) } }
+        if (!online) item {
+            EduCoreWarningBanner("Offline mode. Your own attendance action can be queued, but staff ID-card and school-QR proxy attendance require a live server connection.")
+        }
+        if (state.staffAttendanceFromCache) item {
+            EduCoreInfoBanner("Showing the last saved My Attendance snapshot. The server remains the source of truth.")
+        }
 
         item {
             EduCoreDashboardCard {
@@ -567,11 +642,13 @@ internal fun StaffAttendanceScreen(
                     }
                     EduCoreStatusBadge(
                         when {
+                            queuedClockIn || queuedClockOut -> "Queued"
                             !clockedIn -> "Pending"
                             clockedOut -> "Done"
                             else -> snapshot.today?.status?.roleLabel() ?: "Present"
                         },
                         when {
+                            queuedClockIn || queuedClockOut -> EduCoreTone.Warning
                             !clockedIn -> EduCoreTone.Neutral
                             snapshot.today?.status.equals("late", true) -> EduCoreTone.Warning
                             else -> EduCoreTone.Success
@@ -591,30 +668,96 @@ internal fun StaffAttendanceScreen(
 
         if (!clockedIn) item {
             EduCorePrimaryButton(
-                text = "Scan QR",
+                text = if (online) "Scan school QR for my attendance" else "Scan school QR offline",
                 onClick = {
                     scanError = null
                     qrScanner.launch(
                         ScanOptions()
                             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            .setPrompt("Scan attendance QR")
+                            .setPrompt("Scan school attendance QR")
                             .setBeepEnabled(false)
                             .setCaptureActivity(PortraitCaptureActivity::class.java)
                             .setOrientationLocked(true),
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = online,
+                enabled = !state.isSaving,
                 loading = state.isSaving,
             )
         } else if (!clockedOut) item {
             EduCorePrimaryButton(
-                text = "Clock out",
+                text = if (online) "Clock out" else "Clock out offline",
                 onClick = onClockOut,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = online,
+                enabled = !state.isSaving,
                 loading = state.isSaving,
             )
+        }
+
+        item {
+            EduCoreSecondaryButton(
+                text = if (staffCardScanState.isSaving) "Recording staff attendance…" else "Scan staff ID card attendance",
+                onClick = {
+                    scanError = null
+                    staffCardScanViewModel.clearMessage()
+                    staffCardScanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Scan the QR on the staff ID card")
+                            .setBeepEnabled(false)
+                            .setCaptureActivity(PortraitCaptureActivity::class.java)
+                            .setOrientationLocked(true),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !staffCardScanState.isSaving,
+            )
+        }
+        item {
+            EduCoreSecondaryButton(
+                text = "No ID card? Scan school QR",
+                onClick = {
+                    scanError = null
+                    staffCardScanViewModel.clearMessage()
+                    schoolQrFallbackOpen = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !staffCardScanState.isSaving,
+            )
+        }
+        item {
+            Text(
+                "Any staff account in this school can record a colleague's real-time attendance. Scan the colleague's signed staff ID-card QR when available; otherwise use the school QR fallback and enter the colleague's Staff ID. EduCore records the current server-time clock-in or clock-out automatically.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+
+        if (state.selfAttendanceSync.isNotEmpty()) {
+            item { EduCoreSectionHeader(title = "Offline synchronization") }
+            items(state.selfAttendanceSync.take(8), key = { it.clientUuid }) { sync ->
+                val rejected = sync.state.equals("rejected", true)
+                val synchronized = sync.state.equals("synced", true)
+                EduCoreDashboardCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(sync.action.replace('_', ' ').roleLabel(), style = MaterialTheme.typography.titleSmall)
+                            Text(sync.attendanceDate, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            if (rejected && !sync.rejectionReason.isNullOrBlank()) {
+                                Text(sync.rejectionReason, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                            }
+                        }
+                        EduCoreStatusBadge(
+                            sync.state.roleLabel(),
+                            when {
+                                rejected -> EduCoreTone.Danger
+                                synchronized -> EduCoreTone.Success
+                                else -> EduCoreTone.Warning
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         if (snapshot.records.isNotEmpty()) item { EduCoreSectionHeader(title = "Recent attendance") }
@@ -657,7 +800,7 @@ private fun Boolean?.orFalse(): Boolean = this == true
 @SuppressLint("MissingPermission")
 private fun currentLocation(
     client: com.google.android.gms.location.FusedLocationProviderClient,
-    result: (Double?, Double?, String?) -> Unit,
+    result: (Double?, Double?, Double?, String?) -> Unit,
 ) {
     val request = CurrentLocationRequest.Builder()
         .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
@@ -667,12 +810,12 @@ private fun currentLocation(
     client.getCurrentLocation(request, CancellationTokenSource().token)
         .addOnSuccessListener { location ->
             when {
-                location == null -> result(null, null, "Location unavailable. Try again.")
-                location.accuracy > 100f -> result(null, null, "GPS accuracy is ${location.accuracy.toInt()} m. Try again in an open area.")
-                else -> result(location.latitude, location.longitude, null)
+                location == null -> result(null, null, null, "Location unavailable. Try again.")
+                location.accuracy > 100f -> result(null, null, location.accuracy.toDouble(), "GPS accuracy is ${location.accuracy.toInt()} m. Try again in an open area.")
+                else -> result(location.latitude, location.longitude, location.accuracy.toDouble(), null)
             }
         }
         .addOnFailureListener { error ->
-            result(null, null, error.localizedMessage ?: "Location verification failed.")
+            result(null, null, null, error.localizedMessage ?: "Location verification failed.")
         }
 }

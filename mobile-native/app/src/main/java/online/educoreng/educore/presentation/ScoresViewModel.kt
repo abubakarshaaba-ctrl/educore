@@ -92,6 +92,7 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
+    /** Parent-only published result reader. Staff/admin result access is intentionally not exposed on Android. */
     fun loadResults(childId: Long? = null) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
         when (val result = repository.loadPublishedResults(childId)) {
@@ -100,11 +101,18 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
-    fun loadStudentResults(classId: Long, studentId: Long) = viewModelScope.launch {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
-        when (val result = repository.loadStudentResults(classId, studentId)) {
-            is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
-            is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
+    /**
+     * Compatibility shim for a legacy staff report-card route that is no longer
+     * reachable from the filtered Android module graph. Keep this fail-closed
+     * until the legacy StaffWorkspaceShell route is physically removed.
+     */
+    fun loadStudentResults(classId: Long, studentId: Long) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                publishedResults = null,
+                errorMessage = "Report cards and results are available in the Android app only to parent accounts.",
+            )
         }
     }
 

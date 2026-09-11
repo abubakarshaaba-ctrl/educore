@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,18 +31,12 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
+import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
 /** Compatibility alias retained for existing module-hub call sites. */
 internal fun AdminStaffAttendanceViewModel.load() = loadDaily()
 
-/**
- * Full native administrator attendance workspace.
- *
- * This host deliberately owns one route-scoped attendance ViewModel so the
- * daily report, monthly report, reviews, settings, geofence capture and QR
- * controls all mutate the same observable state.
- */
 @Composable
 internal fun AdminStaffAttendanceScreen(
     state: AdminStaffAttendanceUiState,
@@ -56,9 +51,10 @@ internal fun AdminStaffAttendanceScreen(
     var qrOpen by remember { mutableStateOf(false) }
     var locating by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf<String?>(null) }
+    var capturedLatitude by remember { mutableStateOf<Double?>(null) }
+    var capturedLongitude by remember { mutableStateOf<Double?>(null) }
+    var capturedAccuracy by remember { mutableStateOf<Float?>(null) }
 
-    // The argument is retained for source compatibility with existing callers.
-    // Once this routed host is mounted, its route-scoped state is authoritative.
     @Suppress("UNUSED_VARIABLE")
     val initialState = state
 
@@ -66,47 +62,42 @@ internal fun AdminStaffAttendanceScreen(
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-    fun saveLocation(location: Location?) {
+    fun acceptLocation(location: Location?) {
         locating = false
         if (location == null) {
-            locationMessage = "Current location could not be determined. Turn on Location and try again."
+            locationMessage = "Unable to determine location. Ensure GPS or network location is available and try again."
             return
         }
-        val settings = liveState.snapshot?.settings
-        if (settings == null) {
-            locationMessage = "Load attendance settings before setting the school location."
-            viewModel.loadDaily()
-            return
-        }
-        val resumptionTime = settings.resumptionTime
-        val closingTime = settings.closingTime
-        if (resumptionTime.isNullOrBlank() || closingTime.isNullOrBlank()) {
-            locationMessage = "Set valid resumption and closing times before capturing the school location."
-            return
-        }
-        viewModel.saveSettings(
-            resumption = resumptionTime,
-            grace = settings.graceMinutes,
-            closing = closingTime,
-            geoEnabled = true,
-            lat = location.latitude,
-            lng = location.longitude,
-            radius = settings.geoRadiusMeters ?: 500,
-        )
-        locationMessage = "School location captured: %.6f, %.6f".format(location.latitude, location.longitude)
+        capturedLatitude = location.latitude
+        capturedLongitude = location.longitude
+        capturedAccuracy = location.accuracy.takeIf { location.hasAccuracy() }
+        val accuracy = capturedAccuracy?.let { " · accuracy ±${it.toInt()} m" }.orEmpty()
+        locationMessage = "Location captured: %.6f, %.6f%s".format(location.latitude, location.longitude, accuracy)
     }
 
     @SuppressLint("MissingPermission")
     fun captureCurrentLocation() {
         if (!hasLocationPermission()) {
             locating = false
-            locationMessage = "Location permission is required to capture the school coordinates."
+            locationMessage = "Location permission denied. Allow location access to capture the school coordinates."
             return
         }
 
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val locationEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            manager.isLocationEnabled
+        } else {
+            @Suppress("DEPRECATION")
+            manager.isProviderEnabled(LocationManager.GPS_PROVIDER) || manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
+        if (!locationEnabled) {
+            locating = false
+            locationMessage = "Location services disabled. Turn on device Location and try again."
+            return
+        }
+
         locating = true
-        locationMessage = null
+        locationMessage = "Getting location…"
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val provider = when {
@@ -115,28 +106,34 @@ internal fun AdminStaffAttendanceScreen(
                     else -> null
                 }
                 if (provider == null) {
-                    saveLocation(null)
+                    locating = false
+                    locationMessage = "Network/GPS unavailable. Enable a location provider and try again."
                 } else {
-                    manager.getCurrentLocation(provider, null, context.mainExecutor, ::saveLocation)
+                    manager.getCurrentLocation(provider, null, context.mainExecutor, ::acceptLocation)
                 }
             } else {
                 @Suppress("DEPRECATION")
                 val location = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+                    .filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
                     .mapNotNull { provider -> runCatching { manager.getLastKnownLocation(provider) }.getOrNull() }
                     .maxByOrNull { it.time }
-                saveLocation(location)
+                acceptLocation(location)
             }
         }.onFailure {
             locating = false
-            locationMessage = "Unable to read the device location. Check Location permission and try again."
+            locationMessage = "Unable to determine location. Check GPS/network availability and try again."
         }
     }
 
     val locationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (grants.values.any { it } && hasLocationPermission()) captureCurrentLocation()
-        else locationMessage = "Location permission is required to capture the school coordinates."
+        if (grants.values.any { it } && hasLocationPermission()) {
+            captureCurrentLocation()
+        } else {
+            locating = false
+            locationMessage = "Location permission denied. Allow location access to use the present school location."
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -179,6 +176,8 @@ internal fun AdminStaffAttendanceScreen(
                     if (hasLocationPermission()) {
                         captureCurrentLocation()
                     } else {
+                        locating = true
+                        locationMessage = "Requesting location permission…"
                         locationPermission.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,
@@ -192,34 +191,47 @@ internal fun AdminStaffAttendanceScreen(
                     .fillMaxWidth()
                     .padding(horizontal = eduCoreScreenPadding()),
             ) {
-                Text(if (locating) "Getting present location…" else "Use present location")
+                Text(if (locating) "Getting location…" else "Use present location")
             }
             locationMessage?.let { message ->
                 Text(
                     text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (message.startsWith("Location captured")) EduCoreColors.Success700 else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = eduCoreScreenPadding()),
                 )
             }
         }
 
         Box(Modifier.weight(1f)) {
-            AdminStaffAttendanceScreen(
-                state = liveState,
-                onSection = viewModel::selectSection,
-                onDailyDate = viewModel::setDailyDate,
-                onDailyQuery = viewModel::setDailyQuery,
-                onDailyStatus = viewModel::setDailyStatus,
-                onReportMonth = viewModel::setReportMonth,
-                onReportYear = viewModel::setReportYear,
-                onRefreshDaily = viewModel::loadDaily,
-                onRefreshReport = viewModel::loadReport,
-                onRefreshReviews = viewModel::loadReviews,
-                onManualOverride = viewModel::manualOverride,
-                onProcessOffline = viewModel::processOffline,
-                onDecideProxy = viewModel::decideProxy,
-                onSaveSettings = viewModel::saveSettings,
-                onResetQr = viewModel::resetQr,
-            )
+            if (liveState.section == AdminAttendanceSection.SETTINGS) {
+                AdminAttendanceSettingsEditor(
+                    state = liveState,
+                    capturedLatitude = capturedLatitude,
+                    capturedLongitude = capturedLongitude,
+                    capturedAccuracyMetres = capturedAccuracy,
+                    onSection = viewModel::selectSection,
+                    onSave = viewModel::saveSettings,
+                )
+            } else {
+                AdminStaffAttendanceScreen(
+                    state = liveState,
+                    onSection = viewModel::selectSection,
+                    onDailyDate = viewModel::setDailyDate,
+                    onDailyQuery = viewModel::setDailyQuery,
+                    onDailyStatus = viewModel::setDailyStatus,
+                    onReportMonth = viewModel::setReportMonth,
+                    onReportYear = viewModel::setReportYear,
+                    onRefreshDaily = viewModel::loadDaily,
+                    onRefreshReport = viewModel::loadReport,
+                    onRefreshReviews = viewModel::loadReviews,
+                    onManualOverride = viewModel::manualOverride,
+                    onProcessOffline = viewModel::processOffline,
+                    onDecideProxy = viewModel::decideProxy,
+                    onSaveSettings = viewModel::saveSettings,
+                    onResetQr = viewModel::resetQr,
+                )
+            }
         }
     }
 }

@@ -20,6 +20,22 @@ data class NotificationPage(
     val lastPage: Int,
 )
 
+data class PlatformNotice(
+    val id: Long,
+    val title: String,
+    val body: String,
+    val priority: String,
+    val audience: String,
+    val isRead: Boolean,
+    val createdAt: String?,
+    val expiresAt: String?,
+)
+
+data class PlatformNoticeFeed(
+    val notices: List<PlatformNotice>,
+    val unreadCount: Int,
+)
+
 data class SchoolEvent(
     val id: Long,
     val title: String,

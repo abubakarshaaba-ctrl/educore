@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,8 +29,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.text.DateFormat
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -62,6 +65,12 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
 ) {
     item(key = "personal-welcome", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
         DashboardWelcome(session = session, profilePhoto = state.profilePhoto)
+    }
+
+    if (session.school.id != null && session.user.portal == "admin") {
+        item(key = "tenant-subscription", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+            SubscriptionCountdownTile(session)
+        }
     }
 
     val snapshot = state.snapshot
@@ -244,6 +253,96 @@ private fun DashboardWelcome(session: SessionSnapshot, profilePhoto: ByteArray?)
             }
         }
     }
+}
+
+@Composable
+private fun SubscriptionCountdownTile(session: SessionSnapshot) {
+    val today = session.serverTime?.let(::parseLocalDate) ?: LocalDate.now()
+    val expiry = session.access.expiresAt?.let(::parseLocalDate)
+    val state = session.access.state.lowercase()
+    val remaining = expiry?.let { ChronoUnit.DAYS.between(today, it) }
+    val freePlan = state.contains("free")
+    val gracePeriod = state.contains("grace")
+    val expiringSoon = state.contains("expiring")
+    val suspended = state.contains("suspend")
+    val explicitlyExpired = state.contains("expired")
+    val expiredByDate = remaining != null && remaining < 0 && !gracePeriod && !freePlan
+    val expired = explicitlyExpired || expiredByDate
+    val tone = when {
+        freePlan -> EduCoreTone.Success
+        suspended || expired || gracePeriod -> EduCoreTone.Danger
+        expiringSoon || (remaining != null && remaining in 0..30) -> EduCoreTone.Warning
+        else -> EduCoreTone.Success
+    }
+    val headline = when {
+        freePlan -> "Free plan · no expiry"
+        suspended -> "Subscription suspended"
+        gracePeriod -> "Grace period active"
+        expired -> "Subscription expired"
+        remaining == null -> "Subscription active"
+        remaining == 0L -> "Expires today"
+        remaining == 1L -> "1 day remaining"
+        remaining > 1L -> "$remaining days remaining"
+        else -> "Subscription status unavailable"
+    }
+    val expiryDetail = expiry?.let {
+        "Expiry: ${it.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))}"
+    }
+    val accessMessage = session.access.message.takeIf(String::isNotBlank)
+    val detail = when {
+        (gracePeriod || suspended || expired) && accessMessage != null && expiryDetail != null -> "$expiryDetail · $accessMessage"
+        accessMessage != null -> accessMessage
+        expiryDetail != null -> expiryDetail
+        else -> "No expiry date is currently set."
+    }
+    val statusLabel = when {
+        freePlan -> "Free"
+        suspended -> "Suspended"
+        gracePeriod -> "Grace period"
+        expired -> "Expired"
+        expiringSoon || (remaining != null && remaining in 0..30) -> "Expiring soon"
+        else -> "Active"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = EduCoreColors.White,
+        shadowElevation = 1.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, EduCoreColors.Line300),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = CircleShape,
+                color = when (tone) {
+                    EduCoreTone.Danger -> EduCoreColors.Danger100
+                    EduCoreTone.Warning -> EduCoreColors.Warning100
+                    else -> EduCoreColors.Success100
+                },
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(EduCoreIcons.Payments, contentDescription = null, tint = EduCoreColors.Navy900)
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xxs)) {
+                Text("Subscription status", style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Muted500)
+                Text(headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+            }
+            EduCoreStatusBadge(statusLabel, tone)
+        }
+    }
+}
+
+private fun parseLocalDate(value: String): LocalDate? = runCatching {
+    OffsetDateTime.parse(value).toLocalDate()
+}.getOrElse {
+    runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
 }
 
 @Composable

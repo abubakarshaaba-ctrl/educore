@@ -159,12 +159,21 @@ class FeesViewModel @Inject constructor(
     }
 
     fun openGeneration() {
-        if (!_uiState.value.canManage) return
+        val current = _uiState.value
+        if (!current.canManage) return
+        val workspace = current.workspace
+        val defaultTermId = workspace?.currentTermId
+            ?: workspace?.terms?.firstOrNull { it.isCurrent }?.id
+            ?: workspace?.terms?.firstOrNull()?.id
+        val defaultClassId = workspace?.classLevels?.firstOrNull()?.id
         _uiState.update {
             it.copy(
                 generationOpen = true,
                 paymentOpen = false,
-                generation = FeesGenerationDraft(),
+                generation = FeesGenerationDraft(
+                    termId = defaultTermId,
+                    classLevelId = defaultClassId,
+                ),
                 errorMessage = null,
                 message = null,
             )
@@ -257,10 +266,10 @@ private fun Throwable.feesMessage(): String = when (this) {
     is HttpException -> when (code()) {
         401 -> "Your session has expired. Sign in again."
         403 -> "Your account is not permitted to manage school fees."
-        404 -> "This invoice is no longer available."
-        422 -> "Check the finance details and outstanding balance, then try again."
-        else -> "The fees service returned an error (${code()})."
+        404 -> "This finance record is no longer available."
+        422 -> "Check the finance details and selected academic term/class, then try again."
+        else -> "The fees service is temporarily unavailable (${code()})."
     }
     else -> localizedMessage?.takeIf(String::isNotBlank)
-        ?: "Unable to reach the fees service. Check your connection and try again."
+        ?: "Unable to connect to EduCore. Check your connection and try again."
 }

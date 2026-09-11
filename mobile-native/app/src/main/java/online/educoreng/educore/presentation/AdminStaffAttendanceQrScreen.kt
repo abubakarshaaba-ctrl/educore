@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,13 +82,13 @@ class AdminStaffAttendanceQrViewModel @Inject constructor(
     fun resetQr() {
         if (_uiState.value.isMutating) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            _uiState.update { it.copy(isMutating = true, errorMessage = null, message = null) }
             when (val result = safeApiCall(parser) { api.resetQr() }) {
                 is AppResult.Success -> {
                     _uiState.update {
                         it.copy(
                             isMutating = false,
-                            message = result.value.message ?: "School attendance QR reset.",
+                            message = result.value.message ?: "School attendance QR reset successfully.",
                         )
                     }
                     load()
@@ -114,8 +116,33 @@ internal fun AdminStaffAttendanceQrScreen(
     onReset: () -> Unit,
     onClose: () -> Unit,
 ) {
+    var confirmReset by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         if (state.qr == null && !state.isLoading) onRefresh()
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { if (!state.isMutating) confirmReset = false },
+            title = { Text("Reset school attendance QR?") },
+            text = { Text("The previous QR will stop working immediately. Staff must use the newly generated QR after reset.") },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.isMutating,
+                    onClick = {
+                        confirmReset = false
+                        onReset()
+                    },
+                ) { Text("Reset QR") }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !state.isMutating,
+                    onClick = { confirmReset = false },
+                ) { Text("Cancel") }
+            },
+        )
     }
 
     Column(
@@ -160,11 +187,17 @@ internal fun AdminStaffAttendanceQrScreen(
                             Text(it, style = MaterialTheme.typography.titleSmall, color = EduCoreColors.Ink900)
                         }
                         val bitmap = remember(qr.payload) { qrBitmap(qr.payload, 720) }
-                        bitmap?.let {
+                        if (bitmap != null) {
                             Image(
-                                bitmap = it.asImageBitmap(),
+                                bitmap = bitmap.asImageBitmap(),
                                 contentDescription = "School staff attendance QR",
                                 modifier = Modifier.size(260.dp),
+                            )
+                        } else {
+                            Text(
+                                "Unable to render attendance QR. Refresh to request a new copy.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
                         Text(
@@ -185,8 +218,8 @@ internal fun AdminStaffAttendanceQrScreen(
         }
 
         OutlinedButton(
-            onClick = onReset,
-            enabled = !state.isMutating,
+            onClick = { confirmReset = true },
+            enabled = !state.isMutating && state.qr != null,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(if (state.isMutating) "Resetting…" else "Reset school QR")
