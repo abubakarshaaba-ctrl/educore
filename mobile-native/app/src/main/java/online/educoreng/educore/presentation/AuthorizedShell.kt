@@ -81,6 +81,8 @@ internal fun AuthorizedShell(
     onOpenWebModule: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
+    @Suppress("UNUSED_VARIABLE")
+    val webFallbackDisabled = onOpenWebModule
     val navController = rememberNavController()
     val classesViewModel: ClassesViewModel = hiltViewModel()
     val classesState by classesViewModel.uiState.collectAsStateWithLifecycle()
@@ -101,10 +103,12 @@ internal fun AuthorizedShell(
     val currentTab = tabs.firstOrNull { it.id.route == currentRoute } ?: tabs.first()
     val currentTitle = when {
         currentRoute == NativeRoute.CLASSES -> "Classes"
+        currentRoute == NativeRoute.STUDENT_ATTENDANCE_CLASSES -> "Student Attendance"
         currentRoute == NativeRoute.CLASS_WORKSPACE -> "Class Workspace"
         currentRoute == NativeRoute.STUDENT_PROFILE -> "Student Profile"
         currentRoute == NativeRoute.ATTENDANCE -> "Student Attendance"
-        currentRoute == NativeRoute.STAFF_ATTENDANCE -> "Staff Attendance"
+        currentRoute == NativeRoute.STAFF_ATTENDANCE -> "My Attendance"
+        currentRoute == NativeRoute.ADMIN_STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
@@ -286,21 +290,24 @@ internal fun AuthorizedShell(
                                         onRefreshDashboard = onRefreshDashboard,
                                         onModuleClick = { module ->
                                             when (module.key) {
-                                                "classes", "students", "attendance" -> {
+                                                "classes", "students" -> {
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
                                                 }
-                                                "staff-attendance", "staff-attendance.self" -> {
+                                                "attendance", "student-attendance" -> {
+                                                    classesViewModel.loadClasses()
+                                                    navController.navigate(NativeRoute.STUDENT_ATTENDANCE_CLASSES) { launchSingleTop = true }
+                                                }
+                                                "staff-attendance.self" -> {
                                                     classesViewModel.loadStaffAttendance()
                                                     navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
                                                 }
+                                                "staff-attendance.admin" -> {
+                                                    navController.navigate(NativeRoute.ADMIN_STAFF_ATTENDANCE) { launchSingleTop = true }
+                                                }
                                                 "scores", "scores.entry" -> {
-                                                    if (session.can("scores") || session.can("scores.entry")) {
-                                                        scoresViewModel.loadAssignments()
-                                                        navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
-                                                    } else {
-                                                        onOpenWebModule(module.path)
-                                                    }
+                                                    scoresViewModel.loadAssignments()
+                                                    navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
                                                 }
                                                 "timetable", "student.timetable" -> {
                                                     scheduleViewModel.load()
@@ -328,7 +335,7 @@ internal fun AuthorizedShell(
                                                     operationsViewModel.load(module.key)
                                                     navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
                                                 }
-                                                else -> onOpenWebModule(module.path)
+                                                else -> Unit
                                             }
                                         },
                                         onLogout = { confirmLogout = true },
@@ -345,6 +352,19 @@ internal fun AuthorizedShell(
                                 onOpenClass = { classId ->
                                     classesViewModel.openClass(classId)
                                     navController.navigate("native/classes/$classId")
+                                },
+                                onRetry = classesViewModel::loadClasses,
+                            )
+                        }
+                        composable(NativeRoute.STUDENT_ATTENDANCE_CLASSES) {
+                            StudentAttendanceClassPickerScreen(
+                                state = classesState,
+                                width = width,
+                                onBack = navController::popBackStack,
+                                onSearch = classesViewModel::setClassSearch,
+                                onOpenAttendance = { classId ->
+                                    classesViewModel.openAttendance(classId)
+                                    navController.navigate("native/classes/$classId/attendance")
                                 },
                                 onRetry = classesViewModel::loadClasses,
                             )
@@ -403,7 +423,7 @@ internal fun AuthorizedShell(
                             )
                         }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
-                            StaffAttendanceScreen(
+                            CompactStaffAttendanceScreen(
                                 state = classesState,
                                 online = online,
                                 onBack = navController::popBackStack,
@@ -413,6 +433,13 @@ internal fun AuthorizedShell(
                                 onProxySearch = classesViewModel::setProxySearch,
                                 onLoadProxyColleagues = { classesViewModel.loadProxyColleagues() },
                                 onProxyClockIn = classesViewModel::proxyClockIn,
+                            )
+                        }
+                        composable(NativeRoute.ADMIN_STAFF_ATTENDANCE) {
+                            AdminStaffAttendanceScreen(
+                                state = AdminStaffAttendanceUiState(),
+                                onBack = navController::popBackStack,
+                                onRefresh = {},
                             )
                         }
                         composable(NativeRoute.SCORES) {
@@ -616,10 +643,12 @@ internal fun AuthorizedShell(
 
 private object NativeRoute {
     const val CLASSES = "native/classes"
+    const val STUDENT_ATTENDANCE_CLASSES = "native/student-attendance"
     const val CLASS_WORKSPACE = "native/classes/{classId}"
     const val STUDENT_PROFILE = "native/classes/{classId}/students/{studentId}"
     const val ATTENDANCE = "native/classes/{classId}/attendance"
     const val STAFF_ATTENDANCE = "native/staff-attendance"
+    const val ADMIN_STAFF_ATTENDANCE = "native/admin/staff-attendance"
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
     const val SCHEDULE = "native/schedule/{classId}"
