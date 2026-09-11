@@ -54,6 +54,12 @@ data class CommunicationUiState(
     val eventEndDate: String = "",
     val eventAudience: String = "all",
     val canCreateEvent: Boolean = false,
+    val onEventTitle: (String) -> Unit = {},
+    val onEventDescription: (String) -> Unit = {},
+    val onEventStartDate: (String) -> Unit = {},
+    val onEventEndDate: (String) -> Unit = {},
+    val onEventAudience: (String) -> Unit = {},
+    val onCreateEvent: () -> Unit = {},
     val attachment: PendingAttachment? = null,
     val downloadedDocument: DownloadedDocument? = null,
     val isLoading: Boolean = false,
@@ -74,6 +80,16 @@ class CommunicationViewModel @Inject constructor(
     val uiState: StateFlow<CommunicationUiState> = _uiState.asStateFlow()
 
     init {
+        _uiState.update {
+            it.copy(
+                onEventTitle = ::setEventTitle,
+                onEventDescription = ::setEventDescription,
+                onEventStartDate = ::setEventStartDate,
+                onEventEndDate = ::setEventEndDate,
+                onEventAudience = ::setEventAudience,
+                onCreateEvent = ::createEvent,
+            )
+        }
         viewModelScope.launch {
             sessionRepository.session.collect { session ->
                 _uiState.update { it.copy(canCreateEvent = session?.can("calendar") == true) }
@@ -127,9 +143,7 @@ class CommunicationViewModel @Inject constructor(
                 }
                 state.copy(platformNotices = notices, platformUnreadNotifications = result.value.unreadCount)
             }
-            is AppResult.Failure -> {
-                if (_uiState.value.notifications.isEmpty()) fail(result.error.userMessage)
-            }
+            is AppResult.Failure -> if (_uiState.value.notifications.isEmpty()) fail(result.error.userMessage)
         }
     }
 
@@ -137,11 +151,8 @@ class CommunicationViewModel @Inject constructor(
         when (val result = repository.markNotificationRead(id)) {
             is AppResult.Success -> _uiState.update { state ->
                 state.copy(
-                    notifications = if (state.noticeFilter == "unread") {
-                        state.notifications.filterNot { it.id == id }
-                    } else {
-                        state.notifications.map { if (it.id == id) result.value else it }
-                    },
+                    notifications = if (state.noticeFilter == "unread") state.notifications.filterNot { it.id == id }
+                    else state.notifications.map { if (it.id == id) result.value else it },
                     unreadNotifications = (state.unreadNotifications - 1).coerceAtLeast(0),
                 )
             }
@@ -153,11 +164,8 @@ class CommunicationViewModel @Inject constructor(
         when (val result = repository.markPlatformNoticeRead(id)) {
             is AppResult.Success -> _uiState.update { state ->
                 state.copy(
-                    platformNotices = if (state.noticeFilter == "unread") {
-                        state.platformNotices.filterNot { it.id == id }
-                    } else {
-                        state.platformNotices.map { if (it.id == id) it.copy(isRead = true) else it }
-                    },
+                    platformNotices = if (state.noticeFilter == "unread") state.platformNotices.filterNot { it.id == id }
+                    else state.platformNotices.map { if (it.id == id) it.copy(isRead = true) else it },
                     platformUnreadNotifications = (state.platformUnreadNotifications - 1).coerceAtLeast(0),
                 )
             }
@@ -172,9 +180,7 @@ class CommunicationViewModel @Inject constructor(
                 val dismissed = state.platformNotices.firstOrNull { it.id == id }
                 state.copy(
                     platformNotices = state.platformNotices.filterNot { it.id == id },
-                    platformUnreadNotifications = if (dismissed?.isRead == false) {
-                        (state.platformUnreadNotifications - 1).coerceAtLeast(0)
-                    } else state.platformUnreadNotifications,
+                    platformUnreadNotifications = if (dismissed?.isRead == false) (state.platformUnreadNotifications - 1).coerceAtLeast(0) else state.platformUnreadNotifications,
                     isSaving = false,
                     message = "Platform notice dismissed.",
                 )
@@ -256,14 +262,10 @@ class CommunicationViewModel @Inject constructor(
     fun compose() = viewModelScope.launch {
         val state = _uiState.value
         val recipientId = state.selectedRecipientId
-        if (recipientId == null || state.composeSubject.isBlank() || state.composeBody.isBlank()) {
-            return@launch fail("Choose a recipient, then enter a subject and message.")
-        }
+        if (recipientId == null || state.composeSubject.isBlank() || state.composeBody.isBlank()) return@launch fail("Choose a recipient, then enter a subject and message.")
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.compose(recipientId, state.composeSubject.trim(), state.composeBody.trim(), state.attachment)) {
-            is AppResult.Success -> _uiState.update {
-                it.copy(thread = result.value, isSaving = false, attachment = null, message = "Message sent.")
-            }
+            is AppResult.Success -> _uiState.update { it.copy(thread = result.value, isSaving = false, attachment = null, message = "Message sent.") }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
         }
     }
@@ -275,13 +277,7 @@ class CommunicationViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.reply(thread.summary.id, state.replyBody.trim(), state.attachment)) {
             is AppResult.Success -> _uiState.update {
-                it.copy(
-                    thread = thread.copy(replies = thread.replies + result.value),
-                    replyBody = "",
-                    attachment = null,
-                    isSaving = false,
-                    message = "Reply sent.",
-                )
+                it.copy(thread = thread.copy(replies = thread.replies + result.value), replyBody = "", attachment = null, isSaving = false, message = "Reply sent.")
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
         }
@@ -290,9 +286,7 @@ class CommunicationViewModel @Inject constructor(
     fun createEvent() = viewModelScope.launch {
         val state = _uiState.value
         if (!state.canCreateEvent) return@launch fail("Calendar management permission required.")
-        if (state.eventTitle.isBlank() || state.eventStartDate.isBlank()) {
-            return@launch fail("Enter an event title and start date.")
-        }
+        if (state.eventTitle.isBlank() || state.eventStartDate.isBlank()) return@launch fail("Enter an event title and start date.")
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.createEvent(
             title = state.eventTitle.trim(),
@@ -350,9 +344,7 @@ class CommunicationViewModel @Inject constructor(
             if (cursor.moveToFirst()) {
                 name = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)) ?: name
                 val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (sizeIndex >= 0 && ! cursor.isNull(sizeIndex) && cursor.getLong(sizeIndex) > MAX_ATTACHMENT_BYTES) {
-                    error("Attachments must not exceed 5 MB.")
-                }
+                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex) && cursor.getLong(sizeIndex) > MAX_ATTACHMENT_BYTES) error("Attachments must not exceed 5 MB.")
             }
         }
         val bytes = requireNotNull(resolver.openInputStream(uri)) { "The attachment is unavailable." }.use { stream ->
