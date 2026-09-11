@@ -78,16 +78,15 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
 
         $source = file_get_contents(app_path('Http/Controllers/Api/StaffCardAttendanceScanController.php'));
-        $this->assertStringContainsString("$user->isTenantStaff()", $source);
+        $this->assertStringContainsString("\$user->isTenantStaff()", $source);
         $this->assertStringContainsString("'staff_qr_token' => ['required', 'string', 'max:4096']", $source);
         $this->assertStringContainsString('verifyPersonalQrToken', $source);
         $this->assertStringContainsString('isSchoolOpenOn', $source);
         $this->assertStringContainsString('wasEmployedOn', $source);
-        $this->assertStringContainsString("$now = now();", $source);
-        $this->assertStringContainsString("'clock_in_method' =", str_replace('=>', '=', $source));
-        $this->assertStringContainsString("staff_card_qr", $source);
-        $this->assertStringContainsString("$action = 'clock_in'", $source);
-        $this->assertStringContainsString("$action = 'clock_out'", $source);
+        $this->assertStringContainsString("\$now = now();", $source);
+        $this->assertStringContainsString("'clock_in_method' => 'staff_card_qr'", $source);
+        $this->assertStringContainsString("\$action = 'clock_in'", $source);
+        $this->assertStringContainsString("\$action = 'clock_out'", $source);
         $this->assertStringContainsString('distanceTo', $source);
     }
 
@@ -129,8 +128,8 @@ class MobileStaffAttendanceContractTest extends TestCase
         $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
 
         $this->assertStringContainsString('staff_attendance_sync_events', $source);
-        $this->assertStringContainsString("->where('tenant_id', $user->tenant_id)", $source);
-        $this->assertStringContainsString("->where('client_uuid', $data['client_uuid'])", $source);
+        $this->assertStringContainsString("->where('tenant_id', \$user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('client_uuid', \$data['client_uuid'])", $source);
         $this->assertStringContainsString("'idempotent' => true", $source);
         $this->assertStringContainsString("status' => 'rejected'", $source);
         $this->assertStringContainsString('verifyStaticQrToken', $source);
@@ -143,8 +142,8 @@ class MobileStaffAttendanceContractTest extends TestCase
     {
         $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
 
-        $this->assertStringContainsString("->where('tenant_id', $user->tenant_id)", $source);
-        $this->assertStringContainsString("->where('user_id', $user->id)", $source);
+        $this->assertStringContainsString("->where('tenant_id', \$user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('user_id', \$user->id)", $source);
         $this->assertStringContainsString("'month' => ['nullable', 'integer', 'between:1,12']", $source);
         $this->assertStringContainsString("'year' => ['nullable', 'integer', 'between:2000,2100']", $source);
     }
