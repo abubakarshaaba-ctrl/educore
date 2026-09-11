@@ -66,18 +66,30 @@ class ClassesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingClasses = true, errorMessage = null) }
             when (val result = repository.loadClasses(forceRefresh = true)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(catalogue = result.value, isLoadingClasses = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingClasses = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(catalogue = result.value, isLoadingClasses = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingClasses = false, errorMessage = result.error.userMessage) }
             }
         }
     }
 
     fun setClassSearch(value: String) {
         _uiState.update { it.copy(classSearch = value) }
+    }
+
+    fun clearClassSelection() {
+        studentSearchJob?.cancel()
+        studentLoadJob?.cancel()
+        _uiState.update {
+            it.copy(
+                classStudents = null,
+                studentProfile = null,
+                attendanceSheet = null,
+                studentSearch = "",
+                isLoadingWorkspace = false,
+                isLoadingMoreStudents = false,
+                errorMessage = null,
+            )
+        }
     }
 
     fun openClass(classId: Long) {
@@ -108,12 +120,8 @@ class ClassesViewModel @Inject constructor(
                 )
             }
             when (val result = repository.loadStudents(classId, search, page = 1)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(classStudents = result.value, isLoadingWorkspace = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(classStudents = result.value, isLoadingWorkspace = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -123,11 +131,7 @@ class ClassesViewModel @Inject constructor(
         if (_uiState.value.isLoadingWorkspace || _uiState.value.isLoadingMoreStudents || current.currentPage >= current.lastPage) return
         studentLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMoreStudents = true, errorMessage = null) }
-            when (val result = repository.loadStudents(
-                current.classSummary.id,
-                _uiState.value.studentSearch,
-                page = current.currentPage + 1,
-            )) {
+            when (val result = repository.loadStudents(current.classSummary.id, _uiState.value.studentSearch, page = current.currentPage + 1)) {
                 is AppResult.Success -> _uiState.update { state ->
                     state.copy(
                         classStudents = result.value.copy(
@@ -137,9 +141,7 @@ class ClassesViewModel @Inject constructor(
                         isLoadingMoreStudents = false,
                     )
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingMoreStudents = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingMoreStudents = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -148,12 +150,8 @@ class ClassesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingWorkspace = true, errorMessage = null, studentProfile = null) }
             when (val result = repository.loadStudentProfile(classId, studentId)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(studentProfile = result.value, isLoadingWorkspace = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(studentProfile = result.value, isLoadingWorkspace = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -162,12 +160,8 @@ class ClassesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingWorkspace = true, errorMessage = null, attendanceSheet = null) }
             when (val result = repository.loadAttendance(classId, date)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(attendanceSheet = result.value, isLoadingWorkspace = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(attendanceSheet = result.value, isLoadingWorkspace = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -175,9 +169,7 @@ class ClassesViewModel @Inject constructor(
     fun updateAttendanceStatus(studentId: Long, status: AttendanceStatus) {
         val sheet = _uiState.value.attendanceSheet ?: return
         val updated = sheet.copy(
-            students = sheet.students.map { row ->
-                if (row.student.id == studentId) row.copy(status = status) else row
-            },
+            students = sheet.students.map { row -> if (row.student.id == studentId) row.copy(status = status) else row },
             hasLocalDraft = true,
         )
         _uiState.update { it.copy(attendanceSheet = updated) }
@@ -217,9 +209,7 @@ class ClassesViewModel @Inject constructor(
                         message = if (result.value.syncState == SyncState.QUEUED) "Attendance queued and will sync automatically." else "Attendance saved successfully.",
                     )
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isSaving = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -228,12 +218,8 @@ class ClassesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingWorkspace = true, errorMessage = null) }
             when (val result = repository.loadStaffAttendance()) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(staffAttendance = result.value, isLoadingWorkspace = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(staffAttendance = result.value, isLoadingWorkspace = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingWorkspace = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -247,9 +233,7 @@ class ClassesViewModel @Inject constructor(
                     _uiState.update { it.copy(isSaving = false, message = result.value) }
                     loadStaffAttendance()
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isSaving = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -263,9 +247,7 @@ class ClassesViewModel @Inject constructor(
                     _uiState.update { it.copy(isSaving = false, message = result.value) }
                     loadStaffAttendance()
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isSaving = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -275,12 +257,8 @@ class ClassesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingProxy = true, errorMessage = null, proxySearch = search) }
             when (val result = repository.loadProxyColleagues(search)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(proxyColleagues = result.value, isLoadingProxy = false)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isLoadingProxy = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(proxyColleagues = result.value, isLoadingProxy = false) }
+                is AppResult.Failure -> _uiState.update { it.copy(isLoadingProxy = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -294,13 +272,7 @@ class ClassesViewModel @Inject constructor(
         }
     }
 
-    fun proxyClockIn(
-        staffId: Long,
-        token: String,
-        photoDataUrl: String,
-        latitude: Double?,
-        longitude: Double?,
-    ) {
+    fun proxyClockIn(staffId: Long, token: String, photoDataUrl: String, latitude: Double?, longitude: Double?) {
         if (_uiState.value.isSaving || token.isBlank() || photoDataUrl.isBlank()) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
@@ -316,9 +288,7 @@ class ClassesViewModel @Inject constructor(
                     }
                     loadStaffAttendance()
                 }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isSaving = false, errorMessage = result.error.userMessage)
-                }
+                is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
         }
     }
@@ -333,9 +303,7 @@ class ClassesViewModel @Inject constructor(
             when (val result = repository.saveAttendanceDraft(sheet)) {
                 is AppResult.Success -> _uiState.update { current ->
                     val currentSheet = current.attendanceSheet
-                    if (currentSheet?.classId == sheet.classId &&
-                        currentSheet.date == sheet.date
-                    ) {
+                    if (currentSheet?.classId == sheet.classId && currentSheet.date == sheet.date) {
                         current.copy(attendanceSheet = result.value)
                     } else {
                         current
