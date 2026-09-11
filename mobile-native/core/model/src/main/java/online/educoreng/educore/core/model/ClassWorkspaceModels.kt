@@ -124,6 +124,13 @@ data class StaffAttendanceRecord(
     val method: String?,
 )
 
+data class ProxyAttendanceColleague(
+    val id: Long,
+    val name: String,
+    val staffId: String,
+    val photoUrl: String?,
+)
+
 data class StaffAttendanceSnapshot(
     val month: Int,
     val year: Int,
