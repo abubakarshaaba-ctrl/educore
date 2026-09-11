@@ -13,5 +13,4 @@ interface ScoreWorkspaceRepository {
     suspend fun submit(sheet: ScoreSheet): AppResult<ScoreSheet>
     suspend fun syncPendingScores(): Boolean
     suspend fun loadPublishedResults(childId: Long? = null): AppResult<PublishedResults>
-    suspend fun loadStudentResults(classId: Long, studentId: Long): AppResult<PublishedResults>
 }
