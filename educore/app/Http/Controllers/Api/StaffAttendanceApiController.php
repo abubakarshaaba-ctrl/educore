@@ -233,49 +233,59 @@ class StaffAttendanceApiController extends Controller
 
     public function me(Request $request)
     {
-        $user  = $request->user();
-        $month = $request->integer('month', now()->month);
-        $year  = $request->integer('year', now()->year);
+        $user = $request->user();
+        abort_unless($user && $user->tenant_id, 401, 'Unauthenticated.');
 
-        $start = Carbon::createFromDate($year, $month, 1);
-        $end   = (clone $start)->endOfMonth();
+        $validated = $request->validate([
+            'month' => ['nullable', 'integer', 'between:1,12'],
+            'year' => ['nullable', 'integer', 'between:2000,2100'],
+        ]);
+        $month = (int) ($validated['month'] ?? now()->month);
+        $year = (int) ($validated['year'] ?? now()->year);
 
-        $records = StaffAttendanceRecord::where('user_id', $user->id)
-            ->whereBetween('attendance_date', [$start, $end])
+        $start = Carbon::createFromDate($year, $month, 1)->startOfDay();
+        $end = (clone $start)->endOfMonth();
+
+        $baseQuery = StaffAttendanceRecord::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->where('user_id', $user->id);
+
+        $records = (clone $baseQuery)
+            ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
             ->orderByDesc('attendance_date')
             ->get()
             ->map(fn ($r) => [
-                'date'      => $r->attendance_date instanceof \DateTimeInterface
+                'date' => $r->attendance_date instanceof \DateTimeInterface
                     ? $r->attendance_date->format('Y-m-d')
                     : (string) $r->attendance_date,
-                'status'    => $r->status,
-                'clock_in'  => $r->clock_in_time,
+                'status' => $r->status,
+                'clock_in' => $r->clock_in_time,
                 'clock_out' => $r->clock_out_time,
-                'method'    => $r->clock_in_method,
+                'method' => $r->clock_in_method,
             ]);
 
-        $today = StaffAttendanceRecord::where('user_id', $user->id)
+        $today = (clone $baseQuery)
             ->whereDate('attendance_date', today())
             ->first();
 
         $settings = StaffAttendanceSetting::firstOrCreate(['tenant_id' => $user->tenant_id]);
 
         return response()->json([
-            'month'  => $month,
-            'year'   => $year,
+            'month' => $month,
+            'year' => $year,
             'counts' => [
-                'early'   => $records->where('status', 'early')->count(),
+                'early' => $records->where('status', 'early')->count(),
                 'present' => $records->where('status', 'present')->count(),
-                'late'    => $records->where('status', 'late')->count(),
-                'absent'  => $records->where('status', 'absent')->count(),
+                'late' => $records->where('status', 'late')->count(),
+                'absent' => $records->where('status', 'absent')->count(),
             ],
             'today' => $today ? [
-                'status'    => $today->status,
-                'clock_in'  => $today->clock_in_time,
+                'status' => $today->status,
+                'clock_in' => $today->clock_in_time,
                 'clock_out' => $today->clock_out_time,
             ] : null,
             'settings' => [
-                'geo_enabled'       => (bool) $settings->geo_enabled,
+                'geo_enabled' => (bool) $settings->geo_enabled,
                 'geo_radius_meters' => (int) ($settings->geo_radius_meters ?? 0),
             ],
             'records' => $records,
