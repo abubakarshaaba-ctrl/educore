@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.repository.CommunicationRepository
+import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.MessagePage
 import online.educoreng.educore.core.model.MessageRecipient
@@ -52,6 +53,7 @@ data class CommunicationUiState(
     val eventStartDate: String = "",
     val eventEndDate: String = "",
     val eventAudience: String = "all",
+    val canCreateEvent: Boolean = false,
     val attachment: PendingAttachment? = null,
     val downloadedDocument: DownloadedDocument? = null,
     val isLoading: Boolean = false,
@@ -66,9 +68,18 @@ data class CommunicationUiState(
 class CommunicationViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val repository: CommunicationRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CommunicationUiState())
     val uiState: StateFlow<CommunicationUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            sessionRepository.session.collect { session ->
+                _uiState.update { it.copy(canCreateEvent = session?.can("calendar") == true) }
+            }
+        }
+    }
 
     fun loadAll() {
         loadNotifications()
@@ -278,6 +289,7 @@ class CommunicationViewModel @Inject constructor(
 
     fun createEvent() = viewModelScope.launch {
         val state = _uiState.value
+        if (!state.canCreateEvent) return@launch fail("Calendar management permission required.")
         if (state.eventTitle.isBlank() || state.eventStartDate.isBlank()) {
             return@launch fail("Enter an event title and start date.")
         }
