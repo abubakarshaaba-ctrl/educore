@@ -7,6 +7,7 @@ use App\Models\StaffAttendanceSetting;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminStaffAttendanceQrController extends Controller
 {
@@ -16,6 +17,7 @@ class AdminStaffAttendanceQrController extends Controller
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
 
         return response()->json([
+            'ok' => true,
             'payload' => $settings->staticQrPayload(),
             'type' => 'screen',
             'tenant_id' => $user->tenant_id,
@@ -28,13 +30,36 @@ class AdminStaffAttendanceQrController extends Controller
     public function reset(Request $request): JsonResponse
     {
         $user = $this->guard($request);
-        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
-        $settings->resetStaticQr();
 
-        return response()->json([
-            'message' => 'School attendance QR reset. Previously printed copies are now invalid.',
-            'payload' => $settings->fresh()->staticQrPayload(),
-        ]);
+        try {
+            $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+            $settings->resetStaticQr();
+            $fresh = $settings->fresh();
+
+            if (! $fresh) {
+                throw new \RuntimeException('Attendance settings could not be reloaded after QR reset.');
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => 'School attendance QR reset. Previously printed copies are now invalid.',
+                'payload' => $fresh->staticQrPayload(),
+                'type' => 'screen',
+                'tenant_id' => $user->tenant_id,
+                'generated_at' => now()->toIso8601String(),
+            ]);
+        } catch (\Throwable $error) {
+            Log::error('Staff attendance QR reset failed', [
+                'tenant_id' => $user->tenant_id,
+                'user_id' => $user->id,
+                'error' => $error->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'The school attendance QR could not be reset. Please try again.',
+            ], 500);
+        }
     }
 
     private function guard(Request $request): User
