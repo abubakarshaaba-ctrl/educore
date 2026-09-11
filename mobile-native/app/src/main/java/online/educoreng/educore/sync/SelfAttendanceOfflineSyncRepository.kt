@@ -16,7 +16,7 @@ import online.educoreng.educore.core.data.local.SyncOperationEntity
 import online.educoreng.educore.core.data.preferences.TenantContextStore
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.SelfAttendanceOfflineApi
-import online.educoreng.educore.core.network.dto.AdminAttendanceOfflineSyncRequestDto
+import online.educoreng.educore.core.network.dto.SelfAttendanceOfflineSyncRequestDto
 import online.educoreng.educore.core.network.safeApiCall
 
 @Singleton
@@ -27,7 +27,7 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
     private val tenantContextStore: TenantContextStore,
 ) {
     private val api = factory.create(SelfAttendanceOfflineApi::class.java)
-    private val adapter = moshi.adapter(AdminAttendanceOfflineSyncRequestDto::class.java)
+    private val adapter = moshi.adapter(SelfAttendanceOfflineSyncRequestDto::class.java)
 
     suspend fun queue(
         action: String,
@@ -36,6 +36,14 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
         longitude: Double? = null,
         accuracy: Double? = null,
     ): AppResult<String> = withContext(Dispatchers.IO) {
+        if (action != ACTION_CLOCK_IN) {
+            return@withContext AppResult.Failure(
+                AppError.Validation(
+                    "Clock-out requires an internet connection. Your existing clock-in remains recorded."
+                )
+            )
+        }
+
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
         val date = LocalDate.now().toString()
 
@@ -50,9 +58,8 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
         }
 
         val requestId = UUID.randomUUID().toString()
-        val request = AdminAttendanceOfflineSyncRequestDto(
+        val request = SelfAttendanceOfflineSyncRequestDto(
             clientUuid = requestId,
-            staffId = scope.userId,
             action = action,
             attendanceDate = date,
             localTimestamp = OffsetDateTime.now().toString(),
@@ -91,6 +98,17 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
                     operation.copy(
                         state = "rejected",
                         lastError = "Queued attendance payload could not be read.",
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                )
+                return@forEach
+            }
+
+            if (request.action != ACTION_CLOCK_IN) {
+                database.syncOperationDao().upsert(
+                    operation.copy(
+                        state = "rejected",
+                        lastError = "Clock-out cannot be replayed offline. Connect to the internet and clock out normally.",
                         updatedAtEpochMs = System.currentTimeMillis(),
                     )
                 )
@@ -161,6 +179,7 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
 
     private companion object {
         const val KIND = "staff_attendance_self"
+        const val ACTION_CLOCK_IN = "clock_in"
     }
 }
 
