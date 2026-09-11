@@ -16,7 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.ceil
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -51,6 +55,12 @@ internal fun LazyGridScope.dashboardHomeContent(
             identifier = session.user.staffId ?: session.user.email,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+
+    if (session.school.id != null) {
+        item(key = "subscription-status", span = { GridItemSpan(maxLineSpan) }) {
+            SubscriptionCountdownTile(session = session)
+        }
     }
 
     val snapshot = state.snapshot
@@ -129,6 +139,102 @@ internal fun LazyGridScope.dashboardHomeContent(
                 onModuleClick = onModuleClick,
                 compact = width == EduCoreWindowWidth.Compact,
             )
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionCountdownTile(session: SessionSnapshot) {
+    val access = session.access
+    val state = access.state.lowercase()
+    val expiryEpochMs = parseIsoEpoch(access.expiresAt)
+    val referenceEpochMs = parseIsoEpoch(session.serverTime) ?: System.currentTimeMillis()
+    val remainingMs = expiryEpochMs?.minus(referenceEpochMs)
+    val dayMs = 86_400_000.0
+
+    val statusLabel = when (state) {
+        "free" -> "Free plan"
+        "expiring_soon" -> "Expiring soon"
+        "grace" -> "Grace period"
+        "expired" -> "Expired"
+        "suspended" -> "Suspended"
+        "inactive", "missing" -> "Unavailable"
+        else -> "Active"
+    }
+
+    val tone = when (state) {
+        "free", "allowed", "trial" -> EduCoreTone.Success
+        "expiring_soon", "grace" -> EduCoreTone.Warning
+        "expired", "suspended", "inactive", "missing" -> EduCoreTone.Danger
+        else -> EduCoreTone.Neutral
+    }
+
+    val countdown = when {
+        state == "free" -> "No expiry"
+        expiryEpochMs == null -> statusLabel
+        remainingMs != null && remainingMs > 0 -> {
+            val days = ceil(remainingMs / dayMs).toLong()
+            when (days) {
+                1L -> "1 day remaining"
+                else -> "$days days remaining"
+            }
+        }
+        remainingMs != null && remainingMs == 0L -> "Expires today"
+        state == "grace" && remainingMs != null -> {
+            val daysPast = ceil(abs(remainingMs) / dayMs).toLong().coerceAtLeast(1L)
+            when (daysPast) {
+                1L -> "1 day past expiry"
+                else -> "$daysPast days past expiry"
+            }
+        }
+        else -> "Expired"
+    }
+
+    val dateLine = expiryEpochMs?.let {
+        "Expiry date: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it))}"
+    } ?: when (state) {
+        "free" -> "Your school currently has no subscription expiry date."
+        else -> "Subscription expiry date is not available."
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                ) {
+                    Text(
+                        text = "Subscription status",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                    Text(
+                        text = countdown,
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                }
+                EduCoreStatusBadge(statusLabel, tone)
+            }
+            Text(
+                text = dateLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Muted500,
+            )
+            if (access.message.isNotBlank() && state in setOf("expiring_soon", "grace", "expired")) {
+                Text(
+                    text = access.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+            }
         }
     }
 }
@@ -238,6 +344,27 @@ private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
     "inactive", "failed", "suspended", "attention" -> EduCoreTone.Danger
     "pending", "review", "duty", "late" -> EduCoreTone.Warning
     else -> EduCoreTone.Neutral
+}
+
+private fun parseIsoEpoch(value: String?): Long? {
+    if (value.isNullOrBlank()) return null
+
+    val withoutFraction = value.trim().replace(
+        Regex("\\.\\d+(?=(Z|[+-]\\d{2}:\\d{2})$)"),
+        "",
+    )
+    val normalized = when {
+        withoutFraction.endsWith("Z") -> withoutFraction.dropLast(1) + "+0000"
+        Regex("[+-]\\d{2}:\\d{2}$").containsMatchIn(withoutFraction) ->
+            withoutFraction.dropLast(3) + withoutFraction.takeLast(2)
+        else -> withoutFraction
+    }
+
+    return runCatching {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US).apply {
+            isLenient = false
+        }.parse(normalized)?.time
+    }.getOrNull()
 }
 
 private fun formatCacheTime(epochMs: Long): String =
