@@ -64,7 +64,13 @@ class DefaultScoreWorkspaceRepository(
             val values = drafts.associate { (it.studentId to it.assessmentId) to it.value }
             val sheet = dto.toDomain(values, drafts.firstOrNull()?.serverVersion?.let { it != dto.version } == true)
             val operation = database.syncOperationDao().get(scope.tenantKey, scope.userId, scoreKey(classId, subjectId, dto.term.id))
-            val syncState = when (operation?.state) { "conflict" -> SyncState.CONFLICT; "failed" -> SyncState.FAILED; "syncing" -> SyncState.SYNCING; null -> SyncState.NONE; else -> SyncState.QUEUED }
+            val syncState = when (operation?.state) {
+                "conflict" -> SyncState.CONFLICT
+                "failed" -> SyncState.FAILED
+                "syncing" -> SyncState.SYNCING
+                null -> SyncState.NONE
+                else -> SyncState.QUEUED
+            }
             AppResult.Success(sheet.copy(syncState = syncState, syncMessage = operation?.lastError))
         }
 
@@ -86,8 +92,16 @@ class DefaultScoreWorkspaceRepository(
         }
         database.scoreWorkspaceDao().saveDraft(
             ScoreDraftEntity(
-                scope.tenantKey, scope.userId, sheet.classId, sheet.subjectId, sheet.termId,
-                studentId, assessmentId, value, sheet.version, nowEpochMs(),
+                scope.tenantKey,
+                scope.userId,
+                sheet.classId,
+                sheet.subjectId,
+                sheet.termId,
+                studentId,
+                assessmentId,
+                value,
+                sheet.version,
+                nowEpochMs(),
             ),
         )
         AppResult.Success(sheet.withValue(studentId, assessmentId, value).copy(hasLocalDraft = true))
@@ -101,20 +115,48 @@ class DefaultScoreWorkspaceRepository(
     }
 
     override suspend fun submit(sheet: ScoreSheet): AppResult<ScoreSheet> = withContext(Dispatchers.IO) {
-        if (sheet.isDraftStale) return@withContext AppResult.Failure(AppError.Conflict("This score draft is stale. Reload before saving."))
-        if (sheet.locked) return@withContext AppResult.Failure(AppError.Forbidden(sheet.lockReason ?: "These scores are locked."))
+        if (sheet.isDraftStale) {
+            return@withContext AppResult.Failure(AppError.Conflict("This score draft is stale. Reload before saving."))
+        }
+        if (sheet.locked) {
+            return@withContext AppResult.Failure(AppError.Forbidden(sheet.lockReason ?: "These scores are locked."))
+        }
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
         val drafts = database.scoreWorkspaceDao().drafts(scope.tenantKey, scope.userId, sheet.classId, sheet.subjectId, sheet.termId)
-        if (drafts.isEmpty()) return@withContext AppResult.Failure(AppError.Validation("No score changes are waiting to be saved."))
-        val payload = drafts.groupBy(ScoreDraftEntity::studentId).mapKeys { it.key.toString() }.mapValues { (_, rows) ->
-            rows.associate { it.assessmentId.toString() to it.value }
+        if (drafts.isEmpty()) {
+            return@withContext AppResult.Failure(AppError.Validation("No score changes are waiting to be saved."))
         }
+        val payload = drafts.groupBy(ScoreDraftEntity::studentId)
+            .mapKeys { it.key.toString() }
+            .mapValues { (_, rows) -> rows.associate { it.assessmentId.toString() to it.value } }
         val key = scoreKey(sheet.classId, sheet.subjectId, sheet.termId)
         val existing = database.syncOperationDao().get(scope.tenantKey, scope.userId, key)
-        if (existing?.state == "conflict") return@withContext AppResult.Failure(AppError.Conflict(existing.lastError ?: "Reload this score sheet before retrying."))
-        val fresh = SaveScoresRequestDto(sheet.classId, sheet.subjectId, sheet.termId, sheet.version, UUID.randomUUID().toString(), payload)
-        val operation = existing ?: SyncOperationEntity(scope.tenantKey, scope.userId, key, SCORE_KIND, fresh.requestId, saveRequestAdapter.toJson(fresh), "pending", 0, null, nowEpochMs(), nowEpochMs()).also { database.syncOperationDao().upsert(it) }
-        val request = saveRequestAdapter.fromJson(operation.payloadJson) ?: return@withContext AppResult.Failure(AppError.Unexpected("The saved score request could not be read."))
+        if (existing?.state == "conflict") {
+            return@withContext AppResult.Failure(AppError.Conflict(existing.lastError ?: "Reload this score sheet before retrying."))
+        }
+        val fresh = SaveScoresRequestDto(
+            sheet.classId,
+            sheet.subjectId,
+            sheet.termId,
+            sheet.version,
+            UUID.randomUUID().toString(),
+            payload,
+        )
+        val operation = existing ?: SyncOperationEntity(
+            scope.tenantKey,
+            scope.userId,
+            key,
+            SCORE_KIND,
+            fresh.requestId,
+            saveRequestAdapter.toJson(fresh),
+            "pending",
+            0,
+            null,
+            nowEpochMs(),
+            nowEpochMs(),
+        ).also { database.syncOperationDao().upsert(it) }
+        val request = saveRequestAdapter.fromJson(operation.payloadJson)
+            ?: return@withContext AppResult.Failure(AppError.Unexpected("The saved score request could not be read."))
         when (val result = safeApiCall(moshi) { api.saveScores(request) }) {
             is AppResult.Success -> {
                 database.scoreWorkspaceDao().deleteDrafts(scope.tenantKey, scope.userId, sheet.classId, sheet.subjectId, sheet.termId)
@@ -122,12 +164,46 @@ class DefaultScoreWorkspaceRepository(
                 loadSheet(sheet.classId, sheet.subjectId, sheet.termId)
             }
             is AppResult.Failure -> when (result.error) {
-                is AppError.NetworkUnavailable, is AppError.Timeout, is AppError.Server, is AppError.RateLimited -> {
-                    database.syncOperationDao().upsert(operation.copy(state = "pending", attemptCount = operation.attemptCount + 1, lastError = result.error.userMessage, updatedAtEpochMs = nowEpochMs()))
-                    AppResult.Success(sheet.copy(syncState = SyncState.QUEUED, syncMessage = "Queued securely. EduCore will retry when the connection is stable."))
+                is AppError.NetworkUnavailable,
+                is AppError.Timeout,
+                is AppError.Server,
+                is AppError.RateLimited,
+                -> {
+                    database.syncOperationDao().upsert(
+                        operation.copy(
+                            state = "pending",
+                            attemptCount = operation.attemptCount + 1,
+                            lastError = result.error.userMessage,
+                            updatedAtEpochMs = nowEpochMs(),
+                        ),
+                    )
+                    AppResult.Success(
+                        sheet.copy(
+                            syncState = SyncState.QUEUED,
+                            syncMessage = "Queued securely. EduCore will retry when the connection is stable.",
+                        ),
+                    )
                 }
-                is AppError.Conflict -> { database.syncOperationDao().upsert(operation.copy(state = "conflict", lastError = result.error.userMessage, updatedAtEpochMs = nowEpochMs())); result }
-                else -> { database.syncOperationDao().upsert(operation.copy(state = "failed", lastError = result.error.userMessage, updatedAtEpochMs = nowEpochMs())); result }
+                is AppError.Conflict -> {
+                    database.syncOperationDao().upsert(
+                        operation.copy(
+                            state = "conflict",
+                            lastError = result.error.userMessage,
+                            updatedAtEpochMs = nowEpochMs(),
+                        ),
+                    )
+                    result
+                }
+                else -> {
+                    database.syncOperationDao().upsert(
+                        operation.copy(
+                            state = "failed",
+                            lastError = result.error.userMessage,
+                            updatedAtEpochMs = nowEpochMs(),
+                        ),
+                    )
+                    result
+                }
             }
         }
     }
@@ -139,13 +215,33 @@ class DefaultScoreWorkspaceRepository(
             val request = saveRequestAdapter.fromJson(operation.payloadJson) ?: return@forEach
             when (val result = safeApiCall(moshi) { api.saveScores(request) }) {
                 is AppResult.Success -> {
-                    database.scoreWorkspaceDao().deleteDrafts(scope.tenantKey, scope.userId, request.classId, request.subjectId, request.termId)
+                    database.scoreWorkspaceDao().deleteDrafts(
+                        scope.tenantKey,
+                        scope.userId,
+                        request.classId,
+                        request.subjectId,
+                        request.termId,
+                    )
                     database.syncOperationDao().delete(scope.tenantKey, scope.userId, operation.operationKey)
                 }
                 is AppResult.Failure -> {
-                    val transient = result.error is AppError.NetworkUnavailable || result.error is AppError.Timeout || result.error is AppError.Server || result.error is AppError.RateLimited
-                    val state = if (result.error is AppError.Conflict) "conflict" else if (transient) "pending" else "failed"
-                    database.syncOperationDao().upsert(operation.copy(state = state, attemptCount = operation.attemptCount + 1, lastError = result.error.userMessage, updatedAtEpochMs = nowEpochMs()))
+                    val transient = result.error is AppError.NetworkUnavailable ||
+                        result.error is AppError.Timeout ||
+                        result.error is AppError.Server ||
+                        result.error is AppError.RateLimited
+                    val state = when {
+                        result.error is AppError.Conflict -> "conflict"
+                        transient -> "pending"
+                        else -> "failed"
+                    }
+                    database.syncOperationDao().upsert(
+                        operation.copy(
+                            state = state,
+                            attemptCount = operation.attemptCount + 1,
+                            lastError = result.error.userMessage,
+                            updatedAtEpochMs = nowEpochMs(),
+                        ),
+                    )
                     retry = retry || transient
                 }
             }
@@ -166,24 +262,11 @@ class DefaultScoreWorkspaceRepository(
                 cache(scope, key, resultsAdapter.toJson(result.value))
                 AppResult.Success(result.value.toDomain())
             }
-            is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let { AppResult.Success(it.toDomain()) } ?: result
+            is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let {
+                AppResult.Success(it.toDomain())
+            } ?: result
         }
     }
-
-    override suspend fun loadStudentResults(classId: Long, studentId: Long): AppResult<PublishedResults> =
-        withContext(Dispatchers.IO) {
-            val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
-            val key = "staff-results:$classId:$studentId"
-            when (val result = safeApiCall(moshi) { api.staffStudentResults(classId, studentId) }) {
-                is AppResult.Success -> {
-                    cache(scope, key, resultsAdapter.toJson(result.value))
-                    AppResult.Success(result.value.toDomain())
-                }
-                is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let {
-                    AppResult.Success(it.toDomain())
-                } ?: result
-            }
-        }
 
     private suspend fun scope(): Scope? {
         val tenantKey = tenantContextStore.activeTenantKey.first() ?: return null
@@ -192,23 +275,47 @@ class DefaultScoreWorkspaceRepository(
     }
 
     private suspend fun cache(scope: Scope, key: String, json: String) {
-        database.scoreWorkspaceDao().replaceCache(CachedScoreContractEntity(scope.tenantKey, scope.userId, key, json, nowEpochMs()))
+        database.scoreWorkspaceDao().replaceCache(
+            CachedScoreContractEntity(scope.tenantKey, scope.userId, key, json, nowEpochMs()),
+        )
     }
 
-    private suspend fun <T> cached(scope: Scope, key: String, adapter: com.squareup.moshi.JsonAdapter<T>): T? =
-        database.scoreWorkspaceDao().cache(scope.tenantKey, scope.userId, key)?.payloadJson?.let { runCatching { adapter.fromJson(it) }.getOrNull() }
+    private suspend fun <T> cached(
+        scope: Scope,
+        key: String,
+        adapter: com.squareup.moshi.JsonAdapter<T>,
+    ): T? = database.scoreWorkspaceDao()
+        .cache(scope.tenantKey, scope.userId, key)
+        ?.payloadJson
+        ?.let { runCatching { adapter.fromJson(it) }.getOrNull() }
 
-    private fun sheetKey(classId: Long, subjectId: Long, termId: Long?) = "sheet:$classId:$subjectId:${termId ?: "current"}"
-    private fun scoreKey(classId: Long, subjectId: Long, termId: Long) = "scores:$classId:$subjectId:$termId"
+    private fun sheetKey(classId: Long, subjectId: Long, termId: Long?) =
+        "sheet:$classId:$subjectId:${termId ?: "current"}"
+
+    private fun scoreKey(classId: Long, subjectId: Long, termId: Long) =
+        "scores:$classId:$subjectId:$termId"
 
     private fun ScoreSheet.withValue(studentId: Long, assessmentId: Long, value: Double?) = copy(
         students = students.map { student ->
-            if (student.id != studentId) student else student.copy(
-                scores = student.scores + (assessmentId to requireNotNull(student.scores[assessmentId]).copy(value = value)),
-            )
+            if (student.id != studentId) {
+                student
+            } else {
+                student.copy(
+                    scores = student.scores +
+                        (assessmentId to requireNotNull(student.scores[assessmentId]).copy(value = value)),
+                )
+            }
         },
     )
 
-    private data class Scope(val tenantKey: String, val userId: Long, val roleKey: String)
-    private companion object { const val ASSIGNMENTS_KEY = "assignments"; const val SCORE_KIND = "scores" }
+    private data class Scope(
+        val tenantKey: String,
+        val userId: Long,
+        val roleKey: String,
+    )
+
+    private companion object {
+        const val ASSIGNMENTS_KEY = "assignments"
+        const val SCORE_KIND = "scores"
+    }
 }
