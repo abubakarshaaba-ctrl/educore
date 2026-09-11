@@ -205,6 +205,7 @@ Route::prefix('v1')->group(function () {
         Route::post('notifications/read-all', [MobileCommunicationController::class, 'readAll']);
         Route::post('notifications/{announcement}/read', [MobileCommunicationController::class, 'read']);
         Route::get('calendar/events', [MobileCommunicationController::class, 'events']);
+        Route::post('calendar/events', [MobileCommunicationController::class, 'storeEvent']);
 
         Route::get('classes/{classArm}/attendance', [AttendanceController::class, 'index']);
         Route::post('classes/{classArm}/attendance', [AttendanceController::class, 'store']);
