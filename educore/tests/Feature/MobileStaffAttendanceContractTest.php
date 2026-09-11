@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
+use App\Http\Controllers\Api\AdminStaffProxyClockController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -50,7 +51,6 @@ class MobileStaffAttendanceContractTest extends TestCase
             'offline',
             'syncOffline',
             'proxyReviews',
-            'proxyClock',
             'qr',
             'resetQr',
         ] as $method) {
@@ -62,6 +62,25 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
         $this->assertTrue(method_exists(AdminStaffAttendanceOfflineController::class, '__invoke'));
+        $this->assertTrue(method_exists(AdminStaffProxyClockController::class, '__invoke'));
+    }
+
+    public function test_proxy_clock_route_uses_staff_card_qr_controller(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('POST', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/proxy-clock'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(AdminStaffProxyClockController::class, $route->getActionName());
+
+        $source = file_get_contents(app_path('Http/Controllers/Api/AdminStaffProxyClockController.php'));
+        $this->assertStringContainsString("'staff_qr_token' => ['required', 'string', 'max:4096']", $source);
+        $this->assertStringContainsString('verifyPersonalQrToken', $source);
+        $this->assertStringContainsString('isSchoolOpenOn', $source);
+        $this->assertStringContainsString('wasEmployedOn', $source);
+        $this->assertStringContainsString("'clock_in_method' => 'proxy'", $source);
     }
 
     public function test_self_offline_sync_route_is_not_inside_admin_namespace(): void
