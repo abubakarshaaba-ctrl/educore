@@ -11,6 +11,8 @@ import online.educoreng.educore.core.network.dto.ClassDetailResponseDto
 import online.educoreng.educore.core.network.dto.ClassListResponseDto
 import online.educoreng.educore.core.network.dto.ClassStudentsResponseDto
 import online.educoreng.educore.core.network.dto.ClockInRequestDto
+import online.educoreng.educore.core.network.dto.ProxyAttendanceColleaguesResponseDto
+import online.educoreng.educore.core.network.dto.ProxyClockInRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.StaffAttendanceResponseDto
@@ -124,6 +126,14 @@ interface EduCoreApi {
 
     @POST("staff-attendance/clock-out")
     suspend fun clockOut(): MessageDto
+
+    @GET("staff-attendance/colleagues")
+    suspend fun proxyAttendanceColleagues(
+        @Query("q") search: String? = null,
+    ): ProxyAttendanceColleaguesResponseDto
+
+    @POST("staff-attendance/proxy-clock-in")
+    suspend fun proxyClockIn(@Body request: ProxyClockInRequestDto): MessageDto
 
     @GET("scores/teaching")
     suspend fun scoreAssignments(): ScoreAssignmentsResponseDto
