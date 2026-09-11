@@ -8,15 +8,19 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-val approvedLegacyFirebaseConfig = rootProject.file("../mobile/android/app/google-services.json")
-if (approvedLegacyFirebaseConfig.exists()) {
+val approvedFirebaseConfig = listOf(
+    file("firebase/google-services.json"),
+    rootProject.file("../mobile/android/app/google-services.json"),
+).firstOrNull { it.exists() }
+
+approvedFirebaseConfig?.let { firebaseConfig ->
     val releaseFirebaseConfig = file("src/release/google-services.json")
     val debugFirebaseConfig = file("src/debug/google-services.json")
     releaseFirebaseConfig.parentFile.mkdirs()
     debugFirebaseConfig.parentFile.mkdirs()
-    approvedLegacyFirebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
+    firebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
     debugFirebaseConfig.writeText(
-        approvedLegacyFirebaseConfig.readText().replace(
+        firebaseConfig.readText().replace(
             "\"package_name\": \"online.educoreng.educore\"",
             "\"package_name\": \"online.educoreng.educore.nativepreview\"",
         ),
