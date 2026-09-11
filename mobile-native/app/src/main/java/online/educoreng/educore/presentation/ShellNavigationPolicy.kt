@@ -29,6 +29,7 @@ object ShellNavigationPolicy {
         val portal = session.user.portal
         val role = session.user.roleKey
         val management = portal == "admin" || portal == "platform"
+        val modules = visibleModules(session)
 
         val primaryLabel = when {
             portal == "parent" -> "Children"
@@ -41,7 +42,7 @@ object ShellNavigationPolicy {
             portal == "parent" -> "Academics"
             else -> "Timetable"
         }
-        val inboxLabel = if (session.modules.any { it.key.contains("message") || it.key.contains("support") }) {
+        val inboxLabel = if (modules.any { it.key.contains("message") || it.key.contains("support") }) {
             "Inbox"
         } else {
             "Notices"
@@ -57,36 +58,56 @@ object ShellNavigationPolicy {
     }
 
     fun modulesFor(tab: ShellTabId, session: SessionSnapshot): List<ModuleDescriptor> {
-        val grouped = session.modules.groupBy(::groupFor)
+        val visible = visibleModules(session)
+        val grouped = visible.groupBy(::groupFor)
         return when (tab) {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal) {
-                "platform" -> session.modules.filter {
+                "platform" -> visible.filter {
                     it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
                 }
-                "parent" -> session.modules.filter {
-                    it.key.contains("result") || it.key.contains("attendance")
-                }
+                "parent" -> visible.filter { it.key.contains("attendance") }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
                 "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
-                "parent" -> session.modules.filter {
+                "parent" -> visible.filter {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
                 else -> grouped[ModuleGroup.SCHEDULE].orEmpty()
             }
             ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
-            ShellTabId.MORE -> session.modules
+            ShellTabId.MORE -> visible
         }
     }
 
     fun groupedModules(session: SessionSnapshot): Map<ModuleGroup, List<ModuleDescriptor>> =
         ModuleGroup.entries.mapNotNull { group ->
-            val modules = session.modules.filter { groupFor(it) == group }
+            val modules = visibleModules(session).filter { groupFor(it) == group }
             if (modules.isEmpty()) null else group to modules
         }.toMap()
+
+    /**
+     * Native-app visibility is intentionally stricter than the web permission
+     * catalogue. This protects upgraded/offline sessions that may still contain
+     * stale module descriptors from older bootstrap responses.
+     */
+    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> =
+        session.modules.filterNot { module -> isRemovedFromMobile(module.key) }
+
+    fun isRemovedFromMobile(moduleKey: String): Boolean {
+        val key = moduleKey.lowercase()
+        return key == "cbt" ||
+            key == "cbt-exams" ||
+            key == "examinations" ||
+            key == "student.exams" ||
+            key == "reports" ||
+            key == "report-cards" ||
+            key == "results" ||
+            key == "student.results" ||
+            key == "parent.results"
+    }
 
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
         val key = module.key.lowercase()
@@ -106,11 +127,8 @@ object ShellNavigationPolicy {
         "curriculum",
         "attendance",
         "score",
-        "report",
-        "result",
         "lesson",
         "repository",
-        "cbt",
         "exam",
     )
     private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
