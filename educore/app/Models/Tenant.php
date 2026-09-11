@@ -18,6 +18,8 @@ class Tenant extends Model
     public const STATUS_SUBSCRIPTION_EXPIRED = 'subscription_expired';
     public const STATUS_PENDING = 'pending';
 
+    public const DEFAULT_SCHOOL_OPEN_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
     public const RESERVED_SLUGS = [
         'login',
         'logout',
@@ -66,6 +68,7 @@ class Tenant extends Model
         'domain_verified',
         'primary_color',
         'secondary_color',
+        'school_open_days',
     ];
 
     protected function casts(): array
@@ -73,6 +76,7 @@ class Tenant extends Model
         return [
             'subscription_expires_at' => 'date',
             'domain_verified' => 'boolean',
+            'school_open_days' => 'array',
         ];
     }
 
@@ -145,6 +149,29 @@ class Tenant extends Model
     // Helpers
     // ---------------------------------------------------------------
 
+    public function schoolOpenDays(): array
+    {
+        $days = collect($this->school_open_days ?: self::DEFAULT_SCHOOL_OPEN_DAYS)
+            ->map(fn ($day) => strtolower(trim((string) $day)))
+            ->filter(fn ($day) => in_array($day, [
+                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+            ], true))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $days ?: self::DEFAULT_SCHOOL_OPEN_DAYS;
+    }
+
+    public function isSchoolOpenOn(\Carbon\CarbonInterface|string $date): bool
+    {
+        $day = $date instanceof \Carbon\CarbonInterface
+            ? strtolower($date->englishDayOfWeek)
+            : strtolower(\Carbon\Carbon::parse($date)->englishDayOfWeek);
+
+        return in_array($day, $this->schoolOpenDays(), true);
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -152,14 +179,10 @@ class Tenant extends Model
 
     public function isExpired(): bool
     {
-        // An explicit super-admin override (suspending/expiring a specific
-        // tenant) always applies, regardless of tier.
         if ($this->status === self::STATUS_SUBSCRIPTION_EXPIRED) {
             return true;
         }
 
-        // The free tier (≤50 students) never expires on the automatic
-        // date clock — matches the "free forever" pricing promise.
         if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
             return false;
         }
@@ -167,12 +190,6 @@ class Tenant extends Model
         return $this->subscription_expires_at && $this->subscription_expires_at->isPast();
     }
 
-    /**
-     * True only when the subscription is still active but falls due within $days.
-     * Uses an explicit future-window comparison rather than diffInDays(), whose
-     * sign convention changed in Carbon 3 (a future date yields a negative diff,
-     * which made "< 14" match every active subscription).
-     */
     public function isExpiringSoon(int $days = 14): bool
     {
         if (!$this->subscription_expires_at || $this->isExpired()) {
