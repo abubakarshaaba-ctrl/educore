@@ -100,11 +100,17 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Compatibility entry point for legacy, unreachable report-card routes.
+     * Student results/report cards are intentionally unavailable in the mobile app.
+     */
     fun loadStudentResults(classId: Long, studentId: Long) = viewModelScope.launch {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
-        when (val result = repository.loadStudentResults(classId, studentId)) {
-            is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
-            is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                publishedResults = null,
+                errorMessage = "Results and report cards are not available in the mobile app.",
+            )
         }
     }
 
