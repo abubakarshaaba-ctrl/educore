@@ -14,11 +14,11 @@ class ModulePresentationPolicyTest {
     }
 
     @Test
-    fun staff_and_student_cbt_modules_are_native() {
+    fun cbt_and_exam_modules_are_removed_from_mobile() {
         listOf("cbt", "cbt-exams", "examinations", "student.exams").forEach { key ->
             assertEquals(
-                "$key must remain native",
-                ModulePresentation.NATIVE,
+                "$key must remain unavailable in the mobile app",
+                ModulePresentation.UNSUPPORTED,
                 ModulePresentationPolicy.presentationFor(key),
             )
         }
@@ -33,18 +33,22 @@ class ModulePresentationPolicyTest {
     }
 
     @Test
-    fun fully_native_operational_modules_remain_native() {
-        listOf("fees", "reports").forEach { key ->
+    fun supported_finance_module_remains_native_while_reports_are_removed() {
+        assertEquals(
+            ModulePresentation.NATIVE,
+            ModulePresentationPolicy.presentationFor("fees"),
+        )
+        listOf("reports", "report-cards", "results", "student.results", "parent.results").forEach { key ->
             assertEquals(
-                "$key must remain fully native",
-                ModulePresentation.NATIVE,
+                "$key must remain unavailable in the mobile app",
+                ModulePresentation.UNSUPPORTED,
                 ModulePresentationPolicy.presentationFor(key),
             )
         }
     }
 
     @Test
-    fun role_dependent_module_is_explicitly_classified() {
+    fun role_dependent_score_entry_module_is_explicitly_classified() {
         assertEquals(
             ModulePresentation.ROLE_CONDITIONAL,
             ModulePresentationPolicy.presentationFor("scores"),
