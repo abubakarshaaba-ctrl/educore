@@ -142,7 +142,7 @@ fun EduCoreBottomNavigation(
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
                 },
-                label = { Text(item.label, maxLines = 1) },
+                label = { Text(item.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
@@ -201,11 +201,11 @@ fun EduCorePageHeader(
 ) {
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         color = EduCoreColors.Info100,
         border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm)) {
             if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -234,7 +234,7 @@ private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack
         Spacer(Modifier.width(EduCoreSpacing.Xs))
     }
     Column(Modifier.weight(1f)) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
         subtitle?.takeIf(String::isNotBlank)?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
