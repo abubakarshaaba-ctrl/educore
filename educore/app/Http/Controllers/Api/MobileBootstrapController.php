@@ -39,6 +39,12 @@ class MobileBootstrapController extends Controller
         $subscriptionExpiresAt = (! $superAdmin && $tenant)
             ? $tenant->billingTenant()->subscription_expires_at
             : null;
+        $graceDays = (int) ($access->metadata['grace_days'] ?? 0);
+        $mobileAccessExpiresAt = $access->state === TenantAccessDecision::STATE_GRACE
+            && $access->expiresAt
+            && $graceDays > 0
+                ? $access->expiresAt->copy()->addDays($graceDays)
+                : ($access->expiresAt ?? $subscriptionExpiresAt);
 
         return response()->json([
             'contract_version' => 1,
@@ -73,10 +79,11 @@ class MobileBootstrapController extends Controller
                 'state' => $access->state,
                 'message' => $access->message,
                 'severity' => $access->severity,
-                // Keep the existing access-decision expiry for warning/expired states,
-                // but also expose the billing tenant's real subscription expiry for
-                // ordinary active tenants so mobile clients can render a countdown.
-                'expires_at' => ($access->expiresAt ?? $subscriptionExpiresAt)?->toIso8601String(),
+                // During grace, expires_at is the service cut-off date rather than
+                // the already-passed paid subscription date. This keeps the existing
+                // mobile contract backward compatible while enabling a useful grace
+                // countdown. All other states retain subscription-expiry semantics.
+                'expires_at' => $mobileAccessExpiresAt?->toIso8601String(),
             ],
             'permissions' => $access->allowed
                 ? ($superAdmin
