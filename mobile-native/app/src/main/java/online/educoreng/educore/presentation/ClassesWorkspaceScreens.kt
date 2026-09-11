@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -475,10 +477,13 @@ internal fun StaffAttendanceScreen(
     onClockOut: () -> Unit,
 ) {
     var pendingToken by remember { mutableStateOf<String?>(null) }
+    var pendingCardToken by remember { mutableStateOf<String?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
     val snapshot = state.staffAttendance
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
+    val staffCardScanViewModel: StaffCardAttendanceScanViewModel = hiltViewModel()
+    val staffCardScanState by staffCardScanViewModel.uiState.collectAsStateWithLifecycle()
 
     fun submitScannedToken(token: String) {
         pendingToken = null
@@ -487,10 +492,31 @@ internal fun StaffAttendanceScreen(
             return
         }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            currentLocation(locationClient) { latitude, longitude, error ->
+            currentLocation(locationClient) { latitude, longitude, _, error ->
                 if (error != null) scanError = error else onClockIn(token, latitude, longitude)
             }
         } else pendingToken = token
+    }
+
+    fun submitStaffCardToken(token: String) {
+        pendingCardToken = null
+        if (!online) {
+            scanError = "Staff ID attendance scanning requires an internet connection because the server records the real-time attendance timestamp."
+            return
+        }
+        if (!snapshot?.geoEnabled.orFalse()) {
+            staffCardScanViewModel.scan(token)
+            return
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            currentLocation(locationClient) { latitude, longitude, accuracy, error ->
+                if (error != null) {
+                    scanError = error
+                } else {
+                    staffCardScanViewModel.scan(token, latitude, longitude, accuracy)
+                }
+            }
+        } else pendingCardToken = token
     }
 
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -499,9 +525,21 @@ internal fun StaffAttendanceScreen(
             scanError = "Location permission is required."
             pendingToken = null
         } else {
-            currentLocation(locationClient) { latitude, longitude, error ->
+            currentLocation(locationClient) { latitude, longitude, _, error ->
                 pendingToken = null
                 if (error != null) scanError = error else onClockIn(token, latitude, longitude)
+            }
+        }
+    }
+    val cardLocationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val token = pendingCardToken
+        if (!granted || token == null) {
+            scanError = "Location permission is required to scan staff ID attendance for this school."
+            pendingCardToken = null
+        } else {
+            currentLocation(locationClient) { latitude, longitude, accuracy, error ->
+                pendingCardToken = null
+                if (error != null) scanError = error else staffCardScanViewModel.scan(token, latitude, longitude, accuracy)
             }
         }
     }
@@ -512,6 +550,14 @@ internal fun StaffAttendanceScreen(
             pendingToken = token
             locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else submitScannedToken(token)
+    }
+    val staffCardScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val token = result.contents
+        if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
+        if (snapshot?.geoEnabled == true && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            pendingCardToken = token
+            cardLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else submitStaffCardToken(token)
     }
 
     if (state.isLoadingWorkspace && snapshot == null) {
@@ -555,8 +601,10 @@ internal fun StaffAttendanceScreen(
         }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
+        staffCardScanState.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
+        staffCardScanState.message?.let { message -> item { EduCoreInfoBanner(message) } }
         if (!online) item {
-            EduCoreWarningBanner("Offline mode. Your attendance action will be stored securely on this device and synchronized automatically when connectivity returns.")
+            EduCoreWarningBanner("Offline mode. Your own attendance action can be queued, but staff ID-card attendance scanning requires a live server connection.")
         }
         if (state.staffAttendanceFromCache) item {
             EduCoreInfoBanner("Showing the last saved My Attendance snapshot. The server remains the source of truth.")
@@ -607,13 +655,13 @@ internal fun StaffAttendanceScreen(
 
         if (!clockedIn) item {
             EduCorePrimaryButton(
-                text = if (online) "Scan QR" else "Scan QR offline",
+                text = if (online) "Scan school QR for my attendance" else "Scan school QR offline",
                 onClick = {
                     scanError = null
                     qrScanner.launch(
                         ScanOptions()
                             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            .setPrompt("Scan attendance QR")
+                            .setPrompt("Scan school attendance QR")
                             .setBeepEnabled(false)
                             .setCaptureActivity(PortraitCaptureActivity::class.java)
                             .setOrientationLocked(true),
@@ -630,6 +678,33 @@ internal fun StaffAttendanceScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isSaving,
                 loading = state.isSaving,
+            )
+        }
+
+        item {
+            EduCoreSecondaryButton(
+                text = if (staffCardScanState.isSaving) "Recording staff attendance…" else "Scan staff ID card attendance",
+                onClick = {
+                    scanError = null
+                    staffCardScanViewModel.clearMessage()
+                    staffCardScanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Scan the QR on the staff ID card")
+                            .setBeepEnabled(false)
+                            .setCaptureActivity(PortraitCaptureActivity::class.java)
+                            .setOrientationLocked(true),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !staffCardScanState.isSaving,
+            )
+        }
+        item {
+            Text(
+                "Any staff account in this school can scan a staff ID card. EduCore verifies the signed card and records the card holder's current server-time clock-in or clock-out automatically.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
             )
         }
 
@@ -700,7 +775,7 @@ private fun Boolean?.orFalse(): Boolean = this == true
 @SuppressLint("MissingPermission")
 private fun currentLocation(
     client: com.google.android.gms.location.FusedLocationProviderClient,
-    result: (Double?, Double?, String?) -> Unit,
+    result: (Double?, Double?, Double?, String?) -> Unit,
 ) {
     val request = CurrentLocationRequest.Builder()
         .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
@@ -710,12 +785,12 @@ private fun currentLocation(
     client.getCurrentLocation(request, CancellationTokenSource().token)
         .addOnSuccessListener { location ->
             when {
-                location == null -> result(null, null, "Location unavailable. Try again.")
-                location.accuracy > 100f -> result(null, null, "GPS accuracy is ${location.accuracy.toInt()} m. Try again in an open area.")
-                else -> result(location.latitude, location.longitude, null)
+                location == null -> result(null, null, null, "Location unavailable. Try again.")
+                location.accuracy > 100f -> result(null, null, location.accuracy.toDouble(), "GPS accuracy is ${location.accuracy.toInt()} m. Try again in an open area.")
+                else -> result(location.latitude, location.longitude, location.accuracy.toDouble(), null)
             }
         }
         .addOnFailureListener { error ->
-            result(null, null, error.localizedMessage ?: "Location verification failed.")
+            result(null, null, null, error.localizedMessage ?: "Location verification failed.")
         }
 }
