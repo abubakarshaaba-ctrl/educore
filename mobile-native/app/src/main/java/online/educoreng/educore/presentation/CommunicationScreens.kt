@@ -341,7 +341,6 @@ private fun LazyListScope.eventsContent(state: CommunicationUiState) {
 
 @Composable
 private fun EventCreateCard(state: CommunicationUiState) {
-    val viewModel: CommunicationViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
     val context = LocalContext.current
 
     fun chooseDate(current: String, onSelected: (String) -> Unit) {
@@ -376,25 +375,25 @@ private fun EventCreateCard(state: CommunicationUiState) {
             )
             OutlinedTextField(
                 value = state.eventTitle,
-                onValueChange = viewModel::setEventTitle,
+                onValueChange = state.onEventTitle,
                 label = { Text("Event title") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.eventDescription,
-                onValueChange = viewModel::setEventDescription,
+                onValueChange = state.onEventDescription,
                 label = { Text("Description (optional)") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 OutlinedButton(
-                    onClick = { chooseDate(state.eventStartDate, viewModel::setEventStartDate) },
+                    onClick = { chooseDate(state.eventStartDate, state.onEventStartDate) },
                     modifier = Modifier.weight(1f),
                 ) { Text(state.eventStartDate.ifBlank { "Start date" }) }
                 OutlinedButton(
-                    onClick = { chooseDate(state.eventEndDate, viewModel::setEventEndDate) },
+                    onClick = { chooseDate(state.eventEndDate, state.onEventEndDate) },
                     modifier = Modifier.weight(1f),
                 ) { Text(state.eventEndDate.ifBlank { "End date" }) }
             }
@@ -404,12 +403,12 @@ private fun EventCreateCard(state: CommunicationUiState) {
                 horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
             ) {
                 listOf("all" to "Everyone", "staff" to "Staff", "parents" to "Parents").forEach { (key, label) ->
-                    EduCoreFilterChip(label, state.eventAudience == key, { viewModel.setEventAudience(key) })
+                    EduCoreFilterChip(label, state.eventAudience == key, { state.onEventAudience(key) })
                 }
             }
             EduCorePrimaryButton(
                 text = "Publish event as notice",
-                onClick = viewModel::createEvent,
+                onClick = state.onCreateEvent,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = state.eventTitle.isNotBlank() && state.eventStartDate.isNotBlank(),
                 loading = state.isSaving,
