@@ -1,11 +1,18 @@
 package online.educoreng.educore.core.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
@@ -34,6 +42,36 @@ data class EduCoreNavigationItem(
     val icon: ImageVector,
     val badgeCount: Int = 0,
 )
+
+@Composable
+fun EduCoreWordmark(
+    modifier: Modifier = Modifier,
+    trailingText: String? = null,
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "Edu",
+            color = Color.White,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Core",
+            color = EduCoreColors.Gold400,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        trailingText?.takeIf(String::isNotBlank)?.let {
+            Text(
+                text = " · $it",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,17 +88,12 @@ fun EduCoreTopAppBar(
         modifier = modifier,
         title = {
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                subtitle?.takeIf(String::isNotBlank)?.let {
+                EduCoreWordmark(trailingText = title)
+                subtitle?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = Color.White.copy(alpha = 0.74f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -68,7 +101,7 @@ fun EduCoreTopAppBar(
             }
         },
         navigationIcon = {
-            if (navigationIcon != null && onNavigationClick != null && navigationDescription != "Back") {
+            if (navigationIcon != null && onNavigationClick != null) {
                 IconButton(onClick = onNavigationClick) {
                     Icon(navigationIcon, contentDescription = navigationDescription)
                 }
@@ -79,7 +112,7 @@ fun EduCoreTopAppBar(
             containerColor = EduCoreColors.Navy900,
             titleContentColor = Color.White,
             navigationIconContentColor = Color.White,
-            actionIconContentColor = Color.White,
+            actionIconContentColor = EduCoreColors.Gold400,
         ),
     )
 }
@@ -97,53 +130,29 @@ fun EduCoreBottomNavigation(
         tonalElevation = EduCoreSpacing.Xs,
     ) {
         items.forEach { item ->
-            val selected = bottomNavigationSelected(item.key, selectedKey)
             NavigationBarItem(
-                selected = selected,
+                selected = selectedKey == item.key,
                 onClick = { onSelect(item) },
                 icon = {
                     BadgedBox(
                         badge = {
                             if (item.badgeCount > 0) {
-                                Badge {
-                                    Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "")
-                                }
+                                Badge { Text(item.badgeCount.coerceAtMost(99).toString() + if (item.badgeCount > 99) "+" else "") }
                             }
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
                 },
-                label = {
-                    Text(
-                        item.label,
-                        maxLines = 1,
-                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                },
+                label = { Text(item.label, maxLines = 1) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = EduCoreColors.Info100,
+                    indicatorColor = EduCoreColors.Gold100,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
             )
         }
     }
-}
-
-private fun bottomNavigationSelected(itemKey: String, selectedKey: String): Boolean = when {
-    selectedKey == itemKey -> true
-    selectedKey.startsWith("native/classes") ||
-        selectedKey.startsWith("native/scores") ||
-        selectedKey.startsWith("native/results") ||
-        selectedKey.startsWith("native/repository") ||
-        selectedKey.startsWith("native/lesson-plans") -> itemKey == "primary"
-    selectedKey.startsWith("native/schedule") -> itemKey == "secondary"
-    selectedKey.startsWith("native/communications/") -> itemKey == "inbox"
-    selectedKey.startsWith("native/operations/") -> itemKey == "secondary"
-    selectedKey.startsWith("native/staff-attendance") -> itemKey == "more"
-    else -> false
 }
 
 @Composable
@@ -171,7 +180,7 @@ fun EduCoreTenantHeader(
             )
             Text(
                 text = listOfNotNull(role, session).joinToString(" · "),
-                color = Color.White.copy(alpha = 0.74f),
+                color = Color.White.copy(alpha = 0.76f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -181,7 +190,6 @@ fun EduCoreTenantHeader(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun EduCorePageHeader(
     title: String,
@@ -191,36 +199,44 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    if (title in setOf("Admissions", "Inbox")) return
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = EduCoreSpacing.Xs, vertical = EduCoreSpacing.Xs),
-        verticalAlignment = Alignment.CenterVertically,
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = EduCoreColors.Info100,
+        border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
-            color = EduCoreColors.Ink900,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        actions()
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+            if (maxWidth < 520.dp && compactActions) {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PageHeaderIdentity(title, subtitle, onBack)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm, Alignment.End),
+                        content = actions,
+                    )
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PageHeaderIdentity(title, subtitle, onBack)
+                    actions()
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun EduCorePageHeader(
-    title: String,
-    subtitle: String?,
-    onBack: () -> Unit,
-) {
-    EduCorePageHeader(
-        title = title,
-        subtitle = subtitle,
-        modifier = Modifier,
-        onBack = onBack,
-    )
+private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
+    if (onBack != null) {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+        Spacer(Modifier.width(EduCoreSpacing.Xs))
+    }
+    Column(Modifier.weight(1f)) {
+        Text(title, style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        subtitle?.takeIf(String::isNotBlank)?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
 }

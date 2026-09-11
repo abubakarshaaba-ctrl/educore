@@ -18,26 +18,39 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
+import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
-import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
+import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTabs
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
@@ -47,6 +60,7 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.OperationsRecord
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun OperationsScreen(
     state: OperationsUiState,
@@ -64,230 +78,30 @@ internal fun OperationsScreen(
         modifier = Modifier.fillMaxSize(),
         onRetry = onRetry,
     )
-
-    // API-generation negotiation: legacy/live backends expose the authoritative
-    // synchronized data through /operations/{module} with mobile_policy=read_first.
-    // Only use newer dedicated mutation APIs when the server explicitly declares
-    // native_full support. This prevents route-404 and DTO-drift failures while
-    // keeping the web app and Android app on the same tenant data source.
-    val useNativeWorkspace = workspace.module.mobilePolicy.equals("native_full", ignoreCase = true)
-
-    if (useNativeWorkspace && workspace.module.key.equals("fees", ignoreCase = true)) {
-        FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("payroll", ignoreCase = true)) {
-        PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("expenses", ignoreCase = true)) {
-        ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("library", ignoreCase = true)) {
-        val libraryManagementViewModel: LibraryManagementViewModel = hiltViewModel()
-        val libraryManagementState by libraryManagementViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(libraryManagementState.refreshVersion) {
-            if (libraryManagementState.refreshVersion > 0) {
-                onRetry()
-                libraryManagementViewModel.consumeRefresh()
-            }
-        }
-        LibraryScreen(
-            state = state,
-            management = libraryManagementState,
-            onBack = onBack,
-            onQuery = onQuery,
-            onSection = onSection,
-            onOpenIssue = libraryManagementViewModel::openIssue,
-            onCloseIssue = libraryManagementViewModel::closeIssue,
-            onBook = libraryManagementViewModel::selectBook,
-            onBorrowerType = libraryManagementViewModel::selectBorrowerType,
-            onBorrower = libraryManagementViewModel::selectBorrower,
-            onDueDate = libraryManagementViewModel::setDueDate,
-            onNotes = libraryManagementViewModel::setNotes,
-            onIssue = libraryManagementViewModel::issue,
-            onReturn = libraryManagementViewModel::returnLoan,
-        )
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("transport", ignoreCase = true)) {
-        val transportViewModel: TransportViewModel = hiltViewModel()
-        val transportState by transportViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(workspace.module.key) {
-            if (transportState.dashboard == null && !transportState.isLoading) {
-                transportViewModel.load()
-            }
-        }
-        NativeTransportScreen(
-            state = transportState,
-            onBack = onBack,
-            onQuery = transportViewModel::setQuery,
-            onSearch = transportViewModel::search,
-            onOpenManifest = transportViewModel::openManifest,
-            onCloseManifest = transportViewModel::closeManifest,
-            onOpenAssignment = transportViewModel::openAssignment,
-            onCloseAssignment = transportViewModel::closeAssignment,
-            onRoute = transportViewModel::selectRoute,
-            onStudent = transportViewModel::selectStudent,
-            onPickupStop = transportViewModel::setPickupStop,
-            onDirection = transportViewModel::setDirection,
-            onAssign = transportViewModel::assign,
-            onUnassign = transportViewModel::unassign,
-            onLoadMore = transportViewModel::loadMore,
-            onRetry = transportViewModel::load,
-        )
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("health", ignoreCase = true)) {
-        val healthViewModel: HealthViewModel = hiltViewModel()
-        val healthState by healthViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(workspace.module.key) {
-            if (healthState.dashboard == null && !healthState.isLoading) {
-                healthViewModel.load()
-            }
-        }
-        NativeHealthScreen(
-            state = healthState,
-            onBack = onBack,
-            onQuery = healthViewModel::setQuery,
-            onSearch = healthViewModel::search,
-            onOpen = healthViewModel::open,
-            onCloseDetail = healthViewModel::closeDetail,
-            onField = healthViewModel::updateField,
-            onSave = healthViewModel::save,
-            onLoadMore = healthViewModel::loadMore,
-            onRetry = healthViewModel::load,
-        )
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("inventory", ignoreCase = true)) {
-        val inventoryViewModel: InventoryViewModel = hiltViewModel()
-        val inventoryState by inventoryViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(workspace.module.key) {
-            if (inventoryState.workspace == null && !inventoryState.isLoading) {
-                inventoryViewModel.load()
-            }
-        }
-        NativeInventoryScreen(
-            state = inventoryState,
-            onBack = onBack,
-            onQuery = inventoryViewModel::setQuery,
-            onSearch = inventoryViewModel::search,
-            onStatusFilter = inventoryViewModel::setStatusFilter,
-            onCreate = inventoryViewModel::create,
-            onEdit = inventoryViewModel::edit,
-            onCloseEditor = inventoryViewModel::closeEditor,
-            onField = inventoryViewModel::updateField,
-            onAssignedTo = inventoryViewModel::setAssignedTo,
-            onCondition = inventoryViewModel::setCondition,
-            onStatus = inventoryViewModel::setStatus,
-            onSave = inventoryViewModel::save,
-            onDelete = inventoryViewModel::delete,
-            onLoadMore = inventoryViewModel::loadMore,
-            onRetry = inventoryViewModel::load,
-        )
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("hostels", ignoreCase = true)) {
-        val hostelViewModel: HostelViewModel = hiltViewModel()
-        val hostelState by hostelViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(workspace.module.key) {
-            if (hostelState.workspace == null && !hostelState.isLoading) {
-                hostelViewModel.load()
-            }
-        }
-        NativeHostelsScreen(
-            state = hostelState,
-            onBack = onBack,
-            onQuery = hostelViewModel::setQuery,
-            onSearch = hostelViewModel::search,
-            onLoadMore = hostelViewModel::loadMore,
-            onOpenCreateHostel = hostelViewModel::openCreateHostel,
-            onOpenCreateRoom = hostelViewModel::openCreateRoom,
-            onOpenAllocation = hostelViewModel::openAllocation,
-            onCloseEditor = hostelViewModel::closeEditor,
-            onHostelName = hostelViewModel::setHostelName,
-            onHostelGender = hostelViewModel::setHostelGender,
-            onHostelCapacity = hostelViewModel::setHostelCapacity,
-            onWarden = hostelViewModel::setWarden,
-            onRoomNumber = hostelViewModel::setRoomNumber,
-            onRoomCapacity = hostelViewModel::setRoomCapacity,
-            onStudentQuery = hostelViewModel::setStudentQuery,
-            onSearchStudents = hostelViewModel::searchStudents,
-            onAllocationHostel = hostelViewModel::selectAllocationHostel,
-            onAllocationRoom = hostelViewModel::selectAllocationRoom,
-            onAllocationStudent = hostelViewModel::selectAllocationStudent,
-            onCreateHostel = hostelViewModel::createHostel,
-            onCreateRoom = hostelViewModel::createRoom,
-            onAllocate = hostelViewModel::allocate,
-            onVacate = hostelViewModel::vacate,
-            onRetry = hostelViewModel::load,
-        )
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("subjects", ignoreCase = true)) {
-        SubjectsScreen(state = state, onBack = onBack, onQuery = onQuery)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("curriculum", ignoreCase = true)) {
-        CurriculumScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("academic-cycle", ignoreCase = true)) {
-        AcademicCycleScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
-        return
-    }
-
-    if (workspace.module.key.equals("analytics", ignoreCase = true)) {
-        AnalyticsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
-        return
-    }
-
-    if (useNativeWorkspace && workspace.module.key.equals("admissions", ignoreCase = true)) {
-        val admissionsViewModel: AdmissionsViewModel = hiltViewModel()
-        val admissionsState by admissionsViewModel.uiState.collectAsStateWithLifecycle()
-        LaunchedEffect(workspace.module.key) {
-            if (admissionsState.workspace == null && !admissionsState.isLoading) {
-                admissionsViewModel.load()
-            }
-        }
-        AdmissionsScreen(
-            state = admissionsState,
-            onBack = onBack,
-            onQuery = admissionsViewModel::setSearch,
-            onSearch = admissionsViewModel::search,
-            onStatusFilter = admissionsViewModel::selectStatus,
-            onOpen = admissionsViewModel::open,
-            onCloseDetail = admissionsViewModel::closeDetail,
-            onLoadMore = admissionsViewModel::loadMore,
-            onStartCreate = admissionsViewModel::startCreate,
-            onCloseCreate = admissionsViewModel::closeCreate,
-            onCreateField = admissionsViewModel::updateCreate,
-            onCreateGender = admissionsViewModel::selectCreateGender,
-            onCreateClassLevel = admissionsViewModel::selectCreateClassLevel,
-            onCreate = admissionsViewModel::create,
-            onStatusDraft = admissionsViewModel::setStatusDraft,
-            onClassArmDraft = admissionsViewModel::setClassArmDraft,
-            onReviewNotes = admissionsViewModel::setReviewNotes,
-            onSaveStatus = admissionsViewModel::saveStatus,
-            onRetry = admissionsViewModel::load,
-        )
-        return
-    }
-
     val section = workspace.sections.getOrNull(state.selectedSection)
-    val records = remember(section?.records, state.query) { section?.records.orEmpty().filterOperations(state.query) }
+    val financeModule = workspace.module.key in setOf("fees", "expenses", "payroll")
+    var selectedSession by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
+    var selectedTerm by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
+    var selectedClass by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
+    var selectedDate by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val sourceRecords = section?.records.orEmpty()
+    val sessionOptions = remember(sourceRecords) { sourceRecords.fieldValues("Session") }
+    val termOptions = remember(sourceRecords) { sourceRecords.fieldValues("Term") }
+    val classOptions = remember(sourceRecords) {
+        (sourceRecords.fieldValues("Class Level") + sourceRecords.fieldValues("Class")).distinct().sorted()
+    }
+    val records = remember(sourceRecords, state.query, selectedSession, selectedTerm, selectedClass, selectedDate) {
+        sourceRecords
+            .filterOperations(state.query)
+            .filter { record -> selectedSession == null || record.fieldValue("Session") == selectedSession }
+            .filter { record -> selectedTerm == null || record.fieldValue("Term") == selectedTerm }
+            .filter { record ->
+                selectedClass == null || record.fieldValue("Class Level") == selectedClass || record.fieldValue("Class") == selectedClass
+            }
+            .filter { record -> selectedDate == null || record.matchesDate(selectedDate!!) }
+    }
     val metricColumns = when (width) {
         EduCoreWindowWidth.Compact -> 2
         EduCoreWindowWidth.Medium -> 3
@@ -327,16 +141,113 @@ internal fun OperationsScreen(
                 )
             }
         }
+        if (financeModule) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    if (sessionOptions.isNotEmpty()) {
+                        FinanceDropdown(
+                            label = "Session",
+                            options = sessionOptions,
+                            selected = selectedSession,
+                            onSelected = { selectedSession = it },
+                        )
+                    }
+                    if (termOptions.isNotEmpty()) {
+                        FinanceDropdown(
+                            label = "Term",
+                            options = termOptions,
+                            selected = selectedTerm,
+                            onSelected = { selectedTerm = it },
+                        )
+                    }
+                    if (classOptions.isNotEmpty()) {
+                        FinanceDropdown(
+                            label = "Class Level",
+                            options = classOptions,
+                            selected = selectedClass,
+                            onSelected = { selectedClass = it },
+                        )
+                    }
+                    EduCoreSecondaryButton(
+                        text = selectedDate?.let { "Date: $it" } ?: "Select date",
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (selectedSession != null || selectedTerm != null || selectedClass != null || selectedDate != null) {
+                        EduCoreSecondaryButton(
+                            text = "Clear finance filters",
+                            onClick = {
+                                selectedSession = null
+                                selectedTerm = null
+                                selectedClass = null
+                                selectedDate = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
         item { EduCoreSearchBar(state.query, onQuery, placeholder = "Search ${section?.title?.lowercase() ?: "records"}") }
         if (records.isEmpty()) {
             item {
+                val filtersClear = selectedSession == null && selectedTerm == null && selectedClass == null && selectedDate == null
                 EduCoreEmptyState(
-                    title = if (state.query.isBlank()) "No records yet" else "No matching records",
-                    message = if (state.query.isBlank()) "Nothing has been recorded in this section." else "Try another search term.",
+                    title = if (state.query.isBlank() && filtersClear) "No records yet" else "No matching records",
+                    message = if (state.query.isBlank() && filtersClear) "Nothing has been recorded in this section." else "Change or clear the selected filters.",
                 )
             }
         }
         items(records, key = { "${section?.key}-${it.id}" }) { record -> OperationsRecordCard(record, width) }
+    }
+
+    if (showDatePicker) {
+        val pickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { selectedDate = formatUtcDate(it) }
+                    showDatePicker = false
+                }) { Text("Apply") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FinanceDropdown(
+    label: String,
+    options: List<String>,
+    selected: String?,
+    onSelected: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(
+            value = selected ?: "All $label",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("All $label") },
+                onClick = { onSelected(null); expanded = false },
+            )
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = { onSelected(option); expanded = false },
+                )
+            }
+        }
     }
 }
 
@@ -349,7 +260,7 @@ private fun OperationsHeader(title: String, subtitle: String, onBack: () -> Unit
 private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowWidth) {
     Card(
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
-        border = BorderStroke(1.dp, EduCoreColors.Info200),
+        border = BorderStroke(0.7.dp, EduCoreColors.Info200),
     ) {
         Column(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -357,7 +268,7 @@ private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowW
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     record.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600) }
                 }
                 record.status?.let { status ->
@@ -382,6 +293,24 @@ private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowW
         }
     }
 }
+
+private fun List<OperationsRecord>.fieldValues(label: String): List<String> =
+    mapNotNull { it.fieldValue(label) }
+        .filter { it.isNotBlank() && it !in setOf("Not assigned", "Not set", "Not paid", "Pending") }
+        .distinct()
+        .sorted()
+
+private fun OperationsRecord.fieldValue(label: String): String? =
+    fields.firstOrNull { it.label.equals(label, ignoreCase = true) }?.value
+
+private fun OperationsRecord.matchesDate(date: String): Boolean =
+    fields.any { field -> field.label in DATE_FIELD_LABELS && field.value.take(10) == date }
+
+private fun formatUtcDate(epochMillis: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+    timeZone = TimeZone.getTimeZone("UTC")
+}.format(Date(epochMillis))
+
+private val DATE_FIELD_LABELS = setOf("Due", "Date", "Payment date", "Paid at", "Applied", "Issued")
 
 private fun String.toEduCoreTone(): EduCoreTone = when (lowercase()) {
     "success" -> EduCoreTone.Success

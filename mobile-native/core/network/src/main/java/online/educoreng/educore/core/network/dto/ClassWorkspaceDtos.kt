@@ -168,6 +168,26 @@ data class StaffAttendanceResponseDto(
     val records: List<StaffAttendanceRecordDto> = emptyList(),
 )
 
+data class ProxyAttendanceColleagueDto(
+    val id: Long,
+    val name: String,
+    val emp: String? = null,
+    val photo: String? = null,
+)
+
+data class ProxyAttendanceColleaguesResponseDto(
+    val ok: Boolean = true,
+    val staff: List<ProxyAttendanceColleagueDto> = emptyList(),
+)
+
+data class ProxyClockInRequestDto(
+    @param:Json(name = "staff_id") val staffId: Long,
+    val token: String,
+    val photo: String,
+    val lat: Double? = null,
+    val lng: Double? = null,
+)
+
 data class ClockInRequestDto(
     val token: String,
     val lat: Double? = null,

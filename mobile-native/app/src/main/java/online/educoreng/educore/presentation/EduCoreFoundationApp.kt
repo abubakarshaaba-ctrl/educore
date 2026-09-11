@@ -1,12 +1,12 @@
 package online.educoreng.educore.presentation
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,25 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreTheme
-
-/**
- * Native mobile scope:
- * - staff and operational officers
- * - school administrators/heads for day-to-day school operations only
- * - parents
- *
- * Platform Super Admin and students remain web-only.
- */
-private val NATIVE_PORTALS = setOf("staff", "admin", "parent")
 
 @Composable
 fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
@@ -46,11 +36,9 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     ReportDrawnWhen { state.phase != AppPhase.STARTING }
 
-    LaunchedEffect(state.phase, state.session?.user?.portal) {
-        val portal = state.session?.user?.portal?.lowercase()
+    LaunchedEffect(state.phase) {
         if (
             state.phase == AppPhase.READY &&
-            portal in NATIVE_PORTALS &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -81,7 +69,9 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         ) {
             when (state.phase) {
-                AppPhase.STARTING -> EduCoreSplashScreen()
+                // Deliberately render only the app background while the encrypted
+                // session is restored. There is no custom branded splash page.
+                AppPhase.STARTING -> Box(Modifier.fillMaxSize())
                 AppPhase.SIGNED_OUT -> AuthenticationScreen(
                     state = state,
                     onLogin = viewModel::login,
@@ -96,38 +86,17 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     onRetry = viewModel::retryBootstrap,
                     onLogout = viewModel::logout,
                 )
-                AppPhase.READY -> {
-                    val rawSession = requireNotNull(state.session)
-                    val session = rawSession.copy(modules = ShellNavigationPolicy.visibleModules(rawSession))
-                    when (session.user.portal.lowercase()) {
-                        "staff", "admin" -> StaffWorkspaceShell(
-                            session = session,
-                            online = state.isOnline,
-                            busy = state.isBusy,
-                            dashboard = state.dashboard,
-                            snackbarHostState = snackbarHostState,
-                            onRefresh = viewModel::retryBootstrap,
-                            onRefreshDashboard = viewModel::retryDashboard,
-                            onLogout = viewModel::logout,
-                        )
-                        "parent" -> AuthorizedShell(
-                            session = session,
-                            online = state.isOnline,
-                            busy = state.isBusy,
-                            dashboard = state.dashboard,
-                            snackbarHostState = snackbarHostState,
-                            onRefresh = viewModel::retryBootstrap,
-                            onRefreshDashboard = viewModel::retryDashboard,
-                            onOpenWebModule = viewModel::openWebModule,
-                            onLogout = viewModel::logout,
-                        )
-                        else -> WebOnlyPortalScreen(
-                            portal = session.user.portal,
-                            accountName = session.user.name,
-                            onLogout = viewModel::logout,
-                        )
-                    }
-                }
+                AppPhase.READY -> AuthorizedShell(
+                    session = requireNotNull(state.session),
+                    online = state.isOnline,
+                    busy = state.isBusy,
+                    dashboard = state.dashboard,
+                    snackbarHostState = snackbarHostState,
+                    onRefresh = viewModel::retryBootstrap,
+                    onRefreshDashboard = viewModel::retryDashboard,
+                    onOpenWebModule = viewModel::openWebModule,
+                    onLogout = viewModel::logout,
+                )
             }
             SnackbarHost(
                 hostState = snackbarHostState,

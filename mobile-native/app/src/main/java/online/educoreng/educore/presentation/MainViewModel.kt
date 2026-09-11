@@ -33,14 +33,10 @@ class MainViewModel @Inject constructor(
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     init {
-        FirebaseMessaging.getInstance().isAutoInitEnabled = true
         viewModelScope.launch {
             connectivityMonitor.isOnline.collect { online ->
                 _uiState.update { it.copy(isOnline = online) }
-                if (online) {
-                    syncCoordinator.schedule()
-                    if (_uiState.value.phase == AppPhase.READY) registerPushToken()
-                }
+                if (online) syncCoordinator.schedule()
             }
         }
         restoreSession()
@@ -115,22 +111,9 @@ class MainViewModel @Inject constructor(
 
     fun openWebModule(path: String) {
         if (_uiState.value.isBusy) return
-
-        val normalizedPath = path.trim()
-        if (normalizedPath !in EXPLICIT_WEB_ONLY_PATHS) {
-            _uiState.update {
-                it.copy(
-                    isBusy = false,
-                    portalUrl = null,
-                    message = "This workspace is being moved into the native EduCore app and will not open in your browser.",
-                )
-            }
-            return
-        }
-
         viewModelScope.launch {
             _uiState.update { it.copy(isBusy = true, message = null) }
-            when (val result = sessionRepository.createPortalSession(normalizedPath)) {
+            when (val result = sessionRepository.createPortalSession(path)) {
                 is AppResult.Success -> _uiState.update {
                     it.copy(isBusy = false, portalUrl = result.value)
                 }
@@ -153,18 +136,23 @@ class MainViewModel @Inject constructor(
     fun retryDashboard() {
         if (_uiState.value.dashboard.isLoading || _uiState.value.phase != AppPhase.READY) return
         loadDashboard()
+        _uiState.value.session?.let(::loadStaffPhoto)
     }
 
     fun logout() {
         if (_uiState.value.isBusy) return
-        val online = _uiState.value.isOnline
         _uiState.update { it.copy(isBusy = true, message = null) }
-        viewModelScope.launch {
-            sessionRepository.logout()
-            _uiState.value = AppUiState(
-                phase = AppPhase.SIGNED_OUT,
-                isOnline = online,
-            )
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            viewModelScope.launch {
+                task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
+                    communicationRepository.unregisterPushToken(token)
+                }
+                sessionRepository.logout()
+                _uiState.value = AppUiState(
+                    phase = AppPhase.SIGNED_OUT,
+                    isOnline = _uiState.value.isOnline,
+                )
+            }
         }
     }
 
@@ -233,14 +221,29 @@ class MainViewModel @Inject constructor(
         if (session.access.allowed) {
             registerPushToken()
             loadDashboard()
+            loadStaffPhoto(session)
         }
     }
 
     private fun registerPushToken() {
-        if (!_uiState.value.isOnline || _uiState.value.phase != AppPhase.READY) return
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
                 viewModelScope.launch { communicationRepository.registerPushToken(token) }
+            }
+        }
+    }
+
+    private fun loadStaffPhoto(session: SessionSnapshot) {
+        if (session.user.portal !in setOf("admin", "staff")) {
+            _uiState.update { it.copy(dashboard = it.dashboard.copy(staffPhoto = null)) }
+            return
+        }
+        viewModelScope.launch {
+            when (val result = dashboardRepository.loadStaffPhoto()) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(dashboard = it.dashboard.copy(staffPhoto = result.value))
+                }
+                is AppResult.Failure -> Unit // A missing/unavailable photo falls back to the standard avatar.
             }
         }
     }
@@ -252,20 +255,14 @@ class MainViewModel @Inject constructor(
         }
         viewModelScope.launch {
             when (val result = dashboardRepository.load()) {
-                is AppResult.Success -> {
-                    val profilePhoto = when (val photo = dashboardRepository.loadProfilePhoto()) {
-                        is AppResult.Success -> photo.value
-                        is AppResult.Failure -> null
-                    }
-                    _uiState.update {
-                        it.copy(
-                            dashboard = DashboardUiState(
-                                snapshot = result.value,
-                                profilePhoto = profilePhoto,
-                                isLoading = false,
-                            ),
-                        )
-                    }
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        dashboard = it.dashboard.copy(
+                            snapshot = result.value,
+                            isLoading = false,
+                            errorMessage = null,
+                        ),
+                    )
                 }
                 is AppResult.Failure -> _uiState.update {
                     it.copy(
@@ -294,8 +291,4 @@ class MainViewModel @Inject constructor(
             .orEmpty()
             .mapValues { (_, messages) -> messages.firstOrNull().orEmpty() }
             .filterValues(String::isNotBlank)
-
-    private companion object {
-        val EXPLICIT_WEB_ONLY_PATHS: Set<String> = emptySet()
-    }
 }

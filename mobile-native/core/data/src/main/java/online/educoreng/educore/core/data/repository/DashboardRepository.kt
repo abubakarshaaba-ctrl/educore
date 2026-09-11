@@ -5,5 +5,5 @@ import online.educoreng.educore.core.model.DashboardSnapshot
 
 interface DashboardRepository {
     suspend fun load(): AppResult<DashboardSnapshot>
-    suspend fun loadProfilePhoto(): AppResult<ByteArray?>
+    suspend fun loadStaffPhoto(): AppResult<ByteArray?>
 }

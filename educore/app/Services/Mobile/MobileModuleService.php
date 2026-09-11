@@ -2,31 +2,36 @@
 
 namespace App\Services\Mobile;
 
-use App\Models\ClassArm;
 use App\Models\User;
 
 class MobileModuleService
 {
+    /**
+     * Modules intentionally available to the native Android app.
+     *
+     * CBT and report/results workspaces are deliberately excluded from the
+     * mobile contract. They remain available on the web application where
+     * applicable, but the native app must neither advertise nor route to them.
+     */
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
         'students' => ['Students', '/students', 'students'],
         'staff' => ['Staff', '/staff', 'staff'],
         'classes' => ['Classes', '/classes', 'classes'],
         'subjects' => ['Subjects', '/subjects', 'subjects'],
+        'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
+        'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
+        // Management-only workspace. Ordinary staff keep the separate
+        // staff-attendance.self entry for their personal attendance actions.
+        'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
-        'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
-        'reports' => ['Report Cards', '/reports', 'reports'],
-        'gradebook' => ['Gradebook & Remarks', '/gradebook', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
-        'transfers' => ['Student Transfers', '/students/transfers', 'transfers'],
-        'portal-accounts' => ['Portal Accounts', '/portal-accounts', 'profile'],
         'messages' => ['Messages', '/messages', 'messages'],
         'notifications.view' => ['Notifications', '/notifications', 'notifications'],
         'calendar.view' => ['Calendar', '/calendar', 'calendar'],
@@ -36,74 +41,19 @@ class MobileModuleService
         'inventory' => ['Inventory', '/inventory', 'inventory'],
         'hostels' => ['Hostels', '/hostels', 'hostels'],
         'analytics' => ['Analytics', '/analytics', 'analytics'],
-        'risk' => ['Risk Flags', '/risk', 'risk'],
         'exports' => ['Exports', '/exports', 'exports'],
-        'cbt' => ['CBT', '/cbt', 'cbt'],
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
     ];
 
-    private const ACCOUNTANT_MODULES = [
-        'dashboard',
-        'staff-attendance.self',
-        'fees',
-        'expenses',
-        'payroll',
-        'reports',
-        'messages',
-        'notifications.view',
-        'calendar.view',
-        'profile',
-    ];
-
-    /** Academic workspaces are invisible to non-academic staff unless a custom
-     * staff permission explicitly grants the workspace. The normal permission
-     * check still runs afterwards, so this guard can only remove access. */
-    private const ACADEMIC_MODULES = [
-        'classes',
-        'subjects',
-        'attendance',
-        'skills',
-        'scores',
-        'reports',
-        'gradebook',
-        'timetable',
-        'cbt',
-        'lesson-planner',
-        'academic-repository',
-    ];
-
-    private const ACADEMIC_ROLE_KEYS = [
+    private const STAFF_ATTENDANCE_MANAGEMENT_ROLES = [
         'admin',
         'principal',
         'head',
         'head_teacher',
-        'head_of_school',
-        'head_of_schools',
         'vice_principal',
         'academic_administrator',
-        'director_of_studies',
-        'hod',
-        'head_of_department',
-        'teacher',
-        'subject_teacher',
-        'class_teacher',
-        'form_teacher',
-    ];
-
-    private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
-        'classes' => ['classes', 'classes.view'],
-        'subjects' => ['subjects', 'subjects.view'],
-        'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
-        'skills' => ['skills', 'skills.rate'],
-        'scores' => ['scores', 'scores.entry'],
-        'reports' => ['reports', 'reports.view'],
-        'gradebook' => ['gradebook', 'reports', 'reports.remarks'],
-        'timetable' => ['timetable', 'timetable.view'],
-        'cbt' => ['cbt', 'cbt-exams', 'examinations'],
-        'lesson-planner' => ['lesson-planner'],
-        'academic-repository' => ['academic-repository'],
     ];
 
     public function forUser(User $user): array
@@ -129,7 +79,6 @@ class MobileModuleService
             return [
                 ['key' => 'parent.dashboard', 'title' => 'Parent Dashboard', 'path' => '/parent/dashboard', 'icon' => 'dashboard'],
                 ['key' => 'parent.fees', 'title' => 'Fees & Payments', 'path' => '/parent/fees', 'icon' => 'fees'],
-                ['key' => 'parent.results', 'title' => 'Results', 'path' => '/parent/results', 'icon' => 'reports'],
                 ['key' => 'parent.attendance', 'title' => 'Attendance', 'path' => '/parent/attendance', 'icon' => 'attendance'],
                 ['key' => 'parent.messages', 'title' => 'Messages', 'path' => '/parent/messages', 'icon' => 'messages'],
                 ['key' => 'parent.notifications', 'title' => 'Notifications', 'path' => '/parent/notifications', 'icon' => 'notifications'],
@@ -140,96 +89,27 @@ class MobileModuleService
         if ($user->isStudent()) {
             return [
                 ['key' => 'student.dashboard', 'title' => 'Student Dashboard', 'path' => '/student/dashboard', 'icon' => 'dashboard'],
-                ['key' => 'student.results', 'title' => 'Results', 'path' => '/student/results', 'icon' => 'reports'],
                 ['key' => 'student.timetable', 'title' => 'Timetable', 'path' => '/student/timetable', 'icon' => 'timetable'],
                 ['key' => 'student.attendance', 'title' => 'Attendance', 'path' => '/student/attendance', 'icon' => 'attendance'],
-                ['key' => 'student.exams', 'title' => 'Examinations', 'path' => '/student/exams', 'icon' => 'cbt'],
-                ['key' => 'subjects', 'title' => 'Subjects', 'path' => '/student/subjects', 'icon' => 'subjects'],
+                ['key' => 'student.subjects', 'title' => 'Subjects', 'path' => '/student/subjects', 'icon' => 'subjects'],
                 ['key' => 'student.messages', 'title' => 'Messages', 'path' => '/student/messages', 'icon' => 'messages'],
                 ['key' => 'student.notifications', 'title' => 'Notifications', 'path' => '/student/notifications', 'icon' => 'notifications'],
                 ['key' => 'student.calendar', 'title' => 'Calendar', 'path' => '/student/calendar', 'icon' => 'calendar'],
             ];
         }
 
-        $roleKey = strtolower((string) $user->roleKey());
-        $isAccountant = $user->isAccountant() || in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
-        $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, [
-            'admin',
-            'principal',
-            'head',
-            'head_teacher',
-            'vice_principal',
-            'academic_administrator',
-        ], true);
-        $isAcademicStaff = $this->isAcademicStaff($user);
-
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff): bool {
-                if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
-                    return false;
-                }
-
-                if (! $isAcademicStaff && in_array($key, self::ACADEMIC_MODULES, true)
-                    && ! $this->hasExplicitAcademicGrant($user, $key)) {
-                    return false;
-                }
-
-                // The mobile operational shell guarantees these administrator tools.
-                // Detailed endpoint authorization remains tenant-scoped server-side.
-                if ($isSchoolAdmin && in_array($key, [
-                    'staff',
-                    'students',
-                    'staff-attendance',
-                    'staff-attendance.self',
-                    'reports',
-                ], true)) {
-                    return true;
-                }
-
-                if ($key === 'staff-attendance' && ! $isSchoolAdmin) {
-                    return false;
-                }
-
+            ->filter(function (array $definition, string $key) use ($user): bool {
                 if ($key === 'academic-repository') {
-                    return $user->isAdmin() || $user->isTeacher() || $this->hasExplicitAcademicGrant($user, $key);
+                    return $user->isAdmin() || $user->isTeacher();
                 }
 
-                if ($key === 'skills') {
-                    if (! $user->canAccessModule('skills')) {
-                        return false;
-                    }
-                    if ($user->canAccessExactModule('students')) {
-                        return true;
-                    }
-
-                    return ClassArm::where('tenant_id', $user->tenant_id)
-                        ->where('form_tutor_id', $user->id)
-                        ->exists();
+                if ($key === 'staff-attendance.admin') {
+                    return $this->canManageStaffAttendance($user);
                 }
 
-                if ($key === 'scores') {
-                    return $user->canAccessExactModule('scores')
-                        || $user->canAccessExactModule('scores.entry');
-                }
-
-                if ($key === 'reports') {
-                    return $user->canAccessExactModule('reports');
-                }
-
-                if ($key === 'gradebook') {
-                    $hasPermission = $user->canAccessExactModule('gradebook')
-                        || $user->canAccessExactModule('reports')
-                        || $user->canAccessModule('reports.remarks');
-                    if (! $hasPermission) {
-                        return false;
-                    }
-                    if ($user->canAccessExactModule('students') || $user->canAccessExactModule('reports')) {
-                        return true;
-                    }
-
-                    return ClassArm::where('tenant_id', $user->tenant_id)
-                        ->where('form_tutor_id', $user->id)
-                        ->exists();
+                if ($key === 'staff-attendance.self') {
+                    return $user->isTenantStaff() && $user->canAccessModule('staff-attendance.self');
                 }
 
                 return $user->canAccessModule($key);
@@ -244,24 +124,13 @@ class MobileModuleService
             ->all();
     }
 
-    private function isAcademicStaff(User $user): bool
+    private function canManageStaffAttendance(User $user): bool
     {
-        $roles = collect($user->getRoleNames())
-            ->map(fn ($role): string => strtolower((string) $role))
-            ->push(strtolower((string) $user->roleKey()))
-            ->unique();
-
-        return $roles->contains(fn (string $role): bool => in_array($role, self::ACADEMIC_ROLE_KEYS, true));
-    }
-
-    private function hasExplicitAcademicGrant(User $user, string $moduleKey): bool
-    {
-        foreach (self::EXPLICIT_ACADEMIC_PERMISSION_KEYS[$moduleKey] ?? [$moduleKey] as $permission) {
-            if ($user->hasGrantedPermission($permission)) {
-                return true;
-            }
-        }
-
-        return false;
+        return (bool) $user->tenant_id
+            && $user->isTenantStaff()
+            && (
+                in_array($user->roleKey(), self::STAFF_ATTENDANCE_MANAGEMENT_ROLES, true)
+                || $user->canManage('staff-attendance')
+            );
     }
 }

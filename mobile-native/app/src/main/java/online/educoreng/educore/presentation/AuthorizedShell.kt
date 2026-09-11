@@ -36,14 +36,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -51,7 +48,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import kotlinx.coroutines.launch
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCoreBottomNavigation
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -92,14 +90,10 @@ internal fun AuthorizedShell(
     val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
     val academicContentViewModel: AcademicContentViewModel = hiltViewModel()
     val academicContentState by academicContentViewModel.uiState.collectAsStateWithLifecycle()
-    val cbtViewModel: CbtViewModel = hiltViewModel()
-    val cbtState by cbtViewModel.uiState.collectAsStateWithLifecycle()
     val operationsViewModel: OperationsViewModel = hiltViewModel()
     val operationsState by operationsViewModel.uiState.collectAsStateWithLifecycle()
     val communicationViewModel: CommunicationViewModel = hiltViewModel()
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
-    val portalAttendanceViewModel: PortalAttendanceViewModel = hiltViewModel()
-    val portalAttendanceState by portalAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeepLink by NotificationDeepLinkStore.pending.collectAsStateWithLifecycle()
     val tabs = remember(session) { ShellNavigationPolicy.tabs(session) }
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -110,27 +104,20 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.CLASS_WORKSPACE -> "Class Workspace"
         currentRoute == NativeRoute.STUDENT_PROFILE -> "Student Profile"
         currentRoute == NativeRoute.ATTENDANCE -> "Student Attendance"
-        currentRoute == NativeRoute.PORTAL_ATTENDANCE -> if (session.user.portal == "parent") "Child Attendance" else "My Attendance"
         currentRoute == NativeRoute.STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
-        currentRoute == NativeRoute.RESULTS -> "Published Results"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
         currentRoute == NativeRoute.LESSON_PLANS -> "Lesson Planner"
         currentRoute == NativeRoute.LESSON_EDITOR -> "Lesson Plan"
-        currentRoute == NativeRoute.CBT_EXAMS -> "CBT Examinations"
-        currentRoute == NativeRoute.CBT_PREFLIGHT -> "Examination Access"
-        currentRoute == NativeRoute.CBT_ATTEMPT -> "Secure Examination"
         currentRoute == NativeRoute.MESSAGE_THREAD -> "Conversation"
         currentRoute == NativeRoute.COMPOSE_MESSAGE -> "New Message"
         currentRoute == NativeRoute.OPERATIONS -> operationsState.workspace?.module?.title ?: "School Operations"
         else -> currentTab.label
     }
-    val secureAttempt = currentRoute == NativeRoute.CBT_ATTEMPT
     val selectedNavigationRoute = if (currentRoute.startsWith("native/communications/")) ShellTabId.INBOX.route else currentRoute
-    val scope = rememberCoroutineScope()
     var confirmLogout by remember { mutableStateOf(false) }
 
     LaunchedEffect(classesState.message) {
@@ -151,12 +138,6 @@ internal fun AuthorizedShell(
             academicContentViewModel.consumeMessage()
         }
     }
-    LaunchedEffect(cbtState.message) {
-        cbtState.message?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            cbtViewModel.consumeMessage()
-        }
-    }
     LaunchedEffect(communicationState.message) {
         communicationState.message?.let { message ->
             snackbarHostState.showSnackbar(message)
@@ -165,8 +146,7 @@ internal fun AuthorizedShell(
     }
     LaunchedEffect(pendingDeepLink, currentRoute, session.modules) {
         val target = pendingDeepLink ?: return@LaunchedEffect
-        if (secureAttempt) return@LaunchedEffect
-        val moduleKeys = session.modules.map(ModuleDescriptor::key).toSet()
+        val moduleKeys = ShellNavigationPolicy.visibleModules(session).map(ModuleDescriptor::key).toSet()
         val handled = when (target.type) {
             "announcement" -> moduleKeys.any { it in NativeRoute.NOTIFICATION_MODULES }.also { allowed ->
                 if (allowed) {
@@ -219,15 +199,10 @@ internal fun AuthorizedShell(
                 Column {
                     EduCoreTopAppBar(
                         title = currentTitle,
-                        subtitle = listOfNotNull(
-                            session.school.name,
-                            session.academicPeriod.termName,
-                        ).joinToString(" · "),
+                        subtitle = listOfNotNull(session.school.name, session.academicPeriod.termName).joinToString(" · "),
                         actions = {
-                            if (!secureAttempt) {
-                                IconButton(onClick = onRefresh, enabled = !busy && online) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh workspace")
-                                }
+                            IconButton(onClick = onRefresh, enabled = !busy && online) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh workspace")
                             }
                         },
                     )
@@ -235,19 +210,17 @@ internal fun AuthorizedShell(
                 }
             },
             bottomBar = {
-                if (width == EduCoreWindowWidth.Compact && !secureAttempt) {
+                if (width == EduCoreWindowWidth.Compact) {
                     EduCoreBottomNavigation(
                         items = navigationItems,
                         selectedKey = selectedNavigationRoute,
-                        onSelect = { item ->
-                            tabs.firstOrNull { it.id.route == item.key }?.let(::navigate)
-                        },
+                        onSelect = { item -> tabs.firstOrNull { it.id.route == item.key }?.let(::navigate) },
                     )
                 }
             },
         ) { contentPadding ->
             Row(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
-                if (width != EduCoreWindowWidth.Compact && !secureAttempt) {
+                if (width != EduCoreWindowWidth.Compact) {
                     NavigationRail(containerColor = EduCoreColors.White) {
                         tabs.forEach { tab ->
                             NavigationRailItem(
@@ -257,7 +230,11 @@ internal fun AuthorizedShell(
                                     val unread = if (tab.id == ShellTabId.INBOX) {
                                         communicationState.unreadNotifications + (communicationState.messagePage?.unreadCount ?: 0)
                                     } else 0
-                                    BadgedBox(badge = { if (unread > 0) Badge { Text(unread.coerceAtMost(99).toString() + if (unread > 99) "+" else "") } }) {
+                                    BadgedBox(badge = {
+                                        if (unread > 0) Badge {
+                                            Text(unread.coerceAtMost(99).toString() + if (unread > 99) "+" else "")
+                                        }
+                                    }) {
                                         Icon(tabIcon(tab.id), contentDescription = tab.label)
                                     }
                                 },
@@ -266,10 +243,7 @@ internal fun AuthorizedShell(
                         }
                     }
                 }
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     NavHost(
                         navController = navController,
                         startDestination = ShellTabId.HOME.route,
@@ -277,78 +251,34 @@ internal fun AuthorizedShell(
                     ) {
                         tabs.forEach { tab ->
                             composable(tab.id.route) {
-                                when {
-                                    tab.id == ShellTabId.INBOX -> {
-                                        LaunchedEffect(Unit) { communicationViewModel.loadAll() }
-                                        CommunicationCenterScreen(
-                                            state = communicationState,
-                                            onBack = { navigate(tabs.first()) },
-                                            onTab = communicationViewModel::selectTab,
-                                            onNoticeFilter = communicationViewModel::setNoticeFilter,
-                                            onMarkRead = communicationViewModel::markRead,
-                                            onMarkAllRead = communicationViewModel::markAllRead,
-                                            onOpenThread = { threadId ->
-                                                communicationViewModel.openThread(threadId)
-                                                navController.navigate("native/communications/messages/$threadId")
-                                            },
-                                            onCompose = {
-                                                communicationViewModel.prepareCompose()
-                                                navController.navigate(NativeRoute.COMPOSE_MESSAGE)
-                                            },
-                                            onRetry = communicationViewModel::loadAll,
-                                        )
-                                    }
-                                    tab.id == ShellTabId.MORE && session.user.portal in setOf("staff", "admin") -> {
-                                        StaffModulesHubScreen(
-                                            session = session,
-                                            width = width,
-                                            onModuleClick = { module ->
-                                                when (module.key) {
-                                                    "classes", "students", "attendance" -> {
-                                                        classesViewModel.loadClasses()
-                                                        navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
-                                                    }
-                                                    "staff-attendance", "staff-attendance.self" -> {
-                                                        classesViewModel.loadStaffAttendance()
-                                                        navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
-                                                    }
-                                                    "scores", "scores.entry" -> {
-                                                        scoresViewModel.loadAssignments()
-                                                        navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
-                                                    }
-                                                    "timetable" -> {
-                                                        scheduleViewModel.load()
-                                                        navController.navigate("native/schedule/0") { launchSingleTop = true }
-                                                    }
-                                                    "academic-repository" -> {
-                                                        academicContentViewModel.loadRepository()
-                                                        navController.navigate(NativeRoute.REPOSITORY) { launchSingleTop = true }
-                                                    }
-                                                    "lesson-planner" -> {
-                                                        academicContentViewModel.loadLessons()
-                                                        navController.navigate(NativeRoute.LESSON_PLANS) { launchSingleTop = true }
-                                                    }
-                                                    in NativeRoute.COMMUNICATION_MODULES -> {
-                                                        communicationViewModel.selectTab(
-                                                            when {
-                                                                module.key.contains("message") -> CommunicationTab.MESSAGES.ordinal
-                                                                module.key.contains("calendar") -> CommunicationTab.EVENTS.ordinal
-                                                                else -> CommunicationTab.NOTICES.ordinal
-                                                            },
-                                                        )
-                                                        navController.navigate(ShellTabId.INBOX.route) { launchSingleTop = true }
-                                                    }
-                                                    in NativeRoute.OPERATIONS_MODULES -> {
-                                                        operationsViewModel.load(module.key)
-                                                        navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
-                                                    }
-                                                    else -> onOpenWebModule(module.path)
-                                                }
-                                            },
-                                            onLogout = { confirmLogout = true },
-                                        )
-                                    }
-                                    else -> ShellTabScreen(
+                                if (tab.id == ShellTabId.INBOX) {
+                                    LaunchedEffect(Unit) { communicationViewModel.loadAll() }
+                                    CommunicationCenterScreen(
+                                        state = communicationState,
+                                        canCreateEvent = session.can("calendar"),
+                                        onBack = { navigate(tabs.first()) },
+                                        onTab = communicationViewModel::selectTab,
+                                        onNoticeFilter = communicationViewModel::setNoticeFilter,
+                                        onMarkRead = communicationViewModel::markRead,
+                                        onMarkAllRead = communicationViewModel::markAllRead,
+                                        onOpenThread = { threadId ->
+                                            communicationViewModel.openThread(threadId)
+                                            navController.navigate("native/communications/messages/$threadId")
+                                        },
+                                        onCompose = {
+                                            communicationViewModel.prepareCompose()
+                                            navController.navigate(NativeRoute.COMPOSE_MESSAGE)
+                                        },
+                                        onEventTitle = communicationViewModel::setEventTitle,
+                                        onEventDescription = communicationViewModel::setEventDescription,
+                                        onEventStartDate = communicationViewModel::setEventStartDate,
+                                        onEventEndDate = communicationViewModel::setEventEndDate,
+                                        onEventAudience = communicationViewModel::setEventAudience,
+                                        onCreateEvent = communicationViewModel::createEvent,
+                                        onRetry = communicationViewModel::loadAll,
+                                    )
+                                } else {
+                                    ShellTabScreen(
                                         tab = tab,
                                         session = session,
                                         width = width,
@@ -360,35 +290,21 @@ internal fun AuthorizedShell(
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
                                                 }
-                                                "student.attendance", "parent.attendance" -> {
-                                                    portalAttendanceViewModel.load(session.user.portal)
-                                                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
-                                                }
                                                 "staff-attendance", "staff-attendance.self" -> {
                                                     classesViewModel.loadStaffAttendance()
                                                     navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
                                                 }
                                                 "scores", "scores.entry" -> {
-                                                    scoresViewModel.loadAssignments()
-                                                    navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                    if (session.can("scores") || session.can("scores.entry")) {
+                                                        scoresViewModel.loadAssignments()
+                                                        navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                    } else {
+                                                        onOpenWebModule(module.path)
+                                                    }
                                                 }
                                                 "timetable", "student.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
-                                                }
-                                                "student.exams" -> {
-                                                    cbtViewModel.loadExams()
-                                                    navController.navigate(NativeRoute.CBT_EXAMS) { launchSingleTop = true }
-                                                }
-                                                "cbt", "cbt-exams", "examinations" -> {
-                                                    tabs.firstOrNull { it.id == ShellTabId.MORE }?.let(::navigate)
-                                                }
-                                                "results", "student.results", "parent.results" -> {
-                                                    scoresViewModel.loadResults()
-                                                    navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
-                                                }
-                                                "report-cards" -> {
-                                                    tabs.firstOrNull { it.id == ShellTabId.MORE }?.let(::navigate)
                                                 }
                                                 "academic-repository" -> {
                                                     academicContentViewModel.loadRepository()
@@ -420,6 +336,7 @@ internal fun AuthorizedShell(
                                 }
                             }
                         }
+
                         composable(NativeRoute.CLASSES) {
                             ClassesListScreen(
                                 state = classesState,
@@ -485,15 +402,6 @@ internal fun AuthorizedShell(
                                 onSubmit = classesViewModel::submitAttendance,
                             )
                         }
-                        composable(NativeRoute.PORTAL_ATTENDANCE) {
-                            PortalAttendanceScreen(
-                                state = portalAttendanceState,
-                                onBack = navController::popBackStack,
-                                onChild = portalAttendanceViewModel::selectChild,
-                                onTerm = portalAttendanceViewModel::selectTerm,
-                                onRetry = portalAttendanceViewModel::retry,
-                            )
-                        }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
                             StaffAttendanceScreen(
                                 state = classesState,
@@ -502,6 +410,9 @@ internal fun AuthorizedShell(
                                 onRefresh = classesViewModel::loadStaffAttendance,
                                 onClockIn = classesViewModel::clockIn,
                                 onClockOut = classesViewModel::clockOut,
+                                onProxySearch = classesViewModel::setProxySearch,
+                                onLoadProxyColleagues = { classesViewModel.loadProxyColleagues() },
+                                onProxyClockIn = classesViewModel::proxyClockIn,
                             )
                         }
                         composable(NativeRoute.SCORES) {
@@ -534,13 +445,6 @@ internal fun AuthorizedShell(
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
                                 onRetry = { scoresViewModel.openSheet(classId, subjectId, termId) },
-                            )
-                        }
-                        composable(NativeRoute.RESULTS) {
-                            PublishedResultsScreen(
-                                state = scoresState,
-                                onBack = navController::popBackStack,
-                                onRetry = { scoresViewModel.loadResults() },
                             )
                         }
                         composable(
@@ -638,56 +542,6 @@ internal fun AuthorizedShell(
                                 onDocumentOpened = academicContentViewModel::consumeDocument,
                             )
                         }
-                        composable(NativeRoute.CBT_EXAMS) {
-                            CbtExamsScreen(
-                                state = cbtState,
-                                onBack = navController::popBackStack,
-                                onOpen = { examId ->
-                                    cbtViewModel.openExam(examId)
-                                    navController.navigate("native/cbt/exams/$examId")
-                                },
-                                onRetry = cbtViewModel::loadExams,
-                            )
-                        }
-                        composable(
-                            route = NativeRoute.CBT_PREFLIGHT,
-                            arguments = listOf(navArgument("examId") { type = NavType.LongType }),
-                        ) { entry ->
-                            val examId = requireNotNull(entry.arguments).getLong("examId")
-                            CbtPreflightScreen(
-                                state = cbtState,
-                                online = online,
-                                onBack = navController::popBackStack,
-                                onBegin = {
-                                    cbtViewModel.begin()
-                                    navController.navigate(NativeRoute.CBT_ATTEMPT)
-                                },
-                                onResume = {
-                                    cbtViewModel.resume()
-                                    navController.navigate(NativeRoute.CBT_ATTEMPT)
-                                },
-                                onRetry = { cbtViewModel.openExam(examId) },
-                            )
-                        }
-                        composable(NativeRoute.CBT_ATTEMPT) {
-                            CbtAttemptScreen(
-                                state = cbtState,
-                                online = online,
-                                onSection = cbtViewModel::selectSection,
-                                onQuestion = cbtViewModel::selectQuestion,
-                                onPrevious = cbtViewModel::previous,
-                                onNext = cbtViewModel::next,
-                                onAnswer = cbtViewModel::answer,
-                                onFlag = cbtViewModel::toggleFlag,
-                                onSubmit = cbtViewModel::submit,
-                                onFocusLost = cbtViewModel::recordFocusLoss,
-                                onRetry = cbtViewModel::refreshAttempt,
-                                onExit = {
-                                    cbtViewModel.loadExams()
-                                    navController.popBackStack(NativeRoute.CBT_EXAMS, false)
-                                },
-                            )
-                        }
                         composable(
                             route = NativeRoute.MESSAGE_THREAD,
                             arguments = listOf(navArgument("threadId") { type = NavType.LongType }),
@@ -765,19 +619,14 @@ private object NativeRoute {
     const val CLASS_WORKSPACE = "native/classes/{classId}"
     const val STUDENT_PROFILE = "native/classes/{classId}/students/{studentId}"
     const val ATTENDANCE = "native/classes/{classId}/attendance"
-    const val PORTAL_ATTENDANCE = "native/portal-attendance"
     const val STAFF_ATTENDANCE = "native/staff-attendance"
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
-    const val RESULTS = "native/results"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
     const val LESSON_PLANS = "native/lesson-plans"
     const val LESSON_EDITOR = "native/lesson-plans/{lessonPlanId}"
-    const val CBT_EXAMS = "native/cbt/exams"
-    const val CBT_PREFLIGHT = "native/cbt/exams/{examId}"
-    const val CBT_ATTEMPT = "native/cbt/attempt"
     const val MESSAGE_THREAD = "native/communications/messages/{threadId}"
     const val COMPOSE_MESSAGE = "native/communications/compose"
     const val OPERATIONS = "native/operations/{module}"
@@ -912,7 +761,7 @@ private fun moduleIcon(module: ModuleDescriptor): ImageVector {
         key.contains("class") -> EduCoreIcons.Classes
         key.contains("subject") || key.contains("curriculum") -> EduCoreIcons.Subjects
         key.contains("attendance") -> EduCoreIcons.Attendance
-        key.contains("score") || key.contains("result") || key.contains("report") -> EduCoreIcons.Scores
+        key.contains("score") -> EduCoreIcons.Scores
         key.contains("timetable") || key.contains("schedule") -> EduCoreIcons.Schedule
         key.contains("lesson") -> EduCoreIcons.LessonPlan
         key.contains("repository") -> EduCoreIcons.Repository

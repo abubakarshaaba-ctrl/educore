@@ -2,20 +2,17 @@ package online.educoreng.educore.presentation
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -25,51 +22,78 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import java.text.DateFormat
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.ceil
+import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
+import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
+import online.educoreng.educore.core.designsystem.component.EduCoreProfileHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreQuickAction
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseSectionCard
-import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
+import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.DashboardItem
 import online.educoreng.educore.core.model.DashboardMetric
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
-private val discardedHomeModules = setOf("curriculum", "academic-cycle", "academic-session", "academic-sessions")
-
-internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeContent(
+internal fun LazyGridScope.dashboardHomeContent(
     session: SessionSnapshot,
     state: DashboardUiState,
     width: EduCoreWindowWidth,
     onModuleClick: (ModuleDescriptor) -> Unit,
     onRetry: () -> Unit,
 ) {
-    item(key = "personal-welcome", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-        DashboardWelcome(session = session, profilePhoto = state.profilePhoto)
+    item(key = "profile", span = { GridItemSpan(maxLineSpan) }) {
+        val photoBitmap = remember(state.staffPhoto) {
+            state.staffPhoto?.let { bytes ->
+                runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+            }
+        }
+        EduCoreProfileHeader(
+            name = "${timeGreeting(session.serverTime)}, ${session.user.name}",
+            role = session.user.roleLabel,
+            identifier = session.user.staffId ?: session.user.email,
+            modifier = Modifier.fillMaxWidth(),
+            avatar = photoBitmap?.let { bitmap ->
+                {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "${session.user.name} profile photo",
+                        modifier = Modifier
+                            .size(EduCoreSizes.LargeAvatar)
+                            .clip(MaterialTheme.shapes.large),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            },
+        )
+    }
+
+    if (session.school.id != null) {
+        item(key = "subscription-status", span = { GridItemSpan(maxLineSpan) }) {
+            SubscriptionCountdownTile(session = session)
+        }
     }
 
     val snapshot = state.snapshot
     if (snapshot == null) {
         val dashboardError = state.errorMessage
-        item(key = "dashboard-state", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+        item(key = "dashboard-state", span = { GridItemSpan(maxLineSpan) }) {
             when {
-                state.isLoading -> EduCoreLoadingState(message = "Loading dashboard")
+                state.isLoading -> EduCoreLoadingState(message = "Loading your workspace")
                 dashboardError != null -> EduCoreErrorState(
                     message = dashboardError,
                     title = "Dashboard unavailable",
@@ -77,7 +101,7 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
                 )
                 else -> EduCoreEmptyState(
                     title = "No dashboard data",
-                    message = "Refresh to try again.",
+                    message = "Refresh to load your current EduCore workspace.",
                     actionLabel = "Refresh",
                     onAction = onRetry,
                 )
@@ -87,22 +111,23 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
     }
 
     if (snapshot.isFromCache) {
-        item(key = "cached-dashboard", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+        item(key = "cached-dashboard", span = { GridItemSpan(maxLineSpan) }) {
             EduCoreWarningBanner(
-                title = "Saved data",
-                message = snapshot.cachedAtEpochMs?.let { "Updated ${formatCacheTime(it)}" } ?: "Live data unavailable.",
+                title = "Saved dashboard",
+                message = snapshot.cachedAtEpochMs?.let { "Last updated ${formatCacheTime(it)}" }
+                    ?: "Live data could not be reached; saved information is shown.",
             )
         }
     }
 
-    val visibleMetrics = snapshot.metrics.filterNot { metric ->
-        (metric.moduleKey ?: metric.key).lowercase() in discardedHomeModules
+    item(key = "overview-header", span = { GridItemSpan(maxLineSpan) }) {
+        EduCoreSectionHeader(
+            title = "Overview",
+            supportingText = "Updated ${sourceTime(snapshot.generatedAt)}",
+        )
     }
-    item(key = "overview-header", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-        EduCoreSectionHeader(title = "Overview")
-    }
-    items(visibleMetrics, key = DashboardMetric::key) { metric ->
-        EduCoreShowcaseStat(
+    items(snapshot.metrics, key = DashboardMetric::key) { metric ->
+        EduCoreMetricCard(
             label = metric.label,
             value = metric.displayValue,
             icon = metricIcon(metric),
@@ -111,136 +136,124 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
         )
     }
 
-    val visibleQuickActions = snapshot.quickActions.filterNot { it.moduleKey.lowercase() in discardedHomeModules }
-    val myAttendance = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
-    val hasMyAttendanceAction = visibleQuickActions.any { it.moduleKey.equals("staff-attendance.self", ignoreCase = true) }
-
-    if (visibleQuickActions.isNotEmpty() || myAttendance != null) {
-        item(key = "actions-header", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-            EduCoreSectionHeader(title = "Quick links")
+    if (snapshot.quickActions.isNotEmpty()) {
+        item(key = "actions-header", span = { GridItemSpan(maxLineSpan) }) {
+            EduCoreSectionHeader(
+                title = "Quick actions",
+                supportingText = "Shortcuts available to your account",
+            )
         }
-        items(visibleQuickActions, key = { "action-${it.moduleKey}" }) { action ->
-            val module = session.modules.firstOrNull { it.key.equals(action.moduleKey, ignoreCase = true) }
-            DashboardDirectoryQuickAction(
-                session = session,
-                module = module,
+        items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
+            val module = session.modules.firstOrNull { it.key == action.moduleKey }
+            EduCoreQuickAction(
                 label = action.title,
                 icon = module?.let(::moduleIconForDashboard) ?: EduCoreIcons.Modules,
-                onFallback = onModuleClick,
+                enabled = module != null,
+                onClick = { module?.let(onModuleClick) },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (myAttendance != null && !hasMyAttendanceAction) {
-            item(key = "action-staff-attendance.self") {
-                EduCoreQuickAction(
-                    label = "My Attendance",
-                    icon = EduCoreIcons.Attendance,
-                    onClick = { onModuleClick(myAttendance) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
     }
 
-    snapshot.sections
-        .filterNot { it.key.lowercase() in discardedHomeModules }
-        .forEach { section ->
-            item(key = "section-${section.key}", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-                DashboardSectionCard(
-                    title = section.title,
-                    items = section.items.filterNot { item ->
-                        item.moduleKey?.lowercase()?.let(discardedHomeModules::contains) == true
-                    },
-                    modules = session.modules,
-                    onModuleClick = onModuleClick,
-                    compact = width == EduCoreWindowWidth.Compact,
-                )
-            }
+    snapshot.sections.forEach { section ->
+        item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
+            DashboardSectionCard(
+                title = section.title,
+                items = section.items,
+                modules = session.modules,
+                onModuleClick = onModuleClick,
+                compact = width == EduCoreWindowWidth.Compact,
+            )
         }
+    }
 }
 
 @Composable
-private fun DashboardWelcome(session: SessionSnapshot, profilePhoto: ByteArray?) {
-    val firstName = session.user.name.trim().substringBefore(' ').ifBlank { "there" }
-    val serverOffset = session.serverTime?.let { value -> runCatching { OffsetDateTime.parse(value).offset }.getOrNull() }
-    val now = serverOffset?.let { offset -> OffsetDateTime.now(offset) } ?: OffsetDateTime.now()
-    val greeting = when (now.hour) {
-        in 0..11 -> "Good morning"
-        in 12..16 -> "Good afternoon"
-        else -> "Good evening"
+private fun SubscriptionCountdownTile(session: SessionSnapshot) {
+    val access = session.access
+    val state = access.state.lowercase()
+    val expiryEpochMs = parseIsoEpoch(access.expiresAt)
+    val referenceEpochMs = parseIsoEpoch(session.serverTime) ?: System.currentTimeMillis()
+    val remainingMs = expiryEpochMs?.minus(referenceEpochMs)
+    val dayMs = 86_400_000.0
+
+    val statusLabel = when (state) {
+        "free" -> "Free plan"
+        "expiring_soon" -> "Expiring soon"
+        "grace" -> "Grace period"
+        "expired" -> "Expired"
+        "suspended" -> "Suspended"
+        "inactive", "missing" -> "Unavailable"
+        else -> "Active"
     }
-    val date = now.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
-    val academic = listOfNotNull(session.academicPeriod.sessionName, session.academicPeriod.termName)
-        .filter(String::isNotBlank)
-        .joinToString(" · ")
-    val bitmap = remember(profilePhoto) {
-        profilePhoto?.takeIf { it.isNotEmpty() }?.let { bytes ->
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+
+    val tone = when (state) {
+        "free", "allowed", "trial" -> EduCoreTone.Success
+        "expiring_soon", "grace" -> EduCoreTone.Warning
+        "expired", "suspended", "inactive", "missing" -> EduCoreTone.Danger
+        else -> EduCoreTone.Neutral
+    }
+
+    val countdown = when {
+        state == "free" -> "No expiry"
+        expiryEpochMs == null -> statusLabel
+        state == "grace" && remainingMs != null && remainingMs > 0 -> {
+            val days = ceil(remainingMs / dayMs).toLong().coerceAtLeast(1L)
+            if (days == 1L) "1 day grace remaining" else "$days days grace remaining"
         }
+        remainingMs != null && remainingMs > 0 -> {
+            val days = ceil(remainingMs / dayMs).toLong()
+            if (days == 1L) "1 day remaining" else "$days days remaining"
+        }
+        remainingMs != null && remainingMs == 0L -> if (state == "grace") "Grace ends today" else "Expires today"
+        else -> "Expired"
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = EduCoreColors.Navy900,
-        shadowElevation = 3.dp,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(66.dp)
-                    .clip(CircleShape)
-                    .background(EduCoreColors.Gold400),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = "${session.user.name} profile photo",
-                        modifier = Modifier.size(66.dp).clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Text(
-                        text = session.user.name.trim().take(1).uppercase().ifBlank { "U" },
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = EduCoreColors.Navy900,
-                    )
-                }
-            }
+    val dateLine = expiryEpochMs?.let {
+        val label = if (state == "grace") "Grace ends" else "Expiry date"
+        "$label: ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(it))}"
+    } ?: when (state) {
+        "free" -> "Your school currently has no subscription expiry date."
+        else -> "Subscription expiry date is not available."
+    }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xxs),
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                verticalAlignment = Alignment.Top,
             ) {
-                Text(
-                    text = "$greeting, $firstName",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = EduCoreColors.White,
-                )
-                Text(
-                    text = session.user.roleLabel.ifBlank { "Staff" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = EduCoreColors.Gold400,
-                )
-                Text(
-                    text = listOf(date, academic).filter(String::isNotBlank).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.White.copy(alpha = 0.78f),
-                )
-                if (session.school.name.isNotBlank()) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                ) {
                     Text(
-                        text = session.school.name,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = EduCoreColors.White.copy(alpha = 0.62f),
+                        text = "Subscription status",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                    Text(
+                        text = countdown,
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                 }
+                EduCoreStatusBadge(statusLabel, tone)
+            }
+            Text(
+                text = dateLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Muted500,
+            )
+            if (access.message.isNotBlank() && state in setOf("expiring_soon", "grace", "expired")) {
+                Text(
+                    text = access.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
             }
         }
     }
@@ -254,15 +267,14 @@ private fun DashboardSectionCard(
     onModuleClick: (ModuleDescriptor) -> Unit,
     compact: Boolean,
 ) {
-    if (items.isEmpty()) return
-    EduCoreShowcaseSectionCard {
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         EduCoreSectionHeader(title = title, actionLabel = null)
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = EduCoreSpacing.Sm),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             items.forEachIndexed { index, item ->
-                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key.equals(key, true) } }
+                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key == key } }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
@@ -273,7 +285,7 @@ private fun DashboardSectionCard(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.title, style = MaterialTheme.typography.titleSmall, color = EduCoreColors.Ink900)
+                            Text(item.title, style = MaterialTheme.typography.titleSmall)
                             item.subtitle?.let {
                                 Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
                             }
@@ -322,11 +334,10 @@ private fun moduleIconForDashboard(module: ModuleDescriptor): ImageVector {
     val key = module.key.lowercase()
     return when {
         key.contains("student") -> EduCoreIcons.Students
-        key.contains("staff") -> EduCoreIcons.Teacher
         key.contains("class") -> EduCoreIcons.Classes
         key.contains("subject") || key.contains("curriculum") -> EduCoreIcons.Subjects
         key.contains("attendance") -> EduCoreIcons.Attendance
-        key.contains("score") || key.contains("result") || key.contains("report") -> EduCoreIcons.Scores
+        key.contains("score") -> EduCoreIcons.Scores
         key.contains("timetable") || key.contains("schedule") -> EduCoreIcons.Schedule
         key.contains("lesson") -> EduCoreIcons.LessonPlan
         key.contains("repository") -> EduCoreIcons.Repository
@@ -338,19 +349,52 @@ private fun moduleIconForDashboard(module: ModuleDescriptor): ImageVector {
 }
 
 private fun String.toEduCoreTone(): EduCoreTone = when (lowercase()) {
-    "brand", "accent", "purple" -> EduCoreTone.Brand
+    "brand" -> EduCoreTone.Brand
+    "accent" -> EduCoreTone.Accent
     "success" -> EduCoreTone.Success
     "warning" -> EduCoreTone.Warning
     "danger" -> EduCoreTone.Danger
     "info" -> EduCoreTone.Info
+    "purple" -> EduCoreTone.Purple
     else -> EduCoreTone.Neutral
 }
 
 private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
-    "active", "published", "present", "paid", "complete", "completed" -> EduCoreTone.Success
-    "inactive", "failed", "suspended", "attention", "absent" -> EduCoreTone.Danger
+    "active", "published", "present", "paid" -> EduCoreTone.Success
+    "inactive", "failed", "suspended", "attention" -> EduCoreTone.Danger
     "pending", "review", "duty", "late" -> EduCoreTone.Warning
     else -> EduCoreTone.Neutral
+}
+
+private fun timeGreeting(serverTime: String?): String {
+    val calendar = Calendar.getInstance()
+    parseIsoEpoch(serverTime)?.let { calendar.timeInMillis = it }
+    return when (calendar.get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        else -> "Good evening"
+    }
+}
+
+private fun parseIsoEpoch(value: String?): Long? {
+    if (value.isNullOrBlank()) return null
+
+    val withoutFraction = value.trim().replace(
+        Regex("\\.\\d+(?=(Z|[+-]\\d{2}:\\d{2})$)"),
+        "",
+    )
+    val normalized = when {
+        withoutFraction.endsWith("Z") -> withoutFraction.dropLast(1) + "+0000"
+        Regex("[+-]\\d{2}:\\d{2}$").containsMatchIn(withoutFraction) ->
+            withoutFraction.dropLast(3) + withoutFraction.takeLast(2)
+        else -> withoutFraction
+    }
+
+    return runCatching {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US).apply {
+            isLenient = false
+        }.parse(normalized)?.time
+    }.getOrNull()
 }
 
 private fun formatCacheTime(epochMs: Long): String =

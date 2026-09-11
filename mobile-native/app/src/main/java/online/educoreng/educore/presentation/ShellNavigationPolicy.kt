@@ -27,21 +27,31 @@ enum class ModuleGroup(val label: String) {
 object ShellNavigationPolicy {
     fun tabs(session: SessionSnapshot): List<ShellTab> {
         val portal = session.user.portal
-        val role = session.user.roleKey
+        val role = session.user.roleKey.lowercase()
         val management = portal == "admin" || portal == "platform"
+        val modules = visibleModules(session)
+        val hasAcademics = modules.any { groupFor(it) == ModuleGroup.ACADEMICS }
+        val hasSchedule = modules.any { groupFor(it) == ModuleGroup.SCHEDULE }
+        val hasOperations = modules.any { groupFor(it) == ModuleGroup.OPERATIONS }
+        val financeRole = role in FINANCE_ROLES
 
         val primaryLabel = when {
             portal == "parent" -> "Children"
             portal == "platform" -> "Schools"
-            role.contains("teacher") || portal in setOf("staff", "admin") -> "Classes"
-            else -> "Academics"
+            financeRole -> "Finance"
+            hasAcademics -> if (role.contains("teacher")) "Classes" else "Academics"
+            hasOperations -> "Operations"
+            else -> "Workspace"
         }
         val secondaryLabel = when {
             management -> "Operations"
             portal == "parent" -> "Academics"
-            else -> "Timetable"
+            financeRole -> "Operations"
+            hasSchedule -> "Timetable"
+            hasOperations -> "Operations"
+            else -> "Account"
         }
-        val inboxLabel = if (visibleModules(session).any { it.key.contains("message") || it.key.contains("support") }) {
+        val inboxLabel = if (modules.any { it.key.contains("message") || it.key.contains("support") }) {
             "Inbox"
         } else {
             "Notices"
@@ -57,85 +67,41 @@ object ShellNavigationPolicy {
     }
 
     fun modulesFor(tab: ShellTabId, session: SessionSnapshot): List<ModuleDescriptor> {
-        val modules = visibleModules(session)
-        val grouped = modules.groupBy(::groupFor)
+        val visible = visibleModules(session)
+        val grouped = visible.groupBy(::groupFor)
+        val role = session.user.roleKey.lowercase()
+        val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
+        val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
+        val financeRole = role in FINANCE_ROLES
+
         return when (tab) {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal) {
-                "platform" -> modules.filter {
+                "platform" -> visible.filter {
                     it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
                 }
-                "parent" -> modules.filter {
-                    it.key.contains("result") || it.key.contains("attendance")
+                "parent" -> visible.filter { it.key.contains("attendance") }
+                else -> when {
+                    financeRole -> visible.filter { it.key in FINANCE_KEYS }
+                    hasAcademics -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+                    else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 }
-                "staff", "admin" -> modules.filter { it.key.lowercase() in CLASS_WORKSPACE_ENTRY_KEYS }
-                else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
                 "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
-                "parent" -> modules.filter {
+                "parent" -> visible.filter {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
-                else -> grouped[ModuleGroup.SCHEDULE].orEmpty()
-            }
-            ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
-            ShellTabId.MORE -> {
-                val alreadyPlaced = (
-                    modulesFor(ShellTabId.PRIMARY, session) +
-                        modulesFor(ShellTabId.SECONDARY, session) +
-                        modulesFor(ShellTabId.INBOX, session)
-                    ).map { canonicalKey(it.key) }.toSet()
-                modules.filterNot { canonicalKey(it.key) in alreadyPlaced }
-            }
-        }
-    }
-
-    /**
-     * Server bootstrap remains authoritative. This client-side layer is a
-     * fail-closed safety net for stale bootstrap payloads and removes duplicate
-     * aliases from navigation; it never grants a module that the server omitted.
-     *
-     * School administrators use the same operational shell as staff. Their
-     * native scope is deliberately limited to day-to-day school operations;
-     * full school configuration remains web-only.
-     */
-    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
-        val roleKeys = buildSet {
-            add(session.user.roleKey.lowercase())
-            session.user.roles.mapTo(this) { it.lowercase() }
-        }
-        val portal = session.user.portal.lowercase()
-        val isAccountant = roleKeys.any { it in ACCOUNTANT_ROLE_KEYS }
-
-        var filtered = session.modules.filterNot { module ->
-            isAccountant && module.key.lowercase() in ACCOUNTANT_DENIED_KEYS
-        }
-
-        if (portal == "admin") {
-            filtered = filtered.filter { module -> adminOperationalModule(module.key) }
-        }
-
-        val hasSelfAttendance = filtered.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
-        val attendanceAware = if (portal == "admin") {
-            // Administrators need both their own attendance and the all-staff report.
-            filtered
-        } else {
-            filtered.filterNot { module ->
-                hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
-            }
-        }
-
-        return attendanceAware
-            .groupBy { module -> dedupeKey(module.key, portal) }
-            .mapNotNull { (_, candidates) ->
-                if (portal == "admin") {
-                    candidates.firstOrNull()
-                } else {
-                    candidates.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
-                        ?: candidates.firstOrNull()
+                else -> when {
+                    financeRole -> grouped[ModuleGroup.OPERATIONS].orEmpty().filterNot { it.key in FINANCE_KEYS }
+                    hasSchedule -> grouped[ModuleGroup.SCHEDULE].orEmpty()
+                    else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 }
             }
+            ShellTabId.INBOX -> grouped[ModuleGroup.COMMUNICATION].orEmpty()
+            ShellTabId.MORE -> visible
+        }
     }
 
     fun groupedModules(session: SessionSnapshot): Map<ModuleGroup, List<ModuleDescriptor>> =
@@ -143,6 +109,27 @@ object ShellNavigationPolicy {
             val modules = visibleModules(session).filter { groupFor(it) == group }
             if (modules.isEmpty()) null else group to modules
         }.toMap()
+
+    /**
+     * Native-app visibility is intentionally stricter than the web permission
+     * catalogue. This protects upgraded/offline sessions that may still contain
+     * stale module descriptors from older bootstrap responses.
+     */
+    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> =
+        session.modules.filterNot { module -> isRemovedFromMobile(module.key) }
+
+    fun isRemovedFromMobile(moduleKey: String): Boolean {
+        val key = moduleKey.lowercase()
+        return key == "cbt" ||
+            key == "cbt-exams" ||
+            key == "examinations" ||
+            key == "student.exams" ||
+            key == "reports" ||
+            key == "report-cards" ||
+            key == "results" ||
+            key == "student.results" ||
+            key == "parent.results"
+    }
 
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
         val key = module.key.lowercase()
@@ -155,90 +142,29 @@ object ShellNavigationPolicy {
         }
     }
 
-    private fun dedupeKey(key: String, portal: String): String {
-        val normalized = key.lowercase()
-        if (portal == "admin" && normalized in setOf("staff-attendance", "staff-attendance.self")) {
-            return normalized
-        }
-        return canonicalKey(normalized)
-    }
-
-    private fun canonicalKey(key: String): String = when (key.lowercase()) {
-        "staff-attendance.self" -> "staff-attendance"
-        "report-cards", "results" -> "reports"
-        "cbt-exams", "examinations" -> "cbt"
-        else -> key.lowercase()
-    }
-
-    private fun adminOperationalModule(key: String): Boolean {
-        val normalized = key.lowercase()
-        return normalized in ADMIN_OPERATIONAL_KEYS ||
-            ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
-    }
-
-    private val CLASS_WORKSPACE_ENTRY_KEYS = setOf(
-        "classes",
-        "students",
+    private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports")
+    private val ACADEMIC_KEYS = listOf(
+        "student",
+        "class",
+        "subject",
+        "curriculum",
         "attendance",
-        "scores",
-        "scores.entry",
-        "lesson-planner",
-        "academic-repository",
+        "score",
+        "lesson",
+        "repository",
+        "exam",
     )
-
-    private val ADMIN_OPERATIONAL_KEYS = setOf(
-        "staff",
-        "staff-directory",
-        "classes",
-        "students",
-        "attendance",
-        "student-attendance",
-        "scores",
-        "scores.entry",
-        "subjects",
-        "timetable",
-        "reports",
-        "report-cards",
-        "results",
-        "staff-attendance",
-        "staff-attendance.self",
-        "cbt",
-        "cbt-exams",
-        "examinations",
-        "lesson-planner",
-        "academic-repository",
-        "messages",
-        "announcements",
-        "notifications.view",
-        "calendar.view",
-        "profile",
-    )
-
-    private val ADMIN_OPERATIONAL_PREFIXES = listOf(
+    private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
+    private val COMMUNICATION_KEYS = listOf(
         "message",
+        "notice",
         "notification",
         "announcement",
         "calendar",
         "event",
-    )
-
-    private val ACCOUNTANT_ROLE_KEYS = setOf("accountant", "accounts", "finance", "bursar")
-    private val ACCOUNTANT_DENIED_KEYS = setOf(
-        "attendance",
-        "student-attendance",
-        "scores",
-        "scores.entry",
-        "subjects",
-    )
-
-    private val ACADEMIC_KEYS = listOf(
-        "student", "class", "subject", "attendance", "score",
-        "report", "result", "lesson", "repository", "cbt", "exam",
-    )
-    private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
-    private val COMMUNICATION_KEYS = listOf(
-        "message", "notice", "notification", "announcement", "calendar",
-        "event", "support", "broadcast",
+        "support",
+        "broadcast",
     )
     private val ACCOUNT_KEYS = listOf("profile", "setting", "help")
 }

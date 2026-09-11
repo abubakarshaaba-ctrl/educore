@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,47 +80,6 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.SessionSnapshot
-
-@Composable
-internal fun StartupScreen() {
-    Column(
-        modifier = Modifier.fillMaxSize().background(EduCoreColors.Navy900),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(82.dp),
-            shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.07f),
-            shadowElevation = 2.dp,
-        ) {
-            androidx.compose.foundation.Image(
-                painter = painterResource(R.drawable.ic_educore_mark),
-                contentDescription = null,
-                modifier = Modifier.padding(7.dp),
-            )
-        }
-        Spacer(Modifier.height(EduCoreSpacing.Lg))
-        EduCoreWordmark(style = MaterialTheme.typography.displaySmall)
-        Text(text = "School ERP", color = EduCoreColors.Gold400, style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(EduCoreSpacing.Xxl))
-        CircularProgressIndicator(color = EduCoreColors.Gold400, strokeWidth = 3.dp)
-        Spacer(Modifier.height(EduCoreSpacing.Md))
-        Text(
-            text = "Preparing your secure workspace",
-            color = Color.White.copy(alpha = 0.76f),
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-@Composable
-private fun EduCoreWordmark(style: androidx.compose.ui.text.TextStyle) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = "Edu", color = Color.White, style = style)
-        Text(text = "Core", color = EduCoreColors.Gold400, style = style)
-    }
-}
 
 @Composable
 internal fun AuthenticationScreen(
@@ -210,28 +168,29 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
                 modifier = Modifier.size(if (expanded) 86.dp else 66.dp),
                 shape = RoundedCornerShape(if (expanded) 24.dp else 20.dp),
                 color = Color.White.copy(alpha = 0.08f),
-                shadowElevation = 2.dp,
+                border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f)),
             ) {
                 androidx.compose.foundation.Image(
                     painter = painterResource(R.drawable.ic_educore_mark),
                     contentDescription = "EduCore",
-                    modifier = Modifier.padding(if (expanded) 9.dp else 7.dp),
+                    modifier = Modifier.padding(if (expanded) 10.dp else 8.dp),
                 )
             }
             Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Md))
             Row(verticalAlignment = Alignment.Bottom) {
-                EduCoreWordmark(
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontSize = if (expanded) 34.sp else 30.sp,
-                        lineHeight = if (expanded) 40.sp else 36.sp,
-                    ),
+                val wordmarkStyle = MaterialTheme.typography.displaySmall.copy(
+                    fontSize = if (expanded) 34.sp else 30.sp,
+                    lineHeight = if (expanded) 40.sp else 36.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.width(EduCoreSpacing.Sm))
+                Text("Edu", color = Color.White, style = wordmarkStyle)
+                Text("Core", color = EduCoreColors.Gold400, style = wordmarkStyle)
+                Spacer(Modifier.width(EduCoreSpacing.Xs))
                 Text(
                     "ERP",
                     color = EduCoreColors.Gold400,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(bottom = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(bottom = 5.dp),
                 )
             }
             Spacer(Modifier.height(EduCoreSpacing.Sm))
@@ -286,8 +245,8 @@ private fun BrandFeature(icon: androidx.compose.ui.graphics.vector.ImageVector, 
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White.copy(alpha = 0.075f))
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.07f))
+            .border(0.6.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(14.dp))
             .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -308,10 +267,10 @@ private fun AuthCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, EduCoreColors.Line200),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+        border = BorderStroke(0.75.dp, EduCoreColors.Line200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
         BoxWithConstraints {
             val contentPadding = if (maxWidth < 380.dp) EduCoreSpacing.Xl else EduCoreSpacing.Xxl
@@ -422,8 +381,8 @@ private fun AuthEyebrow(text: String) {
         text,
         color = EduCoreColors.Gold700,
         style = MaterialTheme.typography.labelMedium.copy(
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.0.sp,
         ),
     )
 }

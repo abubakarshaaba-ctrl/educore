@@ -11,6 +11,8 @@ import online.educoreng.educore.core.network.dto.ClassDetailResponseDto
 import online.educoreng.educore.core.network.dto.ClassListResponseDto
 import online.educoreng.educore.core.network.dto.ClassStudentsResponseDto
 import online.educoreng.educore.core.network.dto.ClockInRequestDto
+import online.educoreng.educore.core.network.dto.ProxyAttendanceColleaguesResponseDto
+import online.educoreng.educore.core.network.dto.ProxyClockInRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.StaffAttendanceResponseDto
@@ -40,6 +42,8 @@ import online.educoreng.educore.core.network.dto.CbtSaveRequestDto
 import online.educoreng.educore.core.network.dto.CbtSubmitRequestDto
 import online.educoreng.educore.core.network.dto.OperationsResponseDto
 import online.educoreng.educore.core.network.dto.EventsResponseDto
+import online.educoreng.educore.core.network.dto.CreateEventRequestDto
+import online.educoreng.educore.core.network.dto.CreateEventResponseDto
 import online.educoreng.educore.core.network.dto.MessageMutationResponseDto
 import online.educoreng.educore.core.network.dto.MessageRecipientsResponseDto
 import online.educoreng.educore.core.network.dto.MessagesResponseDto
@@ -74,12 +78,12 @@ interface EduCoreApi {
     @GET("bootstrap")
     suspend fun bootstrap(): BootstrapResponseDto
 
-    @Streaming
-    @GET("id-card/photo-file")
-    suspend fun profilePhoto(): ResponseBody
-
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto
+
+    @Streaming
+    @GET("id-card/photo-file")
+    suspend fun staffPhoto(): ResponseBody
 
     @POST("portal/session")
     suspend fun portalSession(@Body request: PortalSessionRequestDto): PortalSessionResponseDto
@@ -108,12 +112,6 @@ interface EduCoreApi {
         @Path("student") studentId: Long,
     ): StudentProfileResponseDto
 
-    @GET("classes/{classArm}/students/{student}/results")
-    suspend fun staffStudentResults(
-        @Path("classArm") classArmId: Long,
-        @Path("student") studentId: Long,
-    ): PublishedResultsResponseDto
-
     @GET("classes/{classArm}/attendance")
     suspend fun attendanceSheet(
         @Path("classArm") classArmId: Long,
@@ -134,6 +132,14 @@ interface EduCoreApi {
 
     @POST("staff-attendance/clock-out")
     suspend fun clockOut(): MessageDto
+
+    @GET("staff-attendance/colleagues")
+    suspend fun proxyAttendanceColleagues(
+        @Query("q") search: String? = null,
+    ): ProxyAttendanceColleaguesResponseDto
+
+    @POST("staff-attendance/proxy-clock-in")
+    suspend fun proxyClockIn(@Body request: ProxyClockInRequestDto): MessageDto
 
     @GET("scores/teaching")
     suspend fun scoreAssignments(): ScoreAssignmentsResponseDto
@@ -176,6 +182,9 @@ interface EduCoreApi {
 
     @GET("calendar/events")
     suspend fun communicationEvents(@Query("from") from: String? = null, @Query("to") to: String? = null): EventsResponseDto
+
+    @POST("calendar/events")
+    suspend fun createCommunicationEvent(@Body request: CreateEventRequestDto): CreateEventResponseDto
 
     @GET("messages")
     suspend fun messages(@Query("per_page") perPage: Int = 50): MessagesResponseDto

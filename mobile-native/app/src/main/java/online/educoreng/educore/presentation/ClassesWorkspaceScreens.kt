@@ -3,10 +3,12 @@ package online.educoreng.educore.presentation
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,7 +33,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Schedule
@@ -48,21 +49,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import online.educoreng.educore.PortraitCaptureActivity
+import java.io.ByteArrayOutputStream
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -75,7 +76,6 @@ import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
-import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
@@ -83,10 +83,13 @@ import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+import online.educoreng.educore.core.model.AttendanceSheet
 import online.educoreng.educore.core.model.AttendanceStatus
-import online.educoreng.educore.core.model.ClassSummary
-import online.educoreng.educore.core.model.StudentSummary
 import online.educoreng.educore.core.model.SyncState
+import online.educoreng.educore.core.model.ClassSummary
+import online.educoreng.educore.PortraitCaptureActivity
+import online.educoreng.educore.core.model.ProxyAttendanceColleague
+import online.educoreng.educore.core.model.StudentSummary
 
 @Composable
 internal fun ClassesListScreen(
@@ -97,11 +100,12 @@ internal fun ClassesListScreen(
     onRetry: () -> Unit,
 ) {
     if (state.isLoadingClasses && state.catalogue == null) {
-        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading classes")
+        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading your classes")
         return
     }
-    if (state.catalogue == null && state.errorMessage != null) {
-        EduCoreErrorState(state.errorMessage, Modifier.fillMaxSize(), onRetry = onRetry)
+    val catalogueError = state.errorMessage
+    if (state.catalogue == null && catalogueError != null) {
+        EduCoreErrorState(catalogueError, Modifier.fillMaxSize(), onRetry = onRetry)
         return
     }
     val catalogue = state.catalogue ?: return
@@ -121,20 +125,31 @@ internal fun ClassesListScreen(
     }
 
     Column(Modifier.fillMaxSize().padding(eduCoreScreenPadding())) {
-        EduCoreSearchBar(
-            value = state.classSearch,
-            onValueChange = onSearch,
-            placeholder = "Search class or subject",
+        Text("My classes", style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Ink900)
+        Text(
+            "Classes available from your current school assignment",
+            style = MaterialTheme.typography.bodyMedium,
+            color = EduCoreColors.Slate600,
         )
         Spacer(Modifier.height(EduCoreSpacing.Md))
         if (catalogue.isFromCache) {
-            EduCoreWarningBanner("Showing saved class data.")
+            EduCoreWarningBanner("Showing the most recent class list saved on this device.")
             Spacer(Modifier.height(EduCoreSpacing.Md))
         }
+        EduCoreSearchBar(
+            value = state.classSearch,
+            onValueChange = onSearch,
+            placeholder = "Search class, subject or form tutor",
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
         if (classes.isEmpty()) {
             EduCoreEmptyState(
-                title = if (state.classSearch.isBlank()) "No classes" else "No classes found",
-                message = if (state.classSearch.isBlank()) "No class is assigned to this account." else "Try another search.",
+                title = if (state.classSearch.isBlank()) "No assigned classes" else "No classes found",
+                message = if (state.classSearch.isBlank()) {
+                    "Your school has not assigned a class workspace to this account."
+                } else {
+                    "Try another class, subject or teacher name."
+                },
             )
         } else {
             LazyVerticalGrid(
@@ -159,24 +174,41 @@ private fun ClassWorkspaceCard(classSummary: ClassSummary, onOpenClass: (Long) -
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
     ) {
-        Row(
+        Column(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
-            Surface(
-                modifier = Modifier.size(42.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = EduCoreColors.Info100,
-                contentColor = EduCoreColors.Navy900,
-            ) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.School, null, Modifier.size(20.dp)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = EduCoreColors.Info100,
+                    contentColor = EduCoreColors.Navy900,
+                ) {
+                    Icon(Icons.Default.School, null, Modifier.padding(EduCoreSpacing.Md))
+                }
+                Spacer(Modifier.width(EduCoreSpacing.Md))
+                Column(Modifier.weight(1f)) {
+                    Text(classSummary.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        classSummary.roles.joinToString(" · ") { it.replace('_', ' ').roleLabel() },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                }
+                EduCoreStatusBadge("${classSummary.studentCount} students", EduCoreTone.Info)
             }
-            Column(Modifier.weight(1f)) {
-                Text(classSummary.name, style = MaterialTheme.typography.titleMedium)
-                Text("${classSummary.studentCount} students", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+            if (classSummary.subjects.isNotEmpty()) {
+                Text(
+                    classSummary.subjects.joinToString(" • ") { it.name },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EduCoreColors.Slate700,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = "Open class", tint = EduCoreColors.Slate600)
+            classSummary.formTutorName?.let {
+                Text("Form tutor: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+            }
         }
     }
 }
@@ -195,76 +227,73 @@ internal fun ClassWorkspaceScreen(
 ) {
     val workspace = state.classStudents
     if (state.isLoadingWorkspace && workspace == null) {
-        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading class")
+        EduCoreLoadingState(Modifier.fillMaxSize(), "Opening class workspace")
         return
     }
     if (workspace == null) {
-        EduCoreErrorState(state.errorMessage ?: "Class unavailable.", Modifier.fillMaxSize(), onRetry = onRetry)
+        EduCoreErrorState(state.errorMessage ?: "Class workspace is unavailable.", Modifier.fillMaxSize(), onRetry = onRetry)
         return
     }
-    val classSummary = workspace.classSummary
-    val isFormTutor = classSummary.roles.any { it.equals("form_tutor", ignoreCase = true) }
     val filteredStudents = remember(workspace.students, state.studentSearch) {
         workspace.students.filter { student ->
-            state.studentSearch.isBlank() || student.name.contains(state.studentSearch, true) || student.admissionNumber.contains(state.studentSearch, true)
+            state.studentSearch.isBlank() || student.name.contains(state.studentSearch, true) ||
+                student.admissionNumber.contains(state.studentSearch, true)
         }
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().imePadding().background(EduCoreColors.Page50),
+        modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { EduCorePageHeader(title = classSummary.name, onBack = onBack) }
-        if (workspace.isFromCache) item { EduCoreWarningBanner("Showing saved student data.") }
+        item { FeatureBackHeader("Class workspace", workspace.classSummary.name, onBack) }
+        if (workspace.isFromCache) item {
+            EduCoreWarningBanner("Showing students from the most recent device cache.")
+        }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                EduCoreMetricCard("Students", classSummary.studentCount.toString(), Modifier.weight(1f), Icons.Default.Groups)
-                EduCoreMetricCard("Subjects", classSummary.subjects.size.toString(), Modifier.weight(1f), Icons.Default.School)
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+                EduCoreMetricCard(
+                    label = "Students",
+                    value = workspace.classSummary.studentCount.toString(),
+                    icon = Icons.Default.Groups,
+                    modifier = Modifier.weight(1f),
+                )
+                EduCoreMetricCard(
+                    label = "Subjects",
+                    value = workspace.classSummary.subjects.size.toString(),
+                    icon = Icons.Default.School,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
-        if (classSummary.capabilities.markAttendance || isFormTutor) {
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    if (classSummary.capabilities.markAttendance) {
-                        EduCorePrimaryButton(
-                            text = "Attendance",
-                            onClick = { onOpenAttendance(classSummary.id) },
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
-                        )
-                    }
-                    if (isFormTutor) {
-                        EduCoreSecondaryButton(
-                            text = "Timetable",
-                            onClick = { onOpenSchedule(classSummary.id) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+        if (workspace.classSummary.capabilities.markAttendance) item {
+            EduCorePrimaryButton(
+                text = "Take attendance",
+                onClick = { onOpenAttendance(workspace.classSummary.id) },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.CheckCircle, null) },
+            )
+        }
+        if (workspace.classSummary.capabilities.enterScores && workspace.classSummary.subjects.isNotEmpty()) item {
+            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                Text("Score entry", style = MaterialTheme.typography.titleMedium)
+                workspace.classSummary.subjects.forEach { subject ->
+                    EduCoreSecondaryButton(
+                        text = "Open ${subject.name} score sheet",
+                        onClick = { onOpenScores(workspace.classSummary.id, subject.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
-        if (classSummary.capabilities.enterScores && classSummary.subjects.isNotEmpty()) {
-            item { EduCoreSectionHeader(title = "Score entry") }
-            items(classSummary.subjects, key = { "score-subject-${it.id}" }) { subject ->
-                Card(
-                    onClick = { onOpenScores(classSummary.id, subject.id) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-                    border = BorderStroke(1.dp, EduCoreColors.Line200),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(subject.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Open score sheet", tint = EduCoreColors.Slate600)
-                    }
-                }
-            }
+        if (workspace.classSummary.roles.contains("form_tutor")) item {
+            EduCoreSecondaryButton(
+                text = "Open class timetable",
+                onClick = { onOpenSchedule(workspace.classSummary.id) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        item { EduCoreSectionHeader(title = "Students") }
         item {
             EduCoreSearchBar(
                 value = state.studentSearch,
@@ -273,15 +302,17 @@ internal fun ClassWorkspaceScreen(
             )
         }
         if (filteredStudents.isEmpty()) {
-            item { EduCoreEmptyState(title = "No students found", message = "Try another search.") }
+            item {
+                EduCoreEmptyState("No students found", "Try another name or admission number.")
+            }
         } else {
             items(filteredStudents, key = StudentSummary::id) { student ->
-                StudentRow(student) { onOpenStudent(classSummary.id, student.id) }
+                StudentRow(student) { onOpenStudent(workspace.classSummary.id, student.id) }
             }
             if (workspace.currentPage < workspace.lastPage) {
                 item {
                     EduCoreSecondaryButton(
-                        text = if (state.isLoadingMoreStudents) "Loading…" else "Load more",
+                        text = if (state.isLoadingMoreStudents) "Loading more…" else "Load more (${workspace.students.size} of ${workspace.total})",
                         onClick = onLoadMoreStudents,
                         enabled = !state.isLoadingMoreStudents,
                         modifier = Modifier.fillMaxWidth(),
@@ -296,28 +327,29 @@ internal fun ClassWorkspaceScreen(
 private fun StudentRow(student: StudentSummary, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             Surface(
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(44.dp),
                 shape = MaterialTheme.shapes.medium,
-                color = EduCoreColors.Info100,
-                contentColor = EduCoreColors.Navy900,
+                color = EduCoreColors.Navy900,
+                contentColor = Color.White,
             ) {
-                Box(contentAlignment = Alignment.Center) { Text(student.initials, style = MaterialTheme.typography.labelLarge) }
+                Box(contentAlignment = Alignment.Center) {
+                    Text(student.initials, style = MaterialTheme.typography.labelLarge)
+                }
             }
+            Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
-                Text(student.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(student.name, style = MaterialTheme.typography.titleSmall)
                 Text(student.admissionNumber, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = "Open student", tint = EduCoreColors.Slate600)
+            student.gender?.let { EduCoreStatusBadge(it.roleLabel(), EduCoreTone.Neutral) }
         }
     }
 }
@@ -326,11 +358,11 @@ private fun StudentRow(student: StudentSummary, onClick: () -> Unit) {
 internal fun StudentProfileScreen(state: ClassesUiState, onBack: () -> Unit) {
     val profile = state.studentProfile
     if (state.isLoadingWorkspace && profile == null) {
-        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading student")
+        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading student profile")
         return
     }
     if (profile == null) {
-        EduCoreErrorState(state.errorMessage ?: "Student unavailable.", Modifier.fillMaxSize())
+        EduCoreErrorState(state.errorMessage ?: "Student profile is unavailable.", Modifier.fillMaxSize())
         return
     }
     LazyColumn(
@@ -338,19 +370,47 @@ internal fun StudentProfileScreen(state: ClassesUiState, onBack: () -> Unit) {
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { EduCorePageHeader("Student", profile.className, onBack) }
+        item { FeatureBackHeader("Student profile", profile.className, onBack) }
         item {
             EduCoreDashboardCard {
-                Text(profile.student.name, style = MaterialTheme.typography.titleLarge)
-                Text(profile.student.admissionNumber, color = EduCoreColors.Slate600)
-                Spacer(Modifier.height(EduCoreSpacing.Sm))
-                EduCoreStatusBadge(profile.status.roleLabel(), EduCoreTone.Success)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(64.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = EduCoreColors.Navy900,
+                        contentColor = Color.White,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(profile.student.initials, style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                    Spacer(Modifier.width(EduCoreSpacing.Lg))
+                    Column {
+                        Text(profile.student.name, style = MaterialTheme.typography.titleLarge)
+                        Text(profile.student.admissionNumber, color = EduCoreColors.Slate600)
+                        EduCoreStatusBadge(profile.status.roleLabel(), EduCoreTone.Success)
+                    }
+                }
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-                EduCoreMetricCard("Attendance", "${profile.attendance.rate}%", Modifier.weight(1f), Icons.Default.CheckCircle)
-                EduCoreMetricCard("Late / absent", "${profile.attendance.late} / ${profile.attendance.absent}", Modifier.weight(1f), Icons.Default.Schedule)
+                EduCoreMetricCard(
+                    "Attendance",
+                    "${profile.attendance.rate}%",
+                    Modifier.weight(1f),
+                    Icons.Default.CheckCircle,
+                    "${profile.attendance.present} present",
+                    EduCoreTone.Success,
+                )
+                EduCoreMetricCard(
+                    "Late / absent",
+                    "${profile.attendance.late} / ${profile.attendance.absent}",
+                    Modifier.weight(1f),
+                    Icons.Default.Schedule,
+                    "Current term",
+                    EduCoreTone.Warning,
+                )
             }
         }
         item {
@@ -368,7 +428,7 @@ internal fun StudentProfileScreen(state: ClassesUiState, onBack: () -> Unit) {
 private fun ProfileLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = EduCoreSpacing.Sm)) {
         Text(label, Modifier.weight(1f), color = EduCoreColors.Slate600)
-        Text(value)
+        Text(value, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -384,37 +444,57 @@ internal fun AttendanceScreen(
 ) {
     val sheet = state.attendanceSheet
     if (state.isLoadingWorkspace && sheet == null) {
-        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading attendance")
+        EduCoreLoadingState(Modifier.fillMaxSize(), "Preparing attendance sheet")
         return
     }
     if (sheet == null) {
-        EduCoreErrorState(state.errorMessage ?: "Attendance unavailable.", Modifier.fillMaxSize())
+        EduCoreErrorState(state.errorMessage ?: "Attendance sheet is unavailable.", Modifier.fillMaxSize())
         return
     }
-    val complete = sheet.students.all { it.status != null }
+    val incompleteCount = sheet.students.count { it.status == null }
+    val complete = incompleteCount == 0
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { EduCorePageHeader("Attendance", "${sheet.className} · ${sheet.date}", onBack) }
-        if (sheet.isDraftStale) item { EduCoreWarningBanner("Server data changed. Discard the draft and reload.") }
-        else if (sheet.hasLocalDraft) item { EduCoreInfoBanner("Draft saved on this device.") }
+        item { FeatureBackHeader("Student attendance", "${sheet.className} · ${sheet.date}", onBack) }
+        if (sheet.isDraftStale) item {
+            EduCoreWarningBanner(
+                message = "The server sheet changed after this draft was started. Discard the draft and reload before saving.",
+                title = "Draft requires review",
+            )
+        } else if (sheet.hasLocalDraft) item {
+            EduCoreInfoBanner("Draft saved safely on this device. Submission remains explicit.", title = "Local draft")
+        }
+        if (!complete && !sheet.isDraftStale) item {
+            EduCoreInfoBanner(
+                message = "$incompleteCount ${if (incompleteCount == 1) "student still needs" else "students still need"} an attendance status. Mark every student Present, Absent, Late or Excused before submitting.",
+                title = "Attendance incomplete",
+            )
+        }
         if (sheet.syncState != SyncState.NONE) item {
             val message = sheet.syncMessage ?: when (sheet.syncState) {
-                SyncState.QUEUED, SyncState.SYNCING -> "Waiting to sync."
-                SyncState.CONFLICT -> "Server data changed. Reload before saving."
-                SyncState.FAILED -> "Sync failed. Try again."
+                SyncState.QUEUED, SyncState.SYNCING -> "Waiting for a stable connection. This submission will retry automatically."
+                SyncState.CONFLICT -> "The server record changed. Reload and review before submitting again."
+                SyncState.FAILED -> "Automatic sync stopped. Review the error and retry explicitly."
                 SyncState.NONE -> ""
             }
-            if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) EduCoreInfoBanner(message) else EduCoreWarningBanner(message)
+            if (sheet.syncState == SyncState.QUEUED || sheet.syncState == SyncState.SYNCING) EduCoreInfoBanner(message, title = "Sync pending") else EduCoreWarningBanner(message, title = "Sync needs attention")
         }
-        if (!online) item { EduCoreWarningBanner("Connect before submitting attendance.") }
+        if (!online) item {
+            EduCoreInfoBanner(
+                message = "You can finish marking this sheet offline. When every student has a status, tap Queue attendance. EduCore will send it automatically when the connection returns.",
+                title = "Offline mode",
+            )
+        }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
                 EduCoreSecondaryButton("Mark all present", onMarkAllPresent, Modifier.weight(1f), !sheet.isDraftStale)
-                if (sheet.hasLocalDraft) EduCoreSecondaryButton("Discard", onDiscardDraft, Modifier.weight(1f))
+                if (sheet.hasLocalDraft) {
+                    EduCoreSecondaryButton("Discard draft", onDiscardDraft, Modifier.weight(1f))
+                }
             }
         }
         items(sheet.students, key = { it.student.id }) { row ->
@@ -422,10 +502,15 @@ internal fun AttendanceScreen(
         }
         item {
             EduCorePrimaryButton(
-                text = if (sheet.syncState == SyncState.FAILED) "Retry" else if (complete) "Save attendance" else "Complete all statuses",
+                text = when {
+                    sheet.syncState == SyncState.FAILED -> "Retry sync"
+                    !complete -> "Mark $incompleteCount remaining"
+                    online -> "Save attendance"
+                    else -> "Queue attendance"
+                },
                 onClick = onSubmit,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = complete && !sheet.isDraftStale && sheet.syncState !in setOf(SyncState.QUEUED, SyncState.SYNCING, SyncState.CONFLICT),
+                enabled = complete && !sheet.isDraftStale && sheet.syncState != SyncState.QUEUED && sheet.syncState != SyncState.SYNCING && sheet.syncState != SyncState.CONFLICT,
                 loading = state.isSaving,
                 leadingIcon = { Icon(Icons.Default.CloudDone, null) },
             )
@@ -473,9 +558,17 @@ internal fun StaffAttendanceScreen(
     onRefresh: () -> Unit,
     onClockIn: (String, Double?, Double?) -> Unit,
     onClockOut: () -> Unit,
+    onProxySearch: (String) -> Unit,
+    onLoadProxyColleagues: () -> Unit,
+    onProxyClockIn: (Long, String, String, Double?, Double?) -> Unit,
 ) {
     var pendingToken by remember { mutableStateOf<String?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var proxyMode by remember { mutableStateOf(false) }
+    var selectedProxy by remember { mutableStateOf<ProxyAttendanceColleague?>(null) }
+    var pendingProxyToken by remember { mutableStateOf<String?>(null) }
+    var proxyLatitude by remember { mutableStateOf<Double?>(null) }
+    var proxyLongitude by remember { mutableStateOf<Double?>(null) }
     val snapshot = state.staffAttendance
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
@@ -490,13 +583,17 @@ internal fun StaffAttendanceScreen(
             currentLocation(locationClient) { latitude, longitude, error ->
                 if (error != null) scanError = error else onClockIn(token, latitude, longitude)
             }
-        } else pendingToken = token
+        } else {
+            pendingToken = token
+        }
     }
 
-    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    val locationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
         val token = pendingToken
         if (!granted || token == null) {
-            scanError = "Location permission is required."
+            scanError = "Location permission is required by this school for attendance verification."
             pendingToken = null
         } else {
             currentLocation(locationClient) { latitude, longitude, error ->
@@ -508,10 +605,102 @@ internal fun StaffAttendanceScreen(
     val qrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
         val token = result.contents
         if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
-        if (snapshot?.geoEnabled == true && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (snapshot?.geoEnabled == true &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             pendingToken = token
             locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        } else submitScannedToken(token)
+        } else {
+            submitScannedToken(token)
+        }
+    }
+
+    val proxyCamera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        val colleague = selectedProxy
+        val token = pendingProxyToken
+        if (bitmap == null) {
+            scanError = "Live photo capture was cancelled. Proxy clock-in was not submitted."
+            return@rememberLauncherForActivityResult
+        }
+        if (colleague == null || token.isNullOrBlank()) {
+            scanError = "Proxy attendance session expired. Select the colleague and scan the school QR again."
+            return@rememberLauncherForActivityResult
+        }
+        onProxyClockIn(
+            colleague.id,
+            token,
+            bitmap.toAttendancePhotoDataUrl(),
+            proxyLatitude,
+            proxyLongitude,
+        )
+        pendingProxyToken = null
+        proxyLatitude = null
+        proxyLongitude = null
+        selectedProxy = null
+        proxyMode = false
+    }
+    val proxyCameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) proxyCamera.launch(null) else scanError = "Camera permission is required for the colleague's live attendance photo."
+    }
+    fun captureProxyPhoto() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            proxyCamera.launch(null)
+        } else {
+            proxyCameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+    val proxyLocationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val token = pendingProxyToken
+        if (!granted || token == null) {
+            scanError = "Location permission is required by this school for proxy attendance verification."
+            pendingProxyToken = null
+        } else {
+            currentLocation(locationClient) { latitude, longitude, error ->
+                if (error != null) {
+                    scanError = error
+                    pendingProxyToken = null
+                } else {
+                    proxyLatitude = latitude
+                    proxyLongitude = longitude
+                    captureProxyPhoto()
+                }
+            }
+        }
+    }
+    fun handleProxyToken(token: String) {
+        pendingProxyToken = token
+        proxyLatitude = null
+        proxyLongitude = null
+        if (snapshot?.geoEnabled != true) {
+            captureProxyPhoto()
+            return
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            currentLocation(locationClient) { latitude, longitude, error ->
+                if (error != null) {
+                    scanError = error
+                    pendingProxyToken = null
+                } else {
+                    proxyLatitude = latitude
+                    proxyLongitude = longitude
+                    captureProxyPhoto()
+                }
+            }
+        } else {
+            proxyLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+    val proxyQrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val token = result.contents
+        if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
+        handleProxyToken(token)
     }
 
     if (state.isLoadingWorkspace && snapshot == null) {
@@ -519,94 +708,78 @@ internal fun StaffAttendanceScreen(
         return
     }
     if (snapshot == null) {
-        EduCoreErrorState(state.errorMessage ?: "Attendance unavailable.", Modifier.fillMaxSize(), onRetry = onRefresh)
+        EduCoreErrorState(state.errorMessage ?: "Staff attendance is unavailable.", Modifier.fillMaxSize(), onRetry = onRefresh)
         return
     }
-
     val clockedIn = snapshot.today?.clockIn != null
     val clockedOut = snapshot.today?.clockOut != null
-    val statusLabel = when {
-        !clockedIn -> "Not clocked in"
-        clockedOut -> "Completed"
-        else -> "Clocked in"
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = EduCoreColors.Navy900)
-                }
-                Text("${snapshot.month}/${snapshot.year}", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Slate600)
-            }
-        }
+        item { FeatureBackHeader("My attendance", "${snapshot.month}/${snapshot.year}", onBack) }
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
-        if (!online) item { EduCoreWarningBanner("Connect to use staff attendance.") }
-
+        if (!online) item {
+            EduCoreWarningBanner("QR, geofence and proxy clock-in require a live server connection. No unverified staff clock-in is queued.")
+        }
         item {
-            EduCoreDashboardCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                        Text("Today", style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
-                        Text(statusLabel, style = MaterialTheme.typography.titleLarge)
-                        snapshot.today?.let { today ->
-                            Text(
-                                listOfNotNull(
-                                    today.clockIn?.let { "In $it" },
-                                    today.clockOut?.let { "Out $it" },
-                                ).joinToString(" · "),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = EduCoreColors.Slate600,
-                            )
-                        }
-                    }
-                    EduCoreStatusBadge(
+            Surface(
+                color = EduCoreColors.Navy900,
+                contentColor = Color.White,
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Column(Modifier.padding(EduCoreSpacing.Xxl)) {
+                    Text("TODAY", color = EduCoreColors.Gold400, style = MaterialTheme.typography.labelLarge)
+                    Text(
                         when {
-                            !clockedIn -> "Pending"
-                            clockedOut -> "Done"
-                            else -> snapshot.today?.status?.roleLabel() ?: "Present"
+                            !clockedIn -> "Not clocked in yet"
+                            clockedOut -> "Completed for today"
+                            else -> "Clocked in"
                         },
-                        when {
-                            !clockedIn -> EduCoreTone.Neutral
-                            snapshot.today?.status.equals("late", true) -> EduCoreTone.Warning
-                            else -> EduCoreTone.Success
-                        },
+                        style = MaterialTheme.typography.headlineSmall,
                     )
+                    snapshot.today?.let { today ->
+                        Text("In ${today.clockIn.orEmpty()}${today.clockOut?.let { " · Out $it" }.orEmpty()}")
+                    }
                 }
             }
         }
-
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
                 EduCoreMetricCard("Present", snapshot.counts.present.toString(), Modifier.weight(1f), tone = EduCoreTone.Success)
                 EduCoreMetricCard("Late", snapshot.counts.late.toString(), Modifier.weight(1f), tone = EduCoreTone.Warning)
                 EduCoreMetricCard("Absent", snapshot.counts.absent.toString(), Modifier.weight(1f), tone = EduCoreTone.Danger)
             }
         }
-
         if (!clockedIn) item {
-            EduCorePrimaryButton(
-                text = "Scan QR",
-                onClick = {
-                    scanError = null
-                    qrScanner.launch(
-                        ScanOptions()
-                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            .setPrompt("Scan attendance QR")
-                            .setBeepEnabled(false)
-                            .setCaptureActivity(PortraitCaptureActivity::class.java)
-                            .setOrientationLocked(true),
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = online,
-                loading = state.isSaving,
-            )
+            EduCoreDashboardCard {
+                Text("School QR", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (snapshot.geoEnabled) "Location verification is required within ${snapshot.geoRadiusMeters} m." else "Scan the school display or your staff ID QR.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Md))
+                EduCorePrimaryButton(
+                    text = "Scan QR and clock in",
+                    onClick = {
+                        scanError = null
+                        qrScanner.launch(
+                            ScanOptions()
+                                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                .setPrompt("Scan the school attendance QR")
+                                .setBeepEnabled(false)
+                                .setCaptureActivity(PortraitCaptureActivity::class.java)
+                                .setOrientationLocked(true),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = online,
+                    loading = state.isSaving,
+                )
+            }
         } else if (!clockedOut) item {
             EduCorePrimaryButton(
                 text = "Clock out",
@@ -616,8 +789,77 @@ internal fun StaffAttendanceScreen(
                 loading = state.isSaving,
             )
         }
-
-        if (snapshot.records.isNotEmpty()) item { EduCoreSectionHeader(title = "Recent attendance") }
+        item {
+            EduCoreSecondaryButton(
+                text = if (proxyMode) "Close colleague clock-in" else "Clock in for a colleague",
+                onClick = {
+                    proxyMode = !proxyMode
+                    scanError = null
+                    selectedProxy = null
+                    if (proxyMode) onLoadProxyColleagues()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !state.isSaving,
+            )
+        }
+        if (proxyMode) {
+            item {
+                EduCoreInfoBanner(
+                    title = "Proxy attendance verification",
+                    message = "Select the colleague who is physically present. EduCore will require the school QR, any enabled school geofence, and a live photo captured now. The attendance record identifies who performed the proxy clock-in.",
+                )
+            }
+            item {
+                EduCoreDashboardCard {
+                    Text("Select colleague", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    EduCoreSearchBar(
+                        value = state.proxySearch,
+                        onValueChange = onProxySearch,
+                        placeholder = "Search staff name",
+                    )
+                    Spacer(Modifier.height(EduCoreSpacing.Md))
+                    when {
+                        state.isLoadingProxy -> Text("Loading eligible colleagues…", color = EduCoreColors.Slate600)
+                        state.proxyColleagues.isEmpty() -> Text("No eligible unclocked staff found.", color = EduCoreColors.Slate600)
+                        else -> Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                            state.proxyColleagues.take(12).forEach { colleague ->
+                                EduCoreSecondaryButton(
+                                    text = buildString {
+                                        if (selectedProxy?.id == colleague.id) append("Selected · ")
+                                        append(colleague.name)
+                                        if (colleague.staffId.isNotBlank()) append(" · ${colleague.staffId}")
+                                    },
+                                    onClick = { selectedProxy = colleague },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !state.isSaving,
+                                )
+                            }
+                        }
+                    }
+                    selectedProxy?.let { colleague ->
+                        Spacer(Modifier.height(EduCoreSpacing.Md))
+                        EduCorePrimaryButton(
+                            text = "Scan school QR & capture ${colleague.name}'s photo",
+                            onClick = {
+                                scanError = null
+                                proxyQrScanner.launch(
+                                    ScanOptions()
+                                        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                        .setPrompt("Scan the SCHOOL attendance QR for ${colleague.name}")
+                                        .setBeepEnabled(false)
+                                        .setCaptureActivity(PortraitCaptureActivity::class.java)
+                                        .setOrientationLocked(true),
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = online && !state.isSaving,
+                            loading = state.isSaving,
+                        )
+                    }
+                }
+            }
+        }
         items(snapshot.records.take(31), key = { it.date }) { record ->
             EduCoreDashboardCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -625,13 +867,18 @@ internal fun StaffAttendanceScreen(
                     Spacer(Modifier.width(EduCoreSpacing.Md))
                     Column(Modifier.weight(1f)) {
                         Text(record.date, style = MaterialTheme.typography.titleSmall)
-                        Text("${record.clockIn.orEmpty()} — ${record.clockOut ?: "Open"}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                        Text("${record.clockIn.orEmpty()} — ${record.clockOut ?: "Open"}", color = EduCoreColors.Slate600)
                     }
                     EduCoreStatusBadge(record.status.roleLabel(), record.status.statusTone())
                 }
             }
         }
     }
+}
+
+@Composable
+private fun FeatureBackHeader(title: String, subtitle: String, onBack: () -> Unit) {
+    EduCorePageHeader(title = title, subtitle = subtitle, onBack = onBack)
 }
 
 private fun AttendanceStatus.tone(): EduCoreTone = when (this) {
@@ -654,6 +901,12 @@ private fun String.roleLabel(): String = replace('_', ' ')
 
 private fun Boolean?.orFalse(): Boolean = this == true
 
+private fun Bitmap.toAttendancePhotoDataUrl(): String {
+    val output = ByteArrayOutputStream()
+    compress(Bitmap.CompressFormat.JPEG, 82, output)
+    return "data:image/jpeg;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+}
+
 @SuppressLint("MissingPermission")
 private fun currentLocation(
     client: com.google.android.gms.location.FusedLocationProviderClient,
@@ -666,10 +919,12 @@ private fun currentLocation(
         .build()
     client.getCurrentLocation(request, CancellationTokenSource().token)
         .addOnSuccessListener { location ->
-            when {
-                location == null -> result(null, null, "Location unavailable. Try again.")
-                location.accuracy > 100f -> result(null, null, "GPS accuracy is ${location.accuracy.toInt()} m. Try again in an open area.")
-                else -> result(location.latitude, location.longitude, null)
+            if (location == null) {
+                result(null, null, "Your current location is unavailable. Turn on location services and try again.")
+            } else if (location.accuracy > 100f) {
+                result(null, null, "GPS accuracy is ${location.accuracy.toInt()} m. Move into an open area and try again.")
+            } else {
+                result(location.latitude, location.longitude, null)
             }
         }
         .addOnFailureListener { error ->
