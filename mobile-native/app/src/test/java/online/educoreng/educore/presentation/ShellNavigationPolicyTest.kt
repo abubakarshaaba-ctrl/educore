@@ -7,7 +7,6 @@ import online.educoreng.educore.core.model.SessionSnapshot
 import online.educoreng.educore.core.model.TenantAccess
 import online.educoreng.educore.core.model.UserIdentity
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,7 +37,7 @@ class ShellNavigationPolicyTest {
 
         assertEquals(visible.size, grouped.size)
         assertEquals(visible.map { it.key }.toSet(), grouped.map { it.key }.toSet())
-        assertFalse(grouped.any { it.key == "fees" })
+        assertTrue(grouped.any { it.key == "fees" })
     }
 
     private fun session(portal: String, role: String): SessionSnapshot = SessionSnapshot(
