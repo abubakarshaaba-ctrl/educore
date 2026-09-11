@@ -20,6 +20,7 @@ import online.educoreng.educore.core.model.AttendanceSheet
 import online.educoreng.educore.core.model.AttendanceStatus
 import online.educoreng.educore.core.model.ClassCatalogue
 import online.educoreng.educore.core.model.ClassStudentsSnapshot
+import online.educoreng.educore.core.model.ProxyAttendanceColleague
 import online.educoreng.educore.core.model.StaffAttendanceSnapshot
 import online.educoreng.educore.core.model.StudentProfile
 import online.educoreng.educore.core.model.SyncState
@@ -31,11 +32,14 @@ data class ClassesUiState(
     val studentProfile: StudentProfile? = null,
     val attendanceSheet: AttendanceSheet? = null,
     val staffAttendance: StaffAttendanceSnapshot? = null,
+    val proxyColleagues: List<ProxyAttendanceColleague> = emptyList(),
     val classSearch: String = "",
     val studentSearch: String = "",
+    val proxySearch: String = "",
     val isLoadingClasses: Boolean = false,
     val isLoadingWorkspace: Boolean = false,
     val isLoadingMoreStudents: Boolean = false,
+    val isLoadingProxy: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
@@ -51,6 +55,7 @@ class ClassesViewModel @Inject constructor(
     private var draftJob: Job? = null
     private var studentSearchJob: Job? = null
     private var studentLoadJob: Job? = null
+    private var proxySearchJob: Job? = null
 
     init {
         loadClasses()
@@ -256,6 +261,59 @@ class ClassesViewModel @Inject constructor(
             when (val result = repository.clockOut()) {
                 is AppResult.Success -> {
                     _uiState.update { it.copy(isSaving = false, message = result.value) }
+                    loadStaffAttendance()
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isSaving = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
+    }
+
+    fun loadProxyColleagues(search: String = _uiState.value.proxySearch) {
+        if (_uiState.value.isLoadingProxy) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingProxy = true, errorMessage = null, proxySearch = search) }
+            when (val result = repository.loadProxyColleagues(search)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(proxyColleagues = result.value, isLoadingProxy = false)
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isLoadingProxy = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
+    }
+
+    fun setProxySearch(value: String) {
+        _uiState.update { it.copy(proxySearch = value) }
+        proxySearchJob?.cancel()
+        proxySearchJob = viewModelScope.launch {
+            delay(300)
+            loadProxyColleagues(value)
+        }
+    }
+
+    fun proxyClockIn(
+        staffId: Long,
+        token: String,
+        photoDataUrl: String,
+        latitude: Double?,
+        longitude: Double?,
+    ) {
+        if (_uiState.value.isSaving || token.isBlank() || photoDataUrl.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            when (val result = repository.proxyClockIn(staffId, token, photoDataUrl, latitude, longitude)) {
+                is AppResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            message = result.value,
+                            proxyColleagues = emptyList(),
+                            proxySearch = "",
+                        )
+                    }
                     loadStaffAttendance()
                 }
                 is AppResult.Failure -> _uiState.update {
