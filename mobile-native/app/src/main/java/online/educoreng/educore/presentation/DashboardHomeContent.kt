@@ -67,7 +67,7 @@ internal fun androidx.compose.foundation.lazy.grid.LazyGridScope.dashboardHomeCo
         DashboardWelcome(session = session, profilePhoto = state.profilePhoto)
     }
 
-    if (session.user.portal == "admin") {
+    if (session.school.id != null && session.user.portal == "admin") {
         item(key = "tenant-subscription", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
             SubscriptionCountdownTile(session)
         }
@@ -261,22 +261,38 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
     val expiry = session.access.expiresAt?.let(::parseLocalDate)
     val state = session.access.state.lowercase()
     val remaining = expiry?.let { ChronoUnit.DAYS.between(today, it) }
+    val freePlan = state.contains("free")
+    val gracePeriod = state.contains("grace")
+    val expiringSoon = state.contains("expiring")
+    val suspended = state.contains("suspend")
+    val expired = state.contains("expired") || (remaining != null && remaining < 0)
     val tone = when {
-        state.contains("expired") || state.contains("suspend") || (remaining != null && remaining < 0) -> EduCoreTone.Danger
-        remaining != null && remaining <= 7 -> EduCoreTone.Danger
-        remaining != null && remaining <= 30 -> EduCoreTone.Warning
+        expired || suspended -> EduCoreTone.Danger
+        gracePeriod || (remaining != null && remaining <= 7) -> EduCoreTone.Danger
+        expiringSoon || (remaining != null && remaining <= 30) -> EduCoreTone.Warning
         else -> EduCoreTone.Success
     }
     val headline = when {
+        freePlan -> "Free plan · no expiry"
+        expired -> "Subscription expired"
         remaining == null -> "Subscription active"
-        remaining < 0 -> "Subscription expired"
         remaining == 0L -> "Expires today"
         remaining == 1L -> "1 day remaining"
         else -> "$remaining days remaining"
     }
-    val detail = expiry?.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))?.let {
-        "Expiry: $it"
-    } ?: session.access.message?.takeIf(String::isNotBlank) ?: "No expiry date is currently set."
+    val detail = when {
+        expiry != null -> "Expiry: ${expiry.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))}"
+        !session.access.message.isNullOrBlank() -> session.access.message
+        else -> "No expiry date is currently set."
+    }
+    val statusLabel = when {
+        freePlan -> "Free"
+        suspended -> "Suspended"
+        expired -> "Expired"
+        gracePeriod -> "Grace period"
+        expiringSoon -> "Expiring soon"
+        else -> "Active"
+    }
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -308,14 +324,7 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
                 Text(headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900)
                 Text(detail, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
             }
-            EduCoreStatusBadge(
-                when {
-                    state.contains("expired") -> "Expired"
-                    state.contains("suspend") -> "Suspended"
-                    else -> "Active"
-                },
-                tone,
-            )
+            EduCoreStatusBadge(statusLabel, tone)
         }
     }
 }
