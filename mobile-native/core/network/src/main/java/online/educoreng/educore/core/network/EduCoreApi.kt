@@ -81,6 +81,10 @@ interface EduCoreApi {
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto
 
+    @Streaming
+    @GET("id-card/photo-file")
+    suspend fun staffPhoto(): ResponseBody
+
     @POST("portal/session")
     suspend fun portalSession(@Body request: PortalSessionRequestDto): PortalSessionResponseDto
 
