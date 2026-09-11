@@ -47,7 +47,6 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.network.AdminStaffAttendanceApi
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.dto.AdminAttendanceProxyClockRequestDto
-import online.educoreng.educore.core.network.dto.AdminStaffAttendanceRecordDto
 import online.educoreng.educore.core.network.safeApiCall
 
 @HiltViewModel
@@ -61,7 +60,7 @@ class AdminProxyClockViewModel @Inject constructor(
     val uiState: StateFlow<AdminProxyClockUiState> = _uiState.asStateFlow()
 
     fun submit(
-        staffId: Long,
+        staffId: String,
         date: String,
         clockIn: String,
         clockOut: String?,
@@ -69,6 +68,11 @@ class AdminProxyClockViewModel @Inject constructor(
         status: String?,
     ) {
         if (_uiState.value.isSaving) return
+        val normalizedStaffId = staffId.trim()
+        if (normalizedStaffId.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter the staff ID.") }
+            return
+        }
         if (reason.trim().length < 5) {
             _uiState.update { it.copy(errorMessage = "Enter a reason of at least 5 characters for this proxy attendance.") }
             return
@@ -78,7 +82,7 @@ class AdminProxyClockViewModel @Inject constructor(
             when (val result = safeApiCall(parser) {
                 api.proxyClock(
                     AdminAttendanceProxyClockRequestDto(
-                        staffId = staffId,
+                        staffId = normalizedStaffId,
                         date = date,
                         clockInTime = clockIn,
                         clockOutTime = clockOut?.takeIf(String::isNotBlank),
@@ -114,15 +118,13 @@ data class AdminProxyClockUiState(
 @Composable
 internal fun AdminProxyClockScreen(
     state: AdminProxyClockUiState,
-    staff: List<AdminStaffAttendanceRecordDto>,
-    onSubmit: (Long, String, String, String?, String, String?) -> Unit,
+    onSubmit: (String, String, String, String?, String, String?) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
     val now = remember { LocalTime.now().withSecond(0).withNano(0) }
-    var selectedStaffId by remember(staff) { mutableStateOf(staff.firstOrNull()?.userId) }
-    var staffExpanded by remember { mutableStateOf(false) }
+    var staffId by remember { mutableStateOf("") }
     var statusExpanded by remember { mutableStateOf(false) }
     var date by remember { mutableStateOf(today.toString()) }
     var clockIn by remember { mutableStateOf(now.format(DateTimeFormatter.ofPattern("HH:mm"))) }
@@ -130,8 +132,7 @@ internal fun AdminProxyClockScreen(
     var reason by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
 
-    val selectedStaff = staff.firstOrNull { it.userId == selectedStaffId }
-    val valid = selectedStaffId != null && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 5
+    val valid = staffId.isNotBlank() && date.isNotBlank() && clockIn.isNotBlank() && reason.trim().length >= 5
     val displayDate = runCatching {
         LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH))
     }.getOrDefault(date)
@@ -153,7 +154,7 @@ internal fun AdminProxyClockScreen(
     ) {
         EduCorePageHeader(
             title = "Clock in by proxy",
-            subtitle = "Administrative exception · recorded with an audit trail",
+            subtitle = "Enter Staff ID directly · administrative exception with audit trail",
             onBack = onClose,
         )
 
@@ -162,39 +163,15 @@ internal fun AdminProxyClockScreen(
             Text(it, color = EduCoreColors.Success700, style = MaterialTheme.typography.bodyMedium)
         }
 
-        Text("Staff member", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        Box(Modifier.fillMaxWidth()) {
-            OutlinedButton(
-                onClick = { staffExpanded = true },
-                enabled = !state.isSaving && staff.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(selectedStaff?.staff ?: "Select staff", modifier = Modifier.weight(1f))
-                Text("▾")
-            }
-            DropdownMenu(
-                expanded = staffExpanded,
-                onDismissRequest = { staffExpanded = false },
-                modifier = Modifier.fillMaxWidth(.92f),
-            ) {
-                staff.forEach { row ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(row.staff ?: "Staff")
-                                row.staffId?.takeIf(String::isNotBlank)?.let {
-                                    Text(it, style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        },
-                        onClick = {
-                            selectedStaffId = row.userId
-                            staffExpanded = false
-                        },
-                    )
-                }
-            }
-        }
+        OutlinedTextField(
+            value = staffId,
+            onValueChange = { staffId = it.take(40) },
+            label = { Text("Staff ID") },
+            supportingText = { Text("Enter the staff ID printed/assigned to the staff account. No name lookup is required.") },
+            singleLine = true,
+            enabled = !state.isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         OutlinedButton(
             onClick = {
@@ -280,18 +257,9 @@ internal fun AdminProxyClockScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        if (staff.isEmpty()) {
-            Text(
-                "No staff records are currently available. Refresh Staff Attendance and try again.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
         Button(
             onClick = {
-                val id = selectedStaffId ?: return@Button
-                onSubmit(id, date, clockIn, clockOut.ifBlank { null }, reason, status)
+                onSubmit(staffId.trim(), date, clockIn, clockOut.ifBlank { null }, reason, status)
             },
             enabled = valid && !state.isSaving,
             modifier = Modifier.fillMaxWidth(),
