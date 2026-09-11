@@ -255,7 +255,7 @@ internal fun AuthorizedShell(
                                     LaunchedEffect(Unit) { communicationViewModel.loadAll() }
                                     CommunicationCenterScreen(
                                         state = communicationState,
-                                        canCreateEvent = session.user.portal == "admin",
+                                        canCreateEvent = session.can("calendar"),
                                         onBack = { navigate(tabs.first()) },
                                         onTab = communicationViewModel::selectTab,
                                         onNoticeFilter = communicationViewModel::setNoticeFilter,
