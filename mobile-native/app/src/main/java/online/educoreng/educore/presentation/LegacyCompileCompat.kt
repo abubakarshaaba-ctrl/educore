@@ -1,6 +1,7 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import online.educoreng.educore.core.data.repository.ScoreWorkspaceRepository
 
 /**
@@ -58,6 +59,7 @@ internal fun StaffAttendanceScreen(
     onClockIn: (String, Double?, Double?) -> Unit,
     onClockOut: () -> Unit,
 ) {
+    val classesViewModel: ClassesViewModel = hiltViewModel()
     StaffAttendanceScreen(
         state = state,
         online = online,
@@ -65,8 +67,8 @@ internal fun StaffAttendanceScreen(
         onRefresh = onRefresh,
         onClockIn = onClockIn,
         onClockOut = onClockOut,
-        onProxySearch = {},
-        onLoadProxyColleagues = {},
-        onProxyClockIn = { _, _, _, _, _ -> },
+        onProxySearch = classesViewModel::setProxySearch,
+        onLoadProxyColleagues = { classesViewModel.loadProxyColleagues() },
+        onProxyClockIn = classesViewModel::proxyClockIn,
     )
 }
