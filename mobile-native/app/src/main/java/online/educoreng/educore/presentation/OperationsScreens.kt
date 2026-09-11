@@ -82,22 +82,25 @@ internal fun OperationsScreen(
     )
     val section = workspace.sections.getOrNull(state.selectedSection)
     val financeModule = workspace.module.key in setOf("fees", "expenses", "payroll")
+    var selectedSession by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var selectedTerm by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var selectedClass by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var selectedDate by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     val sourceRecords = section?.records.orEmpty()
+    val sessionOptions = remember(sourceRecords) { sourceRecords.fieldValues("Session") }
     val termOptions = remember(sourceRecords) { sourceRecords.fieldValues("Term") }
     val classOptions = remember(sourceRecords) {
-        (sourceRecords.fieldValues("Class level") + sourceRecords.fieldValues("Class")).distinct().sorted()
+        (sourceRecords.fieldValues("Class Level") + sourceRecords.fieldValues("Class")).distinct().sorted()
     }
-    val records = remember(sourceRecords, state.query, selectedTerm, selectedClass, selectedDate) {
+    val records = remember(sourceRecords, state.query, selectedSession, selectedTerm, selectedClass, selectedDate) {
         sourceRecords
             .filterOperations(state.query)
+            .filter { record -> selectedSession == null || record.fieldValue("Session") == selectedSession }
             .filter { record -> selectedTerm == null || record.fieldValue("Term") == selectedTerm }
             .filter { record ->
-                selectedClass == null || record.fieldValue("Class level") == selectedClass || record.fieldValue("Class") == selectedClass
+                selectedClass == null || record.fieldValue("Class Level") == selectedClass || record.fieldValue("Class") == selectedClass
             }
             .filter { record -> selectedDate == null || record.matchesDate(selectedDate!!) }
     }
@@ -143,6 +146,14 @@ internal fun OperationsScreen(
         if (financeModule) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    if (sessionOptions.isNotEmpty()) {
+                        FinanceDropdown(
+                            label = "Session",
+                            options = sessionOptions,
+                            selected = selectedSession,
+                            onSelected = { selectedSession = it },
+                        )
+                    }
                     if (termOptions.isNotEmpty()) {
                         FinanceDropdown(
                             label = "Term",
@@ -153,7 +164,7 @@ internal fun OperationsScreen(
                     }
                     if (classOptions.isNotEmpty()) {
                         FinanceDropdown(
-                            label = "Class level",
+                            label = "Class Level",
                             options = classOptions,
                             selected = selectedClass,
                             onSelected = { selectedClass = it },
@@ -165,10 +176,11 @@ internal fun OperationsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                     )
-                    if (selectedTerm != null || selectedClass != null || selectedDate != null) {
+                    if (selectedSession != null || selectedTerm != null || selectedClass != null || selectedDate != null) {
                         EduCoreSecondaryButton(
                             text = "Clear finance filters",
                             onClick = {
+                                selectedSession = null
                                 selectedTerm = null
                                 selectedClass = null
                                 selectedDate = null
@@ -182,9 +194,10 @@ internal fun OperationsScreen(
         item { EduCoreSearchBar(state.query, onQuery, placeholder = "Search ${section?.title?.lowercase() ?: "records"}") }
         if (records.isEmpty()) {
             item {
+                val filtersClear = selectedSession == null && selectedTerm == null && selectedClass == null && selectedDate == null
                 EduCoreEmptyState(
-                    title = if (state.query.isBlank() && selectedTerm == null && selectedClass == null && selectedDate == null) "No records yet" else "No matching records",
-                    message = if (state.query.isBlank() && selectedTerm == null && selectedClass == null && selectedDate == null) "Nothing has been recorded in this section." else "Change or clear the selected filters.",
+                    title = if (state.query.isBlank() && filtersClear) "No records yet" else "No matching records",
+                    message = if (state.query.isBlank() && filtersClear) "Nothing has been recorded in this section." else "Change or clear the selected filters.",
                 )
             }
         }
@@ -250,7 +263,7 @@ private fun OperationsHeader(title: String, subtitle: String, onBack: () -> Unit
 private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowWidth) {
     Card(
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
-        border = BorderStroke(1.dp, EduCoreColors.Info200),
+        border = BorderStroke(0.7.dp, EduCoreColors.Info200),
     ) {
         Column(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -258,7 +271,7 @@ private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowW
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     record.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600) }
                 }
                 record.status?.let { status ->
@@ -294,9 +307,7 @@ private fun OperationsRecord.fieldValue(label: String): String? =
     fields.firstOrNull { it.label.equals(label, ignoreCase = true) }?.value
 
 private fun OperationsRecord.matchesDate(date: String): Boolean =
-    fields.any { field ->
-        field.label in DATE_FIELD_LABELS && field.value.take(10) == date
-    }
+    fields.any { field -> field.label in DATE_FIELD_LABELS && field.value.take(10) == date }
 
 private fun formatUtcDate(epochMillis: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
     timeZone = TimeZone.getTimeZone("UTC")
