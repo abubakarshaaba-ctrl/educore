@@ -265,32 +265,42 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
     val gracePeriod = state.contains("grace")
     val expiringSoon = state.contains("expiring")
     val suspended = state.contains("suspend")
-    val expired = state.contains("expired") || (remaining != null && remaining < 0)
+    val explicitlyExpired = state.contains("expired")
+    val expiredByDate = remaining != null && remaining < 0 && !gracePeriod && !freePlan
+    val expired = explicitlyExpired || expiredByDate
     val tone = when {
-        expired || suspended -> EduCoreTone.Danger
-        gracePeriod || (remaining != null && remaining <= 7) -> EduCoreTone.Danger
-        expiringSoon || (remaining != null && remaining <= 30) -> EduCoreTone.Warning
+        freePlan -> EduCoreTone.Success
+        suspended || expired || gracePeriod -> EduCoreTone.Danger
+        expiringSoon || (remaining != null && remaining in 0..30) -> EduCoreTone.Warning
         else -> EduCoreTone.Success
     }
     val headline = when {
         freePlan -> "Free plan · no expiry"
+        suspended -> "Subscription suspended"
+        gracePeriod -> "Grace period active"
         expired -> "Subscription expired"
         remaining == null -> "Subscription active"
         remaining == 0L -> "Expires today"
         remaining == 1L -> "1 day remaining"
-        else -> "$remaining days remaining"
+        remaining > 1L -> "$remaining days remaining"
+        else -> "Subscription status unavailable"
     }
+    val expiryDetail = expiry?.let {
+        "Expiry: ${it.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))}"
+    }
+    val accessMessage = session.access.message.takeIf(String::isNotBlank)
     val detail = when {
-        expiry != null -> "Expiry: ${expiry.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))}"
-        !session.access.message.isNullOrBlank() -> session.access.message
+        (gracePeriod || suspended || expired) && accessMessage != null && expiryDetail != null -> "$expiryDetail · $accessMessage"
+        accessMessage != null -> accessMessage
+        expiryDetail != null -> expiryDetail
         else -> "No expiry date is currently set."
     }
     val statusLabel = when {
         freePlan -> "Free"
         suspended -> "Suspended"
-        expired -> "Expired"
         gracePeriod -> "Grace period"
-        expiringSoon -> "Expiring soon"
+        expired -> "Expired"
+        expiringSoon || (remaining != null && remaining in 0..30) -> "Expiring soon"
         else -> "Active"
     }
 
