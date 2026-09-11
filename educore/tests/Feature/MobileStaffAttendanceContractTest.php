@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
-use App\Http\Controllers\Api\AdminStaffProxyClockController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
+use App\Http\Controllers\Api\StaffCardAttendanceScanController;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -29,6 +29,7 @@ class MobileStaffAttendanceContractTest extends TestCase
             'GET api/v1/admin/staff-attendance/qr',
             'POST api/v1/admin/staff-attendance/qr/reset',
             'POST api/v1/staff-attendance/offline/sync',
+            'POST api/v1/staff-attendance/scan-card',
         ];
 
         foreach ($expected as $signature) {
@@ -62,10 +63,35 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
         $this->assertTrue(method_exists(AdminStaffAttendanceOfflineController::class, '__invoke'));
-        $this->assertTrue(method_exists(AdminStaffProxyClockController::class, '__invoke'));
+        $this->assertTrue(method_exists(StaffCardAttendanceScanController::class, '__invoke'));
     }
 
-    public function test_proxy_clock_route_uses_staff_card_qr_controller(): void
+    public function test_staff_card_scan_route_is_outside_admin_namespace_and_uses_real_time_controller(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('POST', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/staff-attendance/scan-card'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringNotContainsString('/admin/', '/'.$route->uri());
+        $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
+
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffCardAttendanceScanController.php'));
+        $this->assertStringContainsString("$user->isTenantStaff()", $source);
+        $this->assertStringContainsString("'staff_qr_token' => ['required', 'string', 'max:4096']", $source);
+        $this->assertStringContainsString('verifyPersonalQrToken', $source);
+        $this->assertStringContainsString('isSchoolOpenOn', $source);
+        $this->assertStringContainsString('wasEmployedOn', $source);
+        $this->assertStringContainsString("$now = now();", $source);
+        $this->assertStringContainsString("'clock_in_method' =", str_replace('=>', '=', $source));
+        $this->assertStringContainsString("staff_card_qr", $source);
+        $this->assertStringContainsString("$action = 'clock_in'", $source);
+        $this->assertStringContainsString("$action = 'clock_out'", $source);
+        $this->assertStringContainsString('distanceTo', $source);
+    }
+
+    public function test_legacy_admin_proxy_route_points_to_same_real_time_scanner(): void
     {
         $route = collect(Route::getRoutes())->first(fn ($candidate) =>
             in_array('POST', $candidate->methods(), true)
@@ -73,14 +99,7 @@ class MobileStaffAttendanceContractTest extends TestCase
         );
 
         $this->assertNotNull($route);
-        $this->assertStringContainsString(AdminStaffProxyClockController::class, $route->getActionName());
-
-        $source = file_get_contents(app_path('Http/Controllers/Api/AdminStaffProxyClockController.php'));
-        $this->assertStringContainsString("'staff_qr_token' => ['required', 'string', 'max:4096']", $source);
-        $this->assertStringContainsString('verifyPersonalQrToken', $source);
-        $this->assertStringContainsString('isSchoolOpenOn', $source);
-        $this->assertStringContainsString('wasEmployedOn', $source);
-        $this->assertStringContainsString("'clock_in_method' => 'proxy'", $source);
+        $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
     }
 
     public function test_self_offline_sync_route_is_not_inside_admin_namespace(): void
