@@ -479,6 +479,7 @@ internal fun StaffAttendanceScreen(
     var pendingToken by remember { mutableStateOf<String?>(null) }
     var pendingCardToken by remember { mutableStateOf<String?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var schoolQrFallbackOpen by remember { mutableStateOf(false) }
     val snapshot = state.staffAttendance
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
@@ -573,6 +574,18 @@ internal fun StaffAttendanceScreen(
         return
     }
 
+    if (schoolQrFallbackOpen) {
+        StaffSchoolQrProxyAttendanceScreen(
+            geoEnabled = snapshot.geoEnabled,
+            online = online,
+            onClose = {
+                schoolQrFallbackOpen = false
+                staffCardScanViewModel.clearMessage()
+            },
+        )
+        return
+    }
+
     val activeSyncStates = setOf("pending", "syncing")
     val queuedClockIn = state.selfAttendanceSync.any { it.action == "clock_in" && it.state in activeSyncStates }
     val queuedClockOut = state.selfAttendanceSync.any { it.action == "clock_out" && it.state in activeSyncStates }
@@ -604,7 +617,7 @@ internal fun StaffAttendanceScreen(
         staffCardScanState.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         staffCardScanState.message?.let { message -> item { EduCoreInfoBanner(message) } }
         if (!online) item {
-            EduCoreWarningBanner("Offline mode. Your own attendance action can be queued, but staff ID-card attendance scanning requires a live server connection.")
+            EduCoreWarningBanner("Offline mode. Your own attendance action can be queued, but staff ID-card and school-QR proxy attendance require a live server connection.")
         }
         if (state.staffAttendanceFromCache) item {
             EduCoreInfoBanner("Showing the last saved My Attendance snapshot. The server remains the source of truth.")
@@ -701,8 +714,20 @@ internal fun StaffAttendanceScreen(
             )
         }
         item {
+            EduCoreSecondaryButton(
+                text = "No ID card? Scan school QR",
+                onClick = {
+                    scanError = null
+                    staffCardScanViewModel.clearMessage()
+                    schoolQrFallbackOpen = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = online && !staffCardScanState.isSaving,
+            )
+        }
+        item {
             Text(
-                "Any staff account in this school can scan a staff ID card. EduCore verifies the signed card and records the card holder's current server-time clock-in or clock-out automatically.",
+                "Any staff account in this school can record a colleague's real-time attendance. Scan the colleague's signed staff ID-card QR when available; otherwise use the school QR fallback and enter the colleague's Staff ID. EduCore records the current server-time clock-in or clock-out automatically.",
                 style = MaterialTheme.typography.bodySmall,
                 color = EduCoreColors.Slate600,
             )
