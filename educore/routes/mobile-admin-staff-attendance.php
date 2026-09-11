@@ -3,14 +3,19 @@
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceLegacyController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
-use App\Http\Controllers\Api\AdminStaffProxyClockController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
+use App\Http\Controllers\Api\StaffCardAttendanceScanController;
 use Illuminate\Support\Facades\Route;
 
 // Self-service offline reconciliation for the authenticated staff member.
 // This intentionally sits outside the admin prefix so ordinary staff with
 // attendance.self can replay queued clock-in/out events after connectivity returns.
 Route::post('staff-attendance/offline/sync', [StaffAttendanceApiController::class, 'syncOffline']);
+
+// Any authenticated tenant staff member may scan a signed staff ID-card QR.
+// The server uses the current server timestamp and automatically decides whether
+// the scan is today's clock-in or clock-out for the card owner.
+Route::post('staff-attendance/scan-card', StaffCardAttendanceScanController::class);
 
 Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('daily', [AdminStaffAttendanceController::class, 'daily']);
@@ -20,7 +25,7 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::get('offline', AdminStaffAttendanceOfflineController::class);
     Route::post('offline/sync', [AdminStaffAttendanceController::class, 'syncOffline']);
     Route::get('proxy-reviews', [AdminStaffAttendanceController::class, 'proxyReviews']);
-    Route::post('proxy-clock', AdminStaffProxyClockController::class);
+    Route::post('proxy-clock', StaffCardAttendanceScanController::class);
     Route::get('qr', [AdminStaffAttendanceController::class, 'qr']);
     Route::post('qr/reset', [AdminStaffAttendanceController::class, 'resetQr']);
 
