@@ -3,23 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class SchoolOpenDaysController extends Controller
 {
+    private const ALL_WEEK_DAYS = [
+        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    ];
+
     public function update(Request $request)
     {
         $user = $this->guard($request);
         $data = $request->validate([
             'school_open_days' => ['required', 'array', 'min:1', 'max:7'],
-            'school_open_days.*' => ['required', 'string', Rule::in(Tenant::ALL_WEEK_DAYS)],
+            'school_open_days.*' => ['required', 'string', Rule::in(self::ALL_WEEK_DAYS)],
         ]);
 
         $selected = array_values(array_intersect(
-            Tenant::ALL_WEEK_DAYS,
+            self::ALL_WEEK_DAYS,
             array_map(static fn ($day) => strtolower(trim((string) $day)), $data['school_open_days'])
         ));
 
