@@ -81,7 +81,7 @@ class SchoolOpenDaysSettingsViewModel @Inject constructor(
                 is AppResult.Success -> {
                     val savedDays = normalizeDays(result.value.schoolOpenDays.ifEmpty { days })
                     _uiState.update { current ->
-                        it.copy(
+                        current.copy(
                             isSaving = false,
                             selectedDays = savedDays,
                             settings = current.settings?.copy(schoolOpenDays = savedDays),
