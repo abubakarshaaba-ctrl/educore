@@ -36,6 +36,15 @@ class MobileBootstrapController extends Controller
         $term = $superAdmin ? null : Term::current()->first();
         $tenant = $user->tenant;
         $token = $request->attributes->get('api_token');
+        $subscriptionExpiresAt = (! $superAdmin && $tenant)
+            ? $tenant->billingTenant()->subscription_expires_at
+            : null;
+        $graceDays = (int) ($access->metadata['grace_days'] ?? 0);
+        $mobileAccessExpiresAt = $access->state === TenantAccessDecision::STATE_GRACE
+            && $access->expiresAt
+            && $graceDays > 0
+                ? $access->expiresAt->copy()->addDays($graceDays)
+                : ($access->expiresAt ?? $subscriptionExpiresAt);
 
         return response()->json([
             'contract_version' => 1,
@@ -70,7 +79,11 @@ class MobileBootstrapController extends Controller
                 'state' => $access->state,
                 'message' => $access->message,
                 'severity' => $access->severity,
-                'expires_at' => $access->expiresAt?->toIso8601String(),
+                // During grace, expires_at is the service cut-off date rather than
+                // the already-passed paid subscription date. This keeps the existing
+                // mobile contract backward compatible while enabling a useful grace
+                // countdown. All other states retain subscription-expiry semantics.
+                'expires_at' => $mobileAccessExpiresAt?->toIso8601String(),
             ],
             'permissions' => $access->allowed
                 ? ($superAdmin

@@ -8,15 +8,15 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-val approvedFirebaseConfig = rootProject.file("app/firebase/google-services.json")
-if (approvedFirebaseConfig.exists()) {
+val approvedLegacyFirebaseConfig = rootProject.file("../mobile/android/app/google-services.json")
+if (approvedLegacyFirebaseConfig.exists()) {
     val releaseFirebaseConfig = file("src/release/google-services.json")
     val debugFirebaseConfig = file("src/debug/google-services.json")
     releaseFirebaseConfig.parentFile.mkdirs()
     debugFirebaseConfig.parentFile.mkdirs()
-    approvedFirebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
+    approvedLegacyFirebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
     debugFirebaseConfig.writeText(
-        approvedFirebaseConfig.readText().replace(
+        approvedLegacyFirebaseConfig.readText().replace(
             "\"package_name\": \"online.educoreng.educore\"",
             "\"package_name\": \"online.educoreng.educore.nativepreview\"",
         ),
@@ -109,17 +109,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
 
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
 }
 
 dependencies {
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-
     implementation(libs.moshi.core)
-    implementation(libs.retrofit.core)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.work.runtime)
     implementation(project(":core:common"))
