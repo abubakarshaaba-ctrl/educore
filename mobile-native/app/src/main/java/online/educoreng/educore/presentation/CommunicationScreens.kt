@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import android.app.DatePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -20,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Download
@@ -31,7 +31,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -45,11 +44,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -61,9 +64,9 @@ import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButt
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTabs
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
+import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.model.MessageAttachment
 import online.educoreng.educore.core.model.MessageReply
 import online.educoreng.educore.core.model.MessageThreadSummary
@@ -73,6 +76,7 @@ import online.educoreng.educore.core.model.SchoolEvent
 @Composable
 internal fun CommunicationCenterScreen(
     state: CommunicationUiState,
+    canCreateEvent: Boolean,
     onBack: () -> Unit,
     onTab: (Int) -> Unit,
     onNoticeFilter: (String) -> Unit,
@@ -80,6 +84,12 @@ internal fun CommunicationCenterScreen(
     onMarkAllRead: () -> Unit,
     onOpenThread: (Long) -> Unit,
     onCompose: () -> Unit,
+    onEventTitle: (String) -> Unit,
+    onEventDescription: (String) -> Unit,
+    onEventStartDate: (String) -> Unit,
+    onEventEndDate: (String) -> Unit,
+    onEventAudience: (String) -> Unit,
+    onCreateEvent: () -> Unit,
     onRetry: () -> Unit,
 ) {
     if (state.isLoading && state.notifications.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
@@ -105,7 +115,16 @@ internal fun CommunicationCenterScreen(
         when (state.selectedTab) {
             CommunicationTab.NOTICES -> noticesContent(state, onNoticeFilter, onMarkRead, onMarkAllRead)
             CommunicationTab.MESSAGES -> messagesContent(state, onOpenThread, onCompose)
-            CommunicationTab.EVENTS -> eventsContent(state)
+            CommunicationTab.EVENTS -> eventsContent(
+                state = state,
+                canCreateEvent = canCreateEvent,
+                onTitle = onEventTitle,
+                onDescription = onEventDescription,
+                onStartDate = onEventStartDate,
+                onEndDate = onEventEndDate,
+                onAudience = onEventAudience,
+                onCreate = onCreateEvent,
+            )
         }
         if (state.errorMessage != null && state.notifications.isEmpty() && state.messagePage == null && state.events.isEmpty()) {
             item { EduCoreSecondaryButton("Try again", onRetry, Modifier.fillMaxWidth()) }
@@ -145,23 +164,127 @@ private fun LazyListScope.messagesContent(
     item {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Conversations", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Conversations", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text("${state.messagePage?.unreadCount ?: 0} unread", color = EduCoreColors.Slate600)
             }
             EduCorePrimaryButton("New message", onCompose, leadingIcon = { Icon(Icons.AutoMirrored.Filled.Send, null) })
         }
     }
     val threads = state.messagePage?.threads.orEmpty()
-    if (threads.isEmpty()) item { EduCoreEmptyState("No conversations", "Start a message when you need to contact the school or a student family.") }
+    if (threads.isEmpty()) item { EduCoreEmptyState("No conversations", "Start a message when you need to contact the school, staff or a parent.") }
     items(threads, key = MessageThreadSummary::id) { thread -> MessageThreadCard(thread) { onOpenThread(thread.id) } }
 }
 
-private fun LazyListScope.eventsContent(state: CommunicationUiState) {
+private fun LazyListScope.eventsContent(
+    state: CommunicationUiState,
+    canCreateEvent: Boolean,
+    onTitle: (String) -> Unit,
+    onDescription: (String) -> Unit,
+    onStartDate: (String) -> Unit,
+    onEndDate: (String) -> Unit,
+    onAudience: (String) -> Unit,
+    onCreate: () -> Unit,
+) {
     item {
-        Text("School calendar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("School calendar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text("Events published here also appear as Notices.", color = EduCoreColors.Slate600)
+            }
+        }
+    }
+    if (canCreateEvent) {
+        item {
+            EventCreateCard(
+                state = state,
+                onTitle = onTitle,
+                onDescription = onDescription,
+                onStartDate = onStartDate,
+                onEndDate = onEndDate,
+                onAudience = onAudience,
+                onCreate = onCreate,
+            )
+        }
     }
     if (state.events.isEmpty()) item { EduCoreEmptyState("No upcoming events", "Published school events will appear here.") }
     items(state.events, key = SchoolEvent::id) { event -> SchoolEventCard(event) }
+}
+
+@Composable
+private fun EventCreateCard(
+    state: CommunicationUiState,
+    onTitle: (String) -> Unit,
+    onDescription: (String) -> Unit,
+    onStartDate: (String) -> Unit,
+    onEndDate: (String) -> Unit,
+    onAudience: (String) -> Unit,
+    onCreate: () -> Unit,
+) {
+    val context = LocalContext.current
+    fun chooseDate(current: String, onSelected: (String) -> Unit) {
+        val calendar = Calendar.getInstance()
+        if (current.isNotBlank()) runCatching {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(current)
+        }.getOrNull()?.let { calendar.time = it }
+        DatePickerDialog(
+            context,
+            { _, year, month, day -> onSelected(String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day)) },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH),
+        ).show()
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
+            Text("Publish school event", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("This creates a calendar event and a Notice. No response is required from recipients.", color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(
+                value = state.eventTitle,
+                onValueChange = onTitle,
+                label = { Text("Event title") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.eventDescription,
+                onValueChange = onDescription,
+                label = { Text("Description (optional)") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                OutlinedButton(
+                    onClick = { chooseDate(state.eventStartDate, onStartDate) },
+                    modifier = Modifier.weight(1f),
+                ) { Text(state.eventStartDate.ifBlank { "Start date" }) }
+                OutlinedButton(
+                    onClick = { chooseDate(state.eventEndDate, onEndDate) },
+                    modifier = Modifier.weight(1f),
+                ) { Text(state.eventEndDate.ifBlank { "End date" }) }
+            }
+            Text("Audience", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                listOf("all" to "Everyone", "staff" to "Staff", "parents" to "Parents").forEach { (key, label) ->
+                    EduCoreFilterChip(label, state.eventAudience == key, { onAudience(key) })
+                }
+            }
+            EduCorePrimaryButton(
+                text = "Publish event as notice",
+                onClick = onCreate,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = state.eventTitle.isNotBlank() && state.eventStartDate.isNotBlank(),
+                loading = state.isSaving,
+                leadingIcon = { Icon(Icons.Default.CalendarMonth, null) },
+            )
+        }
+    }
 }
 
 @Composable
@@ -189,7 +312,7 @@ internal fun MessageThreadScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { CommunicationHeader(thread.summary.subject, thread.summary.studentName ?: "School conversation", onBack) }
+        item { CommunicationHeader(thread.summary.subject, thread.summary.otherName ?: thread.summary.studentName ?: "School conversation", onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         items(thread.replies, key = MessageReply::id) { reply -> ReplyCard(reply, onDownload) }
         if (thread.summary.status == "open") {
@@ -238,17 +361,21 @@ internal fun ComposeMessageScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { CommunicationHeader("New message", "Student-linked secure conversation", onBack) }
+        item { CommunicationHeader("New message", "Secure school communication", onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
             Box(Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = { recipientsOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(selected?.let { "${it.name} · ${it.className.orEmpty()}" } ?: "Choose student", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        selected?.let { selectedRecipientLabel(it.name, it.admissionNumber, it.className) } ?: "Choose recipient",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 DropdownMenu(expanded = recipientsOpen, onDismissRequest = { recipientsOpen = false }, modifier = Modifier.fillMaxWidth(.9f)) {
                     state.recipients.forEach { recipient ->
                         DropdownMenuItem(
-                            text = { Text("${recipient.name} · ${recipient.admissionNumber}") },
+                            text = { Text(selectedRecipientLabel(recipient.name, recipient.admissionNumber, recipient.className)) },
                             onClick = { onRecipient(recipient.studentId); recipientsOpen = false },
                         )
                     }
@@ -268,6 +395,9 @@ internal fun ComposeMessageScreen(
         }
     }
 }
+
+private fun selectedRecipientLabel(name: String, supporting: String, className: String?): String =
+    listOf(name, className?.takeIf(String::isNotBlank) ?: supporting.takeIf(String::isNotBlank)).filterNotNull().joinToString(" · ")
 
 @Composable
 private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Unit) {
@@ -296,7 +426,7 @@ private fun MessageThreadCard(thread: MessageThreadSummary, onOpen: () -> Unit) 
     Card(onClick = onOpen, colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
         Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = if (thread.unreadCount > 0) EduCoreColors.Gold100 else EduCoreColors.Page50, shape = MaterialTheme.shapes.medium) {
-                Text(thread.unreadCount.takeIf { it > 0 }?.toString() ?: "✉", Modifier.padding(EduCoreSpacing.Md), color = EduCoreColors.Navy900, fontWeight = FontWeight.Bold)
+                Text(thread.unreadCount.takeIf { it > 0 }?.toString() ?: "✉", Modifier.padding(EduCoreSpacing.Md), color = EduCoreColors.Navy900, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
