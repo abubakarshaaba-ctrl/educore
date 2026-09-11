@@ -1,38 +1,8 @@
 package online.educoreng.educore.presentation
 
-import android.graphics.Bitmap
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.MultiFormatWriter
-import com.google.zxing.common.BitMatrix
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -42,11 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import online.educoreng.educore.core.common.AppResult
-import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
-import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
-import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
-import online.educoreng.educore.core.designsystem.theme.EduCoreColors
-import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.network.AdminStaffAttendanceApi
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceQrDto
@@ -107,6 +72,11 @@ data class AdminStaffAttendanceQrUiState(
     val message: String? = null,
 )
 
+/**
+ * The historical route name is retained for source compatibility, but the
+ * administrator entry point now opens the complete Staff Attendance workspace
+ * (Daily, Monthly, Reviews and Settings) instead of a QR-only page.
+ */
 @Composable
 internal fun AdminStaffAttendanceQrScreen(
     state: AdminStaffAttendanceQrUiState,
@@ -114,97 +84,18 @@ internal fun AdminStaffAttendanceQrScreen(
     onReset: () -> Unit,
     onClose: () -> Unit,
 ) {
-    LaunchedEffect(Unit) {
-        if (state.qr == null && !state.isLoading) onRefresh()
-    }
+    // Keep parameters in the signature because AuthorizedShell owns the legacy
+    // route contract. QR loading/reset remains available through the full admin
+    // attendance settings workflow.
+    @Suppress("UNUSED_VARIABLE")
+    val compatibilityState = state
+    @Suppress("UNUSED_VARIABLE")
+    val compatibilityRefresh = onRefresh
+    @Suppress("UNUSED_VARIABLE")
+    val compatibilityReset = onReset
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(eduCoreScreenPadding()),
-        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("School Attendance QR", style = MaterialTheme.typography.titleMedium, color = EduCoreColors.Navy900)
-                Text("For staff clock-in at the school", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600)
-            }
-            IconButton(onClick = onRefresh, enabled = !state.isLoading && !state.isMutating) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh QR", tint = EduCoreColors.Navy900)
-            }
-        }
-
-        state.errorMessage?.let { message ->
-            EduCoreErrorState(message, Modifier.fillMaxWidth(), onRetry = onRefresh)
-        }
-
-        if (state.isLoading && state.qr == null) {
-            EduCoreLoadingState(Modifier.fillMaxWidth(), "Loading attendance QR")
-        } else {
-            state.qr?.let { qr ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = EduCoreColors.White,
-                    shape = MaterialTheme.shapes.large,
-                    shadowElevation = 2.dp,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(EduCoreSpacing.Lg),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-                    ) {
-                        qr.school?.takeIf(String::isNotBlank)?.let {
-                            Text(it, style = MaterialTheme.typography.titleSmall, color = EduCoreColors.Ink900)
-                        }
-                        val bitmap = remember(qr.payload) { qrBitmap(qr.payload, 720) }
-                        bitmap?.let {
-                            Image(
-                                bitmap = it.asImageBitmap(),
-                                contentDescription = "School staff attendance QR",
-                                modifier = Modifier.size(260.dp),
-                            )
-                        }
-                        Text(
-                            qr.note ?: "This QR stays valid until it is reset by a school administrator.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = EduCoreColors.Slate600,
-                        )
-                        qr.generatedAt?.let {
-                            Text("Generated $it", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600)
-                        }
-                    }
-                }
-            }
-        }
-
-        state.message?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Navy900)
-        }
-
-        OutlinedButton(
-            onClick = onReset,
-            enabled = !state.isMutating,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(if (state.isMutating) "Resetting…" else "Reset school QR")
-        }
-
-        Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-            Text("Back to Staff Attendance")
-        }
-    }
+    AdminStaffAttendanceHubScreen(
+        onBack = onClose,
+        onOpenQr = {},
+    )
 }
-
-private fun qrBitmap(payload: String, size: Int): Bitmap? = runCatching {
-    val matrix: BitMatrix = MultiFormatWriter().encode(payload, BarcodeFormat.QR_CODE, size, size)
-    Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
-        for (y in 0 until size) {
-            for (x in 0 until size) {
-                setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
-            }
-        }
-    }
-}.getOrNull()
