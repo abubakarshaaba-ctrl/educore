@@ -22,8 +22,8 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        // Use a management-only mobile key so the Android shell does not
-        // confuse this workspace with the native self-attendance screen.
+        // Management-only workspace. Ordinary staff keep the separate
+        // staff-attendance.self entry for their personal attendance actions.
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
@@ -45,6 +45,15 @@ class MobileModuleService
         'lesson-planner' => ['Lesson Planner', '/lesson-planner', 'lesson-planner'],
         'academic-repository' => ['Academic Repository', '/academic-repository', 'repository'],
         'profile' => ['My Profile', '/profile', 'profile'],
+    ];
+
+    private const STAFF_ATTENDANCE_MANAGEMENT_ROLES = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'vice_principal',
+        'academic_administrator',
     ];
 
     public function forUser(User $user): array
@@ -96,7 +105,11 @@ class MobileModuleService
                 }
 
                 if ($key === 'staff-attendance.admin') {
-                    return $user->canAccessModule('staff-attendance');
+                    return $this->canManageStaffAttendance($user);
+                }
+
+                if ($key === 'staff-attendance.self') {
+                    return $user->isTenantStaff() && $user->canAccessModule('staff-attendance.self');
                 }
 
                 return $user->canAccessModule($key);
@@ -109,5 +122,15 @@ class MobileModuleService
             ])
             ->values()
             ->all();
+    }
+
+    private function canManageStaffAttendance(User $user): bool
+    {
+        return (bool) $user->tenant_id
+            && $user->isTenantStaff()
+            && (
+                in_array($user->roleKey(), self::STAFF_ATTENDANCE_MANAGEMENT_ROLES, true)
+                || $user->canManage('staff-attendance')
+            );
     }
 }
