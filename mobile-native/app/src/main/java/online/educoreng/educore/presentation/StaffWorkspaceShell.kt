@@ -145,7 +145,7 @@ internal fun StaffWorkspaceShell(
             label = tab.label,
             icon = tab.icon,
             badgeCount = if (tab == StaffTab.INBOX) {
-                communicationState.unreadNotifications + (communicationState.messagePage?.unreadCount ?: 0)
+                communicationState.totalUnreadNotices + (communicationState.messagePage?.unreadCount ?: 0)
             } else 0,
         )
     }
@@ -283,7 +283,7 @@ internal fun StaffWorkspaceShell(
                     NavigationRail(containerColor = EduCoreColors.White) {
                         availableTabs.forEach { tab ->
                             val unread = if (tab == StaffTab.INBOX) {
-                                communicationState.unreadNotifications + (communicationState.messagePage?.unreadCount ?: 0)
+                                communicationState.totalUnreadNotices + (communicationState.messagePage?.unreadCount ?: 0)
                             } else 0
                             NavigationRailItem(
                                 selected = selectedRoot == tab,
@@ -353,6 +353,8 @@ internal fun StaffWorkspaceShell(
                                     navController.navigate(StaffRoutes.COMPOSE_MESSAGE)
                                 },
                                 onRetry = communicationViewModel::loadAll,
+                                onMarkPlatformRead = communicationViewModel::markPlatformRead,
+                                onDismissPlatformNotice = communicationViewModel::dismissPlatformNotice,
                             )
                         }
                         composable(StaffTab.MORE.route) {
