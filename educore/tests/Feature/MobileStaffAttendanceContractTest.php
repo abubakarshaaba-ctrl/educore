@@ -66,7 +66,7 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertTrue(method_exists(StaffCardAttendanceScanController::class, '__invoke'));
     }
 
-    public function test_staff_card_scan_route_is_outside_admin_namespace_and_uses_real_time_controller(): void
+    public function test_staff_scan_route_supports_personal_card_and_school_qr_fallback(): void
     {
         $route = collect(Route::getRoutes())->first(fn ($candidate) =>
             in_array('POST', $candidate->methods(), true)
@@ -79,12 +79,18 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         $source = file_get_contents(app_path('Http/Controllers/Api/StaffCardAttendanceScanController.php'));
         $this->assertStringContainsString("\$user->isTenantStaff()", $source);
-        $this->assertStringContainsString("'staff_qr_token' => ['required', 'string', 'max:4096']", $source);
+        $this->assertStringContainsString("'staff_qr_token' => ['nullable', 'string', 'max:4096', 'required_without:school_qr_token']", $source);
+        $this->assertStringContainsString("'school_qr_token' => ['nullable', 'string', 'max:4096', 'required_without:staff_qr_token']", $source);
+        $this->assertStringContainsString("'staff_id' => ['nullable', 'string', 'max:40', 'required_with:school_qr_token']", $source);
         $this->assertStringContainsString('verifyPersonalQrToken', $source);
+        $this->assertStringContainsString('verifyStaticQrToken', $source);
+        $this->assertStringContainsString('verifyQrToken', $source);
+        $this->assertStringContainsString("->where('staff_id', \$staffNumber)", $source);
         $this->assertStringContainsString('isSchoolOpenOn', $source);
         $this->assertStringContainsString('wasEmployedOn', $source);
         $this->assertStringContainsString("\$now = now();", $source);
-        $this->assertStringContainsString("'clock_in_method' => 'staff_card_qr'", $source);
+        $this->assertStringContainsString("staff_card_qr", $source);
+        $this->assertStringContainsString("school_qr_proxy", $source);
         $this->assertStringContainsString("\$action = 'clock_in'", $source);
         $this->assertStringContainsString("\$action = 'clock_out'", $source);
         $this->assertStringContainsString('distanceTo', $source);
