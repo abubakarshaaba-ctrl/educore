@@ -17,14 +17,18 @@ class ShellNavigationPolicyTest {
             ModuleDescriptor("cbt", "CBT", "/cbt", "cbt"),
             ModuleDescriptor("cbt-exams", "CBT Exams", "/cbt/exams", "cbt"),
             ModuleDescriptor("examinations", "Examinations", "/examinations", "cbt"),
+            ModuleDescriptor("student.exams", "Student Exams", "/student/exams", "cbt"),
+            ModuleDescriptor("student.cbt", "Student CBT", "/student/cbt", "cbt"),
+            ModuleDescriptor("staff.cbt", "Staff CBT", "/staff/cbt", "cbt"),
         )
+        val removed = setOf("cbt", "cbt-exams", "examinations", "student.exams", "student.cbt", "staff.cbt")
         listOf(
             session("admin", "administrator", setOf("*"), modules),
             session("staff", "subject_teacher", setOf("classes.view"), modules),
             session("parent", "parent", emptySet(), modules),
         ).forEach { snapshot ->
             val keys = ShellNavigationPolicy.visibleModules(snapshot).map { it.key.lowercase() }.toSet()
-            assertFalse(keys.any { it in setOf("cbt", "cbt-exams", "examinations") })
+            assertFalse(keys.any { it in removed })
         }
     }
 
@@ -33,18 +37,23 @@ class ShellNavigationPolicyTest {
         val modules = baseModules() + listOf(
             ModuleDescriptor("results", "Results", "/results", "results"),
             ModuleDescriptor("report-cards", "Report Cards", "/report-cards", "results"),
+            ModuleDescriptor("parent.results", "Parent Results", "/parent/results", "results"),
+            ModuleDescriptor("student.results", "Student Results", "/student/results", "results"),
         )
 
         val adminKeys = ShellNavigationPolicy.visibleModules(session("admin", "administrator", setOf("*"), modules)).map { it.key }.toSet()
         val staffKeys = ShellNavigationPolicy.visibleModules(session("staff", "subject_teacher", setOf("classes.view"), modules)).map { it.key }.toSet()
+        val studentKeys = ShellNavigationPolicy.visibleModules(session("student", "student", emptySet(), modules)).map { it.key }.toSet()
         val parent = session("parent", "parent", emptySet(), modules)
         val parentKeys = ShellNavigationPolicy.visibleModules(parent).map { it.key }.toSet()
         val parentPrimaryKeys = ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, parent).map { it.key }.toSet()
+        val resultAliases = setOf("results", "report-cards", "parent.results", "student.results")
 
-        assertFalse("results" in adminKeys || "report-cards" in adminKeys)
-        assertFalse("results" in staffKeys || "report-cards" in staffKeys)
-        assertTrue(parentKeys.any { it in setOf("results", "report-cards") })
-        assertTrue(parentPrimaryKeys.any { it in setOf("results", "report-cards") })
+        assertFalse(adminKeys.any { it in resultAliases })
+        assertFalse(staffKeys.any { it in resultAliases })
+        assertFalse(studentKeys.any { it in resultAliases })
+        assertTrue(parentKeys.any { it in resultAliases })
+        assertTrue(parentPrimaryKeys.any { it in resultAliases })
     }
 
     @Test
