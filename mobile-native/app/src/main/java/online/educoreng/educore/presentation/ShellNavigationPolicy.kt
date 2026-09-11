@@ -114,9 +114,19 @@ object ShellNavigationPolicy {
      * Native-app visibility is intentionally stricter than the web permission
      * catalogue. This protects upgraded/offline sessions that may still contain
      * stale module descriptors from older bootstrap responses.
+     *
+     * Personal attendance is deliberately excluded from tab/module grids and is
+     * surfaced as a dedicated Home quick action. School-wide Staff Attendance is
+     * exposed on mobile only to the school admin portal.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> =
-        session.modules.filterNot { module -> isRemovedFromMobile(module.key) }
+        session.modules.filterNot { module ->
+            val key = module.key.lowercase()
+            isRemovedFromMobile(key) ||
+                key == "dashboard" ||
+                key == "staff-attendance.self" ||
+                (key == "staff-attendance" && !session.user.portal.equals("admin", ignoreCase = true))
+        }
 
     fun isRemovedFromMobile(moduleKey: String): Boolean {
         val key = moduleKey.lowercase()
