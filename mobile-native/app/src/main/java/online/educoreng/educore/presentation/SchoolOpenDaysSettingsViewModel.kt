@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.network.AdminStaffAttendanceApi
 import online.educoreng.educore.core.network.ApiClientFactory
-import online.educoreng.educore.core.network.dto.AdminAttendanceSettingsRequestDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceSettingsDto
+import online.educoreng.educore.core.network.dto.SchoolOpenDaysRequestDto
 import online.educoreng.educore.core.network.safeApiCall
 
 @HiltViewModel
@@ -67,50 +67,24 @@ class SchoolOpenDaysSettingsViewModel @Inject constructor(
 
     fun save() {
         if (_uiState.value.isSaving) return
-        val settings = _uiState.value.settings ?: run {
-            _uiState.update { it.copy(errorMessage = "Attendance settings are not loaded yet.") }
-            return
-        }
         val days = _uiState.value.selectedDays
         if (days.isEmpty()) {
             _uiState.update { it.copy(errorMessage = "Select at least one school opening day.") }
-            return
-        }
-        val resumption = settings.resumptionTime?.take(5)
-        val closing = settings.closingTime?.take(5)
-        val lat = settings.geoLat
-        val lng = settings.geoLng
-        val radius = settings.geoRadiusMeters
-        if (resumption.isNullOrBlank() || closing.isNullOrBlank() || lat == null || lng == null || radius == null || radius <= 0) {
-            _uiState.update {
-                it.copy(errorMessage = "Complete the attendance time and school location settings before saving school opening days.")
-            }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, message = null, errorMessage = null) }
             when (val result = safeApiCall(parser) {
-                api.updateSettings(
-                    AdminAttendanceSettingsRequestDto(
-                        resumptionTime = resumption,
-                        graceMinutes = settings.graceMinutes,
-                        closingTime = closing,
-                        geoEnabled = settings.geoEnabled,
-                        geoLat = lat,
-                        geoLng = lng,
-                        geoRadiusMeters = radius,
-                        schoolOpenDays = days,
-                    )
-                )
+                api.updateSchoolOpenDays(SchoolOpenDaysRequestDto(days))
             }) {
                 is AppResult.Success -> {
-                    val updated = result.value.settings ?: settings.copy(schoolOpenDays = days)
-                    _uiState.update {
+                    val savedDays = normalizeDays(result.value.schoolOpenDays.ifEmpty { days })
+                    _uiState.update { current ->
                         it.copy(
                             isSaving = false,
-                            settings = updated,
-                            selectedDays = normalizeDays(updated.schoolOpenDays),
+                            selectedDays = savedDays,
+                            settings = current.settings?.copy(schoolOpenDays = savedDays),
                             message = result.value.message ?: "School opening days saved.",
                             errorMessage = null,
                         )
