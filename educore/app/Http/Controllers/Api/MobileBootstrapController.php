@@ -36,6 +36,9 @@ class MobileBootstrapController extends Controller
         $term = $superAdmin ? null : Term::current()->first();
         $tenant = $user->tenant;
         $token = $request->attributes->get('api_token');
+        $subscriptionExpiresAt = (! $superAdmin && $tenant)
+            ? $tenant->billingTenant()->subscription_expires_at
+            : null;
 
         return response()->json([
             'contract_version' => 1,
@@ -70,7 +73,10 @@ class MobileBootstrapController extends Controller
                 'state' => $access->state,
                 'message' => $access->message,
                 'severity' => $access->severity,
-                'expires_at' => $access->expiresAt?->toIso8601String(),
+                // Keep the existing access-decision expiry for warning/expired states,
+                // but also expose the billing tenant's real subscription expiry for
+                // ordinary active tenants so mobile clients can render a countdown.
+                'expires_at' => ($access->expiresAt ?? $subscriptionExpiresAt)?->toIso8601String(),
             ],
             'permissions' => $access->allowed
                 ? ($superAdmin
