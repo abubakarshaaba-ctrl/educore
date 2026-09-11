@@ -1,19 +1,63 @@
 workflows:
-  android-release:
-    name: EduCore Staff APK
-    max_build_duration: 30
+  native-android-validation:
+    name: EduCore Native Android Validation
+    max_build_duration: 45
     instance_type: mac_mini_m2
-    working_directory: mobile
+    working_directory: mobile-native
     environment:
-      flutter: stable
       java: 21
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
     scripts:
-      - name: Get packages
-        script: flutter pub get
-      - name: Generate launcher icons
-        script: dart run flutter_launcher_icons
-      - name: Build release APK (arm64)
-        script: flutter build apk --release --target-platform android-arm64
+      - name: Configure Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          chmod +x gradlew
+
+      - name: Run native unit tests, lint and debug build
+        script: |
+          ./gradlew --no-daemon --no-parallel \
+            :core:common:testDebugUnitTest \
+            :core:designsystem:testDebugUnitTest \
+            :core:model:testDebugUnitTest \
+            :core:network:testDebugUnitTest \
+            :core:security:testDebugUnitTest \
+            :core:data:testDebugUnitTest \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug
+
+      - name: Prepare optional release signing
+        script: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_STORE_PASSWORD" ] || [ -z "$KEYSTORE_KEY_PASSWORD" ] || [ -z "$KEYSTORE_KEY_ALIAS" ]; then
+            echo "Release signing variables are not configured; keeping this as a validated debug build."
+            exit 0
+          fi
+          mkdir -p .ci-signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .ci-signing/educore-release.jks
+          {
+            echo 'storeFile=educore-release.jks'
+            echo "storePassword=$KEYSTORE_STORE_PASSWORD"
+            echo "keyAlias=$KEYSTORE_KEY_ALIAS"
+            echo "keyPassword=$KEYSTORE_KEY_PASSWORD"
+          } > .ci-signing/release.properties
+
+      - name: Build optional signed release APK
+        script: |
+          if [ ! -s .ci-signing/release.properties ]; then
+            echo "Signed release skipped."
+            exit 0
+          fi
+          ./gradlew --no-daemon --no-parallel \
+            -PEDUCORE_RELEASE_PROPERTIES=.ci-signing/release.properties \
+            :app:lintRelease \
+            :app:assembleRelease
+          shasum -a 256 app/build/outputs/apk/release/app-release.apk > app/build/outputs/apk/release/app-release.apk.sha256
+
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
-      - mobile/build/app/outputs/flutter-apk/*.apk
+      - app/build/outputs/apk/debug/app-debug.apk
+      - app/build/reports/lint-results-debug.html
+      - app/build/outputs/apk/release/app-release.apk
+      - app/build/outputs/apk/release/app-release.apk.sha256
