@@ -161,8 +161,11 @@ class FeesViewModel @Inject constructor(
     fun openGeneration() {
         val current = _uiState.value
         if (!current.canManage) return
-        val defaultTermId = current.workspace?.terms?.firstOrNull()?.id
-        val defaultClassId = current.workspace?.classLevels?.firstOrNull()?.id
+        val workspace = current.workspace
+        val defaultTermId = workspace?.currentTermId
+            ?: workspace?.terms?.firstOrNull { it.isCurrent }?.id
+            ?: workspace?.terms?.firstOrNull()?.id
+        val defaultClassId = workspace?.classLevels?.firstOrNull()?.id
         _uiState.update {
             it.copy(
                 generationOpen = true,
