@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
+use App\Models\Tenant;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -19,26 +20,32 @@ class AdminStaffAttendanceController extends Controller
         $user = $this->guard($request);
         $date = $request->date('date')?->toDateString() ?? today()->toDateString();
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $isSchoolDay = $user->tenant?->isSchoolOpenOn($date) ?? true;
         $records = StaffAttendanceRecord::query()
             ->where('tenant_id', $user->tenant_id)
             ->whereDate('attendance_date', $date)
             ->with(['staff:id,name,staff_id', 'clockedInBy:id,name'])
             ->orderBy('clock_in_time')
             ->get();
-        $eligible = User::attendanceEligibleOn($user->tenant_id, $date)->count();
+        $eligible = $isSchoolDay
+            ? User::attendanceEligibleOn($user->tenant_id, $date)->count()
+            : 0;
 
         return response()->json([
             'date' => $date,
+            'is_school_day' => $isSchoolDay,
             'summary' => [
                 'eligible' => $eligible,
                 'clocked_in' => $records->whereNotNull('clock_in_time')->count(),
                 'early' => $records->where('status', 'early')->count(),
                 'present' => $records->whereIn('status', ['early', 'present', 'late'])->count(),
                 'late' => $records->where('status', 'late')->count(),
-                'absent' => max(0, $eligible - $records->whereNotNull('clock_in_time')->count()),
+                'absent' => $isSchoolDay
+                    ? max(0, $eligible - $records->whereNotNull('clock_in_time')->count())
+                    : 0,
             ],
             'records' => $records->map(fn (StaffAttendanceRecord $record) => $this->recordPayload($record))->values(),
-            'settings' => $this->settingsPayload($settings),
+            'settings' => $this->settingsPayload($settings, $user->tenant),
         ]);
     }
 
@@ -57,14 +64,26 @@ class AdminStaffAttendanceController extends Controller
 
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = (clone $start)->endOfMonth();
+        $workingDays = [];
+        for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
+            if ($user->tenant?->isSchoolOpenOn($cursor) ?? true) {
+                $workingDays[] = $cursor->toDateString();
+            }
+        }
+        $workingDaySet = array_fill_keys($workingDays, true);
+
         $records = StaffAttendanceRecord::query()
             ->where('tenant_id', $user->tenant_id)
             ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
             ->get()
             ->groupBy('user_id');
 
-        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records) {
-            $rows = $records->get($member->id, collect());
+        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records, $workingDaySet) {
+            $rows = $records->get($member->id, collect())->filter(function (StaffAttendanceRecord $record) use ($workingDaySet) {
+                $date = $record->attendance_date?->toDateString() ?? (string) $record->attendance_date;
+                return isset($workingDaySet[$date]);
+            });
+
             return [
                 'id' => $member->id,
                 'name' => $member->name,
@@ -77,7 +96,12 @@ class AdminStaffAttendanceController extends Controller
             ];
         })->values();
 
-        return response()->json(['month' => $month, 'year' => $year, 'staff' => $staff]);
+        return response()->json([
+            'month' => $month,
+            'year' => $year,
+            'working_days' => $workingDays,
+            'staff' => $staff,
+        ]);
     }
 
     public function report(Request $request)
@@ -88,7 +112,12 @@ class AdminStaffAttendanceController extends Controller
     public function settings(Request $request)
     {
         $user = $this->guard($request);
-        return response()->json(['settings' => $this->settingsPayload(StaffAttendanceSetting::forTenant($user->tenant_id))]);
+        return response()->json([
+            'settings' => $this->settingsPayload(
+                StaffAttendanceSetting::forTenant($user->tenant_id),
+                $user->tenant,
+            ),
+        ]);
     }
 
     public function updateSettings(Request $request)
@@ -102,20 +131,36 @@ class AdminStaffAttendanceController extends Controller
             'geo_lat' => ['required', 'numeric', 'between:-90,90'],
             'geo_lng' => ['required', 'numeric', 'between:-180,180'],
             'geo_radius_meters' => ['required', 'numeric', 'gt:0', 'max:50000'],
+            'school_open_days' => ['sometimes', 'required', 'array', 'min:1', 'max:7'],
+            'school_open_days.*' => ['string', Rule::in([
+                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+            ])],
         ]);
+
+        $openDays = $data['school_open_days'] ?? null;
+        unset($data['school_open_days']);
+
         if (isset($data['resumption_time'])) $data['resumption_time'] .= ':00';
         if (isset($data['closing_time'])) $data['closing_time'] .= ':00';
         $data['geo_enabled'] = $data['geo_enabled'] ?? true;
         $data['geo_radius_meters'] = (int) round($data['geo_radius_meters']);
 
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
-        $settings->update($data);
+        DB::transaction(function () use ($settings, $user, $data, $openDays): void {
+            $settings->update($data);
+            if ($openDays !== null) {
+                $user->tenant?->update([
+                    'school_open_days' => array_values(array_unique(array_map('strtolower', $openDays))),
+                ]);
+            }
+        });
         $settings->refresh();
+        $user->load('tenant');
 
         return response()->json([
             'success' => true,
-            'message' => 'Attendance settings saved successfully.',
-            'settings' => $this->settingsPayload($settings),
+            'message' => 'Attendance and school-day settings saved successfully.',
+            'settings' => $this->settingsPayload($settings, $user->tenant),
         ]);
     }
 
@@ -225,7 +270,7 @@ class AdminStaffAttendanceController extends Controller
     {
         $actor = $this->guard($request);
         $data = $request->validate([
-            'staff_id' => ['required', 'integer'],
+            'staff_id' => ['required', 'string', 'max:40'],
             'date' => ['required', 'date_format:Y-m-d'],
             'clock_in_time' => ['required', 'date_format:H:i'],
             'clock_out_time' => ['nullable', 'date_format:H:i', 'after:clock_in_time'],
@@ -233,8 +278,14 @@ class AdminStaffAttendanceController extends Controller
             'status' => ['nullable', Rule::in(['early', 'present', 'late', 'absent'])],
             'device' => ['nullable', 'string', 'max:255'],
         ]);
-        $staff = User::tenantStaff($actor->tenant_id)->whereKey($data['staff_id'])->first();
-        abort_unless($staff, 422, 'The selected staff member is not available for this school.');
+
+        abort_unless($actor->tenant?->isSchoolOpenOn($data['date']) ?? true, 422, 'The selected date is not configured as a school day.');
+
+        $staffNumber = trim($data['staff_id']);
+        $staff = User::tenantStaff($actor->tenant_id)
+            ->where('staff_id', $staffNumber)
+            ->first();
+        abort_unless($staff, 422, 'No staff member was found with that Staff ID in this school.');
         $settings = StaffAttendanceSetting::forTenant($actor->tenant_id);
 
         $record = StaffAttendanceRecord::updateOrCreate([
@@ -260,6 +311,7 @@ class AdminStaffAttendanceController extends Controller
             'tenant_id' => $actor->tenant_id,
             'actor_user_id' => $actor->id,
             'staff_user_id' => $staff->id,
+            'staff_id' => $staff->staff_id,
             'attendance_record_id' => $record->id,
             'reason' => $data['reason'],
             'ip' => $request->ip(),
@@ -267,7 +319,7 @@ class AdminStaffAttendanceController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Attendance recorded by proxy.',
+            'message' => 'Attendance recorded by proxy for '.$staff->name.' ('.$staff->staff_id.').',
             'record' => $this->recordPayload($record->loadMissing(['staff', 'clockedInBy'])),
         ], 201);
     }
@@ -342,7 +394,7 @@ class AdminStaffAttendanceController extends Controller
         ];
     }
 
-    private function settingsPayload(StaffAttendanceSetting $settings): array
+    private function settingsPayload(StaffAttendanceSetting $settings, ?Tenant $tenant = null): array
     {
         return [
             'resumption_time' => substr((string) $settings->resumption_time, 0, 5),
@@ -352,6 +404,7 @@ class AdminStaffAttendanceController extends Controller
             'geo_lat' => $settings->geo_lat,
             'geo_lng' => $settings->geo_lng,
             'geo_radius_meters' => $settings->geo_radius_meters,
+            'school_open_days' => $tenant?->schoolOpenDays() ?? Tenant::DEFAULT_SCHOOL_OPEN_DAYS,
             'configured' => $settings->geo_lat !== null && $settings->geo_lng !== null && (int) $settings->geo_radius_meters > 0,
         ];
     }
