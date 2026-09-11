@@ -117,16 +117,24 @@ object ShellNavigationPolicy {
      *
      * Personal attendance is deliberately excluded from tab/module grids and is
      * surfaced as a dedicated Home quick action. School-wide Staff Attendance is
-     * exposed on mobile only to the school admin portal.
+     * exposed on mobile only to the school admin portal and is normalized to the
+     * full native administrator attendance workspace.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> =
-        session.modules.filterNot { module ->
+        session.modules.mapNotNull { module ->
             val key = module.key.lowercase()
-            isRemovedFromMobile(key) ||
-                key == "dashboard" ||
-                key == "staff-attendance.self" ||
-                (key == "staff-attendance" && !session.user.portal.equals("admin", ignoreCase = true))
-        }
+            when {
+                isRemovedFromMobile(key) -> null
+                key == "dashboard" -> null
+                key == "staff-attendance.self" -> null
+                key == "staff-attendance" && !session.user.portal.equals("admin", ignoreCase = true) -> null
+                key == "staff-attendance" -> module.copy(
+                    key = "staff-attendance.admin",
+                    title = "Staff Attendance",
+                )
+                else -> module
+            }
+        }.distinctBy { it.key.lowercase() }
 
     fun isRemovedFromMobile(moduleKey: String): Boolean {
         val key = moduleKey.lowercase()
