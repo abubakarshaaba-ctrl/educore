@@ -54,10 +54,7 @@ object ShellNavigationPolicy {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal.lowercase()) {
                 "platform" -> modules.filter { it.key.contains("school", true) || it.key.contains("tenant", true) || it.key.contains("group", true) }
-                "parent" -> modules.filter {
-                    it.key.contains("attendance", true) ||
-                        it.key.lowercase() in PARENT_RESULT_MODULES
-                }
+                "parent" -> modules.filter { it.key.contains("attendance", true) }
                 "staff", "admin" -> modules.filter { it.key.lowercase() in CLASS_WORKSPACE_ENTRY_KEYS }
                 else -> grouped[ModuleGroup.ACADEMICS].orEmpty()
             }
@@ -86,8 +83,7 @@ object ShellNavigationPolicy {
 
         var filtered = session.modules.filterNot { module ->
             val key = module.key.lowercase()
-            key in MOBILE_CBT_REMOVED_MODULES ||
-                (key in PARENT_RESULT_MODULES && portal != "parent") ||
+            key in MOBILE_REMOVED_MODULES ||
                 (accountant && !accountantAcademicOverride && key in ACCOUNTANT_DENIED_KEYS) ||
                 (key == "staff-attendance" && !canManageStaffAttendance)
         }
@@ -146,7 +142,6 @@ object ShellNavigationPolicy {
 
     private fun canonicalKey(key: String): String = when (key.lowercase()) {
         "staff-attendance.self" -> "staff-attendance"
-        "report-cards", "results", "parent.results", "student.results" -> "results"
         else -> key.lowercase()
     }
 
@@ -155,10 +150,10 @@ object ShellNavigationPolicy {
         return normalized in ADMIN_OPERATIONAL_KEYS || ADMIN_OPERATIONAL_PREFIXES.any { normalized.startsWith(it) }
     }
 
-    private val MOBILE_CBT_REMOVED_MODULES = setOf(
+    private val MOBILE_REMOVED_MODULES = setOf(
         "cbt", "cbt-exams", "examinations", "student.exams", "student.cbt", "staff.cbt", "staff-cbt",
+        "report-cards", "results", "parent.results", "student.results",
     )
-    private val PARENT_RESULT_MODULES = setOf("report-cards", "results", "parent.results", "student.results")
     private val CLASS_WORKSPACE_ENTRY_KEYS = setOf("classes", "students", "attendance", "scores", "scores.entry", "lesson-planner", "academic-repository")
     private val ADMIN_OPERATIONAL_KEYS = setOf(
         "staff", "staff-directory", "classes", "students", "attendance", "student-attendance", "scores", "scores.entry", "subjects",
