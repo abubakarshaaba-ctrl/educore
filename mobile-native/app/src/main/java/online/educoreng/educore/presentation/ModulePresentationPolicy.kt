@@ -35,14 +35,9 @@ object ModulePresentationPolicy {
         "transfers",
         "portal-accounts",
         "gradebook",
-        "reports",
-        "report-cards",
         "timetable",
         "student.timetable",
         "student.exams",
-        "cbt",
-        "cbt-exams",
-        "examinations",
         "academic-repository",
         "lesson-planner",
         "exports",
@@ -80,9 +75,6 @@ object ModulePresentationPolicy {
     private val ROLE_CONDITIONAL_MODULES = setOf(
         "scores",
         "scores.entry",
-        "results",
-        "student.results",
-        "parent.results",
     )
 
     private val EXPLICIT_WEB_ONLY_MODULES: Set<String> = emptySet()
