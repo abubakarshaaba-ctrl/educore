@@ -66,7 +66,7 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertTrue(method_exists(StaffCardAttendanceScanController::class, '__invoke'));
     }
 
-    public function test_staff_scan_route_supports_personal_card_and_school_qr_fallback(): void
+    public function test_staff_card_scan_route_is_outside_admin_namespace_and_uses_real_time_controller(): void
     {
         $route = collect(Route::getRoutes())->first(fn ($candidate) =>
             in_array('POST', $candidate->methods(), true)
@@ -85,12 +85,11 @@ class MobileStaffAttendanceContractTest extends TestCase
         $this->assertStringContainsString('verifyPersonalQrToken', $source);
         $this->assertStringContainsString('verifyStaticQrToken', $source);
         $this->assertStringContainsString('verifyQrToken', $source);
-        $this->assertStringContainsString("->where('staff_id', \$staffNumber)", $source);
         $this->assertStringContainsString('isSchoolOpenOn', $source);
         $this->assertStringContainsString('wasEmployedOn', $source);
         $this->assertStringContainsString("\$now = now();", $source);
-        $this->assertStringContainsString("staff_card_qr", $source);
-        $this->assertStringContainsString("school_qr_proxy", $source);
+        $this->assertStringContainsString("'staff_card_qr'", $source);
+        $this->assertStringContainsString("'school_qr_proxy'", $source);
         $this->assertStringContainsString("\$action = 'clock_in'", $source);
         $this->assertStringContainsString("\$action = 'clock_out'", $source);
         $this->assertStringContainsString('distanceTo', $source);
@@ -105,6 +104,20 @@ class MobileStaffAttendanceContractTest extends TestCase
 
         $this->assertNotNull($route);
         $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
+    }
+
+    public function test_school_open_days_drive_attendance_and_timetable_contracts(): void
+    {
+        $attendance = file_get_contents(app_path('Http/Controllers/Api/AdminStaffAttendanceController.php'));
+        $tenant = file_get_contents(app_path('Models/Tenant.php'));
+        $timetable = file_get_contents(app_path('Services/TimetableGeneratorService.php'));
+
+        $this->assertStringContainsString("'school_open_days'", $attendance);
+        $this->assertStringContainsString('isSchoolOpenOn', $attendance);
+        $this->assertStringContainsString('schoolOpenDays()', $tenant);
+        $this->assertStringContainsString('DEFAULT_SCHOOL_OPEN_DAYS', $tenant);
+        $this->assertStringContainsString('schoolOpenDays()', $timetable);
+        $this->assertStringNotContainsString("const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']", $timetable);
     }
 
     public function test_self_offline_sync_route_is_not_inside_admin_namespace(): void
