@@ -7,7 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/** Sent to the new school's admin(s) right after a tenant is provisioned. */
+/** Sent once to the new school's administrator after tenant provisioning succeeds. */
 class TenantWelcomeNotification extends Notification
 {
     use Queueable;
@@ -26,16 +26,18 @@ class TenantWelcomeNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->subject('Welcome to EduCore, ' . $this->tenant->name . '!')
-            ->greeting('Welcome to EduCore, ' . $notifiable->name . '!')
-            ->line('Your school, ' . $this->tenant->name . ', is now set up on EduCore.')
-            ->line('Sign in any time with your email address at the link below.')
-            ->action('Go to EduCore', route('login'));
+            ->subject('Welcome to EduCore — ' . $this->tenant->name)
+            ->greeting('Welcome, ' . $notifiable->name . '!')
+            ->line($this->tenant->name . ' is now active on EduCore.')
+            ->line('Your administrator login is ' . ($notifiable->email ?: 'your registered email address') . '.')
+            ->action('Sign in to EduCore', route('login'));
 
         if ($this->trialEndsAt) {
-            $mail->line('You are on a free trial until ' . $this->trialEndsAt . '. Add your students, staff, and classes to get started.');
+            $mail->line('Trial access is available until ' . $this->trialEndsAt . '.');
         }
 
-        return $mail->line('Need help getting set up? Just reply to this email or reach us on WhatsApp at +2347065595768.');
+        return $mail
+            ->line('Next: add your school settings, academic session, classes, subjects and staff.')
+            ->line('Need help? Reply to this email or contact EduCore Support on WhatsApp: +234 706 559 5768.');
     }
 }
