@@ -4,166 +4,130 @@
 <meta charset="UTF-8">
 <title>Payslip — {{ optional($item->staff)->name }}</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Arial',sans-serif;font-size:13px;color:#1e293b;background:white;padding:30px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #2563EB;margin-bottom:20px}
-.school-info h1{font-size:18px;font-weight:800;color:#0F172A}
-.school-info p{font-size:12px;color:#64748B;margin-top:2px}
-.payslip-label{text-align:right}
-.payslip-label .title{font-size:20px;font-weight:800;color:#2563EB;letter-spacing:-0.02em}
-.payslip-label .sub{font-size:11px;color:#64748B;margin-top:3px}
-.section{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:14px 18px;margin-bottom:14px}
-.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}
-.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.info-item label{font-size:10px;font-weight:600;color:#94A3B8;display:block;margin-bottom:2px}
-.info-item span{font-size:13px;font-weight:600;color:#0F172A}
-table{width:100%;border-collapse:collapse}
-table th{padding:8px 12px;background:#F1F5F9;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748B;text-align:left;border-bottom:1px solid #E2E8F0}
-table td{padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px}
-table td:last-child{text-align:right;font-weight:600}
-.total-row td{background:#EFF6FF;font-weight:700;color:#2563EB;font-size:14px;border-top:2px solid #2563EB}
-.net-box{background:#059669;color:white;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-top:14px}
-.net-box .label{font-size:12px;font-weight:600;opacity:0.85}
-.net-box .amount{font-size:24px;font-weight:800;letter-spacing:-0.02em}
-.footer{margin-top:24px;padding-top:14px;border-top:1px dashed #E2E8F0;display:flex;justify-content:space-between;font-size:11px;color:#94A3B8}
-.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.paid{background:#ECFDF5;color:#059669}
-.pending{background:#FFFBEB;color:#D97706}
-@media print{body{padding:0}.no-print{display:none}}
+@page { size: A4 portrait; margin: 14mm; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: DejaVu Sans, Arial, sans-serif; font-size: 10.5px; line-height: 1.35; color: #1f2937; background: #fff; }
+.header-table, .meta-table, .summary-table, .footer-table { width: 100%; border-collapse: collapse; }
+.header-table td { vertical-align: top; padding: 0 0 10px 0; border-bottom: 1.5px solid #0b2d63; }
+.school-name { font-size: 16px; font-weight: 700; color: #071e45; margin: 0 0 3px; }
+.school-meta { color: #64748b; font-size: 9px; margin: 1px 0; }
+.document-title { font-size: 19px; font-weight: 700; color: #a36a00; text-align: right; letter-spacing: .04em; }
+.document-sub { color: #64748b; font-size: 9px; text-align: right; margin-top: 3px; }
+.logo { max-height: 34px; max-width: 70px; margin-bottom: 5px; }
+.section { margin-top: 10px; border: 1px solid #dbe3ec; }
+.section-title { padding: 5px 7px; font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #475569; background: #f8fafc; border-bottom: 1px solid #dbe3ec; }
+.meta-table td { width: 33.333%; padding: 6px 7px; vertical-align: top; border-right: 1px solid #edf2f7; border-bottom: 1px solid #edf2f7; }
+.meta-table td:nth-child(3n) { border-right: none; }
+.label { display: block; color: #64748b; font-size: 8px; text-transform: uppercase; margin-bottom: 2px; }
+.value { display: block; color: #111827; font-size: 10px; font-weight: 500; overflow-wrap: break-word; }
+table.money { width: 100%; border-collapse: collapse; }
+table.money th { padding: 5px 7px; background: #f8fafc; color: #64748b; font-size: 8px; text-transform: uppercase; text-align: left; border-bottom: 1px solid #dbe3ec; }
+table.money th:last-child, table.money td:last-child { text-align: right; }
+table.money td { padding: 5px 7px; border-bottom: 1px solid #edf2f7; }
+.total td { font-weight: 700; background: #f8fafc; border-top: 1px solid #cbd5e1; }
+.net-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #071e45; color: #fff; }
+.net-table td { padding: 9px 10px; vertical-align: middle; }
+.net-label { font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+.net-amount { font-size: 18px; font-weight: 700; text-align: right; white-space: nowrap; }
+.status { display: inline-block; border: 1px solid #cbd5e1; border-radius: 10px; padding: 2px 6px; font-size: 8px; font-weight: 700; color: #475569; }
+.footer-table { margin-top: 12px; border-top: 1px solid #dbe3ec; }
+.footer-table td { padding-top: 6px; color: #64748b; font-size: 8px; vertical-align: top; }
+.footer-table td:last-child { text-align: right; }
+.no-print { display: none; }
 </style>
 </head>
 <body>
+@php
+    $staff = $item->staff;
+    $periodLabel = optional($period)->label ?? optional($period)->title ?? 'Payroll period';
+    $reference = 'PAY-' . str_pad((string) $item->id, 6, '0', STR_PAD_LEFT);
+    $designation = $staff?->designation ?? $staff?->job_title ?? $staff?->roleLabel() ?? str_replace('_', ' ', (string) ($staff?->role ?? 'Staff'));
+    $issueDate = $item->paid_at ? \Carbon\Carbon::parse($item->paid_at)->format('d M Y') : now()->format('d M Y');
+@endphp
 
-<div class="no-print" style="margin-bottom:20px;display:flex;gap:10px">
-    <button onclick="window.print()" style="padding:9px 18px;background:#2563EB;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">🖨 Print / Save PDF</button>
-    <a href="{{ route('payroll.payslip', $period) }}" style="padding:9px 18px;background:#F1F5F9;color:#475569;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">← Back</a>
-</div>
+<table class="header-table">
+    <tr>
+        <td style="width:68%">
+            @if($tenant && $tenant->logo_path)
+                @php $psLogoPath = storage_path('app/public/' . ltrim($tenant->logo_path, 'storage/')); @endphp
+                @if(file_exists($psLogoPath))
+                    <img class="logo" src="{{ $psLogoPath }}" alt="Logo">
+                @endif
+            @endif
+            <div class="school-name">{{ optional($tenant)->name ?? 'School Name' }}</div>
+            @if($tenant?->address)<div class="school-meta">{{ $tenant->address }}</div>@endif
+            @if($tenant?->phone)<div class="school-meta">{{ $tenant->phone }}</div>@endif
+        </td>
+        <td style="width:32%">
+            <div class="document-title">PAYSLIP</div>
+            <div class="document-sub">{{ $periodLabel }}</div>
+            <div class="document-sub"><span class="status">{{ ucfirst($item->payment_status ?? 'Pending') }}</span></div>
+        </td>
+    </tr>
+</table>
 
-<div class="header">
-    <div class="school-info">
-        @if($tenant && $tenant->logo_path)
-        @php $psLogoPath = storage_path('app/public/' . ltrim($tenant->logo_path, 'storage/')); @endphp
-        @if(file_exists($psLogoPath))
-        <img src="{{ $psLogoPath }}" alt="Logo" style="height:44px;margin-bottom:6px;border-radius:6px">
-        @endif
-        @endif
-        <h1>{{ optional($tenant)->name ?? 'School Name' }}</h1>
-        <p>{{ optional($tenant)->address ?? '' }}</p>
-        @if($tenant?->phone)<p>{{ $tenant->phone }}</p>@endif
-    </div>
-    <div class="payslip-label">
-        <div class="title">PAYSLIP</div>
-        <div class="sub">{{ $period->label }}</div>
-        <div class="sub" style="margin-top:6px">
-            <span class="status-badge {{ $item->payment_status === 'paid' ? 'paid' : 'pending' }}">
-                {{ ucfirst($item->payment_status ?? 'Pending') }}
-            </span>
-        </div>
-    </div>
-</div>
-
-{{-- Employee Info --}}
 <div class="section">
-    <div class="section-title">Employee Details</div>
-    <div class="info-grid">
-        <div class="info-item">
-            <label>Name</label>
-            <span>{{ optional($item->staff)->name }}</span>
-        </div>
-        <div class="info-item">
-            <label>Role</label>
-            <span style="text-transform:capitalize">{{ str_replace('_',' ', optional($item->staff)->role ?? '—') }}</span>
-        </div>
-        <div class="info-item">
-            <label>Email</label>
-            <span>{{ optional($item->staff)->email }}</span>
-        </div>
-        <div class="info-item">
-            <label>Pay Period</label>
-            <span>{{ $period->label }}</span>
-        </div>
-        <div class="info-item">
-            <label>Payment Date</label>
-            <span>{{ $item->paid_at ? \Carbon\Carbon::parse($item->paid_at)->format('d M Y') : '—' }}</span>
-        </div>
-        <div class="info-item">
-            <label>Reference</label>
-            <span>PAY-{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</span>
-        </div>
-    </div>
+    <div class="section-title">Employee details</div>
+    <table class="meta-table">
+        <tr>
+            <td><span class="label">Employee name</span><span class="value">{{ $staff?->name ?? '—' }}</span></td>
+            <td><span class="label">Staff ID</span><span class="value">{{ $staff?->staff_id ?? '—' }}</span></td>
+            <td><span class="label">Role / designation</span><span class="value">{{ $designation ?: '—' }}</span></td>
+        </tr>
+        <tr>
+            <td><span class="label">Payroll period</span><span class="value">{{ $periodLabel }}</span></td>
+            <td><span class="label">Issue date</span><span class="value">{{ $issueDate }}</span></td>
+            <td><span class="label">Reference</span><span class="value">{{ $reference }}</span></td>
+        </tr>
+    </table>
 </div>
 
-{{-- Earnings --}}
 <div class="section">
     <div class="section-title">Earnings</div>
-    <table>
-        <thead>
-            <tr><th>Component</th><th style="text-align:right">Amount (₦)</th></tr>
-        </thead>
+    <table class="money">
+        <thead><tr><th>Component</th><th>Amount (NGN)</th></tr></thead>
         <tbody>
-            <tr><td>Basic Salary</td><td>{{ number_format($item->basic_salary ?? 0, 2) }}</td></tr>
-            @if(($item->housing_allowance ?? 0) > 0)
-            <tr><td>Housing Allowance</td><td>{{ number_format($item->housing_allowance, 2) }}</td></tr>
-            @endif
-            @if(($item->transport_allowance ?? 0) > 0)
-            <tr><td>Transport Allowance</td><td>{{ number_format($item->transport_allowance, 2) }}</td></tr>
-            @endif
-            @if(($item->other_allowances ?? 0) > 0)
-            <tr><td>Other Allowances</td><td>{{ number_format($item->other_allowances, 2) }}</td></tr>
-            @endif
-            <tr class="total-row">
-                <td>Gross Salary</td>
-                <td>₦{{ number_format($item->gross_pay ?? 0, 2) }}</td>
-            </tr>
+            <tr><td>Basic salary</td><td>₦{{ number_format($item->basic_salary ?? 0, 2) }}</td></tr>
+            @if(($item->housing_allowance ?? 0) > 0)<tr><td>Housing allowance</td><td>₦{{ number_format($item->housing_allowance, 2) }}</td></tr>@endif
+            @if(($item->transport_allowance ?? 0) > 0)<tr><td>Transport allowance</td><td>₦{{ number_format($item->transport_allowance, 2) }}</td></tr>@endif
+            @if(($item->other_allowances ?? 0) > 0)<tr><td>Other allowances</td><td>₦{{ number_format($item->other_allowances, 2) }}</td></tr>@endif
+            <tr class="total"><td>Gross pay</td><td>₦{{ number_format($item->gross_pay ?? 0, 2) }}</td></tr>
         </tbody>
     </table>
 </div>
 
-{{-- Deductions --}}
-@if(($item->total_deductions ?? 0) > 0)
 <div class="section">
     <div class="section-title">Deductions</div>
-    <table>
-        <thead>
-            <tr><th>Deduction</th><th style="text-align:right">Amount (₦)</th></tr>
-        </thead>
+    <table class="money">
+        <thead><tr><th>Deduction</th><th>Amount (NGN)</th></tr></thead>
         <tbody>
             @if(is_array($item->deduction_breakdown ?? null) && count($item->deduction_breakdown))
                 @foreach($item->deduction_breakdown as $ded)
-                <tr>
-                    <td>{{ $ded['label'] ?? 'Deduction' }}</td>
-                    <td>{{ number_format($ded['amount'] ?? 0, 2) }}</td>
-                </tr>
+                    <tr><td>{{ $ded['label'] ?? 'Deduction' }}</td><td>₦{{ number_format($ded['amount'] ?? 0, 2) }}</td></tr>
                 @endforeach
-                <tr><td>Tax (PAYE)</td><td>{{ number_format($item->tax_deduction ?? 0, 2) }}</td></tr>
-                <tr><td>Pension (8%)</td><td>{{ number_format($item->pension_deduction ?? 0, 2) }}</td></tr>
             @else
-            <tr><td>Tax (PAYE)</td><td>{{ number_format($item->tax_deduction ?? 0, 2) }}</td></tr>
-            <tr><td>Pension (8%)</td><td>{{ number_format($item->pension_deduction ?? 0, 2) }}</td></tr>
+                @if(($item->tax_deduction ?? 0) > 0)<tr><td>Tax (PAYE)</td><td>₦{{ number_format($item->tax_deduction, 2) }}</td></tr>@endif
+                @if(($item->pension_deduction ?? 0) > 0)<tr><td>Pension</td><td>₦{{ number_format($item->pension_deduction, 2) }}</td></tr>@endif
+                @if(($item->other_deductions ?? 0) > 0)<tr><td>Other deductions</td><td>₦{{ number_format($item->other_deductions, 2) }}</td></tr>@endif
             @endif
-            <tr class="total-row" style="--tw:1px solid #DC2626">
-                <td style="color:#DC2626">Total Deductions</td>
-                <td style="color:#DC2626">₦{{ number_format($item->total_deductions ?? 0, 2) }}</td>
-            </tr>
+            @if(($item->total_deductions ?? 0) <= 0)<tr><td>No deductions</td><td>₦0.00</td></tr>@endif
+            <tr class="total"><td>Total deductions</td><td>₦{{ number_format($item->total_deductions ?? 0, 2) }}</td></tr>
         </tbody>
     </table>
 </div>
-@endif
 
-{{-- Net Pay --}}
-<div class="net-box">
-    <div>
-        <div class="label">NET PAY</div>
-        <div style="font-size:11px;opacity:0.7;margin-top:2px">Gross − Deductions</div>
-    </div>
-    <div class="amount">₦{{ number_format($item->net_pay ?? 0, 2) }}</div>
-</div>
+<table class="net-table">
+    <tr>
+        <td><div class="net-label">NET PAY</div><div style="font-size:8px;opacity:.8">Gross pay less total deductions</div></td>
+        <td class="net-amount">₦{{ number_format($item->net_pay ?? 0, 2) }}</td>
+    </tr>
+</table>
 
-<div class="footer">
-    <div>Generated: {{ now()->format('d M Y, H:i') }}</div>
-    <div>This is a computer-generated payslip and requires no signature.</div>
-    <div>{{ optional($tenant)->name }}</div>
-</div>
-
+<table class="footer-table">
+    <tr>
+        <td>Verification reference: {{ $reference }}<br>Computer-generated by EduCore.</td>
+        <td>{{ optional($tenant)->name }}<br>Generated {{ now()->format('d M Y, H:i') }}</td>
+    </tr>
+</table>
 </body>
 </html>

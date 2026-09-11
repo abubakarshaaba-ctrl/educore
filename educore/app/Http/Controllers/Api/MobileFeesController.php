@@ -72,6 +72,7 @@ class MobileFeesController extends Controller
 
         $billed = (float) (clone $base)->sum('total_amount');
         $collected = (float) (clone $base)->sum('amount_paid');
+        $currentTermId = Term::where('tenant_id', $tenantId)->current()->value('id');
 
         return response()->json([
             'contract_version' => 1,
@@ -90,14 +91,17 @@ class MobileFeesController extends Controller
                 ['key' => 'waived', 'label' => 'Waived'],
                 ['key' => 'overpaid', 'label' => 'Overpaid'],
             ],
+            'current_term_id' => $currentTermId,
             'terms' => Term::where('tenant_id', $tenantId)
                 ->with('session:id,name')
+                ->orderByDesc('is_current')
                 ->latest('id')
                 ->get()
                 ->map(fn (Term $term): array => [
                     'id' => $term->id,
                     'name' => $term->name,
                     'session' => $term->session?->name,
+                    'is_current' => (bool) $term->is_current,
                 ]),
             'class_levels' => ClassLevel::where('tenant_id', $tenantId)
                 ->orderBy('order_index')

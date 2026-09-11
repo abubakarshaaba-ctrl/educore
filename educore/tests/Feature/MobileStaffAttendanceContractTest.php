@@ -1,0 +1,182 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Http\Controllers\Api\AdminStaffAttendanceController;
+use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
+use App\Http\Controllers\Api\SchoolOpenDaysController;
+use App\Http\Controllers\Api\StaffAttendanceApiController;
+use App\Http\Controllers\Api\StaffCardAttendanceScanController;
+use Illuminate\Support\Facades\Route;
+use Tests\TestCase;
+
+class MobileStaffAttendanceContractTest extends TestCase
+{
+    public function test_canonical_staff_attendance_api_routes_are_registered_once(): void
+    {
+        $registered = collect(Route::getRoutes())->flatMap(function ($route) {
+            return collect($route->methods())->map(fn (string $method): string => $method.' '.$route->uri());
+        })->all();
+
+        $expected = [
+            'GET api/v1/admin/staff-attendance/daily',
+            'GET api/v1/admin/staff-attendance/monthly',
+            'GET api/v1/admin/staff-attendance/settings',
+            'PUT api/v1/admin/staff-attendance/settings',
+            'PUT api/v1/admin/staff-attendance/school-open-days',
+            'GET api/v1/admin/staff-attendance/offline',
+            'POST api/v1/admin/staff-attendance/offline/sync',
+            'GET api/v1/admin/staff-attendance/proxy-reviews',
+            'POST api/v1/admin/staff-attendance/proxy-clock',
+            'GET api/v1/admin/staff-attendance/qr',
+            'POST api/v1/admin/staff-attendance/qr/reset',
+            'POST api/v1/staff-attendance/offline/sync',
+            'POST api/v1/staff-attendance/scan-card',
+        ];
+
+        foreach ($expected as $signature) {
+            $this->assertContains($signature, $registered, "Missing mobile attendance route: {$signature}");
+            $this->assertSame(
+                1,
+                count(array_keys($registered, $signature, true)),
+                "Mobile attendance route is registered more than once: {$signature}",
+            );
+        }
+    }
+
+    public function test_canonical_staff_attendance_controller_actions_exist(): void
+    {
+        foreach ([
+            'daily',
+            'monthly',
+            'settings',
+            'updateSettings',
+            'offline',
+            'syncOffline',
+            'proxyReviews',
+            'qr',
+            'resetQr',
+        ] as $method) {
+            $this->assertTrue(
+                method_exists(AdminStaffAttendanceController::class, $method),
+                "Missing AdminStaffAttendanceController::{$method}",
+            );
+        }
+
+        $this->assertTrue(method_exists(StaffAttendanceApiController::class, 'syncOffline'));
+        $this->assertTrue(method_exists(AdminStaffAttendanceOfflineController::class, '__invoke'));
+        $this->assertTrue(method_exists(StaffCardAttendanceScanController::class, '__invoke'));
+        $this->assertTrue(method_exists(SchoolOpenDaysController::class, 'update'));
+    }
+
+    public function test_staff_card_scan_route_is_outside_admin_namespace_and_uses_real_time_controller(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('POST', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/staff-attendance/scan-card'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringNotContainsString('/admin/', '/'.$route->uri());
+        $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
+
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffCardAttendanceScanController.php'));
+        $this->assertStringContainsString("\$user->isTenantStaff()", $source);
+        $this->assertStringContainsString("'staff_qr_token' => ['nullable', 'string', 'max:4096', 'required_without:school_qr_token']", $source);
+        $this->assertStringContainsString("'school_qr_token' => ['nullable', 'string', 'max:4096', 'required_without:staff_qr_token']", $source);
+        $this->assertStringContainsString("'staff_id' => ['nullable', 'string', 'max:40', 'required_with:school_qr_token']", $source);
+        $this->assertStringContainsString('verifyPersonalQrToken', $source);
+        $this->assertStringContainsString('verifyStaticQrToken', $source);
+        $this->assertStringContainsString('verifyQrToken', $source);
+        $this->assertStringContainsString('isSchoolOpenOn', $source);
+        $this->assertStringContainsString('wasEmployedOn', $source);
+        $this->assertStringContainsString("\$now = now();", $source);
+        $this->assertStringContainsString("'staff_card_qr'", $source);
+        $this->assertStringContainsString("'school_qr_proxy'", $source);
+        $this->assertStringContainsString("\$action = 'clock_in'", $source);
+        $this->assertStringContainsString("\$action = 'clock_out'", $source);
+        $this->assertStringContainsString('distanceTo', $source);
+    }
+
+    public function test_legacy_admin_proxy_route_points_to_same_real_time_scanner(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('POST', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/proxy-clock'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(StaffCardAttendanceScanController::class, $route->getActionName());
+    }
+
+    public function test_school_open_days_drive_attendance_and_timetable_contracts(): void
+    {
+        $attendance = file_get_contents(app_path('Http/Controllers/Api/AdminStaffAttendanceController.php'));
+        $schoolDays = file_get_contents(app_path('Http/Controllers/Api/SchoolOpenDaysController.php'));
+        $tenant = file_get_contents(app_path('Models/Tenant.php'));
+        $timetable = file_get_contents(app_path('Services/TimetableGeneratorService.php'));
+
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('PUT', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/school-open-days'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(SchoolOpenDaysController::class, $route->getActionName());
+        $this->assertStringContainsString("'school_open_days'", $attendance);
+        $this->assertStringContainsString("'school_open_days'", $schoolDays);
+        $this->assertStringContainsString("'array', 'min:1', 'max:7'", $schoolDays);
+        $this->assertStringContainsString('isSchoolOpenOn', $attendance);
+        $this->assertStringContainsString('schoolOpenDays()', $tenant);
+        $this->assertStringContainsString('DEFAULT_SCHOOL_OPEN_DAYS', $tenant);
+        $this->assertStringContainsString('schoolOpenDays()', $timetable);
+        $this->assertStringNotContainsString("const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']", $timetable);
+    }
+
+    public function test_self_offline_sync_route_is_not_inside_admin_namespace(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('POST', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/staff-attendance/offline/sync'
+        );
+
+        $this->assertNotNull($route, 'The ordinary-staff offline replay route is missing.');
+        $this->assertStringNotContainsString('/admin/', '/'.$route->uri());
+    }
+
+    public function test_admin_offline_review_route_uses_durable_review_feed(): void
+    {
+        $route = collect(Route::getRoutes())->first(fn ($candidate) =>
+            in_array('GET', $candidate->methods(), true)
+            && $candidate->uri() === 'api/v1/admin/staff-attendance/offline'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertStringContainsString(AdminStaffAttendanceOfflineController::class, $route->getActionName());
+    }
+
+    public function test_offline_sync_service_uses_separate_uuid_event_ledger_and_server_checks(): void
+    {
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
+
+        $this->assertStringContainsString('staff_attendance_sync_events', $source);
+        $this->assertStringContainsString("->where('tenant_id', \$user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('client_uuid', \$data['client_uuid'])", $source);
+        $this->assertStringContainsString("'idempotent' => true", $source);
+        $this->assertStringContainsString("status' => 'rejected'", $source);
+        $this->assertStringContainsString('verifyStaticQrToken', $source);
+        $this->assertStringContainsString('distanceTo', $source);
+        $this->assertStringContainsString('A clock-in record is required before clock-out.', $source);
+        $this->assertStringContainsString('updateOrInsert', $source);
+    }
+
+    public function test_my_attendance_queries_are_tenant_and_user_scoped(): void
+    {
+        $source = file_get_contents(app_path('Http/Controllers/Api/StaffAttendanceApiController.php'));
+
+        $this->assertStringContainsString("->where('tenant_id', \$user->tenant_id)", $source);
+        $this->assertStringContainsString("->where('user_id', \$user->id)", $source);
+        $this->assertStringContainsString("'month' => ['nullable', 'integer', 'between:1,12']", $source);
+        $this->assertStringContainsString("'year' => ['nullable', 'integer', 'between:2000,2100']", $source);
+    }
+}

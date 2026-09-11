@@ -35,7 +35,16 @@ class MobileBootstrapController extends Controller
         $session = $superAdmin ? null : AcademicSession::current()->first();
         $term = $superAdmin ? null : Term::current()->first();
         $tenant = $user->tenant;
+        $billingTenant = $tenant?->billingTenant();
         $token = $request->attributes->get('api_token');
+        $subscriptionExpiry = $access->expiresAt;
+
+        // Normal active paid subscriptions do not carry expiresAt in the access
+        // decision until they enter a warning/grace state. Mobile still needs
+        // the authoritative billing expiry to render the subscription countdown.
+        if (! $superAdmin && $access->state !== TenantAccessDecision::STATE_FREE) {
+            $subscriptionExpiry ??= $billingTenant?->subscription_expires_at;
+        }
 
         return response()->json([
             'contract_version' => 1,
@@ -70,7 +79,7 @@ class MobileBootstrapController extends Controller
                 'state' => $access->state,
                 'message' => $access->message,
                 'severity' => $access->severity,
-                'expires_at' => $access->expiresAt?->toIso8601String(),
+                'expires_at' => $subscriptionExpiry?->toIso8601String(),
             ],
             'permissions' => $access->allowed
                 ? ($superAdmin
