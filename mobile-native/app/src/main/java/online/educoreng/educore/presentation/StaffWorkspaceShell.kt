@@ -194,11 +194,11 @@ internal fun StaffWorkspaceShell(
                 scheduleViewModel.load()
                 navigateRoot(StaffTab.TIMETABLE)
             }
-            "reports", "report-cards", "results" -> {
-                classesViewModel.clearClassSelection()
-                classesViewModel.loadClasses()
-                navController.navigate(StaffRoutes.REPORT_CARDS)
+            "reports" -> {
+                operationsViewModel.load(module.key)
+                navController.navigate("staff/operations/${module.key}")
             }
+            "report-cards", "results" -> nativePending(module)
             "skills" -> {
                 skillsViewModel.load()
                 navController.navigate(StaffRoutes.SKILLS)
@@ -486,41 +486,6 @@ internal fun StaffWorkspaceShell(
                             )
                         }
 
-                        composable(StaffRoutes.REPORT_CARDS) {
-                            StaffReportCardsScreen(
-                                state = classesState,
-                                onBack = {
-                                    if (classesState.classStudents != null) classesViewModel.clearClassSelection()
-                                    else navController.popBackStack()
-                                },
-                                onClassSearch = classesViewModel::setClassSearch,
-                                onStudentSearch = classesViewModel::setStudentSearch,
-                                onOpenClass = classesViewModel::openClass,
-                                onOpenStudentResults = { classId, studentId ->
-                                    scoresViewModel.loadStudentResults(classId, studentId)
-                                    navController.navigate("staff/report-cards/$classId/$studentId")
-                                },
-                                onLoadMoreStudents = classesViewModel::loadMoreStudents,
-                                onRetryClasses = classesViewModel::loadClasses,
-                            )
-                        }
-                        composable(
-                            route = StaffRoutes.REPORT_RESULT,
-                            arguments = listOf(
-                                navArgument("classId") { type = NavType.LongType },
-                                navArgument("studentId") { type = NavType.LongType },
-                            ),
-                        ) { entry ->
-                            val args = requireNotNull(entry.arguments)
-                            val classId = args.getLong("classId")
-                            val studentId = args.getLong("studentId")
-                            PublishedResultsScreen(
-                                state = scoresState,
-                                onBack = navController::popBackStack,
-                                onRetry = { scoresViewModel.loadStudentResults(classId, studentId) },
-                            )
-                        }
-
                         composable(StaffRoutes.SKILLS) {
                             LaunchedEffect(Unit) {
                                 if (skillsState.workspace == null && !skillsState.isLoading) {
@@ -805,8 +770,6 @@ private object StaffRoutes {
     const val SCORES = "staff/scores"
     const val SCORE_SHEET = "staff/scores/{classId}/{subjectId}/{termId}"
     const val SCHEDULE = "staff/schedule/{classId}"
-    const val REPORT_CARDS = "staff/report-cards"
-    const val REPORT_RESULT = "staff/report-cards/{classId}/{studentId}"
     const val SKILLS = "staff/skills"
     const val PROFILE = "staff/profile"
     const val REPOSITORY = "staff/repository"
@@ -846,7 +809,7 @@ private fun rootFor(route: String): StaffTab = when {
     route.startsWith("staff-v2/timetable") || route.startsWith("staff/schedule") -> StaffTab.TIMETABLE
     route.startsWith("staff-v2/inbox") || route.startsWith("staff/inbox") -> StaffTab.INBOX
     route.startsWith("staff-v2/more") || route.startsWith("staff/staff-attendance") || route.startsWith("staff/admin-staff-attendance") ||
-        route.startsWith("staff/report-cards") || route.startsWith("staff/skills") || route.startsWith("staff/profile") ||
+        route.startsWith("staff/skills") || route.startsWith("staff/profile") ||
         route.startsWith("staff/repository") || route.startsWith("staff/lesson-plans") ||
         route.startsWith("staff/operations") -> StaffTab.MORE
     else -> StaffTab.HOME
@@ -855,7 +818,8 @@ private fun rootFor(route: String): StaffTab = when {
 private fun staffSubtitle(key: String): String? = when (key.lowercase()) {
     "staff-attendance" -> "School-wide attendance control"
     "staff-attendance.self" -> "Your clock-in, clock-out and history"
-    "reports", "report-cards", "results" -> "Generate and review published report cards"
+    "reports" -> "School operational reports"
+    "report-cards", "results" -> "Published results are available to parent accounts only"
     "skills" -> "Behavioural and psychomotor ratings"
     "cbt", "cbt-exams", "examinations" -> "Manage computer-based examinations"
     "lesson-planner" -> "Create, generate and publish lesson plans"
