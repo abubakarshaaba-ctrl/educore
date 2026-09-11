@@ -5,7 +5,9 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class StaffCardAttendanceScanRequestDto(
-    @Json(name = "staff_qr_token") val staffQrToken: String,
+    @Json(name = "staff_qr_token") val staffQrToken: String? = null,
+    @Json(name = "school_qr_token") val schoolQrToken: String? = null,
+    @Json(name = "staff_id") val staffId: String? = null,
     @Json(name = "latitude") val latitude: Double? = null,
     @Json(name = "longitude") val longitude: Double? = null,
     @Json(name = "accuracy") val accuracy: Double? = null,
@@ -16,6 +18,7 @@ data class StaffCardAttendanceScanRequestDto(
 data class StaffCardAttendanceScanResponseDto(
     val success: Boolean = false,
     val action: String? = null,
+    @Json(name = "scan_method") val scanMethod: String? = null,
     @Json(name = "server_timestamp") val serverTimestamp: String? = null,
     val message: String,
     val record: StaffCardAttendanceRecordDto? = null,
