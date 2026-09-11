@@ -22,10 +22,9 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        // Full management workspace for administrators/heads. Keep this
-        // separate from staff-attendance.self so ordinary staff never land in
-        // an administrator surface simply because they can clock themselves in.
-        'staff-attendance' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
+        // Use a management-only mobile key so the Android shell does not
+        // confuse this workspace with the native self-attendance screen.
+        'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
@@ -56,7 +55,7 @@ class MobileModuleService
                 ['key' => 'platform.schools', 'title' => 'Schools', 'path' => '/super/tenants', 'icon' => 'schools'],
                 ['key' => 'platform.plans', 'title' => 'Plans & Pricing', 'path' => '/super/plans', 'icon' => 'plans'],
                 ['key' => 'platform.billing', 'title' => 'Billing & Invoices', 'path' => '/super/billing', 'icon' => 'fees'],
-                ['key' => 'platform.payments', 'title' => 'Payments', 'path' => '/super/payments', 'icon' => 'fees'],
+                ['key' => 'platform.payments', 'title' => 'Payments', '/super/payments', 'icon' => 'fees'],
                 ['key' => 'platform.gateways', 'title' => 'Payment Gateways', 'path' => '/super/payment-gateways', 'icon' => 'settings'],
                 ['key' => 'platform.analytics', 'title' => 'Platform Analytics', 'path' => '/super/analytics', 'icon' => 'analytics'],
                 ['key' => 'platform.groups', 'title' => 'School Groups', 'path' => '/super/groups', 'icon' => 'schools'],
@@ -94,6 +93,10 @@ class MobileModuleService
             ->filter(function (array $definition, string $key) use ($user): bool {
                 if ($key === 'academic-repository') {
                     return $user->isAdmin() || $user->isTeacher();
+                }
+
+                if ($key === 'staff-attendance.admin') {
+                    return $user->canAccessModule('staff-attendance');
                 }
 
                 return $user->canAccessModule($key);
