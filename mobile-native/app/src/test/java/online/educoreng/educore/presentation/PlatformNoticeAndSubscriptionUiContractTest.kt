@@ -30,7 +30,7 @@ class PlatformNoticeAndSubscriptionUiContractTest {
         assertTrue(source.contains("remaining != null && remaining <= 30"))
         assertTrue(source.contains("\"Expires today\""))
         assertTrue(source.contains("\"1 day remaining\""))
-        assertTrue(source.contains("\"$remaining days remaining\""))
+        assertTrue(source.contains("\"\$remaining days remaining\""))
     }
 
     private fun source(name: String): String {
