@@ -152,6 +152,7 @@ object ShellNavigationPolicy {
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
         val key = module.key.lowercase()
         return when {
+            key == "staff-attendance.admin" -> ModuleGroup.OPERATIONS
             COMMUNICATION_KEYS.any(key::contains) -> ModuleGroup.COMMUNICATION
             SCHEDULE_KEYS.any(key::contains) -> ModuleGroup.SCHEDULE
             ACCOUNT_KEYS.any(key::contains) -> ModuleGroup.ACCOUNT
