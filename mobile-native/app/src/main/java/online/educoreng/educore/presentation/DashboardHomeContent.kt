@@ -49,6 +49,19 @@ import online.educoreng.educore.core.model.DashboardMetric
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
+private val HIDDEN_STAFF_MOBILE_MODULES = setOf(
+    "dashboard",
+    "reports",
+    "report-cards",
+    "results",
+    "student.results",
+    "parent.results",
+    "cbt",
+    "cbt-exams",
+    "examinations",
+    "student.exams",
+)
+
 internal fun LazyGridScope.dashboardHomeContent(
     session: SessionSnapshot,
     state: DashboardUiState,
@@ -136,34 +149,62 @@ internal fun LazyGridScope.dashboardHomeContent(
         )
     }
 
-    if (snapshot.quickActions.isNotEmpty()) {
+    val isAdmin = session.user.portal.equals("admin", ignoreCase = true)
+    val myAttendanceModule = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
+    val visibleQuickActions = snapshot.quickActions.filter { action ->
+        val key = action.moduleKey.lowercase()
+        val moduleExists = session.modules.any { it.key.equals(action.moduleKey, ignoreCase = true) }
+        moduleExists &&
+            key !in HIDDEN_STAFF_MOBILE_MODULES &&
+            key != "staff-attendance.self" &&
+            (key != "staff-attendance" || isAdmin)
+    }
+
+    if (visibleQuickActions.isNotEmpty() || myAttendanceModule != null) {
         item(key = "actions-header", span = { GridItemSpan(maxLineSpan) }) {
             EduCoreSectionHeader(
                 title = "Quick actions",
                 supportingText = "Shortcuts available to your account",
             )
         }
-        items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
-            val module = session.modules.firstOrNull { it.key == action.moduleKey }
-            EduCoreQuickAction(
-                label = action.title,
-                icon = module?.let(::moduleIconForDashboard) ?: EduCoreIcons.Modules,
-                enabled = module != null,
-                onClick = { module?.let(onModuleClick) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+        myAttendanceModule?.let { module ->
+            item(key = "action-staff-attendance.self") {
+                EduCoreQuickAction(
+                    label = "My Attendance",
+                    icon = EduCoreIcons.Attendance,
+                    onClick = { onModuleClick(module) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        items(visibleQuickActions, key = { "action-${it.moduleKey}" }) { action ->
+            val module = session.modules.firstOrNull { it.key.equals(action.moduleKey, ignoreCase = true) }
+            if (module != null) {
+                EduCoreQuickAction(
+                    label = action.title,
+                    icon = moduleIconForDashboard(module),
+                    onClick = { onModuleClick(module) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 
     snapshot.sections.forEach { section ->
-        item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
-            DashboardSectionCard(
-                title = section.title,
-                items = section.items,
-                modules = session.modules,
-                onModuleClick = onModuleClick,
-                compact = width == EduCoreWindowWidth.Compact,
-            )
+        val visibleItems = section.items.filterNot { item ->
+            item.moduleKey?.lowercase() in HIDDEN_STAFF_MOBILE_MODULES ||
+                (!isAdmin && item.moduleKey.equals("staff-attendance", ignoreCase = true))
+        }
+        if (visibleItems.isNotEmpty()) {
+            item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
+                DashboardSectionCard(
+                    title = section.title,
+                    items = visibleItems,
+                    modules = session.modules,
+                    onModuleClick = onModuleClick,
+                    compact = width == EduCoreWindowWidth.Compact,
+                )
+            }
         }
     }
 }
@@ -238,7 +279,7 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
                     )
                     Text(
                         text = countdown,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 }
                 EduCoreStatusBadge(statusLabel, tone)
@@ -274,7 +315,7 @@ private fun DashboardSectionCard(
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             items.forEachIndexed { index, item ->
-                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key == key } }
+                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key.equals(key, ignoreCase = true) } }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
