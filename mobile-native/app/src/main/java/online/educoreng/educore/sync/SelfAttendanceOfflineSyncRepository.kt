@@ -36,12 +36,8 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
         longitude: Double? = null,
         accuracy: Double? = null,
     ): AppResult<String> = withContext(Dispatchers.IO) {
-        if (action != ACTION_CLOCK_IN) {
-            return@withContext AppResult.Failure(
-                AppError.Validation(
-                    "Clock-out requires an internet connection. Your existing clock-in remains recorded."
-                )
-            )
+        if (action !in SUPPORTED_ACTIONS) {
+            return@withContext AppResult.Failure(AppError.Validation("Unsupported attendance action."))
         }
 
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
@@ -104,11 +100,11 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
                 return@forEach
             }
 
-            if (request.action != ACTION_CLOCK_IN) {
+            if (request.action !in SUPPORTED_ACTIONS) {
                 database.syncOperationDao().upsert(
                     operation.copy(
                         state = "rejected",
-                        lastError = "Clock-out cannot be replayed offline. Connect to the internet and clock out normally.",
+                        lastError = "Unsupported queued attendance action.",
                         updatedAtEpochMs = System.currentTimeMillis(),
                     )
                 )
@@ -179,7 +175,7 @@ class SelfAttendanceOfflineSyncRepository @Inject constructor(
 
     private companion object {
         const val KIND = "staff_attendance_self"
-        const val ACTION_CLOCK_IN = "clock_in"
+        val SUPPORTED_ACTIONS = setOf("clock_in", "clock_out")
     }
 }
 
