@@ -24,15 +24,14 @@ object EduCoreElevation {
 }
 
 object EduCoreSizes {
-    // Keep the interactive hit area accessible even though the visible icons
-    // and cards are deliberately more compact.
+    // Keep touch targets accessible while reducing visible density.
     val TouchTarget = 48.dp
     val SmallIcon = 16.dp
     val Icon = 18.dp
-    val LargeIcon = 26.dp
-    val Avatar = 36.dp
-    val LargeAvatar = 52.dp
+    val LargeIcon = 24.dp
+    val Avatar = 34.dp
+    val LargeAvatar = 48.dp
     val ContentMaxWidth = 760.dp
-    val MetricCardHeight = 84.dp
-    val ModuleCardMinHeight = 92.dp
+    val MetricCardHeight = 76.dp
+    val ModuleCardMinHeight = 82.dp
 }
