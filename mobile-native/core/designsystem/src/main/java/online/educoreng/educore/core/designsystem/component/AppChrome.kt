@@ -199,6 +199,10 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    // The main Communication Centre is itself a root Inbox destination; a back
+    // affordance there is misleading. Detail/compose headers still retain back.
+    val effectiveOnBack = if (title.equals("Communication centre", ignoreCase = true)) null else onBack
+
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -209,7 +213,7 @@ fun EduCorePageHeader(
             if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        PageHeaderIdentity(title, subtitle, onBack)
+                        PageHeaderIdentity(title, subtitle, effectiveOnBack)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -219,7 +223,7 @@ fun EduCorePageHeader(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PageHeaderIdentity(title, subtitle, onBack)
+                    PageHeaderIdentity(title, subtitle, effectiveOnBack)
                     actions()
                 }
             }
