@@ -27,6 +27,7 @@ import online.educoreng.educore.core.model.MessageRecipient
 import online.educoreng.educore.core.model.MessageThread
 import online.educoreng.educore.core.model.NotificationItem
 import online.educoreng.educore.core.model.PendingAttachment
+import online.educoreng.educore.core.model.PlatformNotice
 import online.educoreng.educore.core.model.SchoolEvent
 
 enum class CommunicationTab(val label: String) { NOTICES("Notices"), MESSAGES("Messages"), EVENTS("Events") }
@@ -36,6 +37,8 @@ data class CommunicationUiState(
     val noticeFilter: String = "all",
     val notifications: List<NotificationItem> = emptyList(),
     val unreadNotifications: Int = 0,
+    val platformNotices: List<PlatformNotice> = emptyList(),
+    val platformUnreadNotifications: Int = 0,
     val messagePage: MessagePage? = null,
     val events: List<SchoolEvent> = emptyList(),
     val thread: MessageThread? = null,
@@ -50,7 +53,9 @@ data class CommunicationUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
-)
+) {
+    val totalUnreadNotices: Int get() = unreadNotifications + platformUnreadNotifications
+}
 
 @HiltViewModel
 class CommunicationViewModel @Inject constructor(
@@ -62,6 +67,7 @@ class CommunicationViewModel @Inject constructor(
 
     fun loadAll() {
         loadNotifications()
+        loadPlatformNotices()
         loadMessages()
         loadEvents()
     }
@@ -70,7 +76,10 @@ class CommunicationViewModel @Inject constructor(
         val tab = CommunicationTab.entries.getOrElse(index) { CommunicationTab.NOTICES }
         _uiState.update { it.copy(selectedTab = tab, errorMessage = null) }
         when (tab) {
-            CommunicationTab.NOTICES -> loadNotifications()
+            CommunicationTab.NOTICES -> {
+                loadNotifications()
+                loadPlatformNotices()
+            }
             CommunicationTab.MESSAGES -> loadMessages()
             CommunicationTab.EVENTS -> loadEvents()
         }
@@ -79,6 +88,7 @@ class CommunicationViewModel @Inject constructor(
     fun setNoticeFilter(filter: String) {
         _uiState.update { it.copy(noticeFilter = filter) }
         loadNotifications()
+        loadPlatformNotices()
     }
 
     fun loadNotifications() = viewModelScope.launch {
@@ -88,6 +98,23 @@ class CommunicationViewModel @Inject constructor(
                 it.copy(notifications = result.value.items, unreadNotifications = result.value.unreadCount, isLoading = false)
             }
             is AppResult.Failure -> failLoading(result.error.userMessage)
+        }
+    }
+
+    fun loadPlatformNotices() = viewModelScope.launch {
+        when (val result = repository.platformNotices()) {
+            is AppResult.Success -> _uiState.update { state ->
+                val notices = when (state.noticeFilter) {
+                    "unread" -> result.value.notices.filterNot { it.isRead }
+                    "read" -> result.value.notices.filter { it.isRead }
+                    else -> result.value.notices
+                }
+                state.copy(platformNotices = notices, platformUnreadNotifications = result.value.unreadCount)
+            }
+            is AppResult.Failure -> {
+                // School notices remain usable if the platform feed is temporarily unavailable.
+                if (_uiState.value.notifications.isEmpty()) fail(result.error.userMessage)
+            }
         }
     }
 
@@ -107,6 +134,40 @@ class CommunicationViewModel @Inject constructor(
         }
     }
 
+    fun markPlatformRead(id: Long) = viewModelScope.launch {
+        when (val result = repository.markPlatformNoticeRead(id)) {
+            is AppResult.Success -> _uiState.update { state ->
+                state.copy(
+                    platformNotices = if (state.noticeFilter == "unread") {
+                        state.platformNotices.filterNot { it.id == id }
+                    } else {
+                        state.platformNotices.map { if (it.id == id) it.copy(isRead = true) else it }
+                    },
+                    platformUnreadNotifications = (state.platformUnreadNotifications - 1).coerceAtLeast(0),
+                )
+            }
+            is AppResult.Failure -> fail(result.error.userMessage)
+        }
+    }
+
+    fun dismissPlatformNotice(id: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        when (val result = repository.dismissPlatformNotice(id)) {
+            is AppResult.Success -> _uiState.update { state ->
+                val dismissed = state.platformNotices.firstOrNull { it.id == id }
+                state.copy(
+                    platformNotices = state.platformNotices.filterNot { it.id == id },
+                    platformUnreadNotifications = if (dismissed?.isRead == false) {
+                        (state.platformUnreadNotifications - 1).coerceAtLeast(0)
+                    } else state.platformUnreadNotifications,
+                    isSaving = false,
+                    message = "Platform notice dismissed.",
+                )
+            }
+            is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
+        }
+    }
+
     fun markAllRead() = viewModelScope.launch {
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.markAllNotificationsRead()) {
@@ -115,7 +176,7 @@ class CommunicationViewModel @Inject constructor(
                     notifications = if (state.noticeFilter == "unread") emptyList() else state.notifications.map { it.copy(isRead = true) },
                     unreadNotifications = 0,
                     isSaving = false,
-                    message = "${result.value} notification(s) marked as read.",
+                    message = "${result.value} school notification(s) marked as read.",
                 )
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
