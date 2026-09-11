@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminStaffAttendanceController;
 use App\Http\Controllers\Api\AdminStaffAttendanceLegacyController;
 use App\Http\Controllers\Api\AdminStaffAttendanceOfflineController;
+use App\Http\Controllers\Api\AdminStaffAttendanceOfflineSyncController;
 use App\Http\Controllers\Api\SchoolOpenDaysController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use App\Http\Controllers\Api\StaffCardAttendanceScanController;
@@ -24,7 +25,7 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::put('settings', [AdminStaffAttendanceController::class, 'updateSettings']);
     Route::put('school-open-days', [SchoolOpenDaysController::class, 'update']);
     Route::get('offline', AdminStaffAttendanceOfflineController::class);
-    Route::post('offline/sync', [AdminStaffAttendanceController::class, 'syncOffline']);
+    Route::post('offline/sync', AdminStaffAttendanceOfflineSyncController::class);
     Route::get('proxy-reviews', [AdminStaffAttendanceController::class, 'proxyReviews']);
     Route::post('proxy-clock', StaffCardAttendanceScanController::class);
     Route::get('qr', [AdminStaffAttendanceController::class, 'qr']);
