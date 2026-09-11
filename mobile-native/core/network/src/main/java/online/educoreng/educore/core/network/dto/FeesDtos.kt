@@ -22,6 +22,7 @@ data class FeesTermDto(
     val id: Long,
     val name: String,
     val session: String? = null,
+    @param:Json(name = "is_current") val isCurrent: Boolean = false,
 )
 
 data class FeesClassLevelDto(
@@ -76,6 +77,7 @@ data class FeesWorkspaceDto(
     val capabilities: FeesCapabilitiesDto = FeesCapabilitiesDto(),
     val metrics: FeesMetricsDto = FeesMetricsDto(),
     @param:Json(name = "status_options") val statusOptions: List<FeesOptionDto> = emptyList(),
+    @param:Json(name = "current_term_id") val currentTermId: Long? = null,
     val terms: List<FeesTermDto> = emptyList(),
     @param:Json(name = "class_levels") val classLevels: List<FeesClassLevelDto> = emptyList(),
     val invoices: List<FeesInvoiceDto> = emptyList(),
