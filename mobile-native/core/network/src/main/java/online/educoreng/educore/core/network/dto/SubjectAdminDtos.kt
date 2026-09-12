@@ -57,6 +57,21 @@ data class SubjectsWorkspaceDto(
     val meta: SubjectMetaDto = SubjectMetaDto(),
 )
 
+/**
+ * Compatibility shape for older live servers that expose subjects through
+ * /admin/management but do not yet expose the dedicated /subjects contract.
+ * Unknown management fields are ignored by Moshi.
+ */
+data class LegacyAdminManagementDto(
+    val subjects: List<LegacyAdminSubjectDto> = emptyList(),
+)
+
+data class LegacyAdminSubjectDto(
+    val id: Long,
+    val name: String,
+    val code: String? = null,
+)
+
 data class SubjectMutationRequestDto(
     val name: String,
     val code: String? = null,
