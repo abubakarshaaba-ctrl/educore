@@ -30,8 +30,8 @@ class SchoolSettingController extends Controller
             'website'       => ['nullable', 'url'],
             'logo'          => ['nullable', 'image', 'max:2048'],
             'authorized_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
-            'school_open_days' => ['required', 'array', 'min:1', 'max:7'],
-            'school_open_days.*' => ['required', 'integer', 'in:1,2,3,4,5,6,7'],
+            'school_open_days' => ['nullable', 'array', 'min:1', 'max:7'],
+            'school_open_days.*' => ['integer', 'in:1,2,3,4,5,6,7'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -71,7 +71,9 @@ class SchoolSettingController extends Controller
             }
         }
 
-        $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
+        if (array_key_exists('school_open_days', $data)) {
+            $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
+        }
 
         return back()->with('success', 'School settings updated.');
     }
