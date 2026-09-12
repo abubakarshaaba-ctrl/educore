@@ -111,30 +111,37 @@ object ShellNavigationPolicy {
         }.toMap()
 
     /**
-     * Native-app visibility is intentionally stricter than the web permission
-     * catalogue. This protects upgraded/offline sessions that may still contain
-     * stale module descriptors from older bootstrap responses.
+     * The backend bootstrap module list remains the source of truth for explicit
+     * assignments. Mobile applies only hard presentation/role constraints so an
+     * explicitly assigned academic module is not hidden from a legitimate user.
      *
      * Personal attendance is deliberately excluded from tab/module grids and is
-     * surfaced as a dedicated Home quick action. School-wide Staff Attendance is
-     * exposed on mobile only to the school admin portal and is normalized to the
-     * full native administrator attendance workspace.
+     * surfaced as a dedicated Home quick action. Legacy `staff-attendance` is an
+     * administrator-management descriptor only; the personal workspace is always
+     * `staff-attendance.self`, while the management workspace is normalized to
+     * `staff-attendance.admin`.
      */
-    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> =
-        session.modules.mapNotNull { module ->
-            val key = module.key.lowercase()
+    fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
+        val financeRole = session.user.roleKey.lowercase() in FINANCE_ROLES
+        val adminPortal = session.user.portal.equals("admin", ignoreCase = true)
+
+        return session.modules.mapNotNull { module ->
+            val key = module.key.trim().lowercase()
             when {
                 isRemovedFromMobile(key) -> null
                 key == "dashboard" -> null
                 key == "staff-attendance.self" -> null
-                key == "staff-attendance" && !session.user.portal.equals("admin", ignoreCase = true) -> null
+                key == "staff-attendance" && !adminPortal -> null
                 key == "staff-attendance" -> module.copy(
                     key = "staff-attendance.admin",
                     title = "Staff Attendance",
                 )
+                key == "staff-attendance.admin" && !adminPortal -> null
+                financeRole && key in FINANCE_BLOCKED_ACADEMIC_KEYS -> null
                 else -> module
             }
         }.distinctBy { it.key.lowercase() }
+    }
 
     fun isRemovedFromMobile(moduleKey: String): Boolean {
         val key = moduleKey.lowercase()
@@ -162,7 +169,24 @@ object ShellNavigationPolicy {
     }
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
-    private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports")
+    private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
+    private val FINANCE_BLOCKED_ACADEMIC_KEYS = setOf(
+        "classes",
+        "students",
+        "attendance",
+        "student-attendance",
+        "scores",
+        "scores.entry",
+        "timetable",
+        "student.timetable",
+        "academic-repository",
+        "lesson-planner",
+        "gradebook",
+        "skills",
+        "subjects",
+        "curriculum",
+        "academic-cycle",
+    )
     private val ACADEMIC_KEYS = listOf(
         "student",
         "class",
