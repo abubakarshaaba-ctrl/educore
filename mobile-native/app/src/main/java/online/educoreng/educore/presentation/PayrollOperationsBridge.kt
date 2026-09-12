@@ -28,9 +28,7 @@ internal fun PayrollScreen(
     val payrollState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.workspace?.module?.key) {
-        if (payrollState.workspace == null && !payrollState.isLoading) {
-            viewModel.load()
-        }
+        if (!payrollState.isLoading) viewModel.load()
     }
 
     if (payrollState.generationOpen) {
@@ -65,9 +63,9 @@ internal fun PayrollScreen(
                 onClick = viewModel::openGeneration,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(EduCoreSpacing.Lg),
+                    .padding(EduCoreSpacing.Md),
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Generate payroll") },
+                text = { Text("Generate") },
             )
         }
     }
