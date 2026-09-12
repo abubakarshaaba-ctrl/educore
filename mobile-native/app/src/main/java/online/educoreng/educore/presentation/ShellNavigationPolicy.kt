@@ -27,7 +27,7 @@ enum class ModuleGroup(val label: String) {
 object ShellNavigationPolicy {
     fun tabs(session: SessionSnapshot): List<ShellTab> {
         val portal = session.user.portal
-        val role = session.user.roleKey.lowercase()
+        val role = normalizedRole(session)
         val management = portal == "admin" || portal == "platform"
         val modules = visibleModules(session)
         val hasAcademics = modules.any { groupFor(it) == ModuleGroup.ACADEMICS }
@@ -75,7 +75,7 @@ object ShellNavigationPolicy {
                 (session.user.portal.equals("admin", ignoreCase = true) && module.key.equals("students", ignoreCase = true))
         }
         val grouped = tabVisible.groupBy(::groupFor)
-        val role = session.user.roleKey.lowercase()
+        val role = normalizedRole(session)
         val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
         val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
         val financeRole = role in FINANCE_ROLES
@@ -119,38 +119,65 @@ object ShellNavigationPolicy {
     /**
      * Backend bootstrap modules are the first authority. Mobile then verifies
      * every staff module against the effective permission set returned in that
-     * same bootstrap response. A stale or over-broad backend descriptor therefore
-     * cannot silently become visible in the Android shell.
+     * same bootstrap response. Specialist non-academic roles receive an
+     * additional mobile allow-list so an accidentally broad bootstrap grant
+     * cannot expose unrelated school functions on Android.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
-        val role = session.user.roleKey.trim().lowercase().replace('-', '_').replace(' ', '_')
+        val role = normalizedRole(session)
         val financeRole = role in FINANCE_ROLES
         val canManageStaffAttendance = canManageStaffAttendance(session)
         val staffWorkspace = session.user.portal.equals("staff", ignoreCase = true) ||
             session.user.portal.equals("admin", ignoreCase = true)
 
         return session.modules.mapNotNull { module ->
-            val key = module.key.trim().lowercase()
+            val sourceKey = module.key.trim().lowercase()
+            val key = canonicalModuleKey(sourceKey, staffWorkspace)
             when {
-                isRemovedFromMobile(key) -> null
-                key == "dashboard" -> null
-                role == "admission_officer" && key in ADMISSION_OFFICER_BLOCKED_KEYS -> null
-                !isExplicitlyAuthorizedModule(session, key) -> null
-                key == "staff-attendance.self" -> null
-                key == "staff-attendance" && !canManageStaffAttendance -> null
-                key == "staff-attendance" -> module.copy(
+                isRemovedFromMobile(sourceKey) -> null
+                sourceKey == "dashboard" -> null
+                !isExplicitlyAuthorizedModule(session, sourceKey) -> null
+                !isAllowedForSpecialistRole(role, key) -> null
+                sourceKey == "staff-attendance.self" -> null
+                sourceKey == "staff-attendance" && !canManageStaffAttendance -> null
+                sourceKey == "staff-attendance" -> module.copy(
                     key = "staff-attendance.admin",
                     title = "Staff Attendance",
                 )
-                key == "staff-attendance.admin" && !canManageStaffAttendance -> null
+                sourceKey == "staff-attendance.admin" && !canManageStaffAttendance -> null
                 financeRole && key in FINANCE_BLOCKED_ACADEMIC_KEYS -> null
-                staffWorkspace && key in STAFF_REPORT_ALIASES -> module.copy(
-                    key = "reports",
-                    title = "Report Cards",
+                key != sourceKey -> module.copy(
+                    key = key,
+                    title = canonicalTitle(key, module.title),
                 )
                 else -> module
             }
         }.distinctBy { it.key.lowercase() }
+    }
+
+    private fun canonicalModuleKey(key: String, staffWorkspace: Boolean): String = when {
+        staffWorkspace && key in STAFF_REPORT_ALIASES -> "reports"
+        key in SCORE_ALIASES -> "scores"
+        key in SCHEDULE_ALIASES -> "timetable"
+        key in COMMUNICATION_ALIASES -> COMMUNICATION_ALIASES.getValue(key)
+        else -> key
+    }
+
+    private fun canonicalTitle(key: String, fallback: String): String = when (key) {
+        "reports" -> "Report Cards"
+        "scores" -> "Score Entry"
+        "timetable" -> "Exam Timetable & Supervision"
+        "messages" -> "Messages"
+        "announcements" -> "Notices"
+        "calendar.view" -> "Events"
+        else -> fallback
+    }
+
+    private fun isAllowedForSpecialistRole(role: String, key: String): Boolean {
+        val allowed = SPECIALIST_ROLE_ALLOWED_KEYS[role] ?: return true
+        return key in allowed || COMMUNICATION_ALLOWED_KEYS.any { communicationKey ->
+            key == communicationKey || key.startsWith("$communicationKey.")
+        }
     }
 
     private fun isExplicitlyAuthorizedModule(session: SessionSnapshot, key: String): Boolean {
@@ -170,7 +197,7 @@ object ShellNavigationPolicy {
         }
 
         if (key == "academic-repository") {
-            val role = session.user.roleKey.lowercase()
+            val role = normalizedRole(session)
             return session.user.portal.equals("admin", ignoreCase = true) || role.contains("teacher")
         }
 
@@ -203,16 +230,41 @@ object ShellNavigationPolicy {
         if (session.user.portal.equals("platform", ignoreCase = true)) return true
         if (!session.can("staff-attendance")) return false
 
-        val role = session.user.roleKey
-            .trim()
-            .lowercase()
-            .replace('-', '_')
-            .replace(' ', '_')
+        val role = normalizedRole(session)
         return session.user.portal.equals("admin", ignoreCase = true) || role in STAFF_ATTENDANCE_MANAGEMENT_ROLES
     }
 
+    private fun normalizedRole(session: SessionSnapshot): String = session.user.roleKey
+        .trim()
+        .lowercase()
+        .replace('-', '_')
+        .replace(' ', '_')
+
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
-    private val STAFF_REPORT_ALIASES = setOf("reports", "report-cards", "results")
+    private val STAFF_REPORT_ALIASES = setOf("reports", "report-cards", "report_cards", "results")
+    private val SCORE_ALIASES = setOf(
+        "scores", "scores.entry", "score-entry", "score_entry", "result-entry", "result_entry",
+    )
+    private val SCHEDULE_ALIASES = setOf(
+        "timetable", "student.timetable", "exam-timetable", "exam_timetable", "exam.timetable",
+        "exam-duty", "exam_duty", "exam-duties", "exam_duties", "exam-dut", "supervision-schedule",
+        "supervision_schedule", "supervision.schedule", "exam-supervision", "exam_supervision", "schedule",
+    )
+    private val COMMUNICATION_ALIASES = mapOf(
+        "communications" to "messages",
+        "communication" to "messages",
+        "notices" to "announcements",
+        "notice" to "announcements",
+        "events" to "calendar.view",
+        "calendar" to "calendar.view",
+        "platform-broadcast" to "announcements",
+        "platform.broadcast" to "announcements",
+        "broadcast" to "announcements",
+    )
+    private val COMMUNICATION_ALLOWED_KEYS = setOf(
+        "messages", "notifications", "notifications.view", "announcements", "calendar", "calendar.view",
+        "support", "profile",
+    )
     private val STAFF_ATTENDANCE_MANAGEMENT_ROLES = setOf(
         "principal",
         "vice_principal",
@@ -227,28 +279,19 @@ object ShellNavigationPolicy {
         "academic_administrator",
         "head",
     )
-    private val ADMISSION_OFFICER_BLOCKED_KEYS = setOf(
-        "students",
-        "classes",
-        "subjects",
-        "curriculum",
-        "academic-cycle",
-        "attendance",
-        "student-attendance",
-        "scores",
-        "scores.entry",
-        "timetable",
-        "student.timetable",
-        "academic-repository",
-        "lesson-planner",
-        "gradebook",
-        "skills",
-        "reports",
-        "report-cards",
-        "results",
-        "analytics",
-        "risk",
-        "exports",
+    private val SPECIALIST_ROLE_ALLOWED_KEYS = mapOf(
+        "admission_officer" to setOf("admissions", "profile"),
+        "admissions_officer" to setOf("admissions", "profile"),
+        "transport_officer" to setOf("transport", "profile"),
+        "transport_manager" to setOf("transport", "profile"),
+        "health_officer" to setOf("health", "profile"),
+        "school_nurse" to setOf("health", "profile"),
+        "nurse" to setOf("health", "profile"),
+        "communication_officer" to setOf("profile"),
+        "communications_officer" to setOf("profile"),
+        "accountant" to FINANCE_KEYS + "profile",
+        "finance_officer" to FINANCE_KEYS + "profile",
+        "bursar" to FINANCE_KEYS + "profile",
     )
     private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
     private val FINANCE_BLOCKED_ACADEMIC_KEYS = setOf(
@@ -302,7 +345,7 @@ object ShellNavigationPolicy {
         "repository",
         "exam",
     )
-    private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "schedule")
+    private val SCHEDULE_KEYS = listOf("timetable", "exam-dut", "supervision", "schedule")
     private val COMMUNICATION_KEYS = listOf(
         "message",
         "notice",
@@ -312,6 +355,7 @@ object ShellNavigationPolicy {
         "event",
         "support",
         "broadcast",
+        "communication",
     )
     private val ACCOUNT_KEYS = listOf("profile", "setting", "help")
 }
