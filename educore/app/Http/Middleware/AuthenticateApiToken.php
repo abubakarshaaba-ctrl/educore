@@ -21,7 +21,11 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AuthenticateApiToken
 {
-    public function handle(Request $request, Closure $next, ApiRoleAccessPolicy $accessPolicy): Response
+    public function __construct(private readonly ApiRoleAccessPolicy $accessPolicy)
+    {
+    }
+
+    public function handle(Request $request, Closure $next): Response
     {
         $plain = $request->bearerToken();
 
@@ -51,7 +55,7 @@ class AuthenticateApiToken
         $request->attributes->set('api_token', $token);
 
         try {
-            $allowed = $accessPolicy->allows($user, $request);
+            $allowed = $this->accessPolicy->allows($user, $request);
         } catch (Throwable $exception) {
             report($exception);
             $path = trim($request->path(), '/');
