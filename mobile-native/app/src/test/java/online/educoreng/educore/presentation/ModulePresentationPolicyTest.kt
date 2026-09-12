@@ -33,15 +33,15 @@ class ModulePresentationPolicyTest {
     }
 
     @Test
-    fun supported_finance_module_remains_native_while_reports_are_removed() {
+    fun finance_and_restored_report_modules_are_native() {
         assertEquals(
             ModulePresentation.NATIVE,
             ModulePresentationPolicy.presentationFor("fees"),
         )
         listOf("reports", "report-cards", "results", "student.results", "parent.results").forEach { key ->
             assertEquals(
-                "$key must remain unavailable in the mobile app",
-                ModulePresentation.UNSUPPORTED,
+                "$key must be available through the restored native report-card flow",
+                ModulePresentation.NATIVE,
                 ModulePresentationPolicy.presentationFor(key),
             )
         }
