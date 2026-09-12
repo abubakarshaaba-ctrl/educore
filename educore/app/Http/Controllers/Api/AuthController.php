@@ -10,6 +10,8 @@ use App\Services\TenantAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 /**
  * Unified mobile API authentication for tenant portal accounts.
@@ -74,8 +76,40 @@ class AuthController extends Controller
                 ? 'parent'
                 : (in_array($user->roleKey(), $managementRoles, true) ? 'admin' : 'staff')));
 
-        $user->forceFill(['last_login_at' => now()])->save();
-        $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'mobile_api'], $request);
+        // Login telemetry must never make a valid mobile sign-in fail. Some
+        // installations were upgraded from schemas that pre-date last_login_at
+        // or have an older audit_logs shape. Treat both as best-effort only.
+        try {
+            if (Schema::hasColumn('users', 'last_login_at')) {
+                $user->forceFill(['last_login_at' => now()])->save();
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        try {
+            $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'mobile_api'], $request);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        try {
+            $roles = $user->isSuperAdmin()
+                ? ['super_admin']
+                : $user->getRoleNames()->values()->all();
+        } catch (Throwable $exception) {
+            report($exception);
+            $roles = array_values(array_filter([$user->roleKey()]));
+        }
+
+        try {
+            $permissions = $user->isSuperAdmin()
+                ? ['*']
+                : $user->effectivePermissionKeys();
+        } catch (Throwable $exception) {
+            report($exception);
+            $permissions = [];
+        }
 
         return response()->json([
             'token' => $token,
@@ -86,9 +120,7 @@ class AuthController extends Controller
                 'staff_id' => $user->staff_id,
                 'role_key' => $user->roleKey(),
                 'role' => $user->roleLabel() ?? 'staff',
-                'roles' => $user->isSuperAdmin()
-                    ? ['super_admin']
-                    : $user->getRoleNames()->values(),
+                'roles' => $roles,
                 'portal' => $portal,
             ],
             'school' => [
@@ -96,9 +128,7 @@ class AuthController extends Controller
                 'name' => $tenant?->name ?? 'EduCore Platform',
                 'slug' => $tenant?->slug ?? 'platform',
             ],
-            'permissions' => $user->isSuperAdmin()
-                ? ['*']
-                : $user->effectivePermissionKeys(),
+            'permissions' => $permissions,
         ]);
     }
 
