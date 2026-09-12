@@ -358,8 +358,9 @@ internal fun StaffModulesHubScreen(
         EduCoreWindowWidth.Medium -> 4
         EduCoreWindowWidth.Expanded -> 6
     }
-    val groups = remember(session.modules, session.user.portal) {
-        buildModuleHubGroups(session.modules, session.user.portal)
+    val visibleModules = remember(session) { ShellNavigationPolicy.visibleModules(session) }
+    val groups = remember(visibleModules, session.user.portal) {
+        buildModuleHubGroups(visibleModules, session.user.portal)
     }
 
     fun openModule(module: ModuleDescriptor) {
@@ -373,10 +374,10 @@ internal fun StaffModulesHubScreen(
                 studentDirectoryOpen = true
                 adminStudentViewModel.load()
             } else onModuleClick(module)
-            "staff-attendance" -> if (session.user.portal == "admin") {
+            "staff-attendance.admin" -> {
                 adminAttendanceOpen = true
                 adminAttendanceViewModel.load()
-            } else onModuleClick(module)
+            }
             "staff-attendance.self" -> onModuleClick(module)
             "gradebook" -> { gradebookOpen = true; gradebookViewModel.load() }
             "reports", "report-cards" -> { reportsOpen = true; reportsViewModel.load() }
@@ -481,7 +482,7 @@ private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
 private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.lowercase()) {
     "staff" -> "Staff Directory"
     "students" -> "Student Directory"
-    "staff-attendance" -> "Staff Attendance"
+    "staff-attendance.admin" -> "Staff Attendance"
     "staff-attendance.self" -> "My Attendance"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
@@ -502,14 +503,14 @@ private val ROOT_WORKFLOW_KEYS = setOf(
     "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
     "student.timetable", "messages", "notifications.view", "announcements", "calendar.view",
 )
-private val ADMIN_DISTINCT_ATTENDANCE_KEYS = setOf("staff-attendance", "staff-attendance.self")
+private val ADMIN_DISTINCT_ATTENDANCE_KEYS = setOf("staff-attendance.admin", "staff-attendance.self")
 private val CBT_MODULE_KEYS = setOf("cbt", "cbt-exams", "examinations")
 private val ACADEMIC_KEYS = setOf(
     "subjects", "curriculum", "reports", "report-cards", "results", "gradebook", "cbt", "cbt-exams",
     "examinations", "lesson-planner", "academic-repository", "library", "skills",
 )
 private val OPERATION_KEYS = setOf(
-    "staff", "students", "staff-attendance", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
+    "staff", "students", "staff-attendance.admin", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
     "admissions", "transfers", "transport", "health", "inventory", "hostels", "analytics", "risk", "exports",
 )
 private val ACCOUNT_KEYS = setOf("profile", "portal-accounts", "settings")
