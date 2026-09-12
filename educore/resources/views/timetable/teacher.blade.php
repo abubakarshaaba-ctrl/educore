@@ -4,7 +4,7 @@
 
 @push('styles')
 <style>
-    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content; }
+    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;flex-wrap:wrap; }
     .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms; }
     .page-tab.active { background:var(--indigo);color:white; }
     .page-tab:hover:not(.active) { background:#F1F5F9; }
@@ -27,6 +27,7 @@
     .period-class { font-size:11px;color:var(--slate);margin-top:2px; }
     .empty-state { text-align:center;padding:50px;color:var(--slate-light); }
     .empty-state h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:6px; }
+    @media(max-width:700px){.page-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap}.page-tab{white-space:nowrap}}
 </style>
 @endpush
 
@@ -53,6 +54,8 @@
     <a href="{{ route('timetable.teacher', ['teacher_id' => auth()->id(), 'session_id' => request('session_id')]) }}" class="page-tab active">📚 My Subject Schedule</a>
     @endif
     @endif
+    <a href="{{ route('exam-timetable.index') }}" class="page-tab">Exam Timetable</a>
+    <a href="{{ route('exam-timetable.my-supervision') }}" class="page-tab">My Supervision</a>
 </div>
 
 <form method="GET">
@@ -76,9 +79,7 @@
             <select name="session_id" class="filter-control" required>
                 <option value="">Select session</option>
                 @foreach($sessions as $s)
-                    <option value="{{ $s->id }}" {{ (request('session_id') == $s->id || (!request('session_id') && $s->is_current)) ? 'selected' : '' }}>
-                        {{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}
-                    </option>
+                    <option value="{{ $s->id }}" {{ (request('session_id') == $s->id || (!request('session_id') && $s->is_current)) ? 'selected' : '' }}>{{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}</option>
                 @endforeach
             </select>
         </div>
@@ -89,42 +90,17 @@
 @if(isset($teacher))
 <div class="tt-outer">
     <div class="tbl"><table class="tt-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                @foreach($days as $day)<th>{{ ucfirst($day) }}</th>@endforeach
-            </tr>
-        </thead>
+        <thead><tr><th>Time</th>@foreach($days as $day)<th>{{ ucfirst($day) }}</th>@endforeach</tr></thead>
         <tbody>
             @foreach($allSlots as $slot)
                 @if($slot['is_break'])
-                <tr class="break-row">
-                    <td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>
-                    @foreach($days as $day)<td>☕ {{ $slot['label'] }}</td>@endforeach
-                </tr>
+                <tr class="break-row"><td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>@foreach($days as $day)<td>☕ {{ $slot['label'] }}</td>@endforeach</tr>
                 @else
                 <tr>
-                    <td class="time-col">
-                        P{{ $slot['period'] }}<br>
-                        <span style="font-weight:400">{{ substr($slot['start'],0,5) }}</span><br>
-                        <span style="font-weight:400">{{ substr($slot['end'],0,5) }}</span>
-                    </td>
+                    <td class="time-col">P{{ $slot['period'] }}<br><span style="font-weight:400">{{ substr($slot['start'],0,5) }}</span><br><span style="font-weight:400">{{ substr($slot['end'],0,5) }}</span></td>
                     @foreach($days as $day)
-                    @php
-                        $match = $periods->get($day, collect())
-                            ->first(fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5));
-                    @endphp
-                    <td>
-                        @if($match)
-                        <div class="period-item">
-                            <div class="period-subject">{{ optional($match->subject)->name ?? 'Unassigned subject' }}</div>
-                            <div class="period-class">
-                                {{ optional(optional($match->classArm)->classLevel)->name ?? 'Unassigned level' }}
-                                {{ optional($match->classArm)->name ?? '' }}
-                            </div>
-                        </div>
-                        @endif
-                    </td>
+                    @php $match = $periods->get($day, collect())->first(fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5)); @endphp
+                    <td>@if($match)<div class="period-item"><div class="period-subject">{{ optional($match->subject)->name ?? 'Unassigned subject' }}</div><div class="period-class">{{ optional(optional($match->classArm)->classLevel)->name ?? 'Unassigned level' }} {{ optional($match->classArm)->name ?? '' }}</div></div>@endif</td>
                     @endforeach
                 </tr>
                 @endif
@@ -133,9 +109,6 @@
     </table></div>
 </div>
 @else
-<div class="empty-state">
-    <h3>Select a teacher and session</h3>
-    <p>The teacher's full weekly schedule will appear here.</p>
-</div>
+<div class="empty-state"><h3>Select a teacher and session</h3><p>The teacher's full weekly schedule will appear here.</p></div>
 @endif
 @endsection
