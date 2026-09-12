@@ -22,8 +22,6 @@ class MobileModuleService
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
-        // Management-only workspace. Ordinary staff keep the separate
-        // staff-attendance.self entry for their personal attendance actions.
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'scores' => ['Scores', '/scores', 'scores'],
@@ -54,6 +52,17 @@ class MobileModuleService
         'head_teacher',
         'vice_principal',
         'academic_administrator',
+    ];
+
+    /**
+     * Admission is operational. These workspaces must not appear merely because
+     * of legacy broad role defaults. A school administrator may still add an
+     * intentional per-staff grant when a genuine cross-duty assignment exists.
+     */
+    private const ADMISSION_OFFICER_BLOCKED_MODULES = [
+        'students', 'classes', 'subjects', 'curriculum', 'academic-cycle',
+        'attendance', 'scores', 'timetable', 'analytics', 'exports',
+        'lesson-planner', 'academic-repository',
     ];
 
     public function forUser(User $user): array
@@ -100,8 +109,16 @@ class MobileModuleService
 
         return collect(self::STAFF_MODULES)
             ->filter(function (array $definition, string $key) use ($user): bool {
+                if (
+                    $user->roleKey() === 'admission_officer'
+                    && in_array($key, self::ADMISSION_OFFICER_BLOCKED_MODULES, true)
+                    && ! $user->hasGrantedPermission($key)
+                ) {
+                    return false;
+                }
+
                 if ($key === 'academic-repository') {
-                    return $user->isAdmin() || $user->isTeacher();
+                    return $user->hasGrantedPermission($key) || $user->isAdmin() || $user->isTeacher();
                 }
 
                 if ($key === 'staff-attendance.admin') {
