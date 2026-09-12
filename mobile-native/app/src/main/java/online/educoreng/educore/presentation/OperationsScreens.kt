@@ -81,8 +81,8 @@ internal fun OperationsScreen(
             onSection = onSection,
             onRefreshWorkspace = onRetry,
         )
-        "transport" -> TransportScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
-        "health" -> HealthRecordsScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "transport" -> TransportOperationsScreen(onBack = onBack)
+        "health" -> HealthOperationsScreen(onBack = onBack)
         "inventory" -> InventoryScreen(state = state, onBack = onBack, onQuery = onQuery)
         "hostels" -> HostelsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         "subjects" -> SubjectsScreen(state = state, onBack = onBack, onQuery = onQuery)
