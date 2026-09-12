@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AcademicSession;
 use App\Models\ClassArm;
 use App\Models\ExamSchedule;
 use App\Models\ExamSupervision;
@@ -141,7 +140,7 @@ class ExamTimetableController extends Controller
                 ->whereDate('exam_date', $examSchedule->exam_date)
                 ->where('start_time', '<', $examSchedule->end_time)
                 ->where('end_time', '>', $examSchedule->start_time)
-                ->whereKeyNot($examSchedule->id))
+                ->where('id', '!=', $examSchedule->id))
             ->exists();
 
         if ($conflict) {
@@ -169,7 +168,6 @@ class ExamTimetableController extends Controller
     private function validateSchedule(Request $request, int $tenantId): array
     {
         $data = $request->validate([
-            'session_id' => ['required', 'integer', Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId)],
             'term_id' => ['required', 'integer', Rule::exists('terms', 'id')->where('tenant_id', $tenantId)],
             'class_arm_id' => ['required', 'integer', Rule::exists('class_arms', 'id')->where('tenant_id', $tenantId)],
             'subject_id' => ['required', 'integer', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
@@ -182,13 +180,15 @@ class ExamTimetableController extends Controller
         ]);
 
         $term = Term::where('tenant_id', $tenantId)->findOrFail($data['term_id']);
-        abort_unless((int) $term->session_id === (int) $data['session_id'], 422, 'The selected term does not belong to the selected academic session.');
+        $data['session_id'] = (int) $term->session_id;
+
         if ($term->start_date && $term->end_date) {
             $date = \Carbon\Carbon::parse($data['exam_date']);
             if ($date->lt($term->start_date) || $date->gt($term->end_date)) {
                 throw ValidationException::withMessages(['exam_date' => 'Exam date must fall within the selected term.']);
             }
         }
+
         $data['start_time'] .= ':00';
         $data['end_time'] .= ':00';
         return $data;
@@ -200,7 +200,7 @@ class ExamTimetableController extends Controller
             ->whereDate('exam_date', $data['exam_date'])
             ->where('start_time', '<', $data['end_time'])
             ->where('end_time', '>', $data['start_time'])
-            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId));
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId));
 
         if ((clone $overlap)->where('class_arm_id', $data['class_arm_id'])->exists()) {
             throw ValidationException::withMessages(['start_time' => 'This class already has an examination during the selected time.']);
