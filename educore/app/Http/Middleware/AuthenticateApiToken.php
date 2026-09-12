@@ -7,6 +7,7 @@ use App\Services\Auth\ApiRoleAccessPolicy;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Throwable;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -27,7 +28,12 @@ class AuthenticateApiToken
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $token = ApiToken::findValid($plain);
+        try {
+            $token = ApiToken::findValid($plain);
+        } catch (Throwable $exception) {
+            report($exception);
+            return response()->json(['message' => 'The secure mobile session could not be verified. Please sign in again.'], 401);
+        }
 
         if (! $token || ! $token->user) {
             return response()->json(['message' => 'Invalid or expired token.'], 401);
@@ -43,16 +49,32 @@ class AuthenticateApiToken
         $request->setUserResolver(fn () => $user);
         $request->attributes->set('api_token', $token);
 
-        if (! $accessPolicy->allows($user, $request)) {
+        try {
+            $allowed = $accessPolicy->allows($user, $request);
+        } catch (Throwable $exception) {
+            report($exception);
+            // Bootstrap/logout are foundational authenticated endpoints and must
+            // never fail because optional RBAC metadata is temporarily unreadable.
+            $path = trim($request->path(), '/');
+            $path = preg_replace('#^api/v1/#', '', $path) ?? $path;
+            $allowed = in_array($path, ['bootstrap', 'auth/logout', 'me'], true);
+        }
+
+        if (! $allowed) {
             return response()->json([
                 'message' => 'Access denied for your assigned role.',
                 'role' => $user->roleLabel(),
             ], 403);
         }
 
-        // Throttled last-used bookkeeping (at most once a minute)
-        if (! $token->last_used_at || $token->last_used_at->lt(now()->subMinute())) {
-            $token->forceFill(['last_used_at' => now()])->saveQuietly();
+        // Last-used bookkeeping is non-critical. A legacy/mismatched token schema
+        // must never turn an otherwise valid authenticated API request into a 500.
+        try {
+            if (! $token->last_used_at || $token->last_used_at->lt(now()->subMinute())) {
+                $token->forceFill(['last_used_at' => now()])->saveQuietly();
+            }
+        } catch (Throwable $exception) {
+            report($exception);
         }
 
         return $next($request);
