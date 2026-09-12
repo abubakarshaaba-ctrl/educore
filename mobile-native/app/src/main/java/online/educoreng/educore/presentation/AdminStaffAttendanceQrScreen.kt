@@ -73,9 +73,8 @@ data class AdminStaffAttendanceQrUiState(
 )
 
 /**
- * The historical route name is retained for source compatibility, but the
- * administrator entry point now opens the complete Staff Attendance workspace
- * (Daily, Monthly, Reviews and Settings) instead of a QR-only page.
+ * Historical QR route retained only for source compatibility. Active admin
+ * navigation uses the complete native Staff Attendance management route.
  */
 @Composable
 internal fun AdminStaffAttendanceQrScreen(
@@ -84,9 +83,6 @@ internal fun AdminStaffAttendanceQrScreen(
     onReset: () -> Unit,
     onClose: () -> Unit,
 ) {
-    // Keep parameters in the signature because AuthorizedShell owns the legacy
-    // route contract. QR loading/reset remains available through the full admin
-    // attendance settings workflow.
     @Suppress("UNUSED_VARIABLE")
     val compatibilityState = state
     @Suppress("UNUSED_VARIABLE")
@@ -94,8 +90,9 @@ internal fun AdminStaffAttendanceQrScreen(
     @Suppress("UNUSED_VARIABLE")
     val compatibilityReset = onReset
 
-    AdminStaffAttendanceHubScreen(
+    AdminStaffAttendanceScreen(
+        state = AdminStaffAttendanceUiState(),
         onBack = onClose,
-        onOpenQr = {},
+        onRefresh = {},
     )
 }
