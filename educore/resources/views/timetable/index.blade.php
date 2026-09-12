@@ -4,11 +4,10 @@
 
 @push('styles')
 <style>
-    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content; }
+    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;flex-wrap:wrap; }
     .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms; }
     .page-tab.active { background:var(--indigo);color:white; }
     .page-tab:hover:not(.active) { background:#F1F5F9; }
-
     .two-col { display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start; }
     .card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
     .card-header { padding:14px 20px;border-bottom:1px solid var(--border);background:#F8FAFC; }
@@ -33,7 +32,7 @@
     .step-text { color:var(--midnight); }
     .step-link { color:var(--indigo);text-decoration:none;font-size:12px;margin-left:auto;white-space:nowrap; }
     .step-link:hover { text-decoration:underline; }
-    @media(max-width:768px) { .two-col { grid-template-columns:1fr; } .page-tabs { width:100%;overflow-x:auto; } .page-tab { white-space:nowrap; } }
+    @media(max-width:768px) { .two-col { grid-template-columns:1fr; } .page-tabs { width:100%;overflow-x:auto;flex-wrap:nowrap; } .page-tab { white-space:nowrap; } }
 </style>
 @endpush
 
@@ -45,6 +44,8 @@
     <a href="{{ route('timetable.index') }}" class="page-tab active">3. View / Generate</a>
     @endif
     <a href="{{ route('timetable.teacher') }}" class="page-tab {{ auth()->user()->canManage('timetable') ? '' : 'active' }}">Teacher View</a>
+    <a href="{{ route('exam-timetable.index') }}" class="page-tab">Exam Timetable</a>
+    <a href="{{ route('exam-timetable.my-supervision') }}" class="page-tab">My Supervision</a>
 </div>
 
 <div class="two-col">
@@ -69,9 +70,7 @@
                     <select name="session_id" class="form-control" required>
                         <option value="">Select session</option>
                         @foreach($sessions as $s)
-                            <option value="{{ $s->id }}" {{ $s->is_current ? 'selected' : '' }}>
-                                {{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}
-                            </option>
+                            <option value="{{ $s->id }}" {{ $s->is_current ? 'selected' : '' }}>{{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -82,57 +81,19 @@
 
     @if(auth()->user()->canManage('timetable'))
     <div class="card">
-        <div class="card-header">
-            <div class="card-title">⚡ Auto-Generate Timetable</div>
-            <div class="card-sub">Complete all 3 steps before generating</div>
-        </div>
+        <div class="card-header"><div class="card-title">⚡ Auto-Generate Timetable</div><div class="card-sub">Complete all 3 steps before generating</div></div>
         <div class="card-body">
             <ul class="step-list" style="margin-bottom:20px">
-                <li class="step-item">
-                    <div class="step-num step-done">1</div>
-                    <span class="step-text">Configure school hours & periods</span>
-                    <a href="{{ route('timetable.configure') }}" class="step-link">Edit →</a>
-                </li>
-                <li class="step-item">
-                    <div class="step-num step-done">2</div>
-                    <span class="step-text">Assign subjects to class + set teacher</span>
-                    <a href="{{ route('subjects.index') }}" class="step-link">Edit →</a>
-                </li>
-                <li class="step-item">
-                    <div class="step-num step-done">3</div>
-                    <span class="step-text">Set subject frequency (periods/week)</span>
-                    <a href="{{ route('timetable.frequency') }}" class="step-link">Edit →</a>
-                </li>
+                <li class="step-item"><div class="step-num step-done">1</div><span class="step-text">Configure school hours & periods</span><a href="{{ route('timetable.configure') }}" class="step-link">Edit →</a></li>
+                <li class="step-item"><div class="step-num step-done">2</div><span class="step-text">Assign subjects to class + set teacher</span><a href="{{ route('subjects.index') }}" class="step-link">Edit →</a></li>
+                <li class="step-item"><div class="step-num step-done">3</div><span class="step-text">Set subject frequency (periods/week)</span><a href="{{ route('timetable.frequency') }}" class="step-link">Edit →</a></li>
             </ul>
-
-            <form method="POST" action="{{ route('timetable.generate') }}"
-                  onsubmit="return confirm('This will clear and regenerate the timetable for this class. Continue?')">
+            <form method="POST" action="{{ route('timetable.generate') }}" onsubmit="return confirm('This will clear and regenerate the timetable for this class. Continue?')">
                 @csrf
-                <div class="form-group">
-                    <label class="form-label">Class <span>*</span></label>
-                    <select name="class_arm_id" class="form-control" required>
-                        <option value="">Select class</option>
-                        @foreach($classArms as $arm)
-                            <option value="{{ $arm->id }}">{{ optional($arm->classLevel)->name ?? 'Unassigned level' }} {{ $arm->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Session <span>*</span></label>
-                    <select name="session_id" class="form-control" required>
-                        <option value="">Select session</option>
-                        @foreach($sessions as $s)
-                            <option value="{{ $s->id }}" {{ $s->is_current ? 'selected' : '' }}>
-                                {{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                <div class="form-group"><label class="form-label">Class <span>*</span></label><select name="class_arm_id" class="form-control" required><option value="">Select class</option>@foreach($classArms as $arm)<option value="{{ $arm->id }}">{{ optional($arm->classLevel)->name ?? 'Unassigned level' }} {{ $arm->name }}</option>@endforeach</select></div>
+                <div class="form-group"><label class="form-label">Session <span>*</span></label><select name="session_id" class="form-control" required><option value="">Select session</option>@foreach($sessions as $s)<option value="{{ $s->id }}" {{ $s->is_current ? 'selected' : '' }}>{{ $s->name }}{{ $s->is_current ? ' (Current)' : '' }}</option>@endforeach</select></div>
                 <input type="hidden" name="overwrite" value="1">
-                <button type="submit" class="btn btn-generate">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                    Generate Timetable Now
-                </button>
+                <button type="submit" class="btn btn-generate"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>Generate Timetable Now</button>
             </form>
         </div>
     </div>
