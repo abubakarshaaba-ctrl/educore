@@ -21,14 +21,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
-import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreProfileHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
@@ -83,24 +84,40 @@ internal fun ProfileScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
-                    border = BorderStroke(1.dp, EduCoreColors.Navy700),
+                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                    border = BorderStroke(1.dp, EduCoreColors.Line200),
                 ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = EduCoreColors.Gold400)
-                        Text("Monthly payslips", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.White)
-                        Text("Review every issued payroll month, earnings, deductions and net pay, then download the official PDF.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Line200)
-                        EduCorePrimaryButton(
-                            text = "Open My Payslips",
+                        Icon(
+                            Icons.Default.ReceiptLong,
+                            contentDescription = null,
+                            tint = EduCoreColors.Gold600,
+                        )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                        ) {
+                            Text(
+                                "Monthly payslips",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = EduCoreColors.Ink900,
+                            )
+                            Text(
+                                "Issued payroll statements and PDF downloads",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
+                        }
+                        EduCoreSecondaryButton(
+                            text = "Open",
                             onClick = {
                                 payslipsOpen = true
                                 payslipViewModel.load()
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.ReceiptLong, contentDescription = null) },
                         )
                     }
                 }
@@ -132,7 +149,7 @@ internal fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Account status", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text("Account status", style = MaterialTheme.typography.titleSmall)
                         Text(
                             "Profile identity is synchronized from the school account. Administrative identity changes remain controlled by authorized school administrators.",
                             style = MaterialTheme.typography.bodySmall,
@@ -160,7 +177,7 @@ private fun ProfileSectionCard(
             modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(title, style = MaterialTheme.typography.titleSmall)
             content()
         }
     }
@@ -182,7 +199,6 @@ private fun ProfileRow(label: String, value: String) {
             text = value,
             modifier = Modifier.weight(0.58f),
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
         )
     }
 }
