@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
@@ -199,9 +195,11 @@ fun EduCorePageHeader(
     compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    // The main Communication Centre is itself a root Inbox destination; a back
-    // affordance there is misleading. Detail/compose headers still retain back.
-    val effectiveOnBack = if (title.equals("Communication centre", ignoreCase = true)) null else onBack
+    // Page-level arrow buttons are intentionally suppressed across the native
+    // app. Navigation remains available through the Android system back action,
+    // bottom navigation, and explicit close/cancel actions where appropriate.
+    @Suppress("UNUSED_VARIABLE")
+    val retainedBackHandler = onBack
 
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
@@ -213,7 +211,7 @@ fun EduCorePageHeader(
             if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        PageHeaderIdentity(title, subtitle, effectiveOnBack)
+                        PageHeaderIdentity(title, subtitle)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -223,7 +221,7 @@ fun EduCorePageHeader(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PageHeaderIdentity(title, subtitle, effectiveOnBack)
+                    PageHeaderIdentity(title, subtitle)
                     actions()
                 }
             }
@@ -232,11 +230,7 @@ fun EduCorePageHeader(
 }
 
 @Composable
-private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
-    if (onBack != null) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-        Spacer(Modifier.width(EduCoreSpacing.Xs))
-    }
+private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?) {
     Column(Modifier.weight(1f)) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
         subtitle?.takeIf(String::isNotBlank)?.let {
