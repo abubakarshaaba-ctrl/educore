@@ -11,42 +11,55 @@ use App\Models\PaymentTransaction;
 use App\Models\PlatformSetting;
 use App\Models\Tenant;
 use App\Services\PricingService;
+use App\Services\SchoolFeePaymentService;
+use App\Services\SubscriptionPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MobilePaymentController extends Controller
 {
     public function subscription(Request $request, PricingService $pricing)
     {
-        [$user, $tenant] = $this->schoolAdmin($request);
+        [, $tenant] = $this->schoolAdmin($request);
         $activeStudents = $pricing->activeStudentCount($tenant->id);
-        $invoices = DB::table('platform_invoices')
-            ->where('tenant_id', $tenant->id)
-            ->latest('id')
-            ->limit(20)
-            ->get()
-            ->map(fn ($invoice) => $this->platformInvoicePayload($invoice));
+        $capacity = (int) ($tenant->students_capacity ?? PricingService::FREE_THRESHOLD);
+        $expiresAt = $tenant->subscription_expires_at;
+        $daysRemaining = $expiresAt ? max(0, (int) now()->startOfDay()->diffInDays($expiresAt->copy()->startOfDay(), false)) : null;
 
         return response()->json([
-            'contract_version' => 1,
+            'contract_version' => 2,
             'tenant' => [
                 'id' => $tenant->id,
                 'name' => $tenant->name,
                 'status' => $tenant->status,
-                'subscription_expires_at' => optional($tenant->subscription_expires_at)->toDateString(),
-                'students_capacity' => (int) ($tenant->students_capacity ?? PricingService::FREE_THRESHOLD),
+                'subscription_expires_at' => $expiresAt?->toDateString(),
+                'days_remaining' => $daysRemaining,
+                'students_capacity' => $capacity,
                 'active_students' => $activeStudents,
+                'is_free_tier' => PricingService::isFree(max($activeStudents, $capacity)),
             ],
             'pricing' => [
                 'free_threshold' => PricingService::FREE_THRESHOLD,
                 'rate_per_student_per_term' => PricingService::PAID_RATE,
-                'termly_amount' => $pricing->termlyAmount(max($activeStudents, (int) ($tenant->students_capacity ?? 0))),
+                'termly_amount' => $pricing->termlyAmount(max($activeStudents, $capacity)),
+                'annual_amount' => $pricing->annualAmount(max($activeStudents, $capacity)),
             ],
             'gateways' => $this->platformGateways(),
-            'invoices' => $invoices,
+            'outstanding_invoice' => $this->outstandingSubscriptionInvoice($tenant->id),
+            'invoices' => $this->subscriptionInvoiceCollection($tenant->id),
+            'payments' => $this->subscriptionPaymentCollection($tenant->id),
+        ]);
+    }
+
+    public function subscriptionInvoices(Request $request)
+    {
+        [, $tenant] = $this->schoolAdmin($request);
+
+        return response()->json([
+            'invoices' => $this->subscriptionInvoiceCollection($tenant->id),
+            'payments' => $this->subscriptionPaymentCollection($tenant->id),
         ]);
     }
 
@@ -55,66 +68,83 @@ class MobilePaymentController extends Controller
         [, $tenant] = $this->schoolAdmin($request);
         $data = $request->validate([
             'billing_cycle' => ['required', 'in:termly,annual'],
-            'anticipated_enrollment' => ['required', 'integer', 'min:1', 'max:100000'],
+            'anticipated_enrollment' => ['required', 'integer', 'min:1', 'max:1000000'],
         ]);
 
-        $count = max($pricing->activeStudentCount($tenant->id), (int) $data['anticipated_enrollment']);
-        $amount = $data['billing_cycle'] === 'annual'
-            ? $pricing->annualAmount($count)
-            : $pricing->termlyAmount($count);
-
-        if ($amount <= 0) {
+        $active = $pricing->activeStudentCount($tenant->id);
+        $capacity = max($active, (int) $data['anticipated_enrollment']);
+        if (PricingService::isFree($capacity)) {
             return response()->json([
                 'free' => true,
-                'message' => 'This school is currently within EduCore free-tier capacity.',
+                'message' => 'This anticipated enrolment is covered by EduCore free tier.',
                 'amount' => 0,
+                'capacity' => $capacity,
             ]);
         }
 
-        $existing = DB::table('platform_invoices')
-            ->where('tenant_id', $tenant->id)
-            ->where('status', 'pending')
-            ->where('billing_cycle', $data['billing_cycle'])
-            ->where('amount', $amount)
-            ->latest('id')
-            ->first();
+        $amount = $data['billing_cycle'] === 'annual'
+            ? $pricing->annualAmount($capacity)
+            : $pricing->termlyAmount($capacity);
 
-        if (! $existing) {
+        $invoice = DB::transaction(function () use ($tenant, $data, $capacity, $amount) {
+            $existing = DB::table('platform_invoices')
+                ->where('tenant_id', $tenant->id)
+                ->where('billing_cycle', $data['billing_cycle'])
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                abort_if($existing->payment_method === 'bank_transfer' && filled($existing->payment_ref), 422,
+                    'A bank transfer is already awaiting verification for this billing cycle.');
+
+                DB::table('platform_invoices')->where('id', $existing->id)->update([
+                    'amount' => $amount,
+                    'student_count' => $capacity,
+                    'due_date' => now()->addDays(7)->toDateString(),
+                    'payment_method' => null,
+                    'payment_ref' => null,
+                    'notes' => 'Mobile self-service estimate for '.$capacity.' anticipated students.',
+                    'updated_at' => now(),
+                ]);
+
+                return DB::table('platform_invoices')->where('id', $existing->id)->first();
+            }
+
             $id = DB::table('platform_invoices')->insertGetId([
                 'tenant_id' => $tenant->id,
                 'plan_id' => null,
-                'invoice_number' => 'INV-'.now()->format('Ymd').'-'.strtoupper(Str::random(8)),
+                'invoice_number' => 'INV-'.strtoupper(Str::random(8)),
                 'amount' => $amount,
+                'student_count' => $capacity,
                 'billing_cycle' => $data['billing_cycle'],
                 'status' => 'pending',
                 'due_date' => now()->addDays(7)->toDateString(),
-                'notes' => json_encode(['anticipated_enrollment' => $count]),
+                'notes' => 'Mobile self-service estimate for '.$capacity.' anticipated students.',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $existing = DB::table('platform_invoices')->where('id', $id)->first();
-        }
 
-        return response()->json(['free' => false, 'invoice' => $this->platformInvoicePayload($existing)]);
+            return DB::table('platform_invoices')->where('id', $id)->first();
+        });
+
+        return response()->json(['free' => false, 'invoice' => $this->platformInvoicePayload($invoice)]);
     }
 
     public function subscriptionCheckout(Request $request, int $invoiceId)
     {
         [$user, $tenant] = $this->schoolAdmin($request);
         $data = $request->validate(['gateway' => ['required', 'in:paystack,monnify']]);
-        $invoice = DB::table('platform_invoices')
-            ->where('id', $invoiceId)
-            ->where('tenant_id', $tenant->id)
-            ->first();
-        abort_unless($invoice, 404, 'Subscription invoice not found.');
+        $invoice = $this->tenantPlatformInvoice($tenant->id, $invoiceId);
         abort_if($invoice->status === 'paid', 422, 'This subscription invoice is already paid.');
+        abort_if((float) $invoice->amount <= 0, 422, 'This invoice has no payable amount.');
 
         $reference = 'SUB-'.strtoupper(Str::random(14));
         $checkoutUrl = $data['gateway'] === 'paystack'
             ? $this->startPlatformPaystack($invoice, $user->email, $reference)
             : $this->startPlatformMonnify($invoice, $tenant, $user->email, $reference);
-
         abort_unless($checkoutUrl, 503, 'The selected payment gateway could not start checkout.');
+
         DB::table('platform_invoices')->where('id', $invoice->id)->update([
             'payment_method' => $data['gateway'].'_online',
             'payment_ref' => $reference,
@@ -124,11 +154,39 @@ class MobilePaymentController extends Controller
         return response()->json([
             'provider' => $data['gateway'],
             'reference' => $reference,
+            'amount' => (float) $invoice->amount,
+            'currency' => 'NGN',
             'checkout_url' => $checkoutUrl,
         ]);
     }
 
-    public function verifySubscription(Request $request, PricingService $pricing)
+    public function submitSubscriptionBankTransfer(Request $request, int $invoiceId)
+    {
+        [, $tenant] = $this->schoolAdmin($request);
+        $invoice = $this->tenantPlatformInvoice($tenant->id, $invoiceId);
+        abort_if($invoice->status === 'paid', 422, 'This subscription invoice is already paid.');
+
+        $data = $request->validate([
+            'transfer_reference' => ['required', 'string', 'min:3', 'max:100'],
+        ]);
+        $reference = trim($data['transfer_reference']);
+
+        abort_if(DB::table('platform_payments')->where('reference', $reference)->exists(), 422,
+            'This transfer reference has already been used.');
+
+        DB::table('platform_invoices')->where('id', $invoice->id)->update([
+            'payment_method' => 'bank_transfer',
+            'payment_ref' => $reference,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Bank transfer reference submitted. Subscription will update only after server-side verification.',
+            'invoice' => $this->platformInvoicePayload(DB::table('platform_invoices')->where('id', $invoice->id)->first()),
+        ]);
+    }
+
+    public function verifySubscription(Request $request, SubscriptionPaymentService $settlement)
     {
         [, $tenant] = $this->schoolAdmin($request);
         $data = $request->validate(['reference' => ['required', 'string', 'max:120']]);
@@ -140,21 +198,33 @@ class MobilePaymentController extends Controller
 
         if ($invoice->status !== 'paid') {
             $gateway = Str::before((string) $invoice->payment_method, '_');
+            abort_if($gateway === 'bank', 422, 'Bank transfers require platform verification before settlement.');
+            abort_unless(in_array($gateway, ['paystack', 'monnify'], true), 422, 'This payment cannot be verified online.');
             abort_unless($this->verifyPlatformPayment($gateway, $data['reference'], (float) $invoice->amount), 422,
-                'Payment could not be verified yet. If you completed payment, try Verify again shortly.');
-            $this->creditSubscription($invoice, $data['reference'], $gateway.'_online', $pricing);
+                'Payment could not be verified yet. If payment completed, retry shortly.');
+            $settlement->settle((int) $invoice->id, $data['reference'], $gateway.'_online');
         }
 
+        return $this->subscriptionInvoiceStatus($request, (int) $invoice->id);
+    }
+
+    public function subscriptionInvoiceStatus(Request $request, int $invoiceId)
+    {
+        [, $tenant] = $this->schoolAdmin($request);
+        $invoice = $this->tenantPlatformInvoice($tenant->id, $invoiceId);
         $tenant->refresh();
-        $invoice = DB::table('platform_invoices')->where('id', $invoice->id)->first();
+
         return response()->json([
-            'message' => 'Subscription payment confirmed.',
-            'tenant' => [
-                'status' => $tenant->status,
-                'subscription_expires_at' => optional($tenant->subscription_expires_at)->toDateString(),
-                'students_capacity' => (int) $tenant->students_capacity,
-            ],
             'invoice' => $this->platformInvoicePayload($invoice),
+            'subscription' => [
+                'status' => $tenant->status,
+                'subscription_expires_at' => $tenant->subscription_expires_at?->toDateString(),
+                'days_remaining' => $tenant->subscription_expires_at
+                    ? max(0, (int) now()->startOfDay()->diffInDays($tenant->subscription_expires_at->copy()->startOfDay(), false))
+                    : null,
+                'students_capacity' => (int) ($tenant->students_capacity ?? PricingService::FREE_THRESHOLD),
+            ],
+            'payments' => $this->subscriptionPaymentCollection($tenant->id),
         ]);
     }
 
@@ -164,12 +234,8 @@ class MobilePaymentController extends Controller
         $gateway = PaymentGatewayConfig::where('tenant_id', $request->user()->tenant_id)
             ->where('is_active', true)->first();
 
-        $invoices = $student ? Invoice::with(['term.session'])
-            ->where('student_id', $student->id)->latest()->limit(50)->get()
-            ->map(fn (Invoice $invoice) => $this->schoolInvoicePayload($invoice)) : collect();
-
         return response()->json([
-            'contract_version' => 1,
+            'contract_version' => 2,
             'guardian' => ['id' => $guardian->id, 'name' => $guardian->full_name],
             'children' => $students->map(fn ($child) => [
                 'id' => $child->id,
@@ -178,21 +244,44 @@ class MobilePaymentController extends Controller
             ])->values(),
             'selected_child_id' => $student?->id,
             'gateway' => $gateway ? ['name' => $gateway->gateway, 'available' => true] : null,
-            'invoices' => $invoices,
+            'invoices' => $student ? $this->childInvoices($student->id) : [],
+            'payments' => $this->parentPaymentCollection($request, $students),
+        ]);
+    }
+
+    public function parentFeeChild(Request $request, int $studentId)
+    {
+        [, $students] = $this->parentContext($request);
+        abort_unless($students->contains('id', $studentId), 403, 'This child is not linked to your parent account.');
+
+        return response()->json([
+            'child_id' => $studentId,
+            'invoices' => $this->childInvoices($studentId),
+            'payments' => $this->parentPaymentCollection($request, $students, $studentId),
+        ]);
+    }
+
+    public function parentFeeInvoice(Request $request, int $invoiceId)
+    {
+        [, $students] = $this->parentContext($request);
+        $invoice = $this->parentInvoice($request, $students, $invoiceId);
+
+        return response()->json([
+            'invoice' => $this->schoolInvoicePayload($invoice),
+            'payments' => PaymentTransaction::where('tenant_id', $request->user()->tenant_id)
+                ->where('invoice_id', $invoice->id)->latest('paid_at')->get()
+                ->map(fn (PaymentTransaction $payment) => $this->schoolPaymentPayload($payment))->values(),
         ]);
     }
 
     public function parentFeeCheckout(Request $request, int $invoiceId)
     {
         [$guardian, $students] = $this->parentContext($request);
-        $invoice = Invoice::where('id', $invoiceId)->where('tenant_id', $request->user()->tenant_id)->first();
-        abort_unless($invoice && $students->contains('id', $invoice->student_id), 403,
-            'This invoice does not belong to a child linked to your account.');
+        $invoice = $this->parentInvoice($request, $students, $invoiceId);
         $balance = max(0, (float) $invoice->total_amount - (float) $invoice->amount_paid);
         abort_if($balance <= 0 || $invoice->status === 'paid', 422, 'This invoice is already fully paid.');
 
-        $config = PaymentGatewayConfig::where('tenant_id', $invoice->tenant_id)
-            ->where('is_active', true)->first();
+        $config = PaymentGatewayConfig::where('tenant_id', $invoice->tenant_id)->where('is_active', true)->first();
         abort_unless($config, 422, 'Online fee payment has not been configured by this school.');
         abort_unless(in_array($config->gateway, ['paystack', 'flutterwave', 'monnify'], true), 422,
             'This school payment gateway is not supported by the mobile app.');
@@ -207,10 +296,9 @@ class MobilePaymentController extends Controller
             'amount' => $balance,
             'status' => 'pending',
         ]);
-        $student = $invoice->student;
-        $email = $request->user()->email ?: 'parent@educoreng.online';
-        $checkoutUrl = $this->startTenantGateway($config, $log, $guardian->full_name ?: $student?->full_name, $email);
 
+        $email = $request->user()->email ?: 'parent@educoreng.online';
+        $checkoutUrl = $this->startTenantGateway($config, $log, $guardian->full_name ?: $invoice->student?->full_name, $email);
         if (! $checkoutUrl) {
             $log->update(['status' => 'failed']);
             abort(503, 'The school payment gateway could not start checkout.');
@@ -225,7 +313,7 @@ class MobilePaymentController extends Controller
         ]);
     }
 
-    public function verifyParentFee(Request $request)
+    public function verifyParentFee(Request $request, SchoolFeePaymentService $settlement)
     {
         [, $students] = $this->parentContext($request);
         $data = $request->validate(['reference' => ['required', 'string', 'max:120']]);
@@ -234,21 +322,39 @@ class MobilePaymentController extends Controller
         abort_unless($log && $students->contains('id', $log->student_id), 403,
             'This payment does not belong to your parent account.');
 
-        if ($log->status !== 'success') {
+        if ($log->status !== 'success' || ! $log->verified_at) {
             $config = PaymentGatewayConfig::where('tenant_id', $log->tenant_id)
-                ->where('gateway', $log->gateway)->first();
+                ->where('gateway', $log->gateway)->where('is_active', true)->first();
             abort_unless($config && $this->verifyTenantPayment($config, $log), 422,
-                'Payment could not be verified yet. If you completed payment, try Verify again shortly.');
+                'Payment could not be verified yet. If payment completed, retry shortly.');
             $log->update(['status' => 'success', 'verified_at' => now()]);
-            $this->applySchoolFeePayment($log->fresh());
-        } else {
-            $this->applySchoolFeePayment($log);
+            $log->refresh();
         }
 
-        $invoice = Invoice::findOrFail($log->invoice_id);
+        $settlement->settle($log);
+
+        return $this->parentFeeStatus($request, (int) $log->invoice_id);
+    }
+
+    public function parentFeeStatus(Request $request, int $invoiceId)
+    {
+        [, $students] = $this->parentContext($request);
+        $invoice = $this->parentInvoice($request, $students, $invoiceId);
+        $latest = PaymentTransaction::where('tenant_id', $request->user()->tenant_id)
+            ->where('invoice_id', $invoice->id)->latest('paid_at')->first();
+
         return response()->json([
-            'message' => 'School fee payment confirmed.',
-            'invoice' => $this->schoolInvoicePayload($invoice),
+            'invoice' => $this->schoolInvoicePayload($invoice->fresh()),
+            'latest_payment' => $latest ? $this->schoolPaymentPayload($latest) : null,
+        ]);
+    }
+
+    public function parentPayments(Request $request)
+    {
+        [, $students] = $this->parentContext($request);
+
+        return response()->json([
+            'payments' => $this->parentPaymentCollection($request, $students),
         ]);
     }
 
@@ -278,13 +384,84 @@ class MobilePaymentController extends Controller
         return [$guardian, $students, $student];
     }
 
+    private function tenantPlatformInvoice(int $tenantId, int $invoiceId): object
+    {
+        $invoice = DB::table('platform_invoices')->where('id', $invoiceId)->where('tenant_id', $tenantId)->first();
+        abort_unless($invoice, 404, 'Subscription invoice not found.');
+        return $invoice;
+    }
+
+    private function parentInvoice(Request $request, $students, int $invoiceId): Invoice
+    {
+        $invoice = Invoice::with(['student', 'term.session'])
+            ->where('id', $invoiceId)->where('tenant_id', $request->user()->tenant_id)->first();
+        abort_unless($invoice && $students->contains('id', $invoice->student_id), 403,
+            'This invoice does not belong to a child linked to your account.');
+        return $invoice;
+    }
+
+    private function childInvoices(int $studentId)
+    {
+        return Invoice::with(['student', 'term.session'])->where('student_id', $studentId)
+            ->latest()->limit(50)->get()->map(fn (Invoice $invoice) => $this->schoolInvoicePayload($invoice))->values();
+    }
+
+    private function outstandingSubscriptionInvoice(int $tenantId): ?array
+    {
+        $invoice = DB::table('platform_invoices')->where('tenant_id', $tenantId)
+            ->where('status', '!=', 'paid')->latest('id')->first();
+        return $invoice ? $this->platformInvoicePayload($invoice) : null;
+    }
+
+    private function subscriptionInvoiceCollection(int $tenantId)
+    {
+        return DB::table('platform_invoices')->where('tenant_id', $tenantId)->latest('id')->limit(50)->get()
+            ->map(fn ($invoice) => $this->platformInvoicePayload($invoice))->values();
+    }
+
+    private function subscriptionPaymentCollection(int $tenantId)
+    {
+        return DB::table('platform_payments')->where('tenant_id', $tenantId)->latest('id')->limit(50)->get()
+            ->map(fn ($payment) => [
+                'id' => (int) $payment->id,
+                'reference' => $payment->reference,
+                'amount' => (float) $payment->amount,
+                'currency' => $payment->currency ?? 'NGN',
+                'status' => $payment->status,
+                'payment_method' => $payment->payment_method,
+                'paid_at' => $payment->paid_at,
+            ])->values();
+    }
+
+    private function parentPaymentCollection(Request $request, $students, ?int $studentId = null)
+    {
+        $studentIds = $students->pluck('id');
+        $query = PaymentTransaction::where('tenant_id', $request->user()->tenant_id)
+            ->whereIn('student_id', $studentIds)->latest('paid_at')->limit(100);
+        if ($studentId) $query->where('student_id', $studentId);
+        return $query->get()->map(fn (PaymentTransaction $payment) => $this->schoolPaymentPayload($payment))->values();
+    }
+
     private function platformGateways(): array
     {
-        $gateways = [];
-        if (filled(PlatformSetting::valueFor('paystack_secret_key'))) $gateways[] = 'paystack';
-        if (filled(PlatformSetting::valueFor('monnify_api_key')) && filled(PlatformSetting::valueFor('monnify_secret_key'))
-            && filled(PlatformSetting::valueFor('monnify_contract_code'))) $gateways[] = 'monnify';
-        return $gateways;
+        $settings = PlatformSetting::valuesFor([
+            'paystack_secret_key', 'monnify_api_key', 'monnify_secret_key', 'monnify_contract_code',
+            'bank_transfer_bank_name', 'bank_transfer_account_name', 'bank_transfer_account_number',
+        ]);
+        $result = [];
+        if (filled($settings['paystack_secret_key'] ?? null)) $result[] = ['name' => 'paystack', 'available' => true];
+        if (filled($settings['monnify_api_key'] ?? null) && filled($settings['monnify_secret_key'] ?? null)
+            && filled($settings['monnify_contract_code'] ?? null)) $result[] = ['name' => 'monnify', 'available' => true];
+        if (filled($settings['bank_transfer_bank_name'] ?? null) && filled($settings['bank_transfer_account_name'] ?? null)
+            && filled($settings['bank_transfer_account_number'] ?? null)) {
+            $result[] = [
+                'name' => 'bank_transfer', 'available' => true,
+                'bank_name' => $settings['bank_transfer_bank_name'],
+                'account_name' => $settings['bank_transfer_account_name'],
+                'account_number' => $settings['bank_transfer_account_number'],
+            ];
+        }
+        return $result;
     }
 
     private function startPlatformPaystack(object $invoice, ?string $email, string $reference): ?string
@@ -334,57 +511,15 @@ class MobilePaymentController extends Controller
         if ($gateway === 'monnify') {
             $cfg = $this->platformMonnifyConfig();
             if (! $cfg || ! ($token = $this->monnifyToken($cfg))) return false;
-            $response = Http::withToken($token)->get($cfg['base'].'/api/v1/merchant/transactions/query', [
-                'paymentReference' => $reference,
-            ]);
+            $response = Http::withToken($token)->get($cfg['base'].'/api/v1/merchant/transactions/query', ['paymentReference' => $reference]);
             $body = $response->json('responseBody') ?: [];
             return $response->successful()
                 && in_array($body['paymentStatus'] ?? null, ['PAID', 'OVERPAID'], true)
-                && ($body['paymentReference'] ?? $reference) === $reference
+                && ($body['paymentReference'] ?? null) === $reference
                 && strtoupper((string) ($body['currencyCode'] ?? '')) === 'NGN'
                 && (float) ($body['amountPaid'] ?? 0) >= $amount;
         }
         return false;
-    }
-
-    private function creditSubscription(object $invoice, string $reference, string $method, PricingService $pricing): void
-    {
-        DB::transaction(function () use ($invoice, $reference, $method, $pricing) {
-            $locked = DB::table('platform_invoices')->where('id', $invoice->id)->lockForUpdate()->first();
-            if (! $locked || $locked->status === 'paid') return;
-            if (DB::table('platform_payments')->where('reference', $reference)->exists()) return;
-
-            $tenant = Tenant::lockForUpdate()->findOrFail($locked->tenant_id);
-            DB::table('platform_payments')->insert([
-                'tenant_id' => $tenant->id,
-                'subscription_id' => null,
-                'reference' => $reference,
-                'amount' => $locked->amount,
-                'currency' => 'NGN',
-                'status' => 'confirmed',
-                'payment_method' => $method,
-                'description' => 'EduCore subscription payment',
-                'paid_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            DB::table('platform_invoices')->where('id', $locked->id)->update([
-                'status' => 'paid', 'paid_at' => now(), 'payment_method' => $method,
-                'payment_ref' => $reference, 'updated_at' => now(),
-            ]);
-
-            $days = $locked->billing_cycle === 'annual' ? 365 : ($locked->billing_cycle === 'termly' ? 112 : 30);
-            $base = $tenant->subscription_expires_at && $tenant->subscription_expires_at->isFuture()
-                ? $tenant->subscription_expires_at : now();
-            $capacity = $pricing->capacityFor($tenant);
-            $notes = json_decode((string) $locked->notes, true) ?: [];
-            $capacity = max($capacity, (int) ($notes['anticipated_enrollment'] ?? 0));
-            $tenant->forceFill([
-                'status' => Tenant::STATUS_ACTIVE,
-                'subscription_expires_at' => $base->copy()->addDays($days),
-                'students_capacity' => max(PricingService::FREE_THRESHOLD, $capacity),
-            ])->save();
-        });
     }
 
     private function startTenantGateway(PaymentGatewayConfig $config, OnlinePaymentLog $log, ?string $name, string $email): ?string
@@ -392,10 +527,8 @@ class MobilePaymentController extends Controller
         $amount = (float) $log->amount;
         if ($config->gateway === 'paystack') {
             $response = Http::withToken($config->secret_key)->post('https://api.paystack.co/transaction/initialize', [
-                'email' => $email,
-                'amount' => (int) round($amount * 100),
-                'currency' => 'NGN', 'reference' => $log->reference,
-                'callback_url' => config('app.url').'/parent/fees',
+                'email' => $email, 'amount' => (int) round($amount * 100), 'currency' => 'NGN',
+                'reference' => $log->reference, 'callback_url' => config('app.url').'/parent/fees',
             ]);
             return $response->successful() && $response->json('status') ? $response->json('data.authorization_url') : null;
         }
@@ -427,6 +560,7 @@ class MobilePaymentController extends Controller
     private function verifyTenantPayment(PaymentGatewayConfig $config, OnlinePaymentLog $log): bool
     {
         $amount = (float) $log->amount;
+        $response = null;
         if ($config->gateway === 'paystack') {
             $response = Http::withToken($config->secret_key)->get('https://api.paystack.co/transaction/verify/'.rawurlencode($log->reference));
             $verified = $response->successful() && $response->json('status') === true
@@ -435,9 +569,7 @@ class MobilePaymentController extends Controller
                 && strtoupper((string) $response->json('data.currency')) === 'NGN'
                 && (int) $response->json('data.amount') === (int) round($amount * 100);
         } elseif ($config->gateway === 'flutterwave') {
-            $response = Http::withToken($config->secret_key)->get('https://api.flutterwave.com/v3/transactions/verify_by_reference', [
-                'tx_ref' => $log->reference,
-            ]);
+            $response = Http::withToken($config->secret_key)->get('https://api.flutterwave.com/v3/transactions/verify_by_reference', ['tx_ref' => $log->reference]);
             $data = $response->json('data') ?: [];
             $verified = $response->successful() && $response->json('status') === 'success'
                 && ($data['status'] ?? null) === 'successful' && ($data['tx_ref'] ?? null) === $log->reference
@@ -451,51 +583,12 @@ class MobilePaymentController extends Controller
             $response = Http::withToken($token)->get($base.'/api/v1/merchant/transactions/query', ['paymentReference' => $log->reference]);
             $data = $response->json('responseBody') ?: [];
             $verified = $response->successful() && in_array($data['paymentStatus'] ?? null, ['PAID', 'OVERPAID'], true)
-                && ($data['paymentReference'] ?? $log->reference) === $log->reference
+                && ($data['paymentReference'] ?? null) === $log->reference
                 && strtoupper((string) ($data['currencyCode'] ?? '')) === 'NGN'
                 && (float) ($data['amountPaid'] ?? 0) >= $amount;
         }
-        if ($verified) $log->update(['gateway_response' => json_encode($response->json())]);
+        if ($verified && $response) $log->update(['gateway_response' => json_encode($response->json())]);
         return $verified;
-    }
-
-    private function applySchoolFeePayment(OnlinePaymentLog $log): void
-    {
-        $notify = null;
-        DB::transaction(function () use ($log, &$notify) {
-            if (PaymentTransaction::where('gateway_reference', $log->reference)->exists()) return;
-            $invoice = Invoice::lockForUpdate()->find($log->invoice_id);
-            if (! $invoice) return;
-            $remaining = max(0, (float) $invoice->total_amount - (float) $invoice->amount_paid);
-            $amount = min((float) $log->amount, $remaining);
-            if ($amount <= 0) return;
-            $invoice->amount_paid = (float) $invoice->amount_paid + $amount;
-            $invoice->status = $invoice->amount_paid >= $invoice->total_amount ? 'paid' : 'partially_paid';
-            $invoice->save();
-            $student = $invoice->student;
-            $guardian = $student?->primaryGuardian() ?? $student?->guardians()->first();
-            PaymentTransaction::create([
-                'tenant_id' => $invoice->tenant_id, 'invoice_id' => $invoice->id, 'student_id' => $invoice->student_id,
-                'gateway_reference' => $log->reference, 'gateway' => $log->gateway, 'amount_paid' => $amount,
-                'currency' => 'NGN', 'status' => 'success', 'gateway_response' => $log->gateway_response,
-                'paid_by_name' => $guardian?->name ?? $student?->full_name, 'paid_by_phone' => $guardian?->phone,
-                'paid_at' => $log->verified_at ?? now(),
-            ]);
-            $notify = [$invoice, $student, $guardian, $amount];
-        });
-        if (! $notify) return;
-        [$invoice, $student, $guardian, $amount] = $notify;
-        try {
-            app(\App\Services\GuardianNotifier::class)->send(
-                $guardian,
-                'Payment received'.($student ? ' — '.$student->full_name : ''),
-                ['We have received a payment of ₦'.number_format($amount, 2).'.', 'Invoice status: '.ucfirst(str_replace('_', ' ', $invoice->status))],
-                smsBody: ($invoice->tenant?->name ?? 'EduCore').': Payment of ₦'.number_format($amount, 2).' received. Thank you.',
-                schoolName: $invoice->tenant?->name,
-            );
-        } catch (\Throwable $e) {
-            Log::warning('Mobile parent payment notification failed', ['error' => $e->getMessage()]);
-        }
     }
 
     private function platformMonnifyConfig(): ?array
@@ -519,9 +612,16 @@ class MobilePaymentController extends Controller
     private function platformInvoicePayload(object $invoice): array
     {
         return [
-            'id' => (int) $invoice->id, 'number' => $invoice->invoice_number, 'amount' => (float) $invoice->amount,
-            'billing_cycle' => $invoice->billing_cycle, 'status' => $invoice->status, 'due_date' => (string) $invoice->due_date,
-            'paid_at' => $invoice->paid_at, 'payment_method' => $invoice->payment_method,
+            'id' => (int) $invoice->id,
+            'number' => $invoice->invoice_number,
+            'amount' => (float) $invoice->amount,
+            'student_count' => (int) ($invoice->student_count ?? 0),
+            'billing_cycle' => $invoice->billing_cycle,
+            'status' => $invoice->status,
+            'payment_status' => $invoice->status === 'paid' ? 'paid' : (($invoice->payment_method === 'bank_transfer' && filled($invoice->payment_ref)) ? 'awaiting_verification' : 'unpaid'),
+            'due_date' => $invoice->due_date ? (string) $invoice->due_date : null,
+            'paid_at' => $invoice->paid_at,
+            'payment_method' => $invoice->payment_method,
             'payment_reference' => $invoice->payment_ref,
         ];
     }
@@ -529,11 +629,33 @@ class MobilePaymentController extends Controller
     private function schoolInvoicePayload(Invoice $invoice): array
     {
         return [
-            'id' => $invoice->id, 'number' => $invoice->invoice_number, 'term' => $invoice->term?->name,
-            'session' => $invoice->session?->name, 'total_amount' => (float) $invoice->total_amount,
+            'id' => $invoice->id,
+            'student_id' => $invoice->student_id,
+            'student_name' => $invoice->student?->full_name,
+            'number' => $invoice->invoice_number,
+            'term' => $invoice->term?->name,
+            'session' => $invoice->session?->name ?? $invoice->term?->session?->name,
+            'total_amount' => (float) $invoice->total_amount,
             'amount_paid' => (float) $invoice->amount_paid,
             'balance' => max(0, (float) $invoice->total_amount - (float) $invoice->amount_paid),
-            'status' => $invoice->status, 'due_date' => optional($invoice->due_date)->toDateString(),
+            'status' => $invoice->status,
+            'can_pay' => $invoice->status !== 'paid' && ((float) $invoice->total_amount - (float) $invoice->amount_paid) > 0,
+            'due_date' => optional($invoice->due_date)->toDateString(),
+        ];
+    }
+
+    private function schoolPaymentPayload(PaymentTransaction $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'invoice_id' => $payment->invoice_id,
+            'student_id' => $payment->student_id,
+            'reference' => $payment->gateway_reference,
+            'gateway' => $payment->gateway,
+            'amount' => (float) $payment->amount_paid,
+            'currency' => $payment->currency ?? 'NGN',
+            'status' => $payment->status,
+            'paid_at' => optional($payment->paid_at)->toIso8601String(),
         ];
     }
 }
