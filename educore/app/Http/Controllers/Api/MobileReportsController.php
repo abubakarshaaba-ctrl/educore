@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssessmentType;
 use App\Models\ClassArm;
+use App\Models\GradingSystem;
 use App\Models\ReportCardPublication;
+use App\Models\Score;
+use App\Models\SkillDefinition;
 use App\Models\Student;
+use App\Models\StudentSkillRating;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\User;
+use App\Services\PrincipalRemarkService;
 use App\Services\ReportCardComputationService;
 use App\Services\ReportCardPublicationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -205,6 +213,197 @@ class MobileReportsController extends Controller
             'message' => 'Report cards returned to draft. Score entry is unlocked again.',
             'publication' => $this->publicationPayload($publication),
         ]);
+    }
+
+    /**
+     * Native mobile report-card PDF. It deliberately uses the same report view
+     * and calculations as the web report card, but authorizes with the mobile
+     * report aliases (reports / report-cards / results) instead of requiring a
+     * browser session or a single legacy module key.
+     */
+    public function pdf(Request $request, TermlySummary $summary)
+    {
+        $user = $this->guard($request);
+        $tenantId = (int) $user->tenant_id;
+        abort_unless((int) $summary->tenant_id === $tenantId, 403);
+
+        $student = Student::where('tenant_id', $tenantId)->findOrFail($summary->student_id);
+        $term = Term::with('session')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($summary->term_id);
+        $classArm = ClassArm::with('classLevel', 'formTutor')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($summary->class_arm_id ?: $student->current_class_arm_id);
+        abort_unless((int) $summary->class_arm_id === (int) $classArm->id, 403);
+
+        $session = $term->session;
+        $tenant = $user->tenant;
+        $termName = strtolower($term->name);
+        $isThirdTerm = str_contains($termName, '3rd') || str_contains($termName, 'third');
+        $orientation = $isThirdTerm ? 'landscape' : 'portrait';
+
+        $assessmentTypes = AssessmentType::where('term_id', $term->id)
+            ->orderBy('is_exam')
+            ->orderBy('name')
+            ->get();
+        $rawScores = Score::where('student_id', $student->id)
+            ->where('term_id', $term->id)
+            ->get();
+        $subjects = Subject::where('tenant_id', $tenantId)
+            ->whereIn('id', $rawScores->pluck('subject_id')->unique())
+            ->orderBy('name')
+            ->get();
+        $gradingSystem = GradingSystem::where('class_level_id', $classArm->class_level_id)->get();
+
+        $classmateIds = Student::where('tenant_id', $tenantId)
+            ->where('current_class_arm_id', $classArm->id)
+            ->where('status', Student::STATUS_ACTIVE)
+            ->pluck('id');
+        $classScores = Score::whereIn('student_id', $classmateIds)
+            ->where('term_id', $term->id)
+            ->get();
+
+        $subjectRows = [];
+        foreach ($subjects as $subject) {
+            $subScores = $rawScores->where('subject_id', $subject->id);
+            $total = round($subScores->sum('score'), 1);
+            $grade = $gradingSystem
+                ->filter(fn ($item) => $total >= $item->min_score && $total <= $item->max_score)
+                ->first();
+
+            $scoresKeyed = [];
+            foreach ($subScores as $score) {
+                $scoresKeyed[$score->assessment_type_id] = $score->score;
+            }
+
+            $classTotals = [];
+            foreach ($classmateIds as $classmateId) {
+                $classTotal = $classScores
+                    ->where('student_id', $classmateId)
+                    ->where('subject_id', $subject->id)
+                    ->sum('score');
+                if ($classTotal > 0) {
+                    $classTotals[] = $classTotal;
+                }
+            }
+
+            $classAverage = count($classTotals) > 0
+                ? round(array_sum($classTotals) / count($classTotals), 2)
+                : null;
+            $subjectPosition = '—';
+            if (count($classTotals) > 0) {
+                arsort($classTotals);
+                $rank = array_search($total, array_values($classTotals));
+                $subjectPosition = $rank !== false ? $rank + 1 : '—';
+            }
+
+            $row = [
+                'subject_name' => $subject->name,
+                'scores' => $scoresKeyed,
+                'total' => $total,
+                'grade' => $grade?->grade_letter ?? '—',
+                'remark' => $grade?->remark ?? '—',
+                'is_pass' => $grade?->is_pass_grade ?? false,
+                'class_highest' => count($classTotals) ? round(max($classTotals), 1) : '—',
+                'class_lowest' => count($classTotals) ? round(min($classTotals), 1) : '—',
+                'class_avg' => $classAverage !== null ? number_format($classAverage, 2) : '—',
+                'class_position' => $subjectPosition,
+                'class_count' => count($classmateIds),
+            ];
+
+            if ($isThirdTerm) {
+                $allTerms = Term::where('tenant_id', $tenantId)
+                    ->where('session_id', $term->session_id)
+                    ->orderBy('start_date')
+                    ->get();
+                foreach ($allTerms as $index => $sessionTerm) {
+                    $termScores = Score::where('student_id', $student->id)
+                        ->where('subject_id', $subject->id)
+                        ->where('term_id', $sessionTerm->id)
+                        ->get();
+                    $row['term'.($index + 1).'_avg'] = round($termScores->sum('score'), 1);
+                }
+                $annualTotal = ($row['term1_avg'] ?? 0) + ($row['term2_avg'] ?? 0) + ($row['term3_avg'] ?? 0);
+                $row['annual_total'] = round($annualTotal, 1);
+                $row['cumulative_avg'] = round($annualTotal / 3, 1);
+                $annualGrade = $gradingSystem
+                    ->filter(fn ($item) => $row['cumulative_avg'] >= $item->min_score && $row['cumulative_avg'] <= $item->max_score)
+                    ->first();
+                $row['grade'] = $annualGrade?->grade_letter ?? '—';
+                $row['remark'] = $annualGrade?->remark ?? '—';
+                $row['is_pass'] = $annualGrade?->is_pass_grade ?? false;
+            }
+
+            $subjectRows[] = $row;
+        }
+
+        $psychomotorSkills = SkillDefinition::where('tenant_id', $tenantId)
+            ->where('category', 'psychomotor')
+            ->get();
+        $affectiveSkills = SkillDefinition::where('tenant_id', $tenantId)
+            ->where('category', 'affective')
+            ->get();
+        $skillRatings = StudentSkillRating::where('tenant_id', $tenantId)
+            ->where('student_id', $student->id)
+            ->where('term_id', $term->id)
+            ->get();
+
+        if (empty($summary->principal_remark)) {
+            $remark = PrincipalRemarkService::generate(
+                average: $summary->final_average,
+                position: $summary->position_in_class,
+                totalStudents: $summary->total_students_in_class,
+                subjectsFailed: $summary->subjects_failed,
+                studentName: $student->first_name,
+                rotationSeed: $student->id,
+            );
+            $summary->update(['principal_remark' => $remark]);
+            $summary->refresh();
+        }
+
+        $attendanceSummary = [];
+        if (class_exists('\App\Models\AttendanceRecord')) {
+            $present = \App\Models\AttendanceRecord::where('tenant_id', $tenantId)
+                ->where('student_id', $student->id)
+                ->where('term_id', $term->id)
+                ->whereIn('status', ['present', 'late'])
+                ->count();
+            $absent = \App\Models\AttendanceRecord::where('tenant_id', $tenantId)
+                ->where('student_id', $student->id)
+                ->where('term_id', $term->id)
+                ->where('status', 'absent')
+                ->count();
+            $daysOpen = \App\Models\AttendanceRecord::where('tenant_id', $tenantId)
+                ->where('class_arm_id', $classArm->id)
+                ->where('term_id', $term->id)
+                ->distinct('attendance_date')
+                ->count('attendance_date');
+            $attendanceSummary = [
+                'days_open' => $daysOpen ?: '—',
+                'days_present' => $present,
+                'days_absent' => $absent,
+                'rate' => $daysOpen > 0 ? round(($present / $daysOpen) * 100) : '—',
+            ];
+        }
+
+        $classSummaries = TermlySummary::where('tenant_id', $tenantId)
+            ->where('class_arm_id', $classArm->id)
+            ->where('term_id', $term->id)
+            ->get();
+        $summaries_class_avg = $classSummaries->count() > 0
+            ? number_format($classSummaries->avg('final_average'), 2)
+            : null;
+
+        $pdf = Pdf::loadView('reports.pdf', compact(
+            'student', 'classArm', 'term', 'session', 'tenant',
+            'summary', 'isThirdTerm', 'assessmentTypes', 'subjectRows',
+            'gradingSystem', 'psychomotorSkills', 'affectiveSkills', 'skillRatings',
+            'attendanceSummary', 'summaries_class_avg',
+        ))->setPaper('a4', $orientation);
+
+        $filename = 'ReportCard_'.str_replace(' ', '_', $student->full_name).'_'.str_replace(' ', '_', $term->name).'.pdf';
+
+        return $pdf->download($filename);
     }
 
     private function validateSelection(Request $request, int $tenantId, bool $includeNote = false): array
