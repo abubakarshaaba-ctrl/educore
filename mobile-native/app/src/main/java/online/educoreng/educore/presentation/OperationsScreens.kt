@@ -69,7 +69,9 @@ internal fun OperationsScreen(
     onSection: (Int) -> Unit,
     onRetry: () -> Unit,
 ) {
-    when (state.workspace?.module?.key?.lowercase()) {
+    when (state.moduleKey?.lowercase() ?: state.workspace?.module?.key?.lowercase()) {
+        "finance", "subscription" -> SubscriptionPaymentOperationsScreen(onBack = onBack)
+        "parent.fees" -> ParentFeePaymentOperationsScreen(onBack = onBack)
         "fees" -> FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         "expenses" -> ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
         "payroll" -> PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
