@@ -20,10 +20,21 @@ return new class extends Migration
             $table->timestamps();
             $table->index(['target', 'expires_at']);
         });
+
+        Schema::table('announcements', function (Blueprint $table) {
+            $table->foreignId('platform_broadcast_id')
+                ->nullable()
+                ->after('tenant_id')
+                ->constrained('platform_broadcasts')
+                ->nullOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('announcements', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('platform_broadcast_id');
+        });
         Schema::dropIfExists('platform_broadcasts');
     }
 };
