@@ -22,7 +22,7 @@ class MobileModuleService
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
-        'subscription' => ['Subscription & Billing', '/billing/subscription', 'fees'],
+        'finance' => ['Subscription & Billing', '/billing/subscription', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
@@ -135,7 +135,7 @@ class MobileModuleService
                     return false;
                 }
 
-                if ($key === 'subscription') {
+                if ($key === 'finance') {
                     return $roleKey === 'admin';
                 }
 
