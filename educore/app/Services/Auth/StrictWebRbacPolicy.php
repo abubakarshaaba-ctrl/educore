@@ -130,6 +130,12 @@ class StrictWebRbacPolicy
                 : 'staff-attendance.admin';
         }
 
+        // Transfers are nested below students in route naming, so resolve them
+        // before the generic students prefix.
+        if (str_starts_with($routeName, 'students.transfers') || str_starts_with($routeName, 'students.class-transfers')) {
+            return 'transfers';
+        }
+
         // This policy adds restrictions; the existing CheckModuleAccess
         // middleware remains responsible for granular score/report permissions.
         $topLevel = [
@@ -154,6 +160,8 @@ class StrictWebRbacPolicy
             'library' => 'library',
             'transport' => 'transport',
             'hostels' => 'hostels',
+            'inventory' => 'inventory',
+            'asc' => 'asc',
             'analytics' => 'analytics',
             'risk' => 'risk',
             'exports' => 'exports',
@@ -169,10 +177,6 @@ class StrictWebRbacPolicy
             if ($routeName === $prefix || str_starts_with($routeName, $prefix.'.')) {
                 return $module;
             }
-        }
-
-        if (str_starts_with($routeName, 'students.transfers') || str_starts_with($routeName, 'students.class-transfers')) {
-            return 'transfers';
         }
 
         return null;
@@ -207,6 +211,8 @@ class StrictWebRbacPolicy
             'library' => '/library',
             'transport' => '/transport',
             'hostels' => '/hostels',
+            'inventory' => '/inventory',
+            'asc' => '/asc',
             'analytics' => '/analytics',
             'risk' => '/risk',
             'exports' => '/exports',
