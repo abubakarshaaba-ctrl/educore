@@ -20,10 +20,10 @@ internal fun FeesScreen(
     val viewModel: FeesViewModel = hiltViewModel()
     val feesState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Always revalidate against the server when this module is entered so
+    // records created or edited on the web do not remain stale on mobile.
     LaunchedEffect(state.workspace?.module?.key) {
-        if (feesState.workspace == null && !feesState.isLoading) {
-            viewModel.load()
-        }
+        if (!feesState.isLoading) viewModel.load()
     }
 
     FeesScreen(
