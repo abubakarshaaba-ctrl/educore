@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
+            Route::middleware([
+                'web', 'auth', 'active.account', 'tenant', 'tenant.access',
+                'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
+            ])->group(base_path('routes/web-exam-timetable.php'));
+
             Route::prefix('api/v1/staff/cbt')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-staff-cbt.php'));
