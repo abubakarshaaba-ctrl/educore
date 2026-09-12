@@ -20,7 +20,7 @@ internal fun SubscriptionPaymentOperationsScreen(onBack: () -> Unit) {
         onGenerateInvoice = viewModel::createSubscriptionInvoice,
         onPay = viewModel::startSubscriptionCheckout,
         onVerify = viewModel::verifySubscription,
-        onRetry = viewModel::loadSubscription,
+        onRetry = { viewModel.loadSubscription() },
     )
 }
 
@@ -32,8 +32,8 @@ internal fun ParentFeePaymentOperationsScreen(onBack: () -> Unit) {
     ParentFeePaymentScreen(
         state = state,
         onBack = onBack,
-        onChild = viewModel::loadParentFees,
-        onPay = viewModel::startParentFeeCheckout,
+        onChild = { childId -> viewModel.loadParentFees(childId) },
+        onPay = { invoiceId -> viewModel.startParentFeeCheckout(invoiceId) },
         onVerify = viewModel::verifyParentFee,
         onRetry = { viewModel.loadParentFees(state.parentFees?.selectedChildId) },
     )
