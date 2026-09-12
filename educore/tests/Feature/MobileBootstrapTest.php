@@ -6,6 +6,7 @@ use App\Models\ApiToken;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Mobile\MobileModuleService;
+use App\Services\TenantAccessService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -181,6 +182,74 @@ class MobileBootstrapTest extends TestCase
             ->assertJsonPath('user.portal', 'platform')
             ->assertJsonPath('access.allowed', true)
             ->assertJsonPath('contract_version', 1);
+    }
+
+    public function test_legacy_api_token_schema_does_not_break_bootstrap_and_is_repaired(): void
+    {
+        Schema::table('api_tokens', function (Blueprint $table): void {
+            $table->dropColumn('last_used_at');
+        });
+        $this->assertFalse(Schema::hasColumn('api_tokens', 'last_used_at'));
+
+        $user = User::create([
+            'name' => 'Legacy Token Administrator',
+            'email' => 'legacy-token@example.test',
+            'role' => 'super_admin',
+            'is_super_admin' => true,
+            'is_active' => true,
+        ]);
+        $token = ApiToken::issue($user, 'legacy-token-schema');
+
+        $response = $this->withToken($token)
+            ->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('access.allowed', true)
+            ->assertJsonMissing(['degraded' => true]);
+
+        $this->assertStringStartsWith('MB-', (string) $response->headers->get('X-EduCore-Request-Id'));
+
+        $migration = require database_path(
+            'migrations/2026_09_12_170000_repair_api_token_last_used_at.php'
+        );
+        $migration->up();
+
+        $this->assertTrue(Schema::hasColumn('api_tokens', 'last_used_at'));
+    }
+
+    public function test_bootstrap_never_fabricates_allowed_access_after_access_service_failure(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Access Contract School',
+            'slug' => 'access-contract-school',
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $user = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'School Administrator',
+            'email' => 'access-contract@example.test',
+            'role' => 'admin',
+            'is_super_admin' => false,
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $access = $this->createMock(TenantAccessService::class);
+        $access->method('applicationAccess')
+            ->willThrowException(new \RuntimeException('Simulated access metadata failure.'));
+        $this->app->instance(TenantAccessService::class, $access);
+
+        $response = $this->withToken(ApiToken::issue($user, 'access-contract-test'))
+            ->getJson('/api/v1/bootstrap')
+            ->assertStatus(503)
+            ->assertJsonPath(
+                'message',
+                'EduCore could not verify the school access state. Please try again.'
+            )
+            ->assertJsonStructure(['request_id'])
+            ->assertJsonMissingPath('access.allowed');
+
+        $this->assertStringStartsWith('MB-', (string) $response->headers->get('X-EduCore-Request-Id'));
     }
 
     public function test_mobile_login_accepts_staff_id_without_case_sensitivity(): void

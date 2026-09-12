@@ -64,7 +64,11 @@ class MobileBootstrapController extends Controller
                 : $tenantAccess->applicationAccess($tenant);
         } catch (Throwable $exception) {
             report($exception);
-            $access = TenantAccessDecision::allow('School access is available.');
+
+            return response()->json([
+                'message' => 'EduCore could not verify the school access state. Please try again.',
+                'request_id' => $requestId,
+            ], 503)->header('X-EduCore-Request-Id', $requestId);
         }
 
         $session = null;
@@ -242,42 +246,9 @@ class MobileBootstrapController extends Controller
             report($exception);
 
             return response()->json([
-                'contract_version' => 1,
-                'user' => [
-                    'id' => (int) ($user->id ?? 0),
-                    'name' => (string) ($user->name ?? 'EduCore User'),
-                    'email' => $user->email ?? null,
-                    'staff_id' => $user->staff_id ?? null,
-                    'role_key' => $roleKey,
-                    'role' => $roleLabel,
-                    'roles' => array_values((array) $roles),
-                    'portal' => $portal,
-                ],
-                'school' => [
-                    'id' => $schoolId,
-                    'name' => $schoolName,
-                    'slug' => $schoolSlug,
-                    'branding' => [
-                        'primary_color' => '#071E45',
-                        'accent_color' => '#D79A21',
-                        'motto' => null,
-                    ],
-                ],
-                'academic' => ['session' => null, 'term' => null],
-                'access' => [
-                    'allowed' => true,
-                    'state' => 'allowed',
-                    'message' => 'School access is available.',
-                    'severity' => null,
-                    'expires_at' => null,
-                ],
-                'permissions' => [],
-                'features' => [],
-                'modules' => [],
-                'token' => ['expires_at' => null],
-                'server_time' => now()->toIso8601String(),
+                'message' => 'EduCore could not prepare the school workspace. Please try again.',
                 'request_id' => $requestId,
-            ])->header('X-EduCore-Request-Id', $requestId);
+            ], 503)->header('X-EduCore-Request-Id', $requestId);
         }
     }
 

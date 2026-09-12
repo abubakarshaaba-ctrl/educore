@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use App\Models\ApiToken;
 use App\Services\Auth\ApiRoleAccessPolicy;
-use App\Services\Mobile\MobileModuleService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,7 +67,13 @@ class AuthenticateApiToken
         }
 
         try {
-            if (! $token->last_used_at || $token->last_used_at->lt(now()->subMinute())) {
+            // api_tokens predates last_used_at on a small number of upgraded
+            // installations. Do not issue an invalid UPDATE while the repair
+            // migration is being rolled out.
+            if (
+                array_key_exists('last_used_at', $token->getAttributes())
+                && (! $token->last_used_at || $token->last_used_at->lt(now()->subMinute()))
+            ) {
                 $token->forceFill(['last_used_at' => now()])->saveQuietly();
             }
         } catch (Throwable $exception) {
@@ -86,106 +91,14 @@ class AuthenticateApiToken
                 throw $exception;
             }
 
-            // Authentication has already succeeded at this point. If anything in
-            // the normal bootstrap/controller/serialization pipeline fails, return
-            // a conservative but valid workspace snapshot rather than blocking the
-            // user at the login screen. The reference id is safe to report and can
-            // be matched against the server log if deeper diagnosis is needed.
+            // Never fabricate an allowed workspace after an unexpected bootstrap
+            // exception. Return a traceable service error so access and module
+            // authority remain server-owned.
             $reference = 'BOOT-' . strtoupper(Str::random(8));
-
-            try {
-                $tenant = $user->tenant;
-            } catch (Throwable $ignored) {
-                $tenant = null;
-            }
-
-            try {
-                $roleKey = (string) $user->roleKey();
-            } catch (Throwable $ignored) {
-                $roleKey = 'staff';
-            }
-
-            try {
-                $roleLabel = (string) ($user->roleLabel() ?? 'Staff');
-            } catch (Throwable $ignored) {
-                $roleLabel = 'Staff';
-            }
-
-            try {
-                $roles = $user->getRoleNames()->values()->all();
-            } catch (Throwable $ignored) {
-                $roles = array_values(array_filter([$roleKey]));
-            }
-
-            try {
-                $permissions = $user->effectivePermissionKeys();
-            } catch (Throwable $ignored) {
-                $permissions = [];
-            }
-
-            try {
-                $modules = app(MobileModuleService::class)->forUser($user);
-            } catch (Throwable $ignored) {
-                $modules = [];
-            }
-
-            try {
-                $portal = $user->isSuperAdmin()
-                    ? 'platform'
-                    : ($user->isStudent()
-                        ? 'student'
-                        : ($user->isParent()
-                            ? 'parent'
-                            : (in_array($roleKey, ['admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator'], true)
-                                ? 'admin'
-                                : 'staff')));
-            } catch (Throwable $ignored) {
-                $portal = 'staff';
-            }
-
             return response()->json([
-                'contract_version' => 1,
-                'user' => [
-                    'id' => (int) $user->id,
-                    'name' => (string) ($user->name ?? 'EduCore User'),
-                    'email' => $user->email,
-                    'staff_id' => $user->staff_id,
-                    'role_key' => $roleKey,
-                    'role' => $roleLabel,
-                    'roles' => $roles,
-                    'portal' => $portal,
-                ],
-                'school' => [
-                    'id' => $tenant?->id,
-                    'name' => (string) ($tenant?->name ?? 'EduCore School'),
-                    'slug' => (string) ($tenant?->slug ?? 'school'),
-                    'branding' => [
-                        'primary_color' => '#071E45',
-                        'accent_color' => '#D79A21',
-                        'motto' => null,
-                    ],
-                ],
-                'academic' => [
-                    'session' => null,
-                    'term' => null,
-                ],
-                'access' => [
-                    'allowed' => true,
-                    'state' => 'allowed',
-                    'message' => 'School account access is available.',
-                    'severity' => null,
-                    'expires_at' => null,
-                ],
-                'permissions' => is_array($permissions) ? $permissions : [],
-                'features' => [],
-                'modules' => is_array($modules) ? $modules : [],
-                'token' => [
-                    'expires_at' => null,
-                ],
-                'server_time' => now()->toIso8601String(),
-                'degraded' => true,
+                'message' => 'EduCore could not load the school workspace. Please try again.',
                 'request_id' => $reference,
-            ])->header('X-EduCore-Bootstrap-Reference', $reference);
+            ], 503)->header('X-EduCore-Request-Id', $reference);
         }
     }
 }
