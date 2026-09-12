@@ -7,9 +7,6 @@ use Illuminate\Http\Request;
 
 class StaffPermissionController extends Controller
 {
-    // All modules that can be intentionally granted/denied for an individual
-    // staff account. Self attendance/profile remain universal self-service
-    // capabilities and are therefore not exposed as discretionary grants.
     public const GRANTABLE_MODULES = [
         'students'            => 'Students',
         'staff'               => 'Staff',
@@ -25,6 +22,7 @@ class StaffPermissionController extends Controller
         'attendance'          => 'Student Attendance',
         'staff-attendance'    => 'Staff Attendance Management',
         'timetable'           => 'Timetable',
+        'exam-timetable'      => 'Exam Timetable & Personal Supervision',
         'skills'              => 'Skill Ratings',
         'cbt'                 => 'CBT Exams',
         'admissions'          => 'Admissions',
@@ -55,10 +53,8 @@ class StaffPermissionController extends Controller
     {
         $this->adminOnly();
         $staff = $this->activeTenantStaff($staff);
-
         $permissions = StaffPermission::where('user_id', $staff->id)->get()->keyBy('module');
-        $modules     = self::GRANTABLE_MODULES;
-
+        $modules = self::GRANTABLE_MODULES;
         return view('staff.permissions', compact('staff', 'permissions', 'modules'));
     }
 
@@ -66,17 +62,14 @@ class StaffPermissionController extends Controller
     {
         $this->adminOnly();
         $staff = $this->activeTenantStaff($staff);
-
         $data = $request->validate([
             'permissions'   => ['nullable', 'array'],
             'permissions.*' => ['in:grant,deny,inherit'],
         ]);
-
         $tid = auth()->user()->tenant_id;
 
         foreach (self::GRANTABLE_MODULES as $module => $label) {
             $val = $data['permissions'][$module] ?? 'inherit';
-
             if ($val === 'inherit') {
                 StaffPermission::where('user_id', $staff->id)->where('module', $module)->delete();
             } else {
@@ -86,7 +79,6 @@ class StaffPermissionController extends Controller
                 );
             }
         }
-
         return back()->with('success', "Permissions updated for {$staff->name}.");
     }
 
@@ -97,8 +89,6 @@ class StaffPermissionController extends Controller
 
     private function activeTenantStaff(User $staff): User
     {
-        return User::activeStaff((int) auth()->user()->tenant_id)
-            ->whereKey($staff->id)
-            ->firstOrFail();
+        return User::activeStaff((int) auth()->user()->tenant_id)->whereKey($staff->id)->firstOrFail();
     }
 }
