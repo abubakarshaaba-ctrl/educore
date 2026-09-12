@@ -170,11 +170,11 @@ class MobilePaymentSettlementTest extends TestCase
         $this->assertStringContainsString("subscription/invoices/{invoice}/bank-transfer", $routes);
         $this->assertStringContainsString("Route::get('fees/children/{student}'", $routes);
         $this->assertStringContainsString("Route::get('fees/payments'", $routes);
-        $this->assertStringContainsString("Only the school administrator can manage subscription payments", $controller);
-        $this->assertStringContainsString("This child is not linked to your parent account", $controller);
-        $this->assertStringNotContainsString("paid=true", $controller);
-        $this->assertStringContainsString("verifyPlatformPayment", $controller);
-        $this->assertStringContainsString("verifyTenantPayment", $controller);
+        $this->assertStringContainsString('Only the school administrator can manage subscription payments', $controller);
+        $this->assertStringContainsString('This child is not linked to your parent account', $controller);
+        $this->assertStringNotContainsString('paid=true', $controller);
+        $this->assertStringContainsString('verifyPlatformPayment', $controller);
+        $this->assertStringContainsString('verifyTenantPayment', $controller);
     }
 
     public function test_mobile_module_contract_keeps_subscription_admin_only_and_cbt_absent(): void
@@ -183,8 +183,8 @@ class MobilePaymentSettlementTest extends TestCase
         $apiRoutes = file_get_contents(base_path('routes/api.php'));
 
         $this->assertStringContainsString("'subscription' => ['Subscription & Billing'", $modules);
-        $this->assertStringContainsString("if ($key === 'subscription')", $modules);
-        $this->assertStringContainsString("return $roleKey === 'admin';", $modules);
+        $this->assertStringContainsString("if (\$key === 'subscription')", $modules);
+        $this->assertStringContainsString("return \$roleKey === 'admin';", $modules);
         $this->assertStringNotContainsString("['key' => 'cbt'", $modules);
         $this->assertStringNotContainsString("Route::prefix('cbt')->group", $apiRoutes, 'CBT must not be exposed as a normal mobile module route.');
     }
@@ -204,7 +204,7 @@ class MobilePaymentSettlementTest extends TestCase
     private function rebuildPaymentSchema(): void
     {
         Schema::disableForeignKeyConstraints();
-        foreach (['payment_transactions', 'online_payment_logs', 'invoices', 'platform_payments', 'platform_invoices', 'users', 'tenants'] as $table) {
+        foreach (['payment_transactions', 'online_payment_logs', 'invoices', 'students', 'platform_payments', 'platform_invoices', 'users', 'tenants'] as $table) {
             Schema::dropIfExists($table);
         }
         Schema::enableForeignKeyConstraints();
@@ -255,6 +255,13 @@ class MobilePaymentSettlementTest extends TestCase
             $table->string('payment_method')->nullable();
             $table->text('description')->nullable();
             $table->timestamp('paid_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('students', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
             $table->timestamps();
         });
         Schema::create('invoices', function (Blueprint $table) {
