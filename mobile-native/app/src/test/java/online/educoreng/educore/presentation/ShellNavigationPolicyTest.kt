@@ -108,29 +108,37 @@ class ShellNavigationPolicyTest {
         portal: String,
         role: String,
         extraModules: List<ModuleDescriptor> = emptyList(),
-    ): SessionSnapshot = SessionSnapshot(
-        user = UserIdentity(
-            id = 5,
-            name = "A. Teacher",
-            email = "teacher@example.test",
-            staffId = "STF005",
-            roleKey = role,
-            roleLabel = "Subject Teacher",
-            roles = listOf(role),
-            portal = portal,
-        ),
-        school = SchoolIdentity(2, "Greenfield Academy", "greenfield"),
-        academicPeriod = AcademicPeriod(1, "2026/2027", 1, "First Term"),
-        access = TenantAccess(true, "allowed", "Available", null, null),
-        permissions = setOf("classes", "scores"),
-        modules = (listOf(
+    ): SessionSnapshot {
+        val modules = (listOf(
             ModuleDescriptor("classes", "Classes", "/classes", "classes"),
             ModuleDescriptor("scores", "Scores", "/scores", "scores"),
             ModuleDescriptor("timetable", "Timetable", "/timetable", "timetable"),
             ModuleDescriptor("messages", "Messages", "/messages", "messages"),
             ModuleDescriptor("profile", "My Profile", "/profile", "profile"),
             ModuleDescriptor("fees", "Fees", "/fees", "fees"),
-        ) + extraModules).distinctBy { it.key },
-        serverTime = "2026-08-28T08:00:00+01:00",
-    )
+        ) + extraModules).distinctBy { it.key }
+
+        return SessionSnapshot(
+            user = UserIdentity(
+                id = 5,
+                name = "A. Teacher",
+                email = "teacher@example.test",
+                staffId = "STF005",
+                roleKey = role,
+                roleLabel = "Subject Teacher",
+                roles = listOf(role),
+                portal = portal,
+            ),
+            school = SchoolIdentity(2, "Greenfield Academy", "greenfield"),
+            academicPeriod = AcademicPeriod(1, "2026/2027", 1, "First Term"),
+            access = TenantAccess(true, "allowed", "Available", null, null),
+            // Bootstrap descriptors and effective permissions are a paired server contract.
+            // Test fixtures must grant the descriptors they deliberately expose so the
+            // navigation policy is exercised after RBAC verification rather than failing
+            // because the fixture itself represents an impossible server response.
+            permissions = modules.map(ModuleDescriptor::key).toSet(),
+            modules = modules,
+            serverTime = "2026-08-28T08:00:00+01:00",
+        )
+    }
 }
