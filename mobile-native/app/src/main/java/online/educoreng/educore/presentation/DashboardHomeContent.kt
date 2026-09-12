@@ -178,10 +178,12 @@ internal fun LazyGridScope.dashboardHomeContent(
         items(visibleQuickActions, key = { "action-${normalizeDashboardModuleKey(it.moduleKey)}" }) { action ->
             val module = resolveDashboardModule(visibleModules, action.moduleKey)
             if (module != null) {
-                EduCoreQuickAction(
+                DashboardDirectoryQuickAction(
+                    session = session,
+                    module = module,
                     label = action.title,
                     icon = moduleIconForDashboard(module),
-                    onClick = { onModuleClick(module) },
+                    onFallback = onModuleClick,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
