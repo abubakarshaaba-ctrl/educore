@@ -22,7 +22,7 @@ class MobileModuleService
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
-        'finance' => ['Subscription & Billing', '/billing/subscription', 'fees'],
+        'subscription' => ['Subscription & Billing', '/billing/subscription', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
@@ -46,7 +46,7 @@ class MobileModuleService
 
     private const ACCOUNTANT_MODULES = [
         'dashboard', 'staff-attendance.self', 'fees', 'expenses', 'payroll',
-        'messages', 'notifications.view', 'calendar.view', 'profile',
+        'analytics', 'exports', 'messages', 'notifications.view', 'calendar.view', 'profile',
     ];
 
     private const ACADEMIC_MODULES = [
@@ -135,7 +135,7 @@ class MobileModuleService
                     return false;
                 }
 
-                if ($key === 'finance') {
+                if ($key === 'subscription') {
                     return $roleKey === 'admin';
                 }
 
