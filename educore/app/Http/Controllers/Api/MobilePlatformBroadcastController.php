@@ -86,18 +86,15 @@ class MobilePlatformBroadcastController extends Controller
             return $id;
         });
 
-        $pushSent = 0;
         foreach ($announcements as $announcement) {
-            if ($push->notifyAnnouncementPublished($announcement)) {
-                $pushSent++;
-            }
+            $push->notifyAnnouncementPublished($announcement);
         }
 
         return response()->json([
             'message' => sprintf('Platform broadcast delivered to %d school(s).', count($tenantIds)),
             'id' => $broadcastId,
             'schools' => count($tenantIds),
-            'push_batches_sent' => $pushSent,
+            'push_batches_attempted' => count($announcements),
         ], 201);
     }
 
