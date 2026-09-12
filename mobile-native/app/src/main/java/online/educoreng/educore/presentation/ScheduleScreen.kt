@@ -90,37 +90,14 @@ internal fun ScheduleScreen(
             )
         }
 
-        if (workspace.isFromCache) {
-            item { EduCoreWarningBanner("Showing the latest schedule saved on this device.") }
-        }
+        if (workspace.isFromCache) item { EduCoreWarningBanner("Showing the latest schedule saved on this device.") }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                EduCoreShowcaseStat(
-                    label = "Periods",
-                    value = totalPeriods.toString(),
-                    icon = Icons.Default.Schedule,
-                    tone = EduCoreTone.Brand,
-                    modifier = Modifier.weight(1f),
-                )
-                EduCoreShowcaseStat(
-                    label = "Duties",
-                    value = dutyCount.toString(),
-                    icon = Icons.Default.AssignmentTurnedIn,
-                    tone = EduCoreTone.Brand,
-                    modifier = Modifier.weight(1f),
-                )
-                EduCoreShowcaseStat(
-                    label = "Exams",
-                    value = examCount.toString(),
-                    icon = Icons.Default.CalendarMonth,
-                    tone = EduCoreTone.Info,
-                    modifier = Modifier.weight(1f),
-                )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                EduCoreShowcaseStat("Periods", totalPeriods.toString(), Icons.Default.Schedule, EduCoreTone.Brand, Modifier.weight(1f))
+                EduCoreShowcaseStat("Duties", dutyCount.toString(), Icons.Default.AssignmentTurnedIn, EduCoreTone.Brand, Modifier.weight(1f))
+                EduCoreShowcaseStat("Exams", examCount.toString(), Icons.Default.CalendarMonth, EduCoreTone.Info, Modifier.weight(1f))
             }
         }
 
@@ -137,12 +114,7 @@ internal fun ScheduleScreen(
 
         when (state.selectedSection) {
             0 -> {
-                item {
-                    EduCoreSectionHeader(
-                        title = "Weekly timetable",
-                        supportingText = "Choose a day to review your authorised teaching periods",
-                    )
-                }
+                item { EduCoreSectionHeader("Weekly timetable", "Choose a day to review your authorised teaching periods") }
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -158,41 +130,23 @@ internal fun ScheduleScreen(
                     }
                 }
                 if (selectedPeriods.isEmpty()) {
-                    item {
-                        EduCoreEmptyState(
-                            "No timetable periods",
-                            "There are no timetable periods for ${state.selectedDay}.",
-                        )
-                    }
+                    item { EduCoreEmptyState("No timetable periods", "There are no timetable periods for ${state.selectedDay}.") }
                 }
                 items(selectedPeriods, key = SchedulePeriod::id) { PeriodCard(it) }
             }
-
             1 -> {
                 if (workspace.duties.isEmpty()) {
-                    item {
-                        EduCoreEmptyState(
-                            "No supervision duties",
-                            "No examination duty is assigned within this schedule range.",
-                        )
-                    }
+                    item { EduCoreEmptyState("No supervision duties", "No examination duty is assigned within this schedule range.") }
                 }
                 items(workspace.duties, key = ExamDuty::id) { DutyListRow(it) }
             }
-
             else -> {
                 if (workspace.exams.isEmpty()) {
-                    item {
-                        EduCoreEmptyState(
-                            "No examinations",
-                            "No examination falls within this schedule range.",
-                        )
-                    }
+                    item { EduCoreEmptyState("No examinations", "No examination falls within this schedule range.") }
                 }
                 items(workspace.exams, key = ScheduledExam::id) { ExamCard(it) }
             }
         }
-
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
@@ -207,8 +161,8 @@ private fun ScheduleSectionTab(label: String, selected: Boolean, onClick: () -> 
         border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) EduCoreColors.Navy700 else EduCoreColors.Line300),
     ) {
         Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+            label,
+            Modifier.padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
         )
@@ -216,30 +170,26 @@ private fun ScheduleSectionTab(label: String, selected: Boolean, onClick: () -> 
 }
 
 @Composable
-private fun PeriodCard(period: SchedulePeriod) {
-    ScheduleCard(
-        title = period.subject,
-        supporting = listOfNotNull(period.className, period.teacher).joinToString(" · "),
-        date = null,
-        time = listOfNotNull(period.startTime, period.endTime).joinToString(" – "),
-        venue = period.venue,
-        badge = "Class",
-        tone = EduCoreTone.Brand,
-    )
-}
+private fun PeriodCard(period: SchedulePeriod) = ScheduleCard(
+    title = period.subject,
+    supporting = listOfNotNull(period.className, period.teacher).joinToString(" · "),
+    date = null,
+    time = listOfNotNull(period.startTime, period.endTime).joinToString(" – "),
+    venue = period.venue,
+    badge = "Class",
+    tone = EduCoreTone.Brand,
+)
 
 @Composable
-private fun ExamCard(exam: ScheduledExam) {
-    ScheduleCard(
-        title = exam.subject,
-        supporting = listOfNotNull(exam.title, exam.session, exam.classLevel).joinToString(" · "),
-        date = exam.date,
-        time = listOfNotNull(exam.startTime, exam.endTime).joinToString(" – "),
-        venue = exam.venue,
-        badge = "Examination",
-        tone = EduCoreTone.Info,
-    )
-}
+private fun ExamCard(exam: ScheduledExam) = ScheduleCard(
+    title = exam.subject,
+    supporting = listOfNotNull(exam.title, exam.session, exam.classLevel).joinToString(" · "),
+    date = exam.date,
+    time = listOfNotNull(exam.startTime, exam.endTime).joinToString(" – "),
+    venue = exam.venue,
+    badge = "Examination",
+    tone = EduCoreTone.Info,
+)
 
 @Composable
 private fun DutyListRow(duty: ExamDuty) {
@@ -253,7 +203,7 @@ private fun DutyListRow(duty: ExamDuty) {
             modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
-            DutyField("Date", duty.date.ifBlank { "Not set" })
+            DutyField("Date", duty.date?.takeIf(String::isNotBlank) ?: "Not set")
             DutyField("Class", duty.classLevel?.takeIf(String::isNotBlank) ?: "Not assigned")
             DutyField("Subject", duty.subject.ifBlank { "Not assigned" })
             val time = listOfNotNull(duty.startTime, duty.endTime).filter(String::isNotBlank).joinToString(" – ")
@@ -265,19 +215,9 @@ private fun DutyListRow(duty: ExamDuty) {
 
 @Composable
 private fun DutyField(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-        Text(
-            text = label,
-            modifier = Modifier.width(62.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = EduCoreColors.Slate600,
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = EduCoreColors.Ink900,
-        )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+        Text(label, Modifier.width(62.dp), style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
+        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
     }
 }
 
@@ -302,29 +242,14 @@ private fun ScheduleCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = EduCoreColors.SurfaceBlue50,
-                contentColor = EduCoreColors.Navy900,
-            ) {
-                Icon(
-                    Icons.Default.CalendarMonth,
-                    contentDescription = null,
-                    modifier = Modifier.padding(EduCoreSpacing.Md),
-                )
+            Surface(shape = MaterialTheme.shapes.medium, color = EduCoreColors.SurfaceBlue50, contentColor = EduCoreColors.Navy900) {
+                Icon(Icons.Default.CalendarMonth, null, Modifier.padding(EduCoreSpacing.Md))
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         title,
-                        modifier = Modifier.weight(1f),
+                        Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = EduCoreColors.Ink900,
@@ -335,36 +260,14 @@ private fun ScheduleCard(
                     EduCoreStatusBadge(badge, tone)
                 }
                 if (supporting.isNotBlank()) {
-                    Text(
-                        supporting,
-                        color = EduCoreColors.Slate600,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Text(supporting, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 val timing = listOfNotNull(date, time.takeIf(String::isNotBlank)).joinToString(" · ")
-                if (timing.isNotBlank()) {
-                    Text(
-                        timing,
-                        color = EduCoreColors.Navy900,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                if (timing.isNotBlank()) Text(timing, color = EduCoreColors.Navy900, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 venue?.takeIf(String::isNotBlank)?.let {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.width(14.dp),
-                            tint = EduCoreColors.Muted500,
-                        )
-                        Text(
-                            it,
-                            color = EduCoreColors.Muted500,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        Icon(Icons.Default.LocationOn, null, Modifier.width(14.dp), tint = EduCoreColors.Muted500)
+                        Text(it, color = EduCoreColors.Muted500, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
