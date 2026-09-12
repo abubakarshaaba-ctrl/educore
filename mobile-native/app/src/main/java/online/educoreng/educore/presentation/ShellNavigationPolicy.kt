@@ -117,18 +117,14 @@ object ShellNavigationPolicy {
         }.toMap()
 
     /**
-     * The backend bootstrap module list remains the source of truth for explicit
-     * assignments. Mobile applies only hard presentation/role constraints so an
-     * explicitly assigned academic module is not hidden from a legitimate user.
-     *
-     * Personal attendance is deliberately excluded from tab/module grids and is
-     * surfaced as a dedicated Home quick action. Legacy `staff-attendance` is a
-     * management descriptor only; the personal workspace is always
-     * `staff-attendance.self`, while the management workspace is normalized to
-     * `staff-attendance.admin`.
+     * Backend bootstrap modules are the first authority. Mobile then verifies
+     * every staff module against the effective permission set returned in that
+     * same bootstrap response. A stale or over-broad backend descriptor therefore
+     * cannot silently become visible in the Android shell.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
-        val financeRole = session.user.roleKey.lowercase() in FINANCE_ROLES
+        val role = session.user.roleKey.trim().lowercase().replace('-', '_').replace(' ', '_')
+        val financeRole = role in FINANCE_ROLES
         val canManageStaffAttendance = canManageStaffAttendance(session)
         val staffWorkspace = session.user.portal.equals("staff", ignoreCase = true) ||
             session.user.portal.equals("admin", ignoreCase = true)
@@ -138,6 +134,8 @@ object ShellNavigationPolicy {
             when {
                 isRemovedFromMobile(key) -> null
                 key == "dashboard" -> null
+                role == "admission_officer" && key in ADMISSION_OFFICER_BLOCKED_KEYS -> null
+                !isExplicitlyAuthorizedModule(session, key) -> null
                 key == "staff-attendance.self" -> null
                 key == "staff-attendance" && !canManageStaffAttendance -> null
                 key == "staff-attendance" -> module.copy(
@@ -153,6 +151,32 @@ object ShellNavigationPolicy {
                 else -> module
             }
         }.distinctBy { it.key.lowercase() }
+    }
+
+    private fun isExplicitlyAuthorizedModule(session: SessionSnapshot, key: String): Boolean {
+        if (session.user.portal.equals("platform", ignoreCase = true) ||
+            session.user.portal.equals("student", ignoreCase = true) ||
+            session.user.portal.equals("parent", ignoreCase = true)
+        ) return true
+
+        if (session.permissions.contains("*")) return true
+        if (key == "profile") return true
+
+        if (key == "staff-attendance.admin" || key == "staff-attendance") {
+            return session.can("staff-attendance")
+        }
+        if (key == "staff-attendance.self") {
+            return session.can("staff-attendance.self")
+        }
+
+        if (key == "academic-repository") {
+            val role = session.user.roleKey.lowercase()
+            return session.user.portal.equals("admin", ignoreCase = true) || role.contains("teacher")
+        }
+
+        return session.can(key) || session.permissions.any { permission ->
+            permission.startsWith("$key.")
+        }
     }
 
     fun isRemovedFromMobile(moduleKey: String): Boolean {
@@ -176,16 +200,15 @@ object ShellNavigationPolicy {
     }
 
     private fun canManageStaffAttendance(session: SessionSnapshot): Boolean {
-        if (session.user.portal.equals("admin", ignoreCase = true) ||
-            session.user.portal.equals("platform", ignoreCase = true)
-        ) return true
+        if (session.user.portal.equals("platform", ignoreCase = true)) return true
+        if (!session.can("staff-attendance")) return false
 
         val role = session.user.roleKey
             .trim()
             .lowercase()
             .replace('-', '_')
             .replace(' ', '_')
-        return role in STAFF_ATTENDANCE_MANAGEMENT_ROLES
+        return session.user.portal.equals("admin", ignoreCase = true) || role in STAFF_ATTENDANCE_MANAGEMENT_ROLES
     }
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
@@ -201,6 +224,31 @@ object ShellNavigationPolicy {
         "assistant_head",
         "vice_principal_academics",
         "vice_principal_administration",
+        "academic_administrator",
+        "head",
+    )
+    private val ADMISSION_OFFICER_BLOCKED_KEYS = setOf(
+        "students",
+        "classes",
+        "subjects",
+        "curriculum",
+        "academic-cycle",
+        "attendance",
+        "student-attendance",
+        "scores",
+        "scores.entry",
+        "timetable",
+        "student.timetable",
+        "academic-repository",
+        "lesson-planner",
+        "gradebook",
+        "skills",
+        "reports",
+        "report-cards",
+        "results",
+        "analytics",
+        "risk",
+        "exports",
     )
     private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
     private val FINANCE_BLOCKED_ACADEMIC_KEYS = setOf(
