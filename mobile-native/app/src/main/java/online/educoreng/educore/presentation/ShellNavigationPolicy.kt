@@ -125,14 +125,13 @@ object ShellNavigationPolicy {
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val role = normalizedRole(session)
+        val portal = session.user.portal.trim().lowercase()
         val financeRole = role in FINANCE_ROLES
         val canManageStaffAttendance = canManageStaffAttendance(session)
-        val staffWorkspace = session.user.portal.equals("staff", ignoreCase = true) ||
-            session.user.portal.equals("admin", ignoreCase = true)
 
         return session.modules.mapNotNull { module ->
             val sourceKey = module.key.trim().lowercase()
-            val key = canonicalModuleKey(sourceKey, staffWorkspace)
+            val key = canonicalModuleKey(sourceKey, portal)
             when {
                 isRemovedFromMobile(sourceKey) -> null
                 sourceKey == "dashboard" -> null
@@ -155,8 +154,10 @@ object ShellNavigationPolicy {
         }.distinctBy { it.key.lowercase() }
     }
 
-    private fun canonicalModuleKey(key: String, staffWorkspace: Boolean): String = when {
-        staffWorkspace && key in STAFF_REPORT_ALIASES -> "reports"
+    private fun canonicalModuleKey(key: String, portal: String): String = when {
+        portal in setOf("staff", "admin") && key in STAFF_REPORT_ALIASES -> "reports"
+        portal == "parent" && key in PUBLISHED_RESULT_ALIASES -> "parent.results"
+        portal == "student" && key in PUBLISHED_RESULT_ALIASES -> "student.results"
         key in SCORE_ALIASES -> "scores"
         key in SCHEDULE_ALIASES -> "timetable"
         key in COMMUNICATION_ALIASES -> COMMUNICATION_ALIASES.getValue(key)
@@ -165,6 +166,7 @@ object ShellNavigationPolicy {
 
     private fun canonicalTitle(key: String, fallback: String): String = when (key) {
         "reports" -> "Report Cards"
+        "parent.results", "student.results" -> "Results"
         "scores" -> "Score Entry"
         "timetable" -> "Exam Timetable & Supervision"
         "messages" -> "Messages"
@@ -242,6 +244,9 @@ object ShellNavigationPolicy {
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
     private val STAFF_REPORT_ALIASES = setOf("reports", "report-cards", "report_cards", "results")
+    private val PUBLISHED_RESULT_ALIASES = setOf(
+        "results", "report-cards", "report_cards", "reports", "student.results", "parent.results",
+    )
     private val SCORE_ALIASES = setOf(
         "scores", "scores.entry", "score-entry", "score_entry", "result-entry", "result_entry",
     )
