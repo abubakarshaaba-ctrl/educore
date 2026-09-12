@@ -144,7 +144,7 @@ internal fun AdminStaffAttendanceQrScreen(
         state.errorMessage?.let { message ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Danger50),
+                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Danger100),
             ) {
                 Text(
                     text = message,
@@ -158,7 +158,7 @@ internal fun AdminStaffAttendanceQrScreen(
         state.message?.let { message ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Success50),
+                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Success100),
             ) {
                 Text(
                     text = message,
