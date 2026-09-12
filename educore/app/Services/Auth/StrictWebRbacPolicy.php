@@ -61,21 +61,15 @@ class StrictWebRbacPolicy
 
         $role = strtolower((string) $user->roleKey());
 
-        // Finance users get a finance/self-service workspace only. Any extra
-        // module must be intentionally granted to the individual account.
         if (in_array($role, ['accountant', 'bursar', 'finance_officer'], true)
             && ! in_array($module, self::ACCOUNTANT_MODULES, true)) {
             return false;
         }
 
-        // Admissions is operational. Student directory/transfers are not
-        // implicit authority and require a deliberate per-staff grant.
         if ($role === 'admission_officer' && in_array($module, self::ADMISSION_OFFICER_BLOCKED, true)) {
             return false;
         }
 
-        // Non-academic staff never inherit academic workspaces simply because
-        // another broad role check happens to expose a route or navigation item.
         if (in_array($module, self::ACADEMIC_MODULES, true)
             && ! in_array($role, self::ACADEMIC_ROLE_KEYS, true)) {
             return false;
@@ -90,8 +84,6 @@ class StrictWebRbacPolicy
             return $user->isTenantStaff() && $this->baseAllows($user, 'staff-attendance.self');
         }
 
-        // Academic Repository historically belongs to academic staff but was
-        // not consistently represented in the old ROLE_ACCESS table.
         if ($module === 'academic-repository') {
             return in_array($role, self::ACADEMIC_ROLE_KEYS, true);
         }
@@ -103,6 +95,12 @@ class StrictWebRbacPolicy
     {
         $routeName = trim((string) $routeName);
         if ($routeName === '') {
+            return null;
+        }
+
+        // The staff portal is an already-scoped self-service surface. Its route
+        // names begin with "staff." and must never be mistaken for Staff Directory.
+        if (str_starts_with($routeName, 'staff.portal.')) {
             return null;
         }
 
@@ -130,14 +128,10 @@ class StrictWebRbacPolicy
                 : 'staff-attendance.admin';
         }
 
-        // Transfers are nested below students in route naming, so resolve them
-        // before the generic students prefix.
         if (str_starts_with($routeName, 'students.transfers') || str_starts_with($routeName, 'students.class-transfers')) {
             return 'transfers';
         }
 
-        // This policy adds restrictions; the existing CheckModuleAccess
-        // middleware remains responsible for granular score/report permissions.
         $topLevel = [
             'dashboard' => 'dashboard',
             'students' => 'students',
@@ -182,10 +176,6 @@ class StrictWebRbacPolicy
         return null;
     }
 
-    /**
-     * Navigation paths used to remove disallowed modules from the web sidebar.
-     * Route middleware remains the security boundary; this list is presentation.
-     */
     public function navigationPaths(): array
     {
         return [
@@ -237,7 +227,6 @@ class StrictWebRbacPolicy
             return true;
         }
 
-        // Match the same parent-module semantics as User::canAccessModule().
         foreach ($roleAllowed as $permission) {
             if (str_starts_with((string) $permission, $module.'.')) {
                 return true;
