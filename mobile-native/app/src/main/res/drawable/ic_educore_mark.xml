@@ -4,7 +4,6 @@
     android:height="48dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
-    <!-- Compact EduCore mark: restrained navy tile, subtle embossed core and data pixels. -->
     <path
         android:fillColor="#13294F"
         android:pathData="M104,0H408A104,104 0,0 1,512 104V408A104,104 0,0 1,408 512H104A104,104 0,0 1,0 408V104A104,104 0,0 1,104 0Z" />
@@ -13,17 +12,6 @@
         android:scaleY="0.82"
         android:translateX="46"
         android:translateY="46">
-        <!-- Tiny offset shadow gives depth without recreating a heavy outline. -->
-        <group android:translateX="5" android:translateY="6">
-            <path
-                android:fillColor="#000000"
-                android:fillAlpha="0.16"
-                android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
-            <path
-                android:fillColor="#000000"
-                android:fillAlpha="0.12"
-                android:pathData="M271,178A78,78 0,0 0,271 334Z" />
-        </group>
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
