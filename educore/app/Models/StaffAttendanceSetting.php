@@ -102,6 +102,44 @@ class StaffAttendanceSetting extends Model
         }
     }
 
+    /**
+     * Convert a QR that was verified when an offline batch reached the server
+     * into a durable signed proof. This avoids re-checking a legacy rotating
+     * daily QR days later when an administrator reviews the queue.
+     */
+    public function offlineVerificationProof(int $userId, string $date, string $time): string
+    {
+        $payload = [
+            'tid' => (int) $this->tenant_id,
+            'type' => 'offline_attendance_proof',
+            'uid' => $userId,
+            'date' => $date,
+            'time' => $time,
+        ];
+        $payload['sig'] = hash_hmac('sha256', json_encode($payload), $this->permanentQrSecret());
+
+        return base64_encode(json_encode($payload));
+    }
+
+    public function verifyOfflineVerificationProof(string $token, int $userId, string $date, string $time): bool
+    {
+        try {
+            $data = json_decode(base64_decode($token, true), true);
+            if (! is_array($data)) return false;
+            $sig = (string) ($data['sig'] ?? '');
+            unset($data['sig']);
+            if (($data['type'] ?? '') !== 'offline_attendance_proof') return false;
+            if ((int) ($data['tid'] ?? 0) !== (int) $this->tenant_id) return false;
+            if ((int) ($data['uid'] ?? 0) !== $userId) return false;
+            if ((string) ($data['date'] ?? '') !== $date) return false;
+            if ((string) ($data['time'] ?? '') !== $time) return false;
+            $expected = hash_hmac('sha256', json_encode($data), $this->permanentQrSecret());
+            return $sig !== '' && hash_equals($expected, $sig);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public function resetStaticQr(): void
     {
         $secret = bin2hex(random_bytes(16));
@@ -140,11 +178,12 @@ class StaffAttendanceSetting extends Model
     {
         try {
             $data = json_decode(base64_decode($token), true);
+            if (! is_array($data)) return false;
             $sig = $data['sig'] ?? '';
             unset($data['sig']);
-            if (($data['type'] ?? '') === 'screen') return false;
+            if (($data['type'] ?? '') === 'screen' || ($data['type'] ?? '') === 'offline_attendance_proof') return false;
             $expected = hash_hmac('sha256', json_encode($data), $this->todayQrSecret());
-            return hash_equals($expected, $sig)
+            return is_string($sig) && $sig !== '' && hash_equals($expected, $sig)
                 && ($data['date'] ?? '') === today()->toDateString()
                 && ($data['tid'] ?? 0) == $this->tenant_id;
         } catch (\Throwable) {
