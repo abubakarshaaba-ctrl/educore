@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\OnlinePaymentLog;
 use App\Models\PaymentGatewayConfig;
-use App\Models\PaymentTransaction;
+use App\Services\SchoolFeePaymentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
@@ -123,12 +122,17 @@ class PaymentGatewayController extends Controller
         if ($config && ($token = $this->monnifyToken($config))) {
             $base    = $config->is_live ? 'https://api.monnify.com' : 'https://sandbox.monnify.com';
             $query   = Http::withToken($token)->get("{$base}/api/v1/merchant/transactions/query", ['paymentReference' => $reference]);
-            $verified = $query->successful() && $query->json('responseBody.paymentStatus') === 'PAID';
+            $body = $query->json('responseBody') ?: [];
+            $verified = $query->successful()
+                && in_array($body['paymentStatus'] ?? null, ['PAID', 'OVERPAID'], true)
+                && ($body['paymentReference'] ?? null) === $reference
+                && strtoupper((string) ($body['currencyCode'] ?? '')) === 'NGN'
+                && (float) ($body['amountPaid'] ?? 0) >= (float) $log->amount;
         }
 
-        $log->update(['gateway_response' => $request->all(), 'status' => $verified ? 'success' : 'failed', 'verified_at' => now()]);
+        $log->update(['gateway_response' => $request->all(), 'status' => $verified ? 'success' : 'failed', 'verified_at' => $verified ? now() : null]);
         if ($verified) {
-            $this->applyPayment($log);
+            $this->applyPayment($log->fresh());
             return redirect()->route('fees.invoices.show', $log->invoice_id)->with('success', 'Payment of ₦'.number_format($log->amount).' confirmed!');
         }
         return redirect()->route('fees.invoices.show', $log->invoice_id)->withErrors(['error' => 'Payment not yet confirmed. If you completed payment, please wait a moment and retry.']);
@@ -144,21 +148,26 @@ class PaymentGatewayController extends Controller
             return redirect()->route('fees.invoices')->withErrors(['error' => 'Payment reference not found.']);
         }
 
-        // Verify with Paystack API
         $config = PaymentGatewayConfig::where('tenant_id', $log->tenant_id)->first();
         $mode   = $config?->is_live ? '' : 'test.';
         $resp   = Http::withHeaders(['Authorization' => 'Bearer '.($config?->secret_key ?? '')])
                     ->get("https://api.{$mode}paystack.co/transaction/verify/{$reference}");
 
         $body = $resp->json();
+        $verified = $resp->successful()
+            && ($body['status'] ?? false) === true
+            && ($body['data']['status'] ?? '') === 'success'
+            && ($body['data']['reference'] ?? null) === $reference
+            && strtoupper((string) ($body['data']['currency'] ?? '')) === 'NGN'
+            && (int) ($body['data']['amount'] ?? 0) === (int) round(((float) $log->amount) * 100);
         $log->update([
             'gateway_response' => $body,
-            'status'           => ($body['data']['status'] ?? '') === 'success' ? 'success' : 'failed',
-            'verified_at'      => now(),
+            'status'           => $verified ? 'success' : 'failed',
+            'verified_at'      => $verified ? now() : null,
         ]);
 
-        if ($log->status === 'success') {
-            $this->applyPayment($log);
+        if ($verified) {
+            $this->applyPayment($log->fresh());
             return redirect()->route('fees.invoices.show', $log->invoice_id)
                 ->with('success', 'Payment of ₦'.number_format($log->amount).' confirmed!');
         }
@@ -183,16 +192,22 @@ class PaymentGatewayController extends Controller
                     ->get("https://api.flutterwave.com/v3/transactions/{$txId}/verify");
 
         $body   = $resp->json();
-        $status = ($body['data']['status'] ?? '') === 'successful' ? 'success' : 'failed';
+        $data = $body['data'] ?? [];
+        $verified = $resp->successful()
+            && ($body['status'] ?? null) === 'success'
+            && ($data['status'] ?? null) === 'successful'
+            && ($data['tx_ref'] ?? null) === $reference
+            && strtoupper((string) ($data['currency'] ?? '')) === 'NGN'
+            && abs((float) ($data['amount'] ?? 0) - (float) $log->amount) < 0.01;
 
         $log->update([
             'gateway_response' => $body,
-            'status'           => $status,
-            'verified_at'      => now(),
+            'status'           => $verified ? 'success' : 'failed',
+            'verified_at'      => $verified ? now() : null,
         ]);
 
-        if ($status === 'success') {
-            $this->applyPayment($log);
+        if ($verified) {
+            $this->applyPayment($log->fresh());
             return redirect()->route('fees.invoices.show', $log->invoice_id)
                 ->with('success', 'Payment of ₦'.number_format($log->amount).' confirmed!');
         }
@@ -204,7 +219,6 @@ class PaymentGatewayController extends Controller
     // ── Webhook: Paystack ──────────────────────────────────────────
     public function paystackWebhook(Request $request)
     {
-        // Step 1: reject immediately if the signature header is absent
         $signature = $request->header('x-paystack-signature');
         if (!$signature) {
             return response('Unauthorized', 401);
@@ -212,10 +226,6 @@ class PaymentGatewayController extends Controller
 
         $reference = $request->input('data.reference');
         $log = OnlinePaymentLog::where('reference', $reference)->first();
-
-        // Resolve the tenant's secret key so we can verify the signature.
-        // If we can't find it, we still return 200 to avoid Paystack retries
-        // leaking whether a reference exists.
         $config = $log ? PaymentGatewayConfig::where('tenant_id', $log->tenant_id)
                                               ->where('gateway', 'paystack')
                                               ->first()
@@ -232,92 +242,24 @@ class PaymentGatewayController extends Controller
             }
         }
 
-        $event = $request->input('event');
-        if ($event !== 'charge.success') return response('OK', 200);
+        if ($request->input('event') !== 'charge.success') return response('OK', 200);
 
-        if ($log && $log->status !== 'success') {
-            $log->update(['status' => 'success', 'verified_at' => now()]);
-            $this->applyPayment($log);
+        $data = $request->input('data', []);
+        $verifiedPayload = $log
+            && ($data['reference'] ?? null) === $log->reference
+            && strtoupper((string) ($data['currency'] ?? '')) === 'NGN'
+            && (int) ($data['amount'] ?? 0) === (int) round(((float) $log->amount) * 100)
+            && ($data['status'] ?? null) === 'success';
+
+        if ($log && $log->status !== 'success' && $verifiedPayload) {
+            $log->update(['gateway_response' => $data, 'status' => 'success', 'verified_at' => now()]);
+            $this->applyPayment($log->fresh());
         }
         return response('OK', 200);
     }
 
     private function applyPayment(OnlinePaymentLog $log): void
     {
-        $notifyContext = null;
-
-        DB::transaction(function () use ($log, &$notifyContext) {
-            if (PaymentTransaction::where('gateway_reference', $log->reference)->exists()) {
-                return;
-            }
-
-            $invoice = Invoice::lockForUpdate()->find($log->invoice_id);
-            if (!$invoice) return;
-
-            $invoice->amount_paid += $log->amount;
-            if ($invoice->amount_paid >= $invoice->total_amount) {
-                $invoice->status = 'paid';
-            } elseif ($invoice->amount_paid > 0) {
-                $invoice->status = 'partially_paid';
-            }
-            $invoice->save();
-
-            $student = $invoice->student;
-            $guardian = $student?->primaryGuardian() ?? $student?->guardians()->first();
-
-            PaymentTransaction::create([
-                'tenant_id'         => $invoice->tenant_id,
-                'invoice_id'        => $invoice->id,
-                'student_id'        => $invoice->student_id,
-                'gateway_reference' => $log->reference,
-                'gateway'           => $log->gateway,
-                'amount_paid'       => $log->amount,
-                'currency'          => 'NGN',
-                'status'            => 'success',
-                'gateway_response'  => $log->gateway_response,
-                'paid_by_name'      => $guardian?->name ?? $student?->full_name,
-                'paid_by_phone'     => $guardian?->phone,
-                'paid_at'           => $log->verified_at ?? now(),
-            ]);
-
-            $notifyContext = [
-                'invoice'  => $invoice,
-                'student'  => $student,
-                'guardian' => $guardian,
-                'amount'   => (float) $log->amount,
-            ];
-        });
-
-        if (!$notifyContext) {
-            return;
-        }
-
-        ['invoice' => $invoice, 'student' => $student, 'guardian' => $guardian, 'amount' => $amount] = $notifyContext;
-        $tenant = $invoice->tenant ?? \App\Models\Tenant::find($invoice->tenant_id);
-
-        try {
-            app(\App\Services\GuardianNotifier::class)->send(
-                $guardian,
-                'Payment received' . ($student ? ' — ' . $student->full_name : ''),
-                [
-                    'We have received a payment of ₦' . number_format($amount, 2) . ($student ? ' for ' . $student->full_name . '.' : '.'),
-                    'Invoice status: ' . ucfirst(str_replace('_', ' ', $invoice->status)),
-                ],
-                smsBody: ($tenant->name ?? 'EduCore') . ': Payment of ₦' . number_format($amount, 2) . ' received' . ($student ? " for {$student->full_name}" : '') . '. Thank you.',
-                schoolName: $tenant?->name,
-            );
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Guardian payment notification failed: ' . $e->getMessage());
-        }
-
-        try {
-            $tenant?->notifyAdmins(new \App\Notifications\Tenant\FeePaymentReceivedNotification(
-                $invoice,
-                $amount,
-                $student?->full_name ?? 'a student'
-            ));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Admin payment notification failed: ' . $e->getMessage());
-        }
+        app(SchoolFeePaymentService::class)->settle($log);
     }
 }
