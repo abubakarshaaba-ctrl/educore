@@ -42,12 +42,14 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
-    fun legacy_staff_attendance_is_admin_management_only() {
+    fun legacy_staff_attendance_is_management_only_and_normalized() {
         val descriptor = ModuleDescriptor("staff-attendance", "Staff Attendance", "/staff-attendance", "staff-attendance")
         val admin = session(portal = "admin", role = "admin", extraModules = listOf(descriptor))
+        val leadership = session(portal = "staff", role = "vice_principal_academics", extraModules = listOf(descriptor))
         val ordinaryStaff = session(portal = "staff", role = "subject_teacher", extraModules = listOf(descriptor))
 
         assertTrue(ShellNavigationPolicy.visibleModules(admin).any { it.key == "staff-attendance.admin" })
+        assertTrue(ShellNavigationPolicy.visibleModules(leadership).any { it.key == "staff-attendance.admin" })
         assertFalse(ShellNavigationPolicy.visibleModules(admin).any { it.key == "staff-attendance" })
         assertFalse(ShellNavigationPolicy.visibleModules(ordinaryStaff).any { it.key.startsWith("staff-attendance") })
     }
