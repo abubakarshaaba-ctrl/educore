@@ -116,13 +116,6 @@ object ShellNavigationPolicy {
             if (modules.isEmpty()) null else group to modules
         }.toMap()
 
-    /**
-     * Backend bootstrap modules are the first authority. Mobile then verifies
-     * every staff module against the effective permission set returned in that
-     * same bootstrap response. Specialist non-academic roles receive an
-     * additional mobile allow-list so an accidentally broad bootstrap grant
-     * cannot expose unrelated school functions on Android.
-     */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val role = normalizedRole(session)
         val portal = session.user.portal.trim().lowercase()
@@ -243,6 +236,7 @@ object ShellNavigationPolicy {
         .replace(' ', '_')
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
     private val STAFF_REPORT_ALIASES = setOf("reports", "report-cards", "report_cards", "results")
     private val PUBLISHED_RESULT_ALIASES = setOf(
         "results", "report-cards", "report_cards", "reports", "student.results", "parent.results",
@@ -298,7 +292,6 @@ object ShellNavigationPolicy {
         "finance_officer" to FINANCE_KEYS + "profile",
         "bursar" to FINANCE_KEYS + "profile",
     )
-    private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
     private val FINANCE_BLOCKED_ACADEMIC_KEYS = setOf(
         "classes",
         "students",
