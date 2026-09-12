@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
+use App\Models\Tenant;
 use App\Models\Term;
 use App\Services\Mobile\MobileModuleService;
 use App\Services\TenantAccessDecision;
@@ -37,9 +38,35 @@ class MobileBootstrapController extends Controller
                 : $tenantAccess->applicationAccess($tenant);
         } catch (Throwable $exception) {
             report($exception);
-            return response()->json([
-                'message' => 'Your school access could not be verified. Please try again.',
-            ], 503);
+            // The authenticated mobile workspace must remain available when an
+            // optional subscription/pricing metadata lookup fails. Preserve hard
+            // tenant state gates, otherwise fall back to ordinary active access.
+            if ($superAdmin) {
+                $access = TenantAccessDecision::allow('Platform access is available.');
+            } elseif (! $tenant) {
+                $access = TenantAccessDecision::deny(
+                    TenantAccessDecision::STATE_MISSING,
+                    'This school portal is currently unavailable. Please contact the school administration.'
+                );
+            } elseif ($tenant->status === Tenant::STATUS_SUSPENDED) {
+                $access = TenantAccessDecision::deny(
+                    TenantAccessDecision::STATE_SUSPENDED,
+                    'This school portal is currently unavailable. Please contact the school administration.'
+                );
+            } elseif ($tenant->status === Tenant::STATUS_SUBSCRIPTION_EXPIRED) {
+                $access = TenantAccessDecision::deny(
+                    TenantAccessDecision::STATE_EXPIRED,
+                    'School account access is currently unavailable. Please renew the subscription or contact support.',
+                    $tenant->subscription_expires_at
+                );
+            } elseif ($tenant->status !== Tenant::STATUS_ACTIVE) {
+                $access = TenantAccessDecision::deny(
+                    TenantAccessDecision::STATE_INACTIVE,
+                    'This school portal is currently unavailable. Please contact the school administration.'
+                );
+            } else {
+                $access = TenantAccessDecision::allow();
+            }
         }
 
         try {
