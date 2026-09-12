@@ -1,5 +1,6 @@
 package online.educoreng.educore.core.network
 
+import online.educoreng.educore.core.network.dto.LegacyAdminManagementDto
 import online.educoreng.educore.core.network.dto.SubjectMutationRequestDto
 import online.educoreng.educore.core.network.dto.SubjectMutationResponseDto
 import online.educoreng.educore.core.network.dto.SubjectsWorkspaceDto
@@ -19,6 +20,10 @@ interface SubjectsApi {
         @Query("page") page: Int? = null,
         @Query("per_page") perPage: Int? = null,
     ): SubjectsWorkspaceDto
+
+    /** Compatibility read for older servers while the dedicated subjects API rolls out. */
+    @GET("admin/management")
+    suspend fun legacyManagement(): LegacyAdminManagementDto
 
     @POST("subjects")
     suspend fun create(@Body request: SubjectMutationRequestDto): SubjectMutationResponseDto
