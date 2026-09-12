@@ -13,7 +13,12 @@ import kotlinx.coroutines.launch
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.SubjectsApi
 import online.educoreng.educore.core.network.dto.SubjectAdminDto
+import online.educoreng.educore.core.network.dto.SubjectCapabilitiesDto
+import online.educoreng.educore.core.network.dto.SubjectMetaDto
+import online.educoreng.educore.core.network.dto.SubjectMetricsDto
 import online.educoreng.educore.core.network.dto.SubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.SubjectOptionDto
+import online.educoreng.educore.core.network.dto.SubjectSelectedDto
 import online.educoreng.educore.core.network.dto.SubjectsWorkspaceDto
 import retrofit2.HttpException
 
@@ -204,23 +209,70 @@ internal class SubjectsViewModel @Inject constructor(
                     status = _uiState.value.status,
                     page = page,
                 )
-                _uiState.update { state ->
-                    state.copy(
-                        workspace = workspace,
-                        subjects = if (reset) workspace.subjects else (state.subjects + workspace.subjects).distinctBy { it.id },
-                        query = workspace.selected.search,
-                        status = workspace.selected.status,
-                        isLoading = false,
-                        isLoadingMore = false,
-                    )
-                }
+                applyWorkspace(workspace, reset)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
+                // Older live backends expose the same school subjects through
+                // admin/management but not yet through the dedicated subjects
+                // endpoint. Fall back to that read contract on route-level 404.
+                if (reset && error is HttpException && error.code() == 404) {
+                    try {
+                        val legacy = api.legacyManagement()
+                        val query = _uiState.value.query.trim()
+                        val subjects = legacy.subjects
+                            .asSequence()
+                            .map { SubjectAdminDto(id = it.id, name = it.name, code = it.code, active = true) }
+                            .filter { subject ->
+                                query.isBlank() || subject.name.contains(query, ignoreCase = true) ||
+                                    subject.code.orEmpty().contains(query, ignoreCase = true)
+                            }
+                            .toList()
+                        val workspace = SubjectsWorkspaceDto(
+                            contractVersion = 0,
+                            capabilities = SubjectCapabilitiesDto(manage = false),
+                            metrics = SubjectMetricsDto(
+                                total = subjects.size,
+                                active = subjects.size,
+                                inactive = 0,
+                            ),
+                            statusOptions = listOf(SubjectOptionDto("all", "All")),
+                            subjects = subjects,
+                            selected = SubjectSelectedDto(search = query, status = "all"),
+                            meta = SubjectMetaDto(
+                                page = 1,
+                                perPage = subjects.size.coerceAtLeast(1),
+                                total = subjects.size,
+                                lastPage = 1,
+                                hasMore = false,
+                            ),
+                        )
+                        applyWorkspace(workspace, reset = true)
+                        return@launch
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Throwable) {
+                        // Preserve the original dedicated-endpoint failure below.
+                    }
+                }
                 _uiState.update {
                     it.copy(isLoading = false, isLoadingMore = false, errorMessage = error.subjectsMessage())
                 }
             }
+        }
+    }
+
+    private fun applyWorkspace(workspace: SubjectsWorkspaceDto, reset: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                workspace = workspace,
+                subjects = if (reset) workspace.subjects else (state.subjects + workspace.subjects).distinctBy { it.id },
+                query = workspace.selected.search,
+                status = workspace.selected.status,
+                isLoading = false,
+                isLoadingMore = false,
+                errorMessage = null,
+            )
         }
     }
 }
@@ -228,8 +280,8 @@ internal class SubjectsViewModel @Inject constructor(
 private fun Throwable.subjectsMessage(): String = when (this) {
     is HttpException -> when (code()) {
         401 -> "Your session has expired. Sign in again."
-        403 -> "Your account is not permitted to manage subjects."
-        404 -> "This subject is no longer available."
+        403 -> "Your account is not permitted to access subjects."
+        404 -> "The subjects service is not available on this server yet. Refresh after the server update."
         422 -> "Check the subject name/code. A duplicate may already exist, or the subject may still be in use."
         else -> "The subjects service returned an error (${code()})."
     }
