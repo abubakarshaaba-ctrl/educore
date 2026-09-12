@@ -149,7 +149,7 @@ internal fun LazyGridScope.dashboardHomeContent(
         )
     }
 
-    val visibleModules = remember(session) { ShellNavigationPolicy.visibleModules(session) }
+    val visibleModules = ShellNavigationPolicy.visibleModules(session)
     val myAttendanceModule = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
     val visibleQuickActions = snapshot.quickActions.filter { action ->
         val key = normalizeDashboardModuleKey(action.moduleKey)
