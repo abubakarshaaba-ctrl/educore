@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
+use App\Http\Controllers\Api\MobilePaymentController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
 use App\Http\Controllers\Api\ParentController;
@@ -163,6 +164,9 @@ Route::prefix('v1')->group(function () {
             Route::get('invoices', [ParentController::class, 'invoices']);
             Route::get('results', [ParentController::class, 'results']);
             Route::get('attendance', [ParentController::class, 'attendance']);
+            Route::get('fees', [MobilePaymentController::class, 'parentFees']);
+            Route::post('fees/{invoice}/checkout', [MobilePaymentController::class, 'parentFeeCheckout']);
+            Route::post('fees/verify', [MobilePaymentController::class, 'verifyParentFee']);
         });
 
         Route::prefix('admin')->group(function () {
@@ -183,6 +187,10 @@ Route::prefix('v1')->group(function () {
             Route::get('staff-attendance', [AdminStaffAttendanceController::class, 'index']);
             Route::get('staff-attendance/report', [AdminStaffAttendanceController::class, 'report']);
             Route::put('staff-attendance/settings', [AdminStaffAttendanceController::class, 'updateSettings']);
+            Route::get('subscription', [MobilePaymentController::class, 'subscription']);
+            Route::post('subscription/invoices', [MobilePaymentController::class, 'createSubscriptionInvoice']);
+            Route::post('subscription/invoices/{invoice}/checkout', [MobilePaymentController::class, 'subscriptionCheckout']);
+            Route::post('subscription/verify', [MobilePaymentController::class, 'verifySubscription']);
         });
 
         Route::prefix('accountant')->group(function () {
