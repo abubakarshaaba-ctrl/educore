@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class TenantAccessService
 {
@@ -48,18 +49,30 @@ class TenantAccessService
             );
         }
 
-        // Multi-campus groups share one subscription, held by the group's
-        // "lead" campus — a member campus's expiry follows the lead's,
-        // rather than needing its own subscription kept current.
-        $expiresAt = $tenant->billingTenant()->subscription_expires_at;
+        // Multi-campus groups normally share the lead campus subscription. The
+        // group tables are optional/legacy on some deployments, so a malformed
+        // or partially migrated group record must never turn a valid mobile
+        // login into an HTTP 500/503. Fall back to the tenant's own expiry.
+        $expiresAt = $tenant->subscription_expires_at;
+        try {
+            $expiresAt = $tenant->billingTenant()->subscription_expires_at ?? $expiresAt;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
-        // Free schools never enter trial, expiry or grace states. This check
-        // intentionally precedes every date-based paid-subscription gate.
-        if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
-            return TenantAccessDecision::free([
-                'student_limit' => PricingService::FREE_THRESHOLD,
-                'all_features' => true,
-            ]);
+        // Free-tier detection is an enhancement to access-state calculation,
+        // not a prerequisite for authentication. If enrollment metadata cannot
+        // be read, continue with the tenant's subscription state rather than
+        // failing the mobile bootstrap request.
+        try {
+            if (PricingService::isFree(PricingService::activeStudentCount($tenant->id))) {
+                return TenantAccessDecision::free([
+                    'student_limit' => PricingService::FREE_THRESHOLD,
+                    'all_features' => true,
+                ]);
+            }
+        } catch (Throwable $exception) {
+            report($exception);
         }
 
         if ($expiresAt && $expiresAt->isPast()) {
@@ -98,14 +111,19 @@ class TenantAccessService
 
     private function gracePeriodDays(): int
     {
-        if (!Schema::hasTable('platform_settings')) {
+        try {
+            if (!Schema::hasTable('platform_settings')) {
+                return 0;
+            }
+
+            $value = DB::table('platform_settings')
+                ->where('key', 'grace_period_days')
+                ->value('value');
+
+            return max(0, (int) $value);
+        } catch (Throwable $exception) {
+            report($exception);
             return 0;
         }
-
-        $value = DB::table('platform_settings')
-            ->where('key', 'grace_period_days')
-            ->value('value');
-
-        return max(0, (int) $value);
     }
 }
