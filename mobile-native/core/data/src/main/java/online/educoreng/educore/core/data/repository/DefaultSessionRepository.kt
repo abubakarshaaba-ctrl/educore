@@ -66,8 +66,12 @@ class DefaultSessionRepository(
                 when (val bootstrap = refresh()) {
                     is AppResult.Success -> bootstrap
                     is AppResult.Failure -> {
+                        // Authentication succeeded, but the protected bootstrap did
+                        // not. Never surface this as a misleading generic login
+                        // failure and never leave a half-initialised authenticated
+                        // session behind.
                         clearLocalSession()
-                        bootstrap
+                        AppResult.Failure(bootstrap.error.asPostLoginBootstrapError())
                     }
                 }
             }
@@ -154,6 +158,32 @@ class DefaultSessionRepository(
             modules = granted.filterNot { module ->
                 hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
             }
+        )
+    }
+
+    private fun AppError.asPostLoginBootstrapError(): AppError = when (this) {
+        is AppError.Unauthenticated -> AppError.Unauthenticated(
+            "Your account was verified, but the secure session could not be started. Please sign in again.",
+        )
+        is AppError.Forbidden,
+        is AppError.SubscriptionRestricted,
+        is AppError.Validation -> this
+        is AppError.NetworkUnavailable -> AppError.NetworkUnavailable(
+            "Your account was verified, but EduCore could not load your school workspace. Check your connection and try again.",
+        )
+        is AppError.Timeout -> AppError.Timeout(
+            "Your account was verified, but loading your school workspace took too long. Please try again.",
+        )
+        is AppError.Server -> AppError.Server(
+            userMessage = "Your account was verified, but EduCore could not load your school workspace. Please try again.",
+            statusCode = statusCode,
+            requestId = requestId,
+        )
+        is AppError.NotFound,
+        is AppError.Conflict,
+        is AppError.RateLimited,
+        is AppError.Unexpected -> AppError.Unexpected(
+            "Your account was verified, but EduCore could not finish loading your school workspace. Please try again.",
         )
     }
 
