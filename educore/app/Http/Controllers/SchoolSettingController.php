@@ -1,20 +1,24 @@
 <?php
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\SchoolSetting;
+use App\Services\SchoolWeekService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class SchoolSettingController extends Controller
 {
-    public function index()
+    public function index(SchoolWeekService $schoolWeek)
     {
         $tenant   = auth()->user()->tenant;
         $settings = SchoolSetting::where('tenant_id', $tenant->id)->get()->keyBy('key');
-        return view('settings.index', compact('tenant', 'settings'));
+        $schoolOpenDays = $schoolWeek->openDays((int) $tenant->id);
+        $schoolDayLabels = SchoolWeekService::DAY_LABELS;
+
+        return view('settings.index', compact('tenant', 'settings', 'schoolOpenDays', 'schoolDayLabels'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, SchoolWeekService $schoolWeek)
     {
         $tenant = auth()->user()->tenant;
         $data   = $request->validate([
@@ -26,15 +30,16 @@ class SchoolSettingController extends Controller
             'website'       => ['nullable', 'url'],
             'logo'          => ['nullable', 'image', 'max:2048'],
             'authorized_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            'school_open_days' => ['required', 'array', 'min:1', 'max:7'],
+            'school_open_days.*' => ['required', 'integer', 'in:1,2,3,4,5,6,7'],
         ]);
 
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store("logos/{$tenant->id}", 'public');
-            // Delete old logo if different
             if ($tenant->logo_path && $tenant->logo_path !== $path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($tenant->logo_path);
+                Storage::disk('public')->delete($tenant->logo_path);
             }
-            $tenant->update(['logo_path' => $path]); // store clean relative path e.g. logos/1/abc.png
+            $tenant->update(['logo_path' => $path]);
         }
 
         if ($request->hasFile('authorized_signature')) {
@@ -49,14 +54,13 @@ class SchoolSettingController extends Controller
         }
 
         $tenant->update([
-            'name'          => $data['name'],
-            'motto'         => $data['motto'] ?? null,
-            'address'       => $data['address'] ?? null,
-            'phone'         => $data['phone'] ?? null,
-            'email'         => $data['email'] ?? null,
+            'name'    => $data['name'],
+            'motto'   => $data['motto'] ?? null,
+            'address' => $data['address'] ?? null,
+            'phone'   => $data['phone'] ?? null,
+            'email'   => $data['email'] ?? null,
         ]);
 
-        // Save extra settings
         $extras = ['website', 'established_year', 'proprietor', 'slogan'];
         foreach ($extras as $key) {
             if ($request->filled($key)) {
@@ -67,7 +71,8 @@ class SchoolSettingController extends Controller
             }
         }
 
+        $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
+
         return back()->with('success', 'School settings updated.');
     }
-
 }
