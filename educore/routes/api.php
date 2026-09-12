@@ -165,8 +165,12 @@ Route::prefix('v1')->group(function () {
             Route::get('results', [ParentController::class, 'results']);
             Route::get('attendance', [ParentController::class, 'attendance']);
             Route::get('fees', [MobilePaymentController::class, 'parentFees']);
+            Route::get('fees/children/{student}', [MobilePaymentController::class, 'parentFeeChild']);
+            Route::get('fees/invoices/{invoice}', [MobilePaymentController::class, 'parentFeeInvoice']);
             Route::post('fees/{invoice}/checkout', [MobilePaymentController::class, 'parentFeeCheckout']);
             Route::post('fees/verify', [MobilePaymentController::class, 'verifyParentFee']);
+            Route::get('fees/invoices/{invoice}/status', [MobilePaymentController::class, 'parentFeeStatus']);
+            Route::get('fees/payments', [MobilePaymentController::class, 'parentPayments']);
         });
 
         Route::prefix('admin')->group(function () {
@@ -188,8 +192,11 @@ Route::prefix('v1')->group(function () {
             Route::get('staff-attendance/report', [AdminStaffAttendanceController::class, 'report']);
             Route::put('staff-attendance/settings', [AdminStaffAttendanceController::class, 'updateSettings']);
             Route::get('subscription', [MobilePaymentController::class, 'subscription']);
+            Route::get('subscription/invoices', [MobilePaymentController::class, 'subscriptionInvoices']);
             Route::post('subscription/invoices', [MobilePaymentController::class, 'createSubscriptionInvoice']);
             Route::post('subscription/invoices/{invoice}/checkout', [MobilePaymentController::class, 'subscriptionCheckout']);
+            Route::post('subscription/invoices/{invoice}/bank-transfer', [MobilePaymentController::class, 'submitSubscriptionBankTransfer']);
+            Route::get('subscription/invoices/{invoice}/status', [MobilePaymentController::class, 'subscriptionInvoiceStatus']);
             Route::post('subscription/verify', [MobilePaymentController::class, 'verifySubscription']);
         });
 
