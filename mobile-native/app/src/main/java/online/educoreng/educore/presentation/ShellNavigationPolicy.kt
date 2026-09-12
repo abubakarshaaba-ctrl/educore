@@ -122,14 +122,14 @@ object ShellNavigationPolicy {
      * explicitly assigned academic module is not hidden from a legitimate user.
      *
      * Personal attendance is deliberately excluded from tab/module grids and is
-     * surfaced as a dedicated Home quick action. Legacy `staff-attendance` is an
-     * administrator-management descriptor only; the personal workspace is always
+     * surfaced as a dedicated Home quick action. Legacy `staff-attendance` is a
+     * management descriptor only; the personal workspace is always
      * `staff-attendance.self`, while the management workspace is normalized to
      * `staff-attendance.admin`.
      */
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val financeRole = session.user.roleKey.lowercase() in FINANCE_ROLES
-        val adminPortal = session.user.portal.equals("admin", ignoreCase = true)
+        val canManageStaffAttendance = canManageStaffAttendance(session)
 
         return session.modules.mapNotNull { module ->
             val key = module.key.trim().lowercase()
@@ -137,12 +137,12 @@ object ShellNavigationPolicy {
                 isRemovedFromMobile(key) -> null
                 key == "dashboard" -> null
                 key == "staff-attendance.self" -> null
-                key == "staff-attendance" && !adminPortal -> null
+                key == "staff-attendance" && !canManageStaffAttendance -> null
                 key == "staff-attendance" -> module.copy(
                     key = "staff-attendance.admin",
                     title = "Staff Attendance",
                 )
-                key == "staff-attendance.admin" && !adminPortal -> null
+                key == "staff-attendance.admin" && !canManageStaffAttendance -> null
                 financeRole && key in FINANCE_BLOCKED_ACADEMIC_KEYS -> null
                 else -> module
             }
@@ -174,7 +174,32 @@ object ShellNavigationPolicy {
         }
     }
 
+    private fun canManageStaffAttendance(session: SessionSnapshot): Boolean {
+        if (session.user.portal.equals("admin", ignoreCase = true) ||
+            session.user.portal.equals("platform", ignoreCase = true)
+        ) return true
+
+        val role = session.user.roleKey
+            .trim()
+            .lowercase()
+            .replace('-', '_')
+            .replace(' ', '_')
+        return role in STAFF_ATTENDANCE_MANAGEMENT_ROLES
+    }
+
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val STAFF_ATTENDANCE_MANAGEMENT_ROLES = setOf(
+        "principal",
+        "vice_principal",
+        "assistant_principal",
+        "head_teacher",
+        "head_of_school",
+        "school_head",
+        "academic_head",
+        "assistant_head",
+        "vice_principal_academics",
+        "vice_principal_administration",
+    )
     private val FINANCE_KEYS = setOf("finance", "fees", "expenses", "payroll", "analytics", "exports")
     private val FINANCE_BLOCKED_ACADEMIC_KEYS = setOf(
         "classes",
