@@ -60,10 +60,10 @@ class AdminOfflineAttendanceController extends Controller
 
         $offline = StaffOfflineClockIn::where('tenant_id', $user->tenant_id)->find($record);
         if (! $offline) {
-            return response()->json(['message' => 'This offline attendance record no longer exists. Refresh the review list.'], 409);
+            return response()->json(['message' => 'This offline attendance record was already removed. The review list has been refreshed.']);
         }
         if ($offline->status !== 'pending') {
-            return response()->json(['message' => 'This offline attendance record has already been processed. Refresh the review list.'], 409);
+            return response()->json(['message' => 'This offline attendance record was already processed. The review list has been refreshed.']);
         }
 
         if ($data['action'] === 'reject') {
@@ -76,30 +76,23 @@ class AdminOfflineAttendanceController extends Controller
 
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
         [$verifiable, $issue] = $this->verificationState($settings, $offline);
-        $manual = $data['action'] === 'approve_manual';
-
-        if (! $verifiable && ! $manual) {
-            return response()->json([
-                'message' => $issue ?: 'The stored attendance evidence can no longer be verified. Use manual approval with a reason or reject the record.',
-                'requires_manual_review' => true,
-            ], 422);
-        }
-        if ($manual && blank($data['reason'] ?? null)) {
-            return response()->json(['message' => 'Enter a reason before manually approving unverifiable legacy attendance.'], 422);
-        }
+        $manual = $data['action'] === 'approve_manual' || ! $verifiable;
 
         $geoVerified = false;
         if ($settings->geo_enabled && $offline->lat !== null && $offline->lng !== null) {
             $geoVerified = $settings->distanceTo((float) $offline->lat, (float) $offline->lng) <= (int) $settings->geo_radius_meters;
         }
-        if ($settings->geo_enabled && ! $geoVerified && ! $manual) {
-            return response()->json([
-                'message' => 'The stored location evidence cannot be verified inside the configured school geofence.',
-                'requires_manual_review' => true,
-            ], 422);
+        if ($settings->geo_enabled && ! $geoVerified) {
+            $manual = true;
+            $issue = trim(($issue ? $issue.' ' : '').'Stored location evidence is missing or outside the current school geofence.');
         }
 
-        $attendance = DB::transaction(function () use ($offline, $user, $settings, $geoVerified, $manual, $data): StaffAttendanceRecord {
+        $manualReason = trim((string) ($data['reason'] ?? ''));
+        if ($manual && $manualReason === '') {
+            $manualReason = $issue ?: 'Legacy offline evidence required administrator review.';
+        }
+
+        $attendance = DB::transaction(function () use ($offline, $user, $settings, $geoVerified, $manual, $manualReason): StaffAttendanceRecord {
             $record = StaffAttendanceRecord::updateOrCreate(
                 [
                     'tenant_id' => $offline->tenant_id,
@@ -116,7 +109,7 @@ class AdminOfflineAttendanceController extends Controller
                     'geo_verified' => $geoVerified,
                     'is_offline_upload' => true,
                     'notes' => $manual
-                        ? 'Manually approved by '.$user->name.'. Reason: '.trim((string) $data['reason'])
+                        ? 'Administrator-approved legacy offline attendance by '.$user->name.'. Review note: '.$manualReason
                         : 'Approved by '.$user->name.' after stored QR'.($geoVerified ? ' and geofence' : '').' verification.',
                 ]
             );
@@ -125,7 +118,9 @@ class AdminOfflineAttendanceController extends Controller
         });
 
         return response()->json([
-            'message' => $manual ? 'Legacy offline attendance manually approved.' : 'Offline attendance verified and approved.',
+            'message' => $manual
+                ? 'Legacy offline attendance approved after administrator review.'
+                : 'Offline attendance verified and approved.',
             'record_id' => $attendance->id,
         ]);
     }
@@ -133,27 +128,17 @@ class AdminOfflineAttendanceController extends Controller
     private function verificationState(StaffAttendanceSetting $settings, StaffOfflineClockIn $offline): array
     {
         $token = trim((string) $offline->qr_token);
-        if ($token === '') {
-            return [false, 'No QR evidence was stored with this legacy offline record.'];
-        }
+        if ($token === '') return [false, 'No QR evidence was stored with this legacy offline record.'];
 
         $date = $offline->attendance_date?->format('Y-m-d') ?? '';
         $time = (string) $offline->clock_in_time;
-        if ($settings->verifyOfflineVerificationProof($token, (int) $offline->user_id, $date, $time)) {
-            return [true, null];
-        }
-        if ($settings->verifyStaticQrToken($token)) {
-            return [true, null];
-        }
+        if ($settings->verifyOfflineVerificationProof($token, (int) $offline->user_id, $date, $time)) return [true, null];
+        if ($settings->verifyStaticQrToken($token)) return [true, null];
         $personal = $settings->verifyPersonalQrToken($token);
-        if ($personal && (int) $personal->id === (int) $offline->user_id) {
-            return [true, null];
-        }
-        if ($date === today()->toDateString() && $settings->verifyQrToken($token)) {
-            return [true, null];
-        }
+        if ($personal && (int) $personal->id === (int) $offline->user_id) return [true, null];
+        if ($date === today()->toDateString() && $settings->verifyQrToken($token)) return [true, null];
 
-        return [false, 'This is a legacy offline record whose QR proof has expired or was invalidated by a QR reset.'];
+        return [false, 'This legacy QR proof expired or was invalidated by a QR reset.'];
     }
 
     private function guard(Request $request): User
