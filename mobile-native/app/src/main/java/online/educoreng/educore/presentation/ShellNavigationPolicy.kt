@@ -130,6 +130,8 @@ object ShellNavigationPolicy {
     fun visibleModules(session: SessionSnapshot): List<ModuleDescriptor> {
         val financeRole = session.user.roleKey.lowercase() in FINANCE_ROLES
         val canManageStaffAttendance = canManageStaffAttendance(session)
+        val staffWorkspace = session.user.portal.equals("staff", ignoreCase = true) ||
+            session.user.portal.equals("admin", ignoreCase = true)
 
         return session.modules.mapNotNull { module ->
             val key = module.key.trim().lowercase()
@@ -144,6 +146,10 @@ object ShellNavigationPolicy {
                 )
                 key == "staff-attendance.admin" && !canManageStaffAttendance -> null
                 financeRole && key in FINANCE_BLOCKED_ACADEMIC_KEYS -> null
+                staffWorkspace && key in STAFF_REPORT_ALIASES -> module.copy(
+                    key = "reports",
+                    title = "Report Cards",
+                )
                 else -> module
             }
         }.distinctBy { it.key.lowercase() }
@@ -183,6 +189,7 @@ object ShellNavigationPolicy {
     }
 
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val STAFF_REPORT_ALIASES = setOf("reports", "report-cards", "results")
     private val STAFF_ATTENDANCE_MANAGEMENT_ROLES = setOf(
         "principal",
         "vice_principal",
@@ -228,6 +235,11 @@ object ShellNavigationPolicy {
         "gradebook",
         "risk",
         "exports",
+        "reports",
+        "report-cards",
+        "results",
+        "student.results",
+        "parent.results",
     )
     private val ACADEMIC_KEYS = listOf(
         "student",
