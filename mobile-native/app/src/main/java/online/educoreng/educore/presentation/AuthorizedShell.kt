@@ -96,6 +96,10 @@ internal fun AuthorizedShell(
     val operationsState by operationsViewModel.uiState.collectAsStateWithLifecycle()
     val communicationViewModel: CommunicationViewModel = hiltViewModel()
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
+    val reportsViewModel: ReportsViewModel = hiltViewModel()
+    val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
+    val skillsViewModel: SkillsViewModel = hiltViewModel()
+    val skillsState by skillsViewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeepLink by NotificationDeepLinkStore.pending.collectAsStateWithLifecycle()
     val tabs = remember(session) { ShellNavigationPolicy.tabs(session) }
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -111,7 +115,10 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.ADMIN_STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
+        currentRoute == NativeRoute.PUBLISHED_RESULTS -> "Published Results"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
+        currentRoute == NativeRoute.REPORTS -> "Report Cards"
+        currentRoute == NativeRoute.SKILLS -> "Skills Rating"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
         currentRoute == NativeRoute.LESSON_PLANS -> "Lesson Planner"
@@ -146,6 +153,18 @@ internal fun AuthorizedShell(
         communicationState.message?.let { message ->
             snackbarHostState.showSnackbar(message)
             communicationViewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(reportsState.message) {
+        reportsState.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            reportsViewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(skillsState.message) {
+        skillsState.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            skillsViewModel.consumeMessage()
         }
     }
     LaunchedEffect(pendingDeepLink, currentRoute, session.modules) {
@@ -305,13 +324,25 @@ internal fun AuthorizedShell(
                                                 "staff-attendance.admin" -> {
                                                     navController.navigate(NativeRoute.ADMIN_STAFF_ATTENDANCE) { launchSingleTop = true }
                                                 }
-                                                "scores", "scores.entry" -> {
+                                                "scores" -> {
                                                     scoresViewModel.loadAssignments()
                                                     navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
                                                 }
-                                                "timetable", "student.timetable" -> {
+                                                "timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
+                                                }
+                                                "reports" -> {
+                                                    reportsViewModel.load()
+                                                    navController.navigate(NativeRoute.REPORTS) { launchSingleTop = true }
+                                                }
+                                                "skills" -> {
+                                                    skillsViewModel.load()
+                                                    navController.navigate(NativeRoute.SKILLS) { launchSingleTop = true }
+                                                }
+                                                "parent.results", "student.results" -> {
+                                                    scoresViewModel.loadResults()
+                                                    navController.navigate(NativeRoute.PUBLISHED_RESULTS) { launchSingleTop = true }
                                                 }
                                                 "academic-repository" -> {
                                                     academicContentViewModel.loadRepository()
@@ -474,6 +505,13 @@ internal fun AuthorizedShell(
                                 onRetry = { scoresViewModel.openSheet(classId, subjectId, termId) },
                             )
                         }
+                        composable(NativeRoute.PUBLISHED_RESULTS) {
+                            PublishedResultsScreen(
+                                state = scoresState,
+                                onBack = navController::popBackStack,
+                                onRetry = { scoresViewModel.loadResults() },
+                            )
+                        }
                         composable(
                             route = NativeRoute.SCHEDULE,
                             arguments = listOf(navArgument("classId") { type = NavType.LongType }),
@@ -485,6 +523,42 @@ internal fun AuthorizedShell(
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
                                 onRetry = { scheduleViewModel.load(classId = classId) },
+                            )
+                        }
+                        composable(NativeRoute.REPORTS) {
+                            ReportsScreen(
+                                state = reportsState,
+                                onBack = navController::popBackStack,
+                                onClass = reportsViewModel::selectClass,
+                                onTerm = reportsViewModel::selectTerm,
+                                onNote = reportsViewModel::updatePublicationNote,
+                                onCompute = reportsViewModel::requestCompute,
+                                onPublish = reportsViewModel::requestPublish,
+                                onUnpublish = reportsViewModel::requestUnpublish,
+                                onConfirm = reportsViewModel::confirmManagementAction,
+                                onDismissConfirmation = reportsViewModel::dismissConfirmation,
+                                onDownload = reportsViewModel::downloadPdf,
+                                onDocumentOpened = reportsViewModel::consumeDocument,
+                                onRetry = reportsViewModel::load,
+                            )
+                        }
+                        composable(NativeRoute.SKILLS) {
+                            SkillsScreen(
+                                state = skillsState,
+                                onBack = {
+                                    if (skillsState.inSheet) skillsViewModel.requestCloseSheet() else navController.popBackStack()
+                                },
+                                onClass = skillsViewModel::selectClass,
+                                onTerm = skillsViewModel::selectTerm,
+                                onOpenSheet = skillsViewModel::openSheet,
+                                onCategory = skillsViewModel::setCategory,
+                                onPreviousStudent = skillsViewModel::previousStudent,
+                                onNextStudent = skillsViewModel::nextStudent,
+                                onRate = skillsViewModel::rate,
+                                onSave = skillsViewModel::save,
+                                onRetry = if (skillsState.inSheet) skillsViewModel::openSheet else skillsViewModel::load,
+                                onCancelDiscard = skillsViewModel::cancelDiscard,
+                                onConfirmDiscard = skillsViewModel::confirmDiscard,
                             )
                         }
                         composable(NativeRoute.REPOSITORY) {
@@ -651,7 +725,10 @@ private object NativeRoute {
     const val ADMIN_STAFF_ATTENDANCE = "native/admin/staff-attendance"
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
+    const val PUBLISHED_RESULTS = "native/published-results"
     const val SCHEDULE = "native/schedule/{classId}"
+    const val REPORTS = "native/reports"
+    const val SKILLS = "native/skills"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
     const val LESSON_PLANS = "native/lesson-plans"
