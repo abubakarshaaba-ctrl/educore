@@ -39,7 +39,7 @@
         <p>{{ $currentTerm ? $currentTerm->name : 'Current financial position' }} — fees, collections, expenses and payroll.</p>
     </div>
     <div class="quick-actions">
-        <a href="{{ route('fees.index') }}" class="btn btn-secondary">Fees & Invoices</a>
+        <a href="{{ route('fees.invoices') }}" class="btn btn-secondary">Fees & Invoices</a>
         <a href="{{ route('expenses.index') }}" class="btn btn-secondary">Expenses</a>
         <a href="{{ route('payroll.index') }}" class="btn btn-primary">Payroll</a>
     </div>
@@ -59,7 +59,7 @@
 <div class="two-col-dash">
     <div>
         <div class="dash-card">
-            <div class="dash-head"><strong>Recent Invoices</strong><a href="{{ route('fees.index') }}" style="font-size:11px;text-decoration:none">View all</a></div>
+            <div class="dash-head"><strong>Recent Invoices</strong><a href="{{ route('fees.invoices') }}" style="font-size:11px;text-decoration:none">View all</a></div>
             <div class="responsive-table">
                 <table class="tbl-lite">
                     <thead><tr><th>Student</th><th>Invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
