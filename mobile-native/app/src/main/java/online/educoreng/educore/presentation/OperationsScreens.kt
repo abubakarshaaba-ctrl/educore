@@ -70,7 +70,7 @@ internal fun OperationsScreen(
     onRetry: () -> Unit,
 ) {
     when (state.moduleKey?.lowercase() ?: state.workspace?.module?.key?.lowercase()) {
-        "finance", "subscription" -> SubscriptionPaymentOperationsScreen(onBack = onBack)
+        "subscription" -> SubscriptionPaymentOperationsScreen(onBack = onBack)
         "parent.fees" -> ParentFeePaymentOperationsScreen(onBack = onBack)
         "fees" -> FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         "expenses" -> ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
@@ -121,7 +121,7 @@ private fun GenericOperationsScreen(
         onRetry = onRetry,
     )
     val section = workspace.sections.getOrNull(state.selectedSection)
-    val financeModule = workspace.module.key in setOf("fees", "expenses", "payroll")
+    val financeModule = workspace.module.key in setOf("finance", "fees", "expenses", "payroll")
     var selectedSession by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var selectedTerm by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
     var selectedClass by remember(workspace.module.key, state.selectedSection) { mutableStateOf<String?>(null) }
