@@ -154,12 +154,7 @@ object ShellNavigationPolicy {
         return key == "cbt" ||
             key == "cbt-exams" ||
             key == "examinations" ||
-            key == "student.exams" ||
-            key == "reports" ||
-            key == "report-cards" ||
-            key == "results" ||
-            key == "student.results" ||
-            key == "parent.results"
+            key == "student.exams"
     }
 
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
@@ -217,6 +212,11 @@ object ShellNavigationPolicy {
         "subjects",
         "curriculum",
         "academic-cycle",
+        "reports",
+        "report-cards",
+        "results",
+        "student.results",
+        "parent.results",
     )
     private val HUB_ONLY_KEYS = setOf(
         "staff",
@@ -236,6 +236,8 @@ object ShellNavigationPolicy {
         "curriculum",
         "attendance",
         "score",
+        "result",
+        "report",
         "lesson",
         "repository",
         "exam",
