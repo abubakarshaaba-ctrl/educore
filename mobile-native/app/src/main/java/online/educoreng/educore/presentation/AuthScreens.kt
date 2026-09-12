@@ -164,18 +164,11 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
             horizontalAlignment = if (expanded) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Surface(
+            androidx.compose.foundation.Image(
+                painter = painterResource(R.drawable.ic_educore_mark),
+                contentDescription = "EduCore",
                 modifier = Modifier.size(if (expanded) 86.dp else 66.dp),
-                shape = RoundedCornerShape(if (expanded) 24.dp else 20.dp),
-                color = Color.White.copy(alpha = 0.08f),
-                border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f)),
-            ) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(R.drawable.ic_educore_mark),
-                    contentDescription = "EduCore",
-                    modifier = Modifier.padding(if (expanded) 10.dp else 8.dp),
-                )
-            }
+            )
             Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Md))
             Row(verticalAlignment = Alignment.Bottom) {
                 val wordmarkStyle = MaterialTheme.typography.displaySmall.copy(
