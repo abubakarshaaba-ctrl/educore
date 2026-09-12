@@ -745,7 +745,7 @@ private object NativeRoute {
     val NOTIFICATION_MODULES = setOf("notifications.view", "parent.notifications", "student.notifications", "announcements")
     val CALENDAR_MODULES = setOf("calendar.view", "parent.calendar", "student.calendar")
     val OPERATIONS_MODULES = setOf(
-        "finance", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
+        "finance", "subscription", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
         "health", "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
     )
 }
@@ -854,7 +854,7 @@ private fun moduleIcon(module: ModuleDescriptor): ImageVector {
         key.contains("timetable") || key.contains("schedule") -> EduCoreIcons.Schedule
         key.contains("lesson") -> EduCoreIcons.LessonPlan
         key.contains("repository") -> EduCoreIcons.Repository
-        key.contains("payment") || key.contains("fee") || key.contains("billing") -> EduCoreIcons.Payments
+        key.contains("payment") || key.contains("fee") || key.contains("billing") || key.contains("subscription") -> EduCoreIcons.Payments
         key.contains("notification") || key.contains("message") || key.contains("notice") -> EduCoreIcons.Notices
         key.contains("setting") -> EduCoreIcons.Settings
         else -> EduCoreIcons.Modules
