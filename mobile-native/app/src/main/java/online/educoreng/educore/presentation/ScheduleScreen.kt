@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
@@ -25,14 +24,12 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,7 +39,6 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCoreSectionHeader
-import online.educoreng.educore.core.designsystem.component.EduCoreSegmentedControl
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
@@ -55,12 +51,7 @@ import online.educoreng.educore.core.model.ExamDuty
 import online.educoreng.educore.core.model.SchedulePeriod
 import online.educoreng.educore.core.model.ScheduledExam
 
-/**
- * Staff schedule workspace aligned with the approved August EduCore concept.
- *
- * Timetable, examination duties and published examinations are native views over
- * the server-scoped schedule payload. Changing visual order never broadens access.
- */
+/** Native schedule workspace. Counts are derived from the same records rendered below. */
 @Composable
 internal fun ScheduleScreen(
     state: ScheduleUiState,
@@ -78,6 +69,9 @@ internal fun ScheduleScreen(
         onRetry = onRetry,
     )
     val selectedPeriods = workspace.week.firstOrNull { it.day == state.selectedDay }?.periods.orEmpty()
+    val totalPeriods = workspace.week.sumOf { it.periods.size }
+    val dutyCount = workspace.duties.size
+    val examCount = workspace.exams.size
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
@@ -93,15 +87,6 @@ internal fun ScheduleScreen(
                     .distinct()
                     .joinToString(" · ")
                     .ifBlank { workspace.title },
-                actions = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                        )
-                    }
-                },
             )
         }
 
@@ -117,21 +102,21 @@ internal fun ScheduleScreen(
             ) {
                 EduCoreShowcaseStat(
                     label = "Periods",
-                    value = selectedPeriods.size.toString(),
+                    value = totalPeriods.toString(),
                     icon = Icons.Default.Schedule,
                     tone = EduCoreTone.Brand,
                     modifier = Modifier.weight(1f),
                 )
                 EduCoreShowcaseStat(
                     label = "Duties",
-                    value = workspace.duties.size.toString(),
+                    value = dutyCount.toString(),
                     icon = Icons.Default.AssignmentTurnedIn,
-                    tone = EduCoreTone.Accent,
+                    tone = EduCoreTone.Brand,
                     modifier = Modifier.weight(1f),
                 )
                 EduCoreShowcaseStat(
                     label = "Exams",
-                    value = workspace.exams.size.toString(),
+                    value = examCount.toString(),
                     icon = Icons.Default.CalendarMonth,
                     tone = EduCoreTone.Info,
                     modifier = Modifier.weight(1f),
@@ -140,16 +125,14 @@ internal fun ScheduleScreen(
         }
 
         item {
-            EduCoreSegmentedControl(
-                options = listOf(
-                    "Timetable",
-                    "Exam Duties (${workspace.duties.size})",
-                    "Examinations (${workspace.exams.size})",
-                ),
-                selectedIndex = state.selectedSection,
-                onSelected = onSection,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                ScheduleSectionTab("Timetable ($totalPeriods)", state.selectedSection == 0) { onSection(0) }
+                ScheduleSectionTab("Exam Duties ($dutyCount)", state.selectedSection == 1) { onSection(1) }
+                ScheduleSectionTab("Examinations ($examCount)", state.selectedSection == 2) { onSection(2) }
+            }
         }
 
         when (state.selectedSection) {
@@ -167,7 +150,7 @@ internal fun ScheduleScreen(
                     ) {
                         workspace.week.forEach { day ->
                             EduCoreFilterChip(
-                                label = day.day.take(3),
+                                label = "${day.day.take(3)} (${day.periods.size})",
                                 selected = day.day == state.selectedDay,
                                 onClick = { onDay(day.day) },
                             )
@@ -186,37 +169,23 @@ internal fun ScheduleScreen(
             }
 
             1 -> {
-                item { DateRangeBanner(workspace.from, workspace.to, "My supervision duties") }
-                item {
-                    EduCoreSectionHeader(
-                        title = "Exam duties",
-                        supportingText = "Only published duties assigned to this account are shown",
-                    )
-                }
                 if (workspace.duties.isEmpty()) {
                     item {
                         EduCoreEmptyState(
                             "No supervision duties",
-                            "No published examination duty is assigned within this schedule range.",
+                            "No examination duty is assigned within this schedule range.",
                         )
                     }
                 }
-                items(workspace.duties, key = ExamDuty::id) { DutyCard(it) }
+                items(workspace.duties, key = ExamDuty::id) { DutyListRow(it) }
             }
 
             else -> {
-                item { DateRangeBanner(workspace.from, workspace.to, "Published examinations") }
-                item {
-                    EduCoreSectionHeader(
-                        title = "Examinations",
-                        supportingText = "Published examinations available in your current schedule scope",
-                    )
-                }
                 if (workspace.exams.isEmpty()) {
                     item {
                         EduCoreEmptyState(
-                            "No published examinations",
-                            "No published examination falls within this schedule range.",
+                            "No examinations",
+                            "No examination falls within this schedule range.",
                         )
                     }
                 }
@@ -225,6 +194,24 @@ internal fun ScheduleScreen(
         }
 
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
+    }
+}
+
+@Composable
+private fun ScheduleSectionTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = EduCoreColors.White,
+        contentColor = EduCoreColors.Navy900,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) EduCoreColors.Navy700 else EduCoreColors.Line300),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
     }
 }
 
@@ -255,16 +242,43 @@ private fun ExamCard(exam: ScheduledExam) {
 }
 
 @Composable
-private fun DutyCard(duty: ExamDuty) {
-    ScheduleCard(
-        title = duty.subject,
-        supporting = listOfNotNull(duty.examTitle, duty.session, duty.classLevel).joinToString(" · "),
-        date = duty.date,
-        time = listOfNotNull(duty.startTime, duty.endTime).joinToString(" – "),
-        venue = duty.venue,
-        badge = "Duty",
-        tone = EduCoreTone.Accent,
-    )
+private fun DutyListRow(duty: ExamDuty) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            DutyField("Date", duty.date.ifBlank { "Not set" })
+            DutyField("Class", duty.classLevel?.takeIf(String::isNotBlank) ?: "Not assigned")
+            DutyField("Subject", duty.subject.ifBlank { "Not assigned" })
+            val time = listOfNotNull(duty.startTime, duty.endTime).filter(String::isNotBlank).joinToString(" – ")
+            if (time.isNotBlank()) DutyField("Time", time)
+            duty.venue?.takeIf(String::isNotBlank)?.let { DutyField("Venue", it) }
+        }
+    }
+}
+
+@Composable
+private fun DutyField(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+        Text(
+            text = label,
+            modifier = Modifier.width(62.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = EduCoreColors.Slate600,
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = EduCoreColors.Ink900,
+        )
+    }
 }
 
 @Composable
@@ -290,7 +304,7 @@ private fun ScheduleCard(
         ) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
-                color = EduCoreColors.Gold50,
+                color = EduCoreColors.SurfaceBlue50,
                 contentColor = EduCoreColors.Navy900,
             ) {
                 Icon(
@@ -354,33 +368,6 @@ private fun ScheduleCard(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun DateRangeBanner(from: String, to: String, title: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = EduCoreColors.Gold50,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, EduCoreColors.Gold200),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
-                color = EduCoreColors.Navy900,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "$from to $to",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
         }
     }
 }
