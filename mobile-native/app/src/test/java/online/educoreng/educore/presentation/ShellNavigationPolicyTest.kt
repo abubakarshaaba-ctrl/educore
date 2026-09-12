@@ -70,6 +70,85 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun parent_and_student_result_aliases_remain_read_only() {
+        val result = ModuleDescriptor("results", "Results", "/results", "results")
+        val parent = session(portal = "parent", role = "parent", extraModules = listOf(result))
+        val student = session(portal = "student", role = "student", extraModules = listOf(result))
+
+        val parentKeys = ShellNavigationPolicy.visibleModules(parent).map { it.key }.toSet()
+        val studentKeys = ShellNavigationPolicy.visibleModules(student).map { it.key }.toSet()
+
+        assertTrue("parent.results" in parentKeys)
+        assertFalse("reports" in parentKeys)
+        assertTrue("student.results" in studentKeys)
+        assertFalse("reports" in studentKeys)
+    }
+
+    @Test
+    fun score_and_supervision_aliases_use_existing_native_destinations() {
+        val aliases = listOf(
+            ModuleDescriptor("score-entry", "Score Entry", "/score-entry", "score-entry"),
+            ModuleDescriptor("result_entry", "Result Entry", "/result-entry", "result_entry"),
+            ModuleDescriptor("exam-timetable", "Exam Timetable", "/exam-timetable", "exam-timetable"),
+            ModuleDescriptor("supervision-schedule", "Supervision Schedule", "/supervision", "supervision-schedule"),
+        )
+        val staff = session(portal = "staff", role = "subject_teacher", extraModules = aliases)
+        val visible = ShellNavigationPolicy.visibleModules(staff)
+
+        assertEquals(1, visible.count { it.key == "scores" })
+        assertEquals(1, visible.count { it.key == "timetable" })
+        assertFalse(visible.any { it.key in setOf("score-entry", "result_entry", "exam-timetable", "supervision-schedule") })
+    }
+
+    @Test
+    fun communication_officer_is_restricted_to_communication_and_profile() {
+        val unrelated = listOf(
+            ModuleDescriptor("admissions", "Admissions", "/admissions", "admissions"),
+            ModuleDescriptor("transport", "Transport", "/transport", "transport"),
+            ModuleDescriptor("health", "Health", "/health", "health"),
+            ModuleDescriptor("reports", "Reports", "/reports", "reports"),
+        )
+        val officer = session(portal = "staff", role = "communication_officer", extraModules = unrelated)
+        val keys = ShellNavigationPolicy.visibleModules(officer).map { it.key }.toSet()
+
+        assertTrue("messages" in keys)
+        assertTrue("profile" in keys)
+        assertFalse("classes" in keys)
+        assertFalse("scores" in keys)
+        assertFalse("timetable" in keys)
+        assertFalse("fees" in keys)
+        assertFalse("admissions" in keys)
+        assertFalse("transport" in keys)
+        assertFalse("health" in keys)
+        assertFalse("reports" in keys)
+    }
+
+    @Test
+    fun operational_specialists_do_not_inherit_unrelated_workspaces() {
+        val extras = listOf(
+            ModuleDescriptor("admissions", "Admissions", "/admissions", "admissions"),
+            ModuleDescriptor("transport", "Transport", "/transport", "transport"),
+            ModuleDescriptor("health", "Health", "/health", "health"),
+        )
+        val admissions = ShellNavigationPolicy.visibleModules(
+            session(portal = "staff", role = "admission_officer", extraModules = extras),
+        ).map { it.key }.toSet()
+        val transport = ShellNavigationPolicy.visibleModules(
+            session(portal = "staff", role = "transport_officer", extraModules = extras),
+        ).map { it.key }.toSet()
+        val health = ShellNavigationPolicy.visibleModules(
+            session(portal = "staff", role = "health_officer", extraModules = extras),
+        ).map { it.key }.toSet()
+
+        assertTrue("admissions" in admissions)
+        assertFalse("transport" in admissions || "health" in admissions || "classes" in admissions)
+        assertTrue("transport" in transport)
+        assertFalse("admissions" in transport || "health" in transport || "classes" in transport)
+        assertTrue("health" in health)
+        assertFalse("admissions" in health || "transport" in health || "classes" in health)
+    }
+
+    @Test
     fun cbt_and_examinations_remain_removed_from_mobile() {
         val removed = listOf(
             ModuleDescriptor("cbt", "CBT", "/cbt", "cbt"),
@@ -102,6 +181,8 @@ class ShellNavigationPolicyTest {
         assertFalse("report-cards" in keys)
         assertFalse("reports" in keys)
         assertTrue("fees" in keys)
+        assertTrue("messages" in keys)
+        assertTrue("profile" in keys)
     }
 
     private fun session(
@@ -132,10 +213,6 @@ class ShellNavigationPolicyTest {
             school = SchoolIdentity(2, "Greenfield Academy", "greenfield"),
             academicPeriod = AcademicPeriod(1, "2026/2027", 1, "First Term"),
             access = TenantAccess(true, "allowed", "Available", null, null),
-            // Bootstrap descriptors and effective permissions are a paired server contract.
-            // Test fixtures must grant the descriptors they deliberately expose so the
-            // navigation policy is exercised after RBAC verification rather than failing
-            // because the fixture itself represents an impossible server response.
             permissions = modules.map(ModuleDescriptor::key).toSet(),
             modules = modules,
             serverTime = "2026-08-28T08:00:00+01:00",
