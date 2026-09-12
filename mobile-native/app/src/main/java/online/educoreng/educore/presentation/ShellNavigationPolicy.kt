@@ -181,6 +181,10 @@ object ShellNavigationPolicy {
             session.user.portal.equals("parent", ignoreCase = true)
         ) return true
 
+        if (session.user.portal.equals("admin", ignoreCase = true) &&
+            normalizedRole(session) == "admin" && key == "subscription"
+        ) return true
+
         if (session.permissions.contains("*")) return true
         if (key == "profile") return true
 
