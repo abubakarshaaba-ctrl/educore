@@ -7,39 +7,48 @@ use Illuminate\Http\Request;
 
 class StaffPermissionController extends Controller
 {
-    // All modules that can be granted/denied
+    // All modules that can be intentionally granted/denied for an individual
+    // staff account. Self attendance/profile remain universal self-service
+    // capabilities and are therefore not exposed as discretionary grants.
     public const GRANTABLE_MODULES = [
-        'students'        => 'Students',
-        'staff'           => 'Staff',
-        'classes'         => 'Classes',
-        'subjects'        => 'Subjects',
-        'curriculum'      => 'Curriculum',
-        'scores'          => 'Scores & Grades',
-        'reports'         => 'Report Cards',
-        'transcript'      => 'Transcripts',
-        'attendance'      => 'Attendance',
-        'timetable'       => 'Timetable',
-        'skills'          => 'Skill Ratings',
-        'cbt'             => 'CBT Exams',
-        'admissions'      => 'Admissions',
-        'fees'            => 'Fees',
-        'expenses'        => 'Expenses',
-        'payroll'         => 'Payroll',
-        'health'          => 'Health Records',
-        'library'         => 'Library',
-        'transport'       => 'Transport',
-        'announcements'   => 'Announcements',
-        'calendar'        => 'Calendar',
-        'messages'        => 'Messages',
-        'notifications'   => 'Notifications',
-        'sms'             => 'SMS Campaigns',
-        'analytics'       => 'Analytics',
-        'risk'            => 'Risk Flags',
-        'exports'         => 'Data Exports',
-        'settings'        => 'Settings',
-        'transfers'       => 'Student Transfers',
-        'gradebook'       => 'Gradebook',
-        'portal-accounts' => 'Portal Accounts',
+        'students'            => 'Students',
+        'staff'               => 'Staff',
+        'classes'             => 'Classes',
+        'academic-cycle'      => 'Academic Sessions',
+        'subjects'            => 'Subjects',
+        'curriculum'          => 'Curriculum',
+        'academic-repository' => 'Academic Repository',
+        'lesson-planner'      => 'Lesson Planner',
+        'scores'              => 'Scores & Grades',
+        'reports'             => 'Report Cards',
+        'transcript'          => 'Transcripts',
+        'attendance'          => 'Student Attendance',
+        'staff-attendance'    => 'Staff Attendance Management',
+        'timetable'           => 'Timetable',
+        'skills'              => 'Skill Ratings',
+        'cbt'                 => 'CBT Exams',
+        'admissions'          => 'Admissions',
+        'fees'                => 'Fees',
+        'expenses'            => 'Expenses',
+        'payroll'             => 'Payroll',
+        'health'              => 'Health Records',
+        'library'             => 'Library',
+        'transport'           => 'Transport',
+        'hostels'             => 'Hostels',
+        'inventory'           => 'Inventory',
+        'announcements'       => 'Announcements',
+        'calendar'            => 'Calendar',
+        'messages'            => 'Messages',
+        'notifications'       => 'Notifications',
+        'sms'                 => 'SMS Campaigns',
+        'analytics'           => 'Analytics',
+        'risk'                => 'Risk Flags',
+        'exports'             => 'Data Exports',
+        'asc'                 => 'Annual School Census',
+        'settings'            => 'Settings',
+        'transfers'           => 'Student Transfers',
+        'gradebook'           => 'Gradebook',
+        'portal-accounts'     => 'Portal Accounts',
     ];
 
     public function show(User $staff)
@@ -59,8 +68,8 @@ class StaffPermissionController extends Controller
         $staff = $this->activeTenantStaff($staff);
 
         $data = $request->validate([
-            'permissions'        => ['nullable', 'array'],
-            'permissions.*'      => ['in:grant,deny,inherit'],
+            'permissions'   => ['nullable', 'array'],
+            'permissions.*' => ['in:grant,deny,inherit'],
         ]);
 
         $tid = auth()->user()->tenant_id;
