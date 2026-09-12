@@ -26,8 +26,10 @@ use App\Http\Controllers\Api\MobileLibraryController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePayrollController;
 use App\Http\Controllers\Api\MobilePortalController;
+use App\Http\Controllers\Api\MobileReportsController;
 use App\Http\Controllers\Api\MobileRiskController;
 use App\Http\Controllers\Api\MobileScheduleController;
+use App\Http\Controllers\Api\MobileSkillsController;
 use App\Http\Controllers\Api\MobileStaffDirectoryController;
 use App\Http\Controllers\Api\MobileSubjectsController;
 use App\Http\Controllers\Api\ParentController;
@@ -76,6 +78,20 @@ Route::prefix('v1')->group(function () {
             Route::get('{flag}', [MobileRiskController::class, 'show'])->whereNumber('flag');
             Route::post('{flag}/acknowledge', [MobileRiskController::class, 'acknowledge'])->whereNumber('flag');
             Route::post('{flag}/resolve', [MobileRiskController::class, 'resolve'])->whereNumber('flag');
+        });
+
+        Route::prefix('skills')->group(function () {
+            Route::get('/', [MobileSkillsController::class, 'index']);
+            Route::get('sheet', [MobileSkillsController::class, 'sheet']);
+            Route::put('sheet', [MobileSkillsController::class, 'save']);
+        });
+
+        Route::prefix('reports')->group(function () {
+            Route::get('/', [MobileReportsController::class, 'index']);
+            Route::post('compute', [MobileReportsController::class, 'compute']);
+            Route::post('publish', [MobileReportsController::class, 'publish']);
+            Route::post('unpublish', [MobileReportsController::class, 'unpublish']);
+            Route::get('{summary}/pdf', [MobileReportsController::class, 'pdf'])->whereNumber('summary');
         });
 
         Route::prefix('library')->group(function () {
