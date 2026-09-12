@@ -149,15 +149,13 @@ internal fun LazyGridScope.dashboardHomeContent(
         )
     }
 
-    val isAdmin = session.user.portal.equals("admin", ignoreCase = true)
+    val visibleModules = remember(session) { ShellNavigationPolicy.visibleModules(session) }
     val myAttendanceModule = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
     val visibleQuickActions = snapshot.quickActions.filter { action ->
-        val key = action.moduleKey.lowercase()
-        val moduleExists = session.modules.any { it.key.equals(action.moduleKey, ignoreCase = true) }
-        moduleExists &&
+        val key = normalizeDashboardModuleKey(action.moduleKey)
+        visibleModules.any { it.key.equals(key, ignoreCase = true) } &&
             key !in HIDDEN_STAFF_MOBILE_MODULES &&
-            key != "staff-attendance.self" &&
-            (key != "staff-attendance" || isAdmin)
+            key != "staff-attendance.self"
     }
 
     if (visibleQuickActions.isNotEmpty() || myAttendanceModule != null) {
@@ -177,8 +175,8 @@ internal fun LazyGridScope.dashboardHomeContent(
                 )
             }
         }
-        items(visibleQuickActions, key = { "action-${it.moduleKey}" }) { action ->
-            val module = session.modules.firstOrNull { it.key.equals(action.moduleKey, ignoreCase = true) }
+        items(visibleQuickActions, key = { "action-${normalizeDashboardModuleKey(it.moduleKey)}" }) { action ->
+            val module = resolveDashboardModule(visibleModules, action.moduleKey)
             if (module != null) {
                 EduCoreQuickAction(
                     label = action.title,
@@ -191,16 +189,19 @@ internal fun LazyGridScope.dashboardHomeContent(
     }
 
     snapshot.sections.forEach { section ->
-        val visibleItems = section.items.filterNot { item ->
-            item.moduleKey?.lowercase() in HIDDEN_STAFF_MOBILE_MODULES ||
-                (!isAdmin && item.moduleKey.equals("staff-attendance", ignoreCase = true))
+        val visibleItems = section.items.filter { item ->
+            val key = item.moduleKey?.let(::normalizeDashboardModuleKey)
+            key == null || (
+                key !in HIDDEN_STAFF_MOBILE_MODULES &&
+                    visibleModules.any { it.key.equals(key, ignoreCase = true) }
+                )
         }
         if (visibleItems.isNotEmpty()) {
             item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
                 DashboardSectionCard(
                     title = section.title,
                     items = visibleItems,
-                    modules = session.modules,
+                    modules = visibleModules,
                     onModuleClick = onModuleClick,
                     compact = width == EduCoreWindowWidth.Compact,
                 )
@@ -315,7 +316,7 @@ private fun DashboardSectionCard(
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             items.forEachIndexed { index, item ->
-                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key.equals(key, ignoreCase = true) } }
+                val module = item.moduleKey?.let { key -> resolveDashboardModule(modules, key) }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
@@ -351,6 +352,19 @@ private fun DashboardSectionCard(
             }
         }
     }
+}
+
+private fun normalizeDashboardModuleKey(key: String): String = when (key.trim().lowercase()) {
+    "staff-attendance" -> "staff-attendance.admin"
+    else -> key.trim().lowercase()
+}
+
+private fun resolveDashboardModule(
+    modules: List<ModuleDescriptor>,
+    key: String,
+): ModuleDescriptor? {
+    val normalized = normalizeDashboardModuleKey(key)
+    return modules.firstOrNull { it.key.equals(normalized, ignoreCase = true) }
 }
 
 private fun DashboardMetric.toIconKey(): String = moduleKey ?: key
