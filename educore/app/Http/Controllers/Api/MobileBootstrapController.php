@@ -10,6 +10,7 @@ use App\Services\TenantAccessDecision;
 use App\Services\TenantAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class MobileBootstrapController extends Controller
 {
@@ -28,23 +29,85 @@ class MobileBootstrapController extends Controller
         }
 
         $superAdmin = $user->isSuperAdmin();
-        $access = $superAdmin
-            ? TenantAccessDecision::allow('Platform access is available.')
-            : $tenantAccess->applicationAccess($user->tenant);
-
-        $session = $superAdmin ? null : AcademicSession::current()->first();
-        $term = $superAdmin ? null : Term::current()->first();
         $tenant = $user->tenant;
+
+        try {
+            $access = $superAdmin
+                ? TenantAccessDecision::allow('Platform access is available.')
+                : $tenantAccess->applicationAccess($tenant);
+        } catch (Throwable $exception) {
+            report($exception);
+            return response()->json([
+                'message' => 'Your school access could not be verified. Please try again.',
+            ], 503);
+        }
+
+        try {
+            $session = $superAdmin ? null : AcademicSession::current()->first();
+        } catch (Throwable $exception) {
+            report($exception);
+            $session = null;
+        }
+
+        try {
+            $term = $superAdmin ? null : Term::current()->first();
+        } catch (Throwable $exception) {
+            report($exception);
+            $term = null;
+        }
+
         $token = $request->attributes->get('api_token');
-        $subscriptionExpiresAt = (! $superAdmin && $tenant)
-            ? $tenant->billingTenant()->subscription_expires_at
-            : null;
+        $subscriptionExpiresAt = null;
+        try {
+            $subscriptionExpiresAt = (! $superAdmin && $tenant)
+                ? $tenant->billingTenant()->subscription_expires_at
+                : null;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
         $graceDays = (int) ($access->metadata['grace_days'] ?? 0);
         $mobileAccessExpiresAt = $access->state === TenantAccessDecision::STATE_GRACE
             && $access->expiresAt
             && $graceDays > 0
                 ? $access->expiresAt->copy()->addDays($graceDays)
                 : ($access->expiresAt ?? $subscriptionExpiresAt);
+
+        try {
+            $roles = $superAdmin
+                ? ['super_admin']
+                : ($access->allowed
+                    ? $user->getRoleNames()->values()->all()
+                    : array_values(array_filter([$user->roleKey()])));
+        } catch (Throwable $exception) {
+            report($exception);
+            $roles = array_values(array_filter([$superAdmin ? 'super_admin' : $user->roleKey()]));
+        }
+
+        try {
+            $permissions = $access->allowed
+                ? ($superAdmin ? ['*'] : $user->effectivePermissionKeys())
+                : [];
+        } catch (Throwable $exception) {
+            report($exception);
+            $permissions = [];
+        }
+
+        try {
+            $features = $access->allowed && ! $superAdmin
+                ? $user->subscriptionFeatureKeys()
+                : ($superAdmin ? ['*'] : []);
+        } catch (Throwable $exception) {
+            report($exception);
+            $features = [];
+        }
+
+        try {
+            $availableModules = $access->allowed ? $modules->forUser($user) : [];
+        } catch (Throwable $exception) {
+            report($exception);
+            $availableModules = [];
+        }
 
         return response()->json([
             'contract_version' => 1,
@@ -55,9 +118,7 @@ class MobileBootstrapController extends Controller
                 'staff_id' => $user->staff_id,
                 'role_key' => $superAdmin ? 'super_admin' : $user->roleKey(),
                 'role' => $superAdmin ? 'Platform Super Admin' : ($user->roleLabel() ?? 'staff'),
-                'roles' => $superAdmin
-                    ? ['super_admin']
-                    : ($access->allowed ? $user->getRoleNames()->values() : array_values(array_filter([$user->roleKey()]))),
+                'roles' => $roles,
                 'portal' => $this->portalFor($user),
             ],
             'school' => [
@@ -79,21 +140,11 @@ class MobileBootstrapController extends Controller
                 'state' => $access->state,
                 'message' => $access->message,
                 'severity' => $access->severity,
-                // During grace, expires_at is the service cut-off date rather than
-                // the already-passed paid subscription date. This keeps the existing
-                // mobile contract backward compatible while enabling a useful grace
-                // countdown. All other states retain subscription-expiry semantics.
                 'expires_at' => $mobileAccessExpiresAt?->toIso8601String(),
             ],
-            'permissions' => $access->allowed
-                ? ($superAdmin
-                    ? ['*']
-                    : $user->effectivePermissionKeys())
-                : [],
-            'features' => $access->allowed && ! $superAdmin
-                ? $user->subscriptionFeatureKeys()
-                : ($superAdmin ? ['*'] : []),
-            'modules' => $access->allowed ? $modules->forUser($user) : [],
+            'permissions' => $permissions,
+            'features' => $features,
+            'modules' => $availableModules,
             'token' => [
                 'expires_at' => $token?->expires_at?->toIso8601String(),
             ],
