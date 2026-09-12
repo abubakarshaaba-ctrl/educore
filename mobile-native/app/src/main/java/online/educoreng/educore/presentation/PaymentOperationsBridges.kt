@@ -17,6 +17,7 @@ internal fun SubscriptionPaymentOperationsScreen(onBack: () -> Unit) {
         onBillingCycle = viewModel::setBillingCycle,
         onEnrollment = viewModel::setAnticipatedEnrollment,
         onGateway = viewModel::selectGateway,
+        onBankReference = viewModel::setBankTransferReference,
         onGenerateInvoice = viewModel::createSubscriptionInvoice,
         onPay = viewModel::startSubscriptionCheckout,
         onVerify = viewModel::verifySubscription,
