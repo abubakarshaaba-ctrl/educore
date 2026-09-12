@@ -7,7 +7,8 @@ use App\Models\Announcement;
 use App\Models\AttendanceRecord;
 use App\Models\ClassArm;
 use App\Models\Invoice;
-use App\Models\Score;
+use App\Models\PayrollPeriod;
+use App\Models\SchoolExpense;
 use App\Models\Student;
 use App\Models\StudentRiskFlag;
 use App\Models\Term;
@@ -26,6 +27,17 @@ class DashboardController extends Controller
             return $this->superDashboard();
         }
 
+        // Operational roles get purpose-built dashboards. Do this before the
+        // generic student-directory test because legacy ROLE_ACCESS entries can
+        // otherwise make these users inherit the school-wide admin dashboard.
+        if ($user->roleKey() === 'admission_officer') {
+            return $this->admissionOfficerDashboard();
+        }
+
+        if ($user->isAccountant() || in_array($user->roleKey(), ['bursar', 'finance_officer'], true)) {
+            return $this->accountantDashboard();
+        }
+
         // Staff self-service uses the unified portal shell and never receives
         // school-wide fee totals, all-student lists, or administration widgets.
         if (!$user->canAccessExactModule('students')) {
@@ -33,6 +45,84 @@ class DashboardController extends Controller
         }
 
         return $this->schoolDashboard();
+    }
+
+    private function admissionOfficerDashboard()
+    {
+        $total = Admission::count();
+        $stats = [
+            'total' => $total,
+            'pending' => Admission::where('status', 'pending')->count(),
+            'shortlisted' => Admission::where('status', 'shortlisted')->count(),
+            'admitted' => Admission::where('status', 'admitted')->count(),
+            'rejected' => Admission::where('status', 'rejected')->count(),
+            'withdrawn' => Admission::where('status', 'withdrawn')->count(),
+            'this_month' => Admission::whereBetween('application_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->count(),
+            'upcoming_interviews' => Admission::whereNotNull('interview_date')->whereDate('interview_date', '>=', today())->count(),
+            'offers_pending' => Admission::where('status', 'admitted')->where(fn ($q) => $q->whereNull('offer_letter_sent')->orWhere('offer_letter_sent', false))->count(),
+            'conversion_rate' => $total > 0 ? round((Admission::where('status', 'admitted')->count() / $total) * 100, 1) : 0,
+        ];
+
+        $recentApplications = Admission::with('applyingForClassLevel')
+            ->latest('application_date')
+            ->latest('id')
+            ->limit(8)
+            ->get();
+
+        $upcomingInterviews = Admission::with('applyingForClassLevel')
+            ->whereNotNull('interview_date')
+            ->whereDate('interview_date', '>=', today())
+            ->orderBy('interview_date')
+            ->limit(6)
+            ->get();
+
+        $applicationsByClass = Admission::with('applyingForClassLevel')
+            ->selectRaw('applying_for_class_level_id, COUNT(*) as total')
+            ->groupBy('applying_for_class_level_id')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get();
+
+        return view('dashboard.admission-officer', compact(
+            'stats', 'recentApplications', 'upcomingInterviews', 'applicationsByClass'
+        ));
+    }
+
+    private function accountantDashboard()
+    {
+        $currentTerm = Term::where('is_current', true)->first();
+        $invoiceQuery = Invoice::query()
+            ->when($currentTerm, fn ($q) => $q->where('term_id', $currentTerm->id));
+
+        $totalInvoiced = (clone $invoiceQuery)->sum('total_amount');
+        $totalCollected = (clone $invoiceQuery)->sum('amount_paid');
+        $totalOutstanding = max(0, $totalInvoiced - $totalCollected);
+
+        $stats = [
+            'invoiced' => $totalInvoiced,
+            'collected' => $totalCollected,
+            'outstanding' => $totalOutstanding,
+            'collection_rate' => $totalInvoiced > 0 ? round(($totalCollected / $totalInvoiced) * 100, 1) : 0,
+            'unpaid_invoices' => (clone $invoiceQuery)->where('status', 'unpaid')->count(),
+            'partial_invoices' => (clone $invoiceQuery)->where('status', 'partially_paid')->count(),
+            'overdue_invoices' => (clone $invoiceQuery)->where('status', '!=', 'paid')->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
+            'expenses_this_month' => SchoolExpense::whereBetween('expense_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->sum('amount'),
+            'expenses_current_term' => $currentTerm ? SchoolExpense::where('term_id', $currentTerm->id)->sum('amount') : SchoolExpense::sum('amount'),
+        ];
+
+        $recentInvoices = Invoice::with('student')
+            ->when($currentTerm, fn ($q) => $q->where('term_id', $currentTerm->id))
+            ->latest('updated_at')
+            ->limit(8)
+            ->get();
+
+        $recentExpenses = SchoolExpense::latest('expense_date')->latest('id')->limit(6)->get();
+        $payrollPeriods = PayrollPeriod::latest('period_end')->latest('id')->limit(5)->get();
+        $latestPayroll = $payrollPeriods->first();
+
+        return view('dashboard.accountant', compact(
+            'currentTerm', 'stats', 'recentInvoices', 'recentExpenses', 'payrollPeriods', 'latestPayroll'
+        ));
     }
 
     private function schoolDashboard()
@@ -128,9 +218,6 @@ class DashboardController extends Controller
             : 0;
 
         // ── Trial / Subscription Status ───────────────────────────────
-        // Under the pay-per-student model there's no time-limited trial —
-        // "trial" here means the school hasn't paid yet and is on the free
-        // tier (≤50 students). Still used to target platform broadcasts.
         $tenant = auth()->user()->tenant;
         $isOnTrial = \App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($tenantId));
         $trialDaysLeft = 0;
