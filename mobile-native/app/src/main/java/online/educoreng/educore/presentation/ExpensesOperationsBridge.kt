@@ -17,9 +17,7 @@ internal fun ExpensesScreen(
     val expenseState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.workspace?.module?.key) {
-        if (expenseState.workspace == null && !expenseState.isLoading) {
-            viewModel.load()
-        }
+        if (!expenseState.isLoading) viewModel.load()
     }
 
     ExpensesScreen(
