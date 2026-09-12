@@ -1,9 +1,9 @@
 package online.educoreng.educore.presentation
 
 import android.os.Build
-import com.google.firebase.messaging.FirebaseMessaging
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,12 +12,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.common.AppError
+import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.connectivity.ConnectivityMonitor
-import online.educoreng.educore.core.data.repository.SessionRepository
-import online.educoreng.educore.core.data.repository.DashboardRepository
 import online.educoreng.educore.core.data.repository.CommunicationRepository
+import online.educoreng.educore.core.data.repository.DashboardRepository
+import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.model.SessionSnapshot
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 
@@ -36,7 +36,12 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             connectivityMonitor.isOnline.collect { online ->
                 _uiState.update { it.copy(isOnline = online) }
-                if (online) syncCoordinator.schedule()
+                if (online) {
+                    syncCoordinator.schedule()
+                    if (_uiState.value.phase == AppPhase.READY && _uiState.value.session?.access?.allowed == true) {
+                        registerPushToken()
+                    }
+                }
             }
         }
         restoreSession()
@@ -62,24 +67,12 @@ class MainViewModel @Inject constructor(
 
     fun showForgotPassword() {
         if (_uiState.value.isBusy) return
-        _uiState.update {
-            it.copy(
-                authMode = AuthMode.FORGOT_PASSWORD,
-                message = null,
-                fieldErrors = emptyMap(),
-            )
-        }
+        _uiState.update { it.copy(authMode = AuthMode.FORGOT_PASSWORD, message = null, fieldErrors = emptyMap()) }
     }
 
     fun showLogin() {
         if (_uiState.value.isBusy) return
-        _uiState.update {
-            it.copy(
-                authMode = AuthMode.LOGIN,
-                message = null,
-                fieldErrors = emptyMap(),
-            )
-        }
+        _uiState.update { it.copy(authMode = AuthMode.LOGIN, message = null, fieldErrors = emptyMap()) }
     }
 
     fun requestPasswordReset(email: String) {
@@ -88,45 +81,29 @@ class MainViewModel @Inject constructor(
             _uiState.update { it.copy(isBusy = true, message = null, fieldErrors = emptyMap()) }
             when (val result = sessionRepository.requestPasswordReset(email)) {
                 is AppResult.Success -> _uiState.update {
-                    it.copy(
-                        authMode = AuthMode.LOGIN,
-                        isBusy = false,
-                        message = result.value,
-                    )
+                    it.copy(authMode = AuthMode.LOGIN, isBusy = false, message = result.value)
                 }
                 is AppResult.Failure -> _uiState.update {
-                    it.copy(
-                        isBusy = false,
-                        message = result.error.userMessage,
-                        fieldErrors = result.error.fieldErrors(),
-                    )
+                    it.copy(isBusy = false, message = result.error.userMessage, fieldErrors = result.error.fieldErrors())
                 }
             }
         }
     }
 
-    fun consumeMessage() {
-        _uiState.update { it.copy(message = null) }
-    }
+    fun consumeMessage() = _uiState.update { it.copy(message = null) }
 
     fun openWebModule(path: String) {
         if (_uiState.value.isBusy) return
         viewModelScope.launch {
             _uiState.update { it.copy(isBusy = true, message = null) }
             when (val result = sessionRepository.createPortalSession(path)) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(isBusy = false, portalUrl = result.value)
-                }
-                is AppResult.Failure -> _uiState.update {
-                    it.copy(isBusy = false, message = result.error.userMessage)
-                }
+                is AppResult.Success -> _uiState.update { it.copy(isBusy = false, portalUrl = result.value) }
+                is AppResult.Failure -> _uiState.update { it.copy(isBusy = false, message = result.error.userMessage) }
             }
         }
     }
 
-    fun consumePortalUrl() {
-        _uiState.update { it.copy(portalUrl = null) }
-    }
+    fun consumePortalUrl() = _uiState.update { it.copy(portalUrl = null) }
 
     fun retryBootstrap() {
         if (_uiState.value.isBusy || !sessionRepository.hasStoredToken()) return
@@ -148,10 +125,7 @@ class MainViewModel @Inject constructor(
                     communicationRepository.unregisterPushToken(token)
                 }
                 sessionRepository.logout()
-                _uiState.value = AppUiState(
-                    phase = AppPhase.SIGNED_OUT,
-                    isOnline = _uiState.value.isOnline,
-                )
+                _uiState.value = AppUiState(phase = AppPhase.SIGNED_OUT, isOnline = _uiState.value.isOnline)
             }
         }
     }
@@ -162,7 +136,6 @@ class MainViewModel @Inject constructor(
                 _uiState.update { it.copy(phase = AppPhase.SIGNED_OUT) }
                 return@launch
             }
-
             val cached = sessionRepository.session.first()
             if (cached != null) showSession(cached)
             refreshSession(cached)
@@ -176,29 +149,11 @@ class MainViewModel @Inject constructor(
                 is AppResult.Success -> showSession(result.value)
                 is AppResult.Failure -> if (result.error.requiresFreshSignIn()) {
                     sessionRepository.logout()
-                    _uiState.update {
-                        it.copy(
-                            phase = AppPhase.SIGNED_OUT,
-                            session = null,
-                            isBusy = false,
-                            message = result.error.userMessage,
-                        )
-                    }
+                    _uiState.update { it.copy(phase = AppPhase.SIGNED_OUT, session = null, isBusy = false, message = result.error.userMessage) }
                 } else if (cached != null) {
-                    _uiState.update {
-                        it.copy(
-                            isBusy = false,
-                            message = result.error.userMessage,
-                        )
-                    }
+                    _uiState.update { it.copy(isBusy = false, message = result.error.userMessage) }
                 } else {
-                    _uiState.update {
-                        it.copy(
-                            phase = AppPhase.SIGNED_OUT,
-                            isBusy = false,
-                            message = result.error.userMessage,
-                        )
-                    }
+                    _uiState.update { it.copy(phase = AppPhase.SIGNED_OUT, isBusy = false, message = result.error.userMessage) }
                 }
             }
         }
@@ -211,11 +166,7 @@ class MainViewModel @Inject constructor(
                 session = session,
                 isBusy = false,
                 fieldErrors = emptyMap(),
-                message = if (session.access.allowed && session.access.severity == "warning") {
-                    session.access.message
-                } else {
-                    null
-                },
+                message = if (session.access.allowed && session.access.severity == "warning") session.access.message else null,
             )
         }
         if (session.access.allowed) {
@@ -240,37 +191,22 @@ class MainViewModel @Inject constructor(
         }
         viewModelScope.launch {
             when (val result = dashboardRepository.loadStaffPhoto()) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(dashboard = it.dashboard.copy(staffPhoto = result.value))
-                }
-                is AppResult.Failure -> Unit // A missing/unavailable photo falls back to the standard avatar.
+                is AppResult.Success -> _uiState.update { it.copy(dashboard = it.dashboard.copy(staffPhoto = result.value)) }
+                is AppResult.Failure -> Unit
             }
         }
     }
 
     private fun loadDashboard() {
         if (_uiState.value.dashboard.isLoading) return
-        _uiState.update {
-            it.copy(dashboard = it.dashboard.copy(isLoading = true, errorMessage = null))
-        }
+        _uiState.update { it.copy(dashboard = it.dashboard.copy(isLoading = true, errorMessage = null)) }
         viewModelScope.launch {
             when (val result = dashboardRepository.load()) {
                 is AppResult.Success -> _uiState.update {
-                    it.copy(
-                        dashboard = it.dashboard.copy(
-                            snapshot = result.value,
-                            isLoading = false,
-                            errorMessage = null,
-                        ),
-                    )
+                    it.copy(dashboard = it.dashboard.copy(snapshot = result.value, isLoading = false, errorMessage = null))
                 }
                 is AppResult.Failure -> _uiState.update {
-                    it.copy(
-                        dashboard = it.dashboard.copy(
-                            isLoading = false,
-                            errorMessage = result.error.userMessage,
-                        ),
-                    )
+                    it.copy(dashboard = it.dashboard.copy(isLoading = false, errorMessage = result.error.userMessage))
                 }
             }
         }
@@ -286,9 +222,7 @@ class MainViewModel @Inject constructor(
     }
 
     private fun AppError.fieldErrors(): Map<String, String> =
-        (this as? AppError.Validation)
-            ?.fieldErrors
-            .orEmpty()
+        (this as? AppError.Validation)?.fieldErrors.orEmpty()
             .mapValues { (_, messages) -> messages.firstOrNull().orEmpty() }
             .filterValues(String::isNotBlank)
 }
