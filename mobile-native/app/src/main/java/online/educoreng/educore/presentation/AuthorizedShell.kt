@@ -668,7 +668,7 @@ private object NativeRoute {
     val NOTIFICATION_MODULES = setOf("notifications.view", "parent.notifications", "student.notifications", "announcements")
     val CALENDAR_MODULES = setOf("calendar.view", "parent.calendar", "student.calendar")
     val OPERATIONS_MODULES = setOf(
-        "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
+        "finance", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
         "health", "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
     )
 }
@@ -683,6 +683,16 @@ private fun ShellTabScreen(
     onModuleClick: (ModuleDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
+    if (tab.id == ShellTabId.MORE) {
+        StaffModulesHubScreen(
+            session = session,
+            width = width,
+            onModuleClick = onModuleClick,
+            onLogout = onLogout,
+        )
+        return
+    }
+
     val columns = when (width) {
         EduCoreWindowWidth.Compact -> 2
         EduCoreWindowWidth.Medium -> 3
@@ -705,7 +715,7 @@ private fun ShellTabScreen(
                 onModuleClick = onModuleClick,
                 onRetry = onRefreshDashboard,
             )
-            ShellTabId.MORE -> moduleHubContent(session, onModuleClick, onLogout)
+            ShellTabId.MORE -> Unit
             else -> moduleSection(tab, modules, onModuleClick)
         }
     }
@@ -731,33 +741,6 @@ private fun LazyGridScope.moduleSection(
         }
     } else {
         items(modules, key = ModuleDescriptor::key) { module -> ModuleCard(module, onModuleClick) }
-    }
-}
-
-private fun LazyGridScope.moduleHubContent(
-    session: SessionSnapshot,
-    onModuleClick: (ModuleDescriptor) -> Unit,
-    onLogout: () -> Unit,
-) {
-    item(span = { GridItemSpan(maxLineSpan) }) {
-        EduCoreSectionHeader(
-            title = "All modules",
-            supportingText = "Organized from your current role and permissions",
-        )
-    }
-    ShellNavigationPolicy.groupedModules(session).forEach { (group, modules) ->
-        item(key = "header-${group.name}", span = { GridItemSpan(maxLineSpan) }) {
-            EduCoreSectionHeader(group.label)
-        }
-        items(modules, key = ModuleDescriptor::key) { module -> ModuleCard(module, onModuleClick) }
-    }
-    item(span = { GridItemSpan(maxLineSpan) }) {
-        EduCorePrimaryButton(
-            text = "Sign out",
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
-        )
     }
 }
 

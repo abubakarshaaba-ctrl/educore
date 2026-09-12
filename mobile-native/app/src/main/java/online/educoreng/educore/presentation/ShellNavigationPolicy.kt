@@ -68,7 +68,13 @@ object ShellNavigationPolicy {
 
     fun modulesFor(tab: ShellTabId, session: SessionSnapshot): List<ModuleDescriptor> {
         val visible = visibleModules(session)
-        val grouped = visible.groupBy(::groupFor)
+        if (tab == ShellTabId.MORE) return visible
+
+        val tabVisible = visible.filterNot { module ->
+            module.key.lowercase() in HUB_ONLY_KEYS ||
+                (session.user.portal.equals("admin", ignoreCase = true) && module.key.equals("students", ignoreCase = true))
+        }
+        val grouped = tabVisible.groupBy(::groupFor)
         val role = session.user.roleKey.lowercase()
         val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
         val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
@@ -77,19 +83,19 @@ object ShellNavigationPolicy {
         return when (tab) {
             ShellTabId.HOME -> emptyList()
             ShellTabId.PRIMARY -> when (session.user.portal) {
-                "platform" -> visible.filter {
+                "platform" -> tabVisible.filter {
                     it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
                 }
-                "parent" -> visible.filter { it.key.contains("attendance") }
+                "parent" -> tabVisible.filter { it.key.contains("attendance") }
                 else -> when {
-                    financeRole -> visible.filter { it.key in FINANCE_KEYS }
+                    financeRole -> tabVisible.filter { it.key in FINANCE_KEYS }
                     hasAcademics -> grouped[ModuleGroup.ACADEMICS].orEmpty()
                     else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 }
             }
             ShellTabId.SECONDARY -> when (session.user.portal) {
                 "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
-                "parent" -> visible.filter {
+                "parent" -> tabVisible.filter {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
                         it !in modulesFor(ShellTabId.PRIMARY, session)
                 }
@@ -186,6 +192,17 @@ object ShellNavigationPolicy {
         "subjects",
         "curriculum",
         "academic-cycle",
+    )
+    private val HUB_ONLY_KEYS = setOf(
+        "staff",
+        "profile",
+        "portal-accounts",
+        "settings",
+        "skills",
+        "transfers",
+        "gradebook",
+        "risk",
+        "exports",
     )
     private val ACADEMIC_KEYS = listOf(
         "student",

@@ -67,9 +67,11 @@ object ModulePresentationPolicy {
         "student.calendar",
         "announcements",
         "profile",
+        "settings",
     )
 
     private val NATIVE_GENERIC_MODULES: Set<String> = setOf(
+        "finance",
         "analytics",
     )
 
@@ -78,7 +80,7 @@ object ModulePresentationPolicy {
         "scores.entry",
     )
 
-    // The mobile shell does not hand off visible module tiles to the browser.
-    // A future explicitly web-only module must be added here deliberately.
+    // Normal visible mobile modules never fall through to the browser. A future
+    // intentionally web-only capability must be added here explicitly.
     private val EXPLICIT_WEB_ONLY_MODULES: Set<String> = emptySet()
 }
