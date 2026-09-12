@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\ExamDutyController;
 use App\Http\Controllers\Api\HealthOfficerController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MobileBootstrapController;
-use App\Http\Controllers\Api\MobileCbtController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileDashboardController;
@@ -79,16 +78,6 @@ Route::prefix('v1')->group(function () {
             Route::post('{lessonPlan}/publish', [MobileLessonPlannerController::class, 'publish']);
             Route::get('{lessonPlan}/pdf', [MobileLessonPlannerController::class, 'pdf']);
             Route::get('{lessonPlan}/note/pdf', [MobileLessonPlannerController::class, 'notePdf']);
-        });
-        Route::prefix('cbt')->group(function () {
-            Route::get('exams', [MobileCbtController::class, 'index']);
-            Route::get('exams/{exam}/preflight', [MobileCbtController::class, 'preflight']);
-            Route::post('exams/{exam}/begin', [MobileCbtController::class, 'begin']);
-            Route::get('sessions/{session}', [MobileCbtController::class, 'show']);
-            Route::put('sessions/{session}/answers', [MobileCbtController::class, 'save']);
-            Route::post('sessions/{session}/integrity', [MobileCbtController::class, 'integrity']);
-            Route::post('sessions/{session}/submit', [MobileCbtController::class, 'submit']);
-            Route::get('sessions/{session}/questions/{question}/image', [MobileCbtController::class, 'image']);
         });
         Route::get('me', [TeacherController::class, 'me']);
         Route::get('portal/modules', [MobilePortalController::class, 'modules']);
