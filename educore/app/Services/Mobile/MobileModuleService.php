@@ -93,6 +93,8 @@ class MobileModuleService
         'subject_teacher',
         'class_teacher',
         'form_teacher',
+        'asst_form_teacher',
+        'form_subject_teacher',
     ];
 
     private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
@@ -115,6 +117,14 @@ class MobileModuleService
         'head_teacher',
         'vice_principal',
         'academic_administrator',
+    ];
+
+    /** Admission is operational, never academic. Student-directory and
+     * transfer access are withheld unless an administrator makes a deliberate
+     * per-staff grant for an exceptional cross-duty assignment. */
+    private const ADMISSION_OFFICER_BLOCKED_MODULES = [
+        'students',
+        'transfers',
     ];
 
     public function forUser(User $user): array
@@ -167,6 +177,14 @@ class MobileModuleService
         return collect(self::STAFF_MODULES)
             ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff): bool {
                 if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
+                    return false;
+                }
+
+                if (
+                    $user->roleKey() === 'admission_officer'
+                    && in_array($key, self::ADMISSION_OFFICER_BLOCKED_MODULES, true)
+                    && ! $user->hasGrantedPermission($key)
+                ) {
                     return false;
                 }
 
