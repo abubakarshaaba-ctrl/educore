@@ -11,7 +11,10 @@
 @section('content')
 <div class="et-head" style="margin-bottom:16px">
     <div><h2 style="margin:0">Exam Timetable</h2><div class="muted">{{ $currentTerm?->name ?? 'Select a term' }} · examination schedule and supervision assignments</div></div>
-    <a class="btn btn-secondary" href="{{ route('exam-timetable.my-supervision') }}">My Supervision Schedule</a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-secondary" href="{{ route('timetable.index') }}">Class Timetable</a>
+        <a class="btn btn-primary" href="{{ route('exam-timetable.my-supervision') }}">My Supervision Schedule</a>
+    </div>
 </div>
 
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
@@ -31,8 +34,7 @@
 <h3 style="margin-top:0">Add Exam</h3>
 <form method="POST" action="{{ route('exam-timetable.store') }}">@csrf
 <div class="form-row">
-    <div><label>Term</label><select name="term_id" required>@foreach($terms as $term)<option value="{{ $term->id }}" @selected((int)$termId===$term->id) data-session="{{ $term->session_id }}">{{ $term->session?->name }} · {{ $term->name }}</option>@endforeach</select></div>
-    <div><label>Session</label><select name="session_id" required>@foreach($terms->pluck('session')->filter()->unique('id') as $session)<option value="{{ $session->id }}">{{ $session->name }}</option>@endforeach</select></div>
+    <div><label>Term / Session</label><select name="term_id" required>@foreach($terms as $term)<option value="{{ $term->id }}" @selected((int)$termId===$term->id)>{{ $term->session?->name }} · {{ $term->name }}</option>@endforeach</select></div>
     <div><label>Class</label><select name="class_arm_id" required>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->classLevel?->name }} {{ $class->name }}</option>@endforeach</select></div>
     <div><label>Subject</label><select name="subject_id" required>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></div>
     <div><label>Date</label><input type="date" name="exam_date" required></div>
