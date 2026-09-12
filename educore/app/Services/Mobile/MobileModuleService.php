@@ -22,6 +22,7 @@ class MobileModuleService
         'scores' => ['Scores', '/scores', 'scores'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
+        'subscription' => ['Subscription & Billing', '/billing/subscription', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
         'payroll' => ['Payroll', '/payroll', 'payroll'],
         'admissions' => ['Admissions', '/admissions', 'admissions'],
@@ -129,9 +130,13 @@ class MobileModuleService
         $isAcademicStaff = $this->isAcademicStaff($user);
 
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff, $roleKey): bool {
                 if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
                     return false;
+                }
+
+                if ($key === 'subscription') {
+                    return $roleKey === 'admin';
                 }
 
                 if (
