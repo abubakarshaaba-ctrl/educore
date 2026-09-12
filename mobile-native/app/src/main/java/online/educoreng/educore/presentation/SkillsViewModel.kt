@@ -190,7 +190,7 @@ internal class SkillsViewModel @Inject constructor(
                     skills = keys.map { key ->
                         SkillRatingMutationDto(
                             skillId = key.skillId,
-                            rating = state.draftRatings[key] ?: 0,
+                            rating = state.draftRatings[key],
                         )
                     },
                 )
