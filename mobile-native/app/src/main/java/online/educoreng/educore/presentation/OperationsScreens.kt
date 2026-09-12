@@ -46,7 +46,6 @@ import java.util.TimeZone
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
-import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
 import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
@@ -60,9 +59,41 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.OperationsRecord
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun OperationsScreen(
+    state: OperationsUiState,
+    width: EduCoreWindowWidth,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onSection: (Int) -> Unit,
+    onRetry: () -> Unit,
+) {
+    when (state.workspace?.module?.key?.lowercase()) {
+        "fees" -> FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        "expenses" -> ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "payroll" -> PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "transport" -> TransportScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        "health" -> HealthRecordsScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "inventory" -> InventoryScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "hostels" -> HostelsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        "subjects" -> SubjectsScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "curriculum" -> CurriculumScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        "academic-cycle" -> AcademicCycleScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        "analytics" -> AnalyticsScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
+        else -> GenericOperationsScreen(
+            state = state,
+            width = width,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+            onRetry = onRetry,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GenericOperationsScreen(
     state: OperationsUiState,
     width: EduCoreWindowWidth,
     onBack: () -> Unit,
