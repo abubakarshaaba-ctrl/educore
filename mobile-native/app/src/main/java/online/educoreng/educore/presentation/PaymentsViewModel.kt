@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import online.educoreng.educore.core.network.ApiClientFactory
+import online.educoreng.educore.core.network.BankTransferRequestDto
 import online.educoreng.educore.core.network.CheckoutResponseDto
 import online.educoreng.educore.core.network.GatewayRequestDto
 import online.educoreng.educore.core.network.MobilePaymentsApi
@@ -98,9 +99,10 @@ class PaymentsViewModel @Inject constructor(
             _uiState.update { it.copy(isMutating = true, errorMessage = null, message = null, checkout = null) }
             try {
                 val response = api.createSubscriptionInvoice(SubscriptionInvoiceRequestDto(_uiState.value.billingCycle, count))
-                val message = when {
-                    response.free -> response.message ?: "This enrolment remains within the EduCore free tier."
-                    else -> "Subscription invoice generated."
+                val message = if (response.free) {
+                    response.message ?: "This enrolment remains within the EduCore free tier."
+                } else {
+                    "Subscription invoice generated."
                 }
                 _uiState.update { it.copy(isMutating = false, message = message) }
                 loadSubscription()
@@ -117,40 +119,51 @@ class PaymentsViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "No subscription payment method is currently available.") }
             return
         }
-        val transferReference = if (gateway == "bank_transfer") {
-            _uiState.value.bankTransferReference.trim().takeIf { it.length >= 3 } ?: run {
+
+        if (gateway == "bank_transfer") {
+            val reference = _uiState.value.bankTransferReference.trim().takeIf { it.length >= 3 } ?: run {
                 _uiState.update { it.copy(errorMessage = "Enter the bank transfer reference before submitting.") }
                 return
             }
-        } else null
+            submitBankTransfer(invoiceId, reference)
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isMutating = true, errorMessage = null, message = null, checkout = null) }
             try {
-                val response = api.subscriptionCheckout(invoiceId, GatewayRequestDto(gateway, transferReference))
-                if (gateway == "bank_transfer") {
-                    _uiState.update {
-                        it.copy(
-                            isMutating = false,
-                            bankTransferReference = "",
-                            message = response.message ?: "Bank transfer submitted for server-side verification.",
-                        )
-                    }
-                    loadSubscription()
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            isMutating = false,
-                            checkout = response,
-                            message = "Checkout is ready. Complete payment, return to EduCore, then verify.",
-                        )
-                    }
+                val response = api.subscriptionCheckout(invoiceId, GatewayRequestDto(gateway))
+                _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        checkout = response,
+                        message = "Checkout is ready. Complete payment, return to EduCore, then verify.",
+                    )
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
                 _uiState.update { it.copy(isMutating = false, errorMessage = error.paymentMessage()) }
             }
+        }
+    }
+
+    private fun submitBankTransfer(invoiceId: Long, reference: String) = viewModelScope.launch {
+        _uiState.update { it.copy(isMutating = true, errorMessage = null, message = null, checkout = null) }
+        try {
+            val response = api.submitSubscriptionBankTransfer(invoiceId, BankTransferRequestDto(reference))
+            _uiState.update {
+                it.copy(
+                    isMutating = false,
+                    bankTransferReference = "",
+                    message = response.message,
+                )
+            }
+            loadSubscription()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            _uiState.update { it.copy(isMutating = false, errorMessage = error.paymentMessage()) }
         }
     }
 
