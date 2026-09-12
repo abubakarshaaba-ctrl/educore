@@ -55,11 +55,42 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun staff_report_aliases_are_restored_and_normalized_to_one_report_cards_module() {
+        val aliases = listOf(
+            ModuleDescriptor("results", "Results", "/results", "results"),
+            ModuleDescriptor("report-cards", "Report Cards", "/report-cards", "report-cards"),
+            ModuleDescriptor("reports", "Reports", "/reports", "reports"),
+        )
+        val staff = session(portal = "staff", role = "subject_teacher", extraModules = aliases)
+        val visibleReports = ShellNavigationPolicy.visibleModules(staff).filter { it.key == "reports" }
+
+        assertEquals(1, visibleReports.size)
+        assertEquals("Report Cards", visibleReports.single().title)
+        assertFalse(ShellNavigationPolicy.visibleModules(staff).any { it.key == "results" || it.key == "report-cards" })
+    }
+
+    @Test
+    fun cbt_and_examinations_remain_removed_from_mobile() {
+        val removed = listOf(
+            ModuleDescriptor("cbt", "CBT", "/cbt", "cbt"),
+            ModuleDescriptor("cbt-exams", "CBT Exams", "/cbt-exams", "cbt-exams"),
+            ModuleDescriptor("examinations", "Examinations", "/examinations", "examinations"),
+            ModuleDescriptor("student.exams", "Student Exams", "/student/exams", "student.exams"),
+        )
+        val staff = session(portal = "staff", role = "subject_teacher", extraModules = removed)
+        val keys = ShellNavigationPolicy.visibleModules(staff).map { it.key }.toSet()
+
+        assertFalse(keys.any { it in setOf("cbt", "cbt-exams", "examinations", "student.exams") })
+    }
+
+    @Test
     fun accountant_does_not_receive_classes_or_unrelated_academic_modules() {
         val academic = listOf(
             ModuleDescriptor("classes", "Classes", "/classes", "classes"),
             ModuleDescriptor("subjects", "Subjects", "/subjects", "subjects"),
             ModuleDescriptor("lesson-planner", "Lesson Planner", "/lesson-planner", "lesson-planner"),
+            ModuleDescriptor("results", "Results", "/results", "results"),
+            ModuleDescriptor("report-cards", "Report Cards", "/report-cards", "report-cards"),
         )
         val accountant = session(portal = "staff", role = "accountant", extraModules = academic)
         val keys = ShellNavigationPolicy.visibleModules(accountant).map { it.key }.toSet()
@@ -67,6 +98,9 @@ class ShellNavigationPolicyTest {
         assertFalse("classes" in keys)
         assertFalse("subjects" in keys)
         assertFalse("lesson-planner" in keys)
+        assertFalse("results" in keys)
+        assertFalse("report-cards" in keys)
+        assertFalse("reports" in keys)
         assertTrue("fees" in keys)
     }
 
