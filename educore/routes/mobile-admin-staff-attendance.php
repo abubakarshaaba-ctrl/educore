@@ -17,6 +17,6 @@ Route::prefix('admin/staff-attendance')->group(function (): void {
     Route::post('proxy-reviews/{record}', [AdminStaffAttendanceController::class, 'decideProxy'])
         ->whereNumber('record');
 
-    Route::get('qr', AdminStaffAttendanceQrController::class);
-    Route::post('reset-qr', [AdminStaffAttendanceController::class, 'resetQr']);
+    Route::get('qr', [AdminStaffAttendanceQrController::class, 'show']);
+    Route::post('reset-qr', [AdminStaffAttendanceQrController::class, 'reset']);
 });
