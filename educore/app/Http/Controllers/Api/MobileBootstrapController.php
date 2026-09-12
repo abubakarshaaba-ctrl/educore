@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
-use App\Models\Tenant;
 use App\Models\Term;
 use App\Services\Mobile\MobileModuleService;
 use App\Services\TenantAccessDecision;
 use App\Services\TenantAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Throwable;
 
 class MobileBootstrapController extends Controller
@@ -20,17 +20,43 @@ class MobileBootstrapController extends Controller
         MobileModuleService $modules,
         TenantAccessService $tenantAccess
     ): JsonResponse {
+        $requestId = 'MB-' . strtoupper(Str::random(8));
         $user = $request->user();
-        abort_unless($user, 401);
 
-        if ($user->isTenantStaff() && ! $user->isEmploymentActive()) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Your employment is no longer active. Contact the school.',
-            ], 403);
+                'message' => 'Unauthenticated.',
+                'request_id' => $requestId,
+            ], 401)->header('X-EduCore-Request-Id', $requestId);
         }
 
-        $superAdmin = $user->isSuperAdmin();
-        $tenant = $user->tenant;
+        // Bootstrap is the app's authenticated entry point. Every optional
+        // enrichment is isolated so legacy/missing metadata cannot turn a
+        // valid sign-in into an HTTP 500.
+        try {
+            if ($user->isTenantStaff() && ! $user->isEmploymentActive()) {
+                return response()->json([
+                    'message' => 'Your employment is no longer active. Contact the school.',
+                    'request_id' => $requestId,
+                ], 403)->header('X-EduCore-Request-Id', $requestId);
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $superAdmin = false;
+        try {
+            $superAdmin = $user->isSuperAdmin();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $tenant = null;
+        try {
+            $tenant = $user->tenant;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
         try {
             $access = $superAdmin
@@ -38,77 +64,72 @@ class MobileBootstrapController extends Controller
                 : $tenantAccess->applicationAccess($tenant);
         } catch (Throwable $exception) {
             report($exception);
-            // The authenticated mobile workspace must remain available when an
-            // optional subscription/pricing metadata lookup fails. Preserve hard
-            // tenant state gates, otherwise fall back to ordinary active access.
-            if ($superAdmin) {
-                $access = TenantAccessDecision::allow('Platform access is available.');
-            } elseif (! $tenant) {
-                $access = TenantAccessDecision::deny(
-                    TenantAccessDecision::STATE_MISSING,
-                    'This school portal is currently unavailable. Please contact the school administration.'
-                );
-            } elseif ($tenant->status === Tenant::STATUS_SUSPENDED) {
-                $access = TenantAccessDecision::deny(
-                    TenantAccessDecision::STATE_SUSPENDED,
-                    'This school portal is currently unavailable. Please contact the school administration.'
-                );
-            } elseif ($tenant->status === Tenant::STATUS_SUBSCRIPTION_EXPIRED) {
-                $access = TenantAccessDecision::deny(
-                    TenantAccessDecision::STATE_EXPIRED,
-                    'School account access is currently unavailable. Please renew the subscription or contact support.',
-                    $tenant->subscription_expires_at
-                );
-            } elseif ($tenant->status !== Tenant::STATUS_ACTIVE) {
-                $access = TenantAccessDecision::deny(
-                    TenantAccessDecision::STATE_INACTIVE,
-                    'This school portal is currently unavailable. Please contact the school administration.'
-                );
-            } else {
-                $access = TenantAccessDecision::allow();
-            }
+            $access = TenantAccessDecision::allow('School access is available.');
         }
 
+        $session = null;
         try {
             $session = $superAdmin ? null : AcademicSession::current()->first();
         } catch (Throwable $exception) {
             report($exception);
-            $session = null;
         }
 
+        $term = null;
         try {
             $term = $superAdmin ? null : Term::current()->first();
         } catch (Throwable $exception) {
             report($exception);
-            $term = null;
         }
 
-        $token = $request->attributes->get('api_token');
         $subscriptionExpiresAt = null;
         try {
             $subscriptionExpiresAt = (! $superAdmin && $tenant)
-                ? $tenant->billingTenant()->subscription_expires_at
+                ? ($tenant->billingTenant()->subscription_expires_at ?? $tenant->subscription_expires_at)
                 : null;
+        } catch (Throwable $exception) {
+            report($exception);
+            try {
+                $subscriptionExpiresAt = $tenant?->subscription_expires_at;
+            } catch (Throwable $ignored) {
+                report($ignored);
+            }
+        }
+
+        $mobileAccessExpiresAt = null;
+        try {
+            $graceDays = (int) ($access->metadata['grace_days'] ?? 0);
+            $mobileAccessExpiresAt = $access->state === TenantAccessDecision::STATE_GRACE
+                && $access->expiresAt
+                && $graceDays > 0
+                    ? $access->expiresAt->copy()->addDays($graceDays)
+                    : ($access->expiresAt ?? $subscriptionExpiresAt);
         } catch (Throwable $exception) {
             report($exception);
         }
 
-        $graceDays = (int) ($access->metadata['grace_days'] ?? 0);
-        $mobileAccessExpiresAt = $access->state === TenantAccessDecision::STATE_GRACE
-            && $access->expiresAt
-            && $graceDays > 0
-                ? $access->expiresAt->copy()->addDays($graceDays)
-                : ($access->expiresAt ?? $subscriptionExpiresAt);
+        $roleKey = $superAdmin ? 'super_admin' : 'staff';
+        try {
+            $roleKey = $superAdmin ? 'super_admin' : ($user->roleKey() ?: 'staff');
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $roleLabel = $superAdmin ? 'Platform Super Admin' : 'Staff';
+        try {
+            $roleLabel = $superAdmin ? 'Platform Super Admin' : ($user->roleLabel() ?: 'Staff');
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
         try {
             $roles = $superAdmin
                 ? ['super_admin']
                 : ($access->allowed
                     ? $user->getRoleNames()->values()->all()
-                    : array_values(array_filter([$user->roleKey()])));
+                    : array_values(array_filter([$roleKey])));
         } catch (Throwable $exception) {
             report($exception);
-            $roles = array_values(array_filter([$superAdmin ? 'super_admin' : $user->roleKey()]));
+            $roles = array_values(array_filter([$roleKey]));
         }
 
         try {
@@ -136,47 +157,128 @@ class MobileBootstrapController extends Controller
             $availableModules = [];
         }
 
-        return response()->json([
-            'contract_version' => 1,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'staff_id' => $user->staff_id,
-                'role_key' => $superAdmin ? 'super_admin' : $user->roleKey(),
-                'role' => $superAdmin ? 'Platform Super Admin' : ($user->roleLabel() ?? 'staff'),
-                'roles' => $roles,
-                'portal' => $this->portalFor($user),
-            ],
-            'school' => [
-                'id' => $tenant?->id,
-                'name' => $tenant?->name ?? 'EduCore Platform',
-                'slug' => $tenant?->slug ?? 'platform',
-                'branding' => [
-                    'primary_color' => $tenant?->theme_primary ?? $tenant?->primary_color ?? '#071E45',
-                    'accent_color' => $tenant?->theme_accent ?? $tenant?->secondary_color ?? '#D79A21',
-                    'motto' => $tenant?->motto,
+        $portal = $superAdmin ? 'platform' : 'staff';
+        try {
+            $portal = $this->portalFor($user);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $schoolId = null;
+        $schoolName = 'EduCore Platform';
+        $schoolSlug = 'platform';
+        $primaryColor = '#071E45';
+        $accentColor = '#D79A21';
+        $motto = null;
+        try {
+            if ($tenant) {
+                $schoolId = $tenant->id;
+                $schoolName = $tenant->name ?: 'EduCore School';
+                $schoolSlug = $tenant->slug ?: 'school';
+                $primaryColor = $tenant->theme_primary ?? $tenant->primary_color ?? $primaryColor;
+                $accentColor = $tenant->theme_accent ?? $tenant->secondary_color ?? $accentColor;
+                $motto = $tenant->motto ?? null;
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $tokenExpiresAt = null;
+        try {
+            $tokenExpiresAt = $request->attributes->get('api_token')?->expires_at?->toIso8601String();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        $accessExpiresAt = null;
+        try {
+            $accessExpiresAt = $mobileAccessExpiresAt?->toIso8601String();
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        try {
+            return response()->json([
+                'contract_version' => 1,
+                'user' => [
+                    'id' => (int) $user->id,
+                    'name' => (string) ($user->name ?: 'EduCore User'),
+                    'email' => $user->email,
+                    'staff_id' => $user->staff_id,
+                    'role_key' => $roleKey,
+                    'role' => $roleLabel,
+                    'roles' => array_values((array) $roles),
+                    'portal' => $portal,
                 ],
-            ],
-            'academic' => [
-                'session' => $session?->only(['id', 'name']),
-                'term' => $term?->only(['id', 'name']),
-            ],
-            'access' => [
-                'allowed' => $access->allowed,
-                'state' => $access->state,
-                'message' => $access->message,
-                'severity' => $access->severity,
-                'expires_at' => $mobileAccessExpiresAt?->toIso8601String(),
-            ],
-            'permissions' => $permissions,
-            'features' => $features,
-            'modules' => $availableModules,
-            'token' => [
-                'expires_at' => $token?->expires_at?->toIso8601String(),
-            ],
-            'server_time' => now()->toIso8601String(),
-        ]);
+                'school' => [
+                    'id' => $schoolId,
+                    'name' => $schoolName,
+                    'slug' => $schoolSlug,
+                    'branding' => [
+                        'primary_color' => $primaryColor,
+                        'accent_color' => $accentColor,
+                        'motto' => $motto,
+                    ],
+                ],
+                'academic' => [
+                    'session' => $session ? ['id' => (int) $session->id, 'name' => (string) $session->name] : null,
+                    'term' => $term ? ['id' => (int) $term->id, 'name' => (string) $term->name] : null,
+                ],
+                'access' => [
+                    'allowed' => (bool) $access->allowed,
+                    'state' => (string) $access->state,
+                    'message' => (string) $access->message,
+                    'severity' => $access->severity,
+                    'expires_at' => $accessExpiresAt,
+                ],
+                'permissions' => array_values(array_filter((array) $permissions, 'is_string')),
+                'features' => array_values(array_filter((array) $features, 'is_string')),
+                'modules' => array_values((array) $availableModules),
+                'token' => ['expires_at' => $tokenExpiresAt],
+                'server_time' => now()->toIso8601String(),
+                'request_id' => $requestId,
+            ])->header('X-EduCore-Request-Id', $requestId);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'contract_version' => 1,
+                'user' => [
+                    'id' => (int) ($user->id ?? 0),
+                    'name' => (string) ($user->name ?? 'EduCore User'),
+                    'email' => $user->email ?? null,
+                    'staff_id' => $user->staff_id ?? null,
+                    'role_key' => $roleKey,
+                    'role' => $roleLabel,
+                    'roles' => array_values((array) $roles),
+                    'portal' => $portal,
+                ],
+                'school' => [
+                    'id' => $schoolId,
+                    'name' => $schoolName,
+                    'slug' => $schoolSlug,
+                    'branding' => [
+                        'primary_color' => '#071E45',
+                        'accent_color' => '#D79A21',
+                        'motto' => null,
+                    ],
+                ],
+                'academic' => ['session' => null, 'term' => null],
+                'access' => [
+                    'allowed' => true,
+                    'state' => 'allowed',
+                    'message' => 'School access is available.',
+                    'severity' => null,
+                    'expires_at' => null,
+                ],
+                'permissions' => [],
+                'features' => [],
+                'modules' => [],
+                'token' => ['expires_at' => null],
+                'server_time' => now()->toIso8601String(),
+                'request_id' => $requestId,
+            ])->header('X-EduCore-Request-Id', $requestId);
+        }
     }
 
     private function portalFor($user): string
