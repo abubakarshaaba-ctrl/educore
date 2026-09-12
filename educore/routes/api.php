@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\PlatformBroadcastController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\ScoreController;
+use App\Http\Controllers\Api\SkillsController;
 use App\Http\Controllers\Api\StaffAttendanceApiController;
 use App\Http\Controllers\Api\StaffCardController;
 use App\Http\Controllers\Api\StudentController;
@@ -112,6 +113,10 @@ Route::prefix('v1')->group(function () {
         Route::get('scores/teaching', [ScoreController::class, 'teaching']);
         Route::get('scores/sheet', [ScoreController::class, 'sheet']);
         Route::post('scores/save', [ScoreController::class, 'save']);
+
+        Route::get('skills', [SkillsController::class, 'index']);
+        Route::get('skills/sheet', [SkillsController::class, 'sheet']);
+        Route::put('skills/sheet', [SkillsController::class, 'save']);
 
         Route::get('timetable/mine', [TimetableController::class, 'mine']);
         Route::get('timetable/form-class', [TimetableController::class, 'formClass']);
