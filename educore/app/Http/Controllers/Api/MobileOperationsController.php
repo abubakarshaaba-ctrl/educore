@@ -15,9 +15,21 @@ class MobileOperationsController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
-        // Exports use the same /operations/{module} URL advertised by the
-        // Android client, but require a dedicated controller because downloads
-        // are streamed CSV responses rather than generic JSON operations data.
+        // Aggregate aliases advertised by the native shell must resolve to a
+        // real mobile workspace instead of falling through to a generic 404.
+        if ($module === 'analytics') {
+            return app(MobileAnalyticsController::class)($request);
+        }
+
+        // Finance is a navigation umbrella in the mobile shell. Use the fees
+        // workspace as its default landing surface; Expenses and Payroll remain
+        // separate native modules alongside it.
+        if ($module === 'finance') {
+            $module = 'fees';
+        }
+
+        // Exports share the /operations/{module} URL but can stream CSV files,
+        // so they are handled by their dedicated controller.
         if ($module === 'exports') {
             return app(MobileExportsController::class)($request);
         }
@@ -25,9 +37,6 @@ class MobileOperationsController extends Controller
         $payload = $operations->for($user, $module);
         $normalized = $module === 'parent.fees' ? 'fees' : $module;
 
-        // The Android app already contains dedicated transactional workspaces
-        // for these finance modules. Only advertise them when the server says
-        // this account can actually manage the module; parents remain read-only.
         if (
             ! $user->isParent()
             && in_array($normalized, ['fees', 'expenses', 'payroll'], true)
@@ -43,10 +52,6 @@ class MobileOperationsController extends Controller
         return response()->json($payload);
     }
 
-    /**
-     * Add canonical academic context to invoice records so native Finance can
-     * build real Session and Class Level dropdowns instead of free-text filters.
-     */
     private function enrichFeeRecords(array $payload, int $tenantId): array
     {
         $sectionIndex = collect($payload['sections'] ?? [])->search(
