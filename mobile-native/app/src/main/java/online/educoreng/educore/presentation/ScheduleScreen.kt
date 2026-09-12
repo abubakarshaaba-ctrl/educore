@@ -95,9 +95,9 @@ internal fun ScheduleScreen(
 
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                EduCoreShowcaseStat("Periods", totalPeriods.toString(), Icons.Default.Schedule, EduCoreTone.Brand, Modifier.weight(1f))
-                EduCoreShowcaseStat("Duties", dutyCount.toString(), Icons.Default.AssignmentTurnedIn, EduCoreTone.Brand, Modifier.weight(1f))
-                EduCoreShowcaseStat("Exams", examCount.toString(), Icons.Default.CalendarMonth, EduCoreTone.Info, Modifier.weight(1f))
+                EduCoreShowcaseStat(label = "Periods", value = totalPeriods.toString(), icon = Icons.Default.Schedule, modifier = Modifier.weight(1f), tone = EduCoreTone.Brand)
+                EduCoreShowcaseStat(label = "Duties", value = dutyCount.toString(), icon = Icons.Default.AssignmentTurnedIn, modifier = Modifier.weight(1f), tone = EduCoreTone.Brand)
+                EduCoreShowcaseStat(label = "Exams", value = examCount.toString(), icon = Icons.Default.CalendarMonth, modifier = Modifier.weight(1f), tone = EduCoreTone.Info)
             }
         }
 
