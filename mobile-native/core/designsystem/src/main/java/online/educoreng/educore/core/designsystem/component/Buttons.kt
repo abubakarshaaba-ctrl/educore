@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -22,6 +23,8 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
+private val CompactButtonPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+
 @Composable
 fun EduCorePrimaryButton(
     text: String,
@@ -35,6 +38,7 @@ fun EduCorePrimaryButton(
         onClick = onClick,
         enabled = enabled && !loading,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Navy900,
             contentColor = Color.White,
@@ -67,6 +71,7 @@ fun EduCoreSecondaryButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        contentPadding = CompactButtonPadding,
         border = BorderStroke(1.dp, if (enabled) EduCoreColors.Line300 else EduCoreColors.Line200),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = EduCoreColors.Navy900,
@@ -89,6 +94,7 @@ fun EduCoreDangerButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Danger600,
             contentColor = Color.White,
@@ -111,6 +117,7 @@ fun EduCoreTextButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
+        contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.textButtonColors(
             contentColor = EduCoreColors.Navy900,
             disabledContentColor = EduCoreColors.DisabledContent,
