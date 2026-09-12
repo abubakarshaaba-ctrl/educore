@@ -5,22 +5,31 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Services\Mobile\MobileOperationsService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class MobileOperationsController extends Controller
 {
-    public function show(Request $request, string $module, MobileOperationsService $operations): JsonResponse
+    public function show(Request $request, string $module, MobileOperationsService $operations): Response
     {
         $user = $request->user();
         abort_unless($user, 401);
 
+        if ($module === 'analytics') {
+            return app(MobileAnalyticsController::class)($request);
+        }
+
+        if ($module === 'finance') {
+            $module = 'fees';
+        }
+
+        if ($module === 'exports') {
+            return app(MobileExportsController::class)($request);
+        }
+
         $payload = $operations->for($user, $module);
         $normalized = $module === 'parent.fees' ? 'fees' : $module;
 
-        // The Android app already contains dedicated transactional workspaces
-        // for these finance modules. Only advertise them when the server says
-        // this account can actually manage the module; parents remain read-only.
         if (
             ! $user->isParent()
             && in_array($normalized, ['fees', 'expenses', 'payroll'], true)
@@ -36,10 +45,6 @@ class MobileOperationsController extends Controller
         return response()->json($payload);
     }
 
-    /**
-     * Add canonical academic context to invoice records so native Finance can
-     * build real Session and Class Level dropdowns instead of free-text filters.
-     */
     private function enrichFeeRecords(array $payload, int $tenantId): array
     {
         $sectionIndex = collect($payload['sections'] ?? [])->search(
