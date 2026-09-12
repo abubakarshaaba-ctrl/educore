@@ -21,6 +21,12 @@ interface MobilePaymentsApi {
         @Body request: GatewayRequestDto,
     ): CheckoutResponseDto
 
+    @POST("admin/subscription/invoices/{invoice}/bank-transfer")
+    suspend fun submitSubscriptionBankTransfer(
+        @Path("invoice") invoiceId: Long,
+        @Body request: BankTransferRequestDto,
+    ): BankTransferResponseDto
+
     @POST("admin/subscription/verify")
     suspend fun verifySubscription(@Body request: VerifyPaymentRequestDto): SubscriptionStatusResponseDto
 
@@ -41,9 +47,11 @@ interface MobilePaymentsApi {
 data class EmptyRequestDto(val mobile: Boolean = true)
 
 @JsonClass(generateAdapter = true)
-data class GatewayRequestDto(
-    val gateway: String,
-    @Json(name = "transfer_reference") val transferReference: String? = null,
+data class GatewayRequestDto(val gateway: String)
+
+@JsonClass(generateAdapter = true)
+data class BankTransferRequestDto(
+    @Json(name = "transfer_reference") val transferReference: String,
 )
 
 @JsonClass(generateAdapter = true)
@@ -62,8 +70,12 @@ data class CheckoutResponseDto(
     @Json(name = "checkout_url") val checkoutUrl: String? = null,
     val amount: Double? = null,
     val currency: String? = null,
-    val message: String? = null,
-    val invoice: SubscriptionInvoiceDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class BankTransferResponseDto(
+    val message: String,
+    val invoice: SubscriptionInvoiceDto,
 )
 
 @JsonClass(generateAdapter = true)
