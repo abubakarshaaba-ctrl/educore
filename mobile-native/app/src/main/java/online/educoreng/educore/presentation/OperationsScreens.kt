@@ -72,6 +72,14 @@ internal fun OperationsScreen(
         "fees" -> FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         "expenses" -> ExpensesScreen(state = state, onBack = onBack, onQuery = onQuery)
         "payroll" -> PayrollScreen(state = state, onBack = onBack, onQuery = onQuery)
+        "admissions" -> AdmissionsOperationsScreen(state = state, onBack = onBack)
+        "library" -> LibraryOperationsScreen(
+            state = state,
+            onBack = onBack,
+            onQuery = onQuery,
+            onSection = onSection,
+            onRefreshWorkspace = onRetry,
+        )
         "transport" -> TransportScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
         "health" -> HealthRecordsScreen(state = state, onBack = onBack, onQuery = onQuery)
         "inventory" -> InventoryScreen(state = state, onBack = onBack, onQuery = onQuery)
