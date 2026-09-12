@@ -45,6 +45,18 @@ class MobileApiRouteContractTest extends TestCase
             'GET api/v1/staff-attendance',
             'POST api/v1/staff-attendance/clock-in',
             'POST api/v1/staff-attendance/clock-out',
+            'POST api/v1/push/register',
+            'POST api/v1/push/unregister',
+            'GET api/v1/messages',
+            'POST api/v1/messages',
+            'GET api/v1/messages/{thread}',
+            'POST api/v1/messages/{thread}/reply',
+            'GET api/v1/notifications',
+            'GET api/v1/calendar/events',
+            'POST api/v1/calendar/events',
+            'GET api/v1/platform/broadcasts',
+            'POST api/v1/platform/broadcasts',
+            'POST api/v1/platform/broadcasts/{broadcast}/expire',
         ];
 
         foreach ($expected as $signature) {
