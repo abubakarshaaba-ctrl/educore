@@ -5,15 +5,22 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Services\Mobile\MobileOperationsService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class MobileOperationsController extends Controller
 {
-    public function show(Request $request, string $module, MobileOperationsService $operations): JsonResponse
+    public function show(Request $request, string $module, MobileOperationsService $operations): Response
     {
         $user = $request->user();
         abort_unless($user, 401);
+
+        // Exports use the same /operations/{module} URL advertised by the
+        // Android client, but require a dedicated controller because downloads
+        // are streamed CSV responses rather than generic JSON operations data.
+        if ($module === 'exports') {
+            return app(MobileExportsController::class)($request);
+        }
 
         $payload = $operations->for($user, $module);
         $normalized = $module === 'parent.fees' ? 'fees' : $module;
