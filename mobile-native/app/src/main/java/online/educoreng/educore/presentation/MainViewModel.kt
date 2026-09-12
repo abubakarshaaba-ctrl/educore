@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import online.educoreng.educore.BuildConfig
 import online.educoreng.educore.core.common.AppError
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.connectivity.ConnectivityMonitor
@@ -212,7 +213,11 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+    private fun deviceName(): String = buildString {
+        append("${Build.MANUFACTURER} ${Build.MODEL}".trim())
+        append(" | EduCore ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        append(" | ${BuildConfig.BUILD_REVISION}")
+    }.take(150)
 
     private fun AppError.requiresFreshSignIn(): Boolean = when (this) {
         is AppError.Unauthenticated,

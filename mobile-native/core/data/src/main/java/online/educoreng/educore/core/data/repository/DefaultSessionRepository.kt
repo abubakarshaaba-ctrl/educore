@@ -16,16 +16,10 @@ import online.educoreng.educore.core.data.local.EduCoreDatabase
 import online.educoreng.educore.core.data.local.toCache
 import online.educoreng.educore.core.data.local.toDomain
 import online.educoreng.educore.core.data.preferences.TenantContextStore
-import online.educoreng.educore.core.model.AcademicPeriod
-import online.educoreng.educore.core.model.ModuleDescriptor
-import online.educoreng.educore.core.model.SchoolIdentity
 import online.educoreng.educore.core.model.SessionSnapshot
-import online.educoreng.educore.core.model.TenantAccess
-import online.educoreng.educore.core.model.UserIdentity
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ForgotPasswordRequestDto
 import online.educoreng.educore.core.network.dto.LoginRequestDto
-import online.educoreng.educore.core.network.dto.LoginResponseDto
 import online.educoreng.educore.core.network.dto.PortalSessionRequestDto
 import online.educoreng.educore.core.network.safeApiCall
 import online.educoreng.educore.core.network.toDomain
@@ -69,18 +63,15 @@ class DefaultSessionRepository(
             is AppResult.Failure -> result
             is AppResult.Success -> {
                 tokenVault.save(result.value.token)
-
-                // Authentication itself already returns enough trusted identity,
-                // school and permission context to open the app safely. Persist a
-                // provisional session before requesting the richer bootstrap so a
-                // transient/bootstrap-only backend failure can never trap a valid
-                // user on the sign-in screen.
-                val provisional = result.value.toProvisionalSession().normalizedForClient()
-                persist(provisional)
-
                 when (val bootstrap = refresh()) {
                     is AppResult.Success -> bootstrap
-                    is AppResult.Failure -> AppResult.Success(provisional)
+                    is AppResult.Failure -> {
+                        // Bootstrap is the authoritative access/module contract.
+                        // Do not infer an allowed workspace from the smaller login
+                        // payload when that contract could not be loaded.
+                        clearLocalSession()
+                        AppResult.Failure(bootstrap.error.asPostLoginBootstrapError())
+                    }
                 }
             }
         }
@@ -155,104 +146,6 @@ class DefaultSessionRepository(
         tenantContextStore.setActiveTenant(snapshot.school.tenantKey)
     }
 
-    private fun LoginResponseDto.toProvisionalSession(): SessionSnapshot {
-        val permissionSet = permissions.toSet()
-        val portal = user.portal.lowercase()
-        val role = user.roleKey.lowercase()
-
-        fun allowed(key: String): Boolean =
-            "*" in permissionSet ||
-                key in permissionSet ||
-                permissionSet.any { it.startsWith("$key.") }
-
-        val knownModules = listOf(
-            ModuleDescriptor("students", "Students", "/students", "students"),
-            ModuleDescriptor("staff", "Staff", "/staff", "staff"),
-            ModuleDescriptor("classes", "Classes", "/classes", "classes"),
-            ModuleDescriptor("subjects", "Subjects", "/subjects", "subjects"),
-            ModuleDescriptor("curriculum", "Curriculum", "/curriculum", "curriculum"),
-            ModuleDescriptor("academic-cycle", "Academic Sessions", "/academic-session", "academic-cycle"),
-            ModuleDescriptor("attendance", "Student Attendance", "/attendance", "attendance"),
-            ModuleDescriptor("skills", "Skill Ratings", "/skills", "skills"),
-            ModuleDescriptor("scores", "Scores", "/scores", "scores"),
-            ModuleDescriptor("timetable", "Timetable", "/timetable", "timetable"),
-            ModuleDescriptor("reports", "Report Cards", "/reports", "reports"),
-            ModuleDescriptor("fees", "Fees & Invoices", "/fees/invoices", "fees"),
-            ModuleDescriptor("expenses", "Expenses", "/expenses", "expenses"),
-            ModuleDescriptor("payroll", "Payroll", "/payroll", "payroll"),
-            ModuleDescriptor("admissions", "Admissions", "/admissions", "admissions"),
-            ModuleDescriptor("transfers", "Student Transfers", "/students/transfers", "transfers"),
-            ModuleDescriptor("portal-accounts", "Portal Accounts", "/portal-accounts", "profile"),
-            ModuleDescriptor("messages", "Messages", "/messages", "messages"),
-            ModuleDescriptor("notifications.view", "Notifications", "/notifications", "notifications"),
-            ModuleDescriptor("calendar.view", "Calendar", "/calendar", "calendar"),
-            ModuleDescriptor("health", "Health Records", "/health", "health"),
-            ModuleDescriptor("transport", "Transport", "/transport", "transport"),
-            ModuleDescriptor("library", "Library", "/library", "library"),
-            ModuleDescriptor("inventory", "Inventory", "/inventory", "inventory"),
-            ModuleDescriptor("hostels", "Hostels", "/hostels", "hostels"),
-            ModuleDescriptor("analytics", "Analytics", "/analytics", "analytics"),
-            ModuleDescriptor("risk", "Risk Flags", "/risk", "risk"),
-            ModuleDescriptor("exports", "Exports", "/exports", "exports"),
-            ModuleDescriptor("lesson-planner", "Lesson Planner", "/lesson-planner", "lesson-planner"),
-            ModuleDescriptor("academic-repository", "Academic Repository", "/academic-repository", "repository"),
-        ).filter { allowed(it.key) }
-            .toMutableList()
-
-        if (portal in setOf("staff", "admin") && allowed("staff-attendance.self")) {
-            knownModules += ModuleDescriptor(
-                "staff-attendance.self",
-                "My Attendance",
-                "/staff-attendance/my",
-                "staff-attendance",
-            )
-        }
-        if (portal == "admin" && allowed("staff-attendance")) {
-            knownModules += ModuleDescriptor(
-                "staff-attendance.admin",
-                "Staff Attendance",
-                "/staff-attendance",
-                "staff-attendance",
-            )
-        }
-        knownModules += ModuleDescriptor("profile", "My Profile", "/profile", "profile")
-
-        return SessionSnapshot(
-            user = UserIdentity(
-                id = user.id,
-                name = user.name,
-                email = user.email,
-                staffId = user.staffId,
-                roleKey = user.roleKey,
-                roleLabel = user.role,
-                roles = user.roles.ifEmpty { listOf(role).filter(String::isNotBlank) },
-                portal = user.portal,
-            ),
-            school = SchoolIdentity(
-                id = school.id,
-                name = school.name,
-                slug = school.slug,
-                primaryColor = school.branding.primaryColor,
-                accentColor = school.branding.accentColor,
-                motto = school.branding.motto,
-            ),
-            academicPeriod = AcademicPeriod(null, null, null, null),
-            access = TenantAccess(
-                allowed = true,
-                state = "allowed",
-                message = "School account access is available.",
-                severity = null,
-                expiresAt = null,
-            ),
-            permissions = permissionSet,
-            modules = knownModules.distinctBy { it.key.lowercase() },
-            serverTime = null,
-            contractVersion = 1,
-            features = emptySet(),
-            tokenExpiresAt = null,
-        )
-    }
-
     private fun SessionSnapshot.normalizedForClient(): SessionSnapshot {
         val granted = modules.distinctBy { it.key.lowercase() }
         if (user.portal == "admin" || user.portal == "platform") {
@@ -281,7 +174,10 @@ class DefaultSessionRepository(
             "Your account was verified, but loading your school workspace took too long. Please try again.",
         )
         is AppError.Server -> AppError.Server(
-            userMessage = "Your account was verified, but EduCore could not load your school workspace. Please try again.",
+            userMessage = buildString {
+                append("Your account was verified, but EduCore could not load your school workspace. Please try again.")
+                requestId?.let { append(" Reference: $it") }
+            },
             statusCode = statusCode,
             requestId = requestId,
         )

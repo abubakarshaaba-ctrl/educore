@@ -39,6 +39,12 @@ if (releasePropertiesFile.exists()) {
 val apiBaseUrl = providers.gradleProperty("EDUCORE_API_BASE_URL")
     .orElse("https://educoreng.online/api/v1/")
     .get()
+val buildRevision = providers.gradleProperty("EDUCORE_BUILD_REVISION")
+    .orElse(providers.environmentVariable("CM_COMMIT"))
+    .orElse("local")
+    .get()
+    .take(12)
+    .replace(Regex("[^A-Za-z0-9._-]"), "")
 
 gradle.taskGraph.addTaskExecutionGraphListener { _ ->
     val requestedTasks = gradle.startParameter.taskNames.map { it.substringAfterLast(':') }
@@ -68,12 +74,13 @@ android {
         applicationId = "online.educoreng.educore"
         minSdk = 23
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.0.0-alpha02"
+        versionCode = 16
+        versionName = "2.0.0-alpha03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "BUILD_REVISION", "\"$buildRevision\"")
     }
 
     signingConfigs {
