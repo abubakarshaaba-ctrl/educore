@@ -24,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -76,18 +75,6 @@ internal fun StaffPayslipScreen(
     ) {
         item { EduCorePageHeader("My Payslips", "Monthly staff payroll statements", onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Navy900),
-                border = BorderStroke(1.dp, EduCoreColors.Navy700),
-            ) {
-                Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = EduCoreColors.Gold400)
-                    Text("Your monthly pay records", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = EduCoreColors.White)
-                    Text("Open any issued month to review earnings, deductions and net pay, or download the official PDF.", color = EduCoreColors.Line200)
-                }
-            }
-        }
         if (state.items.isEmpty()) {
             item {
                 EduCoreEmptyState(
