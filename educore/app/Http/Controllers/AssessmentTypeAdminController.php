@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicSession;
+use App\Models\AssessmentSchemeTemplate;
 use App\Models\AssessmentType;
 use App\Models\ClassLevel;
 use App\Models\Score;
@@ -40,12 +41,17 @@ class AssessmentTypeAdminController extends Controller
             ->get();
         $sessions = AcademicSession::orderBy('name')->get();
         $classLevels = ClassLevel::orderBy('order_index')->orderBy('name')->get();
+        $schemeTemplates = AssessmentSchemeTemplate::with('items')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('scores.assessment-types-admin', compact(
             'assessmentTypes',
             'terms',
             'sessions',
-            'classLevels'
+            'classLevels',
+            'schemeTemplates'
         ));
     }
 
@@ -213,6 +219,167 @@ class AssessmentTypeAdminController extends Controller
         $at->delete();
 
         return back()->with('success', "Assessment type '{$name}' deleted.");
+    }
+
+    public function storeTemplate(Request $request)
+    {
+        $this->authorizeAdmin();
+
+        $validated = $request->validate([
+            'template_name' => [
+                'required', 'string', 'max:120',
+                Rule::unique('assessment_scheme_templates', 'name')
+                    ->where(fn ($q) => $q->where('tenant_id', $this->tenantId())),
+            ],
+            'description' => ['nullable', 'string', 'max:500'],
+            'source_term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
+            'source_class_level_id' => ['required', Rule::exists('class_levels', 'id')->where('tenant_id', $this->tenantId())],
+        ]);
+
+        $sourceTypes = AssessmentType::resolvedForClassLevel(
+            (int) $validated['source_term_id'],
+            (int) $validated['source_class_level_id']
+        );
+
+        if ($sourceTypes->isEmpty()) {
+            throw ValidationException::withMessages([
+                'source_class_level_id' => 'No assessment configuration exists for the selected class level and term.',
+            ]);
+        }
+
+        $total = (float) $sourceTypes->sum('weight_percentage');
+        if (abs($total - 100) > 0.001) {
+            throw ValidationException::withMessages([
+                'source_class_level_id' => "The selected configuration totals {$total}%. Complete it to 100% before saving it as a reusable scheme.",
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $sourceTypes): void {
+            $template = AssessmentSchemeTemplate::create([
+                'name' => trim($validated['template_name']),
+                'description' => $validated['description'] ?? null,
+                'is_active' => true,
+            ]);
+
+            foreach ($sourceTypes->values() as $index => $type) {
+                $template->items()->create([
+                    'tenant_id' => $this->tenantId(),
+                    'name' => $type->name,
+                    'weight_percentage' => (int) $type->weight_percentage,
+                    'objective_max' => $type->objective_max,
+                    'theory_max' => $type->theory_max,
+                    'is_exam' => (bool) $type->is_exam,
+                    'sort_order' => $index + 1,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Reusable assessment scheme saved. It can now be applied to future terms.');
+    }
+
+    public function applyTemplate(Request $request, AssessmentSchemeTemplate $template)
+    {
+        $this->authorizeAdmin();
+
+        $validated = $request->validate([
+            'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
+            'class_level_ids' => ['required', 'array', 'min:1'],
+            'class_level_ids.*' => [
+                'integer',
+                Rule::exists('class_levels', 'id')->where('tenant_id', $this->tenantId()),
+            ],
+            'replace_existing' => ['nullable', 'boolean'],
+        ]);
+
+        $classLevelIds = collect($validated['class_level_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $items = $template->items()->get();
+
+        if ($items->isEmpty()) {
+            throw ValidationException::withMessages([
+                'template' => 'This reusable scheme has no assessment components.',
+            ]);
+        }
+
+        $total = (float) $items->sum('weight_percentage');
+        if (abs($total - 100) > 0.001) {
+            throw ValidationException::withMessages([
+                'template' => "This reusable scheme totals {$total}% and cannot be applied until it totals 100%.",
+            ]);
+        }
+
+        $targetTermId = (int) $validated['term_id'];
+        $replaceExisting = $request->boolean('replace_existing');
+
+        $existingScoped = AssessmentType::query()
+            ->where('term_id', $targetTermId)
+            ->whereHas('classLevels', fn ($q) => $q->whereIn('class_levels.id', $classLevelIds))
+            ->with('classLevels')
+            ->get();
+
+        if ($existingScoped->isNotEmpty() && ! $replaceExisting) {
+            throw ValidationException::withMessages([
+                'class_level_ids' => 'One or more selected class levels already have an explicit assessment configuration for this term. Tick Replace existing configuration to overwrite only configurations that have no student scores.',
+            ]);
+        }
+
+        if ($existingScoped->isNotEmpty()) {
+            $protected = $existingScoped->filter(
+                fn ($type) => Score::where('assessment_type_id', $type->id)->exists()
+            );
+
+            if ($protected->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'class_level_ids' => 'The existing configuration cannot be replaced because student scores already use one or more assessment types. Existing results are protected.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($existingScoped, $classLevelIds, $items, $targetTermId, $replaceExisting): void {
+            if ($replaceExisting) {
+                foreach ($existingScoped as $type) {
+                    $detachIds = $type->classLevels->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->intersect($classLevelIds)
+                        ->all();
+
+                    if ($detachIds) {
+                        $type->classLevels()->detach($detachIds);
+                    }
+
+                    if (! $type->classLevels()->exists()) {
+                        $type->delete();
+                    }
+                }
+            }
+
+            foreach ($items as $item) {
+                $type = AssessmentType::create([
+                    'term_id' => $targetTermId,
+                    'name' => $item->name,
+                    'weight_percentage' => (int) $item->weight_percentage,
+                    'objective_max' => $item->objective_max,
+                    'theory_max' => $item->theory_max,
+                    'is_exam' => (bool) $item->is_exam,
+                ]);
+
+                $type->classLevels()->sync($classLevelIds);
+            }
+        });
+
+        return back()->with('success', "Assessment scheme '{$template->name}' applied to the selected class levels.");
+    }
+
+    public function destroyTemplate(AssessmentSchemeTemplate $template)
+    {
+        $this->authorizeAdmin();
+        $name = $template->name;
+        $template->delete();
+
+        return back()->with('success', "Reusable assessment scheme '{$name}' deleted. Existing term configurations were not affected.");
     }
 
     private function validateClassLevelWeights(
