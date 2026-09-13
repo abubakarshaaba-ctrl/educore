@@ -15,8 +15,13 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +31,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Locale
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
@@ -182,6 +190,7 @@ private fun ExpenseEditor(
     val draft = state.draft
     val categories = workspace.categories.filter { it.key != "all" }
     val visibleTerms = workspace.terms.filter { draft.sessionId == null || it.sessionId == draft.sessionId }
+    var datePickerOpen by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -192,7 +201,18 @@ private fun ExpenseEditor(
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item { EduCoreTextField(draft.title, { onField(ExpenseField.TITLE, it) }, "Title", Modifier.fillMaxWidth(), enabled = !state.isSaving) }
         item { EduCoreTextField(draft.amount, { onField(ExpenseField.AMOUNT, it) }, "Amount", Modifier.fillMaxWidth(), supportingText = "Amount must be at least ₦1", enabled = !state.isSaving) }
-        item { EduCoreTextField(draft.expenseDate, { onField(ExpenseField.DATE, it) }, "Expense date", Modifier.fillMaxWidth(), supportingText = "Use YYYY-MM-DD", enabled = !state.isSaving) }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Text("Expense date", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                OutlinedButton(
+                    onClick = { datePickerOpen = true },
+                    enabled = !state.isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(draft.expenseDate.ifBlank { "Choose expense date" })
+                }
+            }
+        }
         if (categories.isNotEmpty()) {
             item {
                 Text("Category", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -248,6 +268,32 @@ private fun ExpenseEditor(
                 EduCoreSecondaryButton("Cancel", onBack, Modifier.weight(1f), enabled = !state.isSaving)
                 EduCorePrimaryButton("Save", onSave, Modifier.weight(1f), enabled = draft.valid, loading = state.isSaving)
             }
+        }
+    }
+
+    if (datePickerOpen) {
+        val initialMillis = runCatching {
+            LocalDate.parse(draft.expenseDate).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }.getOrNull()
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { datePickerOpen = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            val selected = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                            onField(ExpenseField.DATE, selected)
+                        }
+                        datePickerOpen = false
+                    },
+                ) { Text("Use date") }
+            },
+            dismissButton = {
+                TextButton(onClick = { datePickerOpen = false }) { Text("Cancel") }
+            },
+        ) {
+            DatePicker(state = pickerState)
         }
     }
 }
