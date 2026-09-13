@@ -115,11 +115,14 @@ body {
 }
 
 /* Primary structure */
-.sidebar {
+.sidebar,
+.p-nav,
+.p-sidebar {
   background: var(--brand-navy) !important;
 }
 
-.nav-item.active {
+.nav-item.active,
+.p-nav-item.active {
   background: rgba(212,160,23,.16) !important;
   color: #F6D873 !important;
 }
@@ -129,7 +132,8 @@ body {
 }
 
 .collapse-btn:hover,
-.user-av {
+.user-av,
+.p-av {
   background: var(--brand-gold) !important;
   color: var(--brand-navy) !important;
 }
@@ -163,13 +167,15 @@ body {
 
 .btn-secondary,
 .btn-view,
-.btn-edit {
+.btn-edit,
+.btn-ghost {
   border-color: var(--brand-border) !important;
 }
 
 .btn-secondary:hover,
 .btn-view:hover,
-.btn-edit:hover {
+.btn-edit:hover,
+.btn-ghost:hover {
   border-color: var(--brand-navy) !important;
   color: var(--brand-navy) !important;
 }
@@ -201,20 +207,18 @@ textarea:focus,
   outline: none;
 }
 
-/* Premium data tables across the application. Print output is intentionally excluded. */
+/* Premium data tables across every web layout. Print output is excluded. */
 @media screen {
-  .page-content table,
-  .assessment-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    border: 1px solid var(--brand-border);
+  body table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 1px solid var(--brand-border) !important;
     border-radius: 8px;
     overflow: hidden;
     background: #FFFFFF;
   }
 
-  .page-content table thead th,
-  .assessment-table thead th {
+  body table thead th {
     background: var(--brand-navy) !important;
     color: #FFFFFF !important;
     border-color: rgba(255,255,255,.11) !important;
@@ -224,19 +228,16 @@ textarea:focus,
     vertical-align: middle;
   }
 
-  .page-content table tbody td,
-  .assessment-table tbody td {
+  body table tbody td {
     border-color: #E7EBF0 !important;
     color: var(--brand-text);
   }
 
-  .page-content table tbody tr:nth-child(even) td,
-  .assessment-table tbody tr:nth-child(even) td {
+  body table tbody tr:nth-child(even) td {
     background: #FBFCFE;
   }
 
-  .page-content table tbody tr:hover td,
-  .assessment-table tbody tr:hover td {
+  body table tbody tr:hover td {
     background: #F5F8FC !important;
   }
 }
