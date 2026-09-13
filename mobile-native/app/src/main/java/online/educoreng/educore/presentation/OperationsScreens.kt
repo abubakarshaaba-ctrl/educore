@@ -70,6 +70,7 @@ internal fun OperationsScreen(
     onRetry: () -> Unit,
 ) {
     when (state.moduleKey?.lowercase() ?: state.workspace?.module?.key?.lowercase()) {
+        "staff" -> StaffDirectoryOperationsScreen(onBack = onBack)
         "subscription" -> SubscriptionPaymentOperationsScreen(onBack = onBack)
         "parent.fees" -> ParentFeePaymentOperationsScreen(onBack = onBack)
         "fees" -> FeesScreen(state = state, onBack = onBack, onQuery = onQuery, onSection = onSection)
@@ -139,9 +140,7 @@ private fun GenericOperationsScreen(
             .filterOperations(state.query)
             .filter { record -> selectedSession == null || record.fieldValue("Session") == selectedSession }
             .filter { record -> selectedTerm == null || record.fieldValue("Term") == selectedTerm }
-            .filter { record ->
-                selectedClass == null || record.fieldValue("Class Level") == selectedClass || record.fieldValue("Class") == selectedClass
-            }
+            .filter { record -> selectedClass == null || record.fieldValue("Class Level") == selectedClass || record.fieldValue("Class") == selectedClass }
             .filter { record -> selectedDate == null || record.matchesDate(selectedDate!!) }
     }
     val metricColumns = when (width) {
@@ -175,41 +174,14 @@ private fun GenericOperationsScreen(
             }
         }
         if (workspace.sections.size > 1) {
-            item {
-                EduCoreTabs(
-                    labels = workspace.sections.map { "${it.title} (${it.count})" },
-                    selectedIndex = state.selectedSection,
-                    onSelected = onSection,
-                )
-            }
+            item { EduCoreTabs(labels = workspace.sections.map { "${it.title} (${it.count})" }, selectedIndex = state.selectedSection, onSelected = onSection) }
         }
         if (financeModule) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    if (sessionOptions.isNotEmpty()) {
-                        FinanceDropdown(
-                            label = "Session",
-                            options = sessionOptions,
-                            selected = selectedSession,
-                            onSelected = { selectedSession = it },
-                        )
-                    }
-                    if (termOptions.isNotEmpty()) {
-                        FinanceDropdown(
-                            label = "Term",
-                            options = termOptions,
-                            selected = selectedTerm,
-                            onSelected = { selectedTerm = it },
-                        )
-                    }
-                    if (classOptions.isNotEmpty()) {
-                        FinanceDropdown(
-                            label = "Class Level",
-                            options = classOptions,
-                            selected = selectedClass,
-                            onSelected = { selectedClass = it },
-                        )
-                    }
+                    if (sessionOptions.isNotEmpty()) FinanceDropdown("Session", sessionOptions, selectedSession) { selectedSession = it }
+                    if (termOptions.isNotEmpty()) FinanceDropdown("Term", termOptions, selectedTerm) { selectedTerm = it }
+                    if (classOptions.isNotEmpty()) FinanceDropdown("Class Level", classOptions, selectedClass) { selectedClass = it }
                     EduCoreSecondaryButton(
                         text = selectedDate?.let { "Date: $it" } ?: "Select date",
                         onClick = { showDatePicker = true },
@@ -218,12 +190,7 @@ private fun GenericOperationsScreen(
                     if (selectedSession != null || selectedTerm != null || selectedClass != null || selectedDate != null) {
                         EduCoreSecondaryButton(
                             text = "Clear finance filters",
-                            onClick = {
-                                selectedSession = null
-                                selectedTerm = null
-                                selectedClass = null
-                                selectedDate = null
-                            },
+                            onClick = { selectedSession = null; selectedTerm = null; selectedClass = null; selectedDate = null },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -254,20 +221,13 @@ private fun GenericOperationsScreen(
                 }) { Text("Apply") }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
-        ) {
-            DatePicker(state = pickerState)
-        }
+        ) { DatePicker(state = pickerState) }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FinanceDropdown(
-    label: String,
-    options: List<String>,
-    selected: String?,
-    onSelected: (String?) -> Unit,
-) {
+private fun FinanceDropdown(label: String, options: List<String>, selected: String?, onSelected: (String?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
         OutlinedTextField(
@@ -279,16 +239,8 @@ private fun FinanceDropdown(
             modifier = Modifier.menuAnchor().fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("All $label") },
-                onClick = { onSelected(null); expanded = false },
-            )
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = { onSelected(option); expanded = false },
-                )
-            }
+            DropdownMenuItem(text = { Text("All $label") }, onClick = { onSelected(null); expanded = false })
+            options.forEach { option -> DropdownMenuItem(text = { Text(option) }, onClick = { onSelected(option); expanded = false }) }
         }
     }
 }
@@ -304,10 +256,7 @@ private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowW
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.SurfaceBlue50),
         border = BorderStroke(0.7.dp, EduCoreColors.Info200),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-        ) {
+        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
                     Text(record.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -339,19 +288,11 @@ private fun OperationsRecordCard(record: OperationsRecord, width: EduCoreWindowW
 private fun List<OperationsRecord>.fieldValues(label: String): List<String> =
     mapNotNull { it.fieldValue(label) }
         .filter { it.isNotBlank() && it !in setOf("Not assigned", "Not set", "Not paid", "Pending") }
-        .distinct()
-        .sorted()
+        .distinct().sorted()
 
-private fun OperationsRecord.fieldValue(label: String): String? =
-    fields.firstOrNull { it.label.equals(label, ignoreCase = true) }?.value
-
-private fun OperationsRecord.matchesDate(date: String): Boolean =
-    fields.any { field -> field.label in DATE_FIELD_LABELS && field.value.take(10) == date }
-
-private fun formatUtcDate(epochMillis: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-    timeZone = TimeZone.getTimeZone("UTC")
-}.format(Date(epochMillis))
-
+private fun OperationsRecord.fieldValue(label: String): String? = fields.firstOrNull { it.label.equals(label, ignoreCase = true) }?.value
+private fun OperationsRecord.matchesDate(date: String): Boolean = fields.any { field -> field.label in DATE_FIELD_LABELS && field.value.take(10) == date }
+private fun formatUtcDate(epochMillis: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date(epochMillis))
 private val DATE_FIELD_LABELS = setOf("Due", "Date", "Payment date", "Paid at", "Applied", "Issued")
 
 private fun String.toEduCoreTone(): EduCoreTone = when (lowercase()) {
@@ -372,8 +313,6 @@ private fun String.toTone(): EduCoreTone = when (lowercase()) {
 }
 
 internal fun List<OperationsRecord>.filterOperations(query: String): List<OperationsRecord> = filter { record ->
-    query.isBlank() || record.title.contains(query, true) ||
-        record.subtitle.orEmpty().contains(query, true) ||
-        record.status.orEmpty().contains(query, true) ||
-        record.fields.any { it.label.contains(query, true) || it.value.contains(query, true) }
+    query.isBlank() || record.title.contains(query, true) || record.subtitle.orEmpty().contains(query, true) ||
+        record.status.orEmpty().contains(query, true) || record.fields.any { it.label.contains(query, true) || it.value.contains(query, true) }
 }
