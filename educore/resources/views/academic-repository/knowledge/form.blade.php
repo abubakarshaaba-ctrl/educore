@@ -28,6 +28,13 @@
             <div class="col-md-4"><label class="form-label">Status</label><select class="form-select" name="status">@foreach(['draft','review','approved'] as $status)<option value="{{ $status }}" @selected(old('status', $topic->status ?: 'draft')===$status)>{{ ucfirst($status) }}</option>@endforeach</select></div>
         </div></div>
 
+        <div class="card mb-4"><div class="card-header"><strong>Lesson timing and learner profile</strong></div><div class="card-body row g-3">
+            <div class="col-md-3"><label class="form-label">Time</label><input class="form-control" name="lesson_time" value="{{ old('lesson_time', $topic->lesson_time) }}" placeholder="12:10pm – 1:20pm"></div>
+            <div class="col-md-3"><label class="form-label">Duration (minutes)</label><input class="form-control" type="number" min="1" max="600" name="duration_minutes" value="{{ old('duration_minutes', $topic->duration_minutes) }}" placeholder="70"></div>
+            <div class="col-md-3"><label class="form-label">Average age</label><input class="form-control" type="number" min="3" max="30" name="average_age" value="{{ old('average_age', $topic->average_age) }}" placeholder="15"></div>
+            <div class="col-md-3"><label class="form-label">Sex</label><input class="form-control" name="sex" value="{{ old('sex', $topic->sex) }}" placeholder="Mixed"></div>
+        </div></div>
+
         <div class="card mb-4"><div class="card-header"><strong>Standard lesson-plan fields</strong></div><div class="card-body row g-3">
             @foreach([
                 ['entry_behaviour','Entry Behaviour'],['previous_knowledge','Previous / Background Knowledge'],['instructional_resources','Instructional Resources'],['introduction','Introduction'],['reference','Reference'],['student_note_summary','Student Note Summary']
