@@ -18,6 +18,7 @@ educore/public/build/
 educore/public/hot
 educore/public/storage
 educore/storage/*.key
+educore/storage/app/firebase-service-account.json
 educore/storage/pail/
 educore/storage/framework/views/*.php
 educore/storage/framework/sessions/*
