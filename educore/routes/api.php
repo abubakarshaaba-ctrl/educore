@@ -141,7 +141,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [MobileAcademicCycleController::class, 'index']);
             Route::post('sessions', [MobileAcademicCycleController::class, 'storeSession']);
             Route::patch('sessions/{session}', [MobileAcademicCycleController::class, 'updateSession'])->whereNumber('session');
-            Route::post('sessions/{session}/activate', [MobileAcademicCycleController::class, 'activateSession'])->whereNumber('session');
+            Route::post('sessions/{session}/activate', [MobileAcademicCycleController::class, 'activateSession']);
             Route::get('sessions/{session}/readiness', [MobileAcademicCycleController::class, 'sessionReadiness'])->whereNumber('session');
             Route::post('sessions/{session}/close', [MobileAcademicCycleController::class, 'closeSession'])->whereNumber('session');
             Route::delete('sessions/{session}', [MobileAcademicCycleController::class, 'destroySession'])->whereNumber('session');
@@ -276,7 +276,14 @@ Route::prefix('v1')->group(function () {
             Route::patch('subjects/{subject}', [AdminController::class, 'updateSubject']);
             Route::get('staff-attendance', [AdminStaffAttendanceController::class, 'index']);
             Route::get('staff-attendance/report', [AdminStaffAttendanceController::class, 'report']);
+            Route::post('staff-attendance/manual', [AdminStaffAttendanceController::class, 'manualOverride']);
+            Route::get('staff-attendance/offline', [AdminStaffAttendanceController::class, 'offlineQueue']);
+            Route::post('staff-attendance/offline/{record}', [AdminStaffAttendanceController::class, 'processOffline'])->whereNumber('record');
+            Route::get('staff-attendance/proxy-reviews', [AdminStaffAttendanceController::class, 'proxyReviews']);
+            Route::post('staff-attendance/proxy-reviews/{record}', [AdminStaffAttendanceController::class, 'decideProxy'])->whereNumber('record');
+            Route::get('staff-attendance/qr', [AdminStaffAttendanceController::class, 'qr']);
             Route::put('staff-attendance/settings', [AdminStaffAttendanceController::class, 'updateSettings']);
+            Route::post('staff-attendance/reset-qr', [AdminStaffAttendanceController::class, 'resetQr']);
         });
 
         Route::prefix('accountant')->group(function () {
