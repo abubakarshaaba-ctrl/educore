@@ -88,4 +88,5 @@
 
 @include('curriculum-sources._styles')
 @include('academic-repository._styles')
+@include('academic-repository._reader-prose')
 @endsection
