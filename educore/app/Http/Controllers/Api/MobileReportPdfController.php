@@ -19,9 +19,9 @@ class MobileReportPdfController extends Controller
         abort_if($user->isStudent() || $user->isParent() || $user->isSuperAdmin(), 403);
         abort_unless($user->tenant_id, 403);
         abort_unless(
-            $user->canAccessExactModule('reports'),
+            $user->canAccessExactModule('reports') || $user->canAccessExactModule('reports.view'),
             403,
-            'Full report-card access is required to download this PDF.'
+            'Report-card view access is required to download this PDF.'
         );
 
         $tenantId = (int) $user->tenant_id;
