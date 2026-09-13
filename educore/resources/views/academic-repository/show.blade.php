@@ -37,22 +37,37 @@
                 <div><small>{{ $classLabel }} · {{ $termLabel }}</small><h2>{{ $source->title }}</h2><p>{{ $subjectLabel }}</p></div>
             </div>
 
-            @forelse($source->fragments as $fragment)
-                <article class="reader-note-section" id="section-{{ $loop->iteration }}">
+            @if($renderedDocument)
+                <article class="reader-note-section reader-document-source" id="document-content">
                     <header>
-                        <span>{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                        <span>01</span>
                         <div>
-                            <small>Note section</small>
-                            <h3>{{ $fragment->subtopic ?: $fragment->topic ?: 'Lesson content' }}</h3>
+                            <small>Document reader</small>
+                            <h3>{{ $source->title }}</h3>
                         </div>
                     </header>
                     <div class="reader-note-content reader-prose">
-                        {!! $renderedContent[(string) $fragment->getKey()] ?? '' !!}
+                        {!! $renderedDocument !!}
                     </div>
                 </article>
-            @empty
-                <div class="reader-note-empty">No readable sections are available for this resource.</div>
-            @endforelse
+            @else
+                @forelse($source->fragments as $fragment)
+                    <article class="reader-note-section" id="section-{{ $loop->iteration }}">
+                        <header>
+                            <span>{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                            <div>
+                                <small>Note section</small>
+                                <h3>{{ $fragment->subtopic ?: $fragment->topic ?: 'Lesson content' }}</h3>
+                            </div>
+                        </header>
+                        <div class="reader-note-content reader-prose">
+                            {!! $renderedContent[(string) $fragment->getKey()] ?? '' !!}
+                        </div>
+                    </article>
+                @empty
+                    <div class="reader-note-empty">No readable sections are available for this resource.</div>
+                @endforelse
+            @endif
         </main>
 
         <aside class="reader-document-aside">
@@ -74,7 +89,12 @@
                 @endif
             </section>
 
-            @if($source->fragments->count() > 1)
+            @if($renderedDocument)
+                <section class="repo-card reader-toc">
+                    <span class="reader-info-kicker">On this page</span>
+                    <a href="#document-content"><b>01</b><span>Document content</span></a>
+                </section>
+            @elseif($source->fragments->count() > 1)
                 <section class="repo-card reader-toc">
                     <span class="reader-info-kicker">On this page</span>
                     @foreach($source->fragments as $fragment)
