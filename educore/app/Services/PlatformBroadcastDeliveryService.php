@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -39,8 +40,10 @@ class PlatformBroadcastDeliveryService
             'title' => (string) $broadcast->title,
             'body' => (string) $broadcast->body,
             'priority' => 'important',
-            'published_at' => optional($broadcast->created_at ? \Illuminate\Support\Carbon::parse($broadcast->created_at) : null)?->toIso8601String() ?? now()->toIso8601String(),
-            'expires_at' => $broadcast->expires_at ? \Illuminate\Support\Carbon::parse($broadcast->expires_at)->toIso8601String() : null,
+            'published_at' => $broadcast->created_at
+                ? Carbon::parse($broadcast->created_at)->toIso8601String()
+                : now()->toIso8601String(),
+            'expires_at' => $broadcast->expires_at ? Carbon::parse($broadcast->expires_at)->toIso8601String() : null,
             // Platform broadcasts are tenant-level notices, not per-user announcement reads.
             'is_read' => true,
             'deep_link' => ['type' => 'platform_broadcast', 'id' => (string) $broadcast->id],
