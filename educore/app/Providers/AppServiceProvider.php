@@ -47,6 +47,14 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.custom');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.custom');
 
+        // Super Admin platform broadcasts are stored with a legacy raw DB insert.
+        // Bridge that successful HTTP insert into the normal FCM push pipeline.
+        if (! $this->app->runningInConsole()) {
+            \Illuminate\Support\Facades\DB::listen(
+                app(\App\Services\Notifications\PlatformBroadcastPushListener::class)
+            );
+        }
+
         // Registered-student guardian management is deliberately separate from the
         // core student profile update so guardian linking/unlinking can be validated,
         // tenant-scoped and transacted independently.
