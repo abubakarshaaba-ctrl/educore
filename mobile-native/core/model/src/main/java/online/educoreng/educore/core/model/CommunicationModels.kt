@@ -74,9 +74,12 @@ data class MessagePage(
 )
 
 data class MessageRecipient(
-    val studentId: Long,
+    val id: Long,
+    val targetType: String,
+    val recipientId: Long?,
+    val studentId: Long?,
     val name: String,
-    val admissionNumber: String,
+    val supporting: String,
     val className: String?,
 )
 
