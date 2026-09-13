@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('scores')->name('scores.')->group(function (): void {
     Route::get('assessment-types', [AssessmentTypeAdminController::class, 'index'])
         ->name('assessment-types');
+    Route::post('assessment-types', [AssessmentTypeAdminController::class, 'store'])
+        ->name('assessment-types.store');
     Route::put('assessment-types/{at}', [AssessmentTypeAdminController::class, 'update'])
         ->name('assessment-types.update');
     Route::patch('assessment-types/{at}/migrate', [AssessmentTypeAdminController::class, 'migrate'])
