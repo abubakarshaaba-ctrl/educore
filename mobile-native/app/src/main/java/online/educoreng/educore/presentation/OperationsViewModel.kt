@@ -36,10 +36,15 @@ class OperationsViewModel @Inject constructor(
                 workspace = state.workspace.takeIf { state.moduleKey == module },
                 selectedSection = if (state.moduleKey == module) state.selectedSection else 0,
                 query = if (state.moduleKey == module) state.query else "",
-                isLoading = true,
+                isLoading = module != "staff",
                 errorMessage = null,
             )
         }
+
+        // Staff has its own tenant-scoped native API/ViewModel. Do not make it
+        // depend on the generic read-only operations workspace endpoint.
+        if (module == "staff") return@launch
+
         when (val result = repository.load(module)) {
             is AppResult.Success -> _uiState.update { state ->
                 state.copy(
