@@ -90,7 +90,7 @@ class CommunicationViewModel @Inject constructor(
         beginLoading()
         when (val result = repository.notifications(_uiState.value.noticeFilter)) {
             is AppResult.Success -> _uiState.update {
-                it.copy(notifications = result.value.items, unreadNotifications = result.value.unreadCount, isLoading = false)
+                it.copy(notifications = result.value.notifications, unreadNotifications = result.value.unreadCount, isLoading = false)
             }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
