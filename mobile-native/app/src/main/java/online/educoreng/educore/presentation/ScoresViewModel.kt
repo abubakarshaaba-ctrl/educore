@@ -77,7 +77,15 @@ class ScoresViewModel @Inject constructor(
             when (val result = repository.submit(_uiState.value.sheet ?: sheet)) {
                 is AppResult.Success -> _uiState.update {
                     if (result.value.syncState == SyncState.QUEUED) syncCoordinator.schedule()
-                    it.copy(sheet = result.value, isSaving = false, message = if (result.value.syncState == SyncState.QUEUED) "Scores queued and will sync automatically." else "Scores saved successfully.")
+                    it.copy(
+                        sheet = result.value,
+                        isSaving = false,
+                        message = if (result.value.syncState == SyncState.QUEUED) {
+                            "Scores queued and will sync automatically."
+                        } else {
+                            "Scores saved successfully."
+                        },
+                    )
                 }
                 is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
@@ -97,20 +105,6 @@ class ScoresViewModel @Inject constructor(
         when (val result = repository.loadPublishedResults(childId)) {
             is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
-        }
-    }
-
-    /**
-     * Compatibility entry point for legacy, unreachable report-card routes.
-     * Student results/report cards are intentionally unavailable in the mobile app.
-     */
-    fun loadStudentResults(classId: Long, studentId: Long) = viewModelScope.launch {
-        _uiState.update {
-            it.copy(
-                isLoading = false,
-                publishedResults = null,
-                errorMessage = "Results and report cards are not available in the mobile app.",
-            )
         }
     }
 
