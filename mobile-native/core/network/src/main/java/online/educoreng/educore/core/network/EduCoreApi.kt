@@ -103,6 +103,12 @@ interface EduCoreApi {
         @Path("student") studentId: Long,
     ): StudentProfileResponseDto
 
+    @GET("classes/{classArm}/students/{student}/results")
+    suspend fun studentResultsForStaff(
+        @Path("classArm") classArmId: Long,
+        @Path("student") studentId: Long,
+    ): PublishedResultsResponseDto
+
     @GET("classes/{classArm}/attendance")
     suspend fun attendanceSheet(
         @Path("classArm") classArmId: Long,
