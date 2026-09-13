@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InjectEduCorePremiumTheme
 {
-    private const THEME_VERSION = '20260913-premium-v3';
+    private const THEME_VERSION = '20260913-premium-v4';
 
     public function handle(Request $request, Closure $next): Response
     {
