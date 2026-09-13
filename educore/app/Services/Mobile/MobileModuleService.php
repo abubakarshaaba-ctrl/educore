@@ -206,7 +206,7 @@ class MobileModuleService
 
                 // These leadership workspaces are guaranteed in the native shell;
                 // endpoint authorization remains tenant-scoped server-side.
-                if ($isSchoolAdmin && in_array($key, ['staff', 'students', 'reports'], true)) {
+                if ($isSchoolAdmin && in_array($key, ['staff', 'students', 'scores', 'reports'], true)) {
                     return true;
                 }
 
@@ -228,8 +228,9 @@ class MobileModuleService
                 }
 
                 if ($key === 'scores') {
-                    return $user->canAccessExactModule('scores')
-                        || $user->canAccessExactModule('scores.entry');
+                    return $user->canAccessModule('scores')
+                        || $user->canAccessExactModule('scores.entry')
+                        || $this->hasExplicitAcademicGrant($user, $key);
                 }
 
                 return $user->canAccessModule($key);
