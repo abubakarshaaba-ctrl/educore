@@ -9,11 +9,17 @@
 
     <article class="card generated-document"><div class="card-body p-4 p-lg-5">
         @if($type === 'lesson-plan')
-            <div class="row g-2 mb-4 border-bottom pb-3">
+            <div class="row g-2 mb-3 border-bottom pb-3">
                 <div class="col-md-3"><strong>CLASS:</strong> {{ $document['class'] }}</div><div class="col-md-3"><strong>SUBJECT:</strong> {{ $document['subject'] }}</div><div class="col-md-3"><strong>WEEK:</strong> {{ $document['week'] ?: '—' }}</div><div class="col-md-3"><strong>LESSON:</strong> {{ $document['lesson'] ?: '—' }}</div>
             </div>
             <section class="mb-4"><h2 class="h5">TOPIC</h2><p>{{ $document['topic'] }}</p></section>
             <section class="mb-4"><h2 class="h5">SUB-TOPIC</h2><p>{{ $document['sub_topic'] ?: '—' }}</p></section>
+            <div class="row g-2 mb-4 border-bottom pb-3">
+                <div class="col-md-3"><strong>TIME:</strong> {{ $document['time'] ?: '—' }}</div>
+                <div class="col-md-3"><strong>DURATION:</strong> {{ $document['duration'] ? $document['duration'].' minutes' : '—' }}</div>
+                <div class="col-md-3"><strong>AVERAGE AGE:</strong> {{ $document['average_age'] ?: '—' }}</div>
+                <div class="col-md-3"><strong>SEX:</strong> {{ $document['sex'] ?: '—' }}</div>
+            </div>
             <section class="mb-4"><h2 class="h5">ENTRY BEHAVIOUR</h2><p>{{ $document['entry_behaviour'] }}</p></section>
             <section class="mb-4"><h2 class="h5">PREVIOUS / BACKGROUND KNOWLEDGE</h2><p>{{ $document['previous_knowledge'] }}</p></section>
             <section class="mb-4"><h2 class="h5">BEHAVIOURAL OBJECTIVES</h2><p>At the end of the lesson, students should be able to:</p><ol>@foreach($document['behavioural_objectives'] as $item)<li class="mb-1">{{ $item }}</li>@endforeach</ol></section>
