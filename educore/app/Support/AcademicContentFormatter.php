@@ -6,7 +6,7 @@ class AcademicContentFormatter
 {
     private const ALLOWED_TAGS = '<p><br><h2><h3><h4><h5><h6><ul><ol><li><strong><b><em><i><u><blockquote><table><thead><tbody><tfoot><tr><th><td><hr><sup><sub><code><pre>';
 
-    public function render(?string $content): string
+    public function render(?string $content, bool $preserveLineBreaks = false): string
     {
         $content = trim((string) $content);
 
@@ -18,7 +18,7 @@ class AcademicContentFormatter
             return $this->sanitizeHtml($content);
         }
 
-        return $this->formatPlainText($content);
+        return $this->formatPlainText($content, $preserveLineBreaks);
     }
 
     private function containsSupportedHtml(string $content): bool
@@ -32,9 +32,6 @@ class AcademicContentFormatter
         $html = preg_replace('/<!--.*?-->/s', '', $html) ?? '';
         $html = strip_tags($html, self::ALLOWED_TAGS);
 
-        // Presentation content does not need arbitrary attributes. Removing every
-        // attribute keeps future rich fragments useful while preventing event,
-        // style and URL-based injection from entering the reader.
         $html = preg_replace_callback(
             '/<\s*(\/?)\s*([a-z0-9]+)(?:\s[^>]*)?>/i',
             static function (array $matches): string {
@@ -49,7 +46,7 @@ class AcademicContentFormatter
         return trim($html);
     }
 
-    private function formatPlainText(string $content): string
+    private function formatPlainText(string $content, bool $preserveLineBreaks): string
     {
         $content = str_replace(["\r\n", "\r"], "\n", $content);
         $lines = explode("\n", $content);
@@ -136,6 +133,10 @@ class AcademicContentFormatter
 
             $flushList();
             $paragraph[] = $trimmed;
+
+            if ($preserveLineBreaks) {
+                $flushParagraph();
+            }
         }
 
         $flushParagraph();
