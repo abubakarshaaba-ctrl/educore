@@ -11,12 +11,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import online.educoreng.educore.core.network.ApiClientFactory
 import online.educoreng.educore.core.network.PlatformApi
 import online.educoreng.educore.core.network.dto.PlatformAgentsDto
 import online.educoreng.educore.core.network.dto.PlatformAnalyticsDto
 import online.educoreng.educore.core.network.dto.PlatformBillingDto
-import online.educoreng.educore.core.network.dto.PlatformBroadcastCreateRequestDto
 import online.educoreng.educore.core.network.dto.PlatformBroadcastsDto
 import online.educoreng.educore.core.network.dto.PlatformDashboardDto
 import online.educoreng.educore.core.network.dto.PlatformGatewaysDto
@@ -66,6 +68,7 @@ internal data class PlatformUiState(
     val broadcastBody: String = "",
     val broadcastTarget: String = "all",
     val broadcastExpiresAt: String = "",
+    val broadcastImage: PlatformBroadcastImage? = null,
     val pendingAction: PlatformPendingAction? = null,
     val pendingActionId: Long? = null,
     val isLoading: Boolean = false,
@@ -122,6 +125,7 @@ internal class PlatformViewModel @Inject constructor(factory: ApiClientFactory) 
                 replyTicketId = null,
                 replyDraft = "",
                 broadcastEditorOpen = false,
+                broadcastImage = null,
                 pendingAction = null,
                 pendingActionId = null,
                 message = null,
@@ -179,13 +183,21 @@ internal class PlatformViewModel @Inject constructor(factory: ApiClientFactory) 
             broadcastBody = "",
             broadcastTarget = "all",
             broadcastExpiresAt = "",
+            broadcastImage = null,
             errorMessage = null,
             message = null,
         )
     }
 
     fun closeBroadcastEditor() = _uiState.update {
-        it.copy(broadcastEditorOpen = false, broadcastTitle = "", broadcastBody = "", broadcastExpiresAt = "", errorMessage = null)
+        it.copy(
+            broadcastEditorOpen = false,
+            broadcastTitle = "",
+            broadcastBody = "",
+            broadcastExpiresAt = "",
+            broadcastImage = null,
+            errorMessage = null,
+        )
     }
 
     fun setBroadcastTitle(value: String) = _uiState.update {
@@ -205,17 +217,28 @@ internal class PlatformViewModel @Inject constructor(factory: ApiClientFactory) 
         if (it.isMutating) it else it.copy(broadcastExpiresAt = value.take(25), errorMessage = null)
     }
 
+    fun setBroadcastImage(image: PlatformBroadcastImage?) = _uiState.update {
+        if (it.isMutating) it else it.copy(broadcastImage = image, errorMessage = null)
+    }
+
     fun createBroadcast() {
         val state = _uiState.value
         if (!state.broadcastValid || state.isMutating) return
+        val textType = "text/plain".toMediaType()
+        val imagePart = state.broadcastImage?.let { image ->
+            MultipartBody.Part.createFormData(
+                "image",
+                image.fileName,
+                image.bytes.toRequestBody(image.mimeType.toMediaType()),
+            )
+        }
         mutate(PlatformSection.BROADCASTS) {
-            api.createBroadcast(
-                PlatformBroadcastCreateRequestDto(
-                    title = state.broadcastTitle.trim(),
-                    body = state.broadcastBody.trim(),
-                    target = state.broadcastTarget,
-                    expiresAt = state.broadcastExpiresAt.trim().takeIf(String::isNotBlank),
-                )
+            api.createBroadcastWithImage(
+                title = state.broadcastTitle.trim().toRequestBody(textType),
+                body = state.broadcastBody.trim().toRequestBody(textType),
+                target = state.broadcastTarget.toRequestBody(textType),
+                expiresAt = state.broadcastExpiresAt.trim().takeIf(String::isNotBlank)?.toRequestBody(textType),
+                image = imagePart,
             ).message
         }
     }
@@ -269,6 +292,7 @@ internal class PlatformViewModel @Inject constructor(factory: ApiClientFactory) 
                         broadcastTitle = "",
                         broadcastBody = "",
                         broadcastExpiresAt = "",
+                        broadcastImage = null,
                         pendingAction = null,
                         pendingActionId = null,
                         isMutating = false,
