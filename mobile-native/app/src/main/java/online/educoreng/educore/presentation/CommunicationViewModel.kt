@@ -82,7 +82,8 @@ class CommunicationViewModel @Inject constructor(
     }
 
     fun setNoticeFilter(filter: String) {
-        _uiState.update { it.copy(noticeFilter = filter) }
+        if (filter == _uiState.value.noticeFilter) return
+        _uiState.update { it.copy(noticeFilter = filter, errorMessage = null) }
         loadNotifications()
     }
 
@@ -90,13 +91,21 @@ class CommunicationViewModel @Inject constructor(
         beginLoading()
         when (val result = repository.notifications(_uiState.value.noticeFilter)) {
             is AppResult.Success -> _uiState.update {
-                it.copy(notifications = result.value.notifications, unreadNotifications = result.value.unreadCount, isLoading = false)
+                it.copy(
+                    notifications = result.value.notifications,
+                    unreadNotifications = result.value.unreadCount,
+                    isLoading = false,
+                    errorMessage = null,
+                )
             }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
     }
 
     fun markRead(id: Long) = viewModelScope.launch {
+        val current = _uiState.value.notifications.firstOrNull { it.id == id } ?: return@launch
+        if (current.isRead) return@launch
+
         when (val result = repository.markNotificationRead(id)) {
             is AppResult.Success -> _uiState.update { state ->
                 state.copy(
@@ -106,6 +115,7 @@ class CommunicationViewModel @Inject constructor(
                         state.notifications.map { if (it.id == id) result.value else it }
                     },
                     unreadNotifications = (state.unreadNotifications - 1).coerceAtLeast(0),
+                    errorMessage = null,
                 )
             }
             is AppResult.Failure -> fail(result.error.userMessage)
@@ -115,13 +125,16 @@ class CommunicationViewModel @Inject constructor(
     fun markAllRead() = viewModelScope.launch {
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.markAllNotificationsRead()) {
-            is AppResult.Success -> _uiState.update { state ->
-                state.copy(
-                    notifications = if (state.noticeFilter == "unread") emptyList() else state.notifications.map { it.copy(isRead = true) },
-                    unreadNotifications = 0,
-                    isSaving = false,
-                    message = "${result.value} notification(s) marked as read.",
-                )
+            is AppResult.Success -> {
+                _uiState.update { state ->
+                    state.copy(
+                        unreadNotifications = 0,
+                        isSaving = false,
+                        errorMessage = null,
+                        message = "${result.value} notification(s) marked as read.",
+                    )
+                }
+                loadNotifications()
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
         }
@@ -130,7 +143,7 @@ class CommunicationViewModel @Inject constructor(
     fun loadMessages() = viewModelScope.launch {
         beginLoading()
         when (val result = repository.messages()) {
-            is AppResult.Success -> _uiState.update { it.copy(messagePage = result.value, isLoading = false) }
+            is AppResult.Success -> _uiState.update { it.copy(messagePage = result.value, isLoading = false, errorMessage = null) }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
     }
@@ -143,7 +156,7 @@ class CommunicationViewModel @Inject constructor(
                     is AppResult.Success -> messages.value
                     is AppResult.Failure -> _uiState.value.messagePage
                 }
-                _uiState.update { it.copy(thread = result.value, messagePage = refreshedPage, isLoading = false) }
+                _uiState.update { it.copy(thread = result.value, messagePage = refreshedPage, isLoading = false, errorMessage = null) }
             }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
@@ -155,7 +168,7 @@ class CommunicationViewModel @Inject constructor(
         }
         when (val result = repository.recipients()) {
             is AppResult.Success -> _uiState.update { state ->
-                state.copy(recipients = result.value, selectedRecipientId = result.value.singleOrNull()?.studentId, isLoading = false)
+                state.copy(recipients = result.value, selectedRecipientId = result.value.singleOrNull()?.studentId, isLoading = false, errorMessage = null)
             }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
@@ -191,7 +204,7 @@ class CommunicationViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.compose(recipientId, state.composeSubject.trim(), state.composeBody.trim(), state.attachment)) {
             is AppResult.Success -> _uiState.update {
-                it.copy(thread = result.value, isSaving = false, attachment = null, message = "Message sent.")
+                it.copy(thread = result.value, isSaving = false, attachment = null, message = "Message sent.", errorMessage = null)
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
         }
@@ -210,6 +223,7 @@ class CommunicationViewModel @Inject constructor(
                     attachment = null,
                     isSaving = false,
                     message = "Reply sent.",
+                    errorMessage = null,
                 )
             }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
@@ -238,6 +252,7 @@ class CommunicationViewModel @Inject constructor(
                     eventEndDate = "",
                     eventAudience = "all",
                     isSaving = false,
+                    errorMessage = null,
                     message = "Event published as a notice.",
                 )
             }
@@ -248,7 +263,7 @@ class CommunicationViewModel @Inject constructor(
     fun download(attachment: online.educoreng.educore.core.model.MessageAttachment) = viewModelScope.launch {
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
         when (val result = repository.download(attachment)) {
-            is AppResult.Success -> _uiState.update { it.copy(downloadedDocument = result.value, isSaving = false) }
+            is AppResult.Success -> _uiState.update { it.copy(downloadedDocument = result.value, isSaving = false, errorMessage = null) }
             is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
         }
     }
@@ -259,7 +274,7 @@ class CommunicationViewModel @Inject constructor(
         val from = Calendar.getInstance().apply { add(Calendar.MONTH, -2) }
         val to = Calendar.getInstance().apply { add(Calendar.YEAR, 1) }
         when (val result = repository.events(formatter.format(from.time), formatter.format(to.time))) {
-            is AppResult.Success -> _uiState.update { it.copy(events = result.value, isLoading = false) }
+            is AppResult.Success -> _uiState.update { it.copy(events = result.value, isLoading = false, errorMessage = null) }
             is AppResult.Failure -> failLoading(result.error.userMessage)
         }
     }
@@ -268,8 +283,8 @@ class CommunicationViewModel @Inject constructor(
     fun consumeDocument() = _uiState.update { it.copy(downloadedDocument = null) }
 
     private fun beginLoading() = _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-    private fun failLoading(message: String) = _uiState.update { it.copy(isLoading = false, errorMessage = message) }
-    private fun fail(message: String) = _uiState.update { it.copy(errorMessage = message) }
+    private fun failLoading(message: String) = _uiState.update { it.copy(isLoading = false, errorMessage = message.takeIf(String::isNotBlank)) }
+    private fun fail(message: String) = _uiState.update { it.copy(errorMessage = message.takeIf(String::isNotBlank)) }
 
     private fun readAttachment(uri: Uri): Result<PendingAttachment> = runCatching {
         val resolver = context.contentResolver
