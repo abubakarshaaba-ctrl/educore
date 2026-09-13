@@ -19,6 +19,18 @@ class AcademicContentFormatterTest extends TestCase
         $this->assertStringContainsString('<ol><li>First step</li><li>Second step</li></ol>', $html);
     }
 
+    public function test_docx_mode_preserves_single_line_paragraph_boundaries(): void
+    {
+        $formatter = new AcademicContentFormatter;
+
+        $html = $formatter->render("First paragraph.\nSecond paragraph.\nThird paragraph.", true);
+
+        $this->assertSame(
+            "<p>First paragraph.</p>\n<p>Second paragraph.</p>\n<p>Third paragraph.</p>",
+            $html
+        );
+    }
+
     public function test_it_preserves_supported_rich_markup_but_removes_attributes_and_unsafe_tags(): void
     {
         $formatter = new AcademicContentFormatter;
