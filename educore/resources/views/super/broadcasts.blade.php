@@ -18,8 +18,10 @@ select.fc{cursor:pointer}
 .bcast:last-child{border-bottom:none}
 .b-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px}
 .b-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px}
-.b-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:12px}
+.b-image{display:block;width:100%;max-width:640px;max-height:360px;object-fit:cover;border-radius:10px;margin:10px 0 12px;border:1px solid var(--border);background:#F8FAFC}
+.b-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#EFF6FF;color:#3B82F6}
+.help{font-size:11px;color:#64748B}
 </style>
 @endpush
 @section('content')
@@ -28,7 +30,7 @@ select.fc{cursor:pointer}
 <div class="card">
     <div class="ch">Send Broadcast Message</div>
     <div style="padding:18px">
-        <form method="POST" action="{{ route('super.broadcasts.store') }}">
+        <form method="POST" action="{{ route('super.broadcasts.store') }}" enctype="multipart/form-data">
             @csrf
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="fg">
@@ -51,9 +53,16 @@ select.fc{cursor:pointer}
                 <textarea name="body" class="fc" rows="4" placeholder="Write your broadcast message here..." required>{{ old('body') }}</textarea>
                 @error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
+            <div class="fg" style="max-width:520px">
+                <label>Image (optional)</label>
+                <input type="file" name="image" class="fc" accept="image/jpeg,image/png,image/webp">
+                <span class="help">JPG, PNG or WebP · maximum 5 MB</span>
+                @error('image')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
+            </div>
             <div class="fg" style="max-width:220px">
                 <label>Expires On (optional)</label>
                 <input type="date" name="expires_at" class="fc" value="{{ old('expires_at') }}" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
+                @error('expires_at')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
             <button type="submit" class="btn btn-p">Send Broadcast</button>
         </form>
@@ -65,8 +74,8 @@ select.fc{cursor:pointer}
     @forelse($broadcasts as $bc)
     <div class="bcast">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
-            <div style="flex:1">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                     <div class="b-title">{{ $bc->title }}</div>
                     <span class="badge">{{ ucfirst($bc->target) }}</span>
                     @if($bc->expires_at && \Carbon\Carbon::parse($bc->expires_at)->isPast())
@@ -74,6 +83,9 @@ select.fc{cursor:pointer}
                     @endif
                 </div>
                 <div class="b-body">{{ $bc->body }}</div>
+                @if($bc->image_path)
+                    <img class="b-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($bc->image_path) }}" alt="{{ $bc->title }}">
+                @endif
                 <div class="b-meta">
                     <span>By {{ $bc->creator_name ?? 'Admin' }}</span>
                     <span>· {{ \Carbon\Carbon::parse($bc->created_at)->format('d M Y, H:i') }}</span>
