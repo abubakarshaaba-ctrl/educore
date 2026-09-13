@@ -12,6 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
+            // Override the legacy SuperAdminController broadcast POST route with
+            // the canonical publisher so web and API broadcasts share validation,
+            // image persistence, tenant notice fan-out and push delivery behavior.
+            Route::middleware(['web', 'auth', 'active.account', 'super.admin'])
+                ->post('super/broadcasts', [\App\Http\Controllers\WebPlatformBroadcastController::class, 'store'])
+                ->name('super.broadcasts.store');
+
             Route::middleware([
                 'web', 'auth', 'active.account', 'tenant', 'tenant.access',
                 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
