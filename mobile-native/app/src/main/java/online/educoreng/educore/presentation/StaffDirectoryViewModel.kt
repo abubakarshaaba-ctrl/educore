@@ -52,7 +52,18 @@ internal data class StaffDirectoryUiState(
     val errorMessage: String? = null,
     val message: String? = null,
 ) {
-    val visibleMembers: List<StaffDirectoryMemberDto> get() = members
+    val visibleMembers: List<StaffDirectoryMemberDto>
+        get() = members.filter { member ->
+            val matchesFilter = when (filter) {
+                StaffDirectoryFilter.ALL -> true
+                StaffDirectoryFilter.ACTIVE -> member.active
+                StaffDirectoryFilter.INACTIVE -> !member.active
+            }
+            val term = query.trim()
+            val matchesQuery = term.isBlank() || member.name.contains(term, true) ||
+                member.staffId.orEmpty().contains(term, true) || member.role.contains(term, true)
+            matchesFilter && matchesQuery
+        }
 }
 
 @HiltViewModel
@@ -130,15 +141,28 @@ internal class StaffDirectoryViewModel @Inject constructor(
                 .onSuccess { response ->
                     _uiState.update { state ->
                         val merged = if (reset) response.staff else (state.members + response.staff).distinctBy(StaffDirectoryMemberDto::id)
+                        val localActive = merged.count(StaffDirectoryMemberDto::active)
+                        val localInactive = merged.size - localActive
+                        val serverCountsAvailable = response.counts.total > 0 || response.counts.active > 0 || response.counts.inactive > 0
+                        val serverMetaAvailable = response.meta.total > 0 || response.meta.hasMore || response.meta.lastPage > 1
+                        val locallyFiltered = merged.filter { member ->
+                            val statusMatch = when (state.filter) {
+                                StaffDirectoryFilter.ALL -> true
+                                StaffDirectoryFilter.ACTIVE -> member.active
+                                StaffDirectoryFilter.INACTIVE -> !member.active
+                            }
+                            val term = state.query.trim()
+                            statusMatch && (term.isBlank() || member.name.contains(term, true) || member.staffId.orEmpty().contains(term, true) || member.role.contains(term, true))
+                        }
                         state.copy(
                             members = merged,
-                            totalCount = response.counts.total.takeIf { it > 0 } ?: if (reset) response.meta.total else state.totalCount,
-                            activeCount = response.counts.active,
-                            inactiveCount = response.counts.inactive,
-                            filteredTotal = response.meta.total.takeIf { it > 0 } ?: merged.size,
-                            page = response.meta.page,
-                            lastPage = response.meta.lastPage,
-                            hasMore = response.meta.hasMore,
+                            totalCount = if (serverCountsAvailable) response.counts.total else merged.size,
+                            activeCount = if (serverCountsAvailable) response.counts.active else localActive,
+                            inactiveCount = if (serverCountsAvailable) response.counts.inactive else localInactive,
+                            filteredTotal = if (serverMetaAvailable) response.meta.total else locallyFiltered.size,
+                            page = if (serverMetaAvailable) response.meta.page else 1,
+                            lastPage = if (serverMetaAvailable) response.meta.lastPage else 1,
+                            hasMore = if (serverMetaAvailable) response.meta.hasMore else false,
                             isLoading = false,
                             isLoadingMore = false,
                         )
