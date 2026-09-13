@@ -18,6 +18,10 @@ return new class extends Migration
             $table->unsignedSmallInteger('lesson_number')->nullable();
             $table->string('topic', 255);
             $table->string('sub_topic', 255)->nullable();
+            $table->string('lesson_time', 80)->nullable();
+            $table->unsignedSmallInteger('duration_minutes')->nullable();
+            $table->unsignedTinyInteger('average_age')->nullable();
+            $table->string('sex', 40)->nullable();
             $table->string('resource_type', 80)->default('lesson_note');
             $table->text('entry_behaviour')->nullable();
             $table->text('previous_knowledge')->nullable();
