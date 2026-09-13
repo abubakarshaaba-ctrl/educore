@@ -142,7 +142,7 @@ object ShellNavigationPolicy {
                     key = key,
                     title = canonicalTitle(key, module.title),
                 )
-                else -> module
+                else -> module.copy(title = canonicalTitle(key, module.title))
             }
         }.distinctBy { it.key.lowercase() }
     }
@@ -160,7 +160,7 @@ object ShellNavigationPolicy {
     private fun canonicalTitle(key: String, fallback: String): String = when (key) {
         "reports" -> "Report Cards"
         "parent.results", "student.results" -> "Results"
-        "scores" -> "Score Entry"
+        "scores" -> "Score Sheet"
         "timetable" -> "Exam Timetable & Supervision"
         "messages" -> "Messages"
         "announcements" -> "Notices"
@@ -176,14 +176,12 @@ object ShellNavigationPolicy {
     }
 
     private fun isExplicitlyAuthorizedModule(session: SessionSnapshot, key: String): Boolean {
-        if (session.user.portal.equals("platform", ignoreCase = true) ||
-            session.user.portal.equals("student", ignoreCase = true) ||
-            session.user.portal.equals("parent", ignoreCase = true)
-        ) return true
+        val portal = session.user.portal.trim().lowercase()
 
-        if (session.user.portal.equals("admin", ignoreCase = true) &&
-            normalizedRole(session) == "admin" && key == "subscription"
-        ) return true
+        // The bootstrap module list is already server/RBAC filtered. Admin, platform,
+        // student and parent portals must not lose server-granted modules because a
+        // secondary client-side permission alias is absent or named differently.
+        if (portal in setOf("admin", "platform", "student", "parent")) return true
 
         if (session.permissions.contains("*")) return true
         if (key == "profile") return true
@@ -197,7 +195,7 @@ object ShellNavigationPolicy {
 
         if (key == "academic-repository") {
             val role = normalizedRole(session)
-            return session.user.portal.equals("admin", ignoreCase = true) || role.contains("teacher")
+            return role.contains("teacher")
         }
 
         return session.can(key) || session.permissions.any { permission ->
@@ -328,11 +326,6 @@ object ShellNavigationPolicy {
         "gradebook",
         "risk",
         "exports",
-        "reports",
-        "report-cards",
-        "results",
-        "student.results",
-        "parent.results",
     )
     private val ACADEMIC_KEYS = listOf(
         "student",
