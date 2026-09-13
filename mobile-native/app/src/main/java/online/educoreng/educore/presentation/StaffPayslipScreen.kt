@@ -72,7 +72,7 @@ internal fun StaffPayslipScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
-        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
         item { EduCorePageHeader("My Payslips", "Monthly staff payroll statements", onBack = onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
@@ -86,10 +86,10 @@ internal fun StaffPayslipScreen(
                 )
             }
         } else {
-            item { EduCoreSectionHeader("Payslip history", "Newest issued payroll periods first") }
+            item { EduCoreSectionHeader("Payslip history") }
             items(state.items, key = { "payslip-${it.id}" }) { item -> PayslipSummaryCard(item) { onOpen(item) } }
         }
-        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
+        item { Spacer(Modifier.height(EduCoreSpacing.Md)) }
     }
 }
 
@@ -101,10 +101,10 @@ private fun PayslipSummaryCard(item: StaffPayslipSummaryDto, onOpen: () -> Unit)
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line300),
     ) {
-        Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+        Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = EduCoreColors.Navy700)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-                Text(item.periodTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.Ink900)
+                Text(item.periodTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Ink900)
                 Text("Gross ${money(item.grossPay)} · Net ${money(item.netPay)}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate700)
             }
             EduCoreStatusBadge(item.status?.replace('_', ' ')?.replaceFirstChar(Char::uppercase) ?: "Issued", item.status.payslipTone())
@@ -163,19 +163,19 @@ private fun StaffPayslipDetail(
                 )
             }
         }
-        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
+        item { Spacer(Modifier.height(EduCoreSpacing.Md)) }
     }
 }
 
 @Composable
 private fun PayslipBreakdownCard(title: String, rows: List<Pair<String, String>>) {
     Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line300)) {
-        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = EduCoreColors.Navy900)
+        Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Navy900)
             rows.forEach { (label, value) ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(label, color = EduCoreColors.Slate700, modifier = Modifier.weight(1f))
-                    Text(value, color = EduCoreColors.Ink900, fontWeight = FontWeight.SemiBold)
+                    Text(value, color = EduCoreColors.Ink900, fontWeight = FontWeight.Medium)
                 }
             }
         }
