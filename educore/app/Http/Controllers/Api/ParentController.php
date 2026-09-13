@@ -92,11 +92,12 @@ class ParentController extends Controller
 
     public function results(Request $request, MobileReportCardService $reports)
     {
-        [, , $student] = $this->context($request);
+        [, $students, $student] = $this->context($request);
         $results = $student ? $reports->forStudent($student) : collect();
 
         return response()->json([
             'student' => $student ? $this->studentPayload($student) : null,
+            'children' => $students->map(fn (Student $child) => $this->studentPayload($child))->values(),
             'results' => $results,
         ]);
     }
