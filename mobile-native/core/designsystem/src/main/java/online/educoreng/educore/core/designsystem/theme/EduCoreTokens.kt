@@ -16,6 +16,11 @@ object EduCoreSpacing {
     val NarrowScreen = 12.dp
 }
 
+object EduCoreStroke {
+    val Thin = 1.dp
+    val Emphasis = 2.dp
+}
+
 object EduCoreElevation {
     val None = 0.dp
     val Resting = 1.dp
@@ -26,11 +31,14 @@ object EduCoreElevation {
 object EduCoreSizes {
     // Keep touch targets accessible while reducing visible density.
     val TouchTarget = 48.dp
+    val ControlHeight = 48.dp
+    val CompactControlHeight = 40.dp
     val SmallIcon = 16.dp
     val Icon = 18.dp
     val LargeIcon = 24.dp
     val Avatar = 34.dp
     val LargeAvatar = 48.dp
+    val CountBadgeMinSize = 20.dp
     val ContentMaxWidth = 760.dp
     val MetricCardHeight = 76.dp
     val ModuleCardMinHeight = 82.dp
