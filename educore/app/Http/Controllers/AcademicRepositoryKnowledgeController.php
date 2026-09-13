@@ -38,12 +38,26 @@ class AcademicRepositoryKnowledgeController extends Controller
         return view('academic-repository.knowledge.index', compact('topics', 'readiness', 'filters'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $this->guardAdmin();
+        $topic = new AcademicTopic();
+
+        if ($request->filled('source')) {
+            $source = CurriculumSource::query()->whereNull('tenant_id')->findOrFail($request->integer('source'));
+            $metadata = is_array($source->metadata) ? $source->metadata : [];
+            $topic->fill([
+                'curriculum_source_id' => $source->id,
+                'class_label' => $metadata['class_label'] ?? null,
+                'subject_label' => $metadata['subject_label'] ?? null,
+                'term_label' => $metadata['term_label'] ?? null,
+                'topic' => $source->title,
+                'reference' => $source->original_filename ?: $source->title,
+            ]);
+        }
 
         return view('academic-repository.knowledge.form', [
-            'topic' => new AcademicTopic(),
+            'topic' => $topic,
             'sources' => $this->sources(),
             'blockText' => [],
         ]);
@@ -53,6 +67,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     {
         $this->guardAdmin();
         $data = $this->validated($request);
+        $data = $this->withReviewMetadata($data);
 
         $topic = DB::transaction(function () use ($data, $request) {
             $topic = AcademicTopic::create($data);
@@ -82,14 +97,18 @@ class AcademicRepositoryKnowledgeController extends Controller
         return view('academic-repository.knowledge.form', [
             'topic' => $academicTopic,
             'sources' => $this->sources(),
-            'blockText' => $academicTopic->blocks->groupBy('block_type')->map(fn ($blocks) => $blocks->pluck('content')->implode("\n\n"))->all(),
+            'blockText' => $academicTopic->blocks->groupBy('block_type')->map(fn ($blocks) => $blocks->map(function ($block) {
+                return $block->block_type === 'presentation' && filled($block->title)
+                    ? $block->title.' :: '.$block->content
+                    : $block->content;
+            })->implode("\n\n"))->all(),
         ]);
     }
 
     public function update(Request $request, AcademicTopic $academicTopic)
     {
         $this->guardAdmin();
-        $data = $this->validated($request);
+        $data = $this->withReviewMetadata($this->validated($request));
 
         DB::transaction(function () use ($academicTopic, $data, $request) {
             $academicTopic->update($data);
@@ -141,6 +160,10 @@ class AcademicRepositoryKnowledgeController extends Controller
             'lesson_number' => ['nullable', 'integer', 'min:1', 'max:20'],
             'topic' => ['required', 'string', 'max:255'],
             'sub_topic' => ['nullable', 'string', 'max:255'],
+            'lesson_time' => ['nullable', 'string', 'max:80'],
+            'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'average_age' => ['nullable', 'integer', 'min:3', 'max:30'],
+            'sex' => ['nullable', 'string', 'max:40'],
             'resource_type' => ['required', Rule::in(['curriculum', 'scheme_of_work', 'syllabus', 'lesson_note', 'teacher_note', 'textbook_extract', 'practical_guide', 'past_questions', 'lesson_plan', 'other'])],
             'entry_behaviour' => ['nullable', 'string'],
             'previous_knowledge' => ['nullable', 'string'],
@@ -150,6 +173,19 @@ class AcademicRepositoryKnowledgeController extends Controller
             'student_note_summary' => ['nullable', 'string'],
             'status' => ['required', Rule::in(['draft', 'review', 'approved'])],
         ]);
+    }
+
+    private function withReviewMetadata(array $data): array
+    {
+        if (($data['status'] ?? null) === 'approved') {
+            $data['reviewed_by'] = auth()->id();
+            $data['reviewed_at'] = now();
+        } else {
+            $data['reviewed_by'] = null;
+            $data['reviewed_at'] = null;
+        }
+
+        return $data;
     }
 
     private function syncBlocks(AcademicTopic $topic, Request $request): void
