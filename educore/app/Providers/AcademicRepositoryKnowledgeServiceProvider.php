@@ -12,7 +12,7 @@ class AcademicRepositoryKnowledgeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Route::middleware(['web', 'auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', StaffOnly::class])
-            ->prefix('academic-knowledge-base')
+            ->prefix('academic-repository/knowledge')
             ->name('academic-repository.knowledge.')
             ->group(function (): void {
                 Route::get('/', [AcademicRepositoryKnowledgeController::class, 'index'])->name('index');
