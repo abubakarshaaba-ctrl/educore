@@ -15,8 +15,6 @@ internal fun AdmissionsOperationsScreen(
     val viewModel: AdmissionsViewModel = hiltViewModel()
     val admissionsState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Revalidate when the module is entered so admissions saved on the web are
-    // visible without requiring an app restart or a stale ViewModel reset.
     LaunchedEffect(state.workspace?.module?.key) {
         if (!admissionsState.isLoading) viewModel.load()
     }
@@ -40,6 +38,12 @@ internal fun AdmissionsOperationsScreen(
         onClassArmDraft = viewModel::setClassArmDraft,
         onReviewNotes = viewModel::setReviewNotes,
         onSaveStatus = viewModel::saveStatus,
+        onInterviewDate = viewModel::setInterviewDate,
+        onInterviewNotes = viewModel::setInterviewNotes,
+        onInterviewScore = viewModel::setInterviewScore,
+        onScheduleInterview = viewModel::scheduleInterview,
+        onRecordInterview = viewModel::recordInterview,
+        onSendOffer = viewModel::sendOffer,
         onRetry = viewModel::load,
     )
 }
