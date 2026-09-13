@@ -122,13 +122,13 @@ object ShellNavigationPolicy {
         val financeRole = role in FINANCE_ROLES
         val canManageStaffAttendance = canManageStaffAttendance(session)
 
-        return session.modules.mapNotNull { module ->
+        val visible = session.modules.mapNotNull { module ->
             val sourceKey = module.key.trim().lowercase()
             val key = canonicalModuleKey(sourceKey, portal)
             when {
                 isRemovedFromMobile(sourceKey) -> null
                 sourceKey == "dashboard" -> null
-                !isExplicitlyAuthorizedModule(session, sourceKey) -> null
+                !isExplicitlyAuthorizedModule(session, sourceKey, key) -> null
                 !isAllowedForSpecialistRole(role, key) -> null
                 sourceKey == "staff-attendance.self" -> null
                 sourceKey == "staff-attendance" && !canManageStaffAttendance -> null
@@ -144,7 +144,38 @@ object ShellNavigationPolicy {
                 )
                 else -> module.copy(title = canonicalTitle(key, module.title))
             }
-        }.distinctBy { it.key.lowercase() }
+        }.toMutableList()
+
+        // School administrators always retain the native Report Cards workspace.
+        // The backend already authorises this workspace, but this defensive fallback
+        // protects older/stale bootstrap payloads from hiding it in the Android shell.
+        if (portal == "admin" && visible.none { it.key.equals("reports", ignoreCase = true) }) {
+            visible += ModuleDescriptor(
+                key = "reports",
+                title = "Report Cards",
+                path = "/reports",
+                icon = "reports",
+            )
+        }
+
+        // Subject teachers can receive either the broad `scores` permission or the
+        // narrower `scores.entry` grant. Treat the two names symmetrically so score
+        // entry is not accidentally hidden by an alias mismatch in the native app.
+        if (
+            portal == "staff" &&
+            role.contains("teacher") &&
+            hasAnyPermission(session, SCORE_PERMISSION_KEYS) &&
+            visible.none { it.key.equals("scores", ignoreCase = true) }
+        ) {
+            visible += ModuleDescriptor(
+                key = "scores",
+                title = "Score Entry",
+                path = "/scores",
+                icon = "scores",
+            )
+        }
+
+        return visible.distinctBy { it.key.lowercase() }
     }
 
     private fun canonicalModuleKey(key: String, portal: String): String = when {
@@ -160,7 +191,7 @@ object ShellNavigationPolicy {
     private fun canonicalTitle(key: String, fallback: String): String = when (key) {
         "reports" -> "Report Cards"
         "parent.results", "student.results" -> "Results"
-        "scores" -> "Scores"
+        "scores" -> "Score Entry"
         "timetable" -> "Exam Timetable & Supervision"
         "messages" -> "Messages"
         "announcements" -> "Notices"
@@ -175,7 +206,11 @@ object ShellNavigationPolicy {
         }
     }
 
-    private fun isExplicitlyAuthorizedModule(session: SessionSnapshot, key: String): Boolean {
+    private fun isExplicitlyAuthorizedModule(
+        session: SessionSnapshot,
+        sourceKey: String,
+        canonicalKey: String,
+    ): Boolean {
         val portal = session.user.portal.trim().lowercase()
 
         // The bootstrap module list is already server/RBAC filtered. Admin, platform,
@@ -184,24 +219,37 @@ object ShellNavigationPolicy {
         if (portal in setOf("admin", "platform", "student", "parent")) return true
 
         if (session.permissions.contains("*")) return true
-        if (key == "profile") return true
+        if (sourceKey == "profile" || canonicalKey == "profile") return true
 
-        if (key == "staff-attendance.admin" || key == "staff-attendance") {
+        if (sourceKey in setOf("staff-attendance.admin", "staff-attendance")) {
             return session.can("staff-attendance")
         }
-        if (key == "staff-attendance.self") {
+        if (sourceKey == "staff-attendance.self") {
             return session.can("staff-attendance.self")
         }
 
-        if (key == "academic-repository") {
+        if (canonicalKey == "academic-repository") {
             val role = normalizedRole(session)
-            return role.contains("teacher")
+            return role.contains("teacher") || hasAnyPermission(session, setOf("academic-repository"))
         }
 
-        return session.can(key) || session.permissions.any { permission ->
-            permission.startsWith("$key.")
+        if (canonicalKey == "scores") {
+            return hasAnyPermission(session, SCORE_PERMISSION_KEYS)
         }
+
+        if (canonicalKey == "reports") {
+            return hasAnyPermission(session, REPORT_PERMISSION_KEYS)
+        }
+
+        return hasAnyPermission(session, setOf(sourceKey, canonicalKey))
     }
+
+    private fun hasAnyPermission(session: SessionSnapshot, keys: Set<String>): Boolean =
+        keys.any { key ->
+            session.can(key) || session.permissions.any { permission ->
+                permission.startsWith("$key.") || key.startsWith("$permission.")
+            }
+        }
 
     fun isRemovedFromMobile(moduleKey: String): Boolean {
         val key = moduleKey.lowercase()
@@ -246,6 +294,8 @@ object ShellNavigationPolicy {
     private val SCORE_ALIASES = setOf(
         "scores", "scores.entry", "score-entry", "score_entry", "result-entry", "result_entry",
     )
+    private val SCORE_PERMISSION_KEYS = SCORE_ALIASES + setOf("scores.view", "scores.manage")
+    private val REPORT_PERMISSION_KEYS = STAFF_REPORT_ALIASES + setOf("reports.view", "reports.manage")
     private val SCHEDULE_ALIASES = setOf(
         "timetable", "student.timetable", "exam-timetable", "exam_timetable", "exam.timetable",
         "exam-duty", "exam_duty", "exam-duties", "exam_duties", "exam-dut", "supervision-schedule",
