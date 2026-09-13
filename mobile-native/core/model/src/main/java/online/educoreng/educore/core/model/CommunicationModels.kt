@@ -80,3 +80,14 @@ data class MessageRecipient(
     val admissionNumber: String,
     val className: String?,
 )
+
+data class PendingAttachment(
+    val name: String,
+    val mimeType: String,
+    val bytes: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean = other is PendingAttachment &&
+        name == other.name && mimeType == other.mimeType && bytes.contentEquals(other.bytes)
+
+    override fun hashCode(): Int = 31 * (31 * name.hashCode() + mimeType.hashCode()) + bytes.contentHashCode()
+}
