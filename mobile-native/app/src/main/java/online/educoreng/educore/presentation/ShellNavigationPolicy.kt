@@ -160,7 +160,7 @@ object ShellNavigationPolicy {
     private fun canonicalTitle(key: String, fallback: String): String = when (key) {
         "reports" -> "Report Cards"
         "parent.results", "student.results" -> "Results"
-        "scores" -> "Score Sheet"
+        "scores" -> "Scores"
         "timetable" -> "Exam Timetable & Supervision"
         "messages" -> "Messages"
         "announcements" -> "Notices"
