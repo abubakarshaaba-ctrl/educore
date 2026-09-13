@@ -44,6 +44,14 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.custom');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.custom');
 
+        // Super Admin platform broadcasts are stored with a legacy raw DB insert.
+        // Bridge that successful HTTP insert into the normal FCM push pipeline.
+        if (! $this->app->runningInConsole()) {
+            \Illuminate\Support\Facades\DB::listen(
+                app(\App\Services\Notifications\PlatformBroadcastPushListener::class)
+            );
+        }
+
         RateLimiter::for('tenant-login', function (Request $request) {
             return Limit::perMinute(5)->by($this->tenantAuthThrottleKey($request, 'login_id'));
         });
