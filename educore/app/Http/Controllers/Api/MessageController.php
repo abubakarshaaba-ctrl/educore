@@ -53,23 +53,23 @@ class MessageController extends Controller
         $recipients = collect();
 
         if ($this->audiences->canOversee($user)) {
-            $recipients->push($this->target(-1, 'all_staff', null, 'All Staff', 'Shared group thread'));
-            $recipients->push($this->target(-2, 'academic_staff', null, 'Academic Staff', 'Shared academic staff thread'));
+            $recipients->push($this->target(-1, 'All Staff', 'Shared group thread'));
+            $recipients->push($this->target(-2, 'Academic Staff', 'Shared academic staff thread'));
             User::tenantStaff((int) $user->tenant_id)->where('id', '!=', $user->id)->where('is_active', true)->orderBy('name')->get()
-                ->each(fn (User $staff) => $recipients->push($this->target((int) $staff->id, 'staff', (int) $staff->id, $staff->name, $staff->staff_id ?: 'Private staff message')));
-            $recipients->push($this->target(-3, 'all_parents', null, 'All Parents', 'Shared parent group thread'));
+                ->each(fn (User $staff) => $recipients->push($this->target((int) $staff->id, $staff->name, $staff->staff_id ?: 'Private staff message')));
+            $recipients->push($this->target(-3, 'All Parents', 'Shared parent group thread'));
             User::query()->where('tenant_id', $user->tenant_id)->where('role', 'parent')->where('is_active', true)->orderBy('name')->get()
-                ->each(fn (User $parent) => $recipients->push($this->target((int) $parent->id, 'parent', (int) $parent->id, $parent->name, $parent->phone ?: 'Private parent message')));
+                ->each(fn (User $parent) => $recipients->push($this->target((int) $parent->id, $parent->name, $parent->phone ?: 'Private parent message')));
         } elseif ($user->isTenantStaff() || $user->isParent()) {
-            $recipients->push($this->target(-4, 'admin', null, 'School Administration', 'Private conversation with administration'));
+            $recipients->push($this->target(-4, 'School Administration', 'Private conversation with administration'));
         } else {
             $this->allowedStudents($user)->each(function (Student $student) use ($recipients): void {
                 $student->loadMissing('currentClassArm.classLevel');
                 $className = trim(($student->currentClassArm?->classLevel?->name ?? '').' '.($student->currentClassArm?->name ?? ''));
                 $recipients->push([
-                    'id' => (int) $student->id, 'target_type' => 'student', 'recipient_id' => null,
-                    'student_id' => (int) $student->id, 'name' => $student->full_name,
-                    'supporting' => $student->admission_number, 'admission_number' => $student->admission_number,
+                    'student_id' => (int) $student->id,
+                    'name' => $student->full_name,
+                    'admission_number' => $student->admission_number,
                     'class_name' => $className ?: null,
                 ]);
             });
@@ -89,12 +89,16 @@ class MessageController extends Controller
             'body' => ['required', 'string', 'max:10000'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx'],
         ]);
-        $targetType = $data['target_type'] ?? ($data['student_id'] ? 'student' : null);
+
+        $selection = isset($data['student_id']) ? (int) $data['student_id'] : null;
+        $targetType = $data['target_type'] ?? $this->targetTypeFromSelection($user, $selection);
         abort_unless($targetType, 422, 'Choose a recipient.');
+        $recipientSelection = $data['recipient_id'] ?? (in_array($targetType, ['staff','parent'], true) ? $selection : null);
+        $studentSelection = $targetType === 'student' ? $selection : null;
 
-        [$recipient, $audience, $studentId] = $this->resolveTarget($user, $targetType, $data['recipient_id'] ?? null, $data['student_id'] ?? null);
+        [$recipient, $audience, $studentId] = $this->resolveTarget($user, $targetType, $recipientSelection, $studentSelection);
 
-        [$thread, $reply] = DB::transaction(function () use ($request, $user, $data, $targetType, $recipient, $audience, $studentId): array {
+        [$thread, $reply] = DB::transaction(function () use ($request, $user, $data, $recipient, $audience, $studentId): array {
             $thread = MessageThread::create([
                 'tenant_id' => $user->tenant_id,
                 'student_id' => $studentId,
@@ -152,6 +156,23 @@ class MessageController extends Controller
         $this->audiences->authorize($thread, $request->user());
         abort_unless($reply->attachment_path && Storage::disk('local')->exists($reply->attachment_path),404);
         return Storage::disk('local')->download($reply->attachment_path,$reply->attachment_name ?: 'attachment',['Content-Type'=>$reply->attachment_mime ?: 'application/octet-stream']);
+    }
+
+    private function targetTypeFromSelection(User $user, ?int $selection): ?string
+    {
+        if ($selection === null) return null;
+        if ($selection === -1) return 'all_staff';
+        if ($selection === -2) return 'academic_staff';
+        if ($selection === -3) return 'all_parents';
+        if ($selection === -4) return 'admin';
+
+        if ($this->audiences->canOversee($user)) {
+            $recipient = User::query()->where('tenant_id', $user->tenant_id)->whereKey($selection)->where('is_active', true)->first();
+            if ($recipient?->isParent()) return 'parent';
+            if ($recipient?->isTenantStaff()) return 'staff';
+        }
+
+        return 'student';
     }
 
     private function resolveTarget(User $user, string $type, ?int $recipientId, ?int $studentId): array
@@ -237,9 +258,9 @@ class MessageController extends Controller
         $thread->replies()->where('sender_id','!=',$user->id)->where('is_read',false)->update(['is_read'=>true,'read_at'=>now()]);
     }
 
-    private function target(int $id, string $type, ?int $recipientId, string $name, string $supporting): array
+    private function target(int $selectionId, string $name, string $supporting): array
     {
-        return ['id'=>$id,'target_type'=>$type,'recipient_id'=>$recipientId,'student_id'=>null,'name'=>$name,'supporting'=>$supporting,'admission_number'=>$supporting,'class_name'=>null];
+        return ['student_id'=>$selectionId,'name'=>$name,'admission_number'=>$supporting,'class_name'=>null];
     }
 
     private function allowedStudents(User $user): Collection
