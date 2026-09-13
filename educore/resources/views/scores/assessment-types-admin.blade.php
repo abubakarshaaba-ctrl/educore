@@ -4,42 +4,47 @@
 
 @push('styles')
 <style>
-    .assessment-grid { display:grid; grid-template-columns:minmax(0,1fr) 390px; gap:20px; align-items:start; }
-    .assessment-card { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,.06); margin-bottom:20px; }
-    .assessment-card__header { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; justify-content:space-between; }
-    .assessment-card__title { font-size:14px; font-weight:700; color:var(--midnight); }
-    .assessment-card__body { padding:18px; }
+    .assessment-layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; align-items:start; }
+    .assessment-stack { display:grid; gap:18px; }
+    .assessment-panel { background:#fff; border:1px solid #D8E0EA; border-radius:10px; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+    .assessment-panel__header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; background:#0F172A; color:#fff; }
+    .assessment-panel__title { margin:0; font-size:13px; font-weight:800; letter-spacing:.02em; }
+    .assessment-panel__count { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 7px; border-radius:999px; background:rgba(255,255,255,.14); font-size:11px; font-weight:800; }
+    .assessment-panel__body { padding:15px; }
     .assessment-scroll { overflow-x:auto; }
-    .assessment-table { width:100%; border-collapse:collapse; min-width:980px; }
-    .assessment-table th { padding:10px 14px; text-align:left; background:#F8FAFC; border-bottom:1px solid var(--border); color:var(--slate-light); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
-    .assessment-table td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
-    .assessment-table tr:last-child td { border-bottom:0; }
-    .assessment-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-    .assessment-btn { display:inline-flex; align-items:center; justify-content:center; min-height:32px; padding:6px 10px; border:0; border-radius:7px; font:600 12px inherit; cursor:pointer; text-decoration:none; }
-    .assessment-btn--save { background:#EFF6FF; color:#1D4ED8; }
-    .assessment-btn--delete { background:#FEF2F2; color:#B91C1C; }
-    .assessment-btn--primary { width:100%; background:var(--indigo); color:#fff; padding:9px 14px; }
-    .assessment-btn--apply { background:#ECFDF5; color:#047857; }
-    .assessment-form-group { margin-bottom:14px; }
-    .assessment-label { display:block; margin-bottom:6px; color:var(--slate); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
-    .assessment-control { box-sizing:border-box; width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:#F8FAFC; font:13px inherit; }
-    .assessment-control--small { width:90px; }
-    .assessment-multi { min-width:190px; min-height:92px; }
-    .assessment-help { margin-top:5px; color:var(--slate-light); font-size:11px; line-height:1.4; }
-    .assessment-alert { padding:11px 14px; margin-bottom:16px; border-radius:8px; font-size:13px; }
+    .assessment-table { width:100%; border-collapse:separate; border-spacing:0; min-width:980px; }
+    .assessment-table th { padding:10px 12px; background:#E2E8F0; color:#0F172A; border-top:1px solid #CBD5E1; border-bottom:1px solid #CBD5E1; font-size:11px; font-weight:800; text-align:left; text-transform:uppercase; letter-spacing:.045em; white-space:nowrap; }
+    .assessment-table th:first-child { border-left:1px solid #CBD5E1; border-radius:6px 0 0 0; }
+    .assessment-table th:last-child { border-right:1px solid #CBD5E1; border-radius:0 6px 0 0; }
+    .assessment-table td { padding:10px 12px; border-bottom:1px solid #E2E8F0; background:#fff; font-size:12px; vertical-align:middle; }
+    .assessment-table tbody tr:hover td { background:#F8FAFC; }
+    .assessment-table td:first-child { border-left:1px solid #E2E8F0; }
+    .assessment-table td:last-child { border-right:1px solid #E2E8F0; }
+    .assessment-table--schemes { min-width:1080px; }
+    .assessment-control { box-sizing:border-box; width:100%; min-height:36px; padding:7px 9px; border:1px solid #CBD5E1; border-radius:6px; background:#fff; color:#0F172A; font:12px inherit; }
+    .assessment-control:focus { outline:0; border-color:#64748B; box-shadow:0 0 0 2px rgba(100,116,139,.12); }
+    .assessment-control--weight { width:76px; text-align:center; }
+    .assessment-multi { min-width:170px; min-height:68px; }
+    .assessment-form-group { margin-bottom:12px; }
+    .assessment-label { display:block; margin-bottom:5px; color:#475569; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+    .assessment-check { display:flex; align-items:center; gap:7px; color:#334155; font-size:12px; }
+    .assessment-actions { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    .assessment-btn { display:inline-flex; align-items:center; justify-content:center; min-height:31px; padding:6px 10px; border:0; border-radius:6px; font:700 11px inherit; cursor:pointer; text-decoration:none; white-space:nowrap; }
+    .assessment-btn--save { background:#DBEAFE; color:#1D4ED8; }
+    .assessment-btn--apply { background:#DCFCE7; color:#166534; }
+    .assessment-btn--delete { background:#FEE2E2; color:#B91C1C; }
+    .assessment-btn--primary { width:100%; min-height:38px; background:#1E3A8A; color:#fff; }
+    .assessment-badge { display:inline-flex; align-items:center; padding:3px 7px; border-radius:999px; background:#E0E7FF; color:#3730A3; font-size:10px; font-weight:800; white-space:nowrap; }
+    .assessment-badge--exam { background:#FFEDD5; color:#C2410C; }
+    .assessment-badge--default { background:#E2E8F0; color:#475569; }
+    .assessment-components { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
+    .assessment-total { font-weight:800; color:#0F172A; white-space:nowrap; }
+    .assessment-muted { color:#64748B; font-size:11px; }
+    .assessment-empty { padding:24px 16px; text-align:center; color:#64748B; font-size:12px; }
+    .assessment-alert { padding:10px 13px; margin-bottom:14px; border-radius:7px; font-size:12px; }
     .assessment-alert--success { color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; }
     .assessment-alert--error { color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; }
-    .assessment-badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#EEF2FF; color:#4338CA; }
-    .assessment-badge--exam { background:#FFF7ED; color:#C2410C; }
-    .assessment-badge--legacy { background:#F1F5F9; color:#475569; }
-    .assessment-empty { padding:34px 18px; text-align:center; color:var(--slate-light); font-size:13px; }
-    .scheme-list { display:grid; gap:14px; }
-    .scheme-item { border:1px solid var(--border); border-radius:10px; padding:14px; background:#FCFCFD; }
-    .scheme-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
-    .scheme-components { font-size:12px; color:var(--slate); margin-bottom:12px; line-height:1.6; }
-    .scheme-apply { display:grid; grid-template-columns:1.2fr 1.6fr auto; gap:10px; align-items:end; }
-    @media(max-width:1050px) { .assessment-grid { grid-template-columns:1fr; } }
-    @media(max-width:760px) { .scheme-apply { grid-template-columns:1fr; } }
+    @media(max-width:1100px) { .assessment-layout { grid-template-columns:1fr; } }
 </style>
 @endpush
 
@@ -51,90 +56,111 @@
     <div class="assessment-alert assessment-alert--error">{{ $errors->first() }}</div>
 @endif
 
-<section class="assessment-card">
-    <div class="assessment-card__header">
-        <div>
-            <div class="assessment-card__title">Reusable Assessment Schemes</div>
-            <div class="assessment-help">Save a completed assessment configuration once, then apply the same frozen structure to any future term and selected class levels. Existing historical results are never linked back to the template.</div>
+<div class="assessment-stack" style="margin-bottom:18px">
+    <section class="assessment-panel">
+        <div class="assessment-panel__header">
+            <h2 class="assessment-panel__title">Reusable Schemes</h2>
+            <span class="assessment-panel__count">{{ $schemeTemplates->count() }}</span>
         </div>
-        <span class="assessment-badge">Reusable templates</span>
-    </div>
-    <div class="assessment-card__body">
+
         @if($schemeTemplates->isEmpty())
-            <div class="assessment-empty" style="padding:18px">No reusable schemes yet. Save one from an existing completed configuration below.</div>
+            <div class="assessment-empty">No saved schemes.</div>
         @else
-            <div class="scheme-list">
-                @foreach($schemeTemplates as $template)
-                    <div class="scheme-item">
-                        <div class="scheme-title">
-                            <div>
+            <div class="assessment-scroll">
+                <table class="assessment-table assessment-table--schemes">
+                    <thead>
+                        <tr>
+                            <th>Scheme</th>
+                            <th>Components</th>
+                            <th>Target Term</th>
+                            <th>Class Levels</th>
+                            <th>Replace</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($schemeTemplates as $template)
+                        <tr>
+                            <td>
                                 <strong>{{ $template->name }}</strong>
-                                @if($template->description)<div class="assessment-help">{{ $template->description }}</div>@endif
-                            </div>
-                            <form method="POST" action="{{ route('scores.assessment-schemes.templates.destroy', ['template' => $template->id]) }}" onsubmit="return confirm('Delete this reusable template? Existing term configurations will not be affected.');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="assessment-btn assessment-btn--delete">Delete template</button>
-                            </form>
-                        </div>
-                        <div class="scheme-components">
-                            @foreach($template->items as $item)
-                                <span class="assessment-badge {{ $item->is_exam ? 'assessment-badge--exam' : '' }}">{{ $item->name }} {{ (int)$item->weight_percentage }}%</span>
-                            @endforeach
-                            <span style="margin-left:6px;font-weight:700">Total: {{ (int)$template->items->sum('weight_percentage') }}%</span>
-                        </div>
-                        <form method="POST" action="{{ route('scores.assessment-schemes.templates.apply', ['template' => $template->id]) }}">
-                            @csrf
-                            <div class="scheme-apply">
-                                <div>
-                                    <label class="assessment-label">Apply to term</label>
-                                    <select name="term_id" class="assessment-control" required>
-                                        <option value="">Select term</option>
-                                        @foreach($terms as $term)
-                                            <option value="{{ $term->id }}">{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>
-                                        @endforeach
-                                    </select>
+                                @if($template->description)
+                                    <div class="assessment-muted">{{ $template->description }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="assessment-components">
+                                    @foreach($template->items as $item)
+                                        <span class="assessment-badge {{ $item->is_exam ? 'assessment-badge--exam' : '' }}">
+                                            {{ $item->name }} {{ (int)$item->weight_percentage }}%
+                                        </span>
+                                    @endforeach
+                                    <span class="assessment-total">{{ (int)$template->items->sum('weight_percentage') }}%</span>
                                 </div>
-                                <div>
-                                    <label class="assessment-label">Class levels</label>
-                                    <select name="class_level_ids[]" multiple class="assessment-control assessment-multi" required>
-                                        @foreach($classLevels as $level)
-                                            <option value="{{ $level->id }}">{{ $level->name }}</option>
-                                        @endforeach
-                                    </select>
+                            </td>
+                            <td>
+                                <select name="term_id" class="assessment-control" form="scheme-apply-{{ $template->id }}" required>
+                                    <option value="">Select term</option>
+                                    @foreach($terms as $term)
+                                        <option value="{{ $term->id }}">{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td>
+                                <select name="class_level_ids[]" multiple class="assessment-control assessment-multi" form="scheme-apply-{{ $template->id }}" required>
+                                    @foreach($classLevels as $level)
+                                        <option value="{{ $level->id }}">{{ $level->name }}</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td>
+                                <label class="assessment-check">
+                                    <input type="checkbox" name="replace_existing" value="1" form="scheme-apply-{{ $template->id }}">
+                                    Yes
+                                </label>
+                            </td>
+                            <td>
+                                <div class="assessment-actions">
+                                    <form id="scheme-apply-{{ $template->id }}" method="POST" action="{{ route('scores.assessment-schemes.templates.apply', ['template' => $template->id]) }}">
+                                        @csrf
+                                    </form>
+                                    <button type="submit" form="scheme-apply-{{ $template->id }}" class="assessment-btn assessment-btn--apply">Apply</button>
+                                    <form method="POST" action="{{ route('scores.assessment-schemes.templates.destroy', ['template' => $template->id]) }}" onsubmit="return confirm('Delete this scheme?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="assessment-btn assessment-btn--delete">Delete</button>
+                                    </form>
                                 </div>
-                                <div>
-                                    <label style="display:flex;gap:7px;align-items:center;font-size:12px;margin-bottom:8px">
-                                        <input type="checkbox" name="replace_existing" value="1"> Replace existing unused configuration
-                                    </label>
-                                    <button type="submit" class="assessment-btn assessment-btn--apply">Apply scheme</button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                @endforeach
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
             </div>
         @endif
-    </div>
-</section>
+    </section>
+</div>
 
-<div class="assessment-grid">
-    <section class="assessment-card">
-        <div class="assessment-card__header">
-            <div>
-                <div class="assessment-card__title">Assessment Types by Class Level</div>
-                <div class="assessment-help">Different groups of class levels can use different assessment structures in the same term.</div>
-            </div>
-            <span class="assessment-badge">100% maximum per class-level group</span>
+<div class="assessment-layout">
+    <section class="assessment-panel">
+        <div class="assessment-panel__header">
+            <h2 class="assessment-panel__title">Assessment Types</h2>
+            <span class="assessment-panel__count">{{ $assessmentTypes->count() }}</span>
         </div>
 
         @if($assessmentTypes->isEmpty())
-            <div class="assessment-empty">No assessment types have been created yet.</div>
+            <div class="assessment-empty">No assessment types.</div>
         @else
             <div class="assessment-scroll">
                 <table class="assessment-table">
                     <thead>
-                        <tr><th>Name</th><th>Term</th><th>Applies to class levels</th><th>Weight</th><th>Type</th><th>Actions</th></tr>
+                        <tr>
+                            <th>Assessment</th>
+                            <th>Term</th>
+                            <th>Class Levels</th>
+                            <th>Weight</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
                     <tbody>
                     @foreach($assessmentTypes as $at)
@@ -149,7 +175,9 @@
                             <td>
                                 <select name="term_id" class="assessment-control" form="assessment-update-{{ $at->id }}" required>
                                     @foreach($terms as $term)
-                                        <option value="{{ $term->id }}" {{ (int)$term->id === (int)$at->term_id ? 'selected' : '' }}>{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>
+                                        <option value="{{ $term->id }}" {{ (int)$term->id === (int)$at->term_id ? 'selected' : '' }}>
+                                            {{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif
+                                        </option>
                                     @endforeach
                                 </select>
                             </td>
@@ -160,12 +188,14 @@
                                     @endforeach
                                 </select>
                                 @if($at->classLevels->isEmpty())
-                                    <div class="assessment-help"><span class="assessment-badge assessment-badge--legacy">Legacy/default</span> Used only for class levels that have no explicit configuration.</div>
+                                    <div style="margin-top:5px"><span class="assessment-badge assessment-badge--default">Default</span></div>
                                 @endif
                             </td>
-                            <td><input type="number" min="1" max="100" step="1" name="weight_percentage" value="{{ (int)$at->weight_percentage }}" class="assessment-control assessment-control--small" form="assessment-update-{{ $at->id }}" required></td>
                             <td>
-                                <label style="display:flex;gap:6px;align-items:center;white-space:nowrap">
+                                <input type="number" min="1" max="100" step="1" name="weight_percentage" value="{{ (int)$at->weight_percentage }}" class="assessment-control assessment-control--weight" form="assessment-update-{{ $at->id }}" required>
+                            </td>
+                            <td>
+                                <label class="assessment-check">
                                     <input type="checkbox" name="is_exam" value="1" form="assessment-update-{{ $at->id }}" {{ $at->is_exam ? 'checked' : '' }}>
                                     <span class="assessment-badge {{ $at->is_exam ? 'assessment-badge--exam' : '' }}">{{ $at->is_exam ? 'Exam' : 'CA' }}</span>
                                 </label>
@@ -173,7 +203,7 @@
                             <td>
                                 <div class="assessment-actions">
                                     <button type="submit" form="assessment-update-{{ $at->id }}" class="assessment-btn assessment-btn--save">Save</button>
-                                    <form method="POST" action="{{ route('scores.assessment-types.destroy', ['at' => $at->id]) }}" onsubmit="return confirm('Delete this assessment type? Deletion is blocked automatically if student scores already use it.');">
+                                    <form method="POST" action="{{ route('scores.assessment-types.destroy', ['at' => $at->id]) }}" onsubmit="return confirm('Delete this assessment type?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="assessment-btn assessment-btn--delete">Delete</button>
@@ -188,34 +218,89 @@
         @endif
     </section>
 
-    <aside>
-        <section class="assessment-card">
-            <div class="assessment-card__header"><div class="assessment-card__title">Add Assessment Type</div></div>
-            <div class="assessment-card__body">
+    <aside class="assessment-stack">
+        <section class="assessment-panel">
+            <div class="assessment-panel__header">
+                <h2 class="assessment-panel__title">New Assessment Type</h2>
+            </div>
+            <div class="assessment-panel__body">
                 <form method="POST" action="{{ route('scores.assessment-types.store') }}">
                     @csrf
-                    <div class="assessment-form-group"><label class="assessment-label">Term</label><select name="term_id" class="assessment-control" required><option value="">Select term</option>@foreach($terms as $term)<option value="{{ $term->id }}" {{ old('term_id') == $term->id ? 'selected' : '' }}>{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>@endforeach</select></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Applicable class levels</label><select name="class_level_ids[]" multiple class="assessment-control assessment-multi" required>@foreach($classLevels as $level)<option value="{{ $level->id }}" {{ in_array($level->id, old('class_level_ids', [])) ? 'selected' : '' }}>{{ $level->name }}</option>@endforeach</select><div class="assessment-help">Select one or several levels that share this component.</div></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Assessment name</label><input name="name" class="assessment-control" value="{{ old('name') }}" placeholder="e.g. First CA" required></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Weight (%)</label><input type="number" min="1" max="100" step="1" name="weight_percentage" class="assessment-control" value="{{ old('weight_percentage') }}" required></div>
-                    <div class="assessment-form-group"><label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" name="is_exam" value="1" {{ old('is_exam') ? 'checked' : '' }}> Terminal examination</label></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Objective max (optional)</label><input type="number" min="0.5" step="0.5" name="objective_max" class="assessment-control" value="{{ old('objective_max') }}"></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Theory max (optional)</label><input type="number" min="0.5" step="0.5" name="theory_max" class="assessment-control" value="{{ old('theory_max') }}"></div>
-                    <button class="assessment-btn assessment-btn--primary" type="submit">Add Assessment Type</button>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Term</label>
+                        <select name="term_id" class="assessment-control" required>
+                            <option value="">Select term</option>
+                            @foreach($terms as $term)
+                                <option value="{{ $term->id }}" {{ old('term_id') == $term->id ? 'selected' : '' }}>{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Class Levels</label>
+                        <select name="class_level_ids[]" multiple class="assessment-control assessment-multi" required>
+                            @foreach($classLevels as $level)
+                                <option value="{{ $level->id }}" {{ in_array($level->id, old('class_level_ids', [])) ? 'selected' : '' }}>{{ $level->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Name</label>
+                        <input name="name" class="assessment-control" value="{{ old('name') }}" placeholder="e.g. First CA" required>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Weight (%)</label>
+                        <input type="number" min="1" max="100" step="1" name="weight_percentage" class="assessment-control" value="{{ old('weight_percentage') }}" required>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-check"><input type="checkbox" name="is_exam" value="1" {{ old('is_exam') ? 'checked' : '' }}> Exam</label>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Objective Max</label>
+                        <input type="number" min="0.5" step="0.5" name="objective_max" class="assessment-control" value="{{ old('objective_max') }}">
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Theory Max</label>
+                        <input type="number" min="0.5" step="0.5" name="theory_max" class="assessment-control" value="{{ old('theory_max') }}">
+                    </div>
+                    <button class="assessment-btn assessment-btn--primary" type="submit">Add Type</button>
                 </form>
             </div>
         </section>
 
-        <section class="assessment-card">
-            <div class="assessment-card__header"><div class="assessment-card__title">Save Current Setup as Scheme</div></div>
-            <div class="assessment-card__body">
+        <section class="assessment-panel">
+            <div class="assessment-panel__header">
+                <h2 class="assessment-panel__title">Save Scheme</h2>
+            </div>
+            <div class="assessment-panel__body">
                 <form method="POST" action="{{ route('scores.assessment-schemes.templates.store') }}">
                     @csrf
-                    <div class="assessment-form-group"><label class="assessment-label">Scheme name</label><input name="template_name" class="assessment-control" placeholder="e.g. Senior Secondary Standard" required></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Description</label><input name="description" class="assessment-control" placeholder="Optional note"></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Source term</label><select name="source_term_id" class="assessment-control" required><option value="">Select term</option>@foreach($terms as $term)<option value="{{ $term->id }}">{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>@endforeach</select></div>
-                    <div class="assessment-form-group"><label class="assessment-label">Source class level</label><select name="source_class_level_id" class="assessment-control" required><option value="">Select class level</option>@foreach($classLevels as $level)<option value="{{ $level->id }}">{{ $level->name }}</option>@endforeach</select><div class="assessment-help">EduCore snapshots the effective 100% configuration for this class level. Later edits to the saved template will never alter past results.</div></div>
-                    <button class="assessment-btn assessment-btn--primary" type="submit">Save as Reusable Scheme</button>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Scheme Name</label>
+                        <input name="template_name" class="assessment-control" placeholder="e.g. Senior Secondary" required>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Note</label>
+                        <input name="description" class="assessment-control" placeholder="Optional">
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Source Term</label>
+                        <select name="source_term_id" class="assessment-control" required>
+                            <option value="">Select term</option>
+                            @foreach($terms as $term)
+                                <option value="{{ $term->id }}">{{ $term->name }}@if($term->session) — {{ $term->session->name }}@endif</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="assessment-form-group">
+                        <label class="assessment-label">Source Class Level</label>
+                        <select name="source_class_level_id" class="assessment-control" required>
+                            <option value="">Select class level</option>
+                            @foreach($classLevels as $level)
+                                <option value="{{ $level->id }}">{{ $level->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button class="assessment-btn assessment-btn--primary" type="submit">Save Scheme</button>
                 </form>
             </div>
         </section>
