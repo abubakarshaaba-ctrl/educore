@@ -7,6 +7,7 @@ use App\Models\AnnouncementRead;
 use App\Models\CalendarEvent;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Storage;
 
 class MobileCommunicationService
 {
@@ -145,6 +146,9 @@ class MobileCommunicationService
             'id' => $announcement->id,
             'title' => $announcement->title,
             'body' => $announcement->body,
+            'image_url' => $announcement->image_path
+                ? Storage::disk('public')->url($announcement->image_path)
+                : null,
             'priority' => $announcement->priority,
             'published_at' => optional($announcement->publish_date)->format('Y-m-d') ?: (string) $announcement->publish_date,
             'expires_at' => optional($announcement->expire_date)->format('Y-m-d') ?: ($announcement->expire_date ? (string) $announcement->expire_date : null),
