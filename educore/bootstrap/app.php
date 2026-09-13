@@ -108,6 +108,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RestrictCbtLanSession::class,
             \App\Http\Middleware\EnforceStrictWebRbac::class,
             \App\Http\Middleware\EnforceSchoolOpenDay::class,
+            \App\Http\Middleware\InjectEduCorePremiumTheme::class,
         ]);
 
         $middleware->alias([
