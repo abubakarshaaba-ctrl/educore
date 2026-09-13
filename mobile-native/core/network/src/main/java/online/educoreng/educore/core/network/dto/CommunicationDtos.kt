@@ -104,9 +104,13 @@ data class MessagesResponseDto(
 data class MessageThreadResponseDto(val thread: MessageThreadSummaryDto)
 data class MessageMutationResponseDto(val thread: MessageThreadSummaryDto? = null, val reply: MessageReplyDto? = null)
 data class MessageRecipientDto(
-    @param:Json(name = "student_id") val studentId: Long,
+    val id: Long,
+    @param:Json(name = "target_type") val targetType: String,
+    @param:Json(name = "recipient_id") val recipientId: Long? = null,
+    @param:Json(name = "student_id") val studentId: Long? = null,
     val name: String,
-    @param:Json(name = "admission_number") val admissionNumber: String,
+    val supporting: String = "",
+    @param:Json(name = "admission_number") val admissionNumber: String = "",
     @param:Json(name = "class_name") val className: String? = null,
 )
 data class MessageRecipientsResponseDto(val recipients: List<MessageRecipientDto> = emptyList())
@@ -120,4 +124,12 @@ fun MessageThreadSummaryDto.toDomain() = MessageThreadSummary(id, subject, statu
 fun MessageReplyDto.toDomain() = MessageReply(id, body, senderId, senderName, isMine, createdAt, attachment?.let { MessageAttachment(id, it.name, it.mimeType ?: "application/octet-stream", it.size) })
 fun MessageThreadSummaryDto.toThread() = MessageThread(toDomain(), replies.map(MessageReplyDto::toDomain))
 fun MessagesResponseDto.toDomain() = MessagePage(threads.map(MessageThreadSummaryDto::toDomain), unreadTotal, meta.currentPage, meta.lastPage)
-fun MessageRecipientDto.toDomain() = MessageRecipient(studentId, name, admissionNumber, className)
+fun MessageRecipientDto.toDomain() = MessageRecipient(
+    id = id,
+    targetType = targetType,
+    recipientId = recipientId,
+    studentId = studentId,
+    name = name,
+    supporting = supporting.ifBlank { admissionNumber },
+    className = className,
+)
