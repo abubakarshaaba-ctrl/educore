@@ -156,7 +156,7 @@ class MessagingController extends Controller
         });
 
         app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
-        return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Broadcast sent.' : 'Message sent.');
+        return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Shared conversation started.' : 'Message sent.');
     }
 
     public function thread(MessageThread $thread)
@@ -182,22 +182,11 @@ class MessagingController extends Controller
         $data = $request->validate(['body'=>['required','string','max:10000']]);
         $user = auth()->user();
 
-        if ($thread->isBroadcast() && (int) $thread->initiated_by !== (int) $user->id) {
-            $private = DB::transaction(function () use ($thread,$data,$user): MessageThread {
-                $private = MessageThread::create([
-                    'tenant_id'=>$this->tenantId(), 'student_id'=>null, 'conversation_type'=>$user->isParent() ? 'parent' : 'staff',
-                    'recipient_user_id'=>$thread->initiated_by, 'audience'=>null, 'subject'=>'Re: '.$thread->subject,
-                    'initiated_by'=>$user->id, 'status'=>'open',
-                ]);
-                MessageThreadReply::create([
-                    'tenant_id'=>$this->tenantId(), 'thread_id'=>$private->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
-                ]);
-                return $private;
-            });
-            app(PushNotificationService::class)->notifyMessageThread($private,$user,$data['body']);
-            return redirect()->route('messages.thread',$private)->with('success','Your reply was sent privately to school administration.');
-        }
-
+        // Audience conversations are true shared threads. A reply from a
+        // staff member or parent remains visible to the same all_staff or
+        // all_parents audience instead of being diverted into a hidden
+        // one-to-one conversation with the administrator. Private threads
+        // continue to use recipient_user_id with no audience value.
         MessageThreadReply::create([
             'tenant_id'=>$this->tenantId(), 'thread_id'=>$thread->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
         ]);
