@@ -2,7 +2,10 @@ package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -256,37 +259,56 @@ internal fun PlatformAuthorizedShell(
                 onLogout = onLogout,
             )
 
-            when {
-                state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> EduCorePrimaryButton(
-                    text = "Manage schools",
-                    onClick = { schoolDirectoryOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
-                state.section == PlatformSection.BILLING && !state.isLoading && state.billing != null -> EduCorePrimaryButton(
-                    text = "Manage invoices",
-                    onClick = { billingManagementOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
-                state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> EduCorePrimaryButton(
-                    text = "Manage groups",
-                    onClick = { groupDirectoryOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
-                state.section == PlatformSection.AGENTS && !state.isLoading && state.agents != null -> EduCorePrimaryButton(
-                    text = "Manage agents",
-                    onClick = { agentManagementOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
-                state.section == PlatformSection.SETTINGS && !state.isLoading && state.settings != null -> EduCorePrimaryButton(
-                    text = "Edit settings",
-                    onClick = { settingsEditorOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
-                state.section == PlatformSection.GATEWAYS && !state.isLoading && state.gateways != null -> EduCorePrimaryButton(
-                    text = "Configure gateways",
-                    onClick = { gatewayEditorOpen = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
-                )
+            if (state.section == PlatformSection.BROADCASTS && state.broadcastEditorOpen) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(EduCoreSpacing.Lg)
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = EduCoreSpacing.Xs,
+                    shadowElevation = EduCoreSpacing.Xs,
+                ) {
+                    PlatformBroadcastImageAttachment(
+                        image = state.broadcastImage,
+                        onImageChanged = viewModel::setBroadcastImage,
+                        enabled = !state.isMutating,
+                        modifier = Modifier.padding(EduCoreSpacing.Md),
+                    )
+                }
+            } else {
+                when {
+                    state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> EduCorePrimaryButton(
+                        text = "Manage schools",
+                        onClick = { schoolDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                    state.section == PlatformSection.BILLING && !state.isLoading && state.billing != null -> EduCorePrimaryButton(
+                        text = "Manage invoices",
+                        onClick = { billingManagementOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                    state.section == PlatformSection.GROUPS && !state.isLoading && state.groups != null -> EduCorePrimaryButton(
+                        text = "Manage groups",
+                        onClick = { groupDirectoryOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                    state.section == PlatformSection.AGENTS && !state.isLoading && state.agents != null -> EduCorePrimaryButton(
+                        text = "Manage agents",
+                        onClick = { agentManagementOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                    state.section == PlatformSection.SETTINGS && !state.isLoading && state.settings != null -> EduCorePrimaryButton(
+                        text = "Edit settings",
+                        onClick = { settingsEditorOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                    state.section == PlatformSection.GATEWAYS && !state.isLoading && state.gateways != null -> EduCorePrimaryButton(
+                        text = "Configure gateways",
+                        onClick = { gatewayEditorOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
+                }
             }
         }
     }
