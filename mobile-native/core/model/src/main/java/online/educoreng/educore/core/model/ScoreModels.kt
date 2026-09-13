@@ -96,9 +96,18 @@ data class PublishedResult(
     val subjects: List<ResultSubject>,
 )
 
+data class PublishedResultStudent(
+    val id: Long,
+    val name: String,
+    val admissionNumber: String,
+    val className: String?,
+)
+
 data class PublishedResults(
+    val studentId: Long?,
     val studentName: String?,
     val admissionNumber: String?,
     val className: String?,
+    val children: List<PublishedResultStudent> = emptyList(),
     val results: List<PublishedResult>,
 )
