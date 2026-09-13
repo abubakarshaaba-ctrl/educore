@@ -22,6 +22,7 @@ data class ScoresUiState(
     val assignments: ScoreAssignments? = null,
     val sheet: ScoreSheet? = null,
     val publishedResults: PublishedResults? = null,
+    val selectedResultStudentId: Long? = null,
     val search: String = "",
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -100,10 +101,16 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
-    fun loadResults(childId: Long? = null) = viewModelScope.launch {
+    fun loadResults(childId: Long? = PublishedResultWardSelection.consume() ?: _uiState.value.selectedResultStudentId) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
         when (val result = repository.loadPublishedResults(childId)) {
-            is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
+            is AppResult.Success -> _uiState.update {
+                it.copy(
+                    publishedResults = result.value,
+                    selectedResultStudentId = result.value.studentId ?: childId,
+                    isLoading = false,
+                )
+            }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
     }
