@@ -28,6 +28,30 @@ class Term extends BaseTenantModel
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::created(function (Term $term): void {
+            if ($term->assessmentTypes()->exists()) {
+                return;
+            }
+
+            $term->assessmentTypes()->createMany([
+                [
+                    'tenant_id' => $term->tenant_id,
+                    'name' => 'Continuous Assessment',
+                    'weight_percentage' => 30,
+                    'is_exam' => false,
+                ],
+                [
+                    'tenant_id' => $term->tenant_id,
+                    'name' => 'Examination',
+                    'weight_percentage' => 70,
+                    'is_exam' => true,
+                ],
+            ]);
+        });
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
