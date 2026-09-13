@@ -25,7 +25,26 @@
     .btn-primary { background:var(--indigo);color:white; }
     .btn-primary:hover { background:#1D4ED8; }
     .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border); }
-    @media(max-width:768px) { .form-grid { grid-template-columns:1fr; } }
+    .guardian-help { font-size:12px;color:#64748B;line-height:1.5;margin:0 0 14px; }
+    .guardian-search { margin-bottom:10px; }
+    .guardian-list { border:1px solid var(--border);border-radius:10px;max-height:290px;overflow:auto;background:#F8FAFC; }
+    .guardian-row { display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:14px;align-items:center;padding:11px 13px;border-bottom:1px solid var(--border);background:white; }
+    .guardian-row:last-child { border-bottom:none; }
+    .guardian-check { display:flex;gap:10px;align-items:flex-start;cursor:pointer;min-width:0; }
+    .guardian-check input { margin-top:3px;flex:0 0 auto; }
+    .guardian-name { display:block;font-size:13px;font-weight:700;color:var(--midnight); }
+    .guardian-meta { display:block;font-size:11px;color:#64748B;margin-top:2px;line-height:1.4; }
+    .guardian-primary { display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:11px;color:#475569;white-space:nowrap; }
+    .guardian-empty { padding:16px;font-size:12px;color:#64748B;text-align:center; }
+    .guardian-new { margin-top:18px;padding-top:18px;border-top:1px solid var(--border); }
+    .guardian-new-title { font-size:13px;font-weight:700;color:var(--midnight);margin-bottom:5px; }
+    .guardian-primary-new { display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#475569; }
+    .section-actions { display:flex;gap:12px;margin-top:16px; }
+    @media(max-width:768px) {
+        .form-grid { grid-template-columns:1fr; }
+        .guardian-row { grid-template-columns:1fr; }
+        .guardian-primary { justify-content:flex-start;padding-left:26px; }
+    }
 </style>
 @endpush
 
@@ -124,10 +143,153 @@
             </div>
         </div>
 
-        <div style="display:flex;gap:12px">
-            <button type="submit" class="btn btn-primary">Save Changes</button>
+        <div style="display:flex;gap:12px;margin-bottom:22px">
+            <button type="submit" class="btn btn-primary">Save Student Changes</button>
             <a href="{{ route('students.show', $student) }}" class="btn btn-ghost">Cancel</a>
+        </div>
+    </form>
+
+    @php
+        $linkedGuardianIds = $student->guardians->pluck('id')->map(fn($id) => (int) $id)->all();
+        $selectedGuardianIds = collect(old('guardian_ids', $linkedGuardianIds))->map(fn($id) => (int) $id)->all();
+        $currentPrimaryId = optional($student->guardians->first(fn($guardian) => (bool) $guardian->pivot->is_primary_contact))->id;
+        $selectedPrimaryId = (int) old('primary_guardian_id', $currentPrimaryId ?: 0);
+    @endphp
+
+    <form method="POST" action="{{ route('students.guardians.update', $student) }}" id="guardianManagementForm">
+        @csrf
+        <div class="card">
+            <div class="card-header">Parents & Guardians</div>
+            <div class="card-body">
+                <p class="guardian-help">
+                    Link this registered student to multiple parents or guardians. Select any existing parent already registered in this school, or add a new parent below. One linked guardian is retained as the primary contact.
+                </p>
+
+                <div class="form-group guardian-search">
+                    <label class="form-label" for="guardianSearch">Find Existing Parent</label>
+                    <input type="search" id="guardianSearch" class="form-control" placeholder="Search by name, phone, email or existing child">
+                </div>
+
+                <div class="guardian-list" id="guardianList">
+                    @forelse($availableGuardians as $guardian)
+                        @php
+                            $children = $guardian->students
+                                ->map(fn($child) => trim($child->first_name.' '.$child->last_name).($child->admission_number ? ' ('.$child->admission_number.')' : ''))
+                                ->implode(', ');
+                            $searchText = strtolower(trim($guardian->full_name.' '.$guardian->phone.' '.$guardian->email.' '.$children));
+                        @endphp
+                        <div class="guardian-row" data-guardian-row data-search="{{ $searchText }}">
+                            <label class="guardian-check">
+                                <input type="checkbox" name="guardian_ids[]" value="{{ $guardian->id }}"
+                                       {{ in_array((int) $guardian->id, $selectedGuardianIds, true) ? 'checked' : '' }}>
+                                <span>
+                                    <span class="guardian-name">{{ $guardian->full_name }}</span>
+                                    <span class="guardian-meta">
+                                        {{ $guardian->phone ?: 'No phone' }}{{ $guardian->email ? ' · '.$guardian->email : '' }}
+                                        · {{ ucfirst($guardian->relationship ?: 'guardian') }}
+                                        · {{ $guardian->user_id ? 'Portal account active' : 'No portal account yet' }}
+                                        @if($children)<br>Existing child{{ $guardian->students->count() === 1 ? '' : 'ren' }}: {{ $children }}@endif
+                                    </span>
+                                </span>
+                            </label>
+                            <label class="guardian-primary">
+                                <input type="radio" name="primary_guardian_id" value="{{ $guardian->id }}"
+                                       {{ $selectedPrimaryId === (int) $guardian->id ? 'checked' : '' }}>
+                                Primary contact
+                            </label>
+                        </div>
+                    @empty
+                        <div class="guardian-empty">No existing parent or guardian is registered in this school yet.</div>
+                    @endforelse
+                </div>
+                @error('guardian_ids')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @error('guardian_ids.*')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
+                <div class="guardian-new">
+                    <div class="guardian-new-title">Add a New Parent / Guardian</div>
+                    <p class="guardian-help">Leave these fields blank if you only want to link existing parents.</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="new_guardian_first_name" class="form-control" value="{{ old('new_guardian_first_name') }}">
+                            @error('new_guardian_first_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="new_guardian_last_name" class="form-control" value="{{ old('new_guardian_last_name') }}">
+                            @error('new_guardian_last_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="new_guardian_phone" class="form-control" value="{{ old('new_guardian_phone') }}">
+                            @error('new_guardian_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="new_guardian_email" class="form-control" value="{{ old('new_guardian_email') }}">
+                            @error('new_guardian_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Relationship</label>
+                            <select name="new_guardian_relationship" class="form-control">
+                                <option value="">Select relationship</option>
+                                @foreach(['father'=>'Father','mother'=>'Mother','guardian'=>'Guardian','other'=>'Other'] as $value => $label)
+                                    <option value="{{ $value }}" {{ old('new_guardian_relationship') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('new_guardian_relationship')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Occupation</label>
+                            <input type="text" name="new_guardian_occupation" class="form-control" value="{{ old('new_guardian_occupation') }}">
+                        </div>
+                        <div class="form-group" style="grid-column:1/-1">
+                            <label class="form-label">Address</label>
+                            <input type="text" name="new_guardian_address" class="form-control" value="{{ old('new_guardian_address') }}">
+                        </div>
+                    </div>
+                    <label class="guardian-primary-new">
+                        <input type="checkbox" name="new_guardian_primary" value="1" {{ old('new_guardian_primary') ? 'checked' : '' }}>
+                        Make this newly added parent/guardian the primary contact
+                    </label>
+                </div>
+
+                <div class="section-actions">
+                    <button type="submit" class="btn btn-primary">Save Parent / Guardian Links</button>
+                </div>
+            </div>
         </div>
     </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const search = document.getElementById('guardianSearch');
+    const rows = Array.from(document.querySelectorAll('[data-guardian-row]'));
+
+    if (search) {
+        search.addEventListener('input', function () {
+            const needle = this.value.trim().toLowerCase();
+            rows.forEach(row => {
+                row.style.display = !needle || row.dataset.search.includes(needle) ? '' : 'none';
+            });
+        });
+    }
+
+    rows.forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"][name="guardian_ids[]"]');
+        const primary = row.querySelector('input[type="radio"][name="primary_guardian_id"]');
+        if (primary && checkbox) {
+            primary.addEventListener('change', function () {
+                if (this.checked) checkbox.checked = true;
+            });
+            checkbox.addEventListener('change', function () {
+                if (!this.checked && primary.checked) primary.checked = false;
+            });
+        }
+    });
+});
+</script>
+@endpush
