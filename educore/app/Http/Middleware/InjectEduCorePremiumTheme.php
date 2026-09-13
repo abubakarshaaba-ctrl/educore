@@ -8,6 +8,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InjectEduCorePremiumTheme
 {
+    private const THEME_VERSION = '20260913-premium-v2';
+
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
@@ -22,12 +24,18 @@ class InjectEduCorePremiumTheme
             return $response;
         }
 
-        if (str_contains($content, '/brand/educore-brand.css')) {
-            return $response;
-        }
+        $href = asset('brand/educore-brand.css').'?v='.self::THEME_VERSION;
+        $stylesheet = '<link rel="stylesheet" href="'.$href.'">';
 
-        $stylesheet = '<link rel="stylesheet" href="'.asset('brand/educore-brand.css').'">';
-        $updated = preg_replace('/<\/head>/i', "    {$stylesheet}\n</head>", $content, 1);
+        // Replace any existing unversioned/older EduCore brand stylesheet link so
+        // browsers and CDN/proxy caches must request the newly deployed premium CSS.
+        $pattern = '/<link\b[^>]*href=["\'][^"\']*\/brand\/educore-brand\.css(?:\?[^"\']*)?["\'][^>]*>/i';
+
+        if (preg_match($pattern, $content)) {
+            $updated = preg_replace($pattern, $stylesheet, $content, 1);
+        } else {
+            $updated = preg_replace('/<\/head>/i', "    {$stylesheet}\n</head>", $content, 1);
+        }
 
         if (is_string($updated)) {
             $response->setContent($updated);
