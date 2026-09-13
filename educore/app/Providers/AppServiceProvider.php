@@ -50,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
         // Registered-student guardian management is deliberately separate from the
         // core student profile update so guardian linking/unlinking can be validated,
         // tenant-scoped and transacted independently.
-        Route::middleware(['auth', 'active.account', 'tenant'])
+        Route::middleware(['web', 'auth', 'active.account', 'tenant'])
             ->post('/students/{student}/guardians', [StudentGuardianController::class, 'update'])
             ->name('students.guardians.update');
 
