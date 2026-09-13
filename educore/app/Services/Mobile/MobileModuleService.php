@@ -10,9 +10,8 @@ class MobileModuleService
     /**
      * Native Android module contract.
      *
-     * CBT and report/results workspaces are intentionally excluded from the
-     * mobile app. They may remain available on the web application where
-     * applicable, but native clients must neither advertise nor route to them.
+     * CBT is intentionally excluded from the mobile app. Report cards/results
+     * remain available only to explicitly authorised staff and parent accounts.
      */
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
@@ -27,6 +26,7 @@ class MobileModuleService
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'skills' => ['Skill Ratings', '/skills', 'skills'],
         'scores' => ['Scores', '/scores', 'scores'],
+        'reports' => ['Report Cards', '/reports', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'expenses' => ['Expenses', '/expenses', 'expenses'],
@@ -72,6 +72,7 @@ class MobileModuleService
         'attendance',
         'skills',
         'scores',
+        'reports',
         'timetable',
         'lesson-planner',
         'academic-repository',
@@ -105,6 +106,7 @@ class MobileModuleService
         'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
         'skills' => ['skills', 'skills.rate'],
         'scores' => ['scores', 'scores.entry'],
+        'reports' => ['reports', 'report-cards', 'results'],
         'timetable' => ['timetable', 'timetable.view'],
         'lesson-planner' => ['lesson-planner'],
         'academic-repository' => ['academic-repository'],
@@ -150,6 +152,7 @@ class MobileModuleService
             return [
                 ['key' => 'parent.dashboard', 'title' => 'Parent Dashboard', 'path' => '/parent/dashboard', 'icon' => 'dashboard'],
                 ['key' => 'parent.fees', 'title' => 'Fees & Payments', 'path' => '/parent/fees', 'icon' => 'fees'],
+                ['key' => 'parent.results', 'title' => 'Results', 'path' => '/parent/results', 'icon' => 'reports'],
                 ['key' => 'parent.attendance', 'title' => 'Attendance', 'path' => '/parent/attendance', 'icon' => 'attendance'],
                 ['key' => 'parent.messages', 'title' => 'Messages', 'path' => '/parent/messages', 'icon' => 'messages'],
                 ['key' => 'parent.notifications', 'title' => 'Notifications', 'path' => '/parent/notifications', 'icon' => 'notifications'],
@@ -203,7 +206,7 @@ class MobileModuleService
 
                 // These leadership workspaces are guaranteed in the native shell;
                 // endpoint authorization remains tenant-scoped server-side.
-                if ($isSchoolAdmin && in_array($key, ['staff', 'students'], true)) {
+                if ($isSchoolAdmin && in_array($key, ['staff', 'students', 'reports'], true)) {
                     return true;
                 }
 
