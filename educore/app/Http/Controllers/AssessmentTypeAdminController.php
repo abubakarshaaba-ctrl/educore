@@ -51,15 +51,15 @@ class AssessmentTypeAdminController extends Controller
         $validated = $request->validate([
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
             'name' => ['required', 'string', 'max:100'],
-            'weight_percentage' => ['required', 'numeric', 'min:0.5', 'max:100'],
+            'weight_percentage' => ['required', 'integer', 'min:1', 'max:100'],
             'is_exam' => ['nullable', 'boolean'],
         ]);
 
         $otherWeight = AssessmentType::where('term_id', $validated['term_id'])
-            ->whereKeyNot($at->id)
+            ->where('id', '!=', $at->id)
             ->sum('weight_percentage');
 
-        if ($otherWeight + (float) $validated['weight_percentage'] > 100) {
+        if ($otherWeight + (int) $validated['weight_percentage'] > 100) {
             return back()->withErrors([
                 'weight_percentage' => 'The assessment weights for the selected term cannot exceed 100%.',
             ]);
@@ -67,7 +67,7 @@ class AssessmentTypeAdminController extends Controller
 
         $hasScores = Score::where('assessment_type_id', $at->id)->exists();
         if ($hasScores && ((int) $validated['term_id'] !== (int) $at->term_id
-            || (float) $validated['weight_percentage'] !== (float) $at->weight_percentage)) {
+            || (int) $validated['weight_percentage'] !== (int) $at->weight_percentage)) {
             return back()->withErrors([
                 'assessment_type' => 'This assessment type already has student scores. Its term or weight cannot be changed; create a new assessment type instead.',
             ]);
@@ -89,11 +89,11 @@ class AssessmentTypeAdminController extends Controller
 
         $validated = $request->validate([
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $this->tenantId())],
-            'weight_percentage' => ['required', 'numeric', 'min:0.5', 'max:100'],
+            'weight_percentage' => ['required', 'integer', 'min:1', 'max:100'],
         ]);
 
         $targetTermId = (int) $validated['term_id'];
-        $weight = (float) $validated['weight_percentage'];
+        $weight = (int) $validated['weight_percentage'];
         $currentTotal = AssessmentType::where('term_id', $targetTermId)->sum('weight_percentage');
 
         if ($currentTotal + $weight > 100) {
