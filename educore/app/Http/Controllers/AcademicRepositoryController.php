@@ -62,6 +62,14 @@ class AcademicRepositoryController extends Controller
         $this->guardSource($curriculumSource);
         $curriculumSource->load(['fragments' => fn ($query) => $query->orderBy('sequence')->orderBy('id')]);
 
+        // raw_text is the closest readable representation of the uploaded source
+        // and normally retains paragraph boundaries that cleaned_text/fragments
+        // deliberately flatten for search and indexing.
+        $rawText = trim((string) $curriculumSource->raw_text);
+        $renderedDocument = $rawText !== '' ? $formatter->render($rawText) : null;
+
+        // Fragment rendering remains as a backward-compatible fallback and keeps
+        // the machine-readable/searchable representation independent of display.
         $renderedContent = $curriculumSource->fragments
             ->mapWithKeys(fn ($fragment) => [(string) $fragment->getKey() => $formatter->render($fragment->content)])
             ->all();
@@ -71,6 +79,7 @@ class AcademicRepositoryController extends Controller
             'classLabel' => $this->metadataLabel($curriculumSource, 'class_label', 'Unmapped class'),
             'termLabel' => $this->metadataLabel($curriculumSource, 'term_label', 'Unmapped term'),
             'subjectLabel' => $this->metadataLabel($curriculumSource, 'subject_label', 'Unmapped subject'),
+            'renderedDocument' => $renderedDocument,
             'renderedContent' => $renderedContent,
         ]);
     }
