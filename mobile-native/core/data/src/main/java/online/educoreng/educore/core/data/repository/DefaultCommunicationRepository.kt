@@ -55,7 +55,7 @@ class DefaultCommunicationRepository(
     }
 
     override suspend fun download(attachment: MessageAttachment): AppResult<DownloadedDocument> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { api.downloadMessageAttachment(attachment.replyId) }) {
+        when (val result = safeApiCall(moshi) { api.downloadMessageAttachment(attachment.id) }) {
             is AppResult.Failure -> result
             is AppResult.Success -> runCatching {
                 saveDownloadedDocument(context, result.value, attachment.name, attachment.mimeType)
