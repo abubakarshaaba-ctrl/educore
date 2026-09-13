@@ -50,8 +50,12 @@ class AppServiceProvider extends ServiceProvider
         // Super Admin platform broadcasts are stored with a legacy raw DB insert.
         // Bridge that successful HTTP insert into the normal FCM push pipeline.
         if (! $this->app->runningInConsole()) {
+            $listener = app(\App\Services\Notifications\PlatformBroadcastPushListener::class);
+
             \Illuminate\Support\Facades\DB::listen(
-                app(\App\Services\Notifications\PlatformBroadcastPushListener::class)
+                function (\Illuminate\Database\Events\QueryExecuted $query) use ($listener): void {
+                    $listener($query);
+                }
             );
         }
 
