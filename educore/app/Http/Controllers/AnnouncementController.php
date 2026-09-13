@@ -3,18 +3,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Services\Notifications\PushNotificationService;
+use App\Services\PlatformBroadcastDeliveryService;
 use Illuminate\Http\Request;
 
 class AnnouncementController extends Controller
 {
-    public function index()
+    public function index(PlatformBroadcastDeliveryService $platformBroadcasts)
     {
         $announcements = Announcement::where('is_published', true)
             ->where(fn($q) => $q->whereNull('expire_date')->orWhere('expire_date','>=',today()))
             ->orderByDesc('priority')
             ->orderByDesc('publish_date')
             ->paginate(15);
-        return view('announcements.index', compact('announcements'));
+        $platformNotices = $platformBroadcasts->forUser(auth()->user());
+        return view('announcements.index', compact('announcements', 'platformNotices'));
     }
 
     public function manage()
