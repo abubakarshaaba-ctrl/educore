@@ -229,7 +229,10 @@ class MobileReportsController extends Controller
     private function canViewReports(User $user): bool
     {
         if (in_array($user->roleKey(), self::ADMIN_ROLES, true)) return true;
-        return $user->canAccessExactModule('reports') || $user->canAccessExactModule('report-cards') || $user->canAccessExactModule('results');
+        return $user->canAccessExactModule('reports')
+            || $user->canAccessExactModule('reports.view')
+            || $user->canAccessExactModule('report-cards')
+            || $user->canAccessExactModule('results');
     }
 
     private function canPublish(User $user): bool
