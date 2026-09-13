@@ -415,6 +415,7 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
                     EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
                 }
                 Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
+                NoticeImage(notice.imageUrl)
                 Text(notice.publishedAt, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
             }
         }
