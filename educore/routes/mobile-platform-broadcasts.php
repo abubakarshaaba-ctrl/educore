@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\Api\MobilePlatformBroadcastController;
+use App\Http\Controllers\Api\PlatformBroadcastController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('platform/broadcasts')->group(function (): void {
-    Route::get('/', [MobilePlatformBroadcastController::class, 'index']);
-    Route::post('/', [MobilePlatformBroadcastController::class, 'store']);
-    Route::post('{broadcast}/expire', [MobilePlatformBroadcastController::class, 'expire'])->whereNumber('broadcast');
+    Route::get('/', [PlatformBroadcastController::class, 'index']);
+    Route::post('/', [PlatformBroadcastController::class, 'store']);
+    Route::post('{broadcast}/expire', [PlatformBroadcastController::class, 'expire'])->whereNumber('broadcast');
 });
