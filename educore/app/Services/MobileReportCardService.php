@@ -13,28 +13,38 @@ use Illuminate\Support\Collection;
 /**
  * Builds the native-app report-card payload from the same computed summaries
  * and raw assessment scores used by the web report card.
+ *
+ * Parent/student consumers must use the default published-only behaviour.
+ * Authorised staff preview screens may explicitly request computed summaries
+ * before publication so the native admin workflow mirrors the web report-card
+ * preview workflow without exposing drafts to families.
  */
 class MobileReportCardService
 {
-    public function forStudent(Student $student, ?int $classArmId = null): Collection
-    {
+    public function forStudent(
+        Student $student,
+        ?int $classArmId = null,
+        bool $publishedOnly = true,
+    ): Collection {
         $summaries = TermlySummary::with(['term.session'])
             ->where('student_id', $student->id)
             ->when($classArmId, fn ($query, int $id) => $query->where('class_arm_id', $id))
             ->latest('computed_at')
             ->get();
 
-        $publishedKeys = ReportCardPublication::where('status', 'published')
-            ->whereIn('class_arm_id', $summaries->pluck('class_arm_id')->unique())
-            ->whereIn('term_id', $summaries->pluck('term_id')->unique())
-            ->get(['class_arm_id', 'term_id'])
-            ->mapWithKeys(fn (ReportCardPublication $publication) => [
-                $publication->class_arm_id.':'.$publication->term_id => true,
-            ]);
+        if ($publishedOnly && $summaries->isNotEmpty()) {
+            $publishedKeys = ReportCardPublication::where('status', 'published')
+                ->whereIn('class_arm_id', $summaries->pluck('class_arm_id')->unique())
+                ->whereIn('term_id', $summaries->pluck('term_id')->unique())
+                ->get(['class_arm_id', 'term_id'])
+                ->mapWithKeys(fn (ReportCardPublication $publication) => [
+                    $publication->class_arm_id.':'.$publication->term_id => true,
+                ]);
 
-        $summaries = $summaries
-            ->filter(fn (TermlySummary $summary) => $publishedKeys->has($summary->class_arm_id.':'.$summary->term_id))
-            ->values();
+            $summaries = $summaries
+                ->filter(fn (TermlySummary $summary) => $publishedKeys->has($summary->class_arm_id.':'.$summary->term_id))
+                ->values();
+        }
 
         if ($summaries->isEmpty()) {
             return collect();
