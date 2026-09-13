@@ -264,6 +264,32 @@ class AdminStaffAttendanceController extends Controller
         return response()->json(['message' => 'Proxy attendance review updated.', 'record_id' => $attendance->id]);
     }
 
+    public function qr(Request $request): JsonResponse
+    {
+        $user = $this->guard($request);
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+
+        return response()->json([
+            'payload' => $settings->staticQrPayload(),
+            'type' => 'static_school',
+            'tenant_id' => (int) $user->tenant_id,
+            'school' => null,
+            'generated_at' => now()->toIso8601String(),
+            'note' => 'Permanent school attendance QR. Resetting it invalidates previously printed copies.',
+        ]);
+    }
+
+    public function resetQr(Request $request): JsonResponse
+    {
+        $user = $this->guard($request);
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $settings->resetStaticQr();
+
+        return response()->json([
+            'message' => 'School attendance QR code reset. Previously printed copies are now invalid.',
+        ]);
+    }
+
     public function updateSettings(Request $request): JsonResponse
     {
         $user = $this->guard($request);
