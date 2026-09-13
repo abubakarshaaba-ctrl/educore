@@ -49,3 +49,24 @@ data class StaffAccountMutationResponseDto(
     val message: String,
     val active: Boolean,
 )
+
+@JsonClass(generateAdapter = true)
+data class CreateStaffAccountRequestDto(
+    val name: String,
+    val email: String,
+    val role: String,
+    val password: String,
+    val phone: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class CreatedStaffDto(
+    val id: Long,
+    val name: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateStaffAccountResponseDto(
+    val message: String,
+    val staff: CreatedStaffDto,
+)
