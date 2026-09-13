@@ -126,10 +126,9 @@ class MobileClassController extends Controller
     }
 
     /**
-     * Published report cards for a student inside a class the authenticated
-     * staff member is allowed to view. The selected class is also applied to
-     * the report query so historical classes outside the user's authorised
-     * workspace are never exposed through this endpoint.
+     * Computed report cards for a student inside a class the authenticated
+     * staff member is allowed to view. Staff may preview drafts before they
+     * are published; parent/student endpoints remain publication-gated.
      */
     public function results(
         Request $request,
@@ -156,7 +155,7 @@ class MobileClassController extends Controller
                     'name' => trim(($classArm->classLevel?->name ?? '').' '.$classArm->name),
                 ],
             ],
-            'results' => $reports->forStudent($student, $classArm->id),
+            'results' => $reports->forStudent($student, $classArm->id, publishedOnly: false),
         ]);
     }
 
