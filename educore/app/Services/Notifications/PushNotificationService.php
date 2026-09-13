@@ -56,6 +56,60 @@ class PushNotificationService
         });
     }
 
+    /**
+     * Deliver a Super Admin platform broadcast immediately to every active
+     * EduCore user whose school matches the same target-state rules used by
+     * the in-app platform-broadcast feed.
+     */
+    public function notifyPlatformBroadcast(int $broadcastId, string $title, string $body, string $target): void
+    {
+        $query = User::query()
+            ->whereNotNull('tenant_id')
+            ->where('is_active', true)
+            ->where('is_super_admin', false)
+            ->whereHas('tenant', function ($tenant) use ($target): void {
+                if ($target === 'all') {
+                    return;
+                }
+
+                if ($target === 'trial') {
+                    $tenant->where('status', 'trial');
+                    return;
+                }
+
+                if ($target === 'expired') {
+                    $tenant->where('status', '!=', 'trial')
+                        ->whereNotNull('subscription_expires_at')
+                        ->where('subscription_expires_at', '<', now());
+                    return;
+                }
+
+                // PlatformBroadcastDeliveryService treats every non-trial,
+                // non-expired tenant as active for broadcast targeting.
+                $tenant->where('status', '!=', 'trial')
+                    ->where(function ($expiry): void {
+                        $expiry->whereNull('subscription_expires_at')
+                            ->orWhere('subscription_expires_at', '>=', now());
+                    });
+            });
+
+        $query->orderBy('id')->chunkById(100, function ($users) use ($broadcastId, $title, $body): void {
+            foreach ($users as $user) {
+                $this->sendToUser(
+                    $user,
+                    Str::limit(strip_tags($title), 100),
+                    Str::limit(strip_tags($body), 180),
+                    [
+                        'type' => 'platform_broadcast',
+                        'broadcast_id' => (string) $broadcastId,
+                        'destination_type' => 'platform_broadcast',
+                        'destination_id' => (string) $broadcastId,
+                    ],
+                );
+            }
+        });
+    }
+
     public function notifyMessageThread(MessageThread $thread, User $sender, string $body): void
     {
         if ($thread->student_id) {
