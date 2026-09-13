@@ -46,7 +46,9 @@
                             <h3>{{ $fragment->subtopic ?: $fragment->topic ?: 'Lesson content' }}</h3>
                         </div>
                     </header>
-                    <div class="reader-note-content">{!! nl2br(e($fragment->content)) !!}</div>
+                    <div class="reader-note-content reader-prose">
+                        {!! $renderedContent[(string) $fragment->getKey()] ?? '' !!}
+                    </div>
                 </article>
             @empty
                 <div class="reader-note-empty">No readable sections are available for this resource.</div>
