@@ -143,7 +143,7 @@ fun EduCoreBottomNavigation(
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = EduCoreColors.Gold100,
+                    indicatorColor = Color.Transparent,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
