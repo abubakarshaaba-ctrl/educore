@@ -234,7 +234,8 @@ class MobileReportsController extends Controller
 
     private function canPublish(User $user): bool
     {
-        return in_array($user->roleKey(), self::ADMIN_ROLES, true) || $user->canAccessExactModule('students');
+        return in_array($user->roleKey(), self::ADMIN_ROLES, true)
+            || $user->canAccessExactModule('reports');
     }
 
     private function canEditRemarks(User $user): bool
