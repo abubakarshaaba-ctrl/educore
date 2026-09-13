@@ -7,6 +7,7 @@ use App\Models\DeviceToken;
 use App\Models\ExamPeriod;
 use App\Models\MessageThread;
 use App\Models\User;
+use App\Services\Messaging\SchoolMessagingAudienceService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -73,6 +74,17 @@ class PushNotificationService
                         ->where('tenant_id', $thread->tenant_id)
                         ->where('is_active', true)
                         ->whereIn('role', User::staffRoleNames())
+                        ->pluck('id')
+                );
+            } elseif ($thread->audience === 'academic_staff') {
+                $audiences = app(SchoolMessagingAudienceService::class);
+                $recipientIds = $recipientIds->merge(
+                    User::query()
+                        ->where('tenant_id', $thread->tenant_id)
+                        ->where('is_active', true)
+                        ->whereIn('role', User::staffRoleNames())
+                        ->get()
+                        ->filter(fn (User $user): bool => $audiences->isAcademicStaff($user))
                         ->pluck('id')
                 );
             } elseif ($thread->audience === 'all_parents') {
@@ -225,7 +237,7 @@ class PushNotificationService
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
 
