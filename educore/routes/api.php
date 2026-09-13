@@ -33,7 +33,6 @@ use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\TimetableController;
 use App\Http\Controllers\Api\TransportOfficerController;
-use App\Http\Controllers\CbtLanController;
 use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Support\Facades\Route;
@@ -161,7 +160,6 @@ Route::prefix('v1')->group(function () {
             Route::get('timetable', [StudentController::class, 'timetable']);
             Route::get('results', [StudentController::class, 'results']);
             Route::get('attendance', [StudentController::class, 'attendance']);
-            Route::get('exams', [StudentController::class, 'exams']);
         });
 
         Route::prefix('parent')->group(function () {
@@ -253,6 +251,3 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
-
-Route::post('lan/sync', [CbtLanController::class, 'apiSync'])
-    ->middleware('throttle:30,1');
