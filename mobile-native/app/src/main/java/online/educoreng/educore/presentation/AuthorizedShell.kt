@@ -745,7 +745,7 @@ private object NativeRoute {
     val NOTIFICATION_MODULES = setOf("notifications.view", "parent.notifications", "student.notifications", "announcements")
     val CALENDAR_MODULES = setOf("calendar.view", "parent.calendar", "student.calendar")
     val OPERATIONS_MODULES = setOf(
-        "finance", "subscription", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
+        "staff", "finance", "subscription", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
         "health", "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
     )
 }
