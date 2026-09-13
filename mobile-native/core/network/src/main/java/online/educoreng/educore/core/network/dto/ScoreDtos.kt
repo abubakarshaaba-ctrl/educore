@@ -2,6 +2,7 @@ package online.educoreng.educore.core.network.dto
 
 import com.squareup.moshi.Json
 import online.educoreng.educore.core.model.PublishedResult
+import online.educoreng.educore.core.model.PublishedResultStudent
 import online.educoreng.educore.core.model.PublishedResults
 import online.educoreng.educore.core.model.ResultAssessment
 import online.educoreng.educore.core.model.ResultSubject
@@ -121,6 +122,7 @@ data class PublishedResultDto(
 
 data class PublishedResultsResponseDto(
     val student: ResultStudentDto? = null,
+    val children: List<ResultStudentDto> = emptyList(),
     val results: List<PublishedResultDto> = emptyList(),
 )
 
@@ -148,7 +150,18 @@ fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = empt
 )
 
 fun PublishedResultsResponseDto.toDomain() = PublishedResults(
-    studentName = student?.name, admissionNumber = student?.admissionNumber, className = student?.classRoom?.name,
+    studentId = student?.id,
+    studentName = student?.name,
+    admissionNumber = student?.admissionNumber,
+    className = student?.classRoom?.name,
+    children = children.map {
+        PublishedResultStudent(
+            id = it.id,
+            name = it.name,
+            admissionNumber = it.admissionNumber,
+            className = it.classRoom?.name,
+        )
+    },
     results = results.map { result ->
         PublishedResult(
             result.id, result.term, result.session, result.average, result.totalScore, result.position, result.classSize,
