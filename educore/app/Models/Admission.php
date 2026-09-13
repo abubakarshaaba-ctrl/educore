@@ -52,6 +52,11 @@ class Admission extends BaseTenantModel
     ];
 
     protected $casts = [
+        'date_of_birth' => 'date',
+        'application_date' => 'date',
+        'decision_date' => 'date',
+        'interview_date' => 'date',
+        'interview_score' => 'float',
         'is_beginner' => 'boolean',
         'portal_email_verified' => 'boolean',
         'offer_letter_sent' => 'boolean',
