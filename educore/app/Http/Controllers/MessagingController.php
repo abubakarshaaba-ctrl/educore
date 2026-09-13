@@ -5,6 +5,7 @@ use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Messaging\SchoolMessagingAudienceService;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,37 +13,18 @@ use Illuminate\Validation\Rule;
 
 class MessagingController extends Controller
 {
+    public function __construct(private readonly SchoolMessagingAudienceService $audiences) {}
+
     private function tenantId(): int { return (int) auth()->user()->tenant_id; }
-
-    private function canOverseeAllThreads(User $user): bool
-    {
-        return $user->isAdmin()
-            || in_array($user->roleKey(), ['principal','head','head_teacher','vice_principal','academic_administrator'], true)
-            || $user->canManage('messages');
-    }
-
-    private function broadcastAudiencesFor(User $user): array
-    {
-        if ($user->isParent()) return ['all_parents'];
-        if ($user->isTenantStaff()) return ['all_staff'];
-        return [];
-    }
 
     public function inbox(Request $request)
     {
         $user = auth()->user();
         $userId = (int) $user->id;
-        $threads = MessageThread::query()
-            ->where('tenant_id', $this->tenantId())
-            ->when(! $this->canOverseeAllThreads($user), function ($query) use ($userId, $user): void {
-                $audiences = $this->broadcastAudiencesFor($user);
-                $query->where(function ($visible) use ($userId, $audiences): void {
-                    $visible->where('initiated_by', $userId)
-                        ->orWhere('recipient_user_id', $userId)
-                        ->orWhereHas('replies', fn ($replies) => $replies->where('sender_id', $userId));
-                    if ($audiences !== []) $visible->orWhereIn('audience', $audiences);
-                });
-            })
+        $query = MessageThread::query()->where('tenant_id', $this->tenantId());
+        $this->audiences->scopeVisible($query, $user);
+
+        $threads = $query
             ->with(['student','initiator','recipient','replies' => fn ($q) => $q->latest()->limit(1)])
             ->latest('updated_at')
             ->paginate(20);
@@ -98,7 +80,7 @@ class MessagingController extends Controller
                 ->orderBy('name')
                 ->get(['id','name','role','staff_id']);
         }
-        if ($this->canOverseeAllThreads($user)) {
+        if ($this->audiences->canOversee($user)) {
             $parents = User::query()
                 ->where('tenant_id',$this->tenantId())
                 ->where('role','parent')
@@ -110,7 +92,7 @@ class MessagingController extends Controller
         return view('messages.compose-internal', [
             'staff'=>$staff,
             'parents'=>$parents,
-            'canBroadcast'=>$this->canOverseeAllThreads($user),
+            'canBroadcast'=>$this->audiences->canOversee($user),
             'canMessageStaff'=>$user->isTenantStaff(),
         ]);
     }
@@ -119,8 +101,8 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
         abort_unless($user->tenant_id && ($user->isTenantStaff() || $user->isParent()), 403);
-        $allowedTargets = $this->canOverseeAllThreads($user)
-            ? ['all_staff','staff','all_parents','parent']
+        $allowedTargets = $this->audiences->canOversee($user)
+            ? ['all_staff','academic_staff','staff','all_parents','parent']
             : ($user->isTenantStaff() ? ['admin','staff'] : ['admin']);
         $data = $request->validate([
             'target_type'=>['required',Rule::in($allowedTargets)], 'recipient_id'=>['nullable','integer'],
@@ -133,7 +115,7 @@ class MessagingController extends Controller
             $recipient = User::query()->where('tenant_id',$this->tenantId())->whereKey($data['recipient_id'])->where('is_active',true)->firstOrFail();
             abort_unless($data['target_type']==='staff' ? $recipient->isTenantStaff() : $recipient->isParent(), 422, 'Select a valid recipient.');
             abort_if((int)$recipient->id === (int)$user->id, 422, 'Select another staff member.');
-            if ($data['target_type'] === 'parent') abort_unless($this->canOverseeAllThreads($user), 403);
+            if ($data['target_type'] === 'parent') abort_unless($this->audiences->canOversee($user), 403);
         } elseif ($data['target_type']==='admin') {
             $recipient = User::query()->where('tenant_id',$this->tenantId())->where('is_active',true)
                 ->whereIn('role',['admin','principal','head','head_teacher','vice_principal','academic_administrator'])
@@ -145,7 +127,7 @@ class MessagingController extends Controller
 
         $thread = DB::transaction(function () use ($data,$recipient,$audience,$user): MessageThread {
             $thread = MessageThread::create([
-                'tenant_id'=>$this->tenantId(), 'student_id'=>null, 'conversation_type'=>$data['target_type'],
+                'tenant_id'=>$this->tenantId(), 'student_id'=>null, 'conversation_type'=>$audience ? 'group' : 'private',
                 'recipient_user_id'=>$recipient?->id, 'audience'=>$audience, 'subject'=>trim($data['subject']),
                 'initiated_by'=>$user->id, 'status'=>'open',
             ]);
@@ -156,12 +138,12 @@ class MessagingController extends Controller
         });
 
         app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
-        return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Broadcast sent.' : 'Message sent.');
+        return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Group message sent.' : 'Private message sent.');
     }
 
     public function thread(MessageThread $thread)
     {
-        $this->authorizeThread($thread);
+        $this->audiences->authorize($thread, auth()->user());
         $thread->load(['student.currentClassArm.classLevel','initiator','recipient','replies.sender']);
         $userId = (int) auth()->id();
         if ($thread->isBroadcast() && (int) $thread->initiated_by !== $userId) {
@@ -177,26 +159,10 @@ class MessagingController extends Controller
 
     public function reply(Request $request, MessageThread $thread)
     {
-        $this->authorizeThread($thread);
+        $this->audiences->authorize($thread, auth()->user());
         abort_if($thread->status !== 'open', 422, 'This thread has been closed.');
         $data = $request->validate(['body'=>['required','string','max:10000']]);
         $user = auth()->user();
-
-        if ($thread->isBroadcast() && (int) $thread->initiated_by !== (int) $user->id) {
-            $private = DB::transaction(function () use ($thread,$data,$user): MessageThread {
-                $private = MessageThread::create([
-                    'tenant_id'=>$this->tenantId(), 'student_id'=>null, 'conversation_type'=>$user->isParent() ? 'parent' : 'staff',
-                    'recipient_user_id'=>$thread->initiated_by, 'audience'=>null, 'subject'=>'Re: '.$thread->subject,
-                    'initiated_by'=>$user->id, 'status'=>'open',
-                ]);
-                MessageThreadReply::create([
-                    'tenant_id'=>$this->tenantId(), 'thread_id'=>$private->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
-                ]);
-                return $private;
-            });
-            app(PushNotificationService::class)->notifyMessageThread($private,$user,$data['body']);
-            return redirect()->route('messages.thread',$private)->with('success','Your reply was sent privately to school administration.');
-        }
 
         MessageThreadReply::create([
             'tenant_id'=>$this->tenantId(), 'thread_id'=>$thread->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
@@ -208,8 +174,8 @@ class MessagingController extends Controller
 
     public function close(MessageThread $thread)
     {
-        $this->authorizeThread($thread);
-        abort_unless((int)$thread->initiated_by === (int)auth()->id() || $this->canOverseeAllThreads(auth()->user()), 403);
+        $this->audiences->authorize($thread, auth()->user());
+        abort_unless((int)$thread->initiated_by === (int)auth()->id() || $this->audiences->canOversee(auth()->user()), 403);
         $thread->update(['status'=>'closed']);
         return back()->with('success','Thread closed.');
     }
@@ -220,17 +186,5 @@ class MessagingController extends Controller
             return ! DB::table('message_thread_reads')->where('thread_id',$thread->id)->where('user_id',$userId)->whereNotNull('read_at')->exists();
         }
         return $thread->replies()->where('sender_id','!=',$userId)->where('is_read',false)->exists();
-    }
-
-    private function authorizeThread(MessageThread $thread): void
-    {
-        $user = auth()->user();
-        abort_unless((int)$thread->tenant_id === $this->tenantId(), 404);
-        if ($this->canOverseeAllThreads($user)) return;
-        $isParticipant = (int)$thread->initiated_by === (int)$user->id
-            || (int)$thread->recipient_user_id === (int)$user->id
-            || $thread->replies()->where('sender_id',$user->id)->exists();
-        $isAudienceRecipient = in_array($thread->audience, $this->broadcastAudiencesFor($user), true);
-        abort_unless($isParticipant || $isAudienceRecipient, 403, 'You are not a participant in this conversation.');
     }
 }
