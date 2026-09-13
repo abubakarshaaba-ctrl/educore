@@ -6,10 +6,13 @@ use App\Models\Announcement;
 use App\Models\AnnouncementRead;
 use App\Models\CalendarEvent;
 use App\Models\User;
+use App\Services\PlatformBroadcastDeliveryService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class MobileCommunicationService
 {
+    public function __construct(private readonly PlatformBroadcastDeliveryService $platformBroadcasts) {}
+
     public function notifications(User $user, string $status, int $perPage): array
     {
         $this->authorizeNotifications($user);
@@ -25,18 +28,23 @@ class MobileCommunicationService
         /** @var LengthAwarePaginator $page */
         $page = $query->paginate($perPage);
         $readLookup = $readIds->mapWithKeys(fn ($id): array => [(int) $id => true]);
+        $tenantNotices = collect($page->items())
+            ->map(fn (Announcement $announcement): array => $this->notificationItem($announcement, isset($readLookup[$announcement->id])));
+        $platformNotices = $status === 'unread' ? collect() : $this->platformBroadcasts->asNotificationItems($user);
+        $items = $platformNotices
+            ->concat($tenantNotices)
+            ->sortByDesc('published_at')
+            ->values();
 
         return [
-            'contract_version' => 1,
-            'notifications' => collect($page->items())
-                ->map(fn (Announcement $announcement): array => $this->notificationItem($announcement, isset($readLookup[$announcement->id])))
-                ->values(),
+            'contract_version' => 2,
+            'notifications' => $items,
             'unread_count' => $this->visibleAnnouncements($user)->whereNotIn('id', $readIds)->count(),
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
-                'total' => $page->total(),
+                'total' => $page->total() + $platformNotices->count(),
             ],
         ];
     }
