@@ -2,6 +2,7 @@
 
 namespace App\Services\Messaging;
 
+use App\Models\Guardian;
 use App\Models\MessageThread;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,14 +61,19 @@ class SchoolMessagingAudienceService
 
         $userId = (int) $user->id;
         $audiences = $this->audiencesFor($user);
+        $legacyStudentIds = $this->legacyStudentIds($user);
 
-        return $query->where(function (Builder $visible) use ($userId, $audiences): void {
+        return $query->where(function (Builder $visible) use ($userId, $audiences, $legacyStudentIds): void {
             $visible->where('initiated_by', $userId)
                 ->orWhere('recipient_user_id', $userId)
                 ->orWhereHas('replies', fn (Builder $replies) => $replies->where('sender_id', $userId));
 
             if ($audiences !== []) {
                 $visible->orWhereIn('audience', $audiences);
+            }
+
+            if ($legacyStudentIds !== []) {
+                $visible->orWhereIn('student_id', $legacyStudentIds);
             }
         });
     }
@@ -84,7 +90,27 @@ class SchoolMessagingAudienceService
             || (int) $thread->recipient_user_id === (int) $user->id
             || $thread->replies()->where('sender_id', $user->id)->exists();
         $isAudienceRecipient = in_array($thread->audience, $this->audiencesFor($user), true);
+        $isLegacyStudentConversation = $thread->student_id
+            && in_array((int) $thread->student_id, $this->legacyStudentIds($user), true);
 
-        abort_unless($isParticipant || $isAudienceRecipient, 403, 'You are not a participant in this conversation.');
+        abort_unless(
+            $isParticipant || $isAudienceRecipient || $isLegacyStudentConversation,
+            403,
+            'You are not a participant in this conversation.'
+        );
+    }
+
+    private function legacyStudentIds(User $user): array
+    {
+        if ($user->isStudent()) {
+            return $user->student?->id ? [(int) $user->student->id] : [];
+        }
+
+        if ($user->isParent()) {
+            $guardian = Guardian::query()->where('user_id', $user->id)->first();
+            return $guardian?->students()->pluck('students.id')->map(fn ($id): int => (int) $id)->all() ?? [];
+        }
+
+        return [];
     }
 }
