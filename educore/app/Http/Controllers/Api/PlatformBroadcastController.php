@@ -9,7 +9,9 @@ use App\Services\Notifications\PushNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class PlatformBroadcastController extends Controller
 {
@@ -27,6 +29,9 @@ class PlatformBroadcastController extends Controller
                 'id' => (int) $broadcast->id,
                 'title' => $broadcast->title,
                 'body' => $broadcast->body,
+                'image_url' => $broadcast->image_path
+                    ? Storage::disk('public')->url($broadcast->image_path)
+                    : null,
                 'target' => $broadcast->target,
                 'creator' => $broadcast->creator_name,
                 'expires_at' => $broadcast->expires_at,
@@ -45,49 +50,61 @@ class PlatformBroadcastController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:150'],
             'body' => ['required', 'string', 'max:5000'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
         $tenantIds = $this->targetTenants($data['target'])->pluck('id');
         $now = now();
+        $imagePath = $request->file('image')?->store('platform-broadcasts', 'public');
 
-        $broadcastId = DB::transaction(function () use ($request, $data, $tenantIds, $now) {
-            $broadcastId = DB::table('platform_broadcasts')->insertGetId([
-                'created_by' => $request->user()->id,
-                'title' => trim($data['title']),
-                'body' => trim($data['body']),
-                'target' => $data['target'],
-                'tenant_count' => $tenantIds->count(),
-                'expires_at' => $data['expires_at'] ?? null,
-                'expired_at' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+        try {
+            $broadcastId = DB::transaction(function () use ($request, $data, $tenantIds, $now, $imagePath) {
+                $broadcastId = DB::table('platform_broadcasts')->insertGetId([
+                    'created_by' => $request->user()->id,
+                    'title' => trim($data['title']),
+                    'body' => trim($data['body']),
+                    'image_path' => $imagePath,
+                    'target' => $data['target'],
+                    'tenant_count' => $tenantIds->count(),
+                    'expires_at' => $data['expires_at'] ?? null,
+                    'expired_at' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
 
-            foreach ($tenantIds->chunk(250) as $chunk) {
-                DB::table('announcements')->insert(
-                    $chunk->map(fn ($tenantId) => [
-                        'tenant_id' => $tenantId,
-                        'platform_broadcast_id' => $broadcastId,
-                        'title' => trim($data['title']),
-                        'body' => trim($data['body']),
-                        'audience' => 'all',
-                        'priority' => 'important',
-                        'publish_date' => $now->toDateString(),
-                        'expire_date' => isset($data['expires_at'])
-                            ? \Illuminate\Support\Carbon::parse($data['expires_at'])->toDateString()
-                            : null,
-                        'is_published' => true,
-                        'created_by' => $request->user()->id,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ])->all()
-                );
+                foreach ($tenantIds->chunk(250) as $chunk) {
+                    DB::table('announcements')->insert(
+                        $chunk->map(fn ($tenantId) => [
+                            'tenant_id' => $tenantId,
+                            'platform_broadcast_id' => $broadcastId,
+                            'title' => trim($data['title']),
+                            'body' => trim($data['body']),
+                            'image_path' => $imagePath,
+                            'audience' => 'all',
+                            'priority' => 'important',
+                            'publish_date' => $now->toDateString(),
+                            'expire_date' => isset($data['expires_at'])
+                                ? \Illuminate\Support\Carbon::parse($data['expires_at'])->toDateString()
+                                : null,
+                            'is_published' => true,
+                            'created_by' => $request->user()->id,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ])->all()
+                    );
+                }
+
+                return $broadcastId;
+            });
+        } catch (Throwable $exception) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
             }
 
-            return $broadcastId;
-        });
+            throw $exception;
+        }
 
         $push = app(PushNotificationService::class);
         Announcement::query()
@@ -103,6 +120,7 @@ class PlatformBroadcastController extends Controller
             'message' => "Broadcast published to {$tenantIds->count()} school(s) and push notifications dispatched.",
             'status' => 'published',
             'id' => $broadcastId,
+            'image_url' => $imagePath ? Storage::disk('public')->url($imagePath) : null,
         ], 201);
     }
 
