@@ -1,5 +1,7 @@
 package online.educoreng.educore.core.network
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import online.educoreng.educore.core.network.dto.PlatformAgentCreateRequestDto
 import online.educoreng.educore.core.network.dto.PlatformAgentMutationResponseDto
 import online.educoreng.educore.core.network.dto.PlatformAgentUpdateRequestDto
@@ -34,9 +36,11 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -139,6 +143,16 @@ interface PlatformApi {
 
     @POST("platform/broadcasts")
     suspend fun createBroadcast(@Body body: PlatformBroadcastCreateRequestDto): PlatformMutationResponseDto
+
+    @Multipart
+    @POST("platform/broadcasts")
+    suspend fun createBroadcastWithImage(
+        @Part("title") title: RequestBody,
+        @Part("body") body: RequestBody,
+        @Part("target") target: RequestBody,
+        @Part("expires_at") expiresAt: RequestBody?,
+        @Part image: MultipartBody.Part?,
+    ): PlatformMutationResponseDto
 
     @POST("platform/broadcasts/{broadcast}/expire")
     suspend fun expireBroadcast(@Path("broadcast") broadcast: Long): PlatformMutationResponseDto
