@@ -14,6 +14,7 @@
 <option value="">Select recipient type...</option>
 @if($canBroadcast)
 <option value="all_staff" {{ old('target_type')==='all_staff'?'selected':'' }}>All Staff</option>
+<option value="academic_staff" {{ old('target_type')==='academic_staff'?'selected':'' }}>Academic Staff Only</option>
 <option value="staff" {{ old('target_type')==='staff'?'selected':'' }}>Individual Staff</option>
 <option value="all_parents" {{ old('target_type')==='all_parents'?'selected':'' }}>All Parents</option>
 <option value="parent" {{ old('target_type')==='parent'?'selected':'' }}>Individual Parent</option>
@@ -25,6 +26,7 @@
 @if($canBroadcast)
 <div class="fg recipient-block" id="staffRecipient"><label>Staff member</label><select name="recipient_id_staff" class="fc"><option value="">Select staff...</option>@foreach($staff as $u)<option value="{{ $u->id }}">{{ $u->name }}{{ $u->staff_id ? ' · '.$u->staff_id : '' }}</option>@endforeach</select></div>
 <div class="fg recipient-block" id="parentRecipient"><label>Parent</label><select name="recipient_id_parent" class="fc"><option value="">Select parent...</option>@foreach($parents as $u)<option value="{{ $u->id }}">{{ $u->name }}{{ $u->phone ? ' · '.$u->phone : '' }}</option>@endforeach</select></div>
+<div class="fg"><div class="hint">Group messages keep every reply in one shared thread. Individual messages remain private between the selected recipient and school administration.</div></div>
 @else
 <div class="fg"><div class="hint">Your message will be sent privately to school administration.</div></div>
 @endif
