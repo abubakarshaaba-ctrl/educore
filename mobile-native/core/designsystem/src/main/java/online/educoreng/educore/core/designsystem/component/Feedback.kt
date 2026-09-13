@@ -66,6 +66,8 @@ private fun EduCoreBanner(
     tone: EduCoreTone,
     icon: ImageVector,
 ) {
+    if (message.isBlank() && title.isNullOrBlank()) return
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
@@ -79,8 +81,8 @@ private fun EduCoreBanner(
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(EduCoreSizes.Icon))
             Column(Modifier.weight(1f)) {
-                title?.let { Text(it, style = MaterialTheme.typography.labelLarge) }
-                Text(message, style = MaterialTheme.typography.bodySmall)
+                title?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.labelLarge) }
+                message.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
         }
     }
