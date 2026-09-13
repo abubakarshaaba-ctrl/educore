@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\LessonAiProvider;
+use App\Http\Controllers\StudentGuardianController;
 use App\Services\Ai\GroqLessonProvider;
 use App\Models\Tenant;
 use App\Models\User;
@@ -11,6 +12,7 @@ use App\Models\AgentMessage;
 use App\Models\AgentMessageRead;
 use App\Models\StaffOfflineClockIn;
 use App\Models\ClassLevelSubject;
+use App\Models\Guardian;
 use App\Models\StudentSubjectSelection;
 use App\Models\Student;
 use App\Models\StudentClassTransfer;
@@ -18,6 +20,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -43,6 +46,13 @@ class AppServiceProvider extends ServiceProvider
         // dependency-free custom view instead, everywhere ->links() is called.
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.custom');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.custom');
+
+        // Registered-student guardian management is deliberately separate from the
+        // core student profile update so guardian linking/unlinking can be validated,
+        // tenant-scoped and transacted independently.
+        Route::middleware(['auth', 'active.account', 'tenant'])
+            ->post('/students/{student}/guardians', [StudentGuardianController::class, 'update'])
+            ->name('students.guardians.update');
 
         RateLimiter::for('tenant-login', function (Request $request) {
             return Limit::perMinute(5)->by($this->tenantAuthThrottleKey($request, 'login_id'));
@@ -154,6 +164,17 @@ class AppServiceProvider extends ServiceProvider
                     ->when($session, fn ($q) => $q->where('session_id', $session->id))
                     ->with('subject')->get()
                 : collect());
+        });
+
+        // Registered student edit: every selectable guardian is tenant-scoped by
+        // Guardian's global tenant scope. Existing child links help distinguish
+        // parents with similar names before another child is linked.
+        View::composer('students.edit', function ($view) {
+            $view->with('availableGuardians', Guardian::query()
+                ->with(['students:id,first_name,last_name,admission_number', 'user:id'])
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get());
         });
 
         // Staff role metadata (constants surfaced as plain view data).
