@@ -10,6 +10,7 @@ class Announcement extends BaseTenantModel
         'tenant_id',
         'title',
         'body',
+        'image_path',
         'audience',
         'priority',
         'publish_date',
