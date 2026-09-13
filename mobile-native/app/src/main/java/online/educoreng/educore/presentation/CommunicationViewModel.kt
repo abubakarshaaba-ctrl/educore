@@ -66,9 +66,11 @@ class CommunicationViewModel @Inject constructor(
     val uiState: StateFlow<CommunicationUiState> = _uiState.asStateFlow()
 
     fun loadAll() {
-        loadNotifications()
-        loadMessages()
-        loadEvents()
+        when (_uiState.value.selectedTab) {
+            CommunicationTab.NOTICES -> loadNotifications()
+            CommunicationTab.MESSAGES -> loadMessages()
+            CommunicationTab.EVENTS -> loadEvents()
+        }
     }
 
     fun selectTab(index: Int) {
