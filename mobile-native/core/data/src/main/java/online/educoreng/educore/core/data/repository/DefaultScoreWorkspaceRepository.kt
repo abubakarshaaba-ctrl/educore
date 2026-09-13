@@ -268,6 +268,21 @@ class DefaultScoreWorkspaceRepository(
         }
     }
 
+    override suspend fun loadStudentResults(classId: Long, studentId: Long): AppResult<PublishedResults> =
+        withContext(Dispatchers.IO) {
+            val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
+            val key = "results:staff:$classId:$studentId"
+            when (val result = safeApiCall(moshi) { api.studentResultsForStaff(classId, studentId) }) {
+                is AppResult.Success -> {
+                    cache(scope, key, resultsAdapter.toJson(result.value))
+                    AppResult.Success(result.value.toDomain())
+                }
+                is AppResult.Failure -> cached(scope, key, resultsAdapter)?.let {
+                    AppResult.Success(it.toDomain())
+                } ?: result
+            }
+        }
+
     private suspend fun scope(): Scope? {
         val tenantKey = tenantContextStore.activeTenantKey.first() ?: return null
         val session = database.sessionDao().get(tenantKey) ?: return null
