@@ -66,7 +66,9 @@ class AcademicRepositoryController extends Controller
         // and normally retains paragraph boundaries that cleaned_text/fragments
         // deliberately flatten for search and indexing.
         $rawText = trim((string) $curriculumSource->raw_text);
-        $renderedDocument = $rawText !== '' ? $formatter->render($rawText) : null;
+        $extension = mb_strtolower(pathinfo((string) ($curriculumSource->original_filename ?: $curriculumSource->source_file_path), PATHINFO_EXTENSION));
+        $preserveLineBreaks = $extension === 'docx';
+        $renderedDocument = $rawText !== '' ? $formatter->render($rawText, $preserveLineBreaks) : null;
 
         // Fragment rendering remains as a backward-compatible fallback and keeps
         // the machine-readable/searchable representation independent of display.
