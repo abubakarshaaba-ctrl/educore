@@ -12,7 +12,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -73,17 +72,13 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                 // Deliberately render only the app background while the encrypted
                 // session is restored. There is no custom branded splash page.
                 AppPhase.STARTING -> Box(Modifier.fillMaxSize())
-                AppPhase.SIGNED_OUT -> Box(
-                    modifier = Modifier.fillMaxSize().statusBarsPadding(),
-                ) {
-                    AuthenticationScreen(
-                        state = state,
-                        onLogin = viewModel::login,
-                        onForgotPassword = viewModel::showForgotPassword,
-                        onRequestReset = viewModel::requestPasswordReset,
-                        onBackToLogin = viewModel::showLogin,
-                    )
-                }
+                AppPhase.SIGNED_OUT -> AuthenticationScreen(
+                    state = state,
+                    onLogin = viewModel::login,
+                    onForgotPassword = viewModel::showForgotPassword,
+                    onRequestReset = viewModel::requestPasswordReset,
+                    onBackToLogin = viewModel::showLogin,
+                )
                 AppPhase.BLOCKED -> AccessBlockedScreen(
                     session = requireNotNull(state.session),
                     busy = state.isBusy,
