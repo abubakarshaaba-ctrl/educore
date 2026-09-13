@@ -361,8 +361,12 @@ class MobilePaymentController extends Controller
     private function schoolAdmin(Request $request): array
     {
         $user = $request->user();
-        abort_unless($user && $user->tenant_id && $user->hasRole('admin'), 403,
-            'Only the school administrator can manage subscription payments.');
+        $billingRoles = ['admin', 'principal', 'head', 'head_teacher', 'head_of_schools'];
+        abort_unless(
+            $user && $user->tenant_id && in_array($user->roleKey(), $billingRoles, true),
+            403,
+            'Only an authorised school administrator can manage subscription payments.'
+        );
         $tenant = Tenant::find($user->tenant_id);
         abort_unless($tenant, 404, 'School account not found.');
         return [$user, $tenant];
