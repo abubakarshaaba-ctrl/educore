@@ -8,12 +8,7 @@ use Illuminate\Support\Str;
 
 class AcademicRepositoryKnowledgeService
 {
-    public const REQUIRED_BLOCK_TYPES = [
-        'objective',
-        'presentation',
-        'evaluation',
-        'assignment',
-    ];
+    public const REQUIRED_BLOCK_TYPES = ['objective', 'presentation', 'evaluation', 'assignment'];
 
     public function readiness(AcademicTopic $topic): array
     {
@@ -22,6 +17,11 @@ class AcademicRepositoryKnowledgeService
             'Topic mapped' => filled($topic->topic),
             'Sub-topic mapped' => filled($topic->sub_topic),
             'Week mapped' => filled($topic->week_number),
+            'Lesson mapped' => filled($topic->lesson_number),
+            'Lesson time' => filled($topic->lesson_time),
+            'Duration' => filled($topic->duration_minutes),
+            'Average age' => filled($topic->average_age),
+            'Sex' => filled($topic->sex),
             'Entry behaviour' => filled($topic->entry_behaviour),
             'Previous knowledge' => filled($topic->previous_knowledge),
             'Instructional resources' => filled($topic->instructional_resources),
@@ -57,6 +57,10 @@ class AcademicRepositoryKnowledgeService
             'lesson' => $topic->lesson_number,
             'topic' => $topic->topic,
             'sub_topic' => $topic->sub_topic,
+            'time' => $topic->lesson_time,
+            'duration' => $topic->duration_minutes,
+            'average_age' => $topic->average_age,
+            'sex' => $topic->sex,
             'entry_behaviour' => $topic->entry_behaviour,
             'previous_knowledge' => $topic->previous_knowledge,
             'behavioural_objectives' => $this->contents($approved, 'objective'),
