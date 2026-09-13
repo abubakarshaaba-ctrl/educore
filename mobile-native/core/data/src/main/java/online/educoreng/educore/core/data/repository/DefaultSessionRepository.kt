@@ -66,9 +66,6 @@ class DefaultSessionRepository(
                 when (val bootstrap = refresh()) {
                     is AppResult.Success -> bootstrap
                     is AppResult.Failure -> {
-                        // Bootstrap is the authoritative access/module contract.
-                        // Do not infer an allowed workspace from the smaller login
-                        // payload when that contract could not be loaded.
                         clearLocalSession()
                         AppResult.Failure(bootstrap.error.asPostLoginBootstrapError())
                     }
@@ -153,9 +150,14 @@ class DefaultSessionRepository(
         }
 
         val hasSelfAttendance = granted.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
+        val roleKey = user.roleKey.lowercase().replace('-', '_').replace(' ', '_')
+        val isTeacher = user.portal == "staff" && roleKey.contains("teacher")
+        val teacherReportKeys = setOf("reports", "report-cards", "report_cards", "results")
+
         return copy(
             modules = granted.filterNot { module ->
-                hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)
+                (hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)) ||
+                    (isTeacher && module.key.lowercase() in teacherReportKeys)
             }
         )
     }
