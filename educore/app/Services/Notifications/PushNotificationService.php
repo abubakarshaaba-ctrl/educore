@@ -279,7 +279,7 @@ class PushNotificationService
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth-grant-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
 
