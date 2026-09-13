@@ -118,15 +118,22 @@ class MainViewModel @Inject constructor(
     }
 
     fun logout() {
-        if (_uiState.value.isBusy) return
-        _uiState.update { it.copy(isBusy = true, message = null) }
+        if (_uiState.value.phase == AppPhase.SIGNED_OUT) return
+        val online = _uiState.value.isOnline
+
+        // Sign out locally in the UI first. Network token revocation is best-effort and
+        // must never keep the user waiting on the authenticated shell.
+        _uiState.value = AppUiState(phase = AppPhase.SIGNED_OUT, isOnline = online)
+
+        viewModelScope.launch {
+            sessionRepository.logout()
+        }
+
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            viewModelScope.launch {
-                task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
+            task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
+                viewModelScope.launch {
                     communicationRepository.unregisterPushToken(token)
                 }
-                sessionRepository.logout()
-                _uiState.value = AppUiState(phase = AppPhase.SIGNED_OUT, isOnline = _uiState.value.isOnline)
             }
         }
     }
