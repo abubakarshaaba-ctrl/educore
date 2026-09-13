@@ -38,6 +38,11 @@ class ApiRoleAccessPolicy
         if (str_starts_with($path, 'exam-duties')) return $this->allowsAny($user, ['timetable', 'timetable.view', 'dashboard']);
         if ($path === 'schedule') return $this->allowsAny($user, ['timetable', 'timetable.view', 'calendar', 'calendar.view']);
 
+        // Subscription payment is a school-administrator action. It is not a
+        // normal school module permission and therefore must be authorized
+        // explicitly before the generic fail-closed module rules below.
+        if (str_starts_with($path, 'admin/subscription')) return $user->isAdmin();
+
         if (preg_match('#^operations/([^/]+)#', $path, $match)) {
             $module = $match[1] === 'finance' ? 'fees' : $match[1];
             return $this->allowsModule($user, $module);

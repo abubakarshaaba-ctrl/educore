@@ -259,7 +259,7 @@ internal fun ReportsScreen(
                     else -> {
                         item { EduCoreSectionHeader("Computed summaries", "Open each report to inspect subject-level evidence before publication.") }
                         items(data.students, key = { it.summaryId }) { row ->
-                            ReportSummaryCard(row) { selectedSummaryId = row.summaryId }
+                            ReportSummaryCard(row, published = data.summary.published) { selectedSummaryId = row.summaryId }
                         }
                     }
                 }
@@ -390,7 +390,7 @@ private fun ReportSubjectCard(subject: ReportSubjectBreakdownDto) {
 }
 
 @Composable
-private fun ReportSummaryCard(row: ReportSummaryRowDto, onOpen: () -> Unit) {
+private fun ReportSummaryCard(row: ReportSummaryRowDto, published: Boolean, onOpen: () -> Unit) {
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White)) {
         Column(
             Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
@@ -402,8 +402,8 @@ private fun ReportSummaryCard(row: ReportSummaryRowDto, onOpen: () -> Unit) {
                     row.student.admissionNumber?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600) }
                 }
                 EduCoreStatusBadge(
-                    row.promotionStatus?.replace('_', ' ')?.replaceFirstChar(Char::uppercase) ?: "Pending",
-                    if (row.subjectsFailed > 0) EduCoreTone.Warning else EduCoreTone.Success,
+                    if (published) "Published" else "Draft",
+                    if (published) EduCoreTone.Success else EduCoreTone.Brand,
                 )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
