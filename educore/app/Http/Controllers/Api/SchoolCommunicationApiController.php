@@ -58,15 +58,15 @@ class SchoolCommunicationApiController extends Controller
         $recipients = collect();
 
         if ($this->canOversee($user)) {
-            $recipients->push($this->target('all_staff', 'all_staff', 'Entire Staff', 'Broadcast to all active staff in this school'));
-            $recipients->push($this->target('all_parents', 'all_parents', 'All Parents', 'Broadcast to all active parent accounts in this school'));
+            $recipients->push($this->target('all_staff', 'all_staff', 'Entire Staff', 'Shared conversation with all active staff in this school'));
+            $recipients->push($this->target('all_parents', 'all_parents', 'All Parents', 'Shared conversation with all active parent accounts in this school'));
 
             User::activeStaff($user->tenant_id)
                 ->whereKeyNot($user->id)
                 ->orderBy('name')
                 ->get(['id', 'name', 'role'])
                 ->each(fn (User $member) => $recipients->push(
-                    $this->target('staff:'.$member->id, 'staff', $member->name, 'Individual staff member')
+                    $this->target('staff:'.$member->id, 'staff', $member->name, 'Private conversation with this staff member')
                 ));
 
             User::query()
@@ -76,7 +76,7 @@ class SchoolCommunicationApiController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'role'])
                 ->each(fn (User $parent) => $recipients->push(
-                    $this->target('parent:'.$parent->id, 'parent', $parent->name, 'Individual parent')
+                    $this->target('parent:'.$parent->id, 'parent', $parent->name, 'Private conversation with this parent')
                 ));
         } elseif ($user->isTenantStaff()) {
             $recipients->push($this->target('school_admin', 'admin', 'School Administration', 'Private conversation with school administration'));
@@ -88,7 +88,6 @@ class SchoolCommunicationApiController extends Controller
                     $this->target('staff:'.$member->id, 'staff', $member->name, 'Individual staff member')
                 ));
         } else {
-            // Parents can contact administration without receiving a staff directory.
             $recipients->push($this->target('school_admin', 'admin', 'School Administration', 'Private conversation with school administration'));
         }
 
@@ -136,7 +135,7 @@ class SchoolCommunicationApiController extends Controller
         app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
 
         return response()->json([
-            'message' => $audience ? 'Broadcast sent.' : 'Message sent.',
+            'message' => $audience ? 'Shared conversation started.' : 'Message sent.',
             'thread' => $this->threadPayload($thread, $user),
         ], 201);
     }
@@ -158,39 +157,10 @@ class SchoolCommunicationApiController extends Controller
         abort_if($thread->status !== 'open', 422, 'This thread has been closed.');
         $data = $request->validate(['body' => ['required', 'string', 'max:10000']]);
 
-        if ($thread->isBroadcast() && (int) $thread->initiated_by !== (int) $user->id) {
-            $admin = $this->schoolAdministrator($user);
-            $privateThread = DB::transaction(function () use ($thread, $user, $admin, $data): MessageThread {
-                $privateThread = MessageThread::create([
-                    'tenant_id' => $user->tenant_id,
-                    'student_id' => null,
-                    'conversation_type' => 'admin',
-                    'recipient_user_id' => $admin->id,
-                    'audience' => null,
-                    'subject' => str_starts_with($thread->subject, 'Re: ') ? $thread->subject : 'Re: '.$thread->subject,
-                    'initiated_by' => $user->id,
-                    'status' => 'open',
-                ]);
-                MessageThreadReply::create([
-                    'tenant_id' => $user->tenant_id,
-                    'thread_id' => $privateThread->id,
-                    'sender_id' => $user->id,
-                    'body' => trim($data['body']),
-                ]);
-                $privateThread->touch();
-                return $privateThread;
-            });
-
-            $privateThread->load(['initiator:id,name,role', 'recipient:id,name,role', 'replies.sender:id,name']);
-            app(PushNotificationService::class)->notifyMessageThread($privateThread, $user, $data['body']);
-
-            return response()->json([
-                'message' => 'Your reply was sent privately to School Administration.',
-                'redirected_from_broadcast' => true,
-                'thread' => $this->threadPayload($privateThread, $user),
-            ], 201);
-        }
-
+        // Replies to all-staff/all-parent conversations stay in the original
+        // audience thread, so every member of that audience can follow the
+        // complete discussion. Individual threads remain private because
+        // their audience is null and authorization is participant-scoped.
         $reply = MessageThreadReply::create([
             'tenant_id' => $user->tenant_id,
             'thread_id' => $thread->id,
