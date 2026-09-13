@@ -68,6 +68,13 @@ class ApiRoleAccessPolicy
             return $this->allowsAny($user, ['timetable', 'timetable.view', 'calendar', 'calendar.view']);
         }
 
+        // Subscription billing is a school-administrator operation rather than
+        // a normal school module permission. Authorize it explicitly before the
+        // generic fail-closed module rules below.
+        if (str_starts_with($path, 'admin/subscription')) {
+            return $user->isAdmin();
+        }
+
         if (preg_match('#^operations/([^/]+)#', $path, $match)) {
             $module = $match[1] === 'finance' ? 'fees' : $match[1];
             return $this->allowsModule($user, $module);
