@@ -200,12 +200,26 @@ internal class StaffDirectoryViewModel @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
+        // Use only role keys accepted by User::staffRoleNames() on Laravel.
+        // "teacher" is a supported alias and canonicalizes to subject_teacher.
         val CREATE_ROLES = listOf(
-            "teacher" to "Teacher", "subject_teacher" to "Subject Teacher", "class_teacher" to "Class Teacher",
-            "hod" to "Head of Department", "principal" to "Principal", "vice_principal" to "Vice Principal",
-            "academic_administrator" to "Academic Administrator", "accountant" to "Accountant", "bursar" to "Bursar",
-            "admission_officer" to "Admission Officer", "transport_officer" to "Transport Officer", "health_officer" to "Health Officer",
-            "librarian" to "Librarian", "admin" to "School Administrator",
+            "teacher" to "Teacher",
+            "form_teacher" to "Form Teacher",
+            "asst_form_teacher" to "Assistant Form Teacher",
+            "subject_teacher" to "Subject Teacher",
+            "form_subject_teacher" to "Form & Subject Teacher",
+            "principal" to "Principal",
+            "head" to "Head",
+            "head_teacher" to "Head Teacher",
+            "vice_principal" to "Vice Principal",
+            "academic_administrator" to "Academic Administrator",
+            "accountant" to "Accountant",
+            "admission_officer" to "Admission Officer",
+            "transport_officer" to "Transport Officer",
+            "health_officer" to "Health Officer",
+            "librarian" to "Librarian",
+            "communication_officer" to "Communication Officer",
+            "admin" to "School Administrator",
         )
     }
 }
