@@ -25,13 +25,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -68,6 +72,7 @@ import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.PublishedResult
+import online.educoreng.educore.core.model.PublishedResultStudent
 import online.educoreng.educore.core.model.ScoreAssignment
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.SyncState
@@ -511,6 +516,21 @@ internal fun PublishedResultsScreen(
                 onBack = onBack,
             )
         }
+        if (results.children.size > 1) {
+            item {
+                PublishedResultsWardSelector(
+                    children = results.children,
+                    selectedId = results.studentId ?: state.selectedResultStudentId,
+                    enabled = !state.isLoading,
+                    onSelected = { childId ->
+                        if (childId != (results.studentId ?: state.selectedResultStudentId)) {
+                            PublishedResultWardSelection.request(childId)
+                            onRetry()
+                        }
+                    },
+                )
+            }
+        }
         item {
             EduCoreShowcaseHero(
                 eyebrow = "ACADEMIC REPORT",
@@ -653,6 +673,68 @@ internal fun PublishedResultsScreen(
         }
 
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
+    }
+}
+
+@Composable
+private fun PublishedResultsWardSelector(
+    children: List<PublishedResultStudent>,
+    selectedId: Long?,
+    enabled: Boolean,
+    onSelected: (Long) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = children.firstOrNull { it.id == selectedId } ?: children.firstOrNull()
+
+    EduCoreShowcaseSectionCard {
+        EduCoreSectionHeader(
+            title = "Select ward",
+            supportingText = "Choose which linked student's published results to view.",
+        )
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { expanded = true },
+                enabled = enabled && children.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = selected?.let {
+                        listOfNotNull(it.name, it.className, it.admissionNumber)
+                            .filter(String::isNotBlank)
+                            .joinToString(" · ")
+                    } ?: "Select ward",
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                children.forEach { child ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(child.name, fontWeight = FontWeight.Medium)
+                                Text(
+                                    listOfNotNull(child.className, child.admissionNumber)
+                                        .filter(String::isNotBlank)
+                                        .joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = EduCoreColors.Slate600,
+                                )
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            onSelected(child.id)
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
