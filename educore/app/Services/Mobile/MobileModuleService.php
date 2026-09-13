@@ -19,7 +19,8 @@ class MobileModuleService
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'skills' => ['Skill Ratings', '/skills', 'skills'],
-        'scores' => ['Scores', '/scores', 'scores'],
+        'scores' => ['Score Sheet', '/scores', 'scores'],
+        'reports' => ['Report Cards', '/reports', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
         'subscription' => ['Subscription & Billing', '/billing/subscription', 'fees'],
@@ -51,7 +52,7 @@ class MobileModuleService
 
     private const ACADEMIC_MODULES = [
         'classes', 'subjects', 'curriculum', 'academic-cycle', 'attendance',
-        'skills', 'scores', 'timetable', 'lesson-planner', 'academic-repository',
+        'skills', 'scores', 'reports', 'timetable', 'lesson-planner', 'academic-repository',
     ];
 
     private const ACADEMIC_ROLE_KEYS = [
@@ -69,6 +70,7 @@ class MobileModuleService
         'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
         'skills' => ['skills', 'skills.rate'],
         'scores' => ['scores', 'scores.entry', 'scores.view'],
+        'reports' => ['reports', 'report-cards', 'results'],
         'timetable' => ['timetable', 'timetable.view'],
         'lesson-planner' => ['lesson-planner'],
         'academic-repository' => ['academic-repository'],
@@ -105,6 +107,7 @@ class MobileModuleService
             return [
                 ['key' => 'parent.dashboard', 'title' => 'Parent Dashboard', 'path' => '/parent/dashboard', 'icon' => 'dashboard'],
                 ['key' => 'parent.fees', 'title' => 'Fees & Payments', 'path' => '/parent/fees', 'icon' => 'fees'],
+                ['key' => 'parent.results', 'title' => 'Results', 'path' => '/parent/results', 'icon' => 'reports'],
                 ['key' => 'parent.attendance', 'title' => 'Attendance', 'path' => '/parent/attendance', 'icon' => 'attendance'],
                 ['key' => 'parent.messages', 'title' => 'Messages', 'path' => '/parent/messages', 'icon' => 'messages'],
                 ['key' => 'parent.notifications', 'title' => 'Notifications', 'path' => '/parent/notifications', 'icon' => 'notifications'],
@@ -160,7 +163,9 @@ class MobileModuleService
                     return $user->isTenantStaff() && $user->canAccessModule('staff-attendance.self');
                 }
 
-                if ($isSchoolAdmin && in_array($key, ['staff', 'students'], true)) {
+                // School leadership must always receive the core native academic
+                // workspaces. Endpoint authorization remains tenant scoped.
+                if ($isSchoolAdmin && in_array($key, ['staff', 'students', 'scores', 'reports'], true)) {
                     return true;
                 }
 
@@ -180,7 +185,15 @@ class MobileModuleService
                 if ($key === 'scores') {
                     return $user->canAccessExactModule('scores')
                         || $user->canAccessExactModule('scores.entry')
-                        || $user->canAccessExactModule('scores.view');
+                        || $user->canAccessExactModule('scores.view')
+                        || $this->hasExplicitAcademicGrant($user, $key);
+                }
+
+                if ($key === 'reports') {
+                    return $user->canAccessModule('reports')
+                        || $user->canAccessExactModule('report-cards')
+                        || $user->canAccessExactModule('results')
+                        || $this->hasExplicitAcademicGrant($user, $key);
                 }
 
                 return $user->canAccessModule($key);
