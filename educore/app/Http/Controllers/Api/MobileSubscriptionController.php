@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\PricingService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ class MobileSubscriptionController extends Controller
             ->values();
 
         $outstanding = $invoices->first(fn (array $invoice): bool => in_array($invoice['status'], ['pending', 'overdue'], true));
-        $expiresAt = $tenant->subscription_expires_at;
+        $expiresAt = filled($tenant->subscription_expires_at) ? Carbon::parse($tenant->subscription_expires_at) : null;
         $daysRemaining = $expiresAt ? max(0, now()->startOfDay()->diffInDays($expiresAt, false)) : null;
 
         return response()->json([
@@ -47,10 +48,10 @@ class MobileSubscriptionController extends Controller
                 'is_free_tier' => PricingService::isFree($capacity),
             ],
             'pricing' => [
-                'free_threshold' => PricingService::freeStudentLimit(),
-                'rate_per_student_per_term' => PricingService::ratePerStudentPerTerm(),
-                'termly_amount' => PricingService::termlyAmount(max(1, $capacity)),
-                'annual_amount' => PricingService::annualAmount(max(1, $capacity)),
+                'free_threshold' => PricingService::FREE_THRESHOLD,
+                'rate_per_student_per_term' => PricingService::PAID_RATE,
+                'termly_amount' => PricingService::termlyAmount(max(1, $capacity)) ?? 0,
+                'annual_amount' => PricingService::annualAmount(max(1, $capacity)) ?? 0,
             ],
             'gateways' => $this->gatewayPayloads($settings),
             'outstanding_invoice' => $outstanding,
@@ -83,6 +84,7 @@ class MobileSubscriptionController extends Controller
         $amount = $data['billing_cycle'] === 'annual'
             ? PricingService::annualAmount($capacity)
             : PricingService::termlyAmount($capacity);
+        abort_if($amount === null, 422, 'Unable to calculate the subscription amount.');
 
         $invoice = DB::transaction(function () use ($tenant, $data, $capacity, $amount) {
             $existing = DB::table('platform_invoices')
@@ -151,9 +153,16 @@ class MobileSubscriptionController extends Controller
             abort_unless(in_array($record->status, ['pending', 'overdue'], true), 422, 'This invoice is not payable.');
             abort_if((float) $record->amount <= 0, 422, 'This invoice has no payable amount.');
 
+            $reference = trim($data['transfer_reference']);
+            $referenceUsed = DB::table('platform_invoices')
+                ->where('payment_ref', $reference)
+                ->where('id', '!=', $record->id)
+                ->exists();
+            abort_if($referenceUsed, 422, 'This transfer reference has already been used.');
+
             DB::table('platform_invoices')->where('id', $record->id)->update([
                 'payment_method' => 'bank_transfer',
-                'payment_ref' => trim($data['transfer_reference']),
+                'payment_ref' => $reference,
                 'updated_at' => now(),
             ]);
             return DB::table('platform_invoices')->where('id', $record->id)->first();
@@ -168,15 +177,13 @@ class MobileSubscriptionController extends Controller
     public function checkout(Request $request, int $invoice): JsonResponse
     {
         $this->guardSchoolAdmin($request);
-        return response()->json([
-            'message' => 'Use the configured bank-transfer option from the mobile app. Online subscription checkout is not configured for this endpoint.',
-        ], 503);
+        return response()->json(['message' => 'Use the configured bank-transfer option from the mobile app.'], 503);
     }
 
     public function verify(Request $request): JsonResponse
     {
         $this->guardSchoolAdmin($request);
-        return response()->json(['message' => 'Subscription verification is completed by the configured platform payment workflow.'], 503);
+        return response()->json(['message' => 'Bank-transfer subscription payments are verified by the platform administrator.'], 503);
     }
 
     private function guardSchoolAdmin(Request $request): User
