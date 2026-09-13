@@ -10,6 +10,7 @@
 .ann-item:last-child{border-bottom:none}
 .ann-title{font-size:14px;font-weight:700;color:var(--midnight);display:flex;align-items:center;gap:8px}
 .ann-body{font-size:13px;color:var(--slate);margin-top:5px;line-height:1.5}
+.ann-image{display:block;width:100%;max-height:360px;object-fit:cover;border-radius:10px;margin-top:12px;border:1px solid var(--border);background:#F8FAFC}
 .ann-meta{font-size:11px;color:var(--slate-light);margin-top:6px}
 .pri{display:inline-flex;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
 .pri-normal{background:#F1F5F9;color:var(--slate)}
@@ -44,6 +45,9 @@
           {{ $ann->title }}
         </div>
         <div class="ann-body">{{ $ann->body }}</div>
+        @if($ann->image_path)
+          <img class="ann-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($ann->image_path) }}" alt="{{ $ann->title }}">
+        @endif
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($ann->publish_date)->format('d M Y') }}
           · For: {{ ucfirst($ann->audience) }}
