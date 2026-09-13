@@ -49,13 +49,8 @@ import online.educoreng.educore.core.model.DashboardMetric
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
-private val HIDDEN_STAFF_MOBILE_MODULES = setOf(
+private val HIDDEN_MOBILE_MODULES = setOf(
     "dashboard",
-    "reports",
-    "report-cards",
-    "results",
-    "student.results",
-    "parent.results",
     "cbt",
     "cbt-exams",
     "examinations",
@@ -154,7 +149,7 @@ internal fun LazyGridScope.dashboardHomeContent(
     val visibleQuickActions = snapshot.quickActions.filter { action ->
         val key = normalizeDashboardModuleKey(action.moduleKey)
         visibleModules.any { it.key.equals(key, ignoreCase = true) } &&
-            key !in HIDDEN_STAFF_MOBILE_MODULES &&
+            key !in HIDDEN_MOBILE_MODULES &&
             key != "staff-attendance.self"
     }
 
@@ -194,7 +189,7 @@ internal fun LazyGridScope.dashboardHomeContent(
         val visibleItems = section.items.filter { item ->
             val key = item.moduleKey?.let(::normalizeDashboardModuleKey)
             key == null || (
-                key !in HIDDEN_STAFF_MOBILE_MODULES &&
+                key !in HIDDEN_MOBILE_MODULES &&
                     visibleModules.any { it.key.equals(key, ignoreCase = true) }
                 )
         }
