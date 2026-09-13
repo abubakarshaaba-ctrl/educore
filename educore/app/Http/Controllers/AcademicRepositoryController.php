@@ -109,6 +109,13 @@ class AcademicRepositoryController extends Controller
             ->where('extraction_status', 'extracted')
             ->where('index_status', 'indexed')
             ->whereHas('fragments')
+            // Scheme-of-work files are supporting planning documents, not lesson
+            // notes. Older repository archives contain one in many class/term
+            // folders, so exclude them from the reader catalogue permanently.
+            ->where(function ($query) {
+                $query->whereRaw("LOWER(COALESCE(title, '')) NOT LIKE ?", ['%scheme%of%work%'])
+                    ->whereRaw("LOWER(COALESCE(original_filename, '')) NOT LIKE ?", ['%scheme%of%work%']);
+            })
             ->withCount('fragments')
             ->latest();
     }
@@ -139,9 +146,20 @@ class AcademicRepositoryController extends Controller
             && $source->is_active
             && $source->extraction_status === 'extracted'
             && $source->index_status === 'indexed'
+            && !$this->isSchemeOfWorkSource($source)
             && $source->fragments()->exists(),
             404
         );
+    }
+
+    private function isSchemeOfWorkSource(CurriculumSource $source): bool
+    {
+        $identity = mb_strtolower(trim(implode(' ', [
+            (string) $source->title,
+            (string) $source->original_filename,
+        ])));
+
+        return preg_match('/scheme[\s_\-–—]*of[\s_\-–—]*work/u', $identity) === 1;
     }
 
     private function metadataLabel(CurriculumSource $source, string $key, string $fallback): string
