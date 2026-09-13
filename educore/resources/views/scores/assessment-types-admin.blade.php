@@ -4,13 +4,13 @@
 
 @push('styles')
 <style>
-    .assessment-grid { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:20px; align-items:start; }
+    .assessment-grid { display:grid; grid-template-columns:minmax(0,1fr) 390px; gap:20px; align-items:start; }
     .assessment-card { background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,.06); }
     .assessment-card__header { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center; justify-content:space-between; }
     .assessment-card__title { font-size:14px; font-weight:700; color:var(--midnight); }
     .assessment-card__body { padding:18px; }
     .assessment-scroll { overflow-x:auto; }
-    .assessment-table { width:100%; border-collapse:collapse; min-width:720px; }
+    .assessment-table { width:100%; border-collapse:collapse; min-width:980px; }
     .assessment-table th { padding:10px 14px; text-align:left; background:#F8FAFC; border-bottom:1px solid var(--border); color:var(--slate-light); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
     .assessment-table td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
     .assessment-table tr:last-child td { border-bottom:0; }
@@ -23,13 +23,16 @@
     .assessment-label { display:block; margin-bottom:6px; color:var(--slate); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
     .assessment-control { box-sizing:border-box; width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:#F8FAFC; font:13px inherit; }
     .assessment-control--small { width:90px; }
+    .assessment-multi { min-width:190px; min-height:92px; }
+    .assessment-help { margin-top:5px; color:var(--slate-light); font-size:11px; line-height:1.4; }
     .assessment-alert { padding:11px 14px; margin-bottom:16px; border-radius:8px; font-size:13px; }
     .assessment-alert--success { color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; }
     .assessment-alert--error { color:#B91C1C; background:#FEF2F2; border:1px solid #FECACA; }
     .assessment-badge { display:inline-flex; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:700; background:#EEF2FF; color:#4338CA; }
     .assessment-badge--exam { background:#FFF7ED; color:#C2410C; }
+    .assessment-badge--legacy { background:#F1F5F9; color:#475569; }
     .assessment-empty { padding:34px 18px; text-align:center; color:var(--slate-light); font-size:13px; }
-    @media(max-width:950px) { .assessment-grid { grid-template-columns:1fr; } }
+    @media(max-width:1050px) { .assessment-grid { grid-template-columns:1fr; } }
 </style>
 @endpush
 
@@ -45,10 +48,10 @@
     <section class="assessment-card">
         <div class="assessment-card__header">
             <div>
-                <div class="assessment-card__title">Assessment Types</div>
-                <div style="font-size:12px;color:var(--slate-light);margin-top:3px">Edit an entry or delete an unused/wrongly entered assessment type.</div>
+                <div class="assessment-card__title">Assessment Types by Class Level</div>
+                <div style="font-size:12px;color:var(--slate-light);margin-top:3px">Different groups of class levels can use different assessment structures in the same term.</div>
             </div>
-            <span class="assessment-badge">100% maximum per term</span>
+            <span class="assessment-badge">100% maximum per class-level group</span>
         </div>
 
         @if($assessmentTypes->isEmpty())
@@ -60,6 +63,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Term</th>
+                            <th>Applies to class levels</th>
                             <th>Weight</th>
                             <th>Type</th>
                             <th>Actions</th>
@@ -83,6 +87,20 @@
                                         </option>
                                     @endforeach
                                 </select>
+                            </td>
+                            <td>
+                                <select name="class_level_ids[]" multiple class="assessment-control assessment-multi" form="assessment-update-{{ $at->id }}">
+                                    @foreach($classLevels as $level)
+                                        <option value="{{ $level->id }}" {{ $at->classLevels->contains('id', $level->id) ? 'selected' : '' }}>
+                                            {{ $level->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @if($at->classLevels->isEmpty())
+                                    <div class="assessment-help"><span class="assessment-badge assessment-badge--legacy">Legacy/default</span> Used only for class levels that have no explicit configuration.</div>
+                                @else
+                                    <div class="assessment-help">Hold Ctrl/Cmd to select or remove multiple class levels.</div>
+                                @endif
                             </td>
                             <td>
                                 <input type="number" min="1" max="100" step="1" name="weight_percentage"
@@ -128,6 +146,15 @@
                             </option>
                         @endforeach
                     </select>
+                </div>
+                <div class="assessment-form-group">
+                    <label class="assessment-label">Applicable class levels</label>
+                    <select name="class_level_ids[]" multiple class="assessment-control assessment-multi" required>
+                        @foreach($classLevels as $level)
+                            <option value="{{ $level->id }}" {{ in_array($level->id, old('class_level_ids', [])) ? 'selected' : '' }}>{{ $level->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="assessment-help">Select one or several levels that share this assessment component. Example: JSS 1, JSS 2 and JSS 3.</div>
                 </div>
                 <div class="assessment-form-group">
                     <label class="assessment-label">Assessment name</label>
