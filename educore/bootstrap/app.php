@@ -19,6 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->post('super/broadcasts', [\App\Http\Controllers\WebPlatformBroadcastController::class, 'store'])
                 ->name('super.broadcasts.store');
 
+            // Keep assessment-type management isolated from the large legacy score
+            // controller. This file is loaded after web.php, so the same route names
+            // and URIs replace the legacy handlers while retaining the surrounding
+            // tenant/authentication contract.
+            Route::middleware([
+                'web', 'auth', 'active.account', 'tenant', 'tenant.access',
+                'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
+            ])->group(base_path('routes/assessment-types-admin.php'));
+
             Route::middleware([
                 'web', 'auth', 'active.account', 'tenant', 'tenant.access',
                 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
