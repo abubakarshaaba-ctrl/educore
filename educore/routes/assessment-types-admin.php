@@ -16,4 +16,11 @@ Route::prefix('scores')->name('scores.')->group(function (): void {
         ->name('assessment-types.migrate');
     Route::delete('assessment-types/{at}', [AssessmentTypeAdminController::class, 'destroy'])
         ->name('assessment-types.destroy');
+
+    Route::post('assessment-schemes/templates', [AssessmentTypeAdminController::class, 'storeTemplate'])
+        ->name('assessment-schemes.templates.store');
+    Route::post('assessment-schemes/templates/{template}/apply', [AssessmentTypeAdminController::class, 'applyTemplate'])
+        ->name('assessment-schemes.templates.apply');
+    Route::delete('assessment-schemes/templates/{template}', [AssessmentTypeAdminController::class, 'destroyTemplate'])
+        ->name('assessment-schemes.templates.destroy');
 });
