@@ -28,8 +28,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
+import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 
 @Composable
@@ -83,7 +83,7 @@ fun EduCoreSearchBar(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth().height(48.dp),
+        modifier = modifier.fillMaxWidth().height(EduCoreSizes.ControlHeight),
         enabled = enabled,
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyMedium,
@@ -114,7 +114,7 @@ fun EduCoreFilterChip(
     FilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
         modifier = modifier,
         enabled = enabled,
     )
