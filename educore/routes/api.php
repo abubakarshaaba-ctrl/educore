@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePaymentController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
+use App\Http\Controllers\Api\MobileTransfersController;
 use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\PlatformBroadcastController;
 use App\Http\Controllers\Api\PlatformController;
@@ -140,6 +141,21 @@ Route::prefix('v1')->group(function () {
         Route::get('messages/{thread}', [MessageController::class, 'show']);
         Route::post('messages/{thread}/reply', [MessageController::class, 'reply']);
 
+        Route::prefix('transfers')->group(function () {
+            Route::get('/', [MobileTransfersController::class, 'index']);
+            Route::post('cross-school', [MobileTransfersController::class, 'requestCrossSchool']);
+            Route::post('cross-school/{transfer}/approve', [MobileTransfersController::class, 'approveCrossSchool']);
+            Route::post('cross-school/{transfer}/reject', [MobileTransfersController::class, 'rejectCrossSchool']);
+            Route::post('intra-class', [MobileTransfersController::class, 'requestIntraClass']);
+            Route::post('intra-class/{transfer}/approve', [MobileTransfersController::class, 'approveIntraClass']);
+            Route::post('intra-class/{transfer}/reject', [MobileTransfersController::class, 'rejectIntraClass']);
+            Route::post('intra-class/{transfer}/cancel', [MobileTransfersController::class, 'cancelIntraClass']);
+            Route::post('interclass', [MobileTransfersController::class, 'requestInterclass']);
+            Route::post('interclass/{transfer}/approve', [MobileTransfersController::class, 'approveInterclass']);
+            Route::post('interclass/{transfer}/reject', [MobileTransfersController::class, 'rejectInterclass']);
+            Route::post('interclass/{transfer}/cancel', [MobileTransfersController::class, 'cancelInterclass']);
+        });
+
         Route::prefix('student')->group(function () {
             Route::get('dashboard', [StudentController::class, 'dashboard']);
             Route::get('timetable', [StudentController::class, 'timetable']);
@@ -216,7 +232,11 @@ Route::prefix('v1')->group(function () {
         Route::prefix('admissions')->group(function () {
             Route::get('/', [AdmissionOfficerController::class, 'index']);
             Route::post('/', [AdmissionOfficerController::class, 'store']);
+            Route::get('{admission}', [AdmissionOfficerController::class, 'show']);
             Route::patch('{admission}/status', [AdmissionOfficerController::class, 'updateStatus']);
+            Route::post('{admission}/interview', [AdmissionOfficerController::class, 'scheduleInterview']);
+            Route::post('{admission}/interview/result', [AdmissionOfficerController::class, 'recordInterview']);
+            Route::post('{admission}/offer', [AdmissionOfficerController::class, 'sendOffer']);
         });
 
         Route::prefix('transport-officer')->group(function () {
