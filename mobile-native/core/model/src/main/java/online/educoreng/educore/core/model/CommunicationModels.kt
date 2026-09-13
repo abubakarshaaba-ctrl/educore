@@ -1,6 +1,6 @@
 package online.educoreng.educore.core.model
 
-data class DeepLinkTarget(val type: String, val id: String?)
+data class DeepLinkTarget(val type: String, val id: String? = null)
 
 data class NotificationItem(
     val id: Long,
@@ -11,10 +11,11 @@ data class NotificationItem(
     val expiresAt: String?,
     val isRead: Boolean,
     val deepLink: DeepLinkTarget,
+    val imageUrl: String? = null,
 )
 
 data class NotificationPage(
-    val items: List<NotificationItem>,
+    val notifications: List<NotificationItem>,
     val unreadCount: Int,
     val currentPage: Int,
     val lastPage: Int,
@@ -33,7 +34,7 @@ data class SchoolEvent(
 )
 
 data class MessageAttachment(
-    val replyId: Long,
+    val id: Long,
     val name: String,
     val mimeType: String,
     val size: Long?,
@@ -79,14 +80,3 @@ data class MessageRecipient(
     val admissionNumber: String,
     val className: String?,
 )
-
-data class PendingAttachment(
-    val name: String,
-    val mimeType: String,
-    val bytes: ByteArray,
-) {
-    override fun equals(other: Any?): Boolean = other is PendingAttachment &&
-        name == other.name && mimeType == other.mimeType && bytes.contentEquals(other.bytes)
-
-    override fun hashCode(): Int = 31 * (31 * name.hashCode() + mimeType.hashCode()) + bytes.contentHashCode()
-}
