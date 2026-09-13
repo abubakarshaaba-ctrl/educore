@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CurriculumSource;
+use App\Support\AcademicContentFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -55,17 +56,22 @@ class AcademicRepositoryController extends Controller
         return view('academic-repository.index', compact('groups', 'metrics', 'subjectNames'));
     }
 
-    public function show(CurriculumSource $curriculumSource)
+    public function show(CurriculumSource $curriculumSource, AcademicContentFormatter $formatter)
     {
         $this->guardReader();
         $this->guardSource($curriculumSource);
         $curriculumSource->load(['fragments' => fn ($query) => $query->orderBy('sequence')->orderBy('id')]);
+
+        $renderedContent = $curriculumSource->fragments
+            ->mapWithKeys(fn ($fragment) => [(string) $fragment->getKey() => $formatter->render($fragment->content)])
+            ->all();
 
         return view('academic-repository.show', [
             'source' => $curriculumSource,
             'classLabel' => $this->metadataLabel($curriculumSource, 'class_label', 'Unmapped class'),
             'termLabel' => $this->metadataLabel($curriculumSource, 'term_label', 'Unmapped term'),
             'subjectLabel' => $this->metadataLabel($curriculumSource, 'subject_label', 'Unmapped subject'),
+            'renderedContent' => $renderedContent,
         ]);
     }
 
