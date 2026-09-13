@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
 use App\Models\Tenant;
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -87,8 +89,18 @@ class PlatformBroadcastController extends Controller
             return $broadcastId;
         });
 
+        $push = app(PushNotificationService::class);
+        Announcement::query()
+            ->where('platform_broadcast_id', $broadcastId)
+            ->orderBy('id')
+            ->chunkById(100, function ($announcements) use ($push): void {
+                foreach ($announcements as $announcement) {
+                    $push->notifyAnnouncementPublished($announcement);
+                }
+            });
+
         return response()->json([
-            'message' => "Broadcast published to {$tenantIds->count()} school(s).",
+            'message' => "Broadcast published to {$tenantIds->count()} school(s) and push notifications dispatched.",
             'status' => 'published',
             'id' => $broadcastId,
         ], 201);
