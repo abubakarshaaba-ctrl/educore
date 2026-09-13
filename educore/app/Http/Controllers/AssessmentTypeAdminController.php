@@ -10,6 +10,7 @@ use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AssessmentTypeAdminController extends Controller
 {
@@ -67,13 +68,19 @@ class AssessmentTypeAdminController extends Controller
         ]);
 
         $this->validateSplitMarks($request, $validated);
+        $classLevelIds = collect($validated['class_level_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         $this->validateClassLevelWeights(
             (int) $validated['term_id'],
             (int) $validated['weight_percentage'],
-            array_map('intval', $validated['class_level_ids'])
+            $classLevelIds
         );
 
-        DB::transaction(function () use ($request, $validated): void {
+        DB::transaction(function () use ($request, $validated, $classLevelIds): void {
             $assessmentType = AssessmentType::create([
                 'term_id' => $validated['term_id'],
                 'name' => trim($validated['name']),
@@ -83,7 +90,7 @@ class AssessmentTypeAdminController extends Controller
                 'theory_max' => $validated['theory_max'] ?? null,
             ]);
 
-            $assessmentType->classLevels()->sync(array_map('intval', $validated['class_level_ids']));
+            $assessmentType->classLevels()->sync($classLevelIds);
         });
 
         return back()->with('success', 'Assessment type created for the selected class levels.');
@@ -98,14 +105,14 @@ class AssessmentTypeAdminController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'weight_percentage' => ['required', 'integer', 'min:1', 'max:100'],
             'is_exam' => ['nullable', 'boolean'],
-            'class_level_ids' => ['required', 'array', 'min:1'],
+            'class_level_ids' => ['nullable', 'array'],
             'class_level_ids.*' => [
                 'integer',
                 Rule::exists('class_levels', 'id')->where('tenant_id', $this->tenantId()),
             ],
         ]);
 
-        $newClassLevelIds = collect($validated['class_level_ids'])
+        $newClassLevelIds = collect($validated['class_level_ids'] ?? [])
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->sort()
@@ -126,12 +133,14 @@ class AssessmentTypeAdminController extends Controller
             ]);
         }
 
-        $this->validateClassLevelWeights(
-            (int) $validated['term_id'],
-            (int) $validated['weight_percentage'],
-            $newClassLevelIds->all(),
-            $at->id
-        );
+        if ($newClassLevelIds->isNotEmpty()) {
+            $this->validateClassLevelWeights(
+                (int) $validated['term_id'],
+                (int) $validated['weight_percentage'],
+                $newClassLevelIds->all(),
+                $at->id
+            );
+        }
 
         DB::transaction(function () use ($request, $validated, $newClassLevelIds, $at): void {
             $at->update([
@@ -224,7 +233,9 @@ class AssessmentTypeAdminController extends Controller
             $currentTotal = (float) $query->sum('weight_percentage');
             if ($currentTotal + $weight > 100) {
                 $levelName = ClassLevel::find($classLevelId)?->name ?? "Class level {$classLevelId}";
-                abort(422, "Assessment weights for {$levelName} would exceed 100% for the selected term. Current scoped total: {$currentTotal}%.");
+                throw ValidationException::withMessages([
+                    'weight_percentage' => "Assessment weights for {$levelName} would exceed 100% for the selected term. Current scoped total: {$currentTotal}%.",
+                ]);
             }
         }
     }
@@ -235,13 +246,17 @@ class AssessmentTypeAdminController extends Controller
         $hasTheory = $request->filled('theory_max');
 
         if ($hasObjective xor $hasTheory) {
-            abort(422, 'Provide both Objective max and Theory max, or leave both blank.');
+            throw ValidationException::withMessages([
+                'objective_max' => 'Provide both Objective max and Theory max, or leave both blank.',
+            ]);
         }
 
         if ($hasObjective && $hasTheory) {
             $sum = round((float) $validated['objective_max'] + (float) $validated['theory_max'], 2);
             if ($sum !== (float) $validated['weight_percentage']) {
-                abort(422, 'Objective max plus Theory max must equal the assessment weight.');
+                throw ValidationException::withMessages([
+                    'objective_max' => 'Objective max plus Theory max must equal the assessment weight.',
+                ]);
             }
         }
     }
