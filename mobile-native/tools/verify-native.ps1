@@ -82,33 +82,11 @@ if ($staffShell.Contains('ACTION_VIEW') -or $staffShell.Contains('onOpenWebModul
     throw 'StaffWorkspaceShell contains a generic browser fallback. Staff mobile routing must remain explicitly native/RBAC-scoped.'
 }
 
-$staffHub = Get-Content -LiteralPath (
-    Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\StaffModulesHubScreen.kt'
-) -Raw
-foreach ($marker in @('StaffCbtListScreen', 'StaffCbtDetailScreen', 'CBT_MODULE_KEYS')) {
-    if (-not $staffHub.Contains($marker)) { throw "Native staff CBT hub marker is missing: $marker" }
-}
-
-$staffCbtApi = Get-Content -LiteralPath (
-    Join-Path $projectRoot 'core\network\src\main\java\online\educoreng\educore\core\network\StaffCbtApi.kt'
-) -Raw
-foreach ($marker in @(
-    '@GET("staff/cbt/exams")',
-    '@POST("staff/cbt/exams/{exam}/publish")',
-    '@POST("staff/cbt/exams/{exam}/close")',
-    '@PATCH("staff/cbt/exams/{exam}/schedule")'
-)) {
-    if (-not $staffCbtApi.Contains($marker)) { throw "Native staff CBT API contract marker is missing: $marker" }
-}
-if ($staffCbtApi.Contains('staff/cbt/exams/{exam}/reschedule')) {
-    throw 'Retired staff CBT reschedule URL has reappeared in the Android API contract.'
-}
-
-$modulePolicy = Get-Content -LiteralPath (
-    Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\ModulePresentationPolicy.kt'
+$navigationPolicy = Get-Content -LiteralPath (
+    Join-Path $projectRoot 'app\src\main\java\online\educoreng\educore\presentation\ShellNavigationPolicy.kt'
 ) -Raw
 foreach ($marker in @('"cbt"', '"cbt-exams"', '"examinations"', '"student.exams"')) {
-    if (-not $modulePolicy.Contains($marker)) { throw "Native CBT presentation policy marker is missing: $marker" }
+    if (-not $navigationPolicy.Contains($marker)) { throw "Removed CBT module key is not covered by mobile navigation policy: $marker" }
 }
 
 $noteReader = Get-Content -LiteralPath (
@@ -123,7 +101,16 @@ $retired = @(
     'app\src\main\java\online\educoreng\educore\presentation\StaffAuthorizedShowcaseShell.kt',
     'app\src\main\java\online\educoreng\educore\presentation\ShowcaseStaffScreens.kt',
     'app\src\main\java\online\educoreng\educore\presentation\ShowcaseClassesScreen.kt',
-    'app\src\main\java\online\educoreng\educore\presentation\ShowcaseAcademicResourceDetailScreen.kt'
+    'app\src\main\java\online\educoreng\educore\presentation\ShowcaseAcademicResourceDetailScreen.kt',
+    'app\src\main\java\online\educoreng\educore\presentation\CbtScreens.kt',
+    'app\src\main\java\online\educoreng\educore\presentation\CbtViewModel.kt',
+    'app\src\test\java\online\educoreng\educore\presentation\CbtImageSizingTest.kt',
+    'app\src\test\java\online\educoreng\educore\presentation\CbtQuestionUnitsTest.kt',
+    'core\data\src\main\java\online\educoreng\educore\core\data\repository\CbtRepository.kt',
+    'core\data\src\main\java\online\educoreng\educore\core\data\repository\DefaultCbtRepository.kt',
+    'core\model\src\main\java\online\educoreng\educore\core\model\CbtModels.kt',
+    'core\network\src\main\java\online\educoreng\educore\core\network\dto\CbtDtos.kt',
+    'core\network\src\test\java\online\educoreng\educore\core\network\CbtDtoMapperTest.kt'
 )
 foreach ($relative in $retired) {
     if (Test-Path -LiteralPath (Join-Path $projectRoot $relative)) { throw "Retired native source has reappeared: $relative" }
