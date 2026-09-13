@@ -150,13 +150,19 @@
     </form>
 
     @php
+        $availableGuardians = \App\Models\Guardian::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->with(['students' => fn($query) => $query->select('students.id','students.first_name','students.last_name','students.admission_number')])
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
         $linkedGuardianIds = $student->guardians->pluck('id')->map(fn($id) => (int) $id)->all();
         $selectedGuardianIds = collect(old('guardian_ids', $linkedGuardianIds))->map(fn($id) => (int) $id)->all();
         $currentPrimaryId = optional($student->guardians->first(fn($guardian) => (bool) $guardian->pivot->is_primary_contact))->id;
         $selectedPrimaryId = (int) old('primary_guardian_id', $currentPrimaryId ?: 0);
     @endphp
 
-    <form method="POST" action="{{ route('students.guardians.update', $student) }}" id="guardianManagementForm">
+    <form method="POST" action="{{ route('guardians.store', $student) }}" id="guardianManagementForm">
         @csrf
         <div class="card">
             <div class="card-header">Parents & Guardians</div>
