@@ -6,6 +6,7 @@ use App\Models\Guardian;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -13,7 +14,7 @@ class StudentGuardianController extends Controller
 {
     public function update(Request $request, Student $student)
     {
-        $this->authorize('students.edit');
+        Gate::authorize('students.edit');
 
         $tenantId = (int) auth()->user()->tenant_id;
         abort_unless((int) $student->tenant_id === $tenantId, 404);
