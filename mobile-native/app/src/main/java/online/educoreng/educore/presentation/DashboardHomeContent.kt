@@ -76,7 +76,7 @@ internal fun LazyGridScope.dashboardHomeContent(
             }
         }
         EduCoreProfileHeader(
-            name = "${timeGreeting(session.serverTime)}, ${session.user.name}",
+            name = "${timeGreeting()}, ${session.user.name}",
             role = session.user.roleLabel,
             identifier = session.user.staffId ?: session.user.email,
             modifier = Modifier.fillMaxWidth(),
@@ -423,10 +423,9 @@ private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
     else -> EduCoreTone.Neutral
 }
 
-private fun timeGreeting(serverTime: String?): String {
-    val calendar = Calendar.getInstance()
-    parseIsoEpoch(serverTime)?.let { calendar.timeInMillis = it }
-    return when (calendar.get(Calendar.HOUR_OF_DAY)) {
+private fun timeGreeting(): String {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    return when (hour) {
         in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
