@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -23,11 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+import online.educoreng.educore.core.designsystem.theme.EduCoreStroke
 
 enum class EduCoreTone {
     Neutral,
@@ -71,7 +72,7 @@ fun EduCoreDashboardCard(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        border = BorderStroke(EduCoreStroke.Thin, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(Modifier.padding(EduCoreSpacing.Md)) { content() }
@@ -132,6 +133,35 @@ fun EduCoreStatCard(
 }
 
 @Composable
+fun EduCoreCountBadge(
+    count: Int,
+    modifier: Modifier = Modifier,
+    cap: Int = 99,
+    tone: EduCoreTone = EduCoreTone.Info,
+) {
+    if (count <= 0) return
+    val safeCap = cap.coerceAtLeast(1)
+    val label = if (count > safeCap) "$safeCap+" else count.toString()
+    Surface(
+        modifier = modifier
+            .heightIn(min = EduCoreSizes.CountBadgeMinSize)
+            .widthIn(min = EduCoreSizes.CountBadgeMinSize),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = tone.container(),
+        contentColor = tone.foreground(),
+        border = BorderStroke(EduCoreStroke.Thin, EduCoreColors.Line200),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = EduCoreSpacing.Sm, vertical = EduCoreSpacing.Xs),
+            style = MaterialTheme.typography.labelSmall,
+            color = tone.foreground(),
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
 fun EduCoreModuleCard(
     title: String,
     icon: ImageVector,
@@ -147,8 +177,9 @@ fun EduCoreModuleCard(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = EduCoreSizes.ModuleCardMinHeight),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        border = BorderStroke(EduCoreStroke.Thin, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Column(
@@ -164,7 +195,7 @@ fun EduCoreModuleCard(
                     shape = MaterialTheme.shapes.small,
                     color = EduCoreColors.Info100,
                     contentColor = EduCoreColors.Navy900,
-                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                    border = BorderStroke(EduCoreStroke.Thin, EduCoreColors.Line200),
                 ) {
                     Icon(
                         imageVector = icon,
@@ -172,7 +203,9 @@ fun EduCoreModuleCard(
                         modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.SmallIcon),
                     )
                 }
-                badge?.let { EduCoreStatusBadge(it, EduCoreTone.Neutral) }
+                badge?.trim()?.takeIf(String::isNotEmpty)?.let {
+                    EduCoreStatusBadge(it, EduCoreTone.Neutral)
+                }
             }
             Text(
                 text = title,
@@ -212,8 +245,9 @@ fun EduCoreQuickAction(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = EduCoreSizes.TouchTarget),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        border = BorderStroke(EduCoreStroke.Thin, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = EduCoreElevation.Resting),
     ) {
         Row(
