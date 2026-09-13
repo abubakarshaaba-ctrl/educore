@@ -124,3 +124,22 @@ data class UpdateAdmissionStatusResponseDto(
     val message: String,
     val admission: AdmissionItemDto,
 )
+
+data class AdmissionDetailResponseDto(
+    val admission: AdmissionItemDto,
+)
+
+data class ScheduleAdmissionInterviewRequestDto(
+    @param:Json(name = "interview_date") val interviewDate: String,
+    @param:Json(name = "interview_notes") val interviewNotes: String? = null,
+)
+
+data class RecordAdmissionInterviewRequestDto(
+    @param:Json(name = "interview_score") val interviewScore: Double,
+    @param:Json(name = "interview_notes") val interviewNotes: String? = null,
+)
+
+data class AdmissionMutationResponseDto(
+    val message: String,
+    val admission: AdmissionItemDto,
+)
