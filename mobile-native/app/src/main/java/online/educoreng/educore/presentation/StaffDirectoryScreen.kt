@@ -42,12 +42,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.network.dto.StaffDirectoryMemberDto
+
+/**
+ * Compatibility entry used by the existing More hub. It delegates the new
+ * account-creation actions to the same Hilt-scoped StaffDirectoryViewModel,
+ * while retaining the existing directory callbacks supplied by the hub.
+ */
+@Composable
+internal fun StaffDirectoryScreen(
+    state: StaffDirectoryUiState,
+    @Suppress("UNUSED_PARAMETER") currentUserId: Long,
+    onBack: () -> Unit,
+    onQuery: (String) -> Unit,
+    onFilter: (StaffDirectoryFilter) -> Unit,
+    onRefresh: () -> Unit,
+    onLoadMore: () -> Unit,
+    onToggleActive: (StaffDirectoryMemberDto, Boolean) -> Unit,
+) {
+    val viewModel: StaffDirectoryViewModel = hiltViewModel()
+    StaffDirectoryScreen(
+        state = state,
+        onBack = onBack,
+        onQuery = onQuery,
+        onFilter = onFilter,
+        onRefresh = onRefresh,
+        onLoadMore = onLoadMore,
+        onToggleActive = onToggleActive,
+        onStartCreate = viewModel::startCreate,
+        onCloseCreate = viewModel::closeCreate,
+        onCreateName = viewModel::setCreateName,
+        onCreateEmail = viewModel::setCreateEmail,
+        onCreatePhone = viewModel::setCreatePhone,
+        onCreateRole = viewModel::setCreateRole,
+        onCreatePassword = viewModel::setCreatePassword,
+        onCreate = viewModel::createStaff,
+    )
+}
 
 @Composable
 internal fun StaffDirectoryScreen(
