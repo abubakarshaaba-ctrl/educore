@@ -32,6 +32,25 @@
                 @endif
             </div></div>
 
+            @php $consolidation = $readiness['consolidation'] ?? []; @endphp
+            <div class="card mb-4"><div class="card-header"><strong>Topic consolidation</strong></div><div class="card-body small">
+                <div class="d-flex justify-content-between py-1"><span>Related topic records</span><strong>{{ $consolidation['topic_count'] ?? 1 }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span>Repository sources</span><strong>{{ $consolidation['source_count'] ?? 1 }}</strong></div>
+                <div class="d-flex justify-content-between py-1"><span>Usable approved sources</span><strong>{{ $consolidation['approved_source_count'] ?? 1 }}</strong></div>
+                @if(!empty($consolidation['near_duplicates']))
+                    <hr>
+                    <div class="fw-semibold mb-2">Near-duplicate topic variants</div>
+                    @foreach(array_slice($consolidation['near_duplicates'], 0, 5) as $duplicate)
+                        <div class="border-bottom py-2">
+                            <div>{{ $duplicate['topic'] }}</div>
+                            <div class="text-muted">Similarity {{ round(($duplicate['similarity'] ?? 0) * 100) }}% · {{ str_replace('_', ' ', $duplicate['resource_type'] ?? 'other') }} · priority {{ $duplicate['priority'] ?? '—' }}</div>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="text-muted mt-2">No near-duplicate topic variants detected.</div>
+                @endif
+            </div></div>
+
             <div class="card mb-4"><div class="card-header"><strong>Mapping</strong></div><div class="card-body small">
                 <div><strong>Week:</strong> {{ $topic->week_number ?: '—' }}</div><div><strong>Lesson:</strong> {{ $topic->lesson_number ?: '—' }}</div><div><strong>Type:</strong> {{ str($topic->resource_type)->replace('_',' ')->title() }}</div><div><strong>Status:</strong> {{ ucfirst($topic->status) }}</div><div><strong>Source:</strong> {{ $topic->source?->title ?: 'Not linked' }}</div>
             </div></div>
@@ -41,7 +60,7 @@
                     @foreach($readiness['sources'] as $source)
                         <div class="border-bottom py-2">
                             <div class="fw-semibold">{{ $source['title'] ?: ($source['filename'] ?: 'Repository source') }}</div>
-                            <div class="text-muted">{{ str_replace('_', ' ', $source['resource_type'] ?? 'other') }} · priority {{ $source['priority'] ?? '—' }}@if(!empty($source['is_official'])) · official@endif</div>
+                            <div class="text-muted">{{ str_replace('_', ' ', $source['resource_type'] ?? 'other') }} · priority {{ $source['priority'] ?? '—' }}@if(isset($source['similarity'])) · similarity {{ round($source['similarity'] * 100) }}%@endif @if(!empty($source['is_official'])) · official@endif</div>
                         </div>
                     @endforeach
                 </div></div>
@@ -52,7 +71,7 @@
         <div class="col-xl-8">
             @if($readiness['ready'])<div class="card mb-4"><div class="card-header"><strong>Generate content</strong></div><div class="card-body d-flex gap-2"><a class="btn btn-primary" href="{{ route('academic-repository.knowledge.generate', [$topic, 'lesson-plan']) }}">Lesson plan</a><a class="btn btn-outline-primary" href="{{ route('academic-repository.knowledge.generate', [$topic, 'student-note']) }}">Student note</a></div></div>@else<div class="alert alert-warning">Complete the missing or quality-critical content before generation.</div>@endif
             <div class="card mb-4"><div class="card-header"><strong>Standard fields</strong></div><div class="card-body">
-                @foreach(['Entry Behaviour'=>$topic->entry_behaviour,'Previous / Background Knowledge'=>$topic->previous_knowledge,'Instructional Resources'=>$topic->instructional_resources,'Introduction'=>$topic->introduction,'Student Note Summary'=>$topic->student_note_summary,'Reference'=>$topic->reference] as $label=>$value)<section class="mb-4"><h2 class="h6">{{ $label }}</h2><div class="text-muted" style="white-space:pre-wrap">{{ $value ?: 'Not supplied.' }}</div></section>@endforeach
+                @foreach(['Entry Behaviour'=>$topic->entry_behaviour,'Previous / Background Knowledge'=>$topic->previous_knowledge,'Instructional Resources'=>$topic->instructional_resources,'Introduction'=>$topic->introduction,'Student Note Summary'=>$topic->student_note_summary,'Reference'=>$topic->reference] as $label=>$value)<section class="mb-4"><h2 class="h6">{{ $label }}</h2><div class="text-muted" style="white-space:pre-wrap">{{ $value ?: 'Not supplied on this record. Generation may supplement it from a higher-priority matching repository source.' }}</div></section>@endforeach
             </div></div>
             @php $grouped = $topic->blocks->groupBy('block_type'); @endphp
             @foreach(['objective'=>'Behavioural Objectives','presentation'=>'Presentation Steps','definition'=>'Definitions','explanation'=>'Core Explanations','example'=>'Examples','practical'=>'Practical Activities','note'=>'Additional Notes','evaluation'=>'Evaluation','assignment'=>'Assignment'] as $type=>$label)
