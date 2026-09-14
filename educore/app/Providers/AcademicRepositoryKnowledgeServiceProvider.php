@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\AcademicRepositoryIngestionController;
 use App\Http\Controllers\AcademicRepositoryKnowledgeController;
 use App\Http\Middleware\StaffOnly;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,8 @@ class AcademicRepositoryKnowledgeServiceProvider extends ServiceProvider
             ->name('academic-repository.knowledge.')
             ->group(function (): void {
                 Route::get('/', [AcademicRepositoryKnowledgeController::class, 'index'])->name('index');
+                Route::get('ingestion', [AcademicRepositoryIngestionController::class, 'index'])->name('ingestion.index');
+                Route::post('ingestion', [AcademicRepositoryIngestionController::class, 'store'])->name('ingestion.store');
                 Route::get('create', [AcademicRepositoryKnowledgeController::class, 'create'])->name('create');
                 Route::post('/', [AcademicRepositoryKnowledgeController::class, 'store'])->name('store');
                 Route::get('{academicTopic}', [AcademicRepositoryKnowledgeController::class, 'show'])->name('show');
