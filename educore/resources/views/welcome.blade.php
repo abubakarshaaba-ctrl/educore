@@ -115,7 +115,7 @@ img,svg{display:block}
     letter-spacing:.08em;text-transform:uppercase;margin-bottom:23px;
 }
 .eyebrow-pill span{width:7px;height:7px;border-radius:50%;background:var(--gold-light);box-shadow:0 0 0 5px rgba(245,183,46,.1)}
-.hero h1{max-width:650px;font-size:clamp(46px,5.1vw,72px);line-height:1.02;letter-spacing:-.06em;font-weight:900}
+.hero h1{max-width:650px;color:var(--gold-light);font-size:clamp(46px,5.1vw,72px);line-height:1.02;letter-spacing:-.06em;font-weight:900}
 .hero h1 em{color:var(--gold-light);font-style:normal}
 .hero-copy>p{max-width:610px;margin-top:24px;color:rgba(255,255,255,.72);font-size:18px;line-height:1.75}
 .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
