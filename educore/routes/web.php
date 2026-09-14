@@ -260,6 +260,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', \App\Htt
         Route::post('complete',          [TenantOnboardingController::class, 'complete'])->name('complete');
     });
 
+// Keep the short-lived knowledge-base URL working for cached sidebar links
+// and bookmarks created before the canonical route was consolidated below.
+Route::redirect('academic-knowledge-base', '/academic-repository/knowledge')
+    ->name('academic-repository.knowledge.legacy');
+
 // Platform-owned academic resources are read-only inside each school.
 // Management and imports remain exclusively under the Super Admin routes below.
 Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class])

@@ -23,6 +23,12 @@ class AcademicKnowledgeRouteRegistrationTest extends TestCase
         $this->assertCount(1, $this->getRoutesFor('academic-repository/knowledge', 'GET'));
     }
 
+    public function test_legacy_web_knowledge_url_redirects_to_the_canonical_route(): void
+    {
+        $this->get('/academic-knowledge-base')
+            ->assertRedirect('/academic-repository/knowledge');
+    }
+
     public function test_mobile_knowledge_index_is_registered_in_the_v1_api(): void
     {
         $route = app('router')->getRoutes()->match(
