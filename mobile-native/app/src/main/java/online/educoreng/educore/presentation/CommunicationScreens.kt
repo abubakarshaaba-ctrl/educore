@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -44,12 +46,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -401,6 +405,8 @@ private fun selectedRecipientLabel(name: String, supporting: String, className: 
 
 @Composable
 private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Unit) {
+    var imageViewerOpen by remember(notice.id) { mutableStateOf(false) }
+
     Card(
         onClick = { if (! notice.isRead) onMarkRead(notice.id) },
         colors = CardDefaults.cardColors(containerColor = if (notice.isRead) EduCoreColors.White else EduCoreColors.Info100),
@@ -414,8 +420,47 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
                     Text(notice.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
                 }
-                Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
+                if (notice.body.isNotBlank()) {
+                    Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
+                }
+                notice.imageUrl?.takeIf(String::isNotBlank)?.let { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = notice.title,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .background(EduCoreColors.Page50)
+                            .clickable { imageViewerOpen = true },
+                    )
+                    Text("Tap image to view full size", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+                }
                 Text(notice.publishedAt, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+            }
+        }
+    }
+
+    if (imageViewerOpen) {
+        notice.imageUrl?.takeIf(String::isNotBlank)?.let { imageUrl ->
+            Dialog(onDismissRequest = { imageViewerOpen = false }) {
+                Surface(
+                    color = EduCoreColors.White,
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = notice.title,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxWidth().height(460.dp),
+                        )
+                        EduCoreSecondaryButton("Close", { imageViewerOpen = false }, Modifier.fillMaxWidth())
+                    }
+                }
             }
         }
     }
