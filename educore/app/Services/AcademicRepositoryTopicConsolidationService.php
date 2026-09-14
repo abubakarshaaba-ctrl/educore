@@ -46,6 +46,9 @@ class AcademicRepositoryTopicConsolidationService
     public function scalar(AcademicTopic $topic, string $field)
     {
         foreach ($this->candidates($topic) as $candidate) {
+            if ($candidate->status !== 'approved') {
+                continue;
+            }
             $value = $candidate->{$field};
             if (filled($value)) {
                 return $value;
@@ -62,8 +65,6 @@ class AcademicRepositoryTopicConsolidationService
         $result = collect();
 
         foreach ($this->candidates($topic) as $candidate) {
-            // Respect the repository's existing content-safety semantics: only
-            // approved topics contribute content to official generation.
             if ($candidate->status !== 'approved') {
                 continue;
             }
@@ -87,6 +88,7 @@ class AcademicRepositoryTopicConsolidationService
 
         return [
             'source_count' => $candidates->filter(fn ($candidate) => $candidate->curriculum_source_id)->pluck('curriculum_source_id')->unique()->count(),
+            'approved_source_count' => $candidates->filter(fn ($candidate) => $candidate->status === 'approved' && $candidate->curriculum_source_id)->pluck('curriculum_source_id')->unique()->count(),
             'topic_count' => $candidates->count(),
             'primary_topic_id' => optional($candidates->first())->id,
             'near_duplicates' => $candidates->reject(fn ($candidate) => (int) $candidate->id === (int) $topic->id)->map(fn ($candidate) => [
@@ -95,6 +97,7 @@ class AcademicRepositoryTopicConsolidationService
                 'similarity' => round($this->matcher->similarity($topic->topic, $candidate->topic), 2),
                 'resource_type' => $candidate->resource_type,
                 'priority' => $this->priority->score($candidate),
+                'status' => $candidate->status,
             ])->values()->all(),
         ];
     }
