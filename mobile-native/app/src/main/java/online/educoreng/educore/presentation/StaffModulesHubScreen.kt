@@ -418,6 +418,7 @@ private fun rootWorkflowKeysFor(portal: String): Set<String> =
 
 private fun canonicalHubKey(key: String): String = when (key.lowercase()) {
     "staff-attendance.self" -> "staff-attendance"
+    "scores.entry" -> "scores"
     else -> key.lowercase()
 }
 
@@ -426,6 +427,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "students" -> "Student Directory"
     "staff-attendance.admin" -> "Staff Attendance"
     "staff-attendance.self" -> "My Attendance"
+    "scores", "scores.entry" -> "Score Entry"
     "academic-repository" -> "Repository"
     "lesson-planner" -> "Lesson Planner"
     "gradebook" -> "Gradebook"
@@ -441,12 +443,12 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
 }
 
 private val ROOT_WORKFLOW_KEYS = setOf(
-    "dashboard", "classes", "students", "attendance", "scores", "scores.entry", "timetable",
+    "dashboard", "classes", "students", "attendance", "timetable",
     "student.timetable", "messages", "notifications.view", "announcements", "calendar.view",
 )
 private val ADMIN_DISTINCT_ATTENDANCE_KEYS = setOf("staff-attendance.admin", "staff-attendance.self")
 private val ACADEMIC_KEYS = setOf(
-    "subjects", "curriculum", "reports", "report-cards", "results", "gradebook",
+    "subjects", "curriculum", "scores", "scores.entry", "reports", "report-cards", "results", "gradebook",
     "lesson-planner", "academic-repository", "library", "skills",
 )
 private val OPERATION_KEYS = setOf(
