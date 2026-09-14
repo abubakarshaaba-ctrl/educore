@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -21,6 +22,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.core)
     implementation(libs.moshi.kotlin)
+    ksp(libs.moshi.codegen)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
 }
