@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Http\Controllers\AcademicRepositoryIngestionController;
 use App\Http\Controllers\AcademicRepositoryKnowledgeController;
+use App\Http\Controllers\AcademicRepositoryLessonPlanController;
 use App\Http\Middleware\StaffOnly;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +26,7 @@ class AcademicRepositoryKnowledgeServiceProvider extends ServiceProvider
                 Route::get('{academicTopic}/edit', [AcademicRepositoryKnowledgeController::class, 'edit'])->name('edit');
                 Route::put('{academicTopic}', [AcademicRepositoryKnowledgeController::class, 'update'])->name('update');
                 Route::post('{academicTopic}/approve', [AcademicRepositoryKnowledgeController::class, 'approve'])->name('approve');
+                Route::post('{academicTopic}/save-to-lesson-planner', [AcademicRepositoryLessonPlanController::class, 'store'])->name('lesson-planner.store');
                 Route::get('{academicTopic}/generate/{type}', [AcademicRepositoryKnowledgeController::class, 'generate'])
                     ->whereIn('type', ['lesson-plan', 'student-note'])
                     ->name('generate');
