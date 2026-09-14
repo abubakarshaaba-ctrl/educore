@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\CurriculumSource;
-use App\Support\AcademicContentFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -40,8 +39,10 @@ class AcademicRepositoryController extends Controller
             ->when($request->filled('subject'), function (Collection $items) use ($request) {
                 $subject = $request->string('subject')->trim()->toString();
 
-                return $items->filter(fn (CurriculumSource $source) => strcasecmp($this->metadataLabel($source, 'subject_label', 'Unmapped subject'), $subject) === 0
-                );
+                return $items->filter(fn (CurriculumSource $source) => strcasecmp(
+                    $this->metadataLabel($source, 'subject_label', 'Unmapped subject'),
+                    $subject,
+                ) === 0);
             })
             ->values();
 
@@ -56,34 +57,23 @@ class AcademicRepositoryController extends Controller
         return view('academic-repository.index', compact('groups', 'metrics', 'subjectNames'));
     }
 
-    public function show(CurriculumSource $curriculumSource, AcademicContentFormatter $formatter)
+    /**
+     * The repository no longer exposes a parallel read-only lesson-note screen.
+     * Its extracted/indexed content is canonical machine knowledge; teachers who
+     * need the original human document can download it directly.
+     */
+    public function show(CurriculumSource $curriculumSource)
     {
         $this->guardReader();
         $this->guardSource($curriculumSource);
-        $curriculumSource->load(['fragments' => fn ($query) => $query->orderBy('sequence')->orderBy('id')]);
 
-        // raw_text is the closest readable representation of the uploaded source
-        // and normally retains paragraph boundaries that cleaned_text/fragments
-        // deliberately flatten for search and indexing.
-        $rawText = trim((string) $curriculumSource->raw_text);
-        $extension = mb_strtolower(pathinfo((string) ($curriculumSource->original_filename ?: $curriculumSource->source_file_path), PATHINFO_EXTENSION));
-        $preserveLineBreaks = $extension === 'docx';
-        $renderedDocument = $rawText !== '' ? $formatter->render($rawText, $preserveLineBreaks) : null;
+        if ($curriculumSource->source_file_path) {
+            return redirect()->route('academic-repository.download', $curriculumSource);
+        }
 
-        // Fragment rendering remains as a backward-compatible fallback and keeps
-        // the machine-readable/searchable representation independent of display.
-        $renderedContent = $curriculumSource->fragments
-            ->mapWithKeys(fn ($fragment) => [(string) $fragment->getKey() => $formatter->render($fragment->content)])
-            ->all();
-
-        return view('academic-repository.show', [
-            'source' => $curriculumSource,
-            'classLabel' => $this->metadataLabel($curriculumSource, 'class_label', 'Unmapped class'),
-            'termLabel' => $this->metadataLabel($curriculumSource, 'term_label', 'Unmapped term'),
-            'subjectLabel' => $this->metadataLabel($curriculumSource, 'subject_label', 'Unmapped subject'),
-            'renderedDocument' => $renderedDocument,
-            'renderedContent' => $renderedContent,
-        ]);
+        return redirect()
+            ->route('academic-repository.index')
+            ->with('warning', 'The original resource file is unavailable, but its indexed content remains available to EduCore as canonical repository knowledge.');
     }
 
     public function download(CurriculumSource $curriculumSource)
@@ -109,9 +99,6 @@ class AcademicRepositoryController extends Controller
             ->where('extraction_status', 'extracted')
             ->where('index_status', 'indexed')
             ->whereHas('fragments')
-            // Scheme-of-work files are supporting planning documents, not lesson
-            // notes. Older repository archives contain one in many class/term
-            // folders, so exclude them from the reader catalogue permanently.
             ->where(function ($query) {
                 $query->whereRaw("LOWER(COALESCE(title, '')) NOT LIKE ?", ['%scheme%of%work%'])
                     ->whereRaw("LOWER(COALESCE(original_filename, '')) NOT LIKE ?", ['%scheme%of%work%']);
@@ -146,9 +133,9 @@ class AcademicRepositoryController extends Controller
             && $source->is_active
             && $source->extraction_status === 'extracted'
             && $source->index_status === 'indexed'
-            && !$this->isSchemeOfWorkSource($source)
+            && ! $this->isSchemeOfWorkSource($source)
             && $source->fragments()->exists(),
-            404
+            404,
         );
     }
 
