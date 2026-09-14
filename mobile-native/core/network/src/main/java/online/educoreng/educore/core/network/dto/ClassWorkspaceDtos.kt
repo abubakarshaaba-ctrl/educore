@@ -192,6 +192,8 @@ data class ClockInRequestDto(
     val token: String,
     val lat: Double? = null,
     val lng: Double? = null,
+    @param:Json(name = "captured_at") val capturedAt: String? = null,
+    @param:Json(name = "request_id") val requestId: String? = null,
 )
 
 data class EmptyRequestDto(val value: String? = null)
