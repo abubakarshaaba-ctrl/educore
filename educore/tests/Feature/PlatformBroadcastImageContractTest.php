@@ -16,7 +16,7 @@ class PlatformBroadcastImageContractTest extends TestCase
 
         $this->assertStringContainsString("'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body']", $controller);
         $this->assertStringContainsString("'body' => ['nullable', 'string', 'max:5000', 'required_without:image']", $controller);
-        $this->assertStringContainsString("$body = trim((string) ($data['body'] ?? ''))", $controller);
+        $this->assertStringContainsString('$body = trim((string) ($data[\'body\'] ?? \'\'))', $controller);
         $this->assertStringContainsString("store('platform-broadcasts', 'public')", $controller);
         $this->assertStringContainsString('Storage::disk(\'public\')->delete($imagePath)', $controller);
         $this->assertStringContainsString("'image_path' => \$imagePath", $controller);
