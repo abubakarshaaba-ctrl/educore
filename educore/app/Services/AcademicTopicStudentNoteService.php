@@ -25,7 +25,7 @@ class AcademicTopicStudentNoteService
 
         if ($topic->status !== 'approved' || ! $readiness['ready']) {
             throw ValidationException::withMessages([
-                'topic' => 'This knowledge topic must be approved and generation-ready before its student note can be saved.',
+                'topic' => 'This repository topic is not generation-ready. Resolve the missing or quality-critical items before saving its student note.',
             ]);
         }
 
@@ -59,6 +59,10 @@ class AcademicTopicStudentNoteService
             'source_title' => $topic->source?->title,
             'source_filename' => $topic->source?->original_filename,
             'readiness_score' => $readiness['score'],
+            'coverage_score' => $readiness['coverage_score'],
+            'quality_score' => $readiness['quality_score'],
+            'quality_issues' => $readiness['quality']['issues'],
+            'ranked_sources' => $readiness['sources'],
         ];
 
         $content['source_trace'] = $sourceTrace;
