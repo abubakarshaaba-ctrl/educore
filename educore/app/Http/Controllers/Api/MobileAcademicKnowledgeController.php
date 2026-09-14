@@ -74,7 +74,14 @@ class MobileAcademicKnowledgeController extends Controller
         $readiness = $this->knowledge->readiness($topic);
         abort_unless($readiness['ready'], 422, 'This topic is not generation-ready.');
         $document = $type === 'lesson-plan' ? $this->knowledge->lessonPlan($topic) : $this->knowledge->studentNote($topic);
-        return response()->json(['contract_version'=>1,'generated_at'=>now()->toIso8601String(),'type'=>$type,'topic'=>$this->topicPayload($topic, true),'document'=>$document]);
+
+        return response()->json([
+            'contract_version'=>1,
+            'generated_at'=>now()->toIso8601String(),
+            'type'=>$type,
+            'topic'=>$this->topicPayload($topic, true),
+            'document'=>$this->mobileDocument($type, $document),
+        ]);
     }
 
     public function saveLessonPlan(Request $request, AcademicTopic $topic)
@@ -118,6 +125,44 @@ class MobileAcademicKnowledgeController extends Controller
             ])->values();
         }
         return $payload;
+    }
+
+    private function mobileDocument(string $type, array $document): array
+    {
+        $sections = [];
+        if ($type === 'lesson-plan') {
+            $sections[] = ['heading'=>'Topic', 'content'=>(string)($document['topic'] ?? '')];
+            if (filled($document['sub_topic'] ?? null)) $sections[] = ['heading'=>'Sub-topic', 'content'=>(string)$document['sub_topic']];
+            foreach ([
+                'Entry Behaviour'=>'entry_behaviour', 'Previous / Background Knowledge'=>'previous_knowledge',
+                'Instructional Resources'=>'instructional_resources', 'Introduction'=>'introduction',
+            ] as $heading => $key) {
+                if (filled($document[$key] ?? null)) $sections[] = ['heading'=>$heading,'content'=>(string)$document[$key]];
+            }
+            if (!empty($document['behavioural_objectives'])) $sections[] = ['heading'=>'Behavioural Objectives','content'=>$this->numbered($document['behavioural_objectives'])];
+            foreach ($document['presentation'] ?? [] as $step) {
+                $sections[] = ['heading'=>(string)($step['title'] ?? 'Presentation'), 'content'=>(string)($step['content'] ?? '')];
+            }
+            if (!empty($document['evaluation'])) $sections[] = ['heading'=>'Evaluation','content'=>$this->numbered($document['evaluation'])];
+            if (!empty($document['assignment'])) $sections[] = ['heading'=>'Assignment','content'=>$this->numbered($document['assignment'])];
+            if (filled($document['reference'] ?? null)) $sections[] = ['heading'=>'Reference','content'=>(string)$document['reference']];
+        } else {
+            if (!empty($document['objectives'])) $sections[] = ['heading'=>'Learning Objectives','content'=>$this->numbered($document['objectives'])];
+            if (filled($document['summary'] ?? null)) $sections[] = ['heading'=>'Overview','content'=>(string)$document['summary']];
+            foreach ($document['content'] ?? [] as $section) {
+                $sections[] = ['heading'=>(string)($section['heading'] ?? 'Lesson Content'), 'content'=>(string)($section['content'] ?? '')];
+            }
+            if (!empty($document['review_questions'])) $sections[] = ['heading'=>'Review Questions','content'=>$this->numbered($document['review_questions'])];
+            if (!empty($document['assignment'])) $sections[] = ['heading'=>'Assignment','content'=>$this->numbered($document['assignment'])];
+            if (filled($document['reference'] ?? null)) $sections[] = ['heading'=>'Reference','content'=>(string)$document['reference']];
+        }
+
+        return ['title'=>(string)($document['topic'] ?? 'Academic Content'), 'sections'=>$sections];
+    }
+
+    private function numbered(array $items): string
+    {
+        return collect($items)->values()->map(fn($item, $i) => ($i+1).'. '.trim((string)$item))->implode("\n");
     }
 
     private function guardReader(Request $request): void
