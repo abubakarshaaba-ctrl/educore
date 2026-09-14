@@ -3,7 +3,11 @@
 @section('content')
 <div class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4 no-print">
-        <div><div class="small text-uppercase fw-bold text-muted">Curriculum Knowledge Base</div><h1 class="h3 mb-1">{{ $type === 'lesson-plan' ? 'Standard Lesson Plan' : 'Student Note' }}</h1><p class="text-muted mb-0">Generated deterministically from approved repository content. AI is not required.</p></div>
+        <div>
+            <div class="small text-uppercase fw-bold text-muted">Curriculum Knowledge Base</div>
+            <h1 class="h3 mb-1">{{ $type === 'lesson-plan' ? 'Standard Lesson Plan' : 'Student Note' }}</h1>
+            <p class="text-muted mb-0">Generated deterministically from repository content. AI is not required.</p>
+        </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('academic-repository.knowledge.show', $academicTopic) }}" class="btn btn-outline-secondary">Back</a>
             @if($type === 'lesson-plan')
@@ -18,6 +22,30 @@
                 </form>
             @endif
             <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4 no-print">
+        <div class="col-md-4">
+            <div class="card h-100"><div class="card-body">
+                <div class="small text-uppercase text-muted fw-bold">Generation readiness</div>
+                <div class="display-6 fw-bold">{{ $readiness['score'] }}%</div>
+                <div class="small text-muted">Coverage {{ $readiness['coverage_score'] ?? $readiness['score'] }}% · Quality {{ $readiness['quality_score'] ?? '—' }}%</div>
+            </div></div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100"><div class="card-body">
+                <div class="small text-uppercase text-muted fw-bold mb-2">Quality checks</div>
+                @if(empty($readiness['quality']['issues'] ?? []))
+                    <div class="text-success fw-semibold">No deterministic quality warnings detected.</div>
+                @else
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($readiness['quality']['issues'] as $issue)
+                            <span class="badge text-bg-warning">{{ $issue }}</span>
+                        @endforeach
+                    </div>
+                @endif
+            </div></div>
         </div>
     </div>
 
@@ -52,7 +80,23 @@
             @if($document['assignment'])<section class="mb-4"><h2 class="h5">Assignment</h2><ol>@foreach($document['assignment'] as $item)<li>{{ $item }}</li>@endforeach</ol></section>@endif
             <section><h2 class="h5">Reference</h2><p>{{ $document['reference'] }}</p></section>
         @endif
+
+        @if(!empty($document['sources']))
+            <section class="mt-5 pt-4 border-top source-provenance">
+                <h2 class="h6 text-uppercase">Source Provenance</h2>
+                <ol class="small mb-0">
+                    @foreach($document['sources'] as $source)
+                        <li class="mb-1">
+                            <strong>{{ $source['title'] ?: ($source['filename'] ?: 'Repository source') }}</strong>
+                            @if($source['filename'] && $source['filename'] !== $source['title']) — {{ $source['filename'] }} @endif
+                            <span class="text-muted">({{ str_replace('_', ' ', $source['resource_type'] ?? 'other') }}, priority {{ $source['priority'] ?? '—' }})</span>
+                            @if(!empty($source['is_primary'])) <span class="badge text-bg-light">Primary</span> @endif
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
+        @endif
     </div></article>
 </div>
-<style>@media print{.no-print,.sidebar,.topbar{display:none!important}.generated-document{border:0!important;box-shadow:none!important}.container{max-width:none!important;padding:0!important}body{background:#fff!important}}</style>
+<style>@media print{.no-print,.sidebar,.topbar{display:none!important}.generated-document{border:0!important;box-shadow:none!important}.container{max-width:none!important;padding:0!important}body{background:#fff!important}.source-provenance{break-inside:avoid}}</style>
 @endsection
