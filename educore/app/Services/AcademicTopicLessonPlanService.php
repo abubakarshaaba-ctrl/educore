@@ -9,6 +9,7 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AcademicTopicLessonPlanService
@@ -22,13 +23,14 @@ class AcademicTopicLessonPlanService
         $topic->loadMissing(['blocks', 'source']);
         $readiness = $this->knowledge->readiness($topic);
 
-        if ($topic->status !== 'approved' || !$readiness['ready']) {
+        if ($topic->status !== 'approved' || ! $readiness['ready']) {
             throw ValidationException::withMessages([
-                'topic' => 'This knowledge topic must be approved and generation-ready before it can be saved to Lesson Planner.',
+                'topic' => 'This knowledge topic is not generation-ready. Resolve the missing or quality-critical items before saving it to Lesson Planner.',
             ]);
         }
 
         $existing = LessonPlan::query()
+            ->where('tenant_id', $user->tenant_id)
             ->where('teacher_id', $user->id)
             ->where('academic_topic_id', $topic->id)
             ->first();
@@ -37,9 +39,9 @@ class AcademicTopicLessonPlanService
             return $existing;
         }
 
-        $subject = $this->matchSubject($topic->subject_label);
-        $classLevel = $this->matchClassLevel($topic->class_label);
-        $term = $this->matchTerm($topic->term_label);
+        $subject = $this->matchSubject($topic->subject_label, $user);
+        $classLevel = $this->matchClassLevel($topic->class_label, $user);
+        $term = $this->matchTerm($topic->term_label, $user);
         $document = $this->knowledge->lessonPlan($topic);
 
         return DB::transaction(function () use ($topic, $user, $subject, $classLevel, $term, $document, $readiness) {
@@ -79,39 +81,50 @@ class AcademicTopicLessonPlanService
                     'generation_method' => 'academic_repository_deterministic',
                     'academic_topic_id' => $topic->id,
                     'readiness_score' => $readiness['score'],
+                    'coverage_score' => $readiness['coverage_score'],
+                    'quality_score' => $readiness['quality_score'],
+                    'quality_issues' => $readiness['quality']['issues'],
                     'document' => $document,
-                    'repository_context' => $topic->source ? [[
-                        'source_id' => $topic->source->id,
-                        'title' => $topic->source->title,
-                        'original_filename' => $topic->source->original_filename,
-                    ]] : [],
+                    'repository_context' => $readiness['sources'],
                 ],
             ]);
         });
     }
 
-    private function matchSubject(string $label): Subject
+    private function matchSubject(string $label, User $user): Subject
     {
-        return Subject::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->first()
-            ?: throw ValidationException::withMessages([
-                'subject' => "No school subject exactly matches '{$label}'. Map this knowledge topic to an existing subject first.",
-            ]);
+        $query = Subject::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
+        if ($user->tenant_id && Schema::hasColumn((new Subject)->getTable(), 'tenant_id')) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->first() ?: throw ValidationException::withMessages([
+            'subject' => "No subject in this school exactly matches '{$label}'. Map the repository topic to an existing school subject first.",
+        ]);
     }
 
-    private function matchClassLevel(string $label): ClassLevel
+    private function matchClassLevel(string $label, User $user): ClassLevel
     {
-        return ClassLevel::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->first()
-            ?: throw ValidationException::withMessages([
-                'class' => "No school class level exactly matches '{$label}'. Map this knowledge topic to an existing class first.",
-            ]);
+        $query = ClassLevel::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
+        if ($user->tenant_id && Schema::hasColumn((new ClassLevel)->getTable(), 'tenant_id')) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->first() ?: throw ValidationException::withMessages([
+            'class' => "No class level in this school exactly matches '{$label}'. Map the repository topic to an existing school class first.",
+        ]);
     }
 
-    private function matchTerm(string $label): Term
+    private function matchTerm(string $label, User $user): Term
     {
-        return Term::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->orderByDesc('id')->first()
-            ?: throw ValidationException::withMessages([
-                'term' => "No school term exactly matches '{$label}'. Map this knowledge topic to an existing term first.",
-            ]);
+        $query = Term::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
+        if ($user->tenant_id && Schema::hasColumn((new Term)->getTable(), 'tenant_id')) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->orderByDesc('id')->first() ?: throw ValidationException::withMessages([
+            'term' => "No term in this school exactly matches '{$label}'. Map the repository topic to an existing school term first.",
+        ]);
     }
 
     private function lines(array $items): ?string
