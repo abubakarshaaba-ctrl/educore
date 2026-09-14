@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MobileBootstrapController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
+use App\Http\Controllers\Api\MobileAcademicKnowledgeController;
 use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
@@ -60,11 +61,23 @@ Route::prefix('v1')->group(function () {
         Route::get('operations/{module}', [MobileOperationsController::class, 'show'])
             ->where('module', '[A-Za-z0-9.-]+');
         Route::prefix('academic-repository')->group(function () {
+            // Knowledge routes belong in the canonical API route file so they
+            // survive partial/manual deployments and Laravel route caching.
+            Route::prefix('knowledge')->group(function () {
+                Route::get('/', [MobileAcademicKnowledgeController::class, 'index']);
+                Route::get('{topic}', [MobileAcademicKnowledgeController::class, 'show'])->whereNumber('topic');
+                Route::get('{topic}/generate/{type}', [MobileAcademicKnowledgeController::class, 'generate'])
+                    ->whereNumber('topic')
+                    ->where('type', 'lesson-plan|student-note');
+                Route::post('{topic}/save-lesson-plan', [MobileAcademicKnowledgeController::class, 'saveLessonPlan'])->whereNumber('topic');
+                Route::post('{topic}/save-student-note', [MobileAcademicKnowledgeController::class, 'saveStudentNote'])->whereNumber('topic');
+            });
+
             Route::get('classes', [ApiAcademicRepositoryController::class, 'classes']);
             Route::get('resources', [ApiAcademicRepositoryController::class, 'resources']);
-            Route::get('resources/{source}', [ApiAcademicRepositoryController::class, 'show']);
-            Route::get('resources/{source}/content', [ApiAcademicRepositoryController::class, 'content']);
-            Route::get('resources/{source}/download', [ApiAcademicRepositoryController::class, 'download']);
+            Route::get('resources/{source}', [ApiAcademicRepositoryController::class, 'show'])->whereNumber('source');
+            Route::get('resources/{source}/content', [ApiAcademicRepositoryController::class, 'content'])->whereNumber('source');
+            Route::get('resources/{source}/download', [ApiAcademicRepositoryController::class, 'download'])->whereNumber('source');
         });
         Route::prefix('lesson-plans')->group(function () {
             Route::get('options', [MobileLessonPlannerController::class, 'options']);

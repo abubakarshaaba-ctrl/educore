@@ -265,8 +265,30 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', \App\Htt
 Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class])
     ->prefix('academic-repository')->name('academic-repository.')->group(function () {
         Route::get('/', [\App\Http\Controllers\AcademicRepositoryController::class, 'index'])->name('index');
-        Route::get('{curriculumSource}', [\App\Http\Controllers\AcademicRepositoryController::class, 'show'])->name('show');
-        Route::get('{curriculumSource}/download', [\App\Http\Controllers\AcademicRepositoryController::class, 'download'])->name('download');
+
+        // Register the static knowledge routes before the resource wildcard.
+        // Keeping them in the canonical route file makes manual deployments and
+        // route caching deterministic.
+        Route::prefix('knowledge')->name('knowledge.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'index'])->name('index');
+            Route::get('ingestion', [\App\Http\Controllers\AcademicRepositoryIngestionController::class, 'index'])->name('ingestion.index');
+            Route::post('ingestion', [\App\Http\Controllers\AcademicRepositoryIngestionController::class, 'store'])->name('ingestion.store');
+            Route::get('create', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'store'])->name('store');
+            Route::get('{academicTopic}', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'show'])->whereNumber('academicTopic')->name('show');
+            Route::get('{academicTopic}/edit', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'edit'])->whereNumber('academicTopic')->name('edit');
+            Route::put('{academicTopic}', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'update'])->whereNumber('academicTopic')->name('update');
+            Route::post('{academicTopic}/approve', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'approve'])->whereNumber('academicTopic')->name('approve');
+            Route::post('{academicTopic}/save-to-lesson-planner', [\App\Http\Controllers\AcademicRepositoryLessonPlanController::class, 'store'])->whereNumber('academicTopic')->name('lesson-planner.store');
+            Route::post('{academicTopic}/save-student-note', [\App\Http\Controllers\AcademicRepositoryStudentNoteController::class, 'store'])->whereNumber('academicTopic')->name('student-note.store');
+            Route::get('{academicTopic}/generate/{type}', [\App\Http\Controllers\AcademicRepositoryKnowledgeController::class, 'generate'])
+                ->whereNumber('academicTopic')
+                ->whereIn('type', ['lesson-plan', 'student-note'])
+                ->name('generate');
+        });
+
+        Route::get('{curriculumSource}', [\App\Http\Controllers\AcademicRepositoryController::class, 'show'])->whereNumber('curriculumSource')->name('show');
+        Route::get('{curriculumSource}/download', [\App\Http\Controllers\AcademicRepositoryController::class, 'download'])->whereNumber('curriculumSource')->name('download');
     });
 
 Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])->group(function () {
