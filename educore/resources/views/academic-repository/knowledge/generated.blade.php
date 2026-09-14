@@ -3,8 +3,17 @@
 @section('content')
 <div class="container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4 no-print">
-        <div><div class="small text-uppercase fw-bold text-muted">Curriculum Knowledge Base</div><h1 class="h3 mb-1">{{ $type === 'lesson-plan' ? 'Standard Lesson Plan' : 'Student Note' }}</h1><p class="text-muted mb-0">Generated from approved repository content.</p></div>
-        <div class="d-flex gap-2"><a href="{{ route('academic-repository.knowledge.show', $academicTopic) }}" class="btn btn-outline-secondary">Back</a><button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button></div>
+        <div><div class="small text-uppercase fw-bold text-muted">Curriculum Knowledge Base</div><h1 class="h3 mb-1">{{ $type === 'lesson-plan' ? 'Standard Lesson Plan' : 'Student Note' }}</h1><p class="text-muted mb-0">Generated deterministically from approved repository content. AI is not required.</p></div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ route('academic-repository.knowledge.show', $academicTopic) }}" class="btn btn-outline-secondary">Back</a>
+            @if($type === 'lesson-plan')
+                <form method="POST" action="{{ route('academic-repository.knowledge.lesson-planner.store', $academicTopic) }}">
+                    @csrf
+                    <button class="btn btn-success">Save to Lesson Planner</button>
+                </form>
+            @endif
+            <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+        </div>
     </div>
 
     <article class="card generated-document"><div class="card-body p-4 p-lg-5">
