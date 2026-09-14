@@ -10,6 +10,7 @@ use App\Models\LessonPlan;
 use App\Services\Curriculum\CurriculumRetrievalService;
 use App\Services\Curriculum\WebLessonResearchService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class GroundedLessonNoteService
@@ -53,11 +54,23 @@ class GroundedLessonNoteService
             });
         } catch (\Throwable $e) { $failure = $e; throw $e; }
         finally {
-            AiUsageLog::create(['tenant_id'=>$plan->tenant_id,'user_id'=>$userId,'lesson_plan_id'=>$plan->id,'feature'=>'lesson_planner',
-                'provider'=>$this->provider->name(),'model'=>$this->provider->model(),'request_type'=>$onlyItems ? 'regenerate_missing_sections' : 'generate_lesson_note',
-                'input_tokens'=>$usage['input_tokens']??null,'output_tokens'=>$usage['output_tokens']??null,
-                'total_tokens'=>isset($usage['input_tokens'],$usage['output_tokens']) ? $usage['input_tokens']+$usage['output_tokens'] : null,
-                'status'=>$failure?'failed':'completed','latency_ms'=>(int)((hrtime(true)-$started)/1_000_000),'error_code'=>$failure?class_basename($failure):null]);
+            // Usage telemetry must never turn an otherwise successful lesson-note
+            // generation into HTTP 500. Production databases can temporarily lag
+            // behind telemetry schema changes, so record best-effort and preserve
+            // the actual generation result/error.
+            try {
+                AiUsageLog::create(['tenant_id'=>$plan->tenant_id,'user_id'=>$userId,'lesson_plan_id'=>$plan->id,'feature'=>'lesson_planner',
+                    'provider'=>$this->provider->name(),'model'=>$this->provider->model(),'request_type'=>$onlyItems ? 'regenerate_missing_sections' : 'generate_lesson_note',
+                    'input_tokens'=>$usage['input_tokens']??null,'output_tokens'=>$usage['output_tokens']??null,
+                    'total_tokens'=>isset($usage['input_tokens'],$usage['output_tokens']) ? $usage['input_tokens']+$usage['output_tokens'] : null,
+                    'status'=>$failure?'failed':'completed','latency_ms'=>(int)((hrtime(true)-$started)/1_000_000),'error_code'=>$failure?class_basename($failure):null]);
+            } catch (\Throwable $telemetryError) {
+                Log::warning('Lesson-note AI usage telemetry could not be recorded.', [
+                    'lesson_plan_id' => $plan->id,
+                    'user_id' => $userId,
+                    'error' => $telemetryError->getMessage(),
+                ]);
+            }
         }
     }
 
