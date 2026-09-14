@@ -49,22 +49,23 @@ class PlatformBroadcastController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:150'],
-            'body' => ['required', 'string', 'max:5000'],
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'body' => ['nullable', 'string', 'max:5000', 'required_without:image'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body'],
             'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
+        $body = trim((string) ($data['body'] ?? ''));
         $tenantIds = $this->targetTenants($data['target'])->pluck('id');
         $now = now();
         $imagePath = $request->file('image')?->store('platform-broadcasts', 'public');
 
         try {
-            $broadcastId = DB::transaction(function () use ($request, $data, $tenantIds, $now, $imagePath) {
+            $broadcastId = DB::transaction(function () use ($request, $data, $body, $tenantIds, $now, $imagePath) {
                 $broadcastId = DB::table('platform_broadcasts')->insertGetId([
                     'created_by' => $request->user()->id,
                     'title' => trim($data['title']),
-                    'body' => trim($data['body']),
+                    'body' => $body,
                     'image_path' => $imagePath,
                     'target' => $data['target'],
                     'tenant_count' => $tenantIds->count(),
@@ -80,7 +81,7 @@ class PlatformBroadcastController extends Controller
                             'tenant_id' => $tenantId,
                             'platform_broadcast_id' => $broadcastId,
                             'title' => trim($data['title']),
-                            'body' => trim($data['body']),
+                            'body' => $body,
                             'image_path' => $imagePath,
                             'audience' => 'all',
                             'priority' => 'important',
