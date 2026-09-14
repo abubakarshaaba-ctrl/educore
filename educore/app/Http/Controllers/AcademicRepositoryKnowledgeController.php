@@ -58,7 +58,7 @@ class AcademicRepositoryKnowledgeController extends Controller
                 'subject_label' => $metadata['subject_label'] ?? null,
                 'term_label' => $metadata['term_label'] ?? null,
                 'topic' => $source->title,
-                'reference' => $source->original_filename ?: $source->title,
+                'reference' => $this->sourceReference($source),
             ]);
         }
 
@@ -232,16 +232,55 @@ class AcademicRepositoryKnowledgeController extends Controller
 
     private function sources()
     {
+        $columns = ['id', 'title', 'metadata'];
+        if (Schema::hasColumn('curriculum_sources', 'original_filename')) {
+            $columns[] = 'original_filename';
+        }
+        if (Schema::hasColumn('curriculum_sources', 'source_file_path')) {
+            $columns[] = 'source_file_path';
+        }
+
         return CurriculumSource::query()
             ->whereNull('tenant_id')
             ->where('is_active', true)
             ->orderBy('title')
-            ->get(['id', 'title', 'original_filename', 'metadata']);
+            ->get($columns);
+    }
+
+    private function sourceReference(CurriculumSource $source): string
+    {
+        $original = Schema::hasColumn('curriculum_sources', 'original_filename')
+            ? trim((string) $source->getAttribute('original_filename'))
+            : '';
+        if ($original !== '') return $original;
+
+        $path = Schema::hasColumn('curriculum_sources', 'source_file_path')
+            ? trim((string) $source->getAttribute('source_file_path'))
+            : '';
+        if ($path !== '') return basename($path);
+
+        return (string) $source->title;
     }
 
     private function knowledgeSchemaReady(): bool
     {
-        return Schema::hasTable('academic_topics') && Schema::hasTable('academic_topic_blocks');
+        if (! Schema::hasTable('academic_topics') || ! Schema::hasTable('academic_topic_blocks')) {
+            return false;
+        }
+
+        $topicColumns = [
+            'curriculum_source_id', 'class_label', 'subject_label', 'term_label', 'week_number',
+            'lesson_number', 'topic', 'sub_topic', 'lesson_time', 'duration_minutes', 'average_age',
+            'sex', 'resource_type', 'entry_behaviour', 'previous_knowledge', 'instructional_resources',
+            'introduction', 'reference', 'student_note_summary', 'status', 'reviewed_by', 'reviewed_at',
+        ];
+        $blockColumns = [
+            'academic_topic_id', 'block_type', 'sequence', 'title', 'content', 'metadata',
+            'is_required', 'is_approved',
+        ];
+
+        return collect($topicColumns)->every(fn ($column) => Schema::hasColumn('academic_topics', $column))
+            && collect($blockColumns)->every(fn ($column) => Schema::hasColumn('academic_topic_blocks', $column));
     }
 
     private function ensureKnowledgeSchemaReady(): void
