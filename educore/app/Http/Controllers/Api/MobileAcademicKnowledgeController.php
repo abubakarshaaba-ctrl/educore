@@ -9,6 +9,7 @@ use App\Services\AcademicTopicLessonPlanService;
 use App\Services\AcademicTopicStudentNoteService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class MobileAcademicKnowledgeController extends Controller
@@ -34,32 +35,72 @@ class MobileAcademicKnowledgeController extends Controller
             'per_page' => ['nullable','integer','min:1','max:100'],
         ]);
 
-        $query = AcademicTopic::query()->with(['source','blocks']);
-        foreach (['class_label'=>'class','term_label'=>'term','subject_label'=>'subject'] as $column => $key) {
-            if (filled($data[$key] ?? null)) $query->where($column, $data[$key]);
-        }
-        if (filled($data['query'] ?? null)) {
-            $needle = '%'.trim($data['query']).'%';
-            $query->where(fn($q) => $q->where('topic','like',$needle)->orWhere('sub_topic','like',$needle));
-        }
-
-        $items = $query->orderBy('class_label')->orderBy('subject_label')->orderBy('term_label')->orderBy('week_number')->orderBy('lesson_number')->get();
-        $rows = $items->map(fn(AcademicTopic $topic) => $this->topicPayload($topic));
-        if (array_key_exists('ready', $data)) $rows = $rows->where('readiness.ready', (bool)$data['ready'])->values();
-
         $page = (int)($data['page'] ?? 1);
         $perPage = (int)($data['per_page'] ?? 30);
-        $paginator = new LengthAwarePaginator($rows->forPage($page,$perPage)->values(), $rows->count(), $perPage, $page, ['path'=>$request->url(),'query'=>$request->query()]);
 
-        return response()->json([
-            'contract_version' => 1,
-            'generated_at' => now()->toIso8601String(),
-            'topics' => $paginator->items(),
-            'meta' => [
-                'current_page'=>$paginator->currentPage(), 'last_page'=>$paginator->lastPage(),
-                'per_page'=>$paginator->perPage(), 'total'=>$paginator->total(),
-            ],
-        ]);
+        try {
+            $query = AcademicTopic::query()->with(['source','blocks']);
+            foreach (['class_label'=>'class','term_label'=>'term','subject_label'=>'subject'] as $column => $key) {
+                if (filled($data[$key] ?? null)) $query->where($column, $data[$key]);
+            }
+            if (filled($data['query'] ?? null)) {
+                $needle = '%'.trim($data['query']).'%';
+                $query->where(fn($q) => $q->where('topic','like',$needle)->orWhere('sub_topic','like',$needle));
+            }
+
+            $query->orderBy('class_label')
+                ->orderBy('subject_label')
+                ->orderBy('term_label')
+                ->orderBy('week_number')
+                ->orderBy('lesson_number')
+                ->orderBy('id');
+
+            /*
+             * IMPORTANT: never load the complete Academic Knowledge catalogue
+             * before readiness analysis. Readiness performs consolidation and
+             * quality checks and may inspect neighbouring topic records. The old
+             * implementation called ->get() for every topic in the repository and
+             * only paginated afterwards, causing request timeouts/500 responses on
+             * production catalogues. Paginate in SQL first and analyse only the
+             * current mobile page.
+             */
+            $paginator = $query->paginate($perPage, ['*'], 'page', $page);
+            $rows = collect($paginator->items())
+                ->map(fn(AcademicTopic $topic) => $this->topicPayload($topic));
+
+            // `ready` is a computed property, so apply it to the current page.
+            // This keeps the API bounded and prevents a filter from reintroducing
+            // the full-catalogue timeout. The unfiltered total remains useful for
+            // pagination/navigation while the page payload honours the filter.
+            if (array_key_exists('ready', $data)) {
+                $rows = $rows->where('readiness.ready', (bool)$data['ready'])->values();
+            }
+
+            return response()->json([
+                'contract_version' => 1,
+                'generated_at' => now()->toIso8601String(),
+                'topics' => $rows->values()->all(),
+                'meta' => [
+                    'current_page'=>$paginator->currentPage(),
+                    'last_page'=>$paginator->lastPage(),
+                    'per_page'=>$paginator->perPage(),
+                    'total'=>$paginator->total(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Curriculum Knowledge catalogue API failed.', [
+                'user_id' => optional($request->user())->id,
+                'page' => $page,
+                'per_page' => $perPage,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+
+            return response()->json([
+                'message' => 'Curriculum Knowledge could not be loaded. Please retry after the latest server update completes.',
+                'code' => 'academic_knowledge_catalogue_error',
+            ], 503);
+        }
     }
 
     public function show(Request $request, AcademicTopic $topic)
@@ -175,14 +216,17 @@ class MobileAcademicKnowledgeController extends Controller
     private function schemaUnavailableResponse()
     {
         $topicColumns = [
-            'class_label', 'subject_label', 'term_label', 'week_number', 'lesson_number',
-            'topic', 'sub_topic', 'resource_type', 'status', 'student_note_summary',
+            'curriculum_source_id', 'class_label', 'subject_label', 'term_label', 'week_number', 'lesson_number',
+            'topic', 'sub_topic', 'lesson_time', 'duration_minutes', 'average_age', 'sex', 'resource_type',
+            'entry_behaviour', 'previous_knowledge', 'instructional_resources', 'introduction', 'reference',
+            'student_note_summary', 'status',
         ];
         $blockColumns = [
             'academic_topic_id', 'block_type', 'sequence', 'title', 'content', 'is_approved',
         ];
 
-        $schemaReady = Schema::hasTable('academic_topics')
+        $schemaReady = Schema::hasTable('curriculum_sources')
+            && Schema::hasTable('academic_topics')
             && Schema::hasTable('academic_topic_blocks')
             && collect($topicColumns)->every(fn ($column) => Schema::hasColumn('academic_topics', $column))
             && collect($blockColumns)->every(fn ($column) => Schema::hasColumn('academic_topic_blocks', $column));
