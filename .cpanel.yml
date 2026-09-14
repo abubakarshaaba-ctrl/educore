@@ -25,6 +25,10 @@ deployment:
     - /usr/bin/rsync -a ./educore/tools/ $DEPLOYPATH/educore/tools/
     - /usr/bin/rsync -a ./educore/public/ $DEPLOYPATH/educore/public/
     - /bin/cp -f ./.htaccess $DEPLOYPATH/.htaccess
+    # Ensure every PHP-FPM/LiteSpeed worker revalidates changed route files.
+    # Without this user-level OPcache configuration, authenticated requests can
+    # keep executing stale route bytecode even after Laravel's caches are gone.
+    - /bin/cp -f ./.user.ini $DEPLOYPATH/.user.ini
     - /bin/cp -f ./index.php $DEPLOYPATH/index.php
     # Clear Laravel caches so the deployed code takes effect immediately.
     # Delete cache files directly - artisan via /usr/local/bin/php proved
