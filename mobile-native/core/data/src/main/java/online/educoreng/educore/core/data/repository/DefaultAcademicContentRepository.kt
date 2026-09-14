@@ -48,6 +48,14 @@ class DefaultAcademicContentRepository(
     private val tenantContextStore: TenantContextStore,
     private val nowEpochMs: () -> Long = System::currentTimeMillis,
 ) : AcademicContentRepository {
+    constructor(
+        context: Context,
+        api: EduCoreApi,
+        moshi: Moshi,
+        database: EduCoreDatabase,
+        tenantContextStore: TenantContextStore,
+    ) : this(context, api, api, moshi, database, tenantContextStore)
+
     private val hierarchyAdapter by lazy { moshi.adapter(RepositoryHierarchyResponseDto::class.java) }
     private val resourcesAdapter by lazy { moshi.adapter(RepositoryResourcesResponseDto::class.java) }
     private val resourceAdapter by lazy { moshi.adapter(RepositoryResourceResponseDto::class.java) }
