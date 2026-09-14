@@ -230,6 +230,11 @@ class ClassesViewModel @Inject constructor(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             when (val result = repository.clockIn(token.trim(), latitude, longitude)) {
                 is AppResult.Success -> {
+                    // The repository also returns success when a self clock-in
+                    // is safely queued offline. Scheduling on every success is
+                    // harmless for live clock-ins and guarantees WorkManager
+                    // will flush a queued clock-in as soon as networking returns.
+                    syncCoordinator.schedule()
                     _uiState.update { it.copy(isSaving = false, message = result.value) }
                     loadStaffAttendance()
                 }
