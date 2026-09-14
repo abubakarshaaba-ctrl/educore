@@ -174,7 +174,20 @@ class MobileAcademicKnowledgeController extends Controller
 
     private function schemaUnavailableResponse()
     {
-        if (Schema::hasTable('academic_topics') && Schema::hasTable('academic_topic_blocks')) {
+        $topicColumns = [
+            'class_label', 'subject_label', 'term_label', 'week_number', 'lesson_number',
+            'topic', 'sub_topic', 'resource_type', 'status', 'student_note_summary',
+        ];
+        $blockColumns = [
+            'academic_topic_id', 'block_type', 'sequence', 'title', 'content', 'is_approved',
+        ];
+
+        $schemaReady = Schema::hasTable('academic_topics')
+            && Schema::hasTable('academic_topic_blocks')
+            && collect($topicColumns)->every(fn ($column) => Schema::hasColumn('academic_topics', $column))
+            && collect($blockColumns)->every(fn ($column) => Schema::hasColumn('academic_topic_blocks', $column));
+
+        if ($schemaReady) {
             return null;
         }
 
