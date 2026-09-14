@@ -7,6 +7,7 @@ use App\Models\CurriculumSource;
 use App\Services\AcademicRepositoryKnowledgeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class AcademicRepositoryKnowledgeController extends Controller
@@ -14,6 +15,10 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function index(Request $request, AcademicRepositoryKnowledgeService $knowledge)
     {
         $this->guardReader();
+
+        if (! $this->knowledgeSchemaReady()) {
+            return response()->view('academic-repository.knowledge.setup', [], 503);
+        }
 
         $topics = AcademicTopic::query()
             ->with(['blocks', 'source'])
@@ -41,6 +46,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function create(Request $request)
     {
         $this->guardAdmin();
+        $this->ensureKnowledgeSchemaReady();
         $topic = new AcademicTopic();
 
         if ($request->filled('source')) {
@@ -66,6 +72,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function store(Request $request)
     {
         $this->guardAdmin();
+        $this->ensureKnowledgeSchemaReady();
         $data = $this->validated($request);
         $data = $this->withReviewMetadata($data);
 
@@ -81,6 +88,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function show(AcademicTopic $academicTopic, AcademicRepositoryKnowledgeService $knowledge)
     {
         $this->guardReader();
+        $this->ensureKnowledgeSchemaReady();
         $academicTopic->load(['blocks', 'source']);
 
         return view('academic-repository.knowledge.show', [
@@ -92,6 +100,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function edit(AcademicTopic $academicTopic)
     {
         $this->guardAdmin();
+        $this->ensureKnowledgeSchemaReady();
         $academicTopic->load('blocks');
 
         return view('academic-repository.knowledge.form', [
@@ -108,6 +117,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function update(Request $request, AcademicTopic $academicTopic)
     {
         $this->guardAdmin();
+        $this->ensureKnowledgeSchemaReady();
         $data = $this->withReviewMetadata($this->validated($request));
 
         DB::transaction(function () use ($academicTopic, $data, $request) {
@@ -121,6 +131,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function approve(AcademicTopic $academicTopic)
     {
         $this->guardAdmin();
+        $this->ensureKnowledgeSchemaReady();
         $academicTopic->load('blocks');
 
         $academicTopic->update([
@@ -136,6 +147,7 @@ class AcademicRepositoryKnowledgeController extends Controller
     public function generate(AcademicTopic $academicTopic, string $type, AcademicRepositoryKnowledgeService $knowledge)
     {
         $this->guardReader();
+        $this->ensureKnowledgeSchemaReady();
         abort_unless(in_array($type, ['lesson-plan', 'student-note'], true), 404);
         abort_unless($academicTopic->status === 'approved', 422, 'This topic must be approved before official content can be generated.');
 
@@ -225,6 +237,20 @@ class AcademicRepositoryKnowledgeController extends Controller
             ->where('is_active', true)
             ->orderBy('title')
             ->get(['id', 'title', 'original_filename', 'metadata']);
+    }
+
+    private function knowledgeSchemaReady(): bool
+    {
+        return Schema::hasTable('academic_topics') && Schema::hasTable('academic_topic_blocks');
+    }
+
+    private function ensureKnowledgeSchemaReady(): void
+    {
+        abort_unless(
+            $this->knowledgeSchemaReady(),
+            503,
+            'Curriculum Knowledge is being initialized. Please retry after the latest database migration has completed.'
+        );
     }
 
     private function guardReader(): void
