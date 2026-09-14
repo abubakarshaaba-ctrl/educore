@@ -285,20 +285,113 @@ internal fun AcademicResourceDetailScreen(
 
 @Composable
 private fun AcademicNoteContent(content: String) {
-    val text = remember(content) { normaliseAcademicText(content) }
-    if (text.isBlank()) {
+    val blocks = remember(content) { parseAcademicNote(content) }
+    if (blocks.isEmpty()) {
         Text("No readable note text is available in this section.", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Slate600)
-    } else {
-        Text(text, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 23.sp), color = EduCoreColors.Ink900)
+        return
+    }
+
+    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 23.sp)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        blocks.forEach { block ->
+            when (block) {
+                is AcademicNoteBlock.Heading -> Text(block.text, Modifier.padding(top = EduCoreSpacing.Sm), style = MaterialTheme.typography.titleMedium.copy(lineHeight = 23.sp), fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
+                is AcademicNoteBlock.Paragraph -> Text(block.text, style = bodyStyle, color = EduCoreColors.Ink900)
+                is AcademicNoteBlock.Bullet -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Text("•", Modifier.width(22.dp), style = bodyStyle, fontWeight = FontWeight.Medium, color = EduCoreColors.Gold700)
+                    Text(block.text, Modifier.weight(1f), style = bodyStyle, color = EduCoreColors.Ink900)
+                }
+                is AcademicNoteBlock.Numbered -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    Text(block.marker, Modifier.width(38.dp), style = bodyStyle, fontWeight = FontWeight.Medium, color = EduCoreColors.Gold700)
+                    Text(block.text, Modifier.weight(1f), style = bodyStyle, color = EduCoreColors.Ink900)
+                }
+            }
+        }
     }
 }
 
-private fun normaliseAcademicText(raw: String): String {
-    val value = raw.replace("\r\n", "\n").replace('\r', '\n').replace('\u00A0', ' ')
-    return if (Regex("</?[A-Za-z][^>]*>").containsMatchIn(value)) {
-        HtmlCompat.fromHtml(value, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
-    } else value.trim()
+private sealed class AcademicNoteBlock {
+    data class Heading(val text: String) : AcademicNoteBlock()
+    data class Paragraph(val text: String) : AcademicNoteBlock()
+    data class Bullet(val text: String) : AcademicNoteBlock()
+    data class Numbered(val marker: String, val text: String) : AcademicNoteBlock()
 }
+
+private val academicHtmlTag = Regex("</?[A-Za-z][^>]*>")
+private val academicMarkdownHeading = Regex("^#{1,6}\\s+(.+)$")
+private val academicNumberedPoint = Regex("^((?:\\d+(?:\\.\\d+)*)|[A-Za-z])[.)]\\s+(.+)$")
+private val academicBulletPrefixes = listOf("• ", "● ", "◦ ", "▪ ", "‣ ", "- ", "* ", "– ", "— ")
+private val academicStructuralHeading = Regex("(?<!^)(?=\\b(?:SUBTOPICS?|INTRODUCTION|MEANING OF|DEFINITION OF|DEFINITIONS OF|CAUSES OF|EFFECTS OF|TYPES OF|FEATURES OF|CHARACTERISTICS OF|IMPORTANCE OF|FUNCTIONS OF|ADVANTAGES OF|DISADVANTAGES OF|APPLICATIONS OF|SUMMARY|CONCLUSION|REVISION|EVALUATION)\\b)")
+private val academicHeadingLabels = setOf(
+    "subtopic", "subtopics", "introduction", "meaning", "definition", "definitions", "overview",
+    "objectives", "learning objectives", "learning outcomes", "features", "characteristics", "types",
+    "classification", "importance", "functions", "examples", "causes", "effects", "advantages",
+    "disadvantages", "applications", "summary", "conclusion", "revision", "evaluation", "weather vs. climate",
+)
+
+private fun parseAcademicNote(raw: String): List<AcademicNoteBlock> {
+    val text = normaliseAcademicNote(raw)
+    if (text.isBlank()) return emptyList()
+    val blocks = mutableListOf<AcademicNoteBlock>()
+    val paragraph = mutableListOf<String>()
+    fun flushParagraph() {
+        if (paragraph.isNotEmpty()) {
+            blocks += AcademicNoteBlock.Paragraph(paragraph.joinToString(" ").normaliseInlineSpacing())
+            paragraph.clear()
+        }
+    }
+    text.lineSequence().forEach { sourceLine ->
+        val line = sourceLine.trim()
+        if (line.isBlank()) { flushParagraph(); return@forEach }
+        academicMarkdownHeading.matchEntire(line)?.let { match ->
+            flushParagraph(); blocks += AcademicNoteBlock.Heading(match.groupValues[1].trim().trimEnd(':')); return@forEach
+        }
+        academicBulletPrefixes.firstOrNull(line::startsWith)?.let { prefix ->
+            flushParagraph(); line.removePrefix(prefix).trim().takeIf(String::isNotBlank)?.let { blocks += AcademicNoteBlock.Bullet(it.normaliseInlineSpacing()) }; return@forEach
+        }
+        academicNumberedPoint.matchEntire(line)?.let { match ->
+            flushParagraph(); blocks += AcademicNoteBlock.Numbered("${match.groupValues[1]}.", match.groupValues[2].trim().normaliseInlineSpacing()); return@forEach
+        }
+        if (isAcademicHeading(line)) {
+            flushParagraph(); blocks += AcademicNoteBlock.Heading(line.trim().trimEnd(':').normaliseInlineSpacing()); return@forEach
+        }
+        paragraph += line
+    }
+    flushParagraph()
+    return blocks
+}
+
+private fun normaliseAcademicNote(raw: String): String {
+    val source = raw.replace("\r\n", "\n").replace('\r', '\n').replace('\u00A0', ' ')
+    val readable = if (academicHtmlTag.containsMatchIn(source)) {
+        val prepared = source
+            .replace(Regex("(?i)<h[1-6][^>]*>"), "# ")
+            .replace(Regex("(?i)</h[1-6]>"), "<br/>")
+            .replace(Regex("(?i)<li[^>]*>"), "• ")
+            .replace(Regex("(?i)</li>"), "<br/>")
+        HtmlCompat.fromHtml(prepared, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
+    } else source
+    return readable
+        .replace('\u00A0', ' ')
+        .replace(Regex("[•●◦▪‣]+\\s*"), "\n• ")
+        .replace(academicStructuralHeading, "\n")
+        .replace(Regex("[ \\t]+\\n"), "\n")
+        .replace(Regex("\\n[ \\t]+"), "\n")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+private fun isAcademicHeading(line: String): Boolean {
+    val candidate = line.trim().trimEnd(':').normaliseInlineSpacing()
+    if (candidate.length !in 2..90) return false
+    val lower = candidate.lowercase()
+    if (lower in academicHeadingLabels) return true
+    val letters = candidate.filter(Char::isLetter)
+    if (letters.length >= 4 && letters.all(Char::isUpperCase)) return true
+    return line.endsWith(':') && candidate.split(Regex("\\s+")).size <= 8
+}
+
+private fun String.normaliseInlineSpacing(): String = trim().replace(Regex("\\s+"), " ")
 
 @Composable
 internal fun RepositoryHeader(title: String, subtitle: String, onBack: () -> Unit) {
