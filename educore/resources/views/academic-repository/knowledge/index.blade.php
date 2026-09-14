@@ -10,9 +10,10 @@
             <h1 class="h3 mb-1">Curriculum Knowledge Base</h1>
             <p class="text-muted mb-0">Structured, approved curriculum content for non-AI lesson plans and student notes.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('academic-repository.index') }}" class="btn btn-outline-secondary">Repository</a>
             @if(auth()->user()?->isAdmin())
+                <a href="{{ route('academic-repository.knowledge.ingestion.index') }}" class="btn btn-outline-primary">Import Repository</a>
                 <a href="{{ route('academic-repository.knowledge.create') }}" class="btn btn-primary">Add topic</a>
             @endif
         </div>
@@ -40,6 +41,13 @@
             </div>
         @endforeach
     </div>
+
+    @if(auth()->user()?->isAdmin())
+        <div class="alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div><strong>Use your existing repository as the source.</strong><div class="small text-muted">The deterministic importer can scaffold draft topics from indexed notes and schemes of work. Nothing is approved automatically.</div></div>
+            <a href="{{ route('academic-repository.knowledge.ingestion.index') }}" class="btn btn-sm btn-outline-primary">Preview import</a>
+        </div>
+    @endif
 
     <form method="GET" class="card mb-4">
         <div class="card-body row g-3">
@@ -69,7 +77,7 @@
                         <td class="text-end"><a href="{{ route('academic-repository.knowledge.show', $topic) }}" class="btn btn-sm btn-outline-primary">Open</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center py-5 text-muted">No structured curriculum topics yet.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No structured curriculum topics yet. @if(auth()->user()?->isAdmin())Use <strong>Import Repository</strong> to create draft topic scaffolds from your existing indexed resources.@endif</td></tr>
                 @endforelse
                 </tbody>
             </table>
