@@ -1,27 +1,32 @@
 @extends('layouts.app')
 
-@section('title', 'Academic Repository')
+@section('title', 'Canonical Sources')
 
 @section('content')
 <div class="repo-shell repository-reader" data-repository-browser>
     <nav class="repo-crumbs" aria-label="Breadcrumb">
         <a href="{{ route('dashboard') }}">Dashboard</a>
         <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        <span>Academic Repository</span>
+        <a href="{{ route('academic-repository.knowledge.index') }}">Academic Knowledge</a>
+        <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        <span>Canonical Sources</span>
     </nav>
 
     <header class="reader-hero">
         <div class="reader-hero-copy">
-            <span class="reader-kicker"><i></i> Canonical knowledge sources</span>
-            <h1>Academic Repository</h1>
-            <p>Approved lesson materials are extracted and indexed as EduCore's canonical knowledge base for deterministic lesson-plan and student-note generation. Downloading the original file is optional.</p>
+            <span class="reader-kicker"><i></i> Evidence and provenance layer</span>
+            <h1>Canonical Sources</h1>
+            <p>Approved materials are extracted, cleaned, fragmented and indexed behind Academic Knowledge. Teachers normally work from consolidated topic knowledge; original files remain here for audit, provenance and reference.</p>
+            <div style="margin-top:16px">
+                <a href="{{ route('academic-repository.knowledge.index') }}" class="repo-button repo-button-primary">Back to Academic Knowledge</a>
+            </div>
         </div>
         <div class="reader-hero-mark" aria-hidden="true">
             <svg viewBox="0 0 64 64"><path d="M12 10h31a7 7 0 0 1 7 7v37H19a7 7 0 0 1-7-7V10Z"/><path d="M19 10v44m9-32h14M28 31h14M28 40h9"/></svg>
         </div>
         <div class="reader-metrics" aria-label="Repository summary">
             @foreach([
-                ['resources', 'Knowledge sources', 'M6 4h12v16H6zM9 8h6M9 12h6'],
+                ['resources', 'Sources', 'M6 4h12v16H6zM9 8h6M9 12h6'],
                 ['classes', 'Classes', 'M3 7h7l2 2h9v10H3z'],
                 ['subjects', 'Subjects', 'M4 5h16v14H4zM8 9h8M8 13h6'],
                 ['sections', 'Indexed sections', 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h4'],
@@ -35,11 +40,12 @@
     </header>
 
     <form method="GET" action="{{ route('academic-repository.index') }}" class="repo-card reader-toolbar">
+        <input type="hidden" name="view" value="sources">
         <input type="hidden" name="selected_class" value="{{ request('selected_class') }}" data-selection-class-field>
         <input type="hidden" name="selected_term" value="{{ request('selected_term') }}" data-selection-term-field>
         <label class="repo-search">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
-            <input name="search" value="{{ request('search') }}" placeholder="Search canonical sources, topics or filenames" aria-label="Search academic resources">
+            <input name="search" value="{{ request('search') }}" placeholder="Search canonical sources, topics or filenames" aria-label="Search canonical sources">
         </label>
         <div class="repo-field reader-subject-filter">
             <label class="sr-only" for="readerSubject">Filter by subject</label>
@@ -52,14 +58,14 @@
         </div>
         <button class="repo-button repo-button-primary">Search</button>
         @if(request()->hasAny(['search', 'subject']))
-            <a href="{{ route('academic-repository.index') }}" class="repo-button repo-button-outline">Clear</a>
+            <a href="{{ route('academic-repository.index', ['view' => 'sources']) }}" class="repo-button repo-button-outline">Clear</a>
         @endif
     </form>
 
     @if($groups->isNotEmpty())
         <section class="repo-class-section" aria-labelledby="readerClassesHeading">
             <div class="repo-section-heading">
-                <div><h2 id="readerClassesHeading">Browse canonical sources by class</h2><p>These indexed materials feed lesson-plan and student-note generation directly.</p></div>
+                <div><h2 id="readerClassesHeading">Browse canonical evidence by class</h2><p>These indexed sources feed Academic Knowledge and deterministic generation directly.</p></div>
                 <span>{{ $groups->count() }} {{ str('class')->plural($groups->count()) }}</span>
             </div>
             <div class="repo-class-grid" role="tablist" aria-label="Available classes">
@@ -112,7 +118,7 @@
                                     <details class="repo-subject reader-subject" data-subject-name="{{ mb_strtolower($subjectLabel) }}" @if($subjects->count() === 1) open @endif>
                                         <summary>
                                             <span class="repo-subject-mark">{{ mb_strtoupper(mb_substr($subjectLabel, 0, 2)) }}</span>
-                                            <span class="repo-subject-copy"><strong>{{ $subjectLabel }}</strong><small>{{ $subjectSources->count() }} indexed knowledge {{ str('source')->plural($subjectSources->count()) }}</small></span>
+                                            <span class="repo-subject-copy"><strong>{{ $subjectLabel }}</strong><small>{{ $subjectSources->count() }} canonical {{ str('source')->plural($subjectSources->count()) }}</small></span>
                                             <span class="reader-ready"><i></i> Indexed</span>
                                             <svg class="repo-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></svg>
                                         </summary>
@@ -127,11 +133,11 @@
                                                     <div class="repo-resource-copy">
                                                         <h3>{{ $source->title }}</h3>
                                                         <p>{{ $source->original_filename }} · {{ number_format($source->fragments_count) }} indexed {{ str('section')->plural($source->fragments_count) }} · {{ $fileSize }}</p>
-                                                        <small style="display:block;margin-top:4px;color:#64748b">EduCore uses the extracted content directly as canonical knowledge. The original file is only for human reference.</small>
+                                                        <small style="display:block;margin-top:4px;color:#64748b">EduCore uses the extracted content as canonical evidence. The original file is retained for human audit and provenance.</small>
                                                     </div>
                                                     <div class="repo-resource-actions">
-                                                        <span class="repo-button repo-button-soft" aria-label="Canonical knowledge source">
-                                                            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h6"/></svg>Canonical source
+                                                        <span class="repo-button repo-button-soft" aria-label="Canonical evidence source">
+                                                            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h6"/></svg>Canonical evidence
                                                         </span>
                                                         @if($source->source_file_path)
                                                             <a href="{{ route('academic-repository.download', $source) }}" class="repo-button repo-button-outline">
@@ -158,7 +164,7 @@
             <span><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/><circle cx="15" cy="15" r="4"/><path d="m18 18 3 3"/></svg></span>
             <h2>No matching canonical sources</h2>
             <p>Try a different keyword or subject filter.</p>
-            <a href="{{ route('academic-repository.index') }}" class="repo-button repo-button-primary">View all sources</a>
+            <a href="{{ route('academic-repository.index', ['view' => 'sources']) }}" class="repo-button repo-button-primary">View all sources</a>
         </section>
     @endif
 </div>
