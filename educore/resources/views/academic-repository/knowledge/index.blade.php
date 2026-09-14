@@ -1,19 +1,19 @@
 @extends('layouts.app')
 
-@section('title', 'Curriculum Knowledge Base')
+@section('title', 'Academic Knowledge')
 
 @section('content')
 <div class="container-fluid py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
-            <div class="text-uppercase small fw-bold text-muted mb-1">Academic Repository</div>
-            <h1 class="h3 mb-1">Curriculum Knowledge Base</h1>
-            <p class="text-muted mb-0">Structured curriculum content for deterministic lesson plans and student notes.</p>
+            <div class="text-uppercase small fw-bold text-muted mb-1">Academic Knowledge</div>
+            <h1 class="h3 mb-1">Canonical Teaching Knowledge</h1>
+            <p class="text-muted mb-0">Consolidated topic knowledge generated from approved indexed sources for deterministic lesson plans and student notes. AI is optional augmentation, not the factual authority.</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('academic-repository.index') }}" class="btn btn-outline-secondary">Repository</a>
+            <a href="{{ route('academic-repository.index', ['view' => 'sources']) }}" class="btn btn-outline-secondary">Canonical Sources</a>
             @if(auth()->user()?->isAdmin())
-                <a href="{{ route('academic-repository.knowledge.ingestion.index') }}" class="btn btn-outline-primary">Import Repository</a>
+                <a href="{{ route('academic-repository.knowledge.ingestion.index') }}" class="btn btn-outline-primary">Import Sources</a>
                 <a href="{{ route('academic-repository.knowledge.create') }}" class="btn btn-primary">Add topic</a>
             @endif
         </div>
@@ -29,6 +29,11 @@
         $multiSource = $readiness->filter(fn($r) => ($r['consolidation']['source_count'] ?? 0) > 1)->count();
         $nearDuplicateRecords = $readiness->sum(fn($r) => count($r['consolidation']['near_duplicates'] ?? []));
     @endphp
+
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <strong>Repository-first generation.</strong>
+        EduCore treats approved repository material as canonical evidence, consolidates it into topic knowledge, and uses that knowledge directly to create teaching content without requiring AI.
+    </div>
 
     <div class="row g-3 mb-4">
         @foreach([
@@ -47,7 +52,7 @@
 
     @if(auth()->user()?->isAdmin())
         <div class="alert alert-light border d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div><strong>Repository consolidation is active.</strong><div class="small text-muted">Matching topic variants from higher-priority curriculum, scheme, syllabus and note sources can complement one another during deterministic generation.</div></div>
+            <div><strong>Canonical source consolidation is active.</strong><div class="small text-muted">Matching topic variants from higher-priority curriculum, scheme, syllabus and lesson-note sources complement one another during deterministic generation while retaining source provenance.</div></div>
             <a href="{{ route('academic-repository.knowledge.ingestion.index') }}" class="btn btn-sm btn-outline-primary">Preview import</a>
         </div>
     @endif
@@ -64,10 +69,10 @@
     </form>
 
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center"><strong>Mapped curriculum topics</strong><span class="small text-muted">{{ $total }} records</span></div>
+        <div class="card-header d-flex justify-content-between align-items-center"><strong>Consolidated knowledge topics</strong><span class="small text-muted">{{ $total }} records</span></div>
         <div class="table-responsive">
             <table class="table align-middle mb-0">
-                <thead><tr><th>Week</th><th>Class / Subject</th><th>Topic</th><th>Sources</th><th>Coverage / Quality</th><th>Readiness</th><th></th></tr></thead>
+                <thead><tr><th>Week</th><th>Class / Subject</th><th>Topic</th><th>Canonical sources</th><th>Coverage / Quality</th><th>Readiness</th><th></th></tr></thead>
                 <tbody>
                 @forelse($topics as $topic)
                     @php $r = $readiness[$topic->id]; @endphp
@@ -78,10 +83,10 @@
                         <td><strong>{{ $r['consolidation']['source_count'] ?? 1 }}</strong>@if(($r['consolidation']['topic_count'] ?? 1) > 1)<div class="small text-muted">{{ $r['consolidation']['topic_count'] }} related records</div>@endif</td>
                         <td><div class="small">Coverage <strong>{{ $r['coverage_score'] ?? 0 }}%</strong></div><div class="small">Quality <strong>{{ $r['quality_score'] ?? 0 }}%</strong></div></td>
                         <td style="min-width:160px"><div class="d-flex align-items-center gap-2"><div class="progress flex-grow-1" style="height:8px"><div class="progress-bar" style="width:{{ $r['score'] }}%"></div></div><strong>{{ $r['score'] }}%</strong></div></td>
-                        <td class="text-end"><a href="{{ route('academic-repository.knowledge.show', $topic) }}" class="btn btn-sm btn-outline-primary">Open</a></td>
+                        <td class="text-end"><a href="{{ route('academic-repository.knowledge.show', $topic) }}" class="btn btn-sm btn-outline-primary">Open knowledge</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No structured curriculum topics yet. @if(auth()->user()?->isAdmin())Use <strong>Import Repository</strong> to create topic scaffolds from your existing indexed resources.@endif</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No structured knowledge topics yet. @if(auth()->user()?->isAdmin())Use <strong>Import Sources</strong> to create topic scaffolds from the indexed canonical repository.@endif</td></tr>
                 @endforelse
                 </tbody>
             </table>
