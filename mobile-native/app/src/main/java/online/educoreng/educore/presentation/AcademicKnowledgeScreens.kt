@@ -42,6 +42,7 @@ import online.educoreng.educore.core.model.KnowledgeTopic
 internal fun AcademicKnowledgeListScreen(
     state: AcademicKnowledgeUiState,
     onBack: () -> Unit,
+    onOpenSources: () -> Unit,
     onQuery: (String) -> Unit,
     onSearch: () -> Unit,
     onReadyOnly: (Boolean) -> Unit,
@@ -49,9 +50,9 @@ internal fun AcademicKnowledgeListScreen(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    if (state.isLoading && state.catalogue == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading curriculum knowledge")
+    if (state.isLoading && state.catalogue == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading academic knowledge")
     val catalogue = state.catalogue ?: return EduCoreErrorState(
-        message = state.errorMessage ?: "Curriculum Knowledge is unavailable.",
+        message = state.errorMessage ?: "Academic Knowledge is unavailable.",
         modifier = Modifier.fillMaxSize(),
         onRetry = onRetry,
     )
@@ -61,7 +62,19 @@ internal fun AcademicKnowledgeListScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { RepositoryHeader("Curriculum Knowledge", "Non-AI lesson plans and student notes", onBack) }
+        item { RepositoryHeader("Academic Knowledge", "Canonical teaching knowledge for lesson plans and student notes", onBack) }
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = EduCoreColors.Gold100),
+                border = BorderStroke(1.dp, EduCoreColors.Line200),
+            ) {
+                Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    Text("Repository-first generation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
+                    Text("EduCore consolidates approved indexed sources into topic knowledge and generates content deterministically. AI is optional augmentation, not the factual authority.", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Navy900)
+                    EduCoreSecondaryButton("View canonical sources", onOpenSources, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -104,9 +117,9 @@ internal fun AcademicKnowledgeDetailScreen(
     onSaveStudentNote: (Long) -> Unit,
     onRetry: (Long) -> Unit,
 ) {
-    if (state.isLoading && state.topic == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Opening curriculum topic")
+    if (state.isLoading && state.topic == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Opening knowledge topic")
     val topic = state.topic ?: return EduCoreErrorState(
-        message = state.errorMessage ?: "This curriculum topic is unavailable.",
+        message = state.errorMessage ?: "This knowledge topic is unavailable.",
         modifier = Modifier.fillMaxSize(),
         onRetry = { },
     )
@@ -124,13 +137,13 @@ internal fun AcademicKnowledgeDetailScreen(
             InfoCard("Quality checks", topic.readiness.critical.joinToString("\n") { "• $it" })
         }
         if (topic.readiness.missing.isNotEmpty()) item {
-            InfoCard("Missing content", topic.readiness.missing.joinToString("\n") { "• $it" })
+            InfoCard("Missing knowledge", topic.readiness.missing.joinToString("\n") { "• $it" })
         }
         topic.consolidation?.let { consolidation ->
             item {
                 InfoCard(
-                    "Multi-source consolidation",
-                    "${consolidation.sourceCount} repository source(s) · ${consolidation.topicCount} related topic record(s) · ${consolidation.usableSourceCount} usable source(s)",
+                    "Canonical source consolidation",
+                    "${consolidation.sourceCount} source(s) · ${consolidation.topicCount} related topic record(s) · ${consolidation.usableSourceCount} usable source(s)",
                 )
             }
         }
@@ -140,7 +153,7 @@ internal fun AcademicKnowledgeDetailScreen(
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
             ) {
                 Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Text("Ranked repository sources", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Canonical evidence", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     topic.sources.forEach { source ->
                         Text(
                             listOfNotNull(source.title ?: source.filename, source.resourceType?.replace('_', ' '), source.priority?.let { "priority $it" }).joinToString(" · "),
@@ -256,7 +269,7 @@ private fun ReadinessCard(topic: KnowledgeTopic) {
         Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
             Text("Generation readiness", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
             Text("${topic.readiness.score}% overall · ${topic.readiness.coverageScore}% coverage${topic.readiness.qualityScore?.let { " · $it% quality" }.orEmpty()}", color = EduCoreColors.Navy900)
-            Text(if (topic.readiness.ready) "Ready for deterministic generation" else "Complete the listed content and quality requirements before generation.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Navy900)
+            Text(if (topic.readiness.ready) "Ready for deterministic generation" else "Complete the listed knowledge and quality requirements before generation.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Navy900)
         }
     }
 }
