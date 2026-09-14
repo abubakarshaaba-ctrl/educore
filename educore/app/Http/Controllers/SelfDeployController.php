@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 class SelfDeployController extends Controller
 {
     private const REPO = 'abubakarshaaba-ctrl/educore';
+    private const APK_ASSET_NAME = 'EduCore.apk';
 
     /** Paths (relative to repo root) synced into the live tree. */
     private const SYNC_PATHS = [
@@ -147,6 +148,11 @@ class SelfDeployController extends Controller
             $migrated = 'error: ' . $e->getMessage();
         }
 
+        // 5. Pull the newest signed Android release asset, when one exists.
+        // This keeps large APK binaries out of the Git history while preserving
+        // /download/app as the single production download endpoint.
+        $apk = $this->syncLatestApk($headers, $docroot);
+
         // opcache_reset() only clears the CURRENT PHP-FPM worker's cache —
         // other workers keep serving stale bytecode until they individually
         // revalidate. The shipped .user.ini (opcache.validate_timestamps=1)
@@ -154,7 +160,7 @@ class SelfDeployController extends Controller
         // worker handling this request.
         $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
 
-        // 5. Tidy up the workspace
+        // 6. Tidy up the workspace
         @unlink($zipPath);
         $this->rrmdir($extractDir);
 
@@ -162,6 +168,7 @@ class SelfDeployController extends Controller
             'ok'       => true,
             'copied'   => $copied,
             'removed'  => $removed,
+            'apk'      => $apk,
             'opcache_reset' => $opcacheReset,
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
@@ -176,6 +183,89 @@ class SelfDeployController extends Controller
     public static function derivedToken(): string
     {
         return hash_hmac('sha256', 'educore-self-deploy', (string) config('app.key'));
+    }
+
+    /**
+     * Download the newest non-draft/non-prerelease GitHub Release asset named
+     * EduCore.apk into the canonical public download location.
+     */
+    private function syncLatestApk(array $headers, string $docroot): array
+    {
+        try {
+            $release = Http::withHeaders($headers)
+                ->timeout(60)
+                ->get('https://api.github.com/repos/' . self::REPO . '/releases/latest');
+
+            if ($release->status() === 404) {
+                return ['status' => 'skipped', 'reason' => 'no-release'];
+            }
+
+            if (!$release->successful()) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'release-query-failed',
+                    'http_status' => $release->status(),
+                ];
+            }
+
+            $releaseData = $release->json();
+            $assets = is_array($releaseData['assets'] ?? null) ? $releaseData['assets'] : [];
+            $asset = collect($assets)->first(
+                fn ($candidate) => ($candidate['name'] ?? null) === self::APK_ASSET_NAME
+            );
+
+            if (!$asset || empty($asset['url'])) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'apk-asset-missing',
+                    'release' => $releaseData['tag_name'] ?? null,
+                ];
+            }
+
+            $assetHeaders = array_merge($headers, [
+                'Accept' => 'application/octet-stream',
+            ]);
+
+            $download = Http::withHeaders($assetHeaders)
+                ->timeout(180)
+                ->get($asset['url']);
+
+            if (!$download->successful()) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'apk-download-failed',
+                    'http_status' => $download->status(),
+                    'release' => $releaseData['tag_name'] ?? null,
+                ];
+            }
+
+            $target = $docroot . '/educore/public/downloads/' . self::APK_ASSET_NAME;
+            @mkdir(dirname($target), 0755, true);
+
+            $tmp = $target . '.tmp';
+            if (file_put_contents($tmp, $download->body()) === false) {
+                @unlink($tmp);
+                return ['status' => 'skipped', 'reason' => 'apk-write-failed'];
+            }
+
+            if (!@rename($tmp, $target)) {
+                @unlink($tmp);
+                return ['status' => 'skipped', 'reason' => 'apk-replace-failed'];
+            }
+
+            return [
+                'status' => 'updated',
+                'release' => $releaseData['tag_name'] ?? null,
+                'size' => filesize($target) ?: null,
+                'sha256' => hash_file('sha256', $target) ?: null,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'skipped',
+                'reason' => 'exception',
+                'message' => mb_substr($e->getMessage(), 0, 200),
+            ];
+        }
     }
 
     private function copyTree(string $src, string $dst): int
@@ -221,5 +311,4 @@ class SelfDeployController extends Controller
         }
         @rmdir($dir);
     }
-
 }
