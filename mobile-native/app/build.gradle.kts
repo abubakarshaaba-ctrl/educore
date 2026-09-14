@@ -148,6 +148,7 @@ dependencies {
     implementation(libs.zxing.embedded)
     implementation(libs.play.services.location)
     implementation(libs.firebase.messaging)
+    implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
