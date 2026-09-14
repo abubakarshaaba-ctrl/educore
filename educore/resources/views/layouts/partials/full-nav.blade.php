@@ -82,9 +82,13 @@
         </a>
         @endif
         @if($u->isAdmin() || $u->isTeacher())
-        <a href="{{ route('academic-repository.index') }}" class="nav-item {{ request()->routeIs('academic-repository.*') ? 'active' : '' }}" data-tip="Academic Repository">
+        <a href="{{ route('academic-repository.index') }}" class="nav-item {{ request()->routeIs('academic-repository.*') && !request()->routeIs('academic-repository.knowledge.*') ? 'active' : '' }}" data-tip="Academic Repository">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V3zm3 3v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z"/></svg>
             <span class="nav-label">Academic Repository</span>
+        </a>
+        <a href="{{ route('academic-repository.knowledge.index') }}" class="nav-item {{ request()->routeIs('academic-repository.knowledge.*') ? 'active' : '' }}" data-tip="Curriculum Knowledge">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm-7 9.18v4L12 20l7-3.82v-4L12 16l-7-3.82z"/></svg>
+            <span class="nav-label">Curriculum Knowledge</span>
         </a>
         @endif
         @if($u->canAccessModule('subjects'))
@@ -423,7 +427,7 @@
         {{-- Subscription billing — admin only --}}
         @if($u->isAdmin())
         <a href="{{ route('billing.subscription') }}" class="nav-item {{ request()->routeIs('billing.*') ? 'active' : '' }}" data-tip="Subscription">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
             <span class="nav-label">Subscription</span>
         </a>
         @endif
