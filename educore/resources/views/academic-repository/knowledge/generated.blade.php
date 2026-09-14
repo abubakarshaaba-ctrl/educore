@@ -11,6 +11,11 @@
                     @csrf
                     <button class="btn btn-success">Save to Lesson Planner</button>
                 </form>
+            @else
+                <form method="POST" action="{{ route('academic-repository.knowledge.student-note.store', $academicTopic) }}">
+                    @csrf
+                    <button class="btn btn-success">Save Student Note</button>
+                </form>
             @endif
             <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
         </div>
