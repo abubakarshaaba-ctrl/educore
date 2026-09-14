@@ -6,6 +6,7 @@ data class NotificationItem(
     val id: Long,
     val title: String,
     val body: String,
+    val imageUrl: String?,
     val priority: String,
     val publishedAt: String,
     val expiresAt: String?,
