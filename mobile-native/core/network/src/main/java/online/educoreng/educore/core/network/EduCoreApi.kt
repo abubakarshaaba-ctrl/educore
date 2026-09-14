@@ -59,7 +59,7 @@ import retrofit2.http.Query
 import retrofit2.http.Multipart
 import retrofit2.http.Part
 
-interface EduCoreApi {
+interface EduCoreApi : AcademicKnowledgeApi {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
 
