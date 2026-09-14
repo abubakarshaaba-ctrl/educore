@@ -10,9 +10,17 @@ class AcademicRepositoryKnowledgeService
 {
     public const REQUIRED_BLOCK_TYPES = ['objective', 'presentation', 'evaluation', 'assignment'];
 
+    public function __construct(
+        private AcademicRepositoryQualityService $quality,
+        private AcademicRepositorySourcePriorityService $sources,
+    ) {
+    }
+
     public function readiness(AcademicTopic $topic): array
     {
         $topic->loadMissing('blocks');
+        $approved = $topic->blocks->where('is_approved', true);
+
         $checks = [
             'Topic mapped' => filled($topic->topic),
             'Sub-topic mapped' => filled($topic->sub_topic),
@@ -27,21 +35,30 @@ class AcademicRepositoryKnowledgeService
             'Instructional resources' => filled($topic->instructional_resources),
             'Introduction' => filled($topic->introduction),
             'Reference' => filled($topic->reference),
-            'Objectives' => $topic->blocks->where('block_type', 'objective')->where('is_approved', true)->isNotEmpty(),
-            'Presentation steps' => $topic->blocks->where('block_type', 'presentation')->where('is_approved', true)->isNotEmpty(),
-            'Evaluation' => $topic->blocks->where('block_type', 'evaluation')->where('is_approved', true)->isNotEmpty(),
-            'Assignment' => $topic->blocks->where('block_type', 'assignment')->where('is_approved', true)->isNotEmpty(),
-            'Student-note content' => filled($topic->student_note_summary) || $topic->blocks->whereIn('block_type', ['definition', 'explanation', 'example', 'practical', 'note'])->where('is_approved', true)->isNotEmpty(),
+            'Objectives' => $approved->where('block_type', 'objective')->isNotEmpty(),
+            'Presentation steps' => $approved->where('block_type', 'presentation')->isNotEmpty(),
+            'Evaluation' => $approved->where('block_type', 'evaluation')->isNotEmpty(),
+            'Assignment' => $approved->where('block_type', 'assignment')->isNotEmpty(),
+            'Student-note content' => filled($topic->student_note_summary) || $approved->whereIn('block_type', ['definition', 'explanation', 'example', 'practical', 'note'])->isNotEmpty(),
         ];
 
         $complete = collect($checks)->filter()->count();
-        $score = (int) round(($complete / count($checks)) * 100);
+        $coverageScore = (int) round(($complete / count($checks)) * 100);
+        $quality = $this->quality->inspect($topic);
+        $combinedScore = (int) round(($coverageScore * 0.55) + ($quality['score'] * 0.45));
 
         return [
-            'score' => $score,
-            'ready' => $score >= 80 && $topic->status === 'approved',
+            'score' => $combinedScore,
+            'coverage_score' => $coverageScore,
+            'quality_score' => $quality['score'],
+            'ready' => $coverageScore >= 80
+                && $quality['score'] >= 70
+                && empty($quality['critical'])
+                && $topic->status === 'approved',
             'checks' => $checks,
-            'missing' => collect($checks)->filter(fn ($ok) => !$ok)->keys()->values()->all(),
+            'missing' => collect($checks)->filter(fn ($ok) => ! $ok)->keys()->values()->all(),
+            'quality' => $quality,
+            'sources' => $this->sources->provenance($topic),
         ];
     }
 
@@ -49,6 +66,7 @@ class AcademicRepositoryKnowledgeService
     {
         $topic->loadMissing('blocks');
         $approved = $topic->blocks->where('is_approved', true);
+        $readiness = $this->readiness($topic);
 
         return [
             'class' => $topic->class_label,
@@ -73,6 +91,12 @@ class AcademicRepositoryKnowledgeService
             'evaluation' => $this->contents($approved, 'evaluation'),
             'assignment' => $this->contents($approved, 'assignment'),
             'reference' => $topic->reference,
+            'quality' => [
+                'score' => $readiness['quality_score'],
+                'coverage_score' => $readiness['coverage_score'],
+                'issues' => $readiness['quality']['issues'],
+            ],
+            'sources' => $readiness['sources'],
         ];
     }
 
@@ -86,6 +110,7 @@ class AcademicRepositoryKnowledgeService
                 'heading' => $block->title ?: Str::headline($block->block_type),
                 'content' => trim($block->content),
             ])->values()->all();
+        $readiness = $this->readiness($topic);
 
         return [
             'class' => $topic->class_label,
@@ -100,6 +125,12 @@ class AcademicRepositoryKnowledgeService
             'review_questions' => $this->contents($approved, 'evaluation'),
             'assignment' => $this->contents($approved, 'assignment'),
             'reference' => $topic->reference,
+            'quality' => [
+                'score' => $readiness['quality_score'],
+                'coverage_score' => $readiness['coverage_score'],
+                'issues' => $readiness['quality']['issues'],
+            ],
+            'sources' => $readiness['sources'],
         ];
     }
 
