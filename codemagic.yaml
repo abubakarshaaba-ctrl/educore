@@ -154,7 +154,7 @@ workflows:
           EXPECTED_APPLICATION_ID="online.educoreng.educore"
           EXPECTED_VERSION_CODE="16"
           EXPECTED_VERSION_NAME="2.0.0-alpha03"
-          EXPECTED_CERT_SHA256="179DD94D4CE0E7965BFB1B0351A45E6036E5E42A67F67A75E4AE4616C426D511"
+          EXPECTED_CERT_SHA256="0B8A9AB52F7790F98E4B76010F3C2809A71958C5F28CB4FFE329EDDCEC59049E"
 
           APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort | tail -n 1)"
           AAPT="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name aapt 2>/dev/null | sort | tail -n 1)"
