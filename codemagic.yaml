@@ -152,9 +152,22 @@ workflows:
           set -euo pipefail
           APK="app/build/outputs/apk/release/EduCore.apk"
           EXPECTED_APPLICATION_ID="online.educoreng.educore"
-          EXPECTED_VERSION_CODE="16"
-          EXPECTED_VERSION_NAME="2.0.0-alpha03"
           EXPECTED_CERT_SHA256="F170B538AD1DCD796605BEA61DDA69348205203449224681D044D6E2C856E4A0"
+
+          read -r EXPECTED_VERSION_CODE EXPECTED_VERSION_NAME <<EOF
+          $(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("app/build.gradle.kts").read_text()
+          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
+          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
+          if not code or not name:
+              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
+          print(code.group(1), name.group(1))
+          PY
+          )
+          EOF
 
           APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort | tail -n 1)"
           AAPT="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name aapt 2>/dev/null | sort | tail -n 1)"
@@ -189,11 +202,11 @@ workflows:
             exit 1
           fi
           if [ "$VERSION_CODE" != "$EXPECTED_VERSION_CODE" ]; then
-            echo "Unexpected release versionCode: $VERSION_CODE"
+            echo "Unexpected release versionCode: $VERSION_CODE (expected $EXPECTED_VERSION_CODE)"
             exit 1
           fi
           if [ "$VERSION_NAME" != "$EXPECTED_VERSION_NAME" ]; then
-            echo "Unexpected release versionName: $VERSION_NAME"
+            echo "Unexpected release versionName: $VERSION_NAME (expected $EXPECTED_VERSION_NAME)"
             exit 1
           fi
           if printf '%s\n' "$BADGING" | grep -q '^application-debuggable'; then
@@ -221,8 +234,22 @@ workflows:
           REPO="abubakarshaaba-ctrl/educore"
           SHORT_SHA="$(printf '%s' "${CM_COMMIT:?CM_COMMIT is required}" | cut -c1-12)"
           BUILD_NO="${BUILD_NUMBER:?BUILD_NUMBER is required}"
-          VERSION_CODE="16"
-          VERSION_NAME="2.0.0-alpha03"
+
+          read -r VERSION_CODE VERSION_NAME <<EOF
+          $(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("app/build.gradle.kts").read_text()
+          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
+          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
+          if not code or not name:
+              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
+          print(code.group(1), name.group(1))
+          PY
+          )
+          EOF
+
           TAG="android-v${VERSION_NAME}-code${VERSION_CODE}-b${BUILD_NO}-${SHORT_SHA}"
           RELEASE_NAME="EduCore Android ${VERSION_NAME} (versionCode ${VERSION_CODE}, Codemagic ${BUILD_NO})"
 
