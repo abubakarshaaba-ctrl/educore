@@ -9,6 +9,7 @@ use App\Services\AcademicTopicLessonPlanService;
 use App\Services\AcademicTopicStudentNoteService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
 
 class MobileAcademicKnowledgeController extends Controller
 {
@@ -21,6 +22,8 @@ class MobileAcademicKnowledgeController extends Controller
     public function index(Request $request)
     {
         $this->guardReader($request);
+        if ($response = $this->schemaUnavailableResponse()) return $response;
+
         $data = $request->validate([
             'class' => ['nullable','string','max:100'],
             'term' => ['nullable','string','max:100'],
@@ -62,6 +65,7 @@ class MobileAcademicKnowledgeController extends Controller
     public function show(Request $request, AcademicTopic $topic)
     {
         $this->guardReader($request);
+        if ($response = $this->schemaUnavailableResponse()) return $response;
         $topic->load(['source','blocks']);
         return response()->json(['contract_version'=>1,'generated_at'=>now()->toIso8601String(),'topic'=>$this->topicPayload($topic, true)]);
     }
@@ -69,6 +73,7 @@ class MobileAcademicKnowledgeController extends Controller
     public function generate(Request $request, AcademicTopic $topic, string $type)
     {
         $this->guardReader($request);
+        if ($response = $this->schemaUnavailableResponse()) return $response;
         abort_unless(in_array($type, ['lesson-plan','student-note'], true), 404);
         $topic->load(['source','blocks']);
         $readiness = $this->knowledge->readiness($topic);
@@ -87,6 +92,7 @@ class MobileAcademicKnowledgeController extends Controller
     public function saveLessonPlan(Request $request, AcademicTopic $topic)
     {
         $this->guardReader($request);
+        if ($response = $this->schemaUnavailableResponse()) return $response;
         $plan = $this->lessonPlans->save($topic, $request->user());
         return response()->json(['message'=>'Lesson plan saved to Lesson Planner.','lesson_plan_id'=>$plan->id]);
     }
@@ -94,6 +100,7 @@ class MobileAcademicKnowledgeController extends Controller
     public function saveStudentNote(Request $request, AcademicTopic $topic)
     {
         $this->guardReader($request);
+        if ($response = $this->schemaUnavailableResponse()) return $response;
         $revision = $this->studentNotes->save($topic, $request->user());
         return response()->json(['message'=>'Student note saved to Lesson Planner.','lesson_plan_id'=>$revision->lesson_plan_id,'revision'=>$revision->revision]);
     }
@@ -163,6 +170,18 @@ class MobileAcademicKnowledgeController extends Controller
     private function numbered(array $items): string
     {
         return collect($items)->values()->map(fn($item, $i) => ($i+1).'. '.trim((string)$item))->implode("\n");
+    }
+
+    private function schemaUnavailableResponse()
+    {
+        if (Schema::hasTable('academic_topics') && Schema::hasTable('academic_topic_blocks')) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'Curriculum Knowledge is being initialized. Please retry after the latest server update completes.',
+            'code' => 'academic_knowledge_initializing',
+        ], 503);
     }
 
     private function guardReader(Request $request): void
