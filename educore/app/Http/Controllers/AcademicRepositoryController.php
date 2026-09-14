@@ -14,6 +14,12 @@ class AcademicRepositoryController extends Controller
     {
         $this->guardReader();
 
+        // Academic Knowledge is now the teaching interface. Canonical source
+        // files remain available only as the evidence/provenance layer.
+        if ($request->string('view')->toString() !== 'sources') {
+            return redirect()->route('academic-repository.knowledge.index');
+        }
+
         $catalogue = $this->availableSources()->get();
         $subjectNames = $catalogue
             ->map(fn (CurriculumSource $source) => $this->metadataLabel($source, 'subject_label', 'Unmapped subject'))
@@ -72,7 +78,7 @@ class AcademicRepositoryController extends Controller
         }
 
         return redirect()
-            ->route('academic-repository.index')
+            ->route('academic-repository.index', ['view' => 'sources'])
             ->with('warning', 'The original resource file is unavailable, but its indexed content remains available to EduCore as canonical repository knowledge.');
     }
 
