@@ -79,6 +79,8 @@ internal fun AcademicRepositoryScreen(
     onRetry: () -> Unit,
     onDocumentOpened: () -> Unit,
 ) {
+    @Suppress("UNUSED_VARIABLE")
+    val legacyResourceOpenDisabled = onOpen
     val knowledgeViewModel: AcademicKnowledgeViewModel = hiltViewModel()
     val knowledgeState by knowledgeViewModel.uiState.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(RepositoryMode.RESOURCES) }
@@ -152,16 +154,16 @@ internal fun AcademicRepositoryScreen(
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
-        item { RepositoryHeader("Academic Repository", "Notes, schemes, resources and curriculum knowledge", onBack) }
+        item { RepositoryHeader("Academic Repository", "Canonical curriculum sources for lesson plans and student notes", onBack) }
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.Gold100),
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
             ) {
                 Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Text("Curriculum Knowledge", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
-                    Text("Generate quality lesson plans and student notes deterministically from mapped repository content — no AI required.", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Navy900)
-                    EduCorePrimaryButton("Open Curriculum Knowledge", { mode = RepositoryMode.KNOWLEDGE }, modifier = Modifier.fillMaxWidth())
+                    Text("Canonical Knowledge", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
+                    Text("EduCore extracts and indexes repository content, then uses the mapped knowledge directly to create content-rich lesson plans and student notes without depending on AI.", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Navy900)
+                    EduCorePrimaryButton("Open Canonical Knowledge", { mode = RepositoryMode.KNOWLEDGE }, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -177,7 +179,7 @@ internal fun AcademicRepositoryScreen(
         }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                EduCoreSearchBar(state.query, onQuery, Modifier.weight(1f), "Search notes")
+                EduCoreSearchBar(state.query, onQuery, Modifier.weight(1f), "Search canonical sources")
                 Spacer(Modifier.width(EduCoreSpacing.Sm))
                 EduCorePrimaryButton("Search", onSearch)
             }
@@ -208,11 +210,14 @@ internal fun AcademicRepositoryScreen(
             }
         }
         item {
-            Text(listOfNotNull(state.selectedClass, state.selectedTerm, state.selectedSubject).ifEmpty { listOf("All resources") }.joinToString(" · "), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                Text(listOfNotNull(state.selectedClass, state.selectedTerm, state.selectedSubject).ifEmpty { listOf("All canonical sources") }.joinToString(" · "), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("These files are source material for EduCore's indexed knowledge base. They are no longer opened as a separate read-only note screen.", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+            }
         }
         val resources = catalogue?.resources.orEmpty()
-        if (resources.isEmpty()) item { EduCoreEmptyState("No resources found", "Choose another class, term or subject, or clear the search.") }
-        items(resources, key = RepositoryResource::id) { resource -> RepositoryResourceCard(resource) { onOpen(resource.id) } }
+        if (resources.isEmpty()) item { EduCoreEmptyState("No canonical sources found", "Choose another class, term or subject, or clear the search.") }
+        items(resources, key = RepositoryResource::id) { resource -> RepositoryResourceCard(resource) }
         if (catalogue != null && catalogue.currentPage < catalogue.lastPage) item {
             EduCoreSecondaryButton(text = if (state.isLoadingMore) "Loading…" else "Load more (${resources.size} of ${catalogue.total})", onClick = onLoadMore, enabled = !state.isLoadingMore, modifier = Modifier.fillMaxWidth())
         }
@@ -412,15 +417,18 @@ private fun RepositoryMetric(label: String, value: String) {
 private fun FilterLabel(value: String) = Text(value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium, color = EduCoreColors.Slate600)
 
 @Composable
-private fun RepositoryResourceCard(resource: RepositoryResource, onOpen: () -> Unit) {
-    Card(onClick = onOpen, colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
+private fun RepositoryResourceCard(resource: RepositoryResource) {
+    Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
         Row(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = EduCoreColors.Gold100, shape = MaterialTheme.shapes.medium) { Icon(Icons.Default.Description, null, Modifier.padding(EduCoreSpacing.Md), tint = EduCoreColors.Navy900) }
             Spacer(Modifier.width(EduCoreSpacing.Md))
             Column(Modifier.weight(1f)) {
                 Text(resource.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 Text("${resource.className} · ${resource.term} · ${resource.subject}", color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
-                Text("${resource.fragmentsCount} sections · ${resource.filename.orEmpty()}", color = EduCoreColors.Muted500, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Canonical source · ${resource.fragmentsCount} indexed sections", color = EduCoreColors.Gold700, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                resource.filename?.takeIf(String::isNotBlank)?.let { filename ->
+                    Text(filename, color = EduCoreColors.Muted500, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             Icon(Icons.Default.Folder, null, tint = EduCoreColors.Gold600)
         }
