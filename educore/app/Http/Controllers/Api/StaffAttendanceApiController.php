@@ -6,15 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\StaffAttendanceController;
 use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
+use App\Models\StaffOfflineClockIn;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
  * Staff self-attendance for the mobile app.
  *
- * Clock-in/out reuse the existing StaffAttendanceController JSON endpoints
- * (QR + geo-fence rules identical to the web PWA); this controller only
- * adds the mobile summary feed.
+ * Online clock-in/out reuse the existing StaffAttendanceController JSON
+ * endpoints. A self clock-in captured while offline is uploaded later through
+ * the same endpoint with captured_at; the server stores it in the existing
+ * offline review queue instead of pretending it was verified live.
  */
 class StaffAttendanceApiController extends Controller
 {
@@ -24,12 +26,20 @@ class StaffAttendanceApiController extends Controller
      * The school display/ID-card QR encodes a URL like
      * ".../staff-attendance/my?qr_token=<payload>". The web PWA reads the
      * qr_token from the query string when the browser opens that URL, but the
-     * app scans the raw string — so we normalise it to the bare token here,
-     * then delegate to the proven web clock-in logic (QR + geo-fence rules).
+     * app scans the raw string — so we normalise it to the bare token here.
+     *
+     * When captured_at is supplied this is a delayed/offline self clock-in.
+     * It is validated against the authenticated staff member, QR evidence and
+     * the school's geofence, then placed in StaffOfflineClockIn for admin
+     * review. Proxy attendance is deliberately not accepted through this path.
      */
     public function clockIn(Request $request, StaffAttendanceController $web)
     {
         $this->normaliseScannedToken($request, 'token');
+
+        if ($request->filled('captured_at')) {
+            return $this->storeOfflineClockIn($request);
+        }
 
         return $web->clockInQr($request);
     }
@@ -46,12 +56,93 @@ class StaffAttendanceApiController extends Controller
         return $web->proxyClockInWithPhoto($request);
     }
 
+    private function storeOfflineClockIn(Request $request)
+    {
+        $data = $request->validate([
+            'token'       => ['required', 'string', 'max:4096'],
+            'lat'         => ['nullable', 'numeric', 'between:-90,90'],
+            'lng'         => ['nullable', 'numeric', 'between:-180,180'],
+            'captured_at' => ['required', 'date'],
+            'request_id'  => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $user = $request->user();
+        $capturedAt = Carbon::parse($data['captured_at']);
+
+        // Offline attendance is intended for short connectivity outages, not
+        // historical reconstruction or future-dated clock-ins.
+        if ($capturedAt->gt(now()->addMinutes(5)) || $capturedAt->lt(now()->subDays(2))) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'The offline attendance timestamp is outside the allowed upload window.',
+            ], 422);
+        }
+
+        $settings = StaffAttendanceSetting::firstOrCreate(['tenant_id' => $user->tenant_id]);
+        $token = (string) $data['token'];
+        $personalUser = $settings->verifyPersonalQrToken($token);
+        $validPersonal = $personalUser && (int) $personalUser->id === (int) $user->id;
+        $validSchoolQr = $settings->verifyStaticQrToken($token) || $settings->verifyQrToken($token);
+
+        if (!$validPersonal && !$validSchoolQr) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'The saved QR evidence is no longer valid for this staff member.',
+            ], 422);
+        }
+
+        if ($settings->geo_enabled) {
+            if (!isset($data['lat'], $data['lng'])) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Location evidence is required for this school\'s offline attendance.',
+                ], 422);
+            }
+
+            $distance = $settings->distanceTo((float) $data['lat'], (float) $data['lng']);
+            if ($distance > $settings->geo_radius_meters) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => round($distance) . "m from school. Must be within {$settings->geo_radius_meters}m.",
+                ], 422);
+            }
+        }
+
+        $date = $capturedAt->toDateString();
+        $time = $capturedAt->format('H:i:s');
+
+        // Natural idempotency for retries from WorkManager. A reconnect may
+        // replay the same locally queued operation more than once.
+        StaffOfflineClockIn::firstOrCreate(
+            [
+                'tenant_id'       => $user->tenant_id,
+                'user_id'         => $user->id,
+                'clocked_by'      => $user->id,
+                'attendance_date' => $date,
+                'clock_in_time'   => $time,
+            ],
+            [
+                'qr_token' => $token,
+                'lat'      => $data['lat'] ?? null,
+                'lng'      => $data['lng'] ?? null,
+                'status'   => 'pending',
+            ],
+        );
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Offline attendance uploaded and is pending verification.',
+            'queued' => 1,
+            'request_id' => $data['request_id'] ?? null,
+        ]);
+    }
+
     /**
      * The display/ID-card QR encodes a URL like
      * ".../staff-attendance/my?qr_token=<payload>". The web PWA reads the
-     * qr_token from the query string when the browser opens that URL, but
-     * the app scans the raw string — normalise it to the bare token so the
-     * shared web verification logic (QR + geo-fence) accepts it unchanged.
+     * qr_token from the query string when the browser opens that URL, but the
+     * app scans the raw string — normalise it to the bare token so the shared
+     * verification logic accepts it unchanged.
      */
     private function normaliseScannedToken(Request $request, string $field): void
     {
