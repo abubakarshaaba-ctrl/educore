@@ -7,11 +7,6 @@ use Illuminate\Support\Collection;
 
 class AcademicRepositorySourcePriorityService
 {
-    /**
-     * Higher values are preferred when several repository resources cover the
-     * same curriculum topic. The ordering is deliberately explicit and stable
-     * so generation never depends on an opaque ranking algorithm.
-     */
     public const RESOURCE_PRIORITY = [
         'curriculum' => 100,
         'scheme_of_work' => 95,
@@ -25,6 +20,10 @@ class AcademicRepositorySourcePriorityService
         'other' => 40,
     ];
 
+    public function __construct(private AcademicRepositoryTopicMatcher $matcher)
+    {
+    }
+
     public function score(AcademicTopic $topic): int
     {
         $base = self::RESOURCE_PRIORITY[$topic->resource_type] ?? self::RESOURCE_PRIORITY['other'];
@@ -33,7 +32,6 @@ class AcademicRepositorySourcePriorityService
         if ($source?->is_official) {
             $base += 5;
         }
-
         if ($source?->is_active) {
             $base += 2;
         }
@@ -43,7 +41,7 @@ class AcademicRepositorySourcePriorityService
 
     public function provenance(AcademicTopic $topic): array
     {
-        $candidates = $this->matchingTopics($topic)
+        return $this->matchingTopics($topic)
             ->map(function (AcademicTopic $candidate) use ($topic) {
                 $source = $candidate->source;
 
@@ -54,6 +52,7 @@ class AcademicRepositorySourcePriorityService
                     'filename' => $source?->original_filename,
                     'resource_type' => $candidate->resource_type,
                     'priority' => $this->score($candidate),
+                    'similarity' => round($this->matcher->similarity($topic->topic, $candidate->topic), 2),
                     'is_official' => (bool) ($source?->is_official),
                     'is_primary' => (int) $candidate->id === (int) $topic->id,
                     'reference' => $candidate->reference,
@@ -62,9 +61,9 @@ class AcademicRepositorySourcePriorityService
             ->filter(fn (array $item) => filled($item['title']) || filled($item['filename']) || filled($item['reference']))
             ->sortByDesc('priority')
             ->unique(fn (array $item) => $item['source_id'] ?: ($item['filename'] ?: $item['title']))
-            ->values();
-
-        return $candidates->take(8)->all();
+            ->values()
+            ->take(8)
+            ->all();
     }
 
     public function primary(AcademicTopic $topic): ?array
@@ -78,8 +77,7 @@ class AcademicRepositorySourcePriorityService
             ->with('source')
             ->where('class_label', $topic->class_label)
             ->where('subject_label', $topic->subject_label)
-            ->where('term_label', $topic->term_label)
-            ->whereRaw('LOWER(topic) = ?', [mb_strtolower(trim((string) $topic->topic))]);
+            ->where('term_label', $topic->term_label);
 
         if ($topic->week_number) {
             $query->where(function ($scope) use ($topic) {
@@ -87,13 +85,16 @@ class AcademicRepositorySourcePriorityService
             });
         }
 
-        $items = $query->get();
+        $items = $query->limit(250)->get()->filter(function (AcademicTopic $candidate) use ($topic) {
+            return (int) $candidate->id === (int) $topic->id
+                || $this->matcher->isNearDuplicate($topic->topic, $candidate->topic);
+        });
 
         if (! $items->contains('id', $topic->id)) {
             $topic->loadMissing('source');
             $items->push($topic);
         }
 
-        return $items;
+        return $items->values();
     }
 }
