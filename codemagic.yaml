@@ -220,7 +220,7 @@ workflows:
           CHECKSUM="app/build/outputs/apk/release/EduCore.apk.sha256"
           REPO="abubakarshaaba-ctrl/educore"
           SHORT_SHA="$(printf '%s' "${CM_COMMIT:?CM_COMMIT is required}" | cut -c1-12)"
-          BUILD_NO="${CM_BUILD_NUMBER:?CM_BUILD_NUMBER is required}"
+          BUILD_NO="${BUILD_NUMBER:?BUILD_NUMBER is required}"
           VERSION_CODE="16"
           VERSION_NAME="2.0.0-alpha03"
           TAG="android-v${VERSION_NAME}-code${VERSION_CODE}-b${BUILD_NO}-${SHORT_SHA}"
