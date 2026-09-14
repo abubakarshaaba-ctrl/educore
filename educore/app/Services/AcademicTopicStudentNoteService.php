@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AcademicTopic;
 use App\Models\LessonNoteRevision;
-use App\Models\LessonPlan;
 use App\Models\User;
 use App\Services\LessonPlanning\StructuredNoteRenderer;
 use Illuminate\Support\Facades\DB;
@@ -143,8 +142,10 @@ class AcademicTopicStudentNoteService
     private function lines(array $items): string
     {
         return collect($items)
-            ->map(fn ($item, $index) => ($index + 1).'. '.trim((string) $item))
-            ->filter(fn ($item) => trim($item) !== '')
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->map(fn ($item, $index) => ($index + 1).'. '.$item)
             ->implode("\n");
     }
 }
