@@ -14,7 +14,9 @@ class PlatformBroadcastImageContractTest extends TestCase
         $noticeView = file_get_contents(resource_path('views/announcements/index.blade.php'));
         $mobileRoutes = file_get_contents(base_path('routes/mobile-platform-broadcasts.php'));
 
-        $this->assertStringContainsString("'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120']", $controller);
+        $this->assertStringContainsString("'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body']", $controller);
+        $this->assertStringContainsString("'body' => ['nullable', 'string', 'max:5000', 'required_without:image']", $controller);
+        $this->assertStringContainsString("$body = trim((string) ($data['body'] ?? ''))", $controller);
         $this->assertStringContainsString("store('platform-broadcasts', 'public')", $controller);
         $this->assertStringContainsString('Storage::disk(\'public\')->delete($imagePath)', $controller);
         $this->assertStringContainsString("'image_path' => \$imagePath", $controller);
@@ -22,6 +24,8 @@ class PlatformBroadcastImageContractTest extends TestCase
         $this->assertStringContainsString('enctype="multipart/form-data"', $view);
         $this->assertStringContainsString('name="image"', $view);
         $this->assertStringContainsString('accept="image/jpeg,image/png,image/webp"', $view);
+        $this->assertStringNotContainsString('name="body" class="fc" rows="4" placeholder="Write your broadcast message here..." required', $view);
+        $this->assertStringContainsString('image-only broadcast', $view);
         $this->assertStringContainsString('$bc->image_path', $view);
         $this->assertStringContainsString('$ann->image_path', $noticeView);
 
