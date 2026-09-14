@@ -2,6 +2,7 @@ package online.educoreng.educore.core.data.repository
 
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
+import java.time.OffsetDateTime
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -29,6 +30,7 @@ import online.educoreng.educore.core.network.dto.ClassStudentsResponseDto
 import online.educoreng.educore.core.network.dto.ClockInRequestDto
 import online.educoreng.educore.core.network.dto.ProxyClockInRequestDto
 import online.educoreng.educore.core.network.dto.SaveAttendanceRequestDto
+import online.educoreng.educore.core.network.dto.StaffAttendanceResponseDto
 import online.educoreng.educore.core.network.safeApiCall
 import online.educoreng.educore.core.network.toDomain
 
@@ -43,6 +45,8 @@ class DefaultClassWorkspaceRepository(
     private val studentsAdapter by lazy { moshi.adapter(ClassStudentsResponseDto::class.java) }
     private val attendanceAdapter by lazy { moshi.adapter(AttendanceSheetResponseDto::class.java) }
     private val attendanceRequestAdapter by lazy { moshi.adapter(SaveAttendanceRequestDto::class.java) }
+    private val staffAttendanceAdapter by lazy { moshi.adapter(StaffAttendanceResponseDto::class.java) }
+    private val staffClockInAdapter by lazy { moshi.adapter(ClockInRequestDto::class.java) }
 
     override suspend fun loadClasses(forceRefresh: Boolean): AppResult<ClassCatalogue> = withContext(Dispatchers.IO) {
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
@@ -224,13 +228,35 @@ class DefaultClassWorkspaceRepository(
                 }
             }
         }
+        retry = syncPendingStaffAttendance(scope) || retry
         retry
     }
 
     override suspend fun loadStaffAttendance(): AppResult<StaffAttendanceSnapshot> = withContext(Dispatchers.IO) {
+        val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
+        // Best effort: if connectivity is back, flush any self clock-in captured
+        // offline before requesting the latest server snapshot.
+        syncPendingStaffAttendance(scope)
+
         when (val result = safeApiCall(moshi) { api.staffAttendance() }) {
-            is AppResult.Success -> AppResult.Success(result.value.toDomain())
-            is AppResult.Failure -> result
+            is AppResult.Success -> {
+                database.classWorkspaceDao().replaceCache(
+                    CachedClassWorkspaceEntity(
+                        tenantKey = scope.tenantKey,
+                        userId = scope.userId,
+                        cacheKey = STAFF_ATTENDANCE_CACHE_KEY,
+                        payloadJson = staffAttendanceAdapter.toJson(result.value),
+                        sourceGeneratedAt = OffsetDateTime.now().toString(),
+                        cachedAtEpochMs = nowEpochMs(),
+                    ),
+                )
+                AppResult.Success(result.value.toDomain())
+            }
+            is AppResult.Failure -> {
+                val cache = database.classWorkspaceDao().cache(scope.tenantKey, scope.userId, STAFF_ATTENDANCE_CACHE_KEY)
+                val dto = cache?.let { runCatching { staffAttendanceAdapter.fromJson(it.payloadJson) }.getOrNull() }
+                if (dto != null) AppResult.Success(dto.toDomain()) else result
+            }
         }
     }
 
@@ -239,9 +265,35 @@ class DefaultClassWorkspaceRepository(
         latitude: Double?,
         longitude: Double?,
     ): AppResult<String> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { api.clockIn(ClockInRequestDto(token, latitude, longitude)) }) {
+        val request = ClockInRequestDto(token.trim(), latitude, longitude)
+        when (val result = safeApiCall(moshi) { api.clockIn(request) }) {
             is AppResult.Success -> AppResult.Success(result.value.message)
-            is AppResult.Failure -> result
+            is AppResult.Failure -> {
+                val offlineEligible = result.error is AppError.NetworkUnavailable || result.error is AppError.Timeout
+                if (!offlineEligible) return@withContext result
+
+                val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
+                val requestId = UUID.randomUUID().toString()
+                val queuedRequest = request.copy(
+                    capturedAt = OffsetDateTime.now().toString(),
+                    requestId = requestId,
+                )
+                val operation = SyncOperationEntity(
+                    tenantKey = scope.tenantKey,
+                    userId = scope.userId,
+                    operationKey = "$STAFF_ATTENDANCE_KEY_PREFIX:$requestId",
+                    kind = STAFF_ATTENDANCE_KIND,
+                    requestId = requestId,
+                    payloadJson = staffClockInAdapter.toJson(queuedRequest),
+                    state = "pending",
+                    attemptCount = 0,
+                    lastError = result.error.userMessage,
+                    createdAtEpochMs = nowEpochMs(),
+                    updatedAtEpochMs = nowEpochMs(),
+                )
+                database.syncOperationDao().upsert(operation)
+                AppResult.Success("Attendance saved offline. It will sync automatically when your connection returns and remain pending until verified.")
+            }
         }
     }
 
@@ -287,6 +339,36 @@ class DefaultClassWorkspaceRepository(
             is AppResult.Success -> AppResult.Success(result.value.message)
             is AppResult.Failure -> result
         }
+    }
+
+    private suspend fun syncPendingStaffAttendance(scope: UserScope): Boolean {
+        var retry = false
+        database.syncOperationDao().actionable(scope.tenantKey, scope.userId, STAFF_ATTENDANCE_KIND).forEach { operation ->
+            val request = runCatching { staffClockInAdapter.fromJson(operation.payloadJson) }.getOrNull()
+            if (request == null) {
+                database.syncOperationDao().upsert(
+                    operation.copy(state = "failed", lastError = "Saved offline attendance could not be read.", updatedAtEpochMs = nowEpochMs()),
+                )
+                return@forEach
+            }
+
+            when (val result = safeApiCall(moshi) { api.clockIn(request) }) {
+                is AppResult.Success -> database.syncOperationDao().delete(scope.tenantKey, scope.userId, operation.operationKey)
+                is AppResult.Failure -> {
+                    val transient = result.error is AppError.NetworkUnavailable || result.error is AppError.Timeout || result.error is AppError.Server || result.error is AppError.RateLimited
+                    database.syncOperationDao().upsert(
+                        operation.copy(
+                            state = if (transient) "pending" else "failed",
+                            attemptCount = operation.attemptCount + 1,
+                            lastError = result.error.userMessage,
+                            updatedAtEpochMs = nowEpochMs(),
+                        ),
+                    )
+                    retry = retry || transient
+                }
+            }
+        }
+        return retry
     }
 
     private suspend fun mergeDraft(scope: UserScope, sheet: AttendanceSheet): AttendanceSheet {
@@ -380,7 +462,10 @@ class DefaultClassWorkspaceRepository(
 
     private companion object {
         const val CLASSES_CACHE_KEY = "classes"
+        const val STAFF_ATTENDANCE_CACHE_KEY = "staff-attendance"
         const val ATTENDANCE_KIND = "attendance"
+        const val STAFF_ATTENDANCE_KIND = "staff-attendance-clock-in"
+        const val STAFF_ATTENDANCE_KEY_PREFIX = "staff-attendance"
         const val STUDENT_PAGE_SIZE = 50
         fun attendanceKey(classId: Long, date: String) = "attendance:$classId:$date"
     }
