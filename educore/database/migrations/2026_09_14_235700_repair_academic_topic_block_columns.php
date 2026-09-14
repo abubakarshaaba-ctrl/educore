@@ -13,27 +13,38 @@ return new class extends Migration
             return;
         }
 
-        // Record the pre-repair shape so data backfills only run for columns
-        // introduced by this migration. Existing curation must not be changed.
+        // Record the pre-repair shape before altering the table. This avoids
+        // repeated schema introspection while the ALTER operation is being built
+        // and ensures data backfills only run for columns introduced here.
         $hadSequence = Schema::hasColumn('academic_topic_blocks', 'sequence');
         $hadTitle = Schema::hasColumn('academic_topic_blocks', 'title');
+        $hadMetadata = Schema::hasColumn('academic_topic_blocks', 'metadata');
+        $hadIsRequired = Schema::hasColumn('academic_topic_blocks', 'is_required');
         $hadIsApproved = Schema::hasColumn('academic_topic_blocks', 'is_approved');
+        $hasPosition = Schema::hasColumn('academic_topic_blocks', 'position');
+        $hasHeading = Schema::hasColumn('academic_topic_blocks', 'heading');
 
         // Some deployments received an earlier shape of this table before the
         // structured Academic Repository contract was finalised. The migration
         // that creates the table cannot repair those installations once it has
         // already been recorded, so add the runtime-required columns explicitly.
-        Schema::table('academic_topic_blocks', function (Blueprint $table) use ($hadSequence, $hadTitle, $hadIsApproved) {
+        Schema::table('academic_topic_blocks', function (Blueprint $table) use (
+            $hadSequence,
+            $hadTitle,
+            $hadMetadata,
+            $hadIsRequired,
+            $hadIsApproved,
+        ) {
             if (! $hadSequence) {
                 $table->unsignedSmallInteger('sequence')->default(1);
             }
             if (! $hadTitle) {
                 $table->string('title', 255)->nullable();
             }
-            if (! Schema::hasColumn('academic_topic_blocks', 'metadata')) {
+            if (! $hadMetadata) {
                 $table->json('metadata')->nullable();
             }
-            if (! Schema::hasColumn('academic_topic_blocks', 'is_required')) {
+            if (! $hadIsRequired) {
                 $table->boolean('is_required')->default(false);
             }
             if (! $hadIsApproved) {
@@ -43,13 +54,13 @@ return new class extends Migration
 
         // Preserve data from legacy column names, but only when their current
         // replacements were introduced by this repair.
-        if (! $hadSequence && Schema::hasColumn('academic_topic_blocks', 'position')) {
+        if (! $hadSequence && $hasPosition) {
             DB::table('academic_topic_blocks')
                 ->whereNotNull('position')
                 ->update(['sequence' => DB::raw('position')]);
         }
 
-        if (! $hadTitle && Schema::hasColumn('academic_topic_blocks', 'heading')) {
+        if (! $hadTitle && $hasHeading) {
             DB::table('academic_topic_blocks')
                 ->whereNull('title')
                 ->whereNotNull('heading')
