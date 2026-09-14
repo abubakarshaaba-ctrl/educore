@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\AcademicTopic;
 use App\Models\ClassLevel;
 use App\Models\LessonPlan;
-use App\Models\LessonPlanSource;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
@@ -38,13 +37,13 @@ class AcademicTopicLessonPlanService
             return $existing;
         }
 
-        $subject = $this->matchSubject($topic->subject_label, $user);
-        $classLevel = $this->matchClassLevel($topic->class_label, $user);
-        $term = $this->matchTerm($topic->term_label, $user);
+        $subject = $this->matchSubject($topic->subject_label);
+        $classLevel = $this->matchClassLevel($topic->class_label);
+        $term = $this->matchTerm($topic->term_label);
         $document = $this->knowledge->lessonPlan($topic);
 
-        return DB::transaction(function () use ($topic, $user, $subject, $classLevel, $term, $document) {
-            $plan = LessonPlan::create([
+        return DB::transaction(function () use ($topic, $user, $subject, $classLevel, $term, $document, $readiness) {
+            return LessonPlan::create([
                 'teacher_id' => $user->id,
                 'tenant_id' => $user->tenant_id,
                 'subject_id' => $subject->id,
@@ -57,7 +56,7 @@ class AcademicTopicLessonPlanService
                 'week_number' => $document['week'],
                 'lesson_number' => $document['lesson'],
                 'lesson_time' => $document['time'],
-                'duration_minutes' => $document['duration_minutes'],
+                'duration_minutes' => $document['duration'],
                 'average_age' => $document['average_age'],
                 'sex' => $document['sex'],
                 'entry_behaviour' => $document['entry_behaviour'],
@@ -79,7 +78,7 @@ class AcademicTopicLessonPlanService
                 'structured_plan' => [
                     'generation_method' => 'academic_repository_deterministic',
                     'academic_topic_id' => $topic->id,
-                    'readiness_score' => $this->knowledge->readiness($topic)['score'],
+                    'readiness_score' => $readiness['score'],
                     'document' => $document,
                     'repository_context' => $topic->source ? [[
                         'source_id' => $topic->source->id,
@@ -87,70 +86,43 @@ class AcademicTopicLessonPlanService
                         'original_filename' => $topic->source->original_filename,
                     ]] : [],
                 ],
-                'source_document_ids' => $topic->curriculum_source_id ? [$topic->curriculum_source_id] : [],
-                'grounding_score' => $this->knowledge->readiness($topic)['score'],
-                'grounding_summary' => [
-                    'method' => 'deterministic_repository',
-                    'academic_topic_id' => $topic->id,
-                    'source_id' => $topic->curriculum_source_id,
-                ],
             ]);
-
-            if ($topic->curriculum_source_id) {
-                LessonPlanSource::create([
-                    'lesson_plan_id' => $plan->id,
-                    'curriculum_source_id' => $topic->curriculum_source_id,
-                    'curriculum_fragment_id' => null,
-                    'rank' => 1,
-                    'generation_type' => 'lesson_plan',
-                ]);
-            }
-
-            return $plan;
         });
     }
 
-    private function matchSubject(string $label, User $user): Subject
+    private function matchSubject(string $label): Subject
     {
-        $query = Subject::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
-        if ($user->tenant_id && $this->hasColumn((new Subject)->getTable(), 'tenant_id')) {
-            $query->where('tenant_id', $user->tenant_id);
-        }
-        return $query->first() ?: throw ValidationException::withMessages([
-            'subject' => "No school subject exactly matches '{$label}'. Map this knowledge topic to an existing subject first.",
-        ]);
+        return Subject::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->first()
+            ?: throw ValidationException::withMessages([
+                'subject' => "No school subject exactly matches '{$label}'. Map this knowledge topic to an existing subject first.",
+            ]);
     }
 
-    private function matchClassLevel(string $label, User $user): ClassLevel
+    private function matchClassLevel(string $label): ClassLevel
     {
-        $query = ClassLevel::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
-        if ($user->tenant_id && $this->hasColumn((new ClassLevel)->getTable(), 'tenant_id')) {
-            $query->where('tenant_id', $user->tenant_id);
-        }
-        return $query->first() ?: throw ValidationException::withMessages([
-            'class' => "No school class level exactly matches '{$label}'. Map this knowledge topic to an existing class first.",
-        ]);
+        return ClassLevel::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->first()
+            ?: throw ValidationException::withMessages([
+                'class' => "No school class level exactly matches '{$label}'. Map this knowledge topic to an existing class first.",
+            ]);
     }
 
-    private function matchTerm(string $label, User $user): Term
+    private function matchTerm(string $label): Term
     {
-        $query = Term::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))]);
-        if ($user->tenant_id && $this->hasColumn((new Term)->getTable(), 'tenant_id')) {
-            $query->where('tenant_id', $user->tenant_id);
-        }
-        return $query->orderByDesc('id')->first() ?: throw ValidationException::withMessages([
-            'term' => "No school term exactly matches '{$label}'. Map this knowledge topic to an existing term first.",
-        ]);
+        return Term::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($label))])->orderByDesc('id')->first()
+            ?: throw ValidationException::withMessages([
+                'term' => "No school term exactly matches '{$label}'. Map this knowledge topic to an existing term first.",
+            ]);
     }
 
     private function lines(array $items): ?string
     {
-        $value = collect($items)->map(fn ($item) => trim((string) $item))->filter()->values()->map(fn ($item, $index) => ($index + 1).'. '.$item)->implode("\n");
-        return $value !== '' ? $value : null;
-    }
+        $value = collect($items)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->map(fn ($item, $index) => ($index + 1).'. '.$item)
+            ->implode("\n");
 
-    private function hasColumn(string $table, string $column): bool
-    {
-        return \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
+        return $value !== '' ? $value : null;
     }
 }
