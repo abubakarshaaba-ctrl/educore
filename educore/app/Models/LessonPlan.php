@@ -13,7 +13,7 @@ class LessonPlan extends BaseTenantModel
     protected $fillable = [
         'tenant_id', 'teacher_id', 'subject_id', 'class_level_id', 'class_arm_id',
         'term_id', 'curriculum_type', 'curriculum_level_id', 'delivery_type', 'topic', 'subtopic', 'week_number', 'lesson_number', 'lesson_time', 'average_age', 'sex',
-        'plan_date', 'duration_minutes', 'status',
+        'entry_behaviour', 'academic_topic_id', 'plan_date', 'duration_minutes', 'status',
         // NERDC/TRCN sections
         'previous_knowledge', 'behavioural_objectives',
         'instructional_materials', 'reference_materials', 'set_induction',
@@ -41,6 +41,7 @@ class LessonPlan extends BaseTenantModel
     public function classLevel(): BelongsTo { return $this->belongsTo(ClassLevel::class); }
     public function classArm(): BelongsTo   { return $this->belongsTo(ClassArm::class); }
     public function term(): BelongsTo       { return $this->belongsTo(Term::class); }
+    public function academicTopic(): BelongsTo { return $this->belongsTo(AcademicTopic::class); }
     public function noteRevisions(): HasMany { return $this->hasMany(LessonNoteRevision::class); }
     public function repositorySources(): HasMany { return $this->hasMany(LessonPlanSource::class); }
     public function currentNoteRevision() { return $this->hasOne(LessonNoteRevision::class)->ofMany('revision', 'max'); }
@@ -49,10 +50,11 @@ class LessonPlan extends BaseTenantModel
     public function isBritish(): bool  { return $this->curriculum_type === 'british'; }
     public function isPublished(): bool { return $this->status === 'published'; }
 
-    // NERDC sections in TRCN order
+    // NERDC sections in adopted TRCN-aligned order
     public static function nerdcSections(): array
     {
         return [
+            'entry_behaviour'         => 'Entry Behaviour',
             'previous_knowledge'      => 'Previous / Background Knowledge',
             'behavioural_objectives'  => 'Behavioural Objectives',
             'instructional_materials' => 'Instructional Resources',
