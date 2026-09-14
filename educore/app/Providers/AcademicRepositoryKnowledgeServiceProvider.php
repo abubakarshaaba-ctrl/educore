@@ -14,8 +14,11 @@ class AcademicRepositoryKnowledgeServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        // Keep the route names stable for callers, but use a unique URL prefix.
+        // The previous /academic-repository/knowledge path could be swallowed by
+        // the legacy /academic-repository/{curriculumSource} catch-all route.
         Route::middleware(['web', 'auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', StaffOnly::class])
-            ->prefix('academic-repository/knowledge')
+            ->prefix('academic-knowledge-base')
             ->name('academic-repository.knowledge.')
             ->group(function (): void {
                 Route::get('/', [AcademicRepositoryKnowledgeController::class, 'index'])->name('index');
