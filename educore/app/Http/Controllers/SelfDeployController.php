@@ -20,6 +20,9 @@ class SelfDeployController extends Controller
 {
     private const REPO = 'abubakarshaaba-ctrl/educore';
     private const APK_ASSET_NAME = 'EduCore.apk';
+    private const APK_CHECKSUM_ASSET_NAME = 'EduCore.apk.sha256';
+    private const ANDROID_RELEASE_TAG_PREFIX = 'android-';
+    private const MINIMUM_APK_BYTES = 1048576;
 
     /** Paths (relative to repo root) synced into the live tree. */
     private const SYNC_PATHS = [
@@ -36,6 +39,11 @@ class SelfDeployController extends Controller
         '.htaccess',
         'index.php',
         '.user.ini',
+    ];
+
+    /** Live files that must never be overwritten by stale Git-tracked copies. */
+    private const PRESERVED_LIVE_PATHS = [
+        'educore/public/downloads/EduCore.apk',
     ];
 
     /** Files intentionally retired from the live tree after a successful sync. */
@@ -65,10 +73,10 @@ class SelfDeployController extends Controller
 
         @mkdir($work, 0755, true);
 
-        // 1. Download the master zipball from GitHub.
-        //    Public repos work anonymously; private repos need a read-only
-        //    token, supplied as ?gh=<token> or config('app.deploy_gh_token').
-        $ghToken = (string) ($request->query('gh') ?: config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', '')));
+        // 1. Download the master zipball from GitHub. Public repos work
+        //    anonymously; private repos use a server-side read-only token.
+        //    Credentials are never accepted in the deployment URL.
+        $ghToken = (string) config('app.deploy_gh_token', env('DEPLOY_GH_TOKEN', ''));
 
         $headers = ['User-Agent' => 'educore-self-deploy'];
         if ($ghToken !== '') {
@@ -86,7 +94,7 @@ class SelfDeployController extends Controller
                 'step'  => 'download',
                 'status'=> $response->status(),
                 'hint'  => $response->status() === 404
-                    ? 'Repo is private — append &gh=<github read token> to the deploy URL, or make the repo public.'
+                    ? 'Repository download failed. Configure a server-side read-only GitHub token if the repository is private.'
                     : 'GitHub download failed.',
             ], 200);
         }
@@ -115,12 +123,13 @@ class SelfDeployController extends Controller
         // 3. Sync the deployable paths
         $copied = 0;
         foreach (self::SYNC_PATHS as $path) {
-            $src = $srcRoot . '/' . rtrim($path, '/');
-            $dst = $docroot . '/' . rtrim($path, '/');
+            $repoPath = rtrim($path, '/');
+            $src = $srcRoot . '/' . $repoPath;
+            $dst = $docroot . '/' . $repoPath;
 
             if (is_dir($src)) {
-                $copied += $this->copyTree($src, $dst);
-            } elseif (is_file($src)) {
+                $copied += $this->copyTree($src, $dst, $repoPath);
+            } elseif (is_file($src) && !in_array($repoPath, self::PRESERVED_LIVE_PATHS, true)) {
                 @mkdir(dirname($dst), 0755, true);
                 copy($src, $dst) && $copied++;
             }
@@ -148,9 +157,9 @@ class SelfDeployController extends Controller
             $migrated = 'error: ' . $e->getMessage();
         }
 
-        // 5. Pull the newest signed Android release asset, when one exists.
-        // This keeps large APK binaries out of the Git history while preserving
-        // /download/app as the single production download endpoint.
+        // 5. Pull and verify the newest signed Android production release.
+        // The last known-good APK remains untouched until the new APK and its
+        // independently published checksum have both been validated.
         $apk = $this->syncLatestApk($headers, $docroot);
 
         // opcache_reset() only clears the CURRENT PHP-FPM worker's cache —
@@ -186,8 +195,9 @@ class SelfDeployController extends Controller
     }
 
     /**
-     * Download the newest non-draft/non-prerelease GitHub Release asset named
-     * EduCore.apk into the canonical public download location.
+     * Download the latest published Android release's exact APK and checksum,
+     * then atomically replace the canonical public download only after both
+     * the asset content and checksum are valid.
      */
     private function syncLatestApk(array $headers, string $docroot): array
     {
@@ -209,16 +219,37 @@ class SelfDeployController extends Controller
             }
 
             $releaseData = $release->json();
+            $releaseTag = (string) ($releaseData['tag_name'] ?? '');
+            if (($releaseData['draft'] ?? false)
+                || ($releaseData['prerelease'] ?? false)
+                || !str_starts_with($releaseTag, self::ANDROID_RELEASE_TAG_PREFIX)) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'not-an-educore-android-production-release',
+                    'release' => $releaseTag ?: null,
+                ];
+            }
+
             $assets = is_array($releaseData['assets'] ?? null) ? $releaseData['assets'] : [];
-            $asset = collect($assets)->first(
+            $apkAsset = collect($assets)->first(
                 fn ($candidate) => ($candidate['name'] ?? null) === self::APK_ASSET_NAME
             );
+            $checksumAsset = collect($assets)->first(
+                fn ($candidate) => ($candidate['name'] ?? null) === self::APK_CHECKSUM_ASSET_NAME
+            );
 
-            if (!$asset || empty($asset['url'])) {
+            if (!$apkAsset || empty($apkAsset['url'])) {
                 return [
                     'status' => 'skipped',
                     'reason' => 'apk-asset-missing',
-                    'release' => $releaseData['tag_name'] ?? null,
+                    'release' => $releaseTag,
+                ];
+            }
+            if (!$checksumAsset || empty($checksumAsset['url'])) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'checksum-asset-missing',
+                    'release' => $releaseTag,
                 ];
             }
 
@@ -226,28 +257,77 @@ class SelfDeployController extends Controller
                 'Accept' => 'application/octet-stream',
             ]);
 
+            $checksumDownload = Http::withHeaders($assetHeaders)
+                ->timeout(60)
+                ->get($checksumAsset['url']);
+            if (!$checksumDownload->successful()) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'checksum-download-failed',
+                    'http_status' => $checksumDownload->status(),
+                    'release' => $releaseTag,
+                ];
+            }
+
+            $checksumLine = trim($checksumDownload->body());
+            if (!preg_match('/\A([a-f0-9]{64})[ \t]+\*?EduCore\.apk\z/i', $checksumLine, $matches)) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'checksum-format-invalid',
+                    'release' => $releaseTag,
+                ];
+            }
+            $expectedSha256 = strtolower($matches[1]);
+
             $download = Http::withHeaders($assetHeaders)
                 ->timeout(180)
-                ->get($asset['url']);
+                ->get($apkAsset['url']);
 
             if (!$download->successful()) {
                 return [
                     'status' => 'skipped',
                     'reason' => 'apk-download-failed',
                     'http_status' => $download->status(),
-                    'release' => $releaseData['tag_name'] ?? null,
+                    'release' => $releaseTag,
+                ];
+            }
+
+            $apkBody = $download->body();
+            $apkSize = strlen($apkBody);
+            if ($apkSize < self::MINIMUM_APK_BYTES || strncmp($apkBody, "PK\x03\x04", 4) !== 0) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'apk-content-invalid',
+                    'release' => $releaseTag,
+                ];
+            }
+
+            $actualSha256 = hash('sha256', $apkBody);
+            if (!hash_equals($expectedSha256, $actualSha256)) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => 'apk-checksum-mismatch',
+                    'release' => $releaseTag,
                 ];
             }
 
             $target = $docroot . '/educore/public/downloads/' . self::APK_ASSET_NAME;
             @mkdir(dirname($target), 0755, true);
 
-            $tmp = $target . '.tmp';
-            if (file_put_contents($tmp, $download->body()) === false) {
+            $tmp = $target . '.tmp-' . bin2hex(random_bytes(6));
+            $bytesWritten = file_put_contents($tmp, $apkBody, LOCK_EX);
+            unset($apkBody);
+            if ($bytesWritten !== $apkSize) {
                 @unlink($tmp);
                 return ['status' => 'skipped', 'reason' => 'apk-write-failed'];
             }
 
+            if (!hash_equals($expectedSha256, (string) hash_file('sha256', $tmp))) {
+                @unlink($tmp);
+                return ['status' => 'skipped', 'reason' => 'written-apk-checksum-mismatch'];
+            }
+
+            @chmod($tmp, 0644);
             if (!@rename($tmp, $target)) {
                 @unlink($tmp);
                 return ['status' => 'skipped', 'reason' => 'apk-replace-failed'];
@@ -255,9 +335,10 @@ class SelfDeployController extends Controller
 
             return [
                 'status' => 'updated',
-                'release' => $releaseData['tag_name'] ?? null,
+                'release' => $releaseTag,
                 'size' => filesize($target) ?: null,
-                'sha256' => hash_file('sha256', $target) ?: null,
+                'sha256' => $actualSha256,
+                'checksum_verified' => true,
             ];
         } catch (\Throwable $e) {
             return [
@@ -268,7 +349,7 @@ class SelfDeployController extends Controller
         }
     }
 
-    private function copyTree(string $src, string $dst): int
+    private function copyTree(string $src, string $dst, string $repoPath): int
     {
         $count = 0;
         @mkdir($dst, 0755, true);
@@ -279,12 +360,18 @@ class SelfDeployController extends Controller
         );
 
         foreach ($it as $item) {
+            $subPath = str_replace('\\', '/', $it->getSubPathname());
+            $sourcePath = $repoPath . '/' . $subPath;
+            if (in_array($sourcePath, self::PRESERVED_LIVE_PATHS, true)) {
+                continue;
+            }
+
             $target = $dst . '/' . $it->getSubPathname();
             if ($item->isDir()) {
                 @mkdir($target, 0755, true);
             } else {
                 // Skip files that are byte-identical in size — avoids re-copying
-                // large unchanged binaries (e.g. the APK) on every deploy.
+                // large unchanged assets on every deploy.
                 if (is_file($target)
                     && filesize($target) === $item->getSize()
                     && hash_file('sha256', $target) === hash_file('sha256', $item->getPathname())) {
