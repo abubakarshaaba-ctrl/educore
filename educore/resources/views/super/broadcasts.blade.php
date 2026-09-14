@@ -49,14 +49,15 @@ select.fc{cursor:pointer}
                 </div>
             </div>
             <div class="fg">
-                <label>Message Body</label>
-                <textarea name="body" class="fc" rows="4" placeholder="Write your broadcast message here..." required>{{ old('body') }}</textarea>
+                <label>Message Body (optional if an image is selected)</label>
+                <textarea name="body" class="fc" rows="4" placeholder="Write a message, or leave blank for an image-only broadcast...">{{ old('body') }}</textarea>
+                <span class="help">A broadcast can contain text only, an image only, or both.</span>
                 @error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
             <div class="fg" style="max-width:520px">
-                <label>Image (optional)</label>
+                <label>Image (optional if a message is entered)</label>
                 <input type="file" name="image" class="fc" accept="image/jpeg,image/png,image/webp">
-                <span class="help">JPG, PNG or WebP · maximum 5 MB</span>
+                <span class="help">JPG, PNG or WebP · maximum 5 MB. Required when Message Body is empty.</span>
                 @error('image')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
             <div class="fg" style="max-width:220px">
@@ -82,7 +83,9 @@ select.fc{cursor:pointer}
                         <span style="font-size:11px;color:#DC2626;font-weight:600">Expired</span>
                     @endif
                 </div>
-                <div class="b-body">{{ $bc->body }}</div>
+                @if(trim((string) $bc->body) !== '')
+                    <div class="b-body">{{ $bc->body }}</div>
+                @endif
                 @if($bc->image_path)
                     <img class="b-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($bc->image_path) }}" alt="{{ $bc->title }}">
                 @endif
