@@ -16,10 +16,15 @@ class AcademicRepositoryQualityService
 
     private const VAGUE_VERBS = ['know','understand','learn','appreciate','familiarise','familiarize'];
 
+    public function __construct(private AcademicRepositoryTopicConsolidationService $consolidation)
+    {
+    }
+
     public function inspect(AcademicTopic $topic): array
     {
-        $topic->loadMissing('blocks');
-        $blocks = $topic->blocks;
+        $blocks = $this->consolidation->blocks($topic, [
+            'objective','presentation','definition','explanation','example','practical','note','evaluation','assignment',
+        ]);
 
         $objectives = $this->contents($blocks, 'objective');
         $presentation = $this->contents($blocks, 'presentation');
@@ -34,6 +39,11 @@ class AcademicRepositoryQualityService
         $duplicates = $this->duplicateCount($blocks->pluck('content')->all());
         $noteChars = $noteContent->sum(fn ($v) => mb_strlen($v));
 
+        $introduction = (string) $this->consolidation->scalar($topic, 'introduction');
+        $entryBehaviour = (string) $this->consolidation->scalar($topic, 'entry_behaviour');
+        $previousKnowledge = (string) $this->consolidation->scalar($topic, 'previous_knowledge');
+        $reference = (string) $this->consolidation->scalar($topic, 'reference');
+
         $checks = [
             'Measurable objectives' => $objectiveQuality,
             'At least two presentation steps' => count($presentation) >= 2,
@@ -41,11 +51,11 @@ class AcademicRepositoryQualityService
             'Evaluation has at least two questions' => count($evaluation) >= 2,
             'Evaluation aligns with objectives' => $evaluationAlignment['aligned'],
             'Assignment is substantive' => count($assignment) >= 1 && collect($assignment)->contains(fn ($item) => mb_strlen($item) >= 12),
-            'Introduction is substantive' => mb_strlen(trim((string) $topic->introduction)) >= 30,
-            'Entry behaviour is substantive' => mb_strlen(trim((string) $topic->entry_behaviour)) >= 20,
-            'Previous knowledge is substantive' => mb_strlen(trim((string) $topic->previous_knowledge)) >= 20,
+            'Introduction is substantive' => mb_strlen(trim($introduction)) >= 30,
+            'Entry behaviour is substantive' => mb_strlen(trim($entryBehaviour)) >= 20,
+            'Previous knowledge is substantive' => mb_strlen(trim($previousKnowledge)) >= 20,
             'Student-note content is substantive' => $noteChars >= 300,
-            'Reference is identifiable' => mb_strlen(trim((string) $topic->reference)) >= 5,
+            'Reference is identifiable' => mb_strlen(trim($reference)) >= 5,
             'No duplicate content blocks' => $duplicates === 0,
         ];
 
@@ -85,6 +95,7 @@ class AcademicRepositoryQualityService
             'student_note_characters' => (int) $noteChars,
             'duplicate_blocks' => $duplicates,
             'objective_evaluation_alignment' => $evaluationAlignment,
+            'consolidation' => $this->consolidation->summary($topic),
         ];
     }
 
@@ -110,19 +121,13 @@ class AcademicRepositoryQualityService
         foreach ($objectives as $objective) {
             $keywords = $this->keywords($objective);
             $hasMatch = collect($evaluation)->contains(function ($question) use ($keywords) {
-                $questionKeywords = $this->keywords($question);
-                return count(array_intersect($keywords, $questionKeywords)) >= 1;
+                return count(array_intersect($keywords, $this->keywords($question))) >= 1;
             });
             if ($hasMatch) $matched++;
         }
 
         $ratio = $matched / max(1, count($objectives));
-        return [
-            'aligned' => $ratio >= 0.6,
-            'matched' => $matched,
-            'total' => count($objectives),
-            'ratio' => round($ratio, 2),
-        ];
+        return ['aligned' => $ratio >= 0.6, 'matched' => $matched, 'total' => count($objectives), 'ratio' => round($ratio, 2)];
     }
 
     private function keywords(string $text): array
@@ -139,8 +144,7 @@ class AcademicRepositoryQualityService
     {
         $normalised = collect($items)->map(function ($item) {
             $text = Str::lower(trim((string) $item));
-            $text = preg_replace('/\s+/u', ' ', $text);
-            return trim((string) $text);
+            return trim((string) preg_replace('/\s+/u', ' ', $text));
         })->filter();
         return max(0, $normalised->count() - $normalised->unique()->count());
     }
@@ -148,7 +152,6 @@ class AcademicRepositoryQualityService
     private function contents(Collection $blocks, string $type): array
     {
         return $blocks->where('block_type', $type)
-            ->sortBy('sequence')
             ->pluck('content')
             ->map(fn ($content) => trim((string) $content))
             ->filter()
