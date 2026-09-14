@@ -354,7 +354,7 @@ internal fun CompactStaffAttendanceScreen(
         state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
         if (!online) item {
-            EduCoreWarningBanner("QR, geofence and proxy clock-in require a live server connection. No unverified staff clock-in is queued.")
+            EduCoreWarningBanner("Offline self clock-in is available. Scan the school QR and EduCore will store the timestamp and location evidence securely, then sync automatically when connectivity returns. Proxy clock-in and clock-out still require a live connection.")
         }
         item {
             Surface(color = EduCoreColors.Navy900, contentColor = Color.White, shape = MaterialTheme.shapes.medium) {
@@ -416,7 +416,7 @@ internal fun CompactStaffAttendanceScreen(
                         schoolQrScanner.launch(attendanceQrOptions("Scan the school attendance QR"))
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = online,
+                    enabled = !state.isSaving,
                     loading = state.isSaving,
                 )
             }
