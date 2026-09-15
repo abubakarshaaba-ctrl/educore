@@ -421,7 +421,7 @@ private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
 private fun timeGreeting(): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
-        in 5..11 -> "Good morning"
+        in 0..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
