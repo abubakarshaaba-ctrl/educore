@@ -72,6 +72,7 @@ html:root{
     --card-radius:12px;
     --table-head-height:38px;
     --table-row-height:44px;
+    --table-edge-space:14px;
 }
 
 /* One compact typography system across every tenant screen. */
@@ -166,6 +167,11 @@ img,video{height:auto;}
  * headers remain visually distinct and every data row has enough vertical space
  * for names, secondary metadata, status pills and action buttons.
  */
+.page-content table:not(.no-table-edge-space){
+    width:calc(100% - (var(--table-edge-space) * 2))!important;
+    margin-left:var(--table-edge-space)!important;
+    margin-right:var(--table-edge-space)!important;
+}
 table thead tr{
     min-height:var(--table-head-height)!important;
     height:var(--table-head-height)!important;
@@ -249,7 +255,7 @@ textarea:focus-visible,
 /* Phones/tablets: enforce wrapping/stacking and contain fixed-width legacy UI. */
 @media (max-width:768px){
     html{font-size:12.5px!important;}
-    :root{--control-height:44px;--table-head-height:40px;--table-row-height:46px;}
+    :root{--control-height:44px;--table-head-height:40px;--table-row-height:46px;--table-edge-space:10px;}
     .sidebar .nav-item{font-size:12px!important;}
 
     .page-content{
@@ -301,7 +307,7 @@ textarea:focus-visible,
 
     /* Unwrapped legacy tables remain usable rather than widening the page. */
     .page-content table{
-        max-width:100%!important;
+        max-width:calc(100% - (var(--table-edge-space) * 2))!important;
     }
     .page-content table:not(.no-responsive-table){
         min-width:620px;
