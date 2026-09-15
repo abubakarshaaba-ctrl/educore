@@ -55,11 +55,6 @@ class PushNotificationService
         });
     }
 
-    /**
-     * Deliver a Super Admin platform broadcast immediately to every active
-     * EduCore user whose school matches the same target-state rules used by
-     * the in-app platform-broadcast feed.
-     */
     public function notifyPlatformBroadcast(int $broadcastId, string $title, string $body, string $target): void
     {
         $query = User::query()
@@ -201,11 +196,7 @@ class PushNotificationService
         return $this->sendMessage(['token' => $deviceToken], $title, $body, $data, $deviceToken);
     }
 
-    /**
-     * Broadcast to every app installation subscribed to an FCM topic. This is
-     * used for product releases so signed-out installations receive the same
-     * update notice as devices that have registered an authenticated user token.
-     */
+    /** Broadcast to every installation subscribed to an FCM topic. */
     public function sendToTopic(string $topic, string $title, string $body, array $data = []): bool
     {
         $topic = trim($topic);
@@ -302,7 +293,7 @@ class PushNotificationService
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth-grant-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
 
