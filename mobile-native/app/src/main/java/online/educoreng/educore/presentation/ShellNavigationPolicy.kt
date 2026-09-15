@@ -159,9 +159,10 @@ object ShellNavigationPolicy {
 
         // Score Entry is permission-driven. Custom staff roles can legitimately be
         // granted score entry without having the word "teacher" in their role key,
-        // so do not hide the native score-entry form behind a role-name heuristic.
+        // but explicit specialist-role restrictions still take precedence.
         if (
             portal == "staff" &&
+            isAllowedForSpecialistRole(role, "scores") &&
             hasAnyPermission(session, SCORE_PERMISSION_KEYS) &&
             visible.none { it.key.equals("scores", ignoreCase = true) }
         ) {
