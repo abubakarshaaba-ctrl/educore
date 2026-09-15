@@ -14,12 +14,10 @@ class AcademicRepositoryController extends Controller
     {
         $this->guardReader();
 
-        // Academic Knowledge is now the teaching interface. Canonical source
-        // files remain available only as the evidence/provenance layer.
-        if ($request->string('view')->toString() !== 'sources') {
-            return redirect()->route('academic-repository.knowledge.index');
-        }
-
+        // Academic Repository is the single user-facing module. The former
+        // Academic Knowledge index now redirects here, so this action must
+        // render the repository directly rather than redirecting back to the
+        // legacy knowledge route.
         $catalogue = $this->availableSources()->get();
         $subjectNames = $catalogue
             ->map(fn (CurriculumSource $source) => $this->metadataLabel($source, 'subject_label', 'Unmapped subject'))
