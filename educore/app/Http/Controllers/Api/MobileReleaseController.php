@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DeviceToken;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +10,8 @@ use Illuminate\Support\Str;
 
 class MobileReleaseController extends Controller
 {
+    private const APP_UPDATES_TOPIC = 'educore_app_updates';
+
     public function __invoke(Request $request, PushNotificationService $push): JsonResponse
     {
         $expectedToken = (string) config('services.mobile_release.webhook_token', '');
@@ -44,34 +45,19 @@ class MobileReleaseController extends Controller
             'force_update' => ! empty($data['force_update']) ? 'true' : 'false',
         ];
 
-        $attempted = 0;
-        $delivered = 0;
-
-        DeviceToken::query()
-            ->where(function ($query): void {
-                $query->whereNull('platform')->orWhere('platform', 'android');
-            })
-            ->orderBy('id')
-            ->chunkById(100, function ($tokens) use ($push, $body, $payload, &$attempted, &$delivered): void {
-                foreach ($tokens as $device) {
-                    $attempted++;
-                    if ($push->send(
-                        (string) $device->token,
-                        'EduCore update available',
-                        Str::limit($body, 180),
-                        $payload,
-                    )) {
-                        $delivered++;
-                    }
-                }
-            });
+        $delivered = $push->sendToTopic(
+            self::APP_UPDATES_TOPIC,
+            'EduCore update available',
+            Str::limit($body, 180),
+            $payload,
+        );
 
         return response()->json([
-            'status' => 'accepted',
+            'status' => $delivered ? 'accepted' : 'push_failed',
             'version_name' => $versionName,
             'version_code' => (int) $data['version_code'],
-            'attempted' => $attempted,
+            'topic' => self::APP_UPDATES_TOPIC,
             'delivered' => $delivered,
-        ]);
+        ], $delivered ? 200 : 502);
     }
 }
