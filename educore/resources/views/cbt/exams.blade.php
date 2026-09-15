@@ -4,216 +4,199 @@
 
 @push('styles')
 <style>
-    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content; }
-    .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms; }
-    .page-tab.active { background:var(--indigo);color:white; }
-    .page-tab:hover:not(.active) { background:#F1F5F9; }
-    .two-col { display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start; }
-    .card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
-    .card-header { padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between; }
-    .card-title { font-size:14px;font-weight:600;color:var(--midnight); }
-    .card-body { padding:20px; }
-    .form-group { margin-bottom:14px; }
-    .form-label { display:block;font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px; }
-    .form-label span { color:var(--crimson); }
-    .form-control { width:100%;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms; }
-    .form-control:focus { border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1);background:white; }
-    .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
-    .btn { display:inline-flex;align-items:center;gap:5px;padding:7px 12px;font-size:12px;font-weight:600;font-family:inherit;border-radius:7px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
-    .btn-primary { background:var(--indigo);color:white;width:100%;justify-content:center;padding:10px; }
-    .btn-primary:hover { background:#1D4ED8; }
-    .btn-success { background:var(--emerald);color:white; }
-    .btn-warning { background:var(--amber);color:white; }
-    .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border); }
-    .btn-indigo { background:var(--indigo-bg);color:var(--indigo); }
-    .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px; }
-    .alert-error { background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px; }
-    .exam-card { border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px; }
-    .exam-title { font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:6px; }
-    .exam-meta { font-size:12px;color:var(--slate);margin-bottom:12px; }
-    .exam-meta span { margin-right:12px; }
-    .exam-actions { display:flex;gap:8px;flex-wrap:wrap; }
-    .schedule-panel { margin-top:12px;padding:12px;border:1px solid #DCE5F2;border-radius:9px;background:#F8FAFC; }
-    .schedule-panel .form-grid { grid-template-columns:1fr 1fr 120px;align-items:end; }
-    .schedule-panel .form-group { margin-bottom:0; }
-    .badge { display:inline-flex;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px; }
-    .badge-draft     { background:#F1F5F9;color:var(--slate); }
-    .badge-published { background:var(--indigo-bg);color:var(--indigo); }
-    .badge-active    { background:#ECFDF5;color:var(--emerald); }
-    .badge-closed    { background:#FEF2F2;color:var(--crimson); }
-    .empty-state { text-align:center;padding:40px;color:var(--slate-light);font-size:13px; }
-    .workflow-note { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px; }
-    .workflow-step { position:relative;padding:12px;border:1px solid #DCE5F2;border-radius:10px;background:linear-gradient(145deg,#FFFFFF,#F7FAFF); }
-    .workflow-step strong { display:block;font-size:12px;color:var(--midnight);margin:5px 0 3px; }
-    .workflow-step span { font-size:10px;color:var(--slate);line-height:1.45;display:block; }
-    .step-number { width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:var(--indigo);color:white;font-size:11px;font-weight:800; }
-    .target-picker { border:1px solid var(--border);border-radius:10px;background:#F8FAFC;max-height:230px;overflow:auto;padding:8px; }
-    .target-group { padding:7px 6px 9px;border-bottom:1px solid #E8EDF5; }
-    .target-group:last-child { border-bottom:0; }
-    .target-group strong { display:block;font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px; }
-    .target-options { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
-    .target-option { display:flex;align-items:center;gap:7px;padding:7px 8px;border:1px solid #DFE7F2;border-radius:7px;background:#fff;color:var(--midnight);font-size:11px;cursor:pointer; }
-    .target-option:has(input:checked) { border-color:var(--indigo);background:#EFF6FF;color:#1D4ED8;font-weight:700; }
-    @media(max-width:1024px) { .two-col { grid-template-columns:1fr; } }
-    @media(max-width:640px) { .workflow-note { grid-template-columns:1fr; }.target-options{grid-template-columns:1fr}.schedule-panel .form-grid{grid-template-columns:1fr} }
+    .cbt-tabs{display:flex;gap:4px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content;max-width:100%;overflow-x:auto}.cbt-tab{min-height:40px;padding:0 16px;border:0;border-radius:7px;background:transparent;color:var(--slate);font:inherit;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;cursor:pointer}.cbt-tab.active{background:var(--brand-gold);color:var(--brand-navy)}.cbt-tab:hover:not(.active){background:#F1F5F9}.cbt-panel[hidden]{display:none!important}.cbt-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}.cbt-card-head{min-height:48px;padding:0 18px;background:var(--brand-navy);border-bottom:2px solid var(--brand-gold);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.cbt-card-head strong{font-size:13px}.cbt-card-head small{color:#CBD5E1;font-size:10px}.cbt-card-body{padding:16px}.alert-success{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:12px;color:#047857;margin-bottom:14px}.alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:12px;color:#B91C1C;margin-bottom:14px}.exam-list{display:grid;gap:10px}.exam-card{border:1px solid var(--border);border-radius:10px;padding:13px 15px;background:#fff}.exam-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.exam-title{font-size:13px;font-weight:800;color:var(--midnight)}.exam-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;color:var(--slate);font-size:11px}.exam-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800}.badge-draft{background:#F1F5F9;color:#64748B}.badge-published{background:#EFF6FF;color:#1D4ED8}.badge-active{background:#ECFDF5;color:#047857}.badge-closed{background:#FEF2F2;color:#B91C1C}.btn{min-height:36px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 12px;border:1px solid transparent;border-radius:7px;font:inherit;font-size:11px;font-weight:800;text-decoration:none;cursor:pointer}.btn-primary{background:var(--brand-gold);color:var(--brand-navy);border-color:var(--brand-gold)}.btn-navy{background:var(--brand-navy);color:#fff}.btn-ghost{background:#fff;color:var(--midnight);border-color:var(--border)}.btn-success{background:#059669;color:#fff}.btn-warning{background:#D97706;color:#fff}.schedule-panel{margin-top:10px;padding:12px;border:1px solid #DCE5F2;border-radius:9px;background:#F8FAFC}.form-shell{max-width:980px;margin:0 auto}.form-section{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px}.form-section-title{font-size:11px;font-weight:900;color:var(--midnight);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.form-group{margin-bottom:12px}.form-group:last-child{margin-bottom:0}.form-label{display:block;font-size:10px;font-weight:800;color:var(--slate);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}.form-label .required{color:#DC2626}.form-control{width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;color:var(--midnight);font:inherit;font-size:12px;outline:none}.form-control:focus{border-color:var(--brand-navy);box-shadow:0 0 0 3px rgba(7,30,69,.08);background:#fff}.field-note{font-size:10px;color:var(--slate-light);line-height:1.45;margin-top:4px}.target-picker{border:1px solid var(--border);border-radius:9px;background:#F8FAFC;max-height:260px;overflow:auto;padding:8px}.target-group{padding:6px 5px 9px;border-bottom:1px solid #E5EAF1}.target-group:last-child{border-bottom:0}.target-group strong{display:block;font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}.target-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.target-option{display:flex;align-items:center;gap:7px;min-height:36px;padding:0 9px;border:1px solid #DFE7F2;border-radius:7px;background:#fff;color:var(--midnight);font-size:11px;cursor:pointer}.target-option:has(input:checked){border-color:var(--brand-navy);background:#EFF6FF;color:#1D4ED8;font-weight:700}.integrity-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.empty-state{text-align:center;padding:38px 18px;color:var(--slate-light);font-size:12px}.empty-state strong{display:block;color:var(--midnight);font-size:13px;margin-bottom:4px}.create-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.create-actions .btn{min-width:140px}.page-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.page-summary p{margin:0;color:var(--slate-light);font-size:11px}.schedule-grid{display:grid;grid-template-columns:1fr 1fr 120px;gap:10px;align-items:end}.schedule-grid .form-group{margin-bottom:0}@media(max-width:900px){.target-options{grid-template-columns:1fr 1fr}.form-grid-3{grid-template-columns:1fr 1fr}}@media(max-width:640px){.cbt-tabs{width:100%}.form-grid,.form-grid-3,.integrity-grid,.target-options,.schedule-grid{grid-template-columns:1fr}.cbt-card-body{padding:12px}.exam-top{align-items:center}.create-actions{flex-direction:column}.create-actions .btn{width:100%}}
 </style>
 @endpush
 
 @section('content')
-<div class="page-tabs">
-    <a href="{{ route('cbt.banks') }}" class="page-tab">Question Banks</a>
-    <a href="{{ route('cbt.exams') }}" class="page-tab active">Exams</a>
-    @if(auth()->user()->isSuperAdmin() || auth()->user()->isAdmin())<a href="{{ route('cbt.retakes') }}" class="page-tab">Retake Control</a>@endif
+<div class="cbt-tabs" role="tablist" aria-label="CBT navigation">
+    <a href="{{ route('cbt.banks') }}" class="cbt-tab">Question Banks</a>
+    <button type="button" class="cbt-tab active" id="examsTab" onclick="showCbtPanel('exams')">Exams</button>
+    <button type="button" class="cbt-tab" id="createTab" onclick="showCbtPanel('create')">+ Create Exam</button>
     @if(auth()->user()->isSuperAdmin() || auth()->user()->isAdmin())
-    <a href="{{ route('cbt.lan') }}" class="page-tab">📡 LAN Mode</a>
+        <a href="{{ route('cbt.retakes') }}" class="cbt-tab">Retake Control</a>
+        <a href="{{ route('cbt.lan') }}" class="cbt-tab">LAN Mode</a>
     @endif
 </div>
 
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert-error">{{ $errors->first() }}</div>@endif
 
-<div class="two-col">
-    <div class="card">
-        <div class="card-header"><span class="card-title">All Exams</span></div>
-        <div class="card-body">
-            @forelse($exams as $exam)
-            <div class="exam-card">
-                <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:6px">
-                    <div class="exam-title">{{ $exam->title }}</div>
-                    <span class="badge badge-{{ $exam->status }}">{{ ucfirst($exam->status) }}</span>
-                </div>
-                <div class="exam-meta">
-                    <span>📚 {{ $exam->questionBank->subject->name ?? '—' }}</span>
-                    <span>🏫 {{ $exam->assignedClassNames() ?: '—' }}</span>
-                    <span>⏱ {{ $exam->duration_minutes }} mins</span>
-                    <span>❓ {{ $exam->total_questions }} questions</span>
-                </div>
-                <div class="exam-actions">
-                    <a href="{{ route('cbt.exams.builder', $exam) }}" class="btn btn-indigo">Section Builder</a>
-                    <a href="{{ route('cbt.results', $exam) }}" class="btn btn-ghost">View Results</a>
-                    @if($exam->status === 'draft')
-                        <form method="POST" action="{{ route('cbt.publish', $exam) }}" style="display:inline">
-                            @csrf
-                            <button type="submit" class="btn btn-success">Publish</button>
-                        </form>
-                    @elseif(in_array($exam->status, ['published', 'active'], true))
-                        <form method="POST" action="{{ route('cbt.close', $exam) }}" style="display:inline">
-                            @csrf
-                            <button type="submit" class="btn btn-warning">Close Exam</button>
-                        </form>
-                    @endif
-                    @if(in_array($exam->status, ['published', 'active', 'closed'], true))
-                        <button type="button" class="btn btn-ghost" onclick="document.getElementById('schedule{{ $exam->id }}').toggleAttribute('hidden')">Reschedule</button>
-                    @endif
-                </div>
-                @if(in_array($exam->status, ['published', 'active', 'closed'], true))
-                <div class="schedule-panel" id="schedule{{ $exam->id }}" hidden>
-                    <form method="POST" action="{{ route('cbt.exams.schedule', $exam) }}">
-                        @csrf @method('PUT')
-                        <div class="form-grid">
-                            <div class="form-group"><label class="form-label">Start</label><input type="datetime-local" name="scheduled_start" class="form-control" value="{{ $exam->scheduled_start?->format('Y-m-d\TH:i') }}" required></div>
-                            <div class="form-group"><label class="form-label">End</label><input type="datetime-local" name="scheduled_end" class="form-control" value="{{ $exam->scheduled_end?->format('Y-m-d\TH:i') }}" required></div>
-                            <div class="form-group"><label class="form-label">Minutes</label><input type="number" name="duration_minutes" class="form-control" value="{{ $exam->duration_minutes }}" min="5" max="1440" required></div>
-                        </div>
-                        <button type="submit" class="btn btn-success" style="margin-top:10px">Save schedule</button>
-                    </form>
-                </div>
-                @endif
-            </div>
-            @empty
-            <div class="empty-state">No exams created yet. Create one →</div>
-            @endforelse
-        </div>
+<section id="cbtPanelExams" class="cbt-panel">
+    <div class="page-summary">
+        <p>Manage existing CBT examinations, review sections, publish, close, reschedule and open results.</p>
+        <button type="button" class="btn btn-primary" onclick="showCbtPanel('create')">+ Create Exam</button>
     </div>
 
-    <div class="card">
-        <div class="card-header"><span class="card-title">Create Exam</span></div>
-        <div class="card-body">
+    <div class="cbt-card">
+        <div class="cbt-card-head">
+            <div><strong>All Exams</strong><br><small>{{ $exams->count() }} examination(s)</small></div>
+        </div>
+        <div class="cbt-card-body">
+            <div class="exam-list">
+                @forelse($exams as $exam)
+                    <div class="exam-card">
+                        <div class="exam-top">
+                            <div>
+                                <div class="exam-title">{{ $exam->title }}</div>
+                                <div class="exam-meta">
+                                    <span>{{ $exam->questionBank->subject->name ?? 'Subject unavailable' }}</span>
+                                    <span>{{ $exam->assignedClassNames() ?: 'No class assigned' }}</span>
+                                    <span>{{ $exam->duration_minutes }} mins</span>
+                                    <span>{{ $exam->total_questions }} questions</span>
+                                </div>
+                            </div>
+                            <span class="badge badge-{{ $exam->status }}">{{ ucfirst($exam->status) }}</span>
+                        </div>
+
+                        <div class="exam-actions">
+                            <a href="{{ route('cbt.exams.builder', $exam) }}" class="btn btn-navy">Section Builder</a>
+                            <a href="{{ route('cbt.results', $exam) }}" class="btn btn-ghost">View Results</a>
+                            @if($exam->status === 'draft')
+                                <form method="POST" action="{{ route('cbt.publish', $exam) }}">@csrf<button type="submit" class="btn btn-success">Publish</button></form>
+                            @elseif(in_array($exam->status, ['published', 'active'], true))
+                                <form method="POST" action="{{ route('cbt.close', $exam) }}">@csrf<button type="submit" class="btn btn-warning">Close Exam</button></form>
+                            @endif
+                            @if(in_array($exam->status, ['published', 'active', 'closed'], true))
+                                <button type="button" class="btn btn-ghost" onclick="document.getElementById('schedule{{ $exam->id }}').toggleAttribute('hidden')">Reschedule</button>
+                            @endif
+                        </div>
+
+                        @if(in_array($exam->status, ['published', 'active', 'closed'], true))
+                            <div class="schedule-panel" id="schedule{{ $exam->id }}" hidden>
+                                <form method="POST" action="{{ route('cbt.exams.schedule', $exam) }}">
+                                    @csrf @method('PUT')
+                                    <div class="schedule-grid">
+                                        <div class="form-group"><label class="form-label">Start</label><input type="datetime-local" name="scheduled_start" class="form-control" value="{{ $exam->scheduled_start?->format('Y-m-d\TH:i') }}" required></div>
+                                        <div class="form-group"><label class="form-label">End</label><input type="datetime-local" name="scheduled_end" class="form-control" value="{{ $exam->scheduled_end?->format('Y-m-d\TH:i') }}" required></div>
+                                        <div class="form-group"><label class="form-label">Minutes</label><input type="number" name="duration_minutes" class="form-control" value="{{ $exam->duration_minutes }}" min="5" max="1440" required></div>
+                                    </div>
+                                    <button type="submit" class="btn btn-success" style="margin-top:10px">Save Schedule</button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
+                @empty
+                    <div class="empty-state"><strong>No CBT exams yet</strong>Create the first examination from the Create Exam tab.</div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="cbtPanelCreate" class="cbt-panel" hidden>
+    <div class="cbt-card form-shell">
+        <div class="cbt-card-head">
+            <div><strong>Create Exam</strong><br><small>Create the draft first, then configure sections and question marks in Section Builder.</small></div>
+        </div>
+        <div class="cbt-card-body">
             <form method="POST" action="{{ route('cbt.exams.store') }}">
                 @csrf
-                <div class="form-group">
-                    <label class="form-label">Exam Title <span>*</span></label>
-                    <input type="text" name="title" class="form-control" value="{{ old('title') }}" placeholder="e.g. JSS 1 Mathematics Midterm Exam">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Question Bank <span>*</span></label>
-                    <select name="question_bank_id" class="form-control">
-                        <option value="">Select bank</option>
-                        @foreach($banks as $bank)
-                            <option value="{{ $bank->id }}" {{ (string) old('question_bank_id', request('bank')) === (string) $bank->id ? 'selected' : '' }}>
-                                {{ $bank->name }} ({{ $bank->questions()->count() }} questions)
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Assign to classes <span>*</span></label>
-                    <div class="target-picker">
-                        @foreach($classArms->groupBy('class_level_id') as $levelArms)
-                        <div class="target-group"><strong>{{ $levelArms->first()->classLevel->name ?? 'Class level' }}</strong><div class="target-options">
-                            @foreach($levelArms as $arm)
-                            <label class="target-option"><input type="checkbox" name="class_arm_ids[]" value="{{ $arm->id }}" @checked(in_array($arm->id, array_map('intval', old('class_arm_ids', []))))><span>{{ $arm->classLevel->name }} {{ $arm->name }}</span></label>
-                            @endforeach
-                        </div></div>
-                        @endforeach
+
+                <div class="form-section">
+                    <div class="form-section-title">Exam Details</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Exam Title <span class="required">*</span></label>
+                            <input type="text" name="title" class="form-control" value="{{ old('title') }}" placeholder="e.g. Year 12 Biology First Term Exam" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Question Bank <span class="required">*</span></label>
+                            <select name="question_bank_id" class="form-control" required>
+                                <option value="">Select bank</option>
+                                @foreach($banks as $bank)
+                                    <option value="{{ $bank->id }}" @selected((string) old('question_bank_id', request('bank')) === (string) $bank->id)>{{ $bank->name }} ({{ $bank->questions()->count() }} questions)</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
-                    <div style="font-size:10px;color:var(--slate-light);margin-top:4px">Select one or more classes. EduCore creates one shared exam, not duplicate drafts.</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Term <span>*</span></label>
-                    <select name="term_id" class="form-control">
-                        <option value="">Select term</option>
-                        @foreach($terms as $term)
-                            <option value="{{ $term->id }}" {{ old('term_id') ? (old('term_id') == $term->id ? 'selected' : '') : ($term->is_current ? 'selected' : '') }}>
-                                {{ $term->name }} — {{ $term->session->name ?? '' }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Score Entry Examination Component <span style="font-weight:400;color:var(--slate-light)">(optional)</span></label>
-                    <select name="assessment_type_id" class="form-control">
-                        <option value="">— Not linked (regular CBT only) —</option>
-                        @foreach($assessmentTypes as $at)
-                            <option value="{{ $at->id }}" {{ old('assessment_type_id') == $at->id ? 'selected' : '' }}>
-                                {{ optional($at->term)->name }} — {{ $at->name }}
-                                — {{ number_format((float) $at->weight_percentage, 0) }} marks
-                            </option>
-                        @endforeach
-                    </select>
-                    <div style="font-size:10px;color:var(--slate-light);margin-top:3px">
-                        The completed multi-section CBT aggregate is converted to this configured maximum and synchronized to Score Entry.
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Term <span class="required">*</span></label>
+                            <select name="term_id" class="form-control" required>
+                                <option value="">Select term</option>
+                                @foreach($terms as $term)
+                                    <option value="{{ $term->id }}" @selected(old('term_id') ? old('term_id') == $term->id : $term->is_current)>{{ $term->name }} — {{ $term->session->name ?? '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Duration (minutes) <span class="required">*</span></label>
+                            <input type="number" name="duration_minutes" class="form-control" value="{{ old('duration_minutes', 60) }}" min="5" max="1440" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Score Sheet Exam Component</label>
+                            <select name="assessment_type_id" class="form-control">
+                                <option value="">Not linked</option>
+                                @foreach($assessmentTypes->where('is_exam', true) as $at)
+                                    <option value="{{ $at->id }}" @selected(old('assessment_type_id') == $at->id)>{{ optional($at->term)->name }} — {{ $at->name }} — {{ rtrim(rtrim(number_format((float)$at->weight_percentage,2),'0'),'.') }} marks</option>
+                                @endforeach
+                            </select>
+                            <div class="field-note">When linked, the completed CBT aggregate is converted to this Exam weight and fed automatically into Score Entry.</div>
+                        </div>
                     </div>
-                </div>
-                <div class="workflow-note" aria-label="Dynamic exam workflow">
-                    <div class="workflow-step"><div class="step-number">1</div><strong>Create draft</strong><span>Save the examination details.</span></div>
-                    <div class="workflow-step"><div class="step-number">2</div><strong>Review sections</strong><span>Uploaded questions are arranged into their original or inferred sections automatically.</span></div>
-                    <div class="workflow-step"><div class="step-number">3</div><strong>Validate & publish</strong><span>Assign questions and confirm every section's marks.</span></div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Duration (minutes) <span>*</span></label>
-                    <input type="number" name="duration_minutes" class="form-control" value="{{ old('duration_minutes', 60) }}" min="5">
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">Scheduled Start</label>
-                        <input type="datetime-local" name="scheduled_start" class="form-control" value="{{ old('scheduled_start') }}">
+                <div class="form-section">
+                    <div class="form-section-title">Assigned Classes</div>
+                    <div class="target-picker">
+                        @foreach($classArms->groupBy('class_level_id') as $levelArms)
+                            <div class="target-group">
+                                <strong>{{ $levelArms->first()->classLevel->name ?? 'Class level' }}</strong>
+                                <div class="target-options">
+                                    @foreach($levelArms as $arm)
+                                        <label class="target-option"><input type="checkbox" name="class_arm_ids[]" value="{{ $arm->id }}" @checked(in_array($arm->id, array_map('intval', old('class_arm_ids', []))))><span>{{ $arm->classLevel->name }} {{ $arm->name }}</span></label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Scheduled End</label>
-                        <input type="datetime-local" name="scheduled_end" class="form-control" value="{{ old('scheduled_end') }}">
+                    <div class="field-note">Select one or more classes. EduCore creates one shared exam rather than duplicate drafts.</div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">Schedule</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label class="form-label">Scheduled Start</label><input type="datetime-local" name="scheduled_start" class="form-control" value="{{ old('scheduled_start') }}"></div>
+                        <div class="form-group"><label class="form-label">Scheduled End</label><input type="datetime-local" name="scheduled_end" class="form-control" value="{{ old('scheduled_end') }}"></div>
                     </div>
                 </div>
-                <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:14px">
-                    <div style="font-size:11px;font-weight:800;color:var(--midnight);margin-bottom:9px">EXAM INTEGRITY</div>
-                    <label style="display:block;font-size:11px;color:var(--slate);margin-bottom:8px"><input type="checkbox" name="malpractice_enabled" value="1" checked> Enable integrity monitoring</label>
-                    <div class="form-grid"><div class="form-group"><label class="form-label">Focus-loss action</label><select class="form-control" name="focus_loss_policy"><option value="submit">Submit attempt</option><option value="warn">Warn and log</option><option value="log">Log only</option></select></div><div class="form-group"><label class="form-label">Allowed losses</label><input class="form-control" type="number" name="max_focus_losses" value="0" min="0"></div></div>
-                    <label style="display:block;font-size:11px;color:var(--slate)"><input type="checkbox" name="require_fullscreen" value="1"> Require full-screen mode</label>
+
+                <div class="form-section">
+                    <div class="form-section-title">Exam Integrity</div>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--slate);margin-bottom:10px"><input type="checkbox" name="malpractice_enabled" value="1" @checked(old('malpractice_enabled', true))> Enable integrity monitoring</label>
+                    <div class="integrity-grid">
+                        <div class="form-group"><label class="form-label">Focus-loss Action</label><select class="form-control" name="focus_loss_policy"><option value="submit" @selected(old('focus_loss_policy','submit')==='submit')>Submit attempt</option><option value="warn" @selected(old('focus_loss_policy')==='warn')>Warn and log</option><option value="log" @selected(old('focus_loss_policy')==='log')>Log only</option></select></div>
+                        <div class="form-group"><label class="form-label">Allowed Focus Losses</label><input class="form-control" type="number" name="max_focus_losses" value="{{ old('max_focus_losses',0) }}" min="0" max="20"></div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--slate)"><input type="checkbox" name="require_fullscreen" value="1" @checked(old('require_fullscreen'))> Require full-screen mode</label>
                 </div>
-                <button type="submit" class="btn btn-primary">Create One Exam</button>
+
+                <div class="create-actions">
+                    <button type="button" class="btn btn-ghost" onclick="showCbtPanel('exams')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Exam</button>
+                </div>
             </form>
         </div>
     </div>
-</div>
+</section>
 @endsection
+
+@push('scripts')
+<script>
+function showCbtPanel(name){
+    const create = name === 'create';
+    document.getElementById('cbtPanelExams').hidden = create;
+    document.getElementById('cbtPanelCreate').hidden = !create;
+    document.getElementById('examsTab').classList.toggle('active', !create);
+    document.getElementById('createTab').classList.toggle('active', create);
+    const hash = create ? '#create' : '#exams';
+    if (history.replaceState) history.replaceState(null, '', hash); else location.hash = hash;
+    window.scrollTo({top:0, behavior:'smooth'});
+}
+document.addEventListener('DOMContentLoaded', function(){
+    const hasErrors = @json($errors->any());
+    showCbtPanel(hasErrors || location.hash === '#create' ? 'create' : 'exams');
+});
+</script>
+@endpush
