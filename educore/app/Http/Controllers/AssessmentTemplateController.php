@@ -10,6 +10,7 @@ use App\Services\AssessmentTemplateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AssessmentTemplateController extends Controller
 {
@@ -213,25 +214,25 @@ class AssessmentTemplateController extends Controller
 
         $total = round(collect($data['components'])->sum(fn ($component) => (float) $component['weight_percentage']), 2);
         if (abs($total - 100.0) > 0.001) {
-            abort(redirect()->back()->withInput()->withErrors([
+            throw ValidationException::withMessages([
                 'components' => "Component weights must total exactly 100%. Current total: {$total}%.",
-            ]));
+            ]);
         }
 
         foreach ($data['components'] as $index => $component) {
             $objective = $component['objective_max'] ?? null;
             $theory = $component['theory_max'] ?? null;
             if (($objective === null) xor ($theory === null)) {
-                abort(redirect()->back()->withInput()->withErrors([
+                throw ValidationException::withMessages([
                     "components.{$index}.objective_max" => 'Provide both Objective Max and Theory Max, or leave both blank.',
-                ]));
+                ]);
             }
             if ($objective !== null && $theory !== null) {
                 $splitTotal = round((float) $objective + (float) $theory, 2);
                 if (abs($splitTotal - round((float) $component['weight_percentage'], 2)) > 0.001) {
-                    abort(redirect()->back()->withInput()->withErrors([
+                    throw ValidationException::withMessages([
                         "components.{$index}.objective_max" => 'Objective Max + Theory Max must equal this component weight.',
-                    ]));
+                    ]);
                 }
             }
         }
