@@ -44,8 +44,6 @@
     <a href="{{ route('timetable.index') }}" class="page-tab active">3. View / Generate</a>
     @endif
     <a href="{{ route('timetable.teacher') }}" class="page-tab {{ auth()->user()->canManage('timetable') ? '' : 'active' }}">Teacher View</a>
-    <a href="{{ route('exam-timetable.index') }}" class="page-tab">Exam Timetable</a>
-    <a href="{{ route('exam-timetable.my-supervision') }}" class="page-tab">My Supervision</a>
 </div>
 
 <div class="two-col">
