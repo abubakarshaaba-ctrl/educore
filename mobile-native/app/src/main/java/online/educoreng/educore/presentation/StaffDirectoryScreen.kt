@@ -1,7 +1,6 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,49 +10,45 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import online.educoreng.educore.core.designsystem.component.EduCoreDropdownField
+import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
+import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
+import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
+import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
+import online.educoreng.educore.core.designsystem.component.EduCoreMetricCard
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreSearchBar
+import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreSegmentedControl
+import online.educoreng.educore.core.designsystem.component.EduCoreTextField
+import online.educoreng.educore.core.designsystem.component.EduCoreTone
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.network.dto.StaffDirectoryMemberDto
 
 /**
- * Compatibility entry used by the existing More hub. It delegates the new
- * account-creation actions to the same Hilt-scoped StaffDirectoryViewModel,
- * while retaining the existing directory callbacks supplied by the hub.
+ * Compatibility entry used by the existing More hub. It delegates account
+ * creation actions to the same Hilt-scoped StaffDirectoryViewModel while
+ * retaining the existing directory callbacks supplied by the hub.
  */
 @Composable
 internal fun StaffDirectoryScreen(
@@ -105,7 +100,16 @@ internal fun StaffDirectoryScreen(
     onCreate: () -> Unit,
 ) {
     if (state.isCreateOpen) {
-        StaffCreateScreen(state, onCloseCreate, onCreateName, onCreateEmail, onCreatePhone, onCreateRole, onCreatePassword, onCreate)
+        StaffCreateScreen(
+            state,
+            onCloseCreate,
+            onCreateName,
+            onCreateEmail,
+            onCreatePhone,
+            onCreateRole,
+            onCreatePassword,
+            onCreate,
+        )
         return
     }
 
@@ -115,57 +119,72 @@ internal fun StaffDirectoryScreen(
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                EduCorePageHeader("Staff directory", "Authorized account management", onBack = onBack, modifier = Modifier.weight(1f))
-                IconButton(onClick = onRefresh, enabled = !state.isLoading && !state.isLoadingMore) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh staff directory")
-                }
-            }
-        }
-        item { EduCorePrimaryButton("Add staff", onStartCreate, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Add, null) }) }
-        item { StaffDirectorySummary(state) }
-        item {
-            OutlinedTextField(
-                value = state.query, onValueChange = onQuery, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                label = { Text("Search staff") }, placeholder = { Text("Name, staff ID or role") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            )
-        }
-        item {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StaffDirectoryFilter.entries.forEach { filter ->
-                    FilterChip(
-                        selected = state.filter == filter, onClick = { onFilter(filter) },
-                        label = { Text(when (filter) { StaffDirectoryFilter.ALL -> "All"; StaffDirectoryFilter.ACTIVE -> "Active"; StaffDirectoryFilter.INACTIVE -> "Inactive" }) },
-                    )
-                }
-            }
-        }
-        state.errorMessage?.let { message -> item { MessageCard(message, true, onRefresh) } }
-        state.message?.let { message -> item { Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) } }
-        item {
-            Text(
-                when {
-                    state.isLoading && state.members.isEmpty() -> "Loading directory…"
+            EduCorePageHeader(
+                title = "Staff directory",
+                subtitle = when {
+                    state.isLoading && state.members.isEmpty() -> "Loading authorised staff accounts"
                     state.filteredTotal == state.totalCount -> "${state.totalCount} staff records"
                     else -> "${state.filteredTotal} matching records"
                 },
-                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                onBack = onBack,
+                actions = {
+                    IconButton(onClick = onRefresh, enabled = !state.isLoading && !state.isLoadingMore) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh staff directory")
+                    }
+                },
             )
         }
+
+        item {
+            EduCorePrimaryButton(
+                text = "Add staff",
+                onClick = onStartCreate,
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
+            )
+        }
+
+        item { StaffDirectorySummary(state) }
+
+        item {
+            EduCoreSearchBar(
+                value = state.query,
+                onValueChange = onQuery,
+                placeholder = "Search name, staff ID or role",
+                enabled = !state.isLoading,
+            )
+        }
+
+        item {
+            val filters = StaffDirectoryFilter.entries
+            EduCoreSegmentedControl(
+                options = filters.map {
+                    when (it) {
+                        StaffDirectoryFilter.ALL -> "All"
+                        StaffDirectoryFilter.ACTIVE -> "Active"
+                        StaffDirectoryFilter.INACTIVE -> "Inactive"
+                    }
+                },
+                selectedIndex = filters.indexOf(state.filter).coerceAtLeast(0),
+                onSelected = { index -> filters.getOrNull(index)?.let(onFilter) },
+                enabled = !state.isLoading,
+            )
+        }
+
+        state.errorMessage?.let { message -> item { EduCoreErrorBanner(message) } }
+        state.message?.let { message -> item { EduCoreInfoBanner(message, title = "Staff directory updated") } }
+
         when {
             state.isLoading && state.members.isEmpty() -> item {
-                Column(Modifier.fillMaxWidth().padding(vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(); Spacer(Modifier.height(12.dp)); Text("Loading staff directory…")
-                }
+                EduCoreLoadingState(message = "Loading staff directory")
             }
             state.visibleMembers.isEmpty() -> item {
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text("No staff records found", fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(4.dp))
-                        Text("Adjust the search or status filter, then try again.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+                EduCoreEmptyState(
+                    title = "No staff records found",
+                    message = "Adjust the search or status filter and try again.",
+                    actionLabel = if (state.query.isNotBlank()) "Clear search" else "Refresh",
+                    onAction = if (state.query.isNotBlank()) ({ onQuery("") }) else onRefresh,
+                )
             }
             else -> {
                 items(state.visibleMembers, key = StaffDirectoryMemberDto::id) { member ->
@@ -176,16 +195,23 @@ internal fun StaffDirectoryScreen(
                         onToggleActive = { active -> onToggleActive(member, active) },
                     )
                 }
-                if (state.hasMore || state.isLoadingMore) item {
-                    OutlinedButton(onClick = onLoadMore, enabled = state.hasMore && !state.isLoadingMore, modifier = Modifier.fillMaxWidth()) {
-                        if (state.isLoadingMore) {
-                            CircularProgressIndicator(Modifier.width(18.dp).height(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Loading more…")
-                        } else Text("Load more (${state.members.size} of ${state.filteredTotal})")
+                if (state.hasMore || state.isLoadingMore) {
+                    item {
+                        EduCoreSecondaryButton(
+                            text = if (state.isLoadingMore) {
+                                "Loading more…"
+                            } else {
+                                "Load more (${state.members.size} of ${state.filteredTotal})"
+                            },
+                            onClick = onLoadMore,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = state.hasMore && !state.isLoadingMore,
+                        )
                     }
                 }
             }
         }
-        item { Spacer(Modifier.height(16.dp)) }
+        item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
 
@@ -207,17 +233,26 @@ private fun StaffCreateScreen(
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
         item { EduCorePageHeader("Add staff", "Create a school staff account", onBack = onBack) }
-        state.errorMessage?.let { item { MessageCard(it, true, null) } }
+        state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item { StaffField("Full name *", draft.name, onName) }
         item { StaffField("Email address *", draft.email, onEmail) }
         item { StaffField("Phone", draft.phone, onPhone) }
         item { StaffRoleSelector(draft.role, onRole) }
         item { StaffField("Temporary password *", draft.password, onPassword) }
-        item { Text("Password must contain at least 8 characters. The new staff member can change it after signing in.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            Text(
+                "Password must contain at least 8 characters. The new staff member can change it after signing in.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         item {
             EduCorePrimaryButton(
-                if (state.isCreating) "Creating account…" else "Create staff account",
-                onCreate, Modifier.fillMaxWidth(), enabled = draft.valid && !state.isCreating, loading = state.isCreating,
+                text = if (state.isCreating) "Creating account…" else "Create staff account",
+                onClick = onCreate,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = draft.valid && !state.isCreating,
+                loading = state.isCreating,
             )
         }
     }
@@ -225,54 +260,53 @@ private fun StaffCreateScreen(
 
 @Composable
 private fun StaffField(label: String, value: String, onChange: (String) -> Unit) {
-    OutlinedTextField(value, onChange, Modifier.fillMaxWidth(), label = { Text(label) }, singleLine = true)
+    EduCoreTextField(
+        value = value,
+        onValueChange = onChange,
+        label = label,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
 private fun StaffRoleSelector(selected: String, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
     val roles = StaffDirectoryViewModel.CREATE_ROLES
-    Column(Modifier.fillMaxWidth()) {
-        Text("Role *", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.height(4.dp))
-        OutlinedButton({ expanded = true }, Modifier.fillMaxWidth()) {
-            Text(roles.firstOrNull { it.first == selected }?.second ?: selected, Modifier.weight(1f))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            roles.forEach { (key, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { expanded = false; onSelect(key) }) }
-        }
-    }
-}
-
-@Composable
-private fun MessageCard(message: String, error: Boolean, retry: (() -> Unit)?) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer),
+    val selectedRole = roles.firstOrNull { it.first == selected }
+    EduCoreDropdownField(
+        label = "Role *",
+        options = roles,
+        selected = selectedRole,
+        optionLabel = { it.second },
+        onSelected = { onSelect(it.first) },
         modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(message, Modifier.weight(1f), color = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer)
-            retry?.let { TextButton(onClick = it) { Text("Retry") } }
-        }
-    }
+        placeholder = "Select staff role",
+    )
 }
 
 @Composable
 private fun StaffDirectorySummary(state: StaffDirectoryUiState) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DirectoryMetric("Staff", state.totalCount.toString(), Modifier.weight(1f))
-        DirectoryMetric("Active", state.activeCount.toString(), Modifier.weight(1f))
-        DirectoryMetric("Inactive", state.inactiveCount.toString(), Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun DirectoryMetric(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+    ) {
+        EduCoreMetricCard(
+            label = "Staff",
+            value = state.totalCount.toString(),
+            modifier = Modifier.weight(1f),
+            tone = EduCoreTone.Brand,
+        )
+        EduCoreMetricCard(
+            label = "Active",
+            value = state.activeCount.toString(),
+            modifier = Modifier.weight(1f),
+            tone = EduCoreTone.Success,
+        )
+        EduCoreMetricCard(
+            label = "Inactive",
+            value = state.inactiveCount.toString(),
+            modifier = Modifier.weight(1f),
+            tone = EduCoreTone.Neutral,
+        )
     }
 }
 
@@ -283,17 +317,37 @@ private fun StaffDirectoryRow(
     mutationLocked: Boolean,
     onToggleActive: (Boolean) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        ) {
             Column(Modifier.weight(1f)) {
-                Text(member.name, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(3.dp))
-                Text(member.role, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                member.staffId?.takeIf(String::isNotBlank)?.let { Text("Staff ID: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                if (isSaving) Text("Updating account…", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(member.name, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Ink900)
+                Spacer(Modifier.height(EduCoreSpacing.Xs))
+                Text(member.role, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                member.staffId?.takeIf(String::isNotBlank)?.let {
+                    Text("Staff ID: $it", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                }
+                if (isSaving) {
+                    Text("Updating account…", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Navy700)
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(if (member.active) "Active" else "Inactive", style = MaterialTheme.typography.labelMedium, color = if (member.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Switch(checked = member.active, onCheckedChange = onToggleActive, enabled = !mutationLocked)
+                Text(
+                    if (member.active) "Active" else "Inactive",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (member.active) EduCoreColors.Success700 else EduCoreColors.Muted500,
+                )
+                Switch(
+                    checked = member.active,
+                    onCheckedChange = onToggleActive,
+                    enabled = !mutationLocked,
+                )
             }
         }
     }
