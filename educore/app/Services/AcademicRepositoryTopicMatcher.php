@@ -76,7 +76,10 @@ class AcademicRepositoryTopicMatcher
     private function tokens(?string $value): array
     {
         $canonical = $this->canonical($value);
-        return $canonical === '' ? [] : preg_split('/\s+/u', $canonical) ?: [];
+
+        return $canonical === ''
+            ? []
+            : (preg_split('/\s+/u', $canonical) ?: []);
     }
 
     private function lightStem(string $token): string
