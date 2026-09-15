@@ -42,6 +42,65 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun admin_keeps_report_cards_when_stale_bootstrap_omits_the_descriptor() {
+        val admin = session(
+            portal = "admin",
+            role = "admin",
+            includeReports = false,
+        )
+
+        val visible = ShellNavigationPolicy.visibleModules(admin)
+
+        assertEquals(1, visible.count { it.key == "reports" })
+        assertEquals("Report Cards", visible.single { it.key == "reports" }.title)
+    }
+
+    @Test
+    fun academic_leadership_and_hod_restore_score_entry_when_descriptor_is_missing() {
+        val roles = listOf(
+            "principal",
+            "vice_principal_academics",
+            "assistant_head",
+            "academic_head",
+            "hod",
+            "head_of_department",
+        )
+
+        roles.forEach { role ->
+            val staff = session(
+                portal = "staff",
+                role = role,
+                includeScores = false,
+                explicitPermissions = setOf("profile"),
+            )
+
+            assertTrue(
+                "$role should retain Score Entry",
+                ShellNavigationPolicy.visibleModules(staff).any { it.key == "scores" },
+            )
+        }
+    }
+
+    @Test
+    fun self_attendance_fallback_is_permission_driven_and_does_not_weaken_rbac() {
+        val granted = session(
+            portal = "staff",
+            role = "subject_teacher",
+            includeScores = false,
+            explicitPermissions = setOf("profile", "staff-attendance.self"),
+        )
+        val denied = session(
+            portal = "staff",
+            role = "subject_teacher",
+            includeScores = false,
+            explicitPermissions = setOf("profile"),
+        )
+
+        assertTrue(ShellNavigationPolicy.visibleModules(granted).any { it.key == "staff-attendance.self" })
+        assertFalse(ShellNavigationPolicy.visibleModules(denied).any { it.key == "staff-attendance.self" })
+    }
+
+    @Test
     fun legacy_staff_attendance_is_management_only_and_normalized() {
         val descriptor = ModuleDescriptor("staff-attendance", "Staff Attendance", "/staff-attendance", "staff-attendance")
         val admin = session(portal = "admin", role = "admin", extraModules = listOf(descriptor))
@@ -124,6 +183,31 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun specialist_score_permission_cannot_bypass_explicit_role_restrictions() {
+        val specialistRoles = listOf(
+            "communication_officer",
+            "admission_officer",
+            "transport_officer",
+            "health_officer",
+            "accountant",
+        )
+
+        specialistRoles.forEach { role ->
+            val staff = session(
+                portal = "staff",
+                role = role,
+                includeScores = false,
+                explicitPermissions = setOf("profile", "scores.manage"),
+            )
+
+            assertFalse(
+                "$role must not regain Score Entry through a permission fallback",
+                ShellNavigationPolicy.visibleModules(staff).any { it.key == "scores" },
+            )
+        }
+    }
+
+    @Test
     fun operational_specialists_do_not_inherit_unrelated_workspaces() {
         val extras = listOf(
             ModuleDescriptor("admissions", "Admissions", "/admissions", "admissions"),
@@ -189,15 +273,20 @@ class ShellNavigationPolicyTest {
         portal: String,
         role: String,
         extraModules: List<ModuleDescriptor> = emptyList(),
+        includeScores: Boolean = true,
+        includeReports: Boolean = true,
+        explicitPermissions: Set<String>? = null,
     ): SessionSnapshot {
-        val modules = (listOf(
-            ModuleDescriptor("classes", "Classes", "/classes", "classes"),
-            ModuleDescriptor("scores", "Scores", "/scores", "scores"),
-            ModuleDescriptor("timetable", "Timetable", "/timetable", "timetable"),
-            ModuleDescriptor("messages", "Messages", "/messages", "messages"),
-            ModuleDescriptor("profile", "My Profile", "/profile", "profile"),
-            ModuleDescriptor("fees", "Fees", "/fees", "fees"),
-        ) + extraModules).distinctBy { it.key }
+        val baseModules = buildList {
+            add(ModuleDescriptor("classes", "Classes", "/classes", "classes"))
+            if (includeScores) add(ModuleDescriptor("scores", "Scores", "/scores", "scores"))
+            add(ModuleDescriptor("timetable", "Timetable", "/timetable", "timetable"))
+            add(ModuleDescriptor("messages", "Messages", "/messages", "messages"))
+            add(ModuleDescriptor("profile", "My Profile", "/profile", "profile"))
+            add(ModuleDescriptor("fees", "Fees", "/fees", "fees"))
+            if (includeReports) add(ModuleDescriptor("reports", "Reports", "/reports", "reports"))
+        }
+        val modules = (baseModules + extraModules).distinctBy { it.key }
 
         return SessionSnapshot(
             user = UserIdentity(
@@ -213,7 +302,7 @@ class ShellNavigationPolicyTest {
             school = SchoolIdentity(2, "Greenfield Academy", "greenfield"),
             academicPeriod = AcademicPeriod(1, "2026/2027", 1, "First Term"),
             access = TenantAccess(true, "allowed", "Available", null, null),
-            permissions = modules.map(ModuleDescriptor::key).toSet(),
+            permissions = explicitPermissions ?: modules.map(ModuleDescriptor::key).toSet(),
             modules = modules,
             serverTime = "2026-08-28T08:00:00+01:00",
         )
