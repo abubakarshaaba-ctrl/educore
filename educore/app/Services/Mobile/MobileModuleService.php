@@ -186,6 +186,14 @@ class MobileModuleService
                 }
 
                 if ($key === 'scores') {
+                    // Score Entry is a core academic workspace. Academic staff
+                    // (including subject teachers) must be able to open it even when
+                    // their role permissions do not redundantly include a scores alias.
+                    // The score endpoints themselves still scope teachers to their
+                    // assigned classes/subjects, so module visibility does not broaden
+                    // the records a teacher may edit.
+                    if ($isAcademicStaff) return true;
+
                     return $user->canAccessExactModule('scores')
                         || $user->canAccessExactModule('scores.entry')
                         || $user->canAccessExactModule('scores.view')
