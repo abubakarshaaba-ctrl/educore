@@ -61,7 +61,16 @@ data class AdminStaffAttendanceReportDto(
     @Json(name = "month") val month: Int,
     @Json(name = "year") val year: Int,
     @Json(name = "working_days") val workingDays: List<String> = emptyList(),
+    @Json(name = "summary") val summary: AdminStaffAttendanceReportSummaryDto = AdminStaffAttendanceReportSummaryDto(),
     @Json(name = "staff") val staff: List<AdminStaffAttendanceReportRowDto> = emptyList(),
+)
+
+@JsonClass(generateAdapter = true)
+data class AdminStaffAttendanceReportSummaryDto(
+    @Json(name = "on_time") val onTime: Int = 0,
+    @Json(name = "attended") val attended: Int = 0,
+    @Json(name = "late") val late: Int = 0,
+    @Json(name = "punctuality_rate") val punctualityRate: Int = 0,
 )
 
 @JsonClass(generateAdapter = true)
