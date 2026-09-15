@@ -48,7 +48,28 @@ class ThemeHelper
         }
 
         return "<style>
-:root{--brand-navy:{$sidebar};--brand-gold:{$accent};--midnight:{$primary};--indigo:{$accent};--indigo-dark:#B8810D;--indigo-bg:#FEF9EC;--focus-ring:rgba(215,154,33,.72);--focus-ring-soft:rgba(215,154,33,.20);}
+/*
+ * Canonical EduCore palette. html:root intentionally has higher specificity
+ * than older :root declarations in legacy brand CSS, so every web surface
+ * resolves to the same navy/gold tokens used by the Laravel shell and native app.
+ */
+html:root{
+    --brand-navy:{$sidebar}!important;
+    --brand-navy-hover:#0B2D63!important;
+    --brand-navy-soft:#E9F0F9!important;
+    --brand-gold:{$accent}!important;
+    --brand-gold-dark:#B8810D!important;
+    --brand-gold-light:#FEF9EC!important;
+    --midnight:{$primary}!important;
+    --navy:{$primary}!important;
+    --indigo:{$accent}!important;
+    --indigo-dark:#B8810D!important;
+    --indigo-dk:#B8810D!important;
+    --indigo-bg:#FEF9EC!important;
+    --amber:{$accent}!important;
+    --focus-ring:rgba(215,154,33,.72);
+    --focus-ring-soft:rgba(215,154,33,.20);
+}
 .sidebar{background:{$sidebar}!important;}
 .nav-item.active{background:{$accent}28!important;color:#F2C35B!important;}
 .nav-item.active::before{background:{$accent}!important;}
