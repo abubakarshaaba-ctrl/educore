@@ -157,13 +157,13 @@ object ShellNavigationPolicy {
             )
         }
 
-        // Score Entry is permission-driven. Custom staff roles can legitimately be
-        // granted score entry without having the word "teacher" in their role key,
-        // but explicit specialist-role restrictions still take precedence.
+        // Score Entry is a core native academic workspace. Trust an explicit
+        // server-provided scores module, and also recover it for known academic
+        // staff roles when an older/stale bootstrap payload omits the descriptor.
         if (
-            portal == "staff" &&
+            portal in setOf("staff", "admin") &&
             isAllowedForSpecialistRole(role, "scores") &&
-            hasAnyPermission(session, SCORE_PERMISSION_KEYS) &&
+            (portal == "admin" || role in SCORE_ENTRY_ROLE_KEYS || hasAnyPermission(session, SCORE_PERMISSION_KEYS)) &&
             visible.none { it.key.equals("scores", ignoreCase = true) }
         ) {
             visible += ModuleDescriptor(
@@ -228,9 +228,13 @@ object ShellNavigationPolicy {
     ): Boolean {
         val portal = session.user.portal.trim().lowercase()
 
-        // The bootstrap module list is already server/RBAC filtered. Admin, platform,
-        // student and parent portals must not lose server-granted modules because a
-        // secondary client-side permission alias is absent or named differently.
+        // The bootstrap module list is already server/RBAC filtered. Do not remove
+        // a server-authorized Score Entry descriptor merely because an equivalent
+        // permission alias is absent from the separate permissions array.
+        if (canonicalKey == "scores") return true
+
+        // Admin, platform, student and parent portals likewise trust the server's
+        // already-filtered module contract.
         if (portal in setOf("admin", "platform", "student", "parent")) return true
 
         if (session.permissions.contains("*")) return true
@@ -246,10 +250,6 @@ object ShellNavigationPolicy {
         if (canonicalKey == "academic-repository") {
             val role = normalizedRole(session)
             return role.contains("teacher") || hasAnyPermission(session, setOf("academic-repository"))
-        }
-
-        if (canonicalKey == "scores") {
-            return hasAnyPermission(session, SCORE_PERMISSION_KEYS)
         }
 
         if (canonicalKey == "reports") {
@@ -310,6 +310,28 @@ object ShellNavigationPolicy {
         "scores", "scores.entry", "score-entry", "score_entry", "result-entry", "result_entry",
     )
     private val SCORE_PERMISSION_KEYS = SCORE_ALIASES + setOf("scores.view", "scores.manage")
+    private val SCORE_ENTRY_ROLE_KEYS = setOf(
+        "teacher",
+        "subject_teacher",
+        "class_teacher",
+        "form_teacher",
+        "asst_form_teacher",
+        "form_subject_teacher",
+        "hod",
+        "head_of_department",
+        "director_of_studies",
+        "principal",
+        "vice_principal",
+        "vice_principal_academics",
+        "assistant_principal",
+        "assistant_head",
+        "academic_head",
+        "academic_administrator",
+        "head",
+        "head_teacher",
+        "head_of_school",
+        "school_head",
+    )
     private val REPORT_PERMISSION_KEYS = STAFF_REPORT_ALIASES + setOf("reports.view", "reports.manage")
     private val SCHEDULE_ALIASES = setOf(
         "timetable", "student.timetable", "exam-timetable", "exam_timetable", "exam.timetable",
