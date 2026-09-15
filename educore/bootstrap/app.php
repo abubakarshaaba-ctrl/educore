@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
+            // Shared hosting has no terminal/SSH access. This protected route
+            // provides the equivalent of `mail:health` from a browser without
+            // exposing SMTP credentials or any deployment secret in the response.
+            Route::group([], base_path('routes/mail-health.php'));
+
             // Override the legacy SuperAdminController broadcast POST route with
             // the canonical publisher so web and API broadcasts share validation,
             // image persistence, tenant notice fan-out and push delivery behavior.
