@@ -4,98 +4,159 @@
 
 @push('styles')
 <style>
-    .page-tabs{display:flex;gap:6px;padding:5px;margin-bottom:20px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.04);flex-wrap:wrap}
-    .page-tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--slate);text-decoration:none;transition:.15s ease}
-    .page-tab:hover{background:#F1F5F9;color:var(--midnight)}
-    .page-tab.active{background:var(--indigo);color:#fff}
-    .compute-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:28px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
-    .compute-title{font-size:20px;font-weight:750;color:var(--midnight);letter-spacing:-.02em;margin-bottom:6px}
-    .compute-sub{font-size:13px;color:var(--slate);line-height:1.6;margin-bottom:22px}
-    .pg-split{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
-    @media(max-width:900px){.pg-split{grid-template-columns:1fr}}
-    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
-    .step{display:flex;align-items:flex-start;gap:10px;padding:13px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px}
-    .step-num{width:25px;height:25px;border-radius:50%;background:var(--indigo);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-    .step-text{font-size:12px;color:var(--midnight);line-height:1.5}.step-text strong{font-weight:700}
-    .form-group{margin-bottom:16px}.form-label{display:block;margin-bottom:6px;font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.05em}.form-label span{color:var(--crimson)}
-    .form-control{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:#F8FAFC;color:var(--midnight);font:inherit;font-size:13px;outline:none}.form-control:focus{background:#fff;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-    .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border:0;border-radius:9px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}.btn-primary{background:var(--indigo);color:#fff}.btn-primary:hover{background:#1D4ED8}
-    .alert-success{margin-bottom:16px;padding:12px 15px;border:1px solid #A7F3D0;border-radius:9px;background:#ECFDF5;color:#047857;font-size:13px}
-    @media(max-width:760px){.steps{grid-template-columns:1fr}.compute-card{padding:20px}}
+    .report-layout {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) 320px;
+        gap:20px;
+        align-items:start;
+    }
+
+    .report-steps {
+        display:grid;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:10px;
+        margin-bottom:22px;
+    }
+
+    .report-step {
+        display:flex;
+        gap:10px;
+        align-items:flex-start;
+        padding:13px;
+        border:1px solid var(--brand-border, var(--border));
+        border-radius:10px;
+        background:var(--brand-page, #F8FAFC);
+    }
+
+    .report-step-number {
+        width:26px;
+        height:26px;
+        flex:0 0 26px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:50%;
+        background:var(--brand-gold, #D79A21);
+        color:var(--brand-navy, #071E45);
+        font-size:11px;
+        font-weight:800;
+    }
+
+    .report-step-copy {
+        color:var(--brand-text, var(--midnight));
+        font-size:12px;
+        line-height:1.5;
+    }
+
+    .report-step-copy strong { color:var(--brand-navy, var(--midnight)); }
+
+    .report-workflow-copy {
+        color:var(--brand-gray, var(--slate));
+        font-size:13px;
+        line-height:1.65;
+    }
+
+    .report-workflow-copy p { margin:0 0 12px; }
+    .report-workflow-copy p:last-child { margin-bottom:0; }
+    .report-workflow-copy strong { color:var(--brand-navy, var(--midnight)); }
+
+    .report-side { position:sticky; top:calc(var(--header-h) + 16px); }
+
+    @media(max-width:900px) {
+        .report-layout { grid-template-columns:1fr; }
+        .report-side { position:static; }
+    }
+
+    @media(max-width:760px) {
+        .report-steps { grid-template-columns:1fr; }
+    }
 </style>
 @endpush
 
 @section('content')
-<div class="page-tabs" style="margin-bottom:20px">
-    <a href="{{ route('reports.index') }}"        class="page-tab {{ request()->routeIs('reports.index') ? 'active' : '' }}">Generate</a>
+<nav class="page-tabs" aria-label="Report card sections">
+    <a href="{{ route('reports.index') }}" class="page-tab {{ request()->routeIs('reports.index') ? 'active' : '' }}" @if(request()->routeIs('reports.index')) aria-current="page" @endif>Generate</a>
     <a href="{{ route('reports.publications') }}" class="page-tab {{ request()->routeIs('reports.publications*') ? 'active' : '' }}">Publish / Unpublish</a>
     <a href="{{ route('reports.remarks') }}" class="page-tab {{ request()->routeIs('reports.remarks*') ? 'active' : '' }}">Remarks</a>
     @if(request()->filled('class_arm_id') && request()->filled('term_id'))
         <a href="{{ route('reports.preview', request()->only(['class_arm_id','term_id'])) }}" class="page-tab">Preview Cards</a>
     @endif
-</div>
+</nav>
 
-@if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
+@if(session('success'))
+    <div class="alert-success" role="status" aria-live="polite">{{ session('success') }}</div>
+@endif
 
-<div class="pg-split">
-<div class="compute-card">
-    <div class="compute-title">Generate Report Cards</div>
-    <div class="compute-sub">Computes final averages, positions, and grades for every student in the selected class and term, then prepares printable PDF report cards.</div>
+<div class="report-layout">
+    <section class="ec-card" aria-labelledby="generate-report-title">
+        <div class="ec-card__header">
+            <h2 id="generate-report-title" class="ec-card__title">Generate Report Cards</h2>
+        </div>
+        <div class="ec-card__body">
+            <p class="hint" style="margin-top:0;margin-bottom:20px">
+                Compute final averages, positions and grades for every student in the selected class and term, then prepare printable report cards.
+            </p>
 
-    <div class="steps">
-        <div class="step">
-            <div class="step-num">1</div>
-            <div class="step-text"><strong>Scores must be fully entered</strong> for all subjects and assessment types before computing.</div>
-        </div>
-        <div class="step">
-            <div class="step-num">2</div>
-            <div class="step-text"><strong>Select the class and term</strong> below, then click Compute to calculate positions and averages.</div>
-        </div>
-        <div class="step">
-            <div class="step-num">3</div>
-            <div class="step-text"><strong>Add remarks</strong> from the preview page, then download individual or bulk PDFs.</div>
-        </div>
-    </div>
+            <div class="report-steps" aria-label="Report card workflow summary">
+                <div class="report-step">
+                    <div class="report-step-number">1</div>
+                    <div class="report-step-copy"><strong>Complete score entry.</strong> All subject assessments should be entered before computation.</div>
+                </div>
+                <div class="report-step">
+                    <div class="report-step-number">2</div>
+                    <div class="report-step-copy"><strong>Select class and term.</strong> EduCore computes averages, grades and positions for that scope.</div>
+                </div>
+                <div class="report-step">
+                    <div class="report-step-number">3</div>
+                    <div class="report-step-copy"><strong>Review, remark and publish.</strong> Add authorised remarks, preview cards and publish when ready.</div>
+                </div>
+            </div>
 
-    @if(auth()->user()->canManage('reports'))
-    <form method="POST" action="{{ route('reports.compute') }}">
-        @csrf
-        <div class="form-group">
-            <label class="form-label">Class <span>*</span></label>
-            <select name="class_arm_id" class="form-control" required>
-                <option value="">Select class</option>
-                @foreach($classArms as $arm)
-                    <option value="{{ $arm->id }}">{{ $arm->classLevel->name }} {{ $arm->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Term <span>*</span></label>
-            <select name="term_id" class="form-control" required>
-                <option value="">Select term</option>
-                @foreach($terms as $term)
-                    <option value="{{ $term->id }}" {{ $term->is_current ? 'selected' : '' }}>{{ $term->name }} — {{ $term->session->name ?? '' }}</option>
-                @endforeach
-            </select>
-        </div>
-        <button type="submit" class="btn btn-primary">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
-            Compute Report Cards
-        </button>
-    </form>
-    @endif
-</div>
+            @if(auth()->user()->canManage('reports'))
+                <form method="POST" action="{{ route('reports.compute') }}">
+                    @csrf
+                    <div class="auto-grid-sm" style="margin-bottom:16px">
+                        <div class="fg">
+                            <label class="fl" for="report-class">Class <span aria-hidden="true">*</span></label>
+                            <select id="report-class" name="class_arm_id" class="fc" required>
+                                <option value="">Select class</option>
+                                @foreach($classArms as $arm)
+                                    <option value="{{ $arm->id }}">{{ $arm->classLevel->name }} {{ $arm->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="fg">
+                            <label class="fl" for="report-term">Term <span aria-hidden="true">*</span></label>
+                            <select id="report-term" name="term_id" class="fc" required>
+                                <option value="">Select term</option>
+                                @foreach($terms as $term)
+                                    <option value="{{ $term->id }}" {{ $term->is_current ? 'selected' : '' }}>{{ $term->name }} — {{ $term->session->name ?? '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
 
-<div style="display:flex;flex-direction:column;gap:16px">
-    <div class="card" style="position:sticky;top:calc(var(--header-h) + 16px)">
-        <div class="ch">Report Card Workflow</div>
-        <div class="cb" style="font-size:13px;color:var(--slate);line-height:1.7">
-            <p style="margin-bottom:10px"><strong style="color:var(--midnight)">Before computing</strong>, ensure all scores are fully entered for the selected class and term via Score Entry.</p>
-            <p style="margin-bottom:10px"><strong style="color:var(--midnight)">Computing</strong> calculates positions, averages, and grades — it replaces any previous computation for that class/term.</p>
-            <p style="margin-bottom:10px"><strong style="color:var(--midnight)">Remarks</strong> (form teacher & principal) are added from the Report Cards → Remarks tab after computing.</p>
-            <p><strong style="color:var(--midnight)">Publishing</strong> makes report cards visible to students and parents on the portal.</p>
+                    <button type="submit" class="btn btn-primary">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+                        Compute Report Cards
+                    </button>
+                </form>
+            @else
+                <div class="alert-info">This account has read-only access to report cards.</div>
+            @endif
         </div>
-    </div>
-</div>
+    </section>
+
+    <aside class="ec-card report-side" aria-labelledby="report-workflow-title">
+        <div class="ec-card__header">
+            <h2 id="report-workflow-title" class="ec-card__title">Report Card Workflow</h2>
+        </div>
+        <div class="ec-card__body report-workflow-copy">
+            <p><strong>Before computing:</strong> ensure all scores are fully entered for the selected class and term through Score Entry.</p>
+            <p><strong>Computing:</strong> recalculates positions, averages and grades for the selected class and term.</p>
+            <p><strong>Remarks:</strong> form-teacher and principal remarks are added from the Remarks tab after computation.</p>
+            <p><strong>Publishing:</strong> makes report cards visible to authorised students and parents on the portal.</p>
+        </div>
+    </aside>
 </div>
 @endsection
