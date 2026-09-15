@@ -84,6 +84,13 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::prefix('api/v1')
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-admin-staff-attendance.php'));
+
+            // Codemagic calls this single protected endpoint only after a signed
+            // production APK and its checksum have been published successfully.
+            // It deliberately does not use user authentication; a dedicated
+            // bearer secret keeps release automation isolated from app sessions.
+            Route::prefix('api/v1')
+                ->group(base_path('routes/mobile-release.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
