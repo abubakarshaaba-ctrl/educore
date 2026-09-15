@@ -34,12 +34,6 @@ class AssessmentType extends BaseTenantModel
 
     protected static function booted(): void
     {
-        /*
-         * Score entry/save historically queried every assessment type in a term.
-         * Assessment Templates can now vary by class level, so constrain only
-         * those two score workflows to the class-level runtime configuration.
-         * Other reports/admin queries keep their normal explicit scopes.
-         */
         static::addGlobalScope('score_entry_class_level', function (Builder $builder): void {
             if (! app()->bound('request')) {
                 return;
@@ -88,13 +82,6 @@ class AssessmentType extends BaseTenantModel
         return $this->belongsTo(Term::class);
     }
 
-    /**
-     * Class levels this assessment type applies to.
-     *
-     * Backward compatibility: assessment types with no pivot rows are treated
-     * as legacy/default term-wide assessment types. They are used only when a
-     * class level has no explicitly scoped assessment types for that term.
-     */
     public function classLevels(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -105,7 +92,6 @@ class AssessmentType extends BaseTenantModel
         )->withTimestamps();
     }
 
-    /** Resolve the runtime configuration for one class level and term. */
     public static function resolvedForClassLevel(int $termId, int $classLevelId): Collection
     {
         $scoped = static::query()
@@ -140,11 +126,13 @@ class AssessmentType extends BaseTenantModel
     }
 
     /**
-     * Split-scored assessment types pull an objective score from a tagged
-     * CBT exam (read-only) and combine it with a manually-entered theory score.
+     * Legacy objective/theory columns are retained for backwards-compatible
+     * database reads only. Objective and theory are now scored entirely inside
+     * the CBT module. Score Entry receives one final weighted aggregate from
+     * CbtResultSyncService, so the score sheet must never expose split inputs.
      */
     public function isSplit(): bool
     {
-        return $this->objective_max !== null && $this->theory_max !== null;
+        return false;
     }
 }
