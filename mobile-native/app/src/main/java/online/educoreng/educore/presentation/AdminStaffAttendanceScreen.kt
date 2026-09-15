@@ -182,7 +182,7 @@ class AdminStaffAttendanceViewModel @Inject constructor(
 
     fun decideProxy(id: Long, confirmed: Boolean) {
         mutate(refreshReviews = true) {
-            api.decideProxy(id, AdminAttendanceProxyDecisionRequestDto(if (confirmed) "confirmed" else "flagged")).message
+            api.decideProxy(id, AdminAttendanceProxyDecisionRequestDto(if (confirmed) "approve" else "reject")).message
         }
     }
 
