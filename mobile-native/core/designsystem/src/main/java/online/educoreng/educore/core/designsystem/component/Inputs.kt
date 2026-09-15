@@ -146,7 +146,9 @@ fun <T> EduCoreDropdownField(
                 onClick = { expanded = true },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = enabled && options.isNotEmpty(),
-                leadingIcon = null,
+                trailingIcon = {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Open $label options")
+                },
             )
             DropdownMenu(
                 expanded = expanded,
