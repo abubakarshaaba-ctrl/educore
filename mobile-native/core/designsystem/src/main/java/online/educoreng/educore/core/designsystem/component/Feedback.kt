@@ -25,6 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
@@ -69,7 +72,9 @@ private fun EduCoreBanner(
     if (message.isBlank() && title.isNullOrBlank()) return
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
         shape = MaterialTheme.shapes.small,
         color = tone.container(),
         contentColor = tone.foreground(),
@@ -94,7 +99,10 @@ fun EduCoreLoadingState(
     message: String = "Loading",
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(EduCoreSpacing.Lg)
+            .semantics { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -152,14 +160,15 @@ fun EduCoreErrorState(
     title: String = "Unable to load",
     onRetry: (() -> Unit)? = null,
 ) {
-    EduCoreEmptyState(
-        title = title,
-        message = message,
-        modifier = modifier,
-        icon = Icons.Default.ErrorOutline,
-        actionLabel = if (onRetry == null) null else "Retry",
-        onAction = onRetry,
-    )
+    Box(modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+        EduCoreEmptyState(
+            title = title,
+            message = message,
+            icon = Icons.Default.ErrorOutline,
+            actionLabel = if (onRetry == null) null else "Retry",
+            onAction = onRetry,
+        )
+    }
 }
 
 /**
