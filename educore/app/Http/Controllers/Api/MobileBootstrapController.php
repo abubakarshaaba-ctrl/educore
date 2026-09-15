@@ -30,9 +30,6 @@ class MobileBootstrapController extends Controller
             ], 401)->header('X-EduCore-Request-Id', $requestId);
         }
 
-        // Bootstrap is the app's authenticated entry point. Every optional
-        // enrichment is isolated so legacy/missing metadata cannot turn a
-        // valid sign-in into an HTTP 500.
         try {
             if ($user->isTenantStaff() && ! $user->isEmploymentActive()) {
                 return response()->json([
@@ -269,7 +266,14 @@ class MobileBootstrapController extends Controller
             'principal',
             'head',
             'head_teacher',
+            'head_of_school',
+            'school_head',
             'vice_principal',
+            'vice_principal_academics',
+            'vice_principal_administration',
+            'assistant_principal',
+            'assistant_head',
+            'academic_head',
             'academic_administrator',
         ], true) ? 'admin' : 'staff';
     }
