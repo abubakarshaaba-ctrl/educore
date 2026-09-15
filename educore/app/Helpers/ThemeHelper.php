@@ -13,10 +13,11 @@ class ThemeHelper
      * Server middleware remains the security boundary; these selectors simply
      * stop users seeing modules that their strict role scope cannot open.
      *
-     * Global accessibility rules live here because a number of legacy views
-     * still contain inline CSS. Important declarations intentionally allow the
-     * design-system layer to normalise focus, motion and touch-target behaviour
-     * without changing feature-specific markup or business logic.
+     * Global accessibility and UI-normalisation rules live here because a
+     * number of legacy views still contain local CSS. Important declarations
+     * intentionally allow the design-system layer to normalise typography,
+     * alignment, focus, motion and control geometry without changing feature
+     * business logic.
      */
     public static function css(): string
     {
@@ -48,11 +49,7 @@ class ThemeHelper
         }
 
         return "<style>
-/*
- * Canonical EduCore palette. html:root intentionally has higher specificity
- * than older :root declarations in legacy brand CSS, so every web surface
- * resolves to the same navy/gold tokens used by the Laravel shell and native app.
- */
+/* Canonical EduCore palette and geometry. */
 html:root{
     --brand-navy:{$sidebar}!important;
     --brand-navy-hover:#0B2D63!important;
@@ -69,12 +66,129 @@ html:root{
     --amber:{$accent}!important;
     --focus-ring:rgba(215,154,33,.72);
     --focus-ring-soft:rgba(215,154,33,.20);
+    --ui-font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --control-height:40px;
+    --control-radius:8px;
+    --card-radius:12px;
 }
+
+/*
+ * One typography system across every tenant screen. The web app is intentionally
+ * compact because EduCore is a dense school ERP; headings remain distinct while
+ * body, table, form and navigation text are materially smaller and consistent.
+ */
+html,body,button,input,select,textarea{
+    font-family:var(--ui-font)!important;
+}
+html{font-size:13px!important;}
+body{font-size:13px!important;line-height:1.42!important;}
+h1{font-size:20px!important;line-height:1.2!important;}
+h2{font-size:17px!important;line-height:1.25!important;}
+h3{font-size:15px!important;line-height:1.3!important;}
+h4,h5,h6{font-size:13px!important;line-height:1.35!important;}
+p,li,td,th,label,input,select,textarea,button,.btn,.page-tab,.nav-item{
+    line-height:1.35!important;
+}
+.sidebar .nav-item{font-size:12.5px!important;}
+.nav-section-label{font-size:10px!important;letter-spacing:.06em!important;color:#D8B968!important;}
+.page-title,.card-title,.ch,.card-head .card-title{font-size:13px!important;}
+.form-label,.fl,thead th{font-size:10px!important;}
+tbody td{font-size:12px!important;}
+.badge,.status-badge{font-size:10px!important;}
+
 .sidebar{background:{$sidebar}!important;}
 .nav-item.active{background:{$accent}28!important;color:#F2C35B!important;}
 .nav-item.active::before{background:{$accent}!important;}
 .btn-p{background:{$accent}!important;color:{$primary}!important;}
-.nav-section-label{color:#D8B968!important;}
+
+/*
+ * Canonical control geometry. Buttons/tabs are flex-centred so text and icons
+ * sit on the same visual axis. Inputs/selects use the same 40px row height.
+ */
+button:not(.collapse-btn):not(.icon-btn),
+.btn,
+[role=button]:not(.icon-btn),
+.page-tab,
+.pagination a,
+.pagination button{
+    min-height:var(--control-height)!important;
+    height:auto;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    vertical-align:middle!important;
+    line-height:1!important;
+    padding-top:0!important;
+    padding-bottom:0!important;
+    border-radius:var(--control-radius)!important;
+    box-sizing:border-box!important;
+    white-space:nowrap;
+}
+
+input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]),
+select,
+.form-control,
+.fc{
+    min-height:var(--control-height)!important;
+    height:var(--control-height)!important;
+    padding-top:0!important;
+    padding-bottom:0!important;
+    border-radius:var(--control-radius)!important;
+    box-sizing:border-box!important;
+    font-size:12px!important;
+    line-height:var(--control-height)!important;
+}
+textarea,
+textarea.form-control,
+textarea.fc{
+    height:auto!important;
+    min-height:84px!important;
+    padding-top:9px!important;
+    padding-bottom:9px!important;
+    line-height:1.4!important;
+}
+select,
+select.form-control,
+select.fc{
+    line-height:normal!important;
+}
+
+/* Align controls and shapes whenever they share a horizontal workflow row. */
+.form-row,
+.filter-row,
+.filters-row,
+.toolbar,
+.actions,
+.page-actions,
+.card-actions,
+.scope-tabs,
+.page-tabs{
+    align-items:center!important;
+}
+.form-row > *,
+.filter-row > *,
+.filters-row > *,
+.toolbar > *,
+.actions > *,
+.page-actions > *,
+.card-actions > *{
+    align-self:center;
+}
+.page-tabs{min-height:48px;}
+.page-tab{padding-left:14px!important;padding-right:14px!important;}
+
+/* Cards and tables resolve to one visual geometry. */
+.card,
+.filter-card,
+.panel,
+.stat,
+.sc,
+.sum-card{
+    border-radius:var(--card-radius)!important;
+}
+table th,table td{vertical-align:middle!important;}
+td .btn,td button,td [role=button]{vertical-align:middle!important;}
+.tbl,.table-wrap{border-radius:var(--control-radius);}
 
 /* Brand-consistent keyboard focus across legacy and modern views. */
 a:focus-visible,
@@ -89,24 +203,10 @@ textarea:focus-visible,
     box-shadow:0 0 0 4px var(--focus-ring-soft)!important;
 }
 
-/* Keep interactive controls comfortably tappable without enlarging dense data cells. */
-button:not(.collapse-btn):not(.icon-btn),
-.btn,
-[role=button]:not(.icon-btn),
-.page-tab,
-.pagination a,
-.pagination button{
-    min-height:40px;
-}
 @media (max-width:768px){
-    button:not(.collapse-btn):not(.icon-btn),
-    .btn,
-    [role=button]:not(.icon-btn),
-    .page-tab,
-    .pagination a,
-    .pagination button{
-        min-height:44px;
-    }
+    html{font-size:12.5px!important;}
+    :root{--control-height:44px;}
+    .sidebar .nav-item{font-size:12px!important;}
 }
 
 /* Prevent motion-heavy navigation from becoming an accessibility barrier. */
@@ -119,7 +219,6 @@ button:not(.collapse-btn):not(.icon-btn),
     }
 }
 
-/* Make native disabled states unambiguous on legacy forms. */
 button:disabled,
 input:disabled,
 select:disabled,
