@@ -83,8 +83,6 @@ class PushNotificationService
                     return;
                 }
 
-                // PlatformBroadcastDeliveryService treats every non-trial,
-                // non-expired tenant as active for broadcast targeting.
                 $tenant->where('status', '!=', 'trial')
                     ->where(function ($expiry): void {
                         $expiry->whereNull('subscription_expires_at')
@@ -200,6 +198,31 @@ class PushNotificationService
 
     public function send(string $deviceToken, string $title, string $body, array $data = []): bool
     {
+        return $this->sendMessage(['token' => $deviceToken], $title, $body, $data, $deviceToken);
+    }
+
+    /**
+     * Broadcast to every app installation subscribed to an FCM topic. This is
+     * used for product releases so signed-out installations receive the same
+     * update notice as devices that have registered an authenticated user token.
+     */
+    public function sendToTopic(string $topic, string $title, string $body, array $data = []): bool
+    {
+        $topic = trim($topic);
+        if ($topic === '') {
+            return false;
+        }
+
+        return $this->sendMessage(['topic' => $topic], $title, $body, $data);
+    }
+
+    private function sendMessage(
+        array $target,
+        string $title,
+        string $body,
+        array $data = [],
+        ?string $deviceToken = null,
+    ): bool {
         try {
             $projectId = config('services.fcm.project_id');
             $accessToken = $this->accessToken();
@@ -214,8 +237,7 @@ class PushNotificationService
                 ->retry(2, 250, throw: false)
                 ->withToken($accessToken)
                 ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
-                    'message' => [
-                        'token' => $deviceToken,
+                    'message' => array_merge($target, [
                         'notification' => ['title' => $title, 'body' => $body],
                         'data' => array_map('strval', $data),
                         'android' => [
@@ -225,20 +247,21 @@ class PushNotificationService
                                 'sound' => 'default',
                             ],
                         ],
-                    ],
+                    ]),
                 ]);
 
             if (! $response->successful()) {
                 $failure = $response->json('error.details.0.errorCode')
                     ?? $response->json('error.status');
 
-                if (in_array($failure, ['UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'], true)) {
+                if ($deviceToken !== null && in_array($failure, ['UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'], true)) {
                     DeviceToken::where('token', $deviceToken)->delete();
                 }
 
                 Log::warning('FCM send failed.', [
                     'status' => $response->status(),
                     'failure' => $failure,
+                    'target' => isset($target['topic']) ? 'topic:'.$target['topic'] : 'device',
                 ]);
             }
 
@@ -279,7 +302,7 @@ class PushNotificationService
             $response = Http::timeout(15)
                 ->asForm()
                 ->post('https://oauth2.googleapis.com/token', [
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                    'grant_type' => 'urn:ietf:params:oauth-grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);
 
