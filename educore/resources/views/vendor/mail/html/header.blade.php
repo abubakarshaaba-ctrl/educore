@@ -17,24 +17,21 @@
 </table>
 </a>
 </td>
-<td class="brand-message" valign="middle" align="right">
-<div class="brand-message-line">Empowering Schools.</div>
-<div class="brand-message-line">Supporting People.</div>
-<div class="brand-message-highlight">Building Brighter Futures.</div>
+<td class="brand-vision" valign="middle" align="right">
+<div class="brand-kicker">SCHOOLS&nbsp;&nbsp;•&nbsp;&nbsp;PEOPLE&nbsp;&nbsp;•&nbsp;&nbsp;LEARNING&nbsp;&nbsp;•&nbsp;&nbsp;PROGRESS</div>
+<div class="brand-vision-main">Smarter Schools.</div>
+<div class="brand-vision-highlight">Brighter Futures.</div>
 </td>
 </tr>
 </table>
-<table class="brand-services" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+<table class="brand-value-strip" width="100%" cellpadding="0" cellspacing="0" role="presentation">
 <tr>
-<td class="brand-service">Academics</td>
-<td class="brand-service">Students</td>
-<td class="brand-service">Staff</td>
-<td class="brand-service">Results</td>
-<td class="brand-service">Finance</td>
-<td class="brand-service">Communication</td>
-<td class="brand-service">Administration</td>
+<td class="brand-value">Technology</td>
+<td class="brand-value">People</td>
+<td class="brand-value">Process</td>
+<td class="brand-value">Better Schools</td>
 </tr>
 </table>
-<div class="brand-accent-line"></div>
+<div class="brand-gold-wave"></div>
 </td>
 </tr>
