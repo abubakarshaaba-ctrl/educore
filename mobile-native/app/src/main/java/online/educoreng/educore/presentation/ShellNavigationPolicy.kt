@@ -130,7 +130,6 @@ object ShellNavigationPolicy {
                 sourceKey == "dashboard" -> null
                 !isExplicitlyAuthorizedModule(session, sourceKey, key) -> null
                 !isAllowedForSpecialistRole(role, key) -> null
-                sourceKey == "staff-attendance.self" -> null
                 sourceKey == "staff-attendance" && !canManageStaffAttendance -> null
                 sourceKey == "staff-attendance" -> module.copy(
                     key = "staff-attendance.admin",
@@ -158,12 +157,11 @@ object ShellNavigationPolicy {
             )
         }
 
-        // Subject teachers can receive either the broad `scores` permission or the
-        // narrower `scores.entry` grant. Treat the two names symmetrically so score
-        // entry is not accidentally hidden by an alias mismatch in the native app.
+        // Score Entry is permission-driven. Custom staff roles can legitimately be
+        // granted score entry without having the word "teacher" in their role key,
+        // so do not hide the native score-entry form behind a role-name heuristic.
         if (
             portal == "staff" &&
-            role.contains("teacher") &&
             hasAnyPermission(session, SCORE_PERMISSION_KEYS) &&
             visible.none { it.key.equals("scores", ignoreCase = true) }
         ) {
@@ -172,6 +170,22 @@ object ShellNavigationPolicy {
                 title = "Score Entry",
                 path = "/scores",
                 icon = "scores",
+            )
+        }
+
+        // Self staff attendance is a native workspace and supports offline clock-in.
+        // Keep it visible whenever the backend grants the self-attendance permission,
+        // including stale bootstrap payloads where the module descriptor is missing.
+        if (
+            portal == "staff" &&
+            session.can("staff-attendance.self") &&
+            visible.none { it.key.equals("staff-attendance.self", ignoreCase = true) }
+        ) {
+            visible += ModuleDescriptor(
+                key = "staff-attendance.self",
+                title = "My Attendance",
+                path = "/staff-attendance",
+                icon = "staff-attendance",
             )
         }
 
@@ -262,7 +276,7 @@ object ShellNavigationPolicy {
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
         val key = module.key.lowercase()
         return when {
-            key == "staff-attendance.admin" -> ModuleGroup.OPERATIONS
+            key in setOf("staff-attendance.admin", "staff-attendance.self") -> ModuleGroup.OPERATIONS
             COMMUNICATION_KEYS.any(key::contains) -> ModuleGroup.COMMUNICATION
             SCHEDULE_KEYS.any(key::contains) -> ModuleGroup.SCHEDULE
             ACCOUNT_KEYS.any(key::contains) -> ModuleGroup.ACCOUNT
