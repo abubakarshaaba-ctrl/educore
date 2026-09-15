@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -31,12 +32,25 @@ class EduCoreMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val target = NotificationDeepLinkParser.parse(message.data)
+        val isAppUpdate = message.data["type"] == APP_UPDATE_TYPE
+        val target = if (isAppUpdate) null else NotificationDeepLinkParser.parse(message.data)
         if (target != null) NotificationDeepLinkStore.publish(target)
+
+        val versionName = message.data["version_name"].orEmpty()
+        val updateBody = versionName
+            .takeIf(String::isNotBlank)
+            ?.let { "EduCore $it is ready to install." }
+            ?: "A new EduCore version is ready to install."
+
         showNotification(
-            title = message.notification?.title ?: message.data["title"] ?: getString(R.string.app_name),
-            body = message.notification?.body ?: message.data["body"] ?: "You have a new EduCore update.",
+            title = message.notification?.title
+                ?: message.data["title"]
+                ?: if (isAppUpdate) "EduCore update available" else getString(R.string.app_name),
+            body = message.notification?.body
+                ?: message.data["body"]
+                ?: if (isAppUpdate) updateBody else "You have a new EduCore update.",
             target = target,
+            downloadUrl = message.data["download_url"].takeIf { isAppUpdate && !it.isNullOrBlank() },
         )
     }
 
@@ -45,19 +59,31 @@ class EduCoreMessagingService : FirebaseMessagingService() {
         super.onDestroy()
     }
 
-    private fun showNotification(title: String, body: String, target: online.educoreng.educore.core.model.DeepLinkTarget?) {
+    private fun showNotification(
+        title: String,
+        body: String,
+        target: online.educoreng.educore.core.model.DeepLinkTarget?,
+        downloadUrl: String? = null,
+    ) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "EduCore updates", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "School notices, messages and important academic updates"
+                    description = "School notices, messages and EduCore application updates"
                 },
             )
         }
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("destination_type", target?.type)
-            putExtra("destination_id", target?.id)
+
+        val intent = if (!downloadUrl.isNullOrBlank()) {
+            Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("destination_type", target?.type)
+                putExtra("destination_id", target?.id)
+            }
         }
         val requestCode = (System.currentTimeMillis() and 0x7fffffff).toInt()
         val pendingIntent = PendingIntent.getActivity(
@@ -80,5 +106,8 @@ class EduCoreMessagingService : FirebaseMessagingService() {
         )
     }
 
-    private companion object { const val CHANNEL_ID = "educore_updates" }
+    private companion object {
+        const val CHANNEL_ID = "educore_updates"
+        const val APP_UPDATE_TYPE = "app_update"
+    }
 }
