@@ -20,6 +20,7 @@ data class AdminStaffAttendanceSummaryDto(
     @Json(name = "present") val present: Int = 0,
     @Json(name = "late") val late: Int = 0,
     @Json(name = "absent") val absent: Int = 0,
+    @Json(name = "punctuality_rate") val punctualityRate: Int = 0,
 )
 
 @JsonClass(generateAdapter = true)
