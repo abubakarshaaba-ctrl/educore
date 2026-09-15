@@ -121,11 +121,7 @@ class AppServiceProvider extends ServiceProvider
             $resolved = \App\Models\AssessmentType::resolvedForClassLevel((int) $term->id, (int) $classArm->class_level_id);
             $view->with('assessmentTypes', $resolved);
 
-            // ScoreController historically calculated totals from every runtime
-            // type in a term. Recalculate the visible score-entry totals from the
-            // class-level template only, so parallel Primary/JSS/SSS templates do
-            // not inflate each other's totals.
-            if ($view->name() === 'scores.entry') {
+            if ($view->getName() === 'scores.entry') {
                 $students = collect($data['students'] ?? []);
                 $existingScores = $data['existingScores'] ?? [];
                 $studentTotals = [];
