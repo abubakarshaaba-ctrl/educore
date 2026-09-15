@@ -18,7 +18,6 @@
     .alert-error   { background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px; }
     .conflict-item { font-size:12px;margin-top:4px; }
 
-    /* Timetable grid */
     .tt-outer { overflow-x:auto;margin-bottom:20px; }
     .tt-table { width:100%;border-collapse:collapse;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);min-width:700px; }
     .tt-table thead th {
@@ -53,8 +52,9 @@
     .empty-cell { display:flex;align-items:center;justify-content:center;min-height:54px; }
     .add-btn { font-size:11px;color:var(--slate-light);background:none;border:1.5px dashed #CBD5E1;border-radius:6px;cursor:pointer;padding:5px 10px;transition:all 150ms; }
     .add-btn:hover { border-color:var(--indigo);color:var(--indigo); }
+    .closed-cell { min-height:54px;display:flex;align-items:center;justify-content:center;background:#F8FAFC;color:#94A3B8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
+    .break-row td.closed-break { background:#F8FAFC !important;color:#94A3B8 !important; }
 
-    /* Add period form */
     .add-card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
     .add-card-header { padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:600;color:var(--midnight); }
     .add-card-body { padding:18px; }
@@ -107,8 +107,9 @@
         <h2>{{ $classArm->classLevel->name }} {{ $classArm->name }} — {{ $session->name }}</h2>
         <p>
             @if($config)
-                {{ $config->periods_per_day }} periods/day · {{ $config->period_duration }} mins each
+                Up to {{ $config->periods_per_day }} periods/day · {{ $config->period_duration }} mins each
                 @if(count($config->breaks ?? []))· {{ count($config->breaks) }} break(s)@endif
+                @if(count($config->day_end_times ?? []))· variable weekday closing times@endif
             @else
                 No school hours configured
             @endif
@@ -130,13 +131,14 @@
     </div>
 </div>
 
-{{-- Timetable grid --}}
 <div class="tt-outer">
     <div class="tbl"><table class="tt-table">
         <thead>
             <tr>
                 <th>Time</th>
-                @foreach($days as $day)<th>{{ ucfirst($day) }}</th>@endforeach
+                @foreach($days as $day)
+                <th>{{ ucfirst($day) }}@if($config)<br><span style="font-size:9px;font-weight:400;opacity:.75">to {{ $config->closingTimeFor($day) }}</span>@endif</th>
+                @endforeach
             </tr>
         </thead>
         <tbody>
@@ -145,7 +147,10 @@
                 <tr class="break-row">
                     <td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>
                     @foreach($days as $day)
-                    <td>☕ {{ $slot['label'] }}</td>
+                    @php
+                        $hasBreak = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
+                    @endphp
+                    <td class="{{ $hasBreak ? '' : 'closed-break' }}">{{ $hasBreak ? '☕ '.$slot['label'] : 'Closed' }}</td>
                     @endforeach
                 </tr>
                 @else
@@ -157,11 +162,13 @@
                     </td>
                     @foreach($days as $day)
                     @php
-                        $match = $periods->get($day, collect())
-                            ->first(fn($p) => $p->start_time === $slot['start']);
+                        $slotAvailable = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => ! $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
+                        $match = $periods->get($day, collect())->first(fn($p) => $p->start_time === $slot['start']);
                     @endphp
                     <td>
-                        @if($match)
+                        @if(!$slotAvailable)
+                        <div class="closed-cell">Closed</div>
+                        @elseif($match)
                         <div class="period-cell">
                             <div class="period-item">
                                 <div class="period-subject">{{ $match->subject->name }}</div>
@@ -201,7 +208,6 @@
     </table></div>
 </div>
 
-{{-- Manual add period panel (admin only) --}}
 @if(auth()->user()->canManage('timetable'))
 <div class="add-card" id="addPeriodCard" style="max-width:480px;display:none">
     <div class="add-card-header">Manually Add Period</div>
