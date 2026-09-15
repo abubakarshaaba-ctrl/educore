@@ -256,7 +256,12 @@ internal fun AcademicResourceDetailScreen(
                     Text("Read-only note view retired", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
                     Text("This material is indexed into Academic Knowledge and used as canonical evidence for deterministic lesson-plan and student-note generation.", style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Navy900)
                     detail.resource.filename?.takeIf(String::isNotBlank)?.let {
-                        EduCoreSecondaryButton("Open original evidence file", onDownload, loading = state.isSaving, modifier = Modifier.fillMaxWidth())
+                        EduCoreSecondaryButton(
+                            text = if (state.isSaving) "Opening…" else "Open original evidence file",
+                            onClick = onDownload,
+                            enabled = !state.isSaving,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
             }
