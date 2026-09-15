@@ -10,7 +10,10 @@
 .form-group{margin-bottom:14px}.form-label{display:block;font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}.form-control{width:100%;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none}.form-control:focus{border-color:var(--indigo);background:white}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .break-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px}.break-label{font-size:11px;font-weight:600;color:var(--slate);margin-bottom:4px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;border-radius:8px;border:none;cursor:pointer;text-decoration:none}.btn-primary{background:var(--indigo);color:white;width:100%}.btn-ghost{background:white;color:var(--slate);border:1px solid var(--border)}.btn-danger{background:#FEF2F2;color:var(--crimson);border:1px solid #FECACA;padding:8px 10px}.alert-success{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px}.alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px}
 .preview-box{background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:14px}.preview-slot{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}.preview-slot:last-child{border-bottom:none}.existing-card{border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:8px}.existing-session{font-size:13px;font-weight:700;color:var(--midnight)}.existing-detail{font-size:12px;color:var(--slate);margin-top:3px}
+.day-hours{margin:4px 0 16px;border:1px solid var(--border);border-radius:10px;overflow:hidden}.day-hours-head{padding:10px 12px;background:#F8FAFC;border-bottom:1px solid var(--border)}.day-hours-title{font-size:12px;font-weight:700;color:var(--midnight)}.day-hours-note{font-size:11px;color:var(--slate);margin-top:2px}.day-hours-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0}.day-hour{padding:10px;border-right:1px solid var(--border)}.day-hour:last-child{border-right:none}.day-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--slate);margin-bottom:5px}.day-hour .form-control{min-width:0}.day-summary{font-size:11px;color:var(--slate);margin-top:4px}.preview-day{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}.preview-day:last-child{border-bottom:none}.preview-day strong{color:var(--midnight)}
+@media(max-width:1100px){.day-hours-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.day-hour{border-bottom:1px solid var(--border)}}
 @media(max-width:900px){.setup-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.break-row{grid-template-columns:1fr 1fr}.page-tabs{width:100%;overflow-x:auto}.page-tab{white-space:nowrap}}
+@media(max-width:640px){.day-hours-grid{grid-template-columns:1fr 1fr}.day-hour{border-right:1px solid var(--border)}}
 </style>
 @endpush
 
@@ -45,10 +48,32 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label class="form-label">School Start</label><input type="time" name="school_start" class="form-control" value="{{ old('school_start', $selectedConfig ? substr((string)$selectedConfig->school_start,0,5) : '07:30') }}" required></div>
-                        <div class="form-group"><label class="form-label">School End</label><input type="time" name="school_end" class="form-control" value="{{ old('school_end', $selectedConfig ? substr((string)$selectedConfig->school_end,0,5) : '14:30') }}" required></div>
+                        <div class="form-group"><label class="form-label">Default School End</label><input type="time" name="school_end" class="form-control" value="{{ old('school_end', $selectedConfig ? substr((string)$selectedConfig->school_end,0,5) : '14:30') }}" required></div>
                     </div>
+
+                    @php
+                        $schoolDays = ['monday','tuesday','wednesday','thursday','friday'];
+                        $storedDayEnds = old('day_end_times', $selectedConfig->day_end_times ?? []);
+                        $defaultEnd = old('school_end', $selectedConfig ? substr((string)$selectedConfig->school_end,0,5) : '14:30');
+                    @endphp
+                    <div class="day-hours">
+                        <div class="day-hours-head">
+                            <div class="day-hours-title">Closing Time by Day</div>
+                            <div class="day-hours-note">Set a different closing time only where needed. Blank days use the default school end above.</div>
+                        </div>
+                        <div class="day-hours-grid">
+                            @foreach($schoolDays as $day)
+                            <div class="day-hour">
+                                <div class="day-name">{{ ucfirst($day) }}</div>
+                                <input type="time" name="day_end_times[{{ $day }}]" class="form-control day-end-input" data-day="{{ $day }}" value="{{ $storedDayEnds[$day] ?? '' }}" aria-label="{{ ucfirst($day) }} closing time">
+                                <div class="day-summary" id="summary-{{ $day }}">Uses {{ $defaultEnd }}</div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+
                     <div class="form-row">
-                        <div class="form-group"><label class="form-label">Periods Per Day</label><input type="number" min="1" max="12" name="periods_per_day" class="form-control" value="{{ old('periods_per_day', $selectedConfig->periods_per_day ?? 8) }}" required></div>
+                        <div class="form-group"><label class="form-label">Maximum Periods Per Day</label><input type="number" min="1" max="12" name="periods_per_day" class="form-control" value="{{ old('periods_per_day', $selectedConfig->periods_per_day ?? 8) }}" required></div>
                         <div class="form-group"><label class="form-label">Period Duration (minutes)</label><input type="number" min="20" max="120" name="period_duration" class="form-control" value="{{ old('period_duration', $selectedConfig->period_duration ?? 40) }}" required></div>
                     </div>
 
@@ -85,7 +110,10 @@
                 @foreach($configs as $cfg)
                 <div class="existing-card">
                     <div class="existing-session">{{ optional($cfg->session)->name ?? 'Unknown session' }}</div>
-                    <div class="existing-detail">{{ substr((string)$cfg->school_start,0,5) }} – {{ substr((string)$cfg->school_end,0,5) }} · {{ $cfg->periods_per_day }} periods/day · {{ $cfg->period_duration }} mins · {{ count($cfg->breaks ?? []) }} break(s)</div>
+                    <div class="existing-detail">{{ substr((string)$cfg->school_start,0,5) }} – {{ substr((string)$cfg->school_end,0,5) }} default · up to {{ $cfg->periods_per_day }} periods/day · {{ $cfg->period_duration }} mins · {{ count($cfg->breaks ?? []) }} break(s)</div>
+                    @if(count($cfg->day_end_times ?? []))
+                    <div class="existing-detail">Overrides: {{ collect($cfg->day_end_times)->map(fn($time,$day) => ucfirst($day).' '.substr((string)$time,0,5))->join(' · ') }}</div>
+                    @endif
                 </div>
                 @endforeach
             </div>
@@ -94,7 +122,7 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><div class="card-title">Live Slot Preview</div></div>
+        <div class="card-header"><div class="card-title">Weekly Capacity Preview</div></div>
         <div class="card-body"><div class="preview-box" id="previewSlots">Preview will appear here.</div></div>
     </div>
 </div>
@@ -102,6 +130,7 @@
 @push('scripts')
 <script>
 let breakIndex = {{ count($initialBreaks ?? []) }};
+const schoolDays = ['monday','tuesday','wednesday','thursday','friday'];
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[ch]));
 function addBreak(){
     const box=document.getElementById('breaksContainer'); if(!box) return;
@@ -111,17 +140,38 @@ function addBreak(){
     row.querySelector('button').addEventListener('click',()=>{row.remove();updatePreview()});
     row.querySelectorAll('input').forEach(el=>el.addEventListener('input',updatePreview)); box.appendChild(row); updatePreview();
 }
-function updatePreview(){
-    const box=document.getElementById('previewSlots'); if(!box) return;
+function computeDay(endTime){
     const start=document.querySelector('[name="school_start"]')?.value;
     const count=parseInt(document.querySelector('[name="periods_per_day"]')?.value||'0',10);
     const duration=parseInt(document.querySelector('[name="period_duration"]')?.value||'0',10);
-    if(!start||!count||!duration){box.textContent='Enter valid school hours and period settings.';return;}
-    const breaks=[]; document.querySelectorAll('.break-row').forEach(row=>{const a=parseInt(row.querySelector('[name*="after_period"]')?.value||'0',10),d=parseInt(row.querySelector('[name*="duration"]')?.value||'0',10),l=row.querySelector('[name*="label"]')?.value||'Break';if(a&&d)breaks.push({a,d,l});});
-    let [h,m]=start.split(':').map(Number), mins=h*60+m, html='';
-    const fmt=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
-    for(let i=1;i<=count;i++){const s=fmt(mins);mins+=duration;const e=fmt(mins);html+=`<div class="preview-slot"><strong>Period ${i}</strong><span>${s} – ${e}</span></div>`;const b=breaks.find(x=>x.a===i);if(b){const bs=fmt(mins);mins+=b.d;html+=`<div class="preview-slot"><strong>${esc(b.l)}</strong><span>${bs} – ${fmt(mins)}</span></div>`;}}
-    box.innerHTML=html||'No slots configured.';
+    if(!start||!endTime||!count||!duration) return {periods:0,end:endTime||'—'};
+    const breaks=[]; document.querySelectorAll('.break-row').forEach(row=>{const a=parseInt(row.querySelector('[name*="after_period"]')?.value||'0',10),d=parseInt(row.querySelector('[name*="duration"]')?.value||'0',10);if(a&&d)breaks.push({a,d});});
+    const toMins=t=>{const [h,m]=t.split(':').map(Number);return h*60+m};
+    let mins=toMins(start), close=toMins(endTime), periods=0;
+    for(let i=1;i<=count;i++){
+        const periodEnd=mins+duration;
+        if(periodEnd>close) break;
+        mins=periodEnd; periods++;
+        const b=breaks.find(x=>x.a===i);
+        if(b){if(mins+b.d>close) break;mins+=b.d;}
+    }
+    return {periods,end:endTime};
+}
+function updatePreview(){
+    const box=document.getElementById('previewSlots'); if(!box) return;
+    const defaultEnd=document.querySelector('[name="school_end"]')?.value;
+    if(!defaultEnd){box.textContent='Enter valid school hours and period settings.';return;}
+    let total=0, html='';
+    schoolDays.forEach(day=>{
+        const input=document.querySelector(`[name="day_end_times[${day}]"]`);
+        const effective=input?.value||defaultEnd;
+        const result=computeDay(effective); total+=result.periods;
+        const label=day.charAt(0).toUpperCase()+day.slice(1);
+        html+=`<div class="preview-day"><strong>${label}</strong><span>${esc(effective)} · ${result.periods} teaching period${result.periods===1?'':'s'}</span></div>`;
+        const summary=document.getElementById(`summary-${day}`); if(summary) summary.textContent=(input?.value?'Closes ':'Uses default ')+effective;
+    });
+    html+=`<div class="preview-day"><strong>Weekly capacity</strong><span>${total} teaching periods</span></div>`;
+    box.innerHTML=html;
 }
 document.getElementById('sessionConfig')?.addEventListener('change',e=>{const url=new URL(window.location.href);url.searchParams.set('session_id',e.target.value);window.location.href=url.toString();});
 document.querySelectorAll('#configForm input').forEach(el=>el.addEventListener('input',updatePreview)); updatePreview();
