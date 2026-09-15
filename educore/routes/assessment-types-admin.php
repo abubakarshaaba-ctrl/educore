@@ -29,21 +29,14 @@ Route::prefix('scores')->name('scores.')->group(function (): void {
         ->name('assessment-schemes.templates.destroy');
 });
 
+// AppServiceProvider owns the canonical template CRUD/assignment routes.
+// Only the component-level routes are registered here to avoid duplicate route
+// names when Laravel caches routes in production.
 Route::prefix('assessment-templates')->name('assessment-templates.')->group(function (): void {
-    Route::post('/', [AssessmentTemplateController::class, 'store'])->name('store');
-    Route::put('{template}', [AssessmentTemplateController::class, 'update'])->name('update');
-    Route::post('{template}/duplicate', [AssessmentTemplateController::class, 'duplicate'])->name('duplicate');
-    Route::post('{template}/assign', [AssessmentTemplateController::class, 'assign'])->name('assign');
-
-    // School-owned component builder. Components remain editable until the
-    // template is assigned; after assignment the structure is protected so
-    // historical score contracts cannot be changed accidentally.
     Route::post('{template}/components', [AssessmentTemplateController::class, 'storeComponent'])
         ->name('components.store');
     Route::put('{template}/components/{component}', [AssessmentTemplateController::class, 'updateComponent'])
         ->name('components.update');
     Route::delete('{template}/components/{component}', [AssessmentTemplateController::class, 'destroyComponent'])
         ->name('components.destroy');
-
-    Route::delete('{template}', [AssessmentTemplateController::class, 'destroy'])->name('destroy');
 });
