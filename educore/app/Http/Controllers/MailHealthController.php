@@ -36,6 +36,8 @@ class MailHealthController extends Controller
 
         if ($fromAddress === '' || !filter_var($fromAddress, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'MAIL_FROM_ADDRESS is missing or invalid.';
+        } elseif ($this->isPlaceholderEmail($fromAddress)) {
+            $errors[] = 'MAIL_FROM_ADDRESS is still using an example/placeholder address.';
         }
 
         $safeConfig = [
@@ -47,9 +49,9 @@ class MailHealthController extends Controller
         ];
 
         if ($transport === 'smtp') {
-            $host = (string) ($mailerConfig['host'] ?? '');
+            $host = trim((string) ($mailerConfig['host'] ?? ''));
             $port = $mailerConfig['port'] ?? null;
-            $username = (string) ($mailerConfig['username'] ?? '');
+            $username = trim((string) ($mailerConfig['username'] ?? ''));
 
             $safeConfig['smtp_host'] = $host !== '' ? $host : null;
             $safeConfig['smtp_port'] = $port;
@@ -57,6 +59,8 @@ class MailHealthController extends Controller
 
             if ($host === '') {
                 $errors[] = 'SMTP host is not configured.';
+            } elseif (app()->environment('production') && in_array(strtolower($host), ['127.0.0.1', 'localhost'], true)) {
+                $errors[] = 'SMTP host is still using the local development default.';
             }
             if (!$port) {
                 $errors[] = 'SMTP port is not configured.';
@@ -126,6 +130,15 @@ class MailHealthController extends Controller
             'test_email' => $sendResult,
             'checked_at' => now()->toDateTimeString(),
         ]);
+    }
+
+    private function isPlaceholderEmail(string $email): bool
+    {
+        $normalized = strtolower(trim($email));
+
+        return str_ends_with($normalized, '@example.com')
+            || str_ends_with($normalized, '@example.org')
+            || str_ends_with($normalized, '@example.net');
     }
 
     private function maskEmail(string $email): string
