@@ -109,6 +109,59 @@ class AssessmentTemplateService
     }
 
     /**
+     * Delete a template and its materialized runtime assessment rows only when
+     * no student score has ever been recorded against that template.
+     */
+    public function deleteTemplate(AssessmentTemplate $template): void
+    {
+        if ($template->hasRecordedScores()) {
+            throw ValidationException::withMessages([
+                'template' => 'Delete is disabled because student scores have already been recorded on this assessment template.',
+            ]);
+        }
+
+        DB::transaction(function () use ($template): void {
+            $assignments = AssessmentTemplateAssignment::withoutTenantScope()
+                ->where('tenant_id', $template->tenant_id)
+                ->where('assessment_template_id', $template->id)
+                ->get();
+
+            foreach ($assignments as $assignment) {
+                $termIds = Term::withoutTenantScope()
+                    ->where('tenant_id', $template->tenant_id)
+                    ->where('session_id', $assignment->session_id)
+                    ->pluck('id');
+
+                if ($termIds->isEmpty()) {
+                    continue;
+                }
+
+                $runtimeTypes = AssessmentType::withoutTenantScope()
+                    ->where('tenant_id', $template->tenant_id)
+                    ->whereIn('term_id', $termIds)
+                    ->whereHas('classLevels', fn ($query) => $query
+                        ->where('class_levels.id', $assignment->class_level_id))
+                    ->with('classLevels')
+                    ->get();
+
+                foreach ($runtimeTypes as $runtimeType) {
+                    $runtimeType->classLevels()->detach([(int) $assignment->class_level_id]);
+                    if (! $runtimeType->classLevels()->exists()) {
+                        $runtimeType->delete();
+                    }
+                }
+            }
+
+            AssessmentTemplateAssignment::withoutTenantScope()
+                ->where('tenant_id', $template->tenant_id)
+                ->where('assessment_template_id', $template->id)
+                ->delete();
+
+            $template->delete();
+        });
+    }
+
+    /**
      * Called when a new term is created. Existing session assignments are
      * materialized automatically so administrators never recreate assessments.
      */
