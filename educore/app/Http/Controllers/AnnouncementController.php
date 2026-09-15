@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Announcement;
+use App\Services\Notifications\ActivityEmailService;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 
@@ -39,6 +40,7 @@ class AnnouncementController extends Controller
         $announcement = Announcement::create($data);
         if ($announcement->is_published) {
             app(PushNotificationService::class)->notifyAnnouncementPublished($announcement);
+            app(ActivityEmailService::class)->notifyAnnouncementPublished($announcement);
         }
         return back()->with('success', 'Announcement published.');
     }
@@ -54,6 +56,7 @@ class AnnouncementController extends Controller
         $announcement->update(['is_published' => !$announcement->is_published]);
         if ($announcement->is_published) {
             app(PushNotificationService::class)->notifyAnnouncementPublished($announcement);
+            app(ActivityEmailService::class)->notifyAnnouncementPublished($announcement);
         }
         return back()->with('success', 'Announcement status updated.');
     }
