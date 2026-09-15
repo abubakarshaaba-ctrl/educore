@@ -1,5 +1,6 @@
 package online.educoreng.educore.presentation
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,13 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
@@ -79,23 +85,19 @@ internal fun PayrollGenerationScreen(
             )
         }
         item {
-            EduCoreTextField(
-                value = state.generationStart,
-                onValueChange = onStart,
+            PayrollDateField(
                 label = "Period start",
-                modifier = Modifier.fillMaxWidth(),
+                value = state.generationStart,
                 enabled = !state.isSaving,
-                supportingText = "YYYY-MM-DD",
+                onSelected = onStart,
             )
         }
         item {
-            EduCoreTextField(
-                value = state.generationEnd,
-                onValueChange = onEnd,
+            PayrollDateField(
                 label = "Period end",
-                modifier = Modifier.fillMaxWidth(),
+                value = state.generationEnd,
                 enabled = !state.isSaving,
-                supportingText = "YYYY-MM-DD",
+                onSelected = onEnd,
             )
         }
         item {
@@ -122,5 +124,44 @@ internal fun PayrollGenerationScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+@Composable
+private fun PayrollDateField(
+    label: String,
+    value: String,
+    enabled: Boolean,
+    onSelected: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val current = runCatching { LocalDate.parse(value) }.getOrElse { LocalDate.now() }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = EduCoreColors.Slate700,
+        )
+        EduCoreSecondaryButton(
+            text = value.ifBlank { "Select date" },
+            onClick = {
+                DatePickerDialog(
+                    context,
+                    { _, year, month, dayOfMonth ->
+                        onSelected(LocalDate.of(year, month + 1, dayOfMonth).toString())
+                    },
+                    current.year,
+                    current.monthValue - 1,
+                    current.dayOfMonth,
+                ).show()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+        )
     }
 }
