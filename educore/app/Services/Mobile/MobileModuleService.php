@@ -19,7 +19,7 @@ class MobileModuleService
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
         'staff-attendance.self' => ['My Attendance', '/staff-attendance/my', 'staff-attendance'],
         'skills' => ['Skill Ratings', '/skills', 'skills'],
-        'scores' => ['Score Sheet', '/scores', 'scores'],
+        'scores' => ['Score Entry', '/scores', 'scores'],
         'reports' => ['Report Cards', '/reports', 'reports'],
         'timetable' => ['Timetable', '/timetable', 'timetable'],
         'fees' => ['Fees & Invoices', '/fees/invoices', 'fees'],
@@ -57,9 +57,10 @@ class MobileModuleService
 
     private const ACADEMIC_ROLE_KEYS = [
         'admin', 'principal', 'head', 'head_teacher', 'head_of_school', 'head_of_schools',
-        'vice_principal', 'academic_administrator', 'director_of_studies',
-        'hod', 'head_of_department', 'teacher', 'subject_teacher', 'class_teacher',
-        'form_teacher', 'asst_form_teacher', 'form_subject_teacher',
+        'vice_principal', 'vice_principal_academics', 'vice_principal_administration',
+        'assistant_principal', 'assistant_head', 'academic_head', 'academic_administrator',
+        'director_of_studies', 'hod', 'head_of_department', 'teacher', 'subject_teacher',
+        'class_teacher', 'form_teacher', 'asst_form_teacher', 'form_subject_teacher',
     ];
 
     private const EXPLICIT_ACADEMIC_PERMISSION_KEYS = [
@@ -77,7 +78,9 @@ class MobileModuleService
     ];
 
     private const STAFF_ATTENDANCE_MANAGEMENT_ROLES = [
-        'admin', 'principal', 'head', 'head_teacher', 'vice_principal', 'academic_administrator',
+        'admin', 'principal', 'head', 'head_teacher', 'head_of_school', 'school_head',
+        'vice_principal', 'vice_principal_academics', 'vice_principal_administration',
+        'assistant_principal', 'assistant_head', 'academic_head', 'academic_administrator',
     ];
 
     private const ADMISSION_OFFICER_BLOCKED_MODULES = [
