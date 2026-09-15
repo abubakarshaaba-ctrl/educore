@@ -49,6 +49,14 @@ class AssessmentTemplate extends BaseTenantModel
      */
     public function hasRecordedScores(): bool
     {
+        $componentNames = $this->relationLoaded('components')
+            ? $this->components->pluck('name')->filter()->unique()->values()
+            : $this->components()->pluck('name')->filter()->unique()->values();
+
+        if ($componentNames->isEmpty()) {
+            return false;
+        }
+
         $assignments = $this->relationLoaded('assignments')
             ? $this->assignments
             : $this->assignments()->get();
@@ -66,6 +74,7 @@ class AssessmentTemplate extends BaseTenantModel
             $assessmentTypeIds = AssessmentType::withoutTenantScope()
                 ->where('tenant_id', $this->tenant_id)
                 ->whereIn('term_id', $termIds)
+                ->whereIn('name', $componentNames)
                 ->whereHas('classLevels', fn ($query) => $query
                     ->where('class_levels.id', $assignment->class_level_id))
                 ->pluck('assessment_types.id');
