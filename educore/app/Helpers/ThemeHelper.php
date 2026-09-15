@@ -16,8 +16,8 @@ class ThemeHelper
      * Global accessibility and UI-normalisation rules live here because a
      * number of legacy views still contain local CSS. Important declarations
      * intentionally allow the design-system layer to normalise typography,
-     * alignment, focus, motion and control geometry without changing feature
-     * business logic.
+     * alignment, responsiveness, focus, motion and control geometry without
+     * changing feature business logic.
      */
     public static function css(): string
     {
@@ -72,23 +72,17 @@ html:root{
     --card-radius:12px;
 }
 
-/*
- * One typography system across every tenant screen. The web app is intentionally
- * compact because EduCore is a dense school ERP; headings remain distinct while
- * body, table, form and navigation text are materially smaller and consistent.
- */
+/* One compact typography system across every tenant screen. */
 html,body,button,input,select,textarea{
     font-family:var(--ui-font)!important;
 }
-html{font-size:13px!important;}
-body{font-size:13px!important;line-height:1.42!important;}
+html{font-size:13px!important;max-width:100%;overflow-x:hidden;}
+body{font-size:13px!important;line-height:1.42!important;max-width:100%;overflow-x:hidden;}
 h1{font-size:20px!important;line-height:1.2!important;}
 h2{font-size:17px!important;line-height:1.25!important;}
 h3{font-size:15px!important;line-height:1.3!important;}
 h4,h5,h6{font-size:13px!important;line-height:1.35!important;}
-p,li,td,th,label,input,select,textarea,button,.btn,.page-tab,.nav-item{
-    line-height:1.35!important;
-}
+p,li,td,th,label,input,select,textarea,button,.btn,.page-tab,.nav-item{line-height:1.35!important;}
 .sidebar .nav-item{font-size:12.5px!important;}
 .nav-section-label{font-size:10px!important;letter-spacing:.06em!important;color:#D8B968!important;}
 .page-title,.card-title,.ch,.card-head .card-title{font-size:13px!important;}
@@ -101,10 +95,7 @@ tbody td{font-size:12px!important;}
 .nav-item.active::before{background:{$accent}!important;}
 .btn-p{background:{$accent}!important;color:{$primary}!important;}
 
-/*
- * Canonical control geometry. Buttons/tabs are flex-centred so text and icons
- * sit on the same visual axis. Inputs/selects use the same 40px row height.
- */
+/* Canonical control geometry and vertical alignment. */
 button:not(.collapse-btn):not(.icon-btn),
 .btn,
 [role=button]:not(.icon-btn),
@@ -123,6 +114,7 @@ button:not(.collapse-btn):not(.icon-btn),
     border-radius:var(--control-radius)!important;
     box-sizing:border-box!important;
     white-space:nowrap;
+    max-width:100%;
 }
 
 input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]),
@@ -137,58 +129,61 @@ select,
     box-sizing:border-box!important;
     font-size:12px!important;
     line-height:var(--control-height)!important;
+    max-width:100%;
 }
-textarea,
-textarea.form-control,
-textarea.fc{
+textarea,textarea.form-control,textarea.fc{
     height:auto!important;
     min-height:84px!important;
     padding-top:9px!important;
     padding-bottom:9px!important;
     line-height:1.4!important;
 }
-select,
-select.form-control,
-select.fc{
-    line-height:normal!important;
-}
+select,select.form-control,select.fc{line-height:normal!important;}
 
 /* Align controls and shapes whenever they share a horizontal workflow row. */
-.form-row,
-.filter-row,
-.filters-row,
-.toolbar,
-.actions,
-.page-actions,
-.card-actions,
-.scope-tabs,
-.page-tabs{
+.form-row,.filter-row,.filters-row,.toolbar,.actions,.page-actions,.card-actions,.scope-tabs,.page-tabs{
     align-items:center!important;
 }
-.form-row > *,
-.filter-row > *,
-.filters-row > *,
-.toolbar > *,
-.actions > *,
-.page-actions > *,
-.card-actions > *{
+.form-row > *,.filter-row > *,.filters-row > *,.toolbar > *,.actions > *,.page-actions > *,.card-actions > *{
     align-self:center;
 }
 .page-tabs{min-height:48px;}
 .page-tab{padding-left:14px!important;padding-right:14px!important;}
 
-/* Cards and tables resolve to one visual geometry. */
-.card,
-.filter-card,
-.panel,
-.stat,
-.sc,
-.sum-card{
+/* Cards, tables and media resolve safely inside the viewport. */
+.card,.filter-card,.panel,.stat,.sc,.sum-card{
     border-radius:var(--card-radius)!important;
+    max-width:100%;
+    min-width:0;
 }
+img,video,canvas,svg{max-width:100%;}
+img,video{height:auto;}
 table th,table td{vertical-align:middle!important;}
 td .btn,td button,td [role=button]{vertical-align:middle!important;}
-.tbl,.table-wrap{border-radius:var(--control-radius);}
+.tbl,.table-wrap,.trx,.subject-wrap{
+    max-width:100%;
+    overflow-x:auto!important;
+    -webkit-overflow-scrolling:touch;
+}
+
+/*
+ * Global responsive safety net. Many older screens define their own grid/flex
+ * layouts or fixed widths; these rules make those screens shrink, wrap or stack
+ * without requiring business-logic rewrites.
+ */
+.main,.page-content,.page-content > *,main,section,article,form{min-width:0;max-width:100%;}
+.page-content *{box-sizing:border-box;}
+.page-content .row,.page-content [class*=grid],.page-content [class*=col],.page-content [class*=wrap]{min-width:0;}
+.page-content [style*='display:flex'],
+.page-content [style*='display: flex']{
+    max-width:100%;
+}
+.page-content [style*='grid-template-columns']{
+    max-width:100%;
+}
+.page-content input,.page-content select,.page-content textarea{min-width:0;}
+.page-content pre,.page-content code{max-width:100%;overflow-wrap:anywhere;}
+.page-content pre{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 
 /* Brand-consistent keyboard focus across legacy and modern views. */
 a:focus-visible,
@@ -203,10 +198,140 @@ textarea:focus-visible,
     box-shadow:0 0 0 4px var(--focus-ring-soft)!important;
 }
 
+/* Tablet: reduce multi-column density before content starts colliding. */
+@media (max-width:1024px){
+    .page-content{max-width:100%!important;}
+    .two-col,.gen-grid,.invoice-grid,.pg{
+        grid-template-columns:1fr!important;
+    }
+    .stats-row,.stat-row,.sum-grid,.sg,.kpi{
+        grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    }
+    .page-header,.ph,.toolbar,.page-actions{
+        gap:10px!important;
+    }
+}
+
+/* Phones/tablets: enforce wrapping/stacking and contain fixed-width legacy UI. */
 @media (max-width:768px){
     html{font-size:12.5px!important;}
     :root{--control-height:44px;}
     .sidebar .nav-item{font-size:12px!important;}
+
+    .page-content{
+        width:100%!important;
+        max-width:100%!important;
+        overflow-x:hidden!important;
+    }
+
+    .page-content > *,
+    .card,.panel,.filter-card,.tcard,
+    form,fieldset{
+        width:100%;
+        max-width:100%!important;
+        min-width:0!important;
+    }
+
+    .page-header,.ph,.toolbar,.page-actions,.card-actions,
+    .filter-bar,.filter-row,.filters-row,
+    .page-content > div[style*='justify-content:space-between'],
+    .page-content > div[style*='justify-content: space-between']{
+        flex-wrap:wrap!important;
+    }
+
+    .page-content [style*='width:380px'],
+    .page-content [style*='width:360px'],
+    .page-content [style*='width:320px'],
+    .page-content [style*='min-width:380px'],
+    .page-content [style*='min-width:360px'],
+    .page-content [style*='min-width:320px']{
+        width:100%!important;
+        min-width:0!important;
+        max-width:100%!important;
+    }
+
+    .two,.fr,.two-col,.gen-grid,.invoice-grid,.pg{
+        grid-template-columns:1fr!important;
+    }
+    .fr3{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+
+    .page-tabs,.scope-tabs{
+        width:100%!important;
+        max-width:100%!important;
+        overflow-x:auto!important;
+        flex-wrap:nowrap!important;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:thin;
+    }
+    .page-tab,.scope-tab{flex:0 0 auto;}
+
+    /* Unwrapped legacy tables remain usable rather than widening the page. */
+    .page-content table{
+        max-width:100%!important;
+    }
+    .page-content table:not(.no-responsive-table){
+        min-width:620px;
+    }
+    .tbl,.table-wrap,.trx,.subject-wrap,
+    .card:has(> table),.card:has(> .tbl),.card:has(> .table-wrap){
+        overflow-x:auto!important;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .page-content .btn,
+    .page-content button,
+    .page-content input,
+    .page-content select,
+    .page-content textarea{
+        max-width:100%;
+    }
+}
+
+/* Narrow phones: collapse secondary columns and make action groups usable. */
+@media (max-width:640px){
+    .stats-row,.stat-row,.sum-grid,.sg,.kpi,
+    .fr3{
+        grid-template-columns:1fr!important;
+    }
+
+    .page-header,.ph,
+    .page-content > div[style*='justify-content:space-between'],
+    .page-content > div[style*='justify-content: space-between']{
+        flex-direction:column!important;
+        align-items:stretch!important;
+    }
+
+    .page-header-actions,.actions,.page-actions,.card-actions,
+    .filter-bar,.filter-row,.filters-row{
+        width:100%!important;
+        align-items:stretch!important;
+    }
+
+    .page-header-actions > *,
+    .filter-card > .fg,
+    .filter-card > .form-group,
+    .filter-bar > input,.filter-bar > select,
+    .filter-row > input,.filter-row > select,
+    .filters-row > input,.filters-row > select{
+        flex:1 1 100%!important;
+        width:100%!important;
+        min-width:0!important;
+    }
+
+    .filter-card{
+        flex-direction:column!important;
+        align-items:stretch!important;
+    }
+
+    .auto-grid,.auto-grid-sm{
+        grid-template-columns:1fr!important;
+    }
+}
+
+@media (max-width:480px){
+    .page-content{padding-left:10px!important;padding-right:10px!important;}
+    .page-tabs{margin-left:0!important;margin-right:0!important;}
+    .card,.panel,.filter-card{border-radius:10px!important;}
 }
 
 /* Prevent motion-heavy navigation from becoming an accessibility barrier. */
