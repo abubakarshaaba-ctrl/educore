@@ -31,4 +31,9 @@ class AssessmentTemplate extends BaseTenantModel
 
         return (float) $this->components()->sum('weight_percentage');
     }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
 }
