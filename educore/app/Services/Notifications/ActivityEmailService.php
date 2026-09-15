@@ -243,7 +243,7 @@ class ActivityEmailService
                 ->where('email', '!=', '');
 
             match ($announcement->audience) {
-                'staff' => $users->whereIn('role', User::ROLES_STAFF),
+                'staff' => $users->whereIn('role', User::staffRoleNames()),
                 'students' => $users->where('role', 'student'),
                 'admin' => $users->whereIn('role', ['admin', 'principal', 'vice_principal', 'head', 'head_teacher']),
                 default => null,
