@@ -225,7 +225,11 @@ internal fun AuthorizedShell(
                 Column {
                     EduCoreTopAppBar(
                         title = currentTitle,
-                        subtitle = listOfNotNull(session.school.name, session.academicPeriod.termName).joinToString(" · "),
+                        subtitle = listOfNotNull(
+                            session.school.name,
+                            session.academicPeriod.sessionName,
+                            session.academicPeriod.termName,
+                        ).joinToString(" · "),
                         actions = {
                             IconButton(onClick = onRefresh, enabled = !busy && online) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Refresh workspace")
