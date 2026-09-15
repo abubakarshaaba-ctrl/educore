@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
@@ -153,11 +155,12 @@ internal fun AcademicKnowledgeDetailScreen(
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
             ) {
                 Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    Text("Canonical evidence", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Canonical evidence", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = EduCoreColors.Navy900)
                     topic.sources.forEach { source ->
                         Text(
                             listOfNotNull(source.title ?: source.filename, source.resourceType?.replace('_', ' '), source.priority?.let { "priority $it" }).joinToString(" · "),
                             style = MaterialTheme.typography.bodyMedium,
+                            color = EduCoreColors.Slate700,
                         )
                     }
                 }
@@ -172,20 +175,34 @@ internal fun AcademicKnowledgeDetailScreen(
                 "Student Note Summary" to fields.studentNoteSummary,
                 "Reference" to fields.reference,
             ).filter { !it.second.isNullOrBlank() }
-            if (fieldPairs.isNotEmpty()) item {
-                Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
-                    Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-                        fieldPairs.forEach { (label, value) ->
-                            Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text(value.orEmpty(), style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
+            if (fieldPairs.isNotEmpty()) {
+                item {
+                    Text(
+                        "Topic knowledge",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = EduCoreColors.Navy900,
+                    )
+                }
+                items(fieldPairs, key = { it.first }) { (label, value) ->
+                    KnowledgeReadingCard(label, value.orEmpty())
                 }
             }
         }
         if (topic.blocks.isNotEmpty()) {
+            item {
+                Text(
+                    "Teaching content",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = EduCoreColors.Navy900,
+                )
+            }
             items(topic.blocks, key = { "${it.type}:${it.sequence}:${it.content.hashCode()}" }) { block ->
-                InfoCard(block.title ?: block.type.replace('_', ' ').replaceFirstChar(Char::uppercase), block.content)
+                KnowledgeReadingCard(
+                    block.title ?: block.type.replace('_', ' ').replaceFirstChar(Char::uppercase),
+                    block.content,
+                )
             }
         }
         item {
@@ -232,7 +249,7 @@ private fun GeneratedDocumentContent(
         item { RepositoryHeader(document.title, if (document.type == "lesson-plan") "Standard Lesson Plan" else "Student Note", onBack) }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item { ReadinessCard(document.topic) }
-        items(document.sections) { (heading, content) -> InfoCard(heading, content) }
+        items(document.sections) { (heading, content) -> KnowledgeReadingCard(heading, content) }
         item {
             if (document.type == "lesson-plan") {
                 EduCorePrimaryButton("Save to Lesson Planner", { onSaveLessonPlan(document.topic.id) }, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth())
@@ -275,11 +292,42 @@ private fun ReadinessCard(topic: KnowledgeTopic) {
 }
 
 @Composable
+private fun KnowledgeReadingCard(title: String, body: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = EduCoreColors.White,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, EduCoreColors.Line200),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = EduCoreColors.Navy900,
+            )
+            SelectionContainer {
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                    color = EduCoreColors.Ink900,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun InfoCard(title: String, body: String) {
     Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
         Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(body, style = MaterialTheme.typography.bodyMedium)
+            SelectionContainer {
+                Text(body, style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp), color = EduCoreColors.Ink900)
+            }
         }
     }
 }
