@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Notifications\GuardianMailNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 class MailHealthController extends Controller
@@ -71,6 +73,11 @@ class MailHealthController extends Controller
         }
 
         $to = trim((string) $request->query('to'));
+        $mode = strtolower(trim((string) $request->query('mode', 'notification')));
+        if (!in_array($mode, ['notification', 'raw'], true)) {
+            $mode = 'notification';
+        }
+
         $sendResult = null;
 
         if ($to !== '') {
@@ -81,29 +88,45 @@ class MailHealthController extends Controller
                     'safe_configuration' => $safeConfig,
                     'errors' => array_merge($errors, ['The test recipient email address is invalid.']),
                     'warnings' => $warnings,
-                    'test_email' => ['attempted' => false],
+                    'test_email' => ['attempted' => false, 'mode' => $mode],
                 ], 422);
             }
 
             if (!empty($errors)) {
                 $sendResult = [
                     'attempted' => false,
+                    'mode' => $mode,
                     'recipient' => $this->maskEmail($to),
                     'reason' => 'Configuration checks failed, so no test email was sent.',
                 ];
             } else {
                 try {
-                    Mail::raw(
-                        'This is a live EduCore email-service health test. If you received this message, outbound mail delivery is working.',
-                        function ($message) use ($to): void {
-                            $message->to($to)
-                                ->subject('EduCore email service test — ' . now()->format('Y-m-d H:i:s'));
-                        }
-                    );
+                    if ($mode === 'raw') {
+                        Mail::raw(
+                            'This is a live EduCore raw SMTP health test. If you received this message, the SMTP transport is working.',
+                            function ($message) use ($to): void {
+                                $message->to($to)
+                                    ->subject('EduCore raw SMTP test — ' . now()->format('Y-m-d H:i:s'));
+                            }
+                        );
+                    } else {
+                        Notification::route('mail', $to)->notify(
+                            new GuardianMailNotification(
+                                subject: 'EduCore notification pipeline test — ' . now()->format('Y-m-d H:i:s'),
+                                greetingName: 'EduCore User',
+                                lines: [
+                                    'This message was sent through the same Laravel notification and branded email pipeline used by EduCore activity emails.',
+                                    'If you received it, the application notification pipeline and SMTP transport are both working.',
+                                ],
+                                schoolName: 'EduCore',
+                            )
+                        );
+                    }
 
                     $sendResult = [
                         'attempted' => true,
                         'sent' => true,
+                        'mode' => $mode,
                         'recipient' => $this->maskEmail($to),
                         'message' => 'Laravel completed the send operation without throwing an exception. Confirm receipt in the destination inbox/spam folder.',
                     ];
@@ -112,8 +135,10 @@ class MailHealthController extends Controller
                     $sendResult = [
                         'attempted' => true,
                         'sent' => false,
+                        'mode' => $mode,
                         'recipient' => $this->maskEmail($to),
-                        'error' => mb_substr($e->getMessage(), 0, 300),
+                        'exception' => $e::class,
+                        'error' => mb_substr($e->getMessage(), 0, 500),
                     ];
                 }
             }

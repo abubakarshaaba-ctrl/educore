@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Notifications\GuardianMailNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Throwable;
@@ -297,8 +296,7 @@ class ActivityEmailService
         array $context = []
     ): int {
         $sent = 0;
-        $attempted = count($recipients);
-        $mailer = (string) config('mail.default', 'smtp');
+        $attempted = 0;
 
         foreach ($recipients as $recipient) {
             $email = trim((string) ($recipient['email'] ?? ''));
@@ -306,10 +304,7 @@ class ActivityEmailService
                 continue;
             }
 
-            // Shared hosting SMTP servers may close a reused connection after a
-            // delivery. Give each recipient a clean transport so one failure
-            // cannot poison the rest of the batch.
-            Mail::purge($mailer);
+            $attempted++;
 
             try {
                 Notification::route('mail', $email)->notify(
@@ -329,8 +324,6 @@ class ActivityEmailService
                     'exception' => $exception::class,
                     'error' => Str::limit($exception->getMessage(), 500),
                 ]));
-            } finally {
-                Mail::purge($mailer);
             }
         }
 
