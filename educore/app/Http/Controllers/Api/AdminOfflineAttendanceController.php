@@ -10,7 +10,10 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class AdminOfflineAttendanceController extends Controller
 {
@@ -66,63 +69,123 @@ class AdminOfflineAttendanceController extends Controller
             return response()->json(['message' => 'This offline attendance record was already processed. The review list has been refreshed.']);
         }
 
-        if ($data['action'] === 'reject') {
-            $offline->update([
-                'status' => 'rejected',
-                'reject_reason' => trim((string) ($data['reason'] ?? 'Rejected during administrator review.')),
-            ]);
-            return response()->json(['message' => 'Offline attendance rejected.', 'record_id' => $offline->id]);
-        }
+        try {
+            if ($data['action'] === 'reject') {
+                $offlineValues = ['status' => 'rejected'];
+                if (Schema::hasColumn($offline->getTable(), 'reject_reason')) {
+                    $offlineValues['reject_reason'] = trim((string) ($data['reason'] ?? 'Rejected during administrator review.'));
+                }
+                $offline->update($offlineValues);
 
-        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
-        [$verifiable, $issue] = $this->verificationState($settings, $offline);
-        $manual = $data['action'] === 'approve_manual' || ! $verifiable;
+                return response()->json(['message' => 'Offline attendance rejected.', 'record_id' => $offline->id]);
+            }
 
-        $geoVerified = false;
-        if ($settings->geo_enabled && $offline->lat !== null && $offline->lng !== null) {
-            $geoVerified = $settings->distanceTo((float) $offline->lat, (float) $offline->lng) <= (int) $settings->geo_radius_meters;
-        }
-        if ($settings->geo_enabled && ! $geoVerified) {
-            $manual = true;
-            $issue = trim(($issue ? $issue.' ' : '').'Stored location evidence is missing or outside the current school geofence.');
-        }
+            if (! $offline->attendance_date || blank($offline->clock_in_time)) {
+                return response()->json([
+                    'message' => 'This legacy offline record is missing its attendance date or clock-in time. Reject the queued record instead.',
+                ], 422);
+            }
 
-        $manualReason = trim((string) ($data['reason'] ?? ''));
-        if ($manual && $manualReason === '') {
-            $manualReason = $issue ?: 'Legacy offline evidence required administrator review.';
-        }
+            $staffExists = User::where('tenant_id', $offline->tenant_id)
+                ->whereKey($offline->user_id)
+                ->exists();
+            if (! $staffExists) {
+                return response()->json([
+                    'message' => 'This legacy offline record belongs to a staff account that is no longer available. Reject the queued record instead.',
+                ], 422);
+            }
 
-        $attendance = DB::transaction(function () use ($offline, $user, $settings, $geoVerified, $manual, $manualReason): StaffAttendanceRecord {
-            $record = StaffAttendanceRecord::updateOrCreate(
-                [
-                    'tenant_id' => $offline->tenant_id,
-                    'user_id' => $offline->user_id,
-                    'attendance_date' => $offline->attendance_date,
-                ],
-                [
+            $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+            [$verifiable, $issue] = $this->verificationState($settings, $offline);
+            $manual = $data['action'] === 'approve_manual' || ! $verifiable;
+
+            $geoVerified = false;
+            if ($settings->geo_enabled && $offline->lat !== null && $offline->lng !== null) {
+                $geoVerified = $settings->distanceTo((float) $offline->lat, (float) $offline->lng) <= (int) $settings->geo_radius_meters;
+            }
+            if ($settings->geo_enabled && ! $geoVerified) {
+                $manual = true;
+                $issue = trim(($issue ? $issue.' ' : '').'Stored location evidence is missing or outside the current school geofence.');
+            }
+
+            $manualReason = trim((string) ($data['reason'] ?? ''));
+            if ($manual && $manualReason === '') {
+                $manualReason = $issue ?: 'Legacy offline evidence required administrator review.';
+            }
+
+            $attendance = DB::transaction(function () use ($offline, $user, $settings, $geoVerified, $manual, $manualReason): StaffAttendanceRecord {
+                $attendanceModel = new StaffAttendanceRecord();
+                $attendanceTable = $attendanceModel->getTable();
+
+                $values = [
                     'status' => $settings->classifyClockIn((string) $offline->clock_in_time),
                     'clock_in_time' => $offline->clock_in_time,
-                    'clock_in_method' => $manual ? 'offline_manual_review' : 'offline_review',
-                    'clocked_in_by' => $offline->clocked_by ?: $offline->user_id,
-                    'clock_in_lat' => $offline->lat,
-                    'clock_in_lng' => $offline->lng,
-                    'geo_verified' => $geoVerified,
-                    'is_offline_upload' => true,
-                    'notes' => $manual
-                        ? 'Administrator-approved legacy offline attendance by '.$user->name.'. Review note: '.$manualReason
-                        : 'Approved by '.$user->name.' after stored QR'.($geoVerified ? ' and geofence' : '').' verification.',
-                ]
-            );
-            $offline->update(['status' => 'approved', 'reject_reason' => null]);
-            return $record;
-        });
+                ];
 
-        return response()->json([
-            'message' => $manual
-                ? 'Legacy offline attendance approved after administrator review.'
-                : 'Offline attendance verified and approved.',
-            'record_id' => $attendance->id,
-        ]);
+                if (Schema::hasColumn($attendanceTable, 'clock_in_method')) {
+                    $values['clock_in_method'] = $manual ? 'offline_manual_review' : 'offline_review';
+                }
+                if (Schema::hasColumn($attendanceTable, 'clocked_in_by')) {
+                    $actorId = $offline->clocked_by ?: $offline->user_id;
+                    $actorExists = User::where('tenant_id', $offline->tenant_id)->whereKey($actorId)->exists();
+                    $values['clocked_in_by'] = $actorExists ? $actorId : $offline->user_id;
+                }
+                if (Schema::hasColumn($attendanceTable, 'clock_in_lat')) {
+                    $values['clock_in_lat'] = $offline->lat;
+                }
+                if (Schema::hasColumn($attendanceTable, 'clock_in_lng')) {
+                    $values['clock_in_lng'] = $offline->lng;
+                }
+                if (Schema::hasColumn($attendanceTable, 'geo_verified')) {
+                    $values['geo_verified'] = $geoVerified;
+                }
+                if (Schema::hasColumn($attendanceTable, 'is_offline_upload')) {
+                    $values['is_offline_upload'] = true;
+                }
+                if (Schema::hasColumn($attendanceTable, 'notes')) {
+                    $values['notes'] = $manual
+                        ? 'Administrator-approved legacy offline attendance by '.$user->name.'. Review note: '.$manualReason
+                        : 'Approved by '.$user->name.' after stored QR'.($geoVerified ? ' and geofence' : '').' verification.';
+                }
+
+                $attendance = StaffAttendanceRecord::updateOrCreate(
+                    [
+                        'tenant_id' => $offline->tenant_id,
+                        'user_id' => $offline->user_id,
+                        'attendance_date' => $offline->attendance_date,
+                    ],
+                    $values
+                );
+
+                $offlineValues = ['status' => 'approved'];
+                if (Schema::hasColumn($offline->getTable(), 'reject_reason')) {
+                    $offlineValues['reject_reason'] = null;
+                }
+                $offline->update($offlineValues);
+
+                return $attendance;
+            });
+
+            return response()->json([
+                'message' => $manual
+                    ? 'Legacy offline attendance approved after administrator review.'
+                    : 'Offline attendance verified and approved.',
+                'record_id' => $attendance->id,
+            ]);
+        } catch (Throwable $exception) {
+            Log::error('Offline attendance review failed', [
+                'tenant_id' => $user->tenant_id,
+                'offline_record_id' => $offline->id,
+                'action' => $data['action'],
+                'exception' => $exception->getMessage(),
+            ]);
+
+            report($exception);
+
+            return response()->json([
+                'message' => 'This offline attendance record could not be processed safely. Refresh the review queue and try again, or reject the legacy record if it remains invalid.',
+            ], 422);
+        }
     }
 
     private function verificationState(StaffAttendanceSetting $settings, StaffOfflineClockIn $offline): array
