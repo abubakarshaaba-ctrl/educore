@@ -3,7 +3,9 @@
 namespace App\Services\Notifications;
 
 use App\Models\Announcement;
+use App\Models\ExamPeriod;
 use App\Models\Guardian;
+use App\Models\MessageThread;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\User;
@@ -16,11 +18,6 @@ use Throwable;
 
 class ActivityEmailService
 {
-    /**
-     * Email a published school announcement to the same logical audience used
-     * by push notifications. Guardian contact records are included for parent
-     * audiences so delivery does not depend on a parent portal account.
-     */
     public function notifyAnnouncementPublished(Announcement $announcement): int
     {
         $tenant = Tenant::find($announcement->tenant_id);
@@ -51,10 +48,6 @@ class ActivityEmailService
         );
     }
 
-    /**
-     * Notify one guardian when a student newly enters an adverse attendance
-     * state. The controller is responsible for suppressing repeated saves.
-     */
     public function notifyAttendanceStatus(Student $student, string $status, string|Carbon $date): int
     {
         if (! in_array($status, ['absent', 'late'], true)) {
@@ -103,6 +96,137 @@ class ActivityEmailService
             $tenant,
             ['student_id' => $student->id, 'attendance_status' => $status]
         );
+    }
+
+    public function notifyMessageThread(MessageThread $thread, User $sender, string $body): int
+    {
+        $tenant = Tenant::find($thread->tenant_id);
+        if (! $tenant) {
+            return 0;
+        }
+
+        $recipientIds = collect([$thread->initiated_by, $thread->recipient_user_id])
+            ->merge($thread->replies()->pluck('sender_id'));
+        $directGuardianRecipients = collect();
+
+        if ($thread->student_id) {
+            $thread->loadMissing(['student.guardians']);
+            if ($thread->student?->user_id) {
+                $recipientIds->push($thread->student->user_id);
+            }
+
+            foreach ($thread->student?->guardians ?? collect() as $guardian) {
+                if ($guardian->user_id) {
+                    $recipientIds->push($guardian->user_id);
+                }
+                if (filled($guardian->email)) {
+                    $directGuardianRecipients->push([
+                        'email' => $guardian->email,
+                        'name' => $guardian->full_name ?: 'Parent/Guardian',
+                    ]);
+                }
+            }
+        } elseif ($thread->audience === 'all_staff') {
+            $recipientIds = $recipientIds->merge(
+                User::query()
+                    ->where('tenant_id', $thread->tenant_id)
+                    ->where('is_active', true)
+                    ->whereIn('role', User::staffRoleNames())
+                    ->pluck('id')
+            );
+        } elseif ($thread->audience === 'all_parents') {
+            $recipientIds = $recipientIds->merge(
+                User::query()
+                    ->where('tenant_id', $thread->tenant_id)
+                    ->where('is_active', true)
+                    ->where('role', 'parent')
+                    ->pluck('id')
+            );
+
+            Guardian::query()
+                ->where('tenant_id', $thread->tenant_id)
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->whereHas('students', fn ($query) => $query->where('students.status', Student::STATUS_ACTIVE))
+                ->get(['id', 'first_name', 'last_name', 'email'])
+                ->each(fn (Guardian $guardian) => $directGuardianRecipients->push([
+                    'email' => $guardian->email,
+                    'name' => $guardian->full_name ?: 'Parent/Guardian',
+                ]));
+        }
+
+        $recipientIds = $recipientIds
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === (int) $sender->id)
+            ->unique()
+            ->values();
+
+        $recipients = User::query()
+            ->where('tenant_id', $thread->tenant_id)
+            ->whereIn('id', $recipientIds)
+            ->where('is_active', true)
+            ->where('is_super_admin', false)
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user) => ['email' => $user->email, 'name' => $user->name ?: 'EduCore User'])
+            ->merge($directGuardianRecipients)
+            ->reject(fn (array $recipient) => Str::lower(trim((string) $recipient['email'])) === Str::lower(trim((string) $sender->email)))
+            ->filter(fn (array $recipient) => filter_var($recipient['email'] ?? null, FILTER_VALIDATE_EMAIL))
+            ->unique(fn (array $recipient) => Str::lower(trim($recipient['email'])))
+            ->values()
+            ->all();
+
+        $cleanBody = trim(strip_tags($body));
+
+        return $this->sendToRecipients(
+            $recipients,
+            'New message: '.Str::limit($thread->subject, 120),
+            [
+                $sender->name.' sent a new message in EduCore.',
+                Str::limit($cleanBody, 1200),
+            ],
+            $tenant,
+            ['message_thread_id' => $thread->id, 'sender_id' => $sender->id]
+        );
+    }
+
+    public function notifyExamSupervisionPublished(ExamPeriod $period): int
+    {
+        $tenant = Tenant::find($period->tenant_id);
+        if (! $tenant) {
+            return 0;
+        }
+
+        $supervisorRows = $period->entries()
+            ->with(['examSession', 'supervisors.user'])
+            ->get()
+            ->flatMap->supervisors
+            ->filter(fn ($row) => $row->user && $row->user->is_active && filled($row->user->email))
+            ->groupBy('user_id');
+
+        $sent = 0;
+        foreach ($supervisorRows as $rows) {
+            $user = $rows->first()?->user;
+            if (! $user) {
+                continue;
+            }
+
+            $count = $rows->count();
+            $sent += $this->sendToRecipients(
+                [['email' => $user->email, 'name' => $user->name ?: 'Staff Member']],
+                'Exam Supervision Schedule: '.$period->title,
+                [
+                    "You have {$count} exam supervision ".($count === 1 ? 'duty' : 'duties')." for {$period->title}.",
+                    'The supervision schedule has been published. Sign in to EduCore to view your assigned dates, sessions and venues.',
+                ],
+                $tenant,
+                ['exam_period_id' => $period->id, 'user_id' => $user->id]
+            );
+        }
+
+        return $sent;
     }
 
     private function announcementRecipients(Announcement $announcement): array
