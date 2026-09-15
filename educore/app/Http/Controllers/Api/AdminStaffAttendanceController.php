@@ -81,10 +81,10 @@ class AdminStaffAttendanceController extends Controller
             if (!$day->isWeekend()) $workingDays->push($day->toDateString());
         }
 
-        $records = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
+        $attendanceRecords = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
             ->whereBetween('attendance_date', [$start, $end])
-            ->get()
-            ->groupBy('user_id');
+            ->get();
+        $records = $attendanceRecords->groupBy('user_id');
 
         $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records): array {
             $rows = $records->get($member->id, collect());
@@ -109,7 +109,22 @@ class AdminStaffAttendanceController extends Controller
             ];
         });
 
-        return response()->json(['month' => $month, 'year' => $year, 'working_days' => $workingDays, 'staff' => $staff]);
+        $onTime = $attendanceRecords->whereIn('status', ['early', 'present'])->count();
+        $attended = $attendanceRecords->whereIn('status', ['early', 'present', 'late'])->count();
+        $late = $attendanceRecords->where('status', 'late')->count();
+
+        return response()->json([
+            'month' => $month,
+            'year' => $year,
+            'working_days' => $workingDays,
+            'summary' => [
+                'on_time' => $onTime,
+                'attended' => $attended,
+                'late' => $late,
+                'punctuality_rate' => $attended > 0 ? (int) round(($onTime / $attended) * 100) : 0,
+            ],
+            'staff' => $staff,
+        ]);
     }
 
     public function manualOverride(Request $request): JsonResponse
