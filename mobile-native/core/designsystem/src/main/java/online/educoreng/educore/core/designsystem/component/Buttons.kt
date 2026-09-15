@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -65,6 +66,7 @@ fun EduCoreSecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: (@Composable RowScope.() -> Unit)? = null,
+    trailingIcon: (@Composable RowScope.() -> Unit)? = null,
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -77,8 +79,15 @@ fun EduCoreSecondaryButton(
             disabledContentColor = EduCoreColors.DisabledContent,
         ),
     ) {
-        leadingIcon?.invoke(this)
-        Text(text)
+        leadingIcon?.let {
+            it.invoke(this)
+            androidx.compose.foundation.layout.Spacer(Modifier.width(EduCoreSpacing.Xs))
+        }
+        Text(text, modifier = if (trailingIcon != null) Modifier.weight(1f) else Modifier)
+        trailingIcon?.let {
+            androidx.compose.foundation.layout.Spacer(Modifier.width(EduCoreSpacing.Xs))
+            it.invoke(this)
+        }
     }
 }
 
