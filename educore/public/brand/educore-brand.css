@@ -72,6 +72,12 @@ body {
 .user-av,
 .p-av { background:var(--brand-gold) !important; color:var(--brand-navy) !important; }
 
+/* Academic Knowledge is an internal repository layer, not a separate module. */
+.sidebar a.nav-item[href$='/academic-repository/knowledge'],
+.sidebar a.nav-item[href*='/academic-repository/knowledge?'] {
+  display:none !important;
+}
+
 /* Typography hierarchy */
 h1,h2,h3,
 .page-title,
