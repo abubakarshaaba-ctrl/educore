@@ -343,6 +343,68 @@ workflows:
 
           echo "Published EduCore production release $TAG with APK and checksum assets."
 
+      - name: Notify installed apps about production release
+        script: |
+          set -euo pipefail
+
+          # Rollout-safe: releases remain publishable before the webhook secret is
+          # added to Codemagic. Once MOBILE_RELEASE_WEBHOOK_TOKEN is configured in
+          # the protected educore_production group, every successful release sends
+          # the update push automatically.
+          if [ -z "${MOBILE_RELEASE_WEBHOOK_TOKEN:-}" ]; then
+            echo "MOBILE_RELEASE_WEBHOOK_TOKEN is not configured; skipping update push notification."
+            exit 0
+          fi
+
+          RELEASE_NOTIFY_URL="${MOBILE_RELEASE_NOTIFY_URL:-https://educoreng.online/api/v1/mobile-release/notify}"
+          DOWNLOAD_URL="${EDUCORE_APK_DOWNLOAD_URL:-https://educoreng.online/download/app}"
+
+          read -r VERSION_CODE VERSION_NAME <<EOF
+          $(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("app/build.gradle.kts").read_text()
+          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
+          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
+          if not code or not name:
+              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
+          print(code.group(1), name.group(1))
+          PY
+          )
+          EOF
+
+          export VERSION_CODE VERSION_NAME DOWNLOAD_URL
+          python3 - <<'PY' > /tmp/educore-update-notification.json
+          import json
+          import os
+
+          print(json.dumps({
+              "version_name": os.environ["VERSION_NAME"],
+              "version_code": int(os.environ["VERSION_CODE"]),
+              "download_url": os.environ["DOWNLOAD_URL"],
+              "message": f"EduCore {os.environ['VERSION_NAME']} is ready to install. Tap to update.",
+              "force_update": False,
+          }))
+          PY
+
+          NOTIFY_STATUS="$(curl -sS \
+            -o /tmp/educore-update-notification-response.json \
+            -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $MOBILE_RELEASE_WEBHOOK_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$RELEASE_NOTIFY_URL" \
+            --data-binary @/tmp/educore-update-notification.json)"
+
+          if [ "$NOTIFY_STATUS" != "200" ]; then
+            echo "Release was published, but app update notification failed with HTTP $NOTIFY_STATUS."
+            cat /tmp/educore-update-notification-response.json || true
+            exit 1
+          fi
+
+          echo "Installed EduCore apps were notified about version $VERSION_NAME (code $VERSION_CODE)."
+
     artifacts:
       - app/build/outputs/apk/debug/app-debug.apk
       - app/build/reports/lint-results-debug.html
