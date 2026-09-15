@@ -249,6 +249,19 @@ class AdminStaffAttendanceController extends Controller
     public function decideProxy(Request $request, int $record): JsonResponse
     {
         $user = $this->guard($request);
+
+        // The first native Android attendance build used the UI-oriented values
+        // "confirmed" and "flagged". Normalize those legacy aliases so already-
+        // installed APKs remain compatible while the canonical API contract stays
+        // "approve" / "reject".
+        $action = strtolower(trim((string) $request->input('action')));
+        $action = match ($action) {
+            'confirm', 'confirmed', 'approved' => 'approve',
+            'flag', 'flagged', 'rejected' => 'reject',
+            default => $action,
+        };
+        $request->merge(['action' => $action]);
+
         $data = $request->validate(['action' => ['required', Rule::in(['approve', 'reject'])]]);
         $attendance = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
             ->where('proxy_review_status', 'pending')
