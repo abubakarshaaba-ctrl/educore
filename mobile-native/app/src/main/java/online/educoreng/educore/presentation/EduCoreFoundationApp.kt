@@ -12,12 +12,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -27,6 +32,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreTheme
+import online.educoreng.educore.update.AppUpdateChecker
+import online.educoreng.educore.update.AppUpdateInfo
 
 @Composable
 fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
@@ -34,7 +41,13 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     ReportDrawnWhen { state.phase != AppPhase.STARTING }
+
+    LaunchedEffect(Unit) {
+        availableUpdate = AppUpdateChecker.check(context)
+            ?.takeIf { it.isUpdateAvailable }
+    }
 
     LaunchedEffect(state.phase) {
         if (
@@ -101,6 +114,48 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp),
+            )
+        }
+
+        availableUpdate?.let { update ->
+            AlertDialog(
+                onDismissRequest = {
+                    if (!update.isRequired) availableUpdate = null
+                },
+                title = {
+                    Text(if (update.isRequired) "EduCore update required" else "EduCore update available")
+                },
+                text = {
+                    Text(
+                        buildString {
+                            append("Version ${update.latestVersionName} is available.\n\n")
+                            append(update.releaseNotes)
+                            if (update.isRequired) {
+                                append("\n\nThis version of EduCore is no longer supported. Update to continue using the app.")
+                            }
+                        },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl)))
+                            }
+                        },
+                    ) {
+                        Text("Update now")
+                    }
+                },
+                dismissButton = if (update.isRequired) {
+                    null
+                } else {
+                    {
+                        TextButton(onClick = { availableUpdate = null }) {
+                            Text("Later")
+                        }
+                    }
+                },
             )
         }
     }
