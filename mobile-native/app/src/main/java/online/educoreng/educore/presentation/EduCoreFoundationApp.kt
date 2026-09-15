@@ -45,7 +45,7 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     ReportDrawnWhen { state.phase != AppPhase.STARTING }
 
     LaunchedEffect(Unit) {
-        availableUpdate = AppUpdateChecker.check(context)
+        availableUpdate = AppUpdateChecker.check()
             ?.takeIf { it.isUpdateAvailable }
     }
 
