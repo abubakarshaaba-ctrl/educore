@@ -1,7 +1,6 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,19 +16,14 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import online.educoreng.educore.core.designsystem.component.EduCoreDropdownField
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
@@ -41,9 +35,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseHero
 import online.educoreng.educore.core.designsystem.component.EduCoreShowcaseStat
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-import online.educoreng.educore.core.network.dto.GradebookClassDto
 import online.educoreng.educore.core.network.dto.GradebookStudentRowDto
-import online.educoreng.educore.core.network.dto.GradebookTermDto
 
 @Composable
 internal fun GradebookScreen(
@@ -159,21 +151,23 @@ internal fun GradebookScreen(
                                 title = "Selection",
                                 supportingText = "Only classes your account is permitted to review are listed.",
                             )
-                            GradebookDropdown(
+                            EduCoreDropdownField(
                                 label = "Class",
-                                value = state.selectedClassName,
                                 options = data.options.classArms,
+                                selected = data.options.classArms.firstOrNull { it.id == state.selectedClassId },
                                 optionLabel = { it.name },
-                                optionId = { it.id },
-                                onSelected = onClass,
+                                onSelected = { onClass(it.id) },
+                                enabled = !state.isLoading,
+                                placeholder = state.selectedClassName.ifBlank { "Select class" },
                             )
-                            GradebookDropdown(
+                            EduCoreDropdownField(
                                 label = "Term",
-                                value = state.selectedTermName,
                                 options = data.options.terms,
+                                selected = data.options.terms.firstOrNull { it.id == state.selectedTermId },
                                 optionLabel = { listOfNotNull(it.name, it.session).joinToString(" · ") },
-                                optionId = { it.id },
-                                onSelected = onTerm,
+                                onSelected = { onTerm(it.id) },
+                                enabled = !state.isLoading,
+                                placeholder = state.selectedTermName.ifBlank { "Select term" },
                             )
                         }
                     }
@@ -359,40 +353,6 @@ private fun RemarkBlock(
                     enabled = !busy,
                     leadingIcon = { androidx.compose.material3.Icon(Icons.Default.Edit, contentDescription = null) },
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun <T> GradebookDropdown(
-    label: String,
-    value: String,
-    options: List<T>,
-    optionLabel: (T) -> String,
-    optionId: (T) -> Long,
-    onSelected: (Long?) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
-        Box {
-            EduCoreSecondaryButton(
-                text = value,
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = options.isNotEmpty(),
-            )
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(optionLabel(option)) },
-                        onClick = {
-                            expanded = false
-                            onSelected(optionId(option))
-                        },
-                    )
-                }
             }
         }
     }
