@@ -1,25 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Canonical Sources')
+@section('title', 'Academic Repository')
+@section('page-title', 'Academic Repository')
 
 @section('content')
 <div class="repo-shell repository-reader" data-repository-browser>
     <nav class="repo-crumbs" aria-label="Breadcrumb">
         <a href="{{ route('dashboard') }}">Dashboard</a>
         <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        <a href="{{ route('academic-repository.knowledge.index') }}">Academic Knowledge</a>
-        <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        <span>Canonical Sources</span>
+        <span>Academic Repository</span>
     </nav>
 
     <header class="reader-hero">
         <div class="reader-hero-copy">
-            <span class="reader-kicker"><i></i> Evidence and provenance layer</span>
-            <h1>Canonical Sources</h1>
-            <p>Approved materials are extracted, cleaned, fragmented and indexed behind Academic Knowledge. Teachers normally work from consolidated topic knowledge; original files remain here for audit, provenance and reference.</p>
-            <div style="margin-top:16px">
-                <a href="{{ route('academic-repository.knowledge.index') }}" class="repo-button repo-button-primary">Back to Academic Knowledge</a>
-            </div>
+            <span class="reader-kicker"><i></i> Academic evidence and source library</span>
+            <h1>Academic Repository</h1>
+            <p>Browse the approved curriculum, scheme, syllabus and teaching resources used by EduCore for lesson planning, student notes and deterministic academic generation. Indexed source files are retained here for reference, audit and provenance.</p>
         </div>
         <div class="reader-hero-mark" aria-hidden="true">
             <svg viewBox="0 0 64 64"><path d="M12 10h31a7 7 0 0 1 7 7v37H19a7 7 0 0 1-7-7V10Z"/><path d="M19 10v44m9-32h14M28 31h14M28 40h9"/></svg>
@@ -45,7 +41,7 @@
         <input type="hidden" name="selected_term" value="{{ request('selected_term') }}" data-selection-term-field>
         <label class="repo-search">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
-            <input name="search" value="{{ request('search') }}" placeholder="Search canonical sources, topics or filenames" aria-label="Search canonical sources">
+            <input name="search" value="{{ request('search') }}" placeholder="Search academic sources, topics or filenames" aria-label="Search academic repository">
         </label>
         <div class="repo-field reader-subject-filter">
             <label class="sr-only" for="readerSubject">Filter by subject</label>
@@ -65,7 +61,7 @@
     @if($groups->isNotEmpty())
         <section class="repo-class-section" aria-labelledby="readerClassesHeading">
             <div class="repo-section-heading">
-                <div><h2 id="readerClassesHeading">Browse canonical evidence by class</h2><p>These indexed sources feed Academic Knowledge and deterministic generation directly.</p></div>
+                <div><h2 id="readerClassesHeading">Browse academic resources by class</h2><p>Approved indexed sources support lesson planning, teaching notes and other academic generation workflows.</p></div>
                 <span>{{ $groups->count() }} {{ str('class')->plural($groups->count()) }}</span>
             </div>
             <div class="repo-class-grid" role="tablist" aria-label="Available classes">
@@ -110,7 +106,7 @@
                         <div class="repo-term-panel" id="{{ $termId }}" data-term-panel @if(!$loop->first) hidden @endif>
                             <div class="repo-term-summary">
                                 <div><span>Selected term</span><h3>{{ $termLabel }}</h3></div>
-                                <p>{{ $subjects->count() }} {{ str('subject')->plural($subjects->count()) }} · {{ $subjects->flatten(1)->count() }} canonical sources</p>
+                                <p>{{ $subjects->count() }} {{ str('subject')->plural($subjects->count()) }} · {{ $subjects->flatten(1)->count() }} academic sources</p>
                             </div>
 
                             <div class="repo-subject-list">
@@ -118,7 +114,7 @@
                                     <details class="repo-subject reader-subject" data-subject-name="{{ mb_strtolower($subjectLabel) }}" @if($subjects->count() === 1) open @endif>
                                         <summary>
                                             <span class="repo-subject-mark">{{ mb_strtoupper(mb_substr($subjectLabel, 0, 2)) }}</span>
-                                            <span class="repo-subject-copy"><strong>{{ $subjectLabel }}</strong><small>{{ $subjectSources->count() }} canonical {{ str('source')->plural($subjectSources->count()) }}</small></span>
+                                            <span class="repo-subject-copy"><strong>{{ $subjectLabel }}</strong><small>{{ $subjectSources->count() }} academic {{ str('source')->plural($subjectSources->count()) }}</small></span>
                                             <span class="reader-ready"><i></i> Indexed</span>
                                             <svg class="repo-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></svg>
                                         </summary>
@@ -133,11 +129,11 @@
                                                     <div class="repo-resource-copy">
                                                         <h3>{{ $source->title }}</h3>
                                                         <p>{{ $source->original_filename }} · {{ number_format($source->fragments_count) }} indexed {{ str('section')->plural($source->fragments_count) }} · {{ $fileSize }}</p>
-                                                        <small style="display:block;margin-top:4px;color:#64748b">EduCore uses the extracted content as canonical evidence. The original file is retained for human audit and provenance.</small>
+                                                        <small style="display:block;margin-top:4px;color:#64748b">EduCore uses the extracted content as approved academic evidence. The original file is retained for human audit and provenance.</small>
                                                     </div>
                                                     <div class="repo-resource-actions">
-                                                        <span class="repo-button repo-button-soft" aria-label="Canonical evidence source">
-                                                            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h6"/></svg>Canonical evidence
+                                                        <span class="repo-button repo-button-soft" aria-label="Approved academic source">
+                                                            <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h6"/></svg>Approved source
                                                         </span>
                                                         @if($source->source_file_path)
                                                             <a href="{{ route('academic-repository.download', $source) }}" class="repo-button repo-button-outline">
@@ -162,7 +158,7 @@
     @else
         <section class="repo-card reader-empty">
             <span><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/><circle cx="15" cy="15" r="4"/><path d="m18 18 3 3"/></svg></span>
-            <h2>No matching canonical sources</h2>
+            <h2>No matching academic sources</h2>
             <p>Try a different keyword or subject filter.</p>
             <a href="{{ route('academic-repository.index', ['view' => 'sources']) }}" class="repo-button repo-button-primary">View all sources</a>
         </section>
