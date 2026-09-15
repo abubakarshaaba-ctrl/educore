@@ -68,14 +68,14 @@
     <a href="{{ route('scores.broadsheet') }}"     class="page-tab">Broadsheet</a>
     @endif
     @if(auth()->user()->canAccessExactModule('scores'))
-    <a href="{{ route('scores.assessment-types') }}" class="page-tab">Assessment Types</a>
+    <a href="{{ route('scores.assessment-types') }}" class="page-tab">Assessment Template</a>
     @endif
 </div>
 
 <div class="pg-split">
 <div class="selector-card">
     <div class="selector-title">Open Score Entry Sheet</div>
-    <div class="selector-sub">Select a class, subject and term — all assessment columns load on one sheet.</div>
+    <div class="selector-sub">Select a class, subject and term — the assigned assessment-template components load automatically.</div>
 
     @if($classArms->isEmpty() && !auth()->user()->isAdmin() && !auth()->user()->isSuperAdmin())
     <div style="background:#FFFBEB;border:1px solid #FCD34D;color:#92400E;padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:13px">
@@ -120,7 +120,7 @@
     </form>
 
     <div class="info-box">
-        ℹ️ All assessment types (CA1, CA2, Exam, etc.) for the selected term will appear as columns on the score sheet. Set up assessment types under <strong>Assessment Types</strong> tab first.
+        ℹ️ EduCore loads the <strong>Assessment Template</strong> assigned to the selected class level and session. If none is assigned, the existing school fallback configuration remains available.
     </div>
 </div>
 
@@ -129,8 +129,8 @@
         <div class="ch">How Score Entry Works</div>
         <div class="cb" style="font-size:13px;color:var(--slate);line-height:1.7">
             <p style="margin-bottom:10px">1. <strong style="color:var(--midnight)">Select</strong> a class, subject, and term above to open the score entry sheet.</p>
-            <p style="margin-bottom:10px">2. <strong style="color:var(--midnight)">Enter scores</strong> for each student across all assessment columns (CA1, CA2, Exam, etc.).</p>
-            <p style="margin-bottom:10px">3. <strong style="color:var(--midnight)">Save</strong> — scores are stored per assessment type and totaled automatically.</p>
+            <p style="margin-bottom:10px">2. <strong style="color:var(--midnight)">Enter scores</strong> for each student using the components in that class's Assessment Template.</p>
+            <p style="margin-bottom:10px">3. <strong style="color:var(--midnight)">Save</strong> — scores are stored against the runtime assessment rows and totaled automatically.</p>
             <p>4. Once all subjects are entered, go to <strong style="color:var(--midnight)">Report Cards → Generate</strong> to compute positions.</p>
         </div>
     </div>
