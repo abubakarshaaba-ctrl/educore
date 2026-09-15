@@ -55,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
             ->group(function (): void {
                 Route::post('/', [AssessmentTemplateController::class, 'store'])->name('store');
                 Route::put('/{template}', [AssessmentTemplateController::class, 'update'])->name('update');
+                Route::post('/{template}/duplicate', [AssessmentTemplateController::class, 'duplicate'])->name('duplicate');
                 Route::post('/{template}/assign', [AssessmentTemplateController::class, 'assign'])->name('assign');
                 Route::delete('/{template}', [AssessmentTemplateController::class, 'destroy'])->name('destroy');
             });
@@ -115,8 +116,25 @@ class AppServiceProvider extends ServiceProvider
             $data = $view->getData();
             $classArm = $data['classArm'] ?? null;
             $term = $data['term'] ?? null;
-            if ($classArm && $term && $classArm->class_level_id) {
-                $view->with('assessmentTypes', \App\Models\AssessmentType::resolvedForClassLevel((int) $term->id, (int) $classArm->class_level_id));
+            if (! $classArm || ! $term || ! $classArm->class_level_id) return;
+
+            $resolved = \App\Models\AssessmentType::resolvedForClassLevel((int) $term->id, (int) $classArm->class_level_id);
+            $view->with('assessmentTypes', $resolved);
+
+            // ScoreController historically calculated totals from every runtime
+            // type in a term. Recalculate the visible score-entry totals from the
+            // class-level template only, so parallel Primary/JSS/SSS templates do
+            // not inflate each other's totals.
+            if ($view->name() === 'scores.entry') {
+                $students = collect($data['students'] ?? []);
+                $existingScores = $data['existingScores'] ?? [];
+                $studentTotals = [];
+                foreach ($students as $student) {
+                    $studentTotals[$student->id] = $resolved->sum(
+                        fn ($type) => (float) ($existingScores[$student->id][$type->id] ?? 0)
+                    );
+                }
+                $view->with('studentTotals', $studentTotals);
             }
         });
 
