@@ -127,7 +127,7 @@ class AssessmentTemplateController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($template, $data, $components, $service, $request): void {
+        DB::transaction(function () use ($template, $data, $components, $service, $request, $total): void {
             $template->update([
                 'name' => trim($data['name']),
                 'description' => $data['description'] ?? null,
@@ -137,16 +137,18 @@ class AssessmentTemplateController extends Controller
             if ($request->has('components')) {
                 $this->assertStructureEditable($template);
                 $this->replaceComponents($template, $components);
-            }
 
-            $service->resynchronizeAssignments($template->fresh('components'));
+                if (abs($total - 100.0) <= 0.001 && $template->assignments()->where('is_active', true)->exists()) {
+                    $service->resynchronizeAssignments($template->fresh('components'));
+                }
+            }
         });
 
         return redirect()->route('scores.assessment-types', ['selected' => $template->id])
             ->with('success', 'Assessment template updated.');
     }
 
-    public function storeComponent(Request $request, AssessmentTemplate $template)
+    public function storeComponent(Request $request, AssessmentTemplate $template, AssessmentTemplateService $service)
     {
         $this->authorizeAdmin();
         $this->assertOwnTemplate($template);
@@ -160,7 +162,6 @@ class AssessmentTemplateController extends Controller
             ]);
         }
 
-        $nextOrder = ((int) $template->components()->max('sort_order')) + 1;
         AssessmentTemplateComponent::withoutTenantScope()->create([
             'tenant_id' => $this->tenantId(),
             'assessment_template_id' => $template->id,
@@ -170,18 +171,22 @@ class AssessmentTemplateController extends Controller
             'entry_mode' => $data['entry_mode'],
             'objective_max' => $data['objective_max'] ?? null,
             'theory_max' => $data['theory_max'] ?? null,
-            'sort_order' => $nextOrder,
+            'sort_order' => ((int) $template->components()->max('sort_order')) + 1,
         ]);
 
         if ($template->isActive() && abs($newTotal - 100.0) > 0.001) {
             $template->update(['status' => AssessmentTemplate::STATUS_DRAFT]);
         }
 
+        if (abs($newTotal - 100.0) <= 0.001 && $template->assignments()->where('is_active', true)->exists()) {
+            $service->resynchronizeAssignments($template->fresh('components'));
+        }
+
         return redirect()->route('scores.assessment-types', ['selected' => $template->id])
             ->with('success', "Component '{$data['name']}' added. Template total is now {$newTotal}%.");
     }
 
-    public function updateComponent(Request $request, AssessmentTemplate $template, AssessmentTemplateComponent $component)
+    public function updateComponent(Request $request, AssessmentTemplate $template, AssessmentTemplateComponent $component, AssessmentTemplateService $service)
     {
         $this->authorizeAdmin();
         $this->assertOwnTemplate($template);
@@ -208,6 +213,10 @@ class AssessmentTemplateController extends Controller
 
         if ($template->isActive() && abs($newTotal - 100.0) > 0.001) {
             $template->update(['status' => AssessmentTemplate::STATUS_DRAFT]);
+        }
+
+        if (abs($newTotal - 100.0) <= 0.001 && $template->assignments()->where('is_active', true)->exists()) {
+            $service->resynchronizeAssignments($template->fresh('components'));
         }
 
         return redirect()->route('scores.assessment-types', ['selected' => $template->id])
@@ -301,21 +310,22 @@ class AssessmentTemplateController extends Controller
             ->with('success', "Template assigned to {$count} class level(s) for {$session->name}. All terms in that session were synchronized safely.");
     }
 
-    public function destroy(AssessmentTemplate $template)
+    public function destroy(AssessmentTemplate $template, AssessmentTemplateService $service)
     {
         $this->authorizeAdmin();
         $this->assertOwnTemplate($template);
 
-        if ($template->assignments()->where('is_active', true)->exists()) {
+        if ($template->hasRecordedScores()) {
             return back()->withErrors([
-                'template' => 'This template is currently assigned. Reassign those class levels before deleting it.',
+                'template' => 'Delete is disabled because student scores have already been recorded on this template. The template is retained to protect historical results.',
             ]);
         }
 
-        $template->delete();
+        $name = $template->name;
+        $service->deleteTemplate($template);
 
         return redirect()->route('scores.assessment-types')
-            ->with('success', 'Assessment template deleted. Historical assessment rows and scores were preserved.');
+            ->with('success', "Assessment template '{$name}' deleted. No recorded student scores were affected.");
     }
 
     private function validateTemplatePayload(Request $request, ?AssessmentTemplate $template): array
@@ -374,19 +384,18 @@ class AssessmentTemplateController extends Controller
     {
         $objective = $component['objective_max'] ?? null;
         $theory = $component['theory_max'] ?? null;
-        if (($objective === null) xor ($theory === null)) {
+        $entryMode = $component['entry_mode'] ?? 'manual';
+
+        if ($entryMode === 'cbt_aggregate' && ($objective === null || $theory === null)) {
             throw ValidationException::withMessages([
-                $field => 'Provide both Objective Max and Theory Max, or leave both blank.',
+                $field => 'CBT + Theory mode requires both Objective Raw Max and Theory Raw Max. Their combined raw maximum will be normalized to the component weight.',
             ]);
         }
 
-        if ($objective !== null && $theory !== null) {
-            $splitTotal = round((float) $objective + (float) $theory, 2);
-            if (abs($splitTotal - round((float) $component['weight_percentage'], 2)) > 0.001) {
-                throw ValidationException::withMessages([
-                    $field => 'Objective Max + Theory Max must equal this component weight.',
-                ]);
-            }
+        if ($entryMode !== 'cbt_objective' && (($objective === null) xor ($theory === null))) {
+            throw ValidationException::withMessages([
+                $field => 'Provide both Objective Raw Max and Theory Raw Max, or leave both blank.',
+            ]);
         }
     }
 
@@ -416,9 +425,9 @@ class AssessmentTemplateController extends Controller
 
     private function assertStructureEditable(AssessmentTemplate $template): void
     {
-        if ($template->assignments()->exists()) {
+        if ($template->hasRecordedScores()) {
             throw ValidationException::withMessages([
-                'template' => 'This template has already been assigned to a session/class level. Duplicate it to change its component structure without affecting historical scores.',
+                'template' => 'This template already has recorded student scores. Its scoring structure is locked to protect historical results. You may still edit its name, description and status, or duplicate it for a new structure.',
             ]);
         }
     }
