@@ -70,6 +70,8 @@ html:root{
     --control-height:40px;
     --control-radius:8px;
     --card-radius:12px;
+    --table-head-height:38px;
+    --table-row-height:44px;
 }
 
 /* One compact typography system across every tenant screen. */
@@ -158,6 +160,38 @@ select,select.form-control,select.fc{line-height:normal!important;}
 }
 img,video,canvas,svg{max-width:100%;}
 img,video{height:auto;}
+
+/*
+ * Global table rhythm. Compact typography should not mean compressed tables:
+ * headers remain visually distinct and every data row has enough vertical space
+ * for names, secondary metadata, status pills and action buttons.
+ */
+table thead tr{
+    min-height:var(--table-head-height)!important;
+    height:var(--table-head-height)!important;
+}
+table thead th{
+    height:var(--table-head-height)!important;
+    min-height:var(--table-head-height)!important;
+    padding-top:10px!important;
+    padding-bottom:10px!important;
+    vertical-align:middle!important;
+}
+table tbody tr{
+    min-height:var(--table-row-height)!important;
+    height:var(--table-row-height)!important;
+}
+table tbody td{
+    min-height:var(--table-row-height)!important;
+    padding-top:9px!important;
+    padding-bottom:9px!important;
+    vertical-align:middle!important;
+}
+table tfoot td{
+    padding-top:10px!important;
+    padding-bottom:10px!important;
+    vertical-align:middle!important;
+}
 table th,table td{vertical-align:middle!important;}
 td .btn,td button,td [role=button]{vertical-align:middle!important;}
 .tbl,.table-wrap,.trx,.subject-wrap{
@@ -215,7 +249,7 @@ textarea:focus-visible,
 /* Phones/tablets: enforce wrapping/stacking and contain fixed-width legacy UI. */
 @media (max-width:768px){
     html{font-size:12.5px!important;}
-    :root{--control-height:44px;}
+    :root{--control-height:44px;--table-head-height:40px;--table-row-height:46px;}
     .sidebar .nav-item{font-size:12px!important;}
 
     .page-content{
