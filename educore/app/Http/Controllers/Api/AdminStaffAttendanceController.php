@@ -21,6 +21,10 @@ class AdminStaffAttendanceController extends Controller
         $date = $request->date('date')?->toDateString() ?? today()->toDateString();
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
 
+        $allRecords = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
+            ->whereDate('attendance_date', $date)
+            ->get();
+
         $records = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
             ->whereDate('attendance_date', $date)
             ->with(['staff:id,name,staff_id', 'clockedInBy:id,name'])
@@ -35,6 +39,9 @@ class AdminStaffAttendanceController extends Controller
             ->get();
 
         $eligible = User::attendanceEligibleOn($user->tenant_id, $date)->count();
+        $clockedIn = $allRecords->whereNotNull('clock_in_time')->count();
+        $onTime = $allRecords->whereIn('status', ['early', 'present'])->count();
+        $attended = $allRecords->whereIn('status', ['early', 'present', 'late'])->count();
         $pendingOffline = StaffOfflineClockIn::where('tenant_id', $user->tenant_id)->where('status', 'pending')->count();
         $pendingProxy = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)->where('proxy_review_status', 'pending')->count();
 
@@ -42,11 +49,12 @@ class AdminStaffAttendanceController extends Controller
             'date' => $date,
             'summary' => [
                 'eligible' => $eligible,
-                'clocked_in' => $records->whereNotNull('clock_in_time')->count(),
-                'early' => $records->where('status', 'early')->count(),
-                'present' => $records->where('status', 'present')->count(),
-                'late' => $records->where('status', 'late')->count(),
-                'absent' => max(0, $eligible - $records->whereNotNull('clock_in_time')->count()),
+                'clocked_in' => $clockedIn,
+                'early' => $allRecords->where('status', 'early')->count(),
+                'present' => $allRecords->where('status', 'present')->count(),
+                'late' => $allRecords->where('status', 'late')->count(),
+                'absent' => max(0, $eligible - $clockedIn),
+                'punctuality_rate' => $attended > 0 ? (int) round(($onTime / $attended) * 100) : 0,
             ],
             'pending' => ['offline' => $pendingOffline, 'proxy' => $pendingProxy],
             'records' => $records->map(fn (StaffAttendanceRecord $record): array => [
