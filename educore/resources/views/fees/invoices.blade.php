@@ -4,177 +4,161 @@
 
 @push('styles')
 <style>
-    .page-tabs { display: flex; gap: 4px; background: white; border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 20px; width: fit-content; }
-    .page-tab { padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--slate); text-decoration: none; transition: all 150ms; }
-    .page-tab.active { background: var(--indigo); color: white; }
-    .page-tab:hover:not(.active) { background: #F1F5F9; }
-
-    .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-    .summary-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-    .summary-label { font-size: 11px; font-weight: 600; color: var(--slate-light); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .summary-value { font-size: 22px; font-weight: 700; color: var(--midnight); letter-spacing: -0.02em; }
-    .summary-sub { font-size: 12px; color: var(--slate-light); margin-top: 3px; }
-
-    .filters { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-    .filter-group { display: flex; flex-direction: column; gap: 5px; }
-    .filter-label { font-size: 11px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: 0.05em; }
-    .filter-control { padding: 7px 12px; font-size: 13px; font-family: inherit; border: 1px solid var(--border); border-radius: 7px; color: var(--midnight); background: #F8FAFC; outline: none; min-width: 180px; }
-    .filter-control:focus { border-color: var(--indigo); }
-
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; font-family: inherit; border-radius: 8px; border: none; cursor: pointer; text-decoration: none; transition: background 150ms; }
-    .btn-primary { background: var(--indigo); color: white; }
-    .btn-primary:hover { background: #1D4ED8; }
-    .btn-ghost { background: white; color: var(--midnight); border: 1px solid var(--border); }
-
-    .alert-success { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--emerald); margin-bottom: 16px; }
-
-    .card { background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th { font-size: 11px; font-weight: 600; color: var(--slate-light); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; background: #F8FAFC; border-bottom: 1px solid var(--border); }
-    tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--midnight); vertical-align: middle; }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: #F8FAFC; }
-
-    .badge { display: inline-flex; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
-    .badge-success { background: #ECFDF5; color: var(--emerald); }
-    .badge-warning { background: #FFFBEB; color: var(--amber); }
-    .badge-error   { background: #FEF2F2; color: var(--crimson); }
-
-    .action-link { font-size: 12px; font-weight: 600; color: var(--indigo); text-decoration: none; }
-    .action-link:hover { text-decoration: underline; }
-
-    .progress-bar-wrap { width: 80px; height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden; }
-    .progress-bar { height: 100%; border-radius: 3px; background: var(--emerald); }
-
-    .empty-state { text-align: center; padding: 50px 20px; color: var(--slate-light); }
-    .empty-state h3 { font-size: 15px; font-weight: 600; color: var(--slate); margin-bottom: 6px; }
-
-    @media(max-width:1024px) { .summary-grid { grid-template-columns: repeat(2,1fr); } }
+    .invoice-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+    .invoice-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}
+    .invoice-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+    .invoice-kpi-label{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+    .invoice-kpi-value{font-size:22px;font-weight:800;color:var(--midnight);letter-spacing:-.02em}
+    .invoice-kpi-value.success{color:var(--emerald)}
+    .invoice-kpi-value.danger{color:var(--crimson)}
+    .invoice-kpi-sub{font-size:12px;color:var(--slate-light);margin-top:3px}
+    .invoice-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+    .invoice-filter{display:flex;flex-direction:column;gap:6px;min-width:180px}
+    .invoice-filter.search{min-width:min(300px,100%);flex:1}
+    .invoice-progress{width:88px;height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden}
+    .invoice-progress>span{display:block;height:100%;border-radius:999px;background:var(--emerald)}
+    .invoice-number{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px}
+    .invoice-student small{display:block;color:var(--slate-light);margin-top:2px}
+    .invoice-money-paid{color:var(--emerald);font-weight:700}
+    .invoice-money-balance{color:var(--crimson);font-weight:700}
+    @media(max-width:1024px){.invoice-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:640px){.invoice-summary{grid-template-columns:1fr}.invoice-filter,.invoice-filter.search{min-width:100%;width:100%}.invoice-filters .btn{width:100%;justify-content:center}}
 </style>
 @endpush
 
 @section('content')
-
-<div class="page-tabs">
+<div class="page-tabs invoice-toolbar" role="navigation" aria-label="Fee management sections">
     <a href="{{ route('fees.subaccounts') }}" class="page-tab">Bank Accounts</a>
     <a href="{{ route('fees.categories') }}" class="page-tab">Fee Categories</a>
     <a href="{{ route('fees.structures') }}" class="page-tab">Fee Structures</a>
-    <a href="{{ route('fees.invoices') }}" class="page-tab active">Invoices</a>
+    <a href="{{ route('fees.invoices') }}" class="page-tab active" aria-current="page">Invoices</a>
 </div>
 
-@if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
+@if(session('success'))
+    <div class="alert alert-success" role="status">{{ session('success') }}</div>
+@endif
 
-{{-- Summary --}}
-<div class="summary-grid">
-    <div class="summary-card">
-        <div class="summary-label">Total Billed</div>
-        <div class="summary-value">&#8358;{{ number_format($summary['total']) }}</div>
-        <div class="summary-sub">All invoices</div>
+<div class="invoice-summary" aria-label="Invoice summary">
+    <div class="invoice-kpi">
+        <div class="invoice-kpi-label">Total billed</div>
+        <div class="invoice-kpi-value">&#8358;{{ number_format($summary['total']) }}</div>
+        <div class="invoice-kpi-sub">All invoices</div>
     </div>
-    <div class="summary-card">
-        <div class="summary-label">Collected</div>
-        <div class="summary-value" style="color:var(--emerald)">&#8358;{{ number_format($summary['collected']) }}</div>
-        <div class="summary-sub">{{ $summary['paid'] }} paid invoices</div>
+    <div class="invoice-kpi">
+        <div class="invoice-kpi-label">Collected</div>
+        <div class="invoice-kpi-value success">&#8358;{{ number_format($summary['collected']) }}</div>
+        <div class="invoice-kpi-sub">{{ $summary['paid'] }} paid invoices</div>
     </div>
-    <div class="summary-card">
-        <div class="summary-label">Outstanding</div>
-        <div class="summary-value" style="color:var(--crimson)">&#8358;{{ number_format($summary['total'] - $summary['collected']) }}</div>
-        <div class="summary-sub">{{ $summary['unpaid'] }} unpaid</div>
+    <div class="invoice-kpi">
+        <div class="invoice-kpi-label">Outstanding</div>
+        <div class="invoice-kpi-value danger">&#8358;{{ number_format($summary['total'] - $summary['collected']) }}</div>
+        <div class="invoice-kpi-sub">{{ $summary['unpaid'] }} unpaid</div>
     </div>
-    <div class="summary-card">
-        <div class="summary-label">Collection Rate</div>
-        <div class="summary-value">{{ $summary['total'] > 0 ? round(($summary['collected'] / $summary['total']) * 100) : 0 }}%</div>
-        <div class="summary-sub">Of total billed</div>
+    <div class="invoice-kpi">
+        <div class="invoice-kpi-label">Collection rate</div>
+        <div class="invoice-kpi-value">{{ $summary['total'] > 0 ? round(($summary['collected'] / $summary['total']) * 100) : 0 }}%</div>
+        <div class="invoice-kpi-sub">Of total billed</div>
     </div>
 </div>
 
-{{-- Filters --}}
-<form method="GET">
-    <div class="filters">
-        <div class="filter-group">
-            <span class="filter-label">Search</span>
-            <input type="text" name="search" class="filter-control" placeholder="Student name or admission no..." value="{{ request('search') }}">
-        </div>
-        <div class="filter-group">
-            <span class="filter-label">Term</span>
-            <select name="term_id" class="filter-control">
-                <option value="">All Terms</option>
-                @foreach($terms as $term)
-                    <option value="{{ $term->id }}" {{ request('term_id') == $term->id ? 'selected' : '' }}>
-                        {{ $term->name }} — {{ $term->session->name ?? '' }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <div class="filter-group">
-            <span class="filter-label">Status</span>
-            <select name="status" class="filter-control">
-                <option value="">All Status</option>
-                <option value="unpaid"         {{ request('status') === 'unpaid'         ? 'selected' : '' }}>Unpaid</option>
-                <option value="partially_paid" {{ request('status') === 'partially_paid' ? 'selected' : '' }}>Partial</option>
-                <option value="paid"           {{ request('status') === 'paid'           ? 'selected' : '' }}>Paid</option>
-            </select>
-        </div>
-        <button type="submit" class="btn btn-primary">Filter</button>
-        @if(request()->hasAny(['search','term_id','status']))
-            <a href="{{ route('fees.invoices') }}" class="btn btn-ghost">Clear</a>
-        @endif
+<div class="card" style="margin-bottom:16px">
+    <div class="cb">
+        <form method="GET" class="invoice-filters" aria-label="Filter invoices">
+            <div class="invoice-filter search">
+                <label class="form-label" for="invoice-search">Search</label>
+                <input id="invoice-search" type="search" name="search" class="form-control" placeholder="Student name or admission no..." value="{{ request('search') }}">
+            </div>
+            <div class="invoice-filter">
+                <label class="form-label" for="invoice-term">Term</label>
+                <select id="invoice-term" name="term_id" class="form-control">
+                    <option value="">All terms</option>
+                    @foreach($terms as $term)
+                        <option value="{{ $term->id }}" {{ request('term_id') == $term->id ? 'selected' : '' }}>
+                            {{ $term->name }} — {{ $term->session->name ?? '' }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="invoice-filter">
+                <label class="form-label" for="invoice-status">Status</label>
+                <select id="invoice-status" name="status" class="form-control">
+                    <option value="">All statuses</option>
+                    <option value="unpaid" {{ request('status') === 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+                    <option value="partially_paid" {{ request('status') === 'partially_paid' ? 'selected' : '' }}>Partial</option>
+                    <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paid</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Filter</button>
+            @if(request()->hasAny(['search','term_id','status']))
+                <a href="{{ route('fees.invoices') }}" class="btn btn-ghost">Clear</a>
+            @endif
+        </form>
     </div>
-</form>
+</div>
 
-{{-- Table --}}
 <div class="card">
-    @if($invoices->count())
-    <div class="tbl"><table>
-        <thead>
-            <tr>
-                <th>Invoice No.</th>
-                <th>Student</th>
-                <th>Total</th>
-                <th>Paid</th>
-                <th>Balance</th>
-                <th>Progress</th>
-                <th>Status</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($invoices as $invoice)
-            @php $pct = $invoice->total_amount > 0 ? ($invoice->amount_paid / $invoice->total_amount) * 100 : 0; @endphp
-            <tr>
-                <td style="font-family:monospace;font-size:12px">{{ $invoice->invoice_number }}</td>
-                <td>
-                    <strong>{{ optional($invoice->student)->full_name }}</strong><br>
-                    <small style="color:var(--slate-light)">{{ optional($invoice->term)->name }}</small>
-                </td>
-                <td>&#8358;{{ number_format($invoice->total_amount) }}</td>
-                <td style="color:var(--emerald);font-weight:600">&#8358;{{ number_format($invoice->amount_paid) }}</td>
-                <td style="color:var(--crimson);font-weight:600">&#8358;{{ number_format($invoice->balance) }}</td>
-                <td>
-                    <div class="progress-bar-wrap">
-                        <div class="progress-bar" style="width:{{ min($pct,100) }}%"></div>
-                    </div>
-                </td>
-                <td>
-                    @if($invoice->status === 'paid')
-                        <span class="badge badge-success">Paid</span>
-                    @elseif($invoice->status === 'partially_paid')
-                        <span class="badge badge-warning">Partial</span>
-                    @else
-                        <span class="badge badge-error">Unpaid</span>
-                    @endif
-                </td>
-                <td><a href="{{ route('fees.invoices.show', $invoice) }}" class="action-link">View →</a></td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table></div>
-    @else
-    <div class="empty-state">
-        <h3>No invoices found</h3>
-        <p>Generate invoices from the Fee Structures tab.</p>
+    <div class="ch">
+        <div>
+            <strong>Invoice register</strong>
+            <div style="font-size:12px;color:var(--slate);margin-top:2px">Review billing, collection progress and outstanding balances.</div>
+        </div>
     </div>
+
+    @if($invoices->count())
+        <div class="tbl">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Invoice no.</th>
+                        <th scope="col">Student</th>
+                        <th scope="col">Total</th>
+                        <th scope="col">Paid</th>
+                        <th scope="col">Balance</th>
+                        <th scope="col">Progress</th>
+                        <th scope="col">Status</th>
+                        <th scope="col"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($invoices as $invoice)
+                        @php $pct = $invoice->total_amount > 0 ? ($invoice->amount_paid / $invoice->total_amount) * 100 : 0; @endphp
+                        <tr>
+                            <td class="invoice-number">{{ $invoice->invoice_number }}</td>
+                            <td class="invoice-student">
+                                <strong>{{ optional($invoice->student)->full_name }}</strong>
+                                <small>{{ optional($invoice->term)->name }}</small>
+                            </td>
+                            <td>&#8358;{{ number_format($invoice->total_amount) }}</td>
+                            <td class="invoice-money-paid">&#8358;{{ number_format($invoice->amount_paid) }}</td>
+                            <td class="invoice-money-balance">&#8358;{{ number_format($invoice->balance) }}</td>
+                            <td>
+                                <div class="invoice-progress" role="progressbar" aria-label="Payment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ min(round($pct),100) }}">
+                                    <span style="width:{{ min($pct,100) }}%"></span>
+                                </div>
+                            </td>
+                            <td>
+                                @if($invoice->status === 'paid')
+                                    <span class="badge badge-success">Paid</span>
+                                @elseif($invoice->status === 'partially_paid')
+                                    <span class="badge badge-warning">Partial</span>
+                                @else
+                                    <span class="badge badge-error">Unpaid</span>
+                                @endif
+                            </td>
+                            <td><a href="{{ route('fees.invoices.show', $invoice) }}" class="btn btn-ghost">View</a></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="empty-state">
+            <h3>No invoices found</h3>
+            <p>{{ request()->hasAny(['search','term_id','status']) ? 'Try adjusting your filters.' : 'Generate invoices from Fee Structures to begin billing students.' }}</p>
+            @if(request()->hasAny(['search','term_id','status']))
+                <a href="{{ route('fees.invoices') }}" class="btn btn-ghost">Clear filters</a>
+            @endif
+        </div>
     @endif
 </div>
-
 @endsection
