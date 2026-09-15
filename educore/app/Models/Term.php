@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\BaseTenantModel;
+use App\Services\FinalClassGraduationService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -49,6 +50,15 @@ class Term extends BaseTenantModel
                     'is_exam' => true,
                 ],
             ]);
+        });
+
+        static::updated(function (Term $term): void {
+            if (!$term->wasChanged('is_current') || $term->is_current) {
+                return;
+            }
+
+            app(FinalClassGraduationService::class)
+                ->transitionForClosedTerm($term, auth()->user());
         });
     }
 
