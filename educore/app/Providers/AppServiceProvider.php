@@ -38,6 +38,11 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.custom');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.custom');
 
+        // Defence in depth for multi-tenant identity isolation. This runs for
+        // every User create/update path, including provisioning and portal flows,
+        // rather than relying on individual controller validation alone.
+        User::observe(\App\Observers\UserEmailSecurityObserver::class);
+
         if (! $this->app->runningInConsole()) {
             $listener = app(\App\Services\Notifications\PlatformBroadcastPushListener::class);
             \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $query) use ($listener): void {

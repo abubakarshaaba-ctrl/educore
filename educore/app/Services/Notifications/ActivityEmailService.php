@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\GuardianMailNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Throwable;
@@ -166,7 +167,9 @@ class ActivityEmailService
             ->where('tenant_id', $thread->tenant_id)
             ->whereIn('id', $recipientIds)
             ->where('is_active', true)
-            ->where('is_super_admin', false)
+            ->where(function ($query): void {
+                $query->where('is_super_admin', false)->orWhereNull('is_super_admin');
+            })
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->get(['id', 'name', 'email'])
@@ -238,18 +241,20 @@ class ActivityEmailService
             $users = User::query()
                 ->where('tenant_id', $tenantId)
                 ->where('is_active', true)
-                ->where('is_super_admin', false)
+                ->where(function ($query): void {
+                    $query->where('is_super_admin', false)->orWhereNull('is_super_admin');
+                })
                 ->whereNotNull('email')
                 ->where('email', '!=', '');
 
             match ($announcement->audience) {
                 'staff' => $users->whereIn('role', User::staffRoleNames()),
                 'students' => $users->where('role', 'student'),
-                'admin' => $users->whereIn('role', ['admin', 'principal', 'vice_principal', 'head', 'head_teacher']),
+                'admin' => $users->whereIn('role', ['admin', 'administrator', 'principal', 'vice_principal', 'head', 'head_teacher']),
                 default => null,
             };
 
-            $users->select(['name', 'email'])->orderBy('id')->chunk(250, function ($chunk) use (&$recipients): void {
+            $users->select(['id', 'name', 'email'])->orderBy('id')->chunk(250, function ($chunk) use (&$recipients): void {
                 foreach ($chunk as $user) {
                     $recipients->push([
                         'email' => $user->email,
@@ -292,10 +297,22 @@ class ActivityEmailService
         array $context = []
     ): int {
         $sent = 0;
+        $attempted = count($recipients);
+        $mailer = (string) config('mail.default', 'smtp');
 
         foreach ($recipients as $recipient) {
+            $email = trim((string) ($recipient['email'] ?? ''));
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+
+            // Shared hosting SMTP servers may close a reused connection after a
+            // delivery. Give each recipient a clean transport so one failure
+            // cannot poison the rest of the batch.
+            Mail::purge($mailer);
+
             try {
-                Notification::route('mail', $recipient['email'])->notify(
+                Notification::route('mail', $email)->notify(
                     new GuardianMailNotification(
                         subject: $subject,
                         greetingName: $recipient['name'] ?: 'EduCore User',
@@ -308,11 +325,34 @@ class ActivityEmailService
             } catch (Throwable $exception) {
                 Log::warning('Activity email delivery failed.', array_merge($context, [
                     'tenant_id' => $tenant->id,
-                    'error' => $exception->getMessage(),
+                    'recipient' => $this->maskEmail($email),
+                    'exception' => $exception::class,
+                    'error' => Str::limit($exception->getMessage(), 500),
                 ]));
+            } finally {
+                Mail::purge($mailer);
             }
         }
 
+        Log::info('Activity email batch completed.', array_merge($context, [
+            'tenant_id' => $tenant->id,
+            'attempted' => $attempted,
+            'sent' => $sent,
+            'failed' => max(0, $attempted - $sent),
+        ]));
+
         return $sent;
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        if ($domain === '') {
+            return 'invalid';
+        }
+
+        $visible = mb_substr($local, 0, min(2, mb_strlen($local)));
+
+        return $visible.str_repeat('*', max(3, mb_strlen($local) - mb_strlen($visible))).'@'.$domain;
     }
 }
