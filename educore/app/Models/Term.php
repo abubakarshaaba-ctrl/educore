@@ -7,6 +7,7 @@ use App\Services\AssessmentTemplateService;
 use App\Services\FinalClassGraduationService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Term extends BaseTenantModel
 {
@@ -54,7 +55,12 @@ class Term extends BaseTenantModel
 
             // Any class-level template assignments already made for this
             // academic session are inherited automatically by the new term.
-            app(AssessmentTemplateService::class)->materializeAssignmentsForTerm($term);
+            // The table guards keep isolated tests and partial migration states safe.
+            if (Schema::hasTable('assessment_template_assignments')
+                && Schema::hasTable('assessment_templates')
+                && Schema::hasTable('assessment_template_components')) {
+                app(AssessmentTemplateService::class)->materializeAssignmentsForTerm($term);
+            }
         });
 
         static::updated(function (Term $term): void {
