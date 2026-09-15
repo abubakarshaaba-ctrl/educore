@@ -25,6 +25,7 @@
     .period-item { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:7px;padding:7px 10px;margin-bottom:4px; }
     .period-subject { font-size:12px;font-weight:700;color:var(--emerald); }
     .period-class { font-size:11px;color:var(--slate);margin-top:2px; }
+    .closed-cell{background:#F8FAFC!important;color:#94A3B8!important;text-align:center!important;vertical-align:middle!important;font-size:10px!important;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
     .empty-state { text-align:center;padding:50px;color:var(--slate-light); }
     .empty-state h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:6px; }
     @media(max-width:700px){.page-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap}.page-tab{white-space:nowrap}}
@@ -88,19 +89,26 @@
 </form>
 
 @if(isset($teacher))
+@php
+    $teacherTimetableConfig = \App\Models\TimetableConfig::where('tenant_id', auth()->user()->tenant_id)
+        ->where('session_id', $session->id)->first();
+@endphp
 <div class="tt-outer">
     <div class="tbl"><table class="tt-table">
-        <thead><tr><th>Time</th>@foreach($days as $day)<th>{{ ucfirst($day) }}</th>@endforeach</tr></thead>
+        <thead><tr><th>Time</th>@foreach($days as $day)<th>{{ ucfirst($day) }}@if($teacherTimetableConfig)<br><span style="font-size:9px;font-weight:400;opacity:.75">to {{ $teacherTimetableConfig->closingTimeFor($day) }}</span>@endif</th>@endforeach</tr></thead>
         <tbody>
             @foreach($allSlots as $slot)
                 @if($slot['is_break'])
-                <tr class="break-row"><td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>@foreach($days as $day)<td>☕ {{ $slot['label'] }}</td>@endforeach</tr>
+                <tr class="break-row"><td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>@foreach($days as $day)@php $openForBreak = !$teacherTimetableConfig || $slot['end'] <= $teacherTimetableConfig->closingTimeFor($day); @endphp<td class="{{ $openForBreak ? '' : 'closed-cell' }}">{{ $openForBreak ? '☕ '.$slot['label'] : 'Closed' }}</td>@endforeach</tr>
                 @else
                 <tr>
                     <td class="time-col">P{{ $slot['period'] }}<br><span style="font-weight:400">{{ substr($slot['start'],0,5) }}</span><br><span style="font-weight:400">{{ substr($slot['end'],0,5) }}</span></td>
                     @foreach($days as $day)
-                    @php $match = $periods->get($day, collect())->first(fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5)); @endphp
-                    <td>@if($match)<div class="period-item"><div class="period-subject">{{ optional($match->subject)->name ?? 'Unassigned subject' }}</div><div class="period-class">{{ optional(optional($match->classArm)->classLevel)->name ?? 'Unassigned level' }} {{ optional($match->classArm)->name ?? '' }}</div></div>@endif</td>
+                    @php
+                        $openForPeriod = !$teacherTimetableConfig || $slot['end'] <= $teacherTimetableConfig->closingTimeFor($day);
+                        $match = $periods->get($day, collect())->first(fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5));
+                    @endphp
+                    <td class="{{ $openForPeriod ? '' : 'closed-cell' }}">@if(!$openForPeriod)Closed@elseif($match)<div class="period-item"><div class="period-subject">{{ optional($match->subject)->name ?? 'Unassigned subject' }}</div><div class="period-class">{{ optional(optional($match->classArm)->classLevel)->name ?? 'Unassigned level' }} {{ optional($match->classArm)->name ?? '' }}</div></div>@endif</td>
                     @endforeach
                 </tr>
                 @endif
