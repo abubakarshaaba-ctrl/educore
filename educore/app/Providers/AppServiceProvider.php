@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\LessonAiProvider;
+use App\Http\Controllers\AssessmentTemplateController;
 use App\Http\Controllers\StudentGuardianController;
 use App\Services\Ai\GroqLessonProvider;
 use App\Models\Tenant;
@@ -27,31 +28,18 @@ use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(LessonAiProvider::class, GroqLessonProvider::class);
-        //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // This app doesn't load Tailwind CSS, but Laravel's default pagination view does —
-        // which renders unstyled, oversized SVG arrows on every paginated page. Use a
-        // dependency-free custom view instead, everywhere ->links() is called.
         \Illuminate\Pagination\Paginator::defaultView('vendor.pagination.custom');
         \Illuminate\Pagination\Paginator::defaultSimpleView('vendor.pagination.custom');
 
-        // Super Admin platform broadcasts are stored with a legacy raw DB insert.
-        // Bridge that successful HTTP insert into the normal FCM push pipeline.
         if (! $this->app->runningInConsole()) {
             $listener = app(\App\Services\Notifications\PlatformBroadcastPushListener::class);
-
             \Illuminate\Support\Facades\DB::listen(
                 function (\Illuminate\Database\Events\QueryExecuted $query) use ($listener): void {
                     $listener($query);
@@ -59,12 +47,19 @@ class AppServiceProvider extends ServiceProvider
             );
         }
 
-        // Registered-student guardian management is deliberately separate from the
-        // core student profile update so guardian linking/unlinking can be validated,
-        // tenant-scoped and transacted independently.
         Route::middleware(['web', 'auth', 'active.account', 'tenant'])
             ->post('/students/{student}/guardians', [StudentGuardianController::class, 'update'])
             ->name('students.guardians.update');
+
+        Route::middleware(['web', 'auth', 'active.account', 'tenant'])
+            ->prefix('assessment-templates')
+            ->name('assessment-templates.')
+            ->group(function (): void {
+                Route::post('/', [AssessmentTemplateController::class, 'store'])->name('store');
+                Route::put('/{template}', [AssessmentTemplateController::class, 'update'])->name('update');
+                Route::post('/{template}/assign', [AssessmentTemplateController::class, 'assign'])->name('assign');
+                Route::delete('/{template}', [AssessmentTemplateController::class, 'destroy'])->name('destroy');
+            });
 
         RateLimiter::for('tenant-login', function (Request $request) {
             return Limit::perMinute(5)->by($this->tenantAuthThrottleKey($request, 'login_id'));
@@ -74,17 +69,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by($this->tenantAuthThrottleKey($request, 'email'));
         });
 
-        // Super-admin (platform) login: 10 attempts per minute per IP
         RateLimiter::for('global-login', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
         });
 
-        // Public contact / onboarding forms: 5 per minute per IP
         RateLimiter::for('public-form', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());
         });
 
-        // Public admissions portal: 10 submissions per minute per IP
         RateLimiter::for('public-admission', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
         });
@@ -108,9 +100,6 @@ class AppServiceProvider extends ServiceProvider
             };
         });
 
-        // ── View composers: keep Eloquent/business logic out of Blade views ──
-
-        // Agent portal chrome (session-based agent auth).
         View::composer('agent.layout', function ($view) {
             $agentId = session('agent_id');
             $view->with('currentAgent', $agentId ? PlatformAgent::find($agentId) : null);
@@ -120,7 +109,6 @@ class AppServiceProvider extends ServiceProvider
             )->count());
         });
 
-        // Pending offline clock-in banner shown across every staff-attendance screen.
         View::composer('staff-attendance.*', function ($view) {
             $tenantId = optional(auth()->user())->tenant_id;
             $view->with('hasPendingOffline', $tenantId
@@ -128,7 +116,6 @@ class AppServiceProvider extends ServiceProvider
                 : false);
         });
 
-        // Manual-override staff dropdown on the attendance index.
         View::composer('staff-attendance.index', function ($view) {
             if (! array_key_exists('allStaff', $view->getData())) {
                 $tenantId = optional(auth()->user())->tenant_id;
@@ -138,7 +125,29 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        // Curriculum: per-track level-rule counts.
+        View::composer('scores.assessment-types', function ($view) {
+            $tenantId = optional(auth()->user())->tenant_id;
+            if (! $tenantId) {
+                return;
+            }
+
+            $templates = \App\Models\AssessmentTemplate::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->with(['components', 'assignments.classLevel', 'assignments.session'])
+                ->orderBy('name')
+                ->get();
+
+            $selectedId = (int) request('selected', $templates->first()?->id ?? 0);
+            $selectedTemplate = $templates->firstWhere('id', $selectedId) ?? $templates->first();
+
+            $view->with('templates', $templates);
+            $view->with('selectedTemplate', $selectedTemplate);
+            $view->with('templateClassLevels', \App\Models\ClassLevel::withoutTenantScope()
+                ->where('tenant_id', $tenantId)->orderBy('order_index')->orderBy('name')->get());
+            $view->with('templateSessions', \App\Models\AcademicSession::withoutTenantScope()
+                ->where('tenant_id', $tenantId)->orderByDesc('id')->get());
+        });
+
         View::composer('curriculum.tracks', function ($view) {
             $tracks = $view->getData()['tracks'] ?? collect();
             $view->with('trackLevelCounts', collect($tracks)->mapWithKeys(fn ($t) => [
@@ -147,7 +156,6 @@ class AppServiceProvider extends ServiceProvider
             ]));
         });
 
-        // Curriculum: per-arm subject-rule counts.
         View::composer('curriculum.arm-tracks', function ($view) {
             $arms = $view->getData()['arms'] ?? collect();
             $counts = [];
@@ -165,7 +173,6 @@ class AppServiceProvider extends ServiceProvider
             $view->with('armSubjectCounts', $counts);
         });
 
-        // Curriculum: a student's active subject selections.
         View::composer('curriculum.student-subjects', function ($view) {
             $data = $view->getData();
             $student = $data['student'] ?? null;
@@ -178,9 +185,6 @@ class AppServiceProvider extends ServiceProvider
                 : collect());
         });
 
-        // Registered student edit: every selectable guardian is tenant-scoped by
-        // Guardian's global tenant scope. Existing child links help distinguish
-        // parents with similar names before another child is linked.
         View::composer('students.edit', function ($view) {
             $view->with('availableGuardians', Guardian::query()
                 ->with(['students:id,first_name,last_name,admission_number', 'user:id'])
@@ -189,7 +193,6 @@ class AppServiceProvider extends ServiceProvider
                 ->get());
         });
 
-        // Staff role metadata (constants surfaced as plain view data).
         View::composer(['staff.index', 'staff.archive.index', 'staff._role_select'], function ($view) {
             $view->with('roleLabels', User::ROLE_LABELS);
             $view->with('roleAccess', User::ROLE_ACCESS);
@@ -198,7 +201,6 @@ class AppServiceProvider extends ServiceProvider
             $view->with('selected', User::canonicalRole($view->getData()['selected'] ?? ''));
         });
 
-        // Student status constants surfaced as plain view data.
         View::composer(
             ['students.index', 'students.show', 'students.archive.index', 'students.class-transfers.show'],
             function ($view) {
