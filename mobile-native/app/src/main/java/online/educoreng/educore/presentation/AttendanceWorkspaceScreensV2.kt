@@ -200,12 +200,17 @@ internal fun CompactStaffAttendanceScreen(
     var proxyLatitude by remember { mutableStateOf<Double?>(null) }
     var proxyLongitude by remember { mutableStateOf<Double?>(null) }
     val snapshot = state.staffAttendance
+    val offlineWithoutSnapshot = !online && snapshot == null
+    // When the cached school policy is unavailable we must assume geofencing may
+    // be enabled. Capturing GPS evidence makes the queued record verifiable when
+    // the server receives it rather than silently creating an unverifiable event.
+    val locationRequiredForSelfClockIn = snapshot?.geoEnabled != false
     val context = LocalContext.current
     val locationClient = remember(context) { LocationServices.getFusedLocationProviderClient(context) }
 
     fun submitScannedToken(token: String) {
         pendingToken = null
-        if (snapshot?.geoEnabled != true) {
+        if (!locationRequiredForSelfClockIn) {
             onClockIn(token, null, null)
             return
         }
@@ -219,7 +224,11 @@ internal fun CompactStaffAttendanceScreen(
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val token = pendingToken
         if (!granted || token == null) {
-            scanError = "Location permission is required by this school for attendance verification."
+            scanError = if (offlineWithoutSnapshot) {
+                "Location permission is required for offline attendance because the school's geofence policy cannot be checked until you reconnect."
+            } else {
+                "Location permission is required by this school for attendance verification."
+            }
             pendingToken = null
         } else {
             currentAttendanceLocation(locationClient) { latitude, longitude, error ->
@@ -232,7 +241,7 @@ internal fun CompactStaffAttendanceScreen(
     val schoolQrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
         val token = result.contents
         if (token.isNullOrBlank()) return@rememberLauncherForActivityResult
-        if (snapshot?.geoEnabled == true && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (locationRequiredForSelfClockIn && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             pendingToken = token
             locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else submitScannedToken(token)
@@ -323,17 +332,20 @@ internal fun CompactStaffAttendanceScreen(
         }
     }
 
-    if (state.isLoadingWorkspace && snapshot == null) {
+    // A fresh install has no cached staff-attendance snapshot. Previously that
+    // made the entire screen inaccessible offline, even though the repository can
+    // securely queue a QR clock-in. Keep the hard loading/error gate only online.
+    if (online && state.isLoadingWorkspace && snapshot == null) {
         EduCoreLoadingState(Modifier.fillMaxSize(), "Loading attendance")
         return
     }
-    if (snapshot == null) {
+    if (online && snapshot == null) {
         EduCoreErrorState(state.errorMessage ?: "Staff attendance is unavailable.", Modifier.fillMaxSize(), onRetry = onRefresh)
         return
     }
 
-    val clockedIn = snapshot.today?.clockIn != null
-    val clockedOut = snapshot.today?.clockOut != null
+    val clockedIn = snapshot?.today?.clockIn != null
+    val clockedOut = snapshot?.today?.clockOut != null
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
@@ -347,14 +359,26 @@ internal fun CompactStaffAttendanceScreen(
                 }
                 Column(Modifier.weight(1f)) {
                     Text("My attendance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text("${snapshot.month}/${snapshot.year}", style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                    Text(
+                        snapshot?.let { "${it.month}/${it.year}" } ?: "Offline attendance capture",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EduCoreColors.Slate600,
+                    )
                 }
             }
         }
-        state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
+        if (online || snapshot != null) {
+            state.errorMessage?.let { error -> item { EduCoreErrorBanner(error) } }
+        }
         scanError?.let { error -> item { EduCoreErrorBanner(error) } }
         if (!online) item {
-            EduCoreWarningBanner("Offline self clock-in is available. Scan the school QR and EduCore will store the timestamp and location evidence securely, then sync automatically when connectivity returns. Proxy clock-in and clock-out still require a live connection.")
+            EduCoreWarningBanner(
+                if (offlineWithoutSnapshot) {
+                    "No attendance policy is cached on this device yet. You can still clock in: EduCore will capture the school QR, a high-accuracy GPS position and the device timestamp, store them securely, then sync and verify the record automatically when connectivity returns."
+                } else {
+                    "Offline self clock-in is available. Scan the school QR and EduCore will store the timestamp and location evidence securely, then sync automatically when connectivity returns. Proxy clock-in and clock-out still require a live connection."
+                },
+            )
         }
         item {
             Surface(color = EduCoreColors.Navy900, contentColor = Color.White, shape = MaterialTheme.shapes.medium) {
@@ -366,6 +390,7 @@ internal fun CompactStaffAttendanceScreen(
                         Text("TODAY", color = EduCoreColors.Gold400, style = MaterialTheme.typography.labelSmall)
                         Text(
                             when {
+                                snapshot == null -> "Ready for offline clock-in"
                                 !clockedIn -> "Not clocked in"
                                 clockedOut -> "Completed"
                                 else -> "Clocked in"
@@ -374,7 +399,7 @@ internal fun CompactStaffAttendanceScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                    snapshot.today?.let { today ->
+                    snapshot?.today?.let { today ->
                         Text(
                             "${today.clockIn.orEmpty()}${today.clockOut?.let { " · $it" }.orEmpty()}",
                             style = MaterialTheme.typography.bodySmall,
@@ -384,14 +409,16 @@ internal fun CompactStaffAttendanceScreen(
                 }
             }
         }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                CompactAttendanceMetric("Present", snapshot.counts.present, Modifier.weight(1f))
-                CompactAttendanceMetric("Late", snapshot.counts.late, Modifier.weight(1f))
-                CompactAttendanceMetric("Absent", snapshot.counts.absent, Modifier.weight(1f))
+        snapshot?.let { currentSnapshot ->
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    CompactAttendanceMetric("Present", currentSnapshot.counts.present, Modifier.weight(1f))
+                    CompactAttendanceMetric("Late", currentSnapshot.counts.late, Modifier.weight(1f))
+                    CompactAttendanceMetric("Absent", currentSnapshot.counts.absent, Modifier.weight(1f))
+                }
             }
         }
         if (!clockedIn) item {
@@ -402,7 +429,11 @@ internal fun CompactStaffAttendanceScreen(
                     Column(Modifier.weight(1f)) {
                         Text("School QR", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Text(
-                            if (snapshot.geoEnabled) "Location check: ${snapshot.geoRadiusMeters} m radius" else "Scan the school's attendance QR",
+                            when {
+                                snapshot == null -> "Scan the school QR; GPS evidence will also be captured for server verification"
+                                snapshot.geoEnabled -> "Location check: ${snapshot.geoRadiusMeters} m radius"
+                                else -> "Scan the school's attendance QR"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
@@ -410,7 +441,7 @@ internal fun CompactStaffAttendanceScreen(
                 }
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 EduCorePrimaryButton(
-                    text = "Scan QR & clock in",
+                    text = if (offlineWithoutSnapshot) "Scan QR & save offline" else "Scan QR & clock in",
                     onClick = {
                         scanError = null
                         schoolQrScanner.launch(attendanceQrOptions("Scan the school attendance QR"))
@@ -429,7 +460,7 @@ internal fun CompactStaffAttendanceScreen(
                 loading = state.isSaving,
             )
         }
-        item {
+        if (snapshot != null) item {
             EduCoreSecondaryButton(
                 text = if (proxyMode) "Close colleague clock-in" else "Clock in for a colleague",
                 onClick = {
@@ -442,7 +473,7 @@ internal fun CompactStaffAttendanceScreen(
                 enabled = online && !state.isSaving,
             )
         }
-        if (proxyMode) {
+        if (snapshot != null && proxyMode) {
             item {
                 EduCoreInfoBanner(
                     title = "Verified proxy clock-in",
@@ -511,7 +542,7 @@ internal fun CompactStaffAttendanceScreen(
                 }
             }
         }
-        items(snapshot.records.take(31), key = { it.date }) { record ->
+        items(snapshot?.records.orEmpty().take(31), key = { it.date }) { record ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
                 border = BorderStroke(1.dp, EduCoreColors.Line200),
