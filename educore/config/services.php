@@ -47,4 +47,10 @@ return [
         'credentials_json' => env('FCM_CREDENTIALS_JSON'),
     ],
 
+    'mobile_release' => [
+        // Shared only between the live EduCore server and the protected
+        // Codemagic production environment. Never commit the actual token.
+        'webhook_token' => env('MOBILE_RELEASE_WEBHOOK_TOKEN'),
+    ],
+
 ];
