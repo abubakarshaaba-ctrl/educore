@@ -21,6 +21,50 @@ use Illuminate\Validation\ValidationException;
 
 class ScoreController extends Controller
 {
+    private const ACADEMIC_SCORE_ROLES = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'head_of_schools',
+        'vice_principal',
+        'vice_principal_academics',
+        'vice_principal_administration',
+        'assistant_principal',
+        'assistant_head',
+        'academic_head',
+        'academic_administrator',
+        'director_of_studies',
+        'hod',
+        'head_of_department',
+        'teacher',
+        'subject_teacher',
+        'class_teacher',
+        'form_teacher',
+        'asst_form_teacher',
+        'form_subject_teacher',
+    ];
+
+    private const SCORE_OVERSIGHT_ROLES = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'head_of_schools',
+        'vice_principal',
+        'vice_principal_academics',
+        'vice_principal_administration',
+        'assistant_principal',
+        'assistant_head',
+        'academic_head',
+        'academic_administrator',
+        'director_of_studies',
+        'hod',
+        'head_of_department',
+    ];
+
     public function __construct(private readonly MobileIdempotencyService $idempotency) {}
 
     public function teaching(Request $request)
@@ -144,85 +188,85 @@ class ScoreController extends Controller
             $data,
             function () use ($data, $term, $classArm, $user, $resolver): array {
                 $saved = DB::transaction(function () use ($data, $term, $classArm, $user, $resolver) {
-            abort_if($this->isPublished($classArm->id, $term->id), 423, 'These results are published and locked. Unpublish the report cards before changing scores.');
-            $students = $this->studentsFor($classArm->id);
-            $types = $this->assessmentTypesFor($term->id);
-            $records = $this->scoresFor($students, (int) $data['subject_id'], $term->id, true);
-            $serverVersion = $this->sheetVersion($students, $types, $records, false);
-            abort_unless(hash_equals($serverVersion, (string) $data['version']), 409, 'Scores changed on the server. Reload the sheet before saving your draft.');
+                    abort_if($this->isPublished($classArm->id, $term->id), 423, 'These results are published and locked. Unpublish the report cards before changing scores.');
+                    $students = $this->studentsFor($classArm->id);
+                    $types = $this->assessmentTypesFor($term->id);
+                    $records = $this->scoresFor($students, (int) $data['subject_id'], $term->id, true);
+                    $serverVersion = $this->sheetVersion($students, $types, $records, false);
+                    abort_unless(hash_equals($serverVersion, (string) $data['version']), 409, 'Scores changed on the server. Reload the sheet before saving your draft.');
 
-            $studentsById = $students->keyBy('id');
-            $typesById = $types->keyBy('id');
-            $recordsByCell = $records->keyBy(fn (Score $score) => $score->student_id.':'.$score->assessment_type_id);
-            $errors = [];
-            foreach ($data['scores'] as $studentId => $values) {
-                if (! $studentsById->has((int) $studentId) || ! is_array($values)) {
-                    $errors["scores.{$studentId}"][] = 'The selected student is not active in this class.';
+                    $studentsById = $students->keyBy('id');
+                    $typesById = $types->keyBy('id');
+                    $recordsByCell = $records->keyBy(fn (Score $score) => $score->student_id.':'.$score->assessment_type_id);
+                    $errors = [];
+                    foreach ($data['scores'] as $studentId => $values) {
+                        if (! $studentsById->has((int) $studentId) || ! is_array($values)) {
+                            $errors["scores.{$studentId}"][] = 'The selected student is not active in this class.';
 
-                    continue;
-                }
-                foreach ($values as $typeId => $value) {
-                    $type = $typesById->get((int) $typeId);
-                    $path = "scores.{$studentId}.{$typeId}";
-                    if (! $type) {
-                        $errors[$path][] = 'The selected assessment does not belong to this term.';
+                            continue;
+                        }
+                        foreach ($values as $typeId => $value) {
+                            $type = $typesById->get((int) $typeId);
+                            $path = "scores.{$studentId}.{$typeId}";
+                            if (! $type) {
+                                $errors[$path][] = 'The selected assessment does not belong to this term.';
 
-                        continue;
-                    }
-                    if ($value === null || $value === '') {
-                        continue;
-                    }
-                    if (! is_numeric($value)) {
-                        $errors[$path][] = 'Enter a numeric score.';
+                                continue;
+                            }
+                            if ($value === null || $value === '') {
+                                continue;
+                            }
+                            if (! is_numeric($value)) {
+                                $errors[$path][] = 'Enter a numeric score.';
 
-                        continue;
+                                continue;
+                            }
+                            $maximum = (float) ($type->isSplit() ? $type->theory_max : $type->weight_percentage);
+                            if ((float) $value < 0 || (float) $value > $maximum) {
+                                $errors[$path][] = "Enter a score between 0 and {$maximum}.";
+                            }
+                            if ((bool) $recordsByCell->get($studentId.':'.$typeId)?->is_source_locked) {
+                                $errors[$path][] = 'This score is controlled by its source and cannot be edited manually.';
+                            }
+                        }
                     }
-                    $maximum = (float) ($type->isSplit() ? $type->theory_max : $type->weight_percentage);
-                    if ((float) $value < 0 || (float) $value > $maximum) {
-                        $errors[$path][] = "Enter a score between 0 and {$maximum}.";
+                    if ($errors !== []) {
+                        throw ValidationException::withMessages($errors);
                     }
-                    if ((bool) $recordsByCell->get($studentId.':'.$typeId)?->is_source_locked) {
-                        $errors[$path][] = 'This score is controlled by its source and cannot be edited manually.';
-                    }
-                }
-            }
-            if ($errors !== []) {
-                throw ValidationException::withMessages($errors);
-            }
 
-            $savedCount = 0;
-            foreach ($data['scores'] as $studentId => $values) {
-                $student = $studentsById->get((int) $studentId);
-                foreach ($values as $typeId => $value) {
-                    if ($value === null || $value === '') {
-                        continue;
+                    $savedCount = 0;
+                    foreach ($data['scores'] as $studentId => $values) {
+                        $student = $studentsById->get((int) $studentId);
+                        foreach ($values as $typeId => $value) {
+                            if ($value === null || $value === '') {
+                                continue;
+                            }
+                            $type = $typesById->get((int) $typeId);
+                            $attributes = ['session_id' => $term->session_id, 'entered_by' => $user->id, 'entered_at' => now()];
+                            if ($type->isSplit()) {
+                                $exam = $resolver->findExam($classArm->id, (int) $data['subject_id'], $term->id, $type);
+                                $objective = $exam ? $resolver->resolve($student, $exam, $type) : null;
+                                $theory = (float) $value;
+                                $attributes += [
+                                    'score' => min(($objective ?? 0) + $theory, (float) $type->weight_percentage),
+                                    'objective_score' => $objective,
+                                    'theory_score' => $theory,
+                                    'cbt_exam_id' => $exam?->id,
+                                ];
+                            } else {
+                                $attributes += ['score' => (float) $value, 'objective_score' => null, 'theory_score' => null, 'cbt_exam_id' => null];
+                            }
+                            Score::updateOrCreate([
+                                'student_id' => $student->id,
+                                'subject_id' => (int) $data['subject_id'],
+                                'assessment_type_id' => $type->id,
+                                'term_id' => $term->id,
+                            ], $attributes);
+                            $savedCount++;
+                        }
                     }
-                    $type = $typesById->get((int) $typeId);
-                    $attributes = ['session_id' => $term->session_id, 'entered_by' => $user->id, 'entered_at' => now()];
-                    if ($type->isSplit()) {
-                        $exam = $resolver->findExam($classArm->id, (int) $data['subject_id'], $term->id, $type);
-                        $objective = $exam ? $resolver->resolve($student, $exam, $type) : null;
-                        $theory = (float) $value;
-                        $attributes += [
-                            'score' => min(($objective ?? 0) + $theory, (float) $type->weight_percentage),
-                            'objective_score' => $objective,
-                            'theory_score' => $theory,
-                            'cbt_exam_id' => $exam?->id,
-                        ];
-                    } else {
-                        $attributes += ['score' => (float) $value, 'objective_score' => null, 'theory_score' => null, 'cbt_exam_id' => null];
-                    }
-                    Score::updateOrCreate([
-                        'student_id' => $student->id,
-                        'subject_id' => (int) $data['subject_id'],
-                        'assessment_type_id' => $type->id,
-                        'term_id' => $term->id,
-                    ], $attributes);
-                    $savedCount++;
-                }
-            }
 
-            return $savedCount;
+                    return $savedCount;
                 });
 
                 $students = $this->studentsFor($classArm->id);
@@ -242,7 +286,14 @@ class ScoreController extends Controller
     private function assertCanEnterScores($user): void
     {
         abort_if($user->isAccountant(), 403, 'Accountants cannot enter academic scores.');
-        abort_unless($this->canEnterAll($user) || $user->canAccessExactModule('scores.entry'), 403, 'You do not have permission to enter scores.');
+
+        abort_unless(
+            $this->isAcademicScoreStaff($user)
+                || $user->canAccessExactModule('scores')
+                || $user->canAccessExactModule('scores.entry'),
+            403,
+            'You do not have permission to enter scores.'
+        );
     }
 
     private function assertTeaches($user, int $classArmId, int $subjectId): void
@@ -258,7 +309,26 @@ class ScoreController extends Controller
 
     private function canEnterAll($user): bool
     {
-        return $user->isSuperAdmin() || $user->canAccessExactModule('scores');
+        return $user->isSuperAdmin()
+            || $user->canAccessExactModule('scores')
+            || $this->hasScoreRole($user, self::SCORE_OVERSIGHT_ROLES);
+    }
+
+    private function isAcademicScoreStaff($user): bool
+    {
+        return $this->hasScoreRole($user, self::ACADEMIC_SCORE_ROLES);
+    }
+
+    private function hasScoreRole($user, array $roles): bool
+    {
+        $roleKey = $user->roleKey();
+        if ($roleKey !== null && in_array($roleKey, $roles, true)) {
+            return true;
+        }
+
+        return $user->getRoleNames()
+            ->map(fn ($role) => strtolower(str_replace(['-', ' '], '_', trim((string) $role))))
+            ->contains(fn ($role) => in_array($role, $roles, true));
     }
 
     private function resolveTerm(?int $termId): Term
