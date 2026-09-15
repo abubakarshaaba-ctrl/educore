@@ -2,8 +2,10 @@
 
 namespace App\Services\Cbt;
 
+use App\Models\AssessmentType;
 use App\Models\AuditLog;
 use App\Models\CbtStudentSession;
+use App\Models\ClassArm;
 use App\Models\ReportCardPublication;
 use App\Models\Score;
 use Illuminate\Support\Facades\DB;
@@ -14,19 +16,19 @@ class CbtResultSyncService
     {
         $completed->loadMissing('exam.questionBank.subject', 'exam.assessmentType', 'exam.term', 'student');
         $exam = $completed->exam;
-        if (! $exam?->assessment_type_id) {
-            return ['synced' => false, 'reason' => 'not_linked'];
+        if (! $exam) {
+            return ['synced' => false, 'reason' => 'exam_missing'];
         }
         if (! $completed->isFullyScored()) {
             return ['synced' => false, 'reason' => 'pending_manual_scoring'];
         }
 
-        $assessment = $exam->assessmentType;
-        if (! $assessment || ! $assessment->is_exam || (int) $assessment->term_id !== (int) $exam->term_id) {
-            return ['synced' => false, 'reason' => 'invalid_exam_component'];
+        $studentClassArmId = (int) ($completed->student?->current_class_arm_id ?: $exam->class_arm_id);
+        $assessment = $this->resolveExamAssessment($exam, $studentClassArmId);
+        if (! $assessment) {
+            return ['synced' => false, 'reason' => 'exam_component_not_configured'];
         }
 
-        $studentClassArmId = $completed->student?->current_class_arm_id ?: $exam->class_arm_id;
         $published = ReportCardPublication::where('class_arm_id', $studentClassArmId)
             ->where('term_id', $exam->term_id)
             ->where('status', 'published')
@@ -52,10 +54,10 @@ class CbtResultSyncService
                 ->update(['is_active_result' => false]);
             $active->forceFill(['is_active_result' => true])->save();
 
-            // raw_score and maximum_score are produced entirely by the CBT
-            // scoring pipeline. Objective questions are auto-scored and theory
-            // questions are teacher-scored on the CBT interface. Only the final
-            // aggregate is converted to the assessment-template Exam weight.
+            // The CBT module owns raw scoring. Objective questions are scored
+            // automatically; theory is entered manually by the teacher on the
+            // CBT interface. Only the final aggregate is converted to the
+            // school-configured Exam weight on the score sheet.
             $maximum = (float) ($active->maximum_score ?: $exam->total_marks);
             $weighted = $maximum > 0
                 ? round(((float) $active->raw_score / $maximum) * (float) $assessment->weight_percentage, 2)
@@ -71,7 +73,6 @@ class CbtResultSyncService
                 'tenant_id' => $exam->tenant_id,
                 'session_id' => $exam->term->session_id,
                 'score' => min($weighted, (float) $assessment->weight_percentage),
-                // Breakdown remains authoritative in CBT question/section scores.
                 'objective_score' => null,
                 'theory_score' => null,
                 'cbt_exam_id' => $exam->id,
@@ -95,6 +96,7 @@ class CbtResultSyncService
                     'attempt_number' => $active->attempt_number,
                     'raw_score' => $active->raw_score,
                     'maximum_score' => $maximum,
+                    'assessment_type_id' => $assessment->id,
                     'exam_weight' => $assessment->weight_percentage,
                     'weighted_score' => $score->score,
                 ],
@@ -102,5 +104,61 @@ class CbtResultSyncService
 
             return ['synced' => true, 'score' => $score];
         });
+    }
+
+    /**
+     * Resolve the score-sheet Exam component from the student's configured
+     * class-level assessment template. A manually selected assessment_type_id
+     * is accepted only when it is the same term, is an Exam component and is
+     * valid for that class level. This keeps legacy exams working while making
+     * the template/class configuration the authoritative mapping.
+     */
+    private function resolveExamAssessment($exam, int $classArmId): ?AssessmentType
+    {
+        $classLevelId = (int) ClassArm::withoutTenantScope()
+            ->where('tenant_id', $exam->tenant_id)
+            ->whereKey($classArmId)
+            ->value('class_level_id');
+
+        if ($classLevelId <= 0) {
+            return null;
+        }
+
+        $resolved = AssessmentType::withoutTenantScope()
+            ->where('tenant_id', $exam->tenant_id)
+            ->where('term_id', $exam->term_id)
+            ->whereHas('classLevels', fn ($query) => $query->where('class_levels.id', $classLevelId))
+            ->orderBy('is_exam')
+            ->orderBy('weight_percentage')
+            ->orderBy('name')
+            ->get();
+
+        if ($resolved->isEmpty()) {
+            $resolved = AssessmentType::withoutTenantScope()
+                ->where('tenant_id', $exam->tenant_id)
+                ->where('term_id', $exam->term_id)
+                ->whereDoesntHave('classLevels')
+                ->orderBy('is_exam')
+                ->orderBy('weight_percentage')
+                ->orderBy('name')
+                ->get();
+        }
+
+        $examComponents = $resolved->where('is_exam', true)->values();
+        if ($examComponents->isEmpty()) {
+            return null;
+        }
+
+        if ($exam->assessment_type_id) {
+            $linked = $examComponents->firstWhere('id', (int) $exam->assessment_type_id);
+            if ($linked) {
+                return $linked;
+            }
+        }
+
+        // The assessment template is expected to expose one final Exam column.
+        // If legacy data contains several Exam-type rows, prefer the highest
+        // weight because that represents the final examination contribution.
+        return $examComponents->sortByDesc('weight_percentage')->first();
     }
 }
