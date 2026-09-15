@@ -45,7 +45,10 @@ fun EduCoreWordmark(
     modifier: Modifier = Modifier,
     trailingText: String? = null,
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
             text = "Edu",
             color = Color.White,
@@ -61,6 +64,7 @@ fun EduCoreWordmark(
         trailingText?.takeIf(String::isNotBlank)?.let {
             Text(
                 text = " · $it",
+                modifier = Modifier.weight(1f),
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
@@ -84,9 +88,9 @@ fun EduCoreTopAppBar(
     TopAppBar(
         modifier = modifier,
         title = {
-            Column {
+            Column(Modifier.fillMaxWidth()) {
                 EduCoreWordmark(trailingText = title)
-                subtitle?.let {
+                subtitle?.takeIf(String::isNotBlank)?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
@@ -172,14 +176,14 @@ fun EduCoreTenantHeader(
                 text = schoolName,
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = listOfNotNull(role, session).joinToString(" · "),
                 color = Color.White.copy(alpha = 0.76f),
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
