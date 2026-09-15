@@ -193,10 +193,14 @@ class PushNotificationService
 
     public function send(string $deviceToken, string $title, string $body, array $data = []): bool
     {
-        return $this->sendMessage(['token' => $deviceToken], $title, $body, $data, $deviceToken);
+        return $this->sendMessage(['token' => $deviceToken], $title, $body, $data, $deviceToken, true);
     }
 
-    /** Broadcast to every installation subscribed to an FCM topic. */
+    /**
+     * Release broadcasts are data-only so EduCore's FirebaseMessagingService
+     * receives them in foreground and background and can build a notification
+     * whose tap action consistently opens the signed APK download URL.
+     */
     public function sendToTopic(string $topic, string $title, string $body, array $data = []): bool
     {
         $topic = trim($topic);
@@ -204,7 +208,14 @@ class PushNotificationService
             return false;
         }
 
-        return $this->sendMessage(['topic' => $topic], $title, $body, $data);
+        return $this->sendMessage(
+            ['topic' => $topic],
+            $title,
+            $body,
+            array_merge($data, ['title' => $title, 'body' => $body]),
+            null,
+            false,
+        );
     }
 
     private function sendMessage(
@@ -213,6 +224,7 @@ class PushNotificationService
         string $body,
         array $data = [],
         ?string $deviceToken = null,
+        bool $includeNotification = true,
     ): bool {
         try {
             $projectId = config('services.fcm.project_id');
@@ -224,21 +236,26 @@ class PushNotificationService
                 return false;
             }
 
+            $message = array_merge($target, [
+                'data' => array_map('strval', $data),
+                'android' => [
+                    'priority' => 'high',
+                    'notification' => [
+                        'channel_id' => 'educore_updates',
+                        'sound' => 'default',
+                    ],
+                ],
+            ]);
+
+            if ($includeNotification) {
+                $message['notification'] = ['title' => $title, 'body' => $body];
+            }
+
             $response = Http::timeout(15)
                 ->retry(2, 250, throw: false)
                 ->withToken($accessToken)
                 ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
-                    'message' => array_merge($target, [
-                        'notification' => ['title' => $title, 'body' => $body],
-                        'data' => array_map('strval', $data),
-                        'android' => [
-                            'priority' => 'high',
-                            'notification' => [
-                                'channel_id' => 'educore_updates',
-                                'sound' => 'default',
-                            ],
-                        ],
-                    ]),
+                    'message' => $message,
                 ]);
 
             if (! $response->successful()) {
