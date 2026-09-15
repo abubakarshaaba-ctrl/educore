@@ -16,31 +16,10 @@ class AcademicRepositoryKnowledgeController extends Controller
     {
         $this->guardReader();
 
-        if (! $this->knowledgeSchemaReady()) {
-            return response()->view('academic-repository.knowledge.setup', [], 503);
-        }
-
-        $topics = AcademicTopic::query()
-            ->with(['blocks', 'source'])
-            ->when($request->filled('class'), fn ($q) => $q->where('class_label', $request->string('class')->trim()->toString()))
-            ->when($request->filled('subject'), fn ($q) => $q->where('subject_label', $request->string('subject')->trim()->toString()))
-            ->when($request->filled('term'), fn ($q) => $q->where('term_label', $request->string('term')->trim()->toString()))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->toString()))
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $search = '%'.$request->string('search')->trim()->toString().'%';
-                $q->where(fn ($w) => $w->where('topic', 'like', $search)->orWhere('sub_topic', 'like', $search));
-            })
-            ->orderBy('class_label')->orderBy('subject_label')->orderBy('term_label')->orderBy('week_number')->orderBy('lesson_number')
-            ->get();
-
-        $readiness = $topics->mapWithKeys(fn ($topic) => [$topic->id => $knowledge->readiness($topic)]);
-        $filters = [
-            'classes' => AcademicTopic::query()->distinct()->orderBy('class_label')->pluck('class_label'),
-            'subjects' => AcademicTopic::query()->distinct()->orderBy('subject_label')->pluck('subject_label'),
-            'terms' => AcademicTopic::query()->distinct()->orderBy('term_label')->pluck('term_label'),
-        ];
-
-        return view('academic-repository.knowledge.index', compact('topics', 'readiness', 'filters'));
+        // Academic Knowledge is an internal consolidation layer, not a separate
+        // user-facing module. Keep the service/data model intact for generation
+        // workflows while presenting one canonical Academic Repository screen.
+        return redirect()->route('academic-repository.index');
     }
 
     public function create(Request $request)
