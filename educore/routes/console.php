@@ -7,6 +7,7 @@ use App\Console\Commands\IngestDataMigration;
 use App\Console\Commands\ImportAcademicRepositoryDirectory;
 use App\Console\Commands\InspectAcademicCycle;
 use App\Console\Commands\InspectDataMigration;
+use App\Console\Commands\MailHealthCheck;
 use App\Console\Commands\MapDataMigration;
 use App\Console\Commands\PlanAcademicHistoryMigration;
 use App\Console\Commands\PlanCoreEntityMigration;
@@ -33,6 +34,7 @@ app(ConsoleKernel::class)->registerCommand(app(RepairAcademicCurrentState::class
 app(ConsoleKernel::class)->registerCommand(app(BackupDatabase::class));
 app(ConsoleKernel::class)->registerCommand(app(SendSubscriptionRenewalReminders::class));
 app(ConsoleKernel::class)->registerCommand(app(SendFeeDefaulterReminders::class));
+app(ConsoleKernel::class)->registerCommand(app(MailHealthCheck::class));
 app(ConsoleKernel::class)->registerCommand(app(InspectDataMigration::class));
 app(ConsoleKernel::class)->registerCommand(app(VerifyDataMigration::class));
 app(ConsoleKernel::class)->registerCommand(app(IngestDataMigration::class));
