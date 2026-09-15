@@ -403,6 +403,7 @@ private fun DailyAttendanceSection(
                     AttendanceSummaryTile("Present", snapshot.summary.present, Modifier.weight(1f))
                     AttendanceSummaryTile("Late", snapshot.summary.late, Modifier.weight(1f))
                 }
+                AttendanceSummaryTile("Punctuality %", snapshot.summary.punctualityRate, Modifier.fillMaxWidth())
                 if (snapshot.pending.offline + snapshot.pending.proxy > 0) {
                     Text("Pending review: ${snapshot.pending.offline} offline · ${snapshot.pending.proxy} proxy", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600)
                 }
