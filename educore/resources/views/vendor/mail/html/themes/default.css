@@ -34,30 +34,29 @@ small { color: #64748b; font-size: 12px; }
 .header {
     background: #071e45;
     border-radius: 14px 14px 0 0;
-    overflow: hidden;
     padding: 0;
     text-align: left;
 }
 .header a { color: #ffffff; text-decoration: none; }
 .brand-header { border-collapse: collapse; width: 100%; }
-.brand-lockup { padding: 22px 14px 20px 24px; width: 55%; }
-.brand-vision { border-left: 1px solid rgba(242, 195, 91, .45); padding: 20px 24px 18px 22px; width: 45%; }
+.brand-lockup { padding: 18px 12px 17px 24px; width: 58%; }
+.brand-promise { padding: 18px 24px 17px 10px; width: 42%; }
 .brand-link { display: inline-block; text-decoration: none; }
-.brand-icon-cell { padding-right: 12px; }
+.brand-icon-cell { padding-right: 11px; }
 .brand-icon {
     background: #ffffff;
     border: 0;
-    border-radius: 13px;
+    border-radius: 12px;
     display: block;
-    height: 58px;
-    width: 58px;
+    height: 54px;
+    width: 54px;
 }
 .brand-name-cell { white-space: nowrap; }
 .brand-wordmark {
     color: #ffffff;
-    font-size: 29px;
+    font-size: 27px;
     font-weight: 800;
-    letter-spacing: -0.9px;
+    letter-spacing: -0.8px;
     line-height: 1;
     margin: 0;
 }
@@ -66,62 +65,41 @@ small { color: #64748b; font-size: 12px; }
 .brand-tagline {
     color: #d8e1ee;
     font-size: 9px;
-    font-weight: 650;
-    letter-spacing: .08px;
+    font-weight: 600;
+    letter-spacing: .15px;
     line-height: 1.35;
     margin-top: 6px;
     text-transform: none;
 }
-.brand-kicker {
-    color: #d8e1ee;
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: .65px;
-    line-height: 1.5;
-    margin-bottom: 7px;
-    text-align: left;
-}
-.brand-vision-main {
+.brand-pill-table { border-collapse: collapse; }
+.brand-pill {
+    border-left: 1px solid rgba(242, 195, 91, .45);
     color: #ffffff;
-    font-size: 16px;
-    font-weight: 750;
-    line-height: 1.2;
+    font-size: 9px;
+    line-height: 1.25;
+    padding: 0 0 0 10px;
     text-align: left;
+    vertical-align: middle;
+    width: 62px;
 }
-.brand-vision-highlight {
+.brand-pill:first-child { border-left: 0; padding-left: 0; }
+.brand-pill + .brand-pill { padding-left: 10px; }
+.brand-pill strong { color: #f2c35b; font-weight: 700; }
+.brand-pill-mark {
     color: #f2c35b;
-    font-size: 17px;
-    font-weight: 800;
-    line-height: 1.2;
-    margin-top: 2px;
-    text-align: left;
+    display: block;
+    font-size: 14px;
+    line-height: 1;
+    margin-bottom: 4px;
 }
-.brand-value-strip {
-    background: #0b2d63;
-    border-collapse: collapse;
-    border-top: 1px solid rgba(255, 255, 255, .08);
-    width: 100%;
-}
-.brand-value {
-    border-left: 1px solid rgba(255, 255, 255, .10);
-    color: #ffffff;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: .55px;
-    padding: 9px 6px 8px;
-    text-align: center;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-.brand-value:first-child { border-left: 0; }
-.brand-gold-wave {
+.brand-gold-line {
     background: #d79a21;
     border-top: 2px solid #f2c35b;
-    height: 8px;
-    line-height: 8px;
+    height: 7px;
+    line-height: 7px;
     width: 100%;
 }
-.brand-logo, .brand-fallback, .brand-message, .brand-services, .brand-accent-line, .brand-promise, .brand-pill-table, .brand-gold-line { display: none; }
+.brand-logo, .brand-fallback { display: none; }
 
 .body { background-color: #f3f6fa; border-bottom: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; margin: 0; padding: 0; width: 100%; }
 .inner-body {
@@ -164,13 +142,11 @@ small { color: #64748b; font-size: 12px; }
 @media only screen and (max-width: 620px) {
     .inner-body, .footer { width: 100% !important; }
     .header { border-radius: 0; }
-    .brand-lockup { padding: 16px 14px 13px !important; width: 100% !important; }
-    .brand-vision { display: none !important; }
+    .brand-lockup { padding: 15px 14px 12px !important; width: 100% !important; }
+    .brand-promise { display: none !important; }
     .brand-icon { height: 48px !important; width: 48px !important; }
     .brand-wordmark { font-size: 24px !important; }
     .brand-tagline { font-size: 8px !important; }
-    .brand-value-strip { display: none !important; }
-    .brand-gold-wave { height: 6px !important; }
     .inner-body { border-radius: 0; box-shadow: none; }
     .content-cell { padding: 19px 18px !important; }
     h1 { font-size: 20px !important; }
@@ -181,5 +157,4 @@ small { color: #64748b; font-size: 12px; }
 @media (prefers-color-scheme: dark) {
     body, .wrapper, .body { background-color: #eef2f7 !important; }
     .inner-body { background-color: #ffffff !important; }
-    .header { background-color: #071e45 !important; }
 }
