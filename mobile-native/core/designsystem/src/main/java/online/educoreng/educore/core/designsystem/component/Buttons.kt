@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
@@ -40,15 +39,15 @@ fun EduCorePrimaryButton(
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
         contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
-            containerColor = EduCoreColors.Navy900,
-            contentColor = Color.White,
+            containerColor = EduCoreColors.Gold500,
+            contentColor = EduCoreColors.Navy900,
             disabledContainerColor = EduCoreColors.DisabledContainer,
             disabledContentColor = EduCoreColors.DisabledContent,
         ),
     ) {
         if (loading) {
             CircularProgressIndicator(
-                color = Color.White,
+                color = EduCoreColors.Navy900,
                 strokeWidth = 2.dp,
                 modifier = Modifier.defaultMinSize(minWidth = 18.dp, minHeight = 18.dp),
             )
@@ -97,7 +96,7 @@ fun EduCoreDangerButton(
         contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Danger600,
-            contentColor = Color.White,
+            contentColor = EduCoreColors.White,
             disabledContainerColor = EduCoreColors.DisabledContainer,
             disabledContentColor = EduCoreColors.DisabledContent,
         ),
