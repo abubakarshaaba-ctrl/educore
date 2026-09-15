@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
  *
  * Flow:
  * 1. Load school config (start/end, periods/day, period duration, breaks)
- * 2. Compute all period time slots for the week (Mon-Fri)
+ * 2. Compute available period slots for each weekday independently
  * 3. Load subjects assigned to class + their required frequency (periods/week)
  * 4. Build a pool of (subject, teacher) pairs repeated by frequency
  * 5. Distribute pool across slots using a balanced round-robin algorithm
@@ -48,12 +48,21 @@ class TimetableGeneratorService
             ];
         }
 
-        // 2. Compute period time slots
-        $slots = $config->computeSlots();
-        $periodSlots = array_values(array_filter($slots, fn($s) => !$s['is_break']));
+        // 2. Compute each weekday independently because schools may close at
+        // different times on different days (for example, an early Friday).
+        $weekGrid = [];
+        $totalSlots = 0;
+        foreach (self::DAYS as $day) {
+            $daySlots = array_values(array_filter(
+                $config->computeSlotsForDay($day),
+                fn ($slot) => ! $slot['is_break'],
+            ));
+            $weekGrid[$day] = $daySlots;
+            $totalSlots += count($daySlots);
+        }
 
-        if (empty($periodSlots)) {
-            return ['created' => 0, 'skipped' => 0, 'conflicts' => ['No period slots could be computed from configuration.']];
+        if ($totalSlots === 0) {
+            return ['created' => 0, 'skipped' => 0, 'conflicts' => ['No period slots could be computed from the configured school hours.']];
         }
 
         // 3. Load assigned subjects + frequencies
@@ -75,15 +84,12 @@ class TimetableGeneratorService
         // 4. Build subject pool — each subject repeated by its frequency
         $pool = $this->buildPool($assignments, $frequencies);
 
-        // Total available slots per week
-        $totalSlots = count($periodSlots) * count(self::DAYS);
         $totalNeeded = count($pool);
-
         if ($totalNeeded > $totalSlots) {
             return [
                 'created'   => 0,
                 'skipped'   => 0,
-                'conflicts' => ["Total periods needed ({$totalNeeded}) exceeds available slots ({$totalSlots}). Reduce subject frequencies or add more periods per day."],
+                'conflicts' => ["Total periods needed ({$totalNeeded}) exceeds available weekly slots ({$totalSlots}) after applying the configured weekday closing times. Reduce subject frequencies or extend school hours."],
             ];
         }
 
@@ -97,46 +103,37 @@ class TimetableGeneratorService
         // 6. Load teacher commitments for clash detection
         $teacherCommitments = $this->loadTeacherCommitments($sessionId, $tenantId);
 
-        // 7. Build week slot grid — distribute slots evenly across days
-        $weekGrid = $this->buildWeekGrid($periodSlots, count(self::DAYS));
-
-        // 8. Place subjects using balanced distribution
+        // 7. Place subjects using balanced distribution
         $created   = 0;
         $skipped   = 0;
         $conflicts = [];
         $poolIndex = 0;
         $poolSize  = count($pool);
 
-        // Distribute: one subject per day per round to avoid same-day clustering
-        $placed = []; // Track placed subjects per day to avoid repeats
+        // Track subjects already placed per day so repeats are avoided when
+        // another valid subject is available.
+        $placed = [];
 
-        foreach ($weekGrid as $dayIndex => $daySlots) {
-            $day = self::DAYS[$dayIndex];
+        foreach ($weekGrid as $day => $daySlots) {
             foreach ($daySlots as $slot) {
                 if ($poolIndex >= $poolSize) break 2;
 
-                // Find best subject for this slot (not already on this day if avoidable)
                 $assignment = $this->pickBestSubject(
                     $pool, $poolIndex, $day, $placed,
                     $teacherCommitments, $slot
                 );
 
                 if ($assignment === null) {
-                    // No suitable subject found — skip slot
                     $skipped++;
-                    // Advance to next subject anyway to avoid infinite loop
                     if ($poolIndex < $poolSize) $poolIndex++;
                     $conflicts[] = "Could not place a subject on {$day} {$slot['start']}–{$slot['end']} due to teacher conflicts.";
                     continue;
                 }
 
-                // Find which pool index this was
                 $usedIndex = $assignment['pool_index'];
-                // Swap used subject to current position
                 [$pool[$poolIndex], $pool[$usedIndex]] = [$pool[$usedIndex], $pool[$poolIndex]];
                 $asgn = $pool[$poolIndex];
 
-                // Create period
                 TimetablePeriod::create([
                     'tenant_id'    => $tenantId,
                     'class_arm_id' => $classArmId,
@@ -149,7 +146,6 @@ class TimetableGeneratorService
                     'venue'        => null,
                 ]);
 
-                // Register teacher commitment
                 if ($asgn['teacher_id']) {
                     $teacherCommitments[] = [
                         'teacher_id' => $asgn['teacher_id'],
@@ -159,7 +155,6 @@ class TimetableGeneratorService
                     ];
                 }
 
-                // Track placed on this day
                 $placed[$day][] = $asgn['subject_id'];
                 $poolIndex++;
                 $created++;
@@ -190,24 +185,8 @@ class TimetableGeneratorService
             }
         }
 
-        // Shuffle to avoid consecutive same-subject runs
         shuffle($pool);
         return $pool;
-    }
-
-    /**
-     * Build week grid: distribute period slots evenly across days.
-     * Returns [ dayIndex => [slot, slot, ...], ... ]
-     */
-    private function buildWeekGrid(array $periodSlots, int $numDays): array
-    {
-        $grid = array_fill(0, $numDays, []);
-        foreach ($periodSlots as $slot) {
-            foreach (range(0, $numDays - 1) as $d) {
-                $grid[$d][] = $slot;
-            }
-        }
-        return $grid;
     }
 
     /**
@@ -226,7 +205,6 @@ class TimetableGeneratorService
         $size = count($pool);
         $alreadyOnDay = $placed[$day] ?? [];
 
-        // First pass: subject not already on this day + no teacher clash
         for ($i = $startIndex; $i < $size; $i++) {
             $candidate = $pool[$i];
             if (in_array($candidate['subject_id'], $alreadyOnDay)) continue;
@@ -237,7 +215,6 @@ class TimetableGeneratorService
             return array_merge($candidate, ['pool_index' => $i]);
         }
 
-        // Second pass: allow same-day subject if no teacher clash
         for ($i = $startIndex; $i < $size; $i++) {
             $candidate = $pool[$i];
             if ($candidate['teacher_id'] && $this->hasTeacherClash(
@@ -247,7 +224,7 @@ class TimetableGeneratorService
             return array_merge($candidate, ['pool_index' => $i]);
         }
 
-        return null; // Could not place any subject
+        return null;
     }
 
     /**
@@ -256,6 +233,7 @@ class TimetableGeneratorService
     private function loadTeacherCommitments(int $sessionId, int $tenantId): array
     {
         return TimetablePeriod::where('session_id', $sessionId)
+            ->where('tenant_id', $tenantId)
             ->whereNotNull('teacher_id')
             ->get(['teacher_id', 'day_of_week', 'start_time', 'end_time'])
             ->map(fn($p) => [
@@ -277,7 +255,7 @@ class TimetableGeneratorService
         string $end
     ): bool {
         foreach ($commitments as $c) {
-            if ($c['teacher_id'] !== $teacherId || $c['day'] !== $day) continue;
+            if ((int) $c['teacher_id'] !== $teacherId || $c['day'] !== $day) continue;
             if ($start < $c['end'] && $end > $c['start']) return true;
         }
         return false;
