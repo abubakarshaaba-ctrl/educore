@@ -25,7 +25,11 @@ class ThemeHelper
         $accent  = '#D79A21';
         $sidebar = '#071E45';
 
-        $rbacCss = '';
+        // Curriculum Knowledge is an internal consolidation layer, not a
+        // separate navigation destination. Keep its routes/services available
+        // for generation workflows and legacy links, but never render it as a
+        // second sidebar module beside Academic Repository.
+        $rbacCss = '.sidebar a.nav-item[href*="/academic-repository/knowledge"]{display:none!important;}';
         $user = auth()->user();
         if ($user && ! $user->isSuperAdmin() && $user->isTenantStaff()) {
             /** @var StrictWebRbacPolicy $policy */
@@ -44,7 +48,7 @@ class ThemeHelper
             }
 
             if ($selectors !== []) {
-                $rbacCss = implode(',', $selectors).'{display:none!important;}';
+                $rbacCss .= implode(',', $selectors).'{display:none!important;}';
             }
         }
 
