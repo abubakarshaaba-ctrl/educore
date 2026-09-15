@@ -444,6 +444,31 @@ private fun MonthlyAttendanceSection(
         } else if (state.report.staff.isEmpty()) {
             item { EduCoreEmptyState("No staff records", "No attendance records are available for this month.") }
         } else {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = EduCoreColors.White,
+                    shape = MaterialTheme.shapes.medium,
+                    shadowElevation = 1.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            "${state.report.summary.punctualityRate}%",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = EduCoreColors.Navy900,
+                        )
+                        Text("Overall punctuality rate", style = MaterialTheme.typography.titleSmall, color = EduCoreColors.Ink900)
+                        Text(
+                            "${state.report.summary.onTime} on time · ${state.report.summary.late} late · ${state.report.summary.attended} attended",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
+            }
             item { Text("${state.report.workingDays.size} working days", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600) }
             items(state.report.staff, key = { it.id }) { row ->
                 Surface(Modifier.fillMaxWidth(), color = EduCoreColors.White, shape = MaterialTheme.shapes.medium, shadowElevation = 1.dp) {
