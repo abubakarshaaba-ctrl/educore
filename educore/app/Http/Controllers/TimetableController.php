@@ -16,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 class TimetableController extends Controller
 {
+    private const SCHOOL_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
     private function tenantId(): int
     {
         return (int) auth()->user()->tenant_id;
@@ -54,6 +56,8 @@ class TimetableController extends Controller
             'session_id'      => ['required', Rule::exists('academic_sessions', 'id')->where('tenant_id', $this->tenantId())],
             'school_start'    => ['required', 'date_format:H:i'],
             'school_end'      => ['required', 'date_format:H:i', 'after:school_start'],
+            'day_end_times'   => ['nullable', 'array:monday,tuesday,wednesday,thursday,friday'],
+            'day_end_times.*' => ['nullable', 'date_format:H:i', 'after:school_start'],
             'periods_per_day' => ['required', 'integer', 'min:1', 'max:12'],
             'period_duration' => ['required', 'integer', 'min:20', 'max:120'],
             'breaks'          => ['nullable', 'array'],
@@ -62,16 +66,39 @@ class TimetableController extends Controller
             'breaks.*.label'        => ['required', 'string', 'max:50'],
         ]);
 
-        // Validate total time fits
+        // The default day must still be able to accommodate the configured
+        // maximum periods. Individual weekdays may intentionally close earlier
+        // and therefore contain fewer periods.
         $totalMins  = $validated['periods_per_day'] * $validated['period_duration'];
         $breakMins  = collect($validated['breaks'] ?? [])->sum('duration');
         $available  = $this->timeDiffMins($validated['school_start'], $validated['school_end']);
 
         if (($totalMins + $breakMins) > $available) {
-            return back()->withErrors(['periods_per_day' => 
-                "Total time needed (" . ($totalMins + $breakMins) . " mins) exceeds school hours ({$available} mins). " .
+            return back()->withInput()->withErrors(['periods_per_day' =>
+                "Total time needed (" . ($totalMins + $breakMins) . " mins) exceeds the default school hours ({$available} mins). " .
                 "Reduce periods, period duration or break time."
             ]);
+        }
+
+        $dayEndTimes = [];
+        foreach (self::SCHOOL_DAYS as $day) {
+            $end = trim((string) ($validated['day_end_times'][$day] ?? ''));
+            if ($end === '') {
+                continue;
+            }
+
+            $dayAvailable = $this->timeDiffMins($validated['school_start'], $end);
+            if ($dayAvailable < (int) $validated['period_duration']) {
+                return back()->withInput()->withErrors([
+                    "day_end_times.{$day}" => ucfirst($day) . ' must allow at least one complete teaching period after the school start time.',
+                ]);
+            }
+
+            // Store only genuine overrides. Equal values continue to inherit the
+            // default end time, keeping existing configurations compact.
+            if ($end !== $validated['school_end']) {
+                $dayEndTimes[$day] = $end;
+            }
         }
 
         TimetableConfig::updateOrCreate(
@@ -79,6 +106,7 @@ class TimetableController extends Controller
             [
                 'school_start'    => $validated['school_start'],
                 'school_end'      => $validated['school_end'],
+                'day_end_times'   => $dayEndTimes,
                 'periods_per_day' => $validated['periods_per_day'],
                 'period_duration' => $validated['period_duration'],
                 'breaks'          => $validated['breaks'] ?? [],
@@ -86,7 +114,7 @@ class TimetableController extends Controller
         );
 
         return redirect()->route('timetable.configure', ['session_id' => $validated['session_id']])
-            ->with('success', 'School timetable configuration saved.');
+            ->with('success', 'School timetable configuration saved, including weekday closing times.');
     }
 
     // ---------------------------------------------------------------
@@ -113,19 +141,16 @@ class TimetableController extends Controller
         $classArms   = ClassArm::with('classLevel')->get();
         $sessions    = AcademicSession::orderByDesc('is_current')->get();
 
-        // Subjects assigned to this class
         $assignments = ClassArmSubject::where('class_arm_id', $classArm->id)
                                       ->where('session_id', $session->id)
                                       ->with('subject', 'teacher')
                                       ->get();
 
-        // Existing frequencies
         $frequencies = SubjectFrequency::where('class_arm_id', $classArm->id)
                                        ->where('session_id', $session->id)
                                        ->get()
                                        ->keyBy('subject_id');
 
-        // Config for this session
         $config = TimetableConfig::where('session_id', $session->id)->first();
 
         return view('timetable.frequency', compact(
@@ -215,26 +240,22 @@ class TimetableController extends Controller
         $currentSessionId = AcademicSession::where('tenant_id', $this->tenantId())
             ->where('is_current', true)->value('id');
 
-        // For non-admin staff, determine what they're assigned to
         $isAdminTier   = $user->canManage('timetable') || $user->isSuperAdmin();
         $isFormTeacher = !$isAdminTier && $user->hasFormTeacherDuty();
         $isSubjTeacher = !$isAdminTier && $user->hasSubjectTeacherDuty();
 
         if (!$isAdminTier) {
-            // Try to find their form class first
             $myClassArm = ClassArm::where('form_tutor_id', $user->id)
                 ->where('tenant_id', $this->tenantId())
                 ->first();
 
             if ($myClassArm && $currentSessionId) {
-                // Has a form class → go to class timetable
                 return redirect()->route('timetable.view', [
                     'class_arm_id' => $myClassArm->id,
                     'session_id'   => $currentSessionId,
                 ]);
             }
 
-            // No form class — fall back to their subject schedule
             if ($isSubjTeacher) {
                 return redirect()->route('timetable.teacher', [
                     'teacher_id' => $user->id,
@@ -243,7 +264,6 @@ class TimetableController extends Controller
             }
         }
 
-        // Admin / full timetable access → full index.
         $classArms = ClassArm::with('classLevel')->get();
         return view('timetable.index', compact('classArms', 'sessions'));
     }
@@ -257,7 +277,6 @@ class TimetableController extends Controller
 
         $classArm  = ClassArm::with('classLevel')->findOrFail($request->class_arm_id);
 
-        // Form teachers may only view the timetable for their own assigned class.
         $user = auth()->user();
         if ($user->hasFormTeacherDuty() && !$user->canManage('timetable')) {
             if ($classArm->form_tutor_id !== $user->id) {
@@ -275,7 +294,6 @@ class TimetableController extends Controller
 
         $session   = AcademicSession::findOrFail($request->session_id);
 
-        // Scoped users see only their own class in the selector.
         $isFormScoped = $user->hasFormTeacherDuty() && !$user->canManage('timetable');
         $classArms = $isFormScoped
             ? ClassArm::with('classLevel')->where('form_tutor_id', $user->id)->get()
@@ -284,11 +302,10 @@ class TimetableController extends Controller
         $subjects  = Subject::where('is_active', true)->get();
         $teachers  = User::activeStaff($this->tenantId())->teachers()->orderBy('name')->get();
         $config    = TimetableConfig::where('session_id', $session->id)->first();
+        $days      = self::SCHOOL_DAYS;
 
-        // Compute time slots from config
-        $allSlots = $config ? $config->computeSlots() : [];
+        [$daySlots, $allSlots] = $this->weekSlots($config, $days);
 
-        $days    = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
         $periods = TimetablePeriod::where('class_arm_id', $classArm->id)
                                   ->where('session_id', $session->id)
                                   ->with(['subject', 'teacher'])
@@ -297,7 +314,7 @@ class TimetableController extends Controller
 
         return view('timetable.view', compact(
             'classArm', 'session', 'classArms', 'sessions',
-            'subjects', 'teachers', 'days', 'periods', 'config', 'allSlots'
+            'subjects', 'teachers', 'days', 'periods', 'config', 'allSlots', 'daySlots'
         ));
     }
 
@@ -317,6 +334,20 @@ class TimetableController extends Controller
             'end_time'     => ['required', 'date_format:H:i', 'after:start_time'],
             'venue'        => ['nullable', 'string', 'max:100'],
         ]);
+
+        $config = TimetableConfig::where('tenant_id', $this->tenantId())
+            ->where('session_id', $validated['session_id'])
+            ->first();
+
+        if ($config) {
+            $schoolStart = substr((string) $config->school_start, 0, 5);
+            $closingTime = $config->closingTimeFor($validated['day_of_week']);
+            if ($validated['start_time'] < $schoolStart || $validated['end_time'] > $closingTime) {
+                return back()->withInput()->withErrors([
+                    'end_time' => ucfirst($validated['day_of_week']) . " school hours are {$schoolStart}–{$closingTime}. The period must fit completely inside that day's hours.",
+                ]);
+            }
+        }
 
         if ($validated['teacher_id']) {
             $clash = TimetablePeriod::where('teacher_id', $validated['teacher_id'])
@@ -355,14 +386,11 @@ class TimetableController extends Controller
         $user = auth()->user();
         $isScoped = $user->hasSubjectTeacherDuty() && !$user->canManage('timetable');
 
-        // Scoped teachers can only view their own schedule.
         if ($isScoped) {
             $teachers = collect([$user]);
-            // Auto-fill their own ID if not set.
             if (!$request->filled('teacher_id')) {
                 $request->merge(['teacher_id' => $user->id]);
             } elseif ((int) $request->teacher_id !== $user->id) {
-                // Prevent viewing other teachers' schedules.
                 return redirect()->route('timetable.teacher', [
                     'teacher_id' => $user->id,
                     'session_id' => $request->session_id,
@@ -385,7 +413,7 @@ class TimetableController extends Controller
 
         $teacher = User::activeStaff($this->tenantId())->teachers()->findOrFail($request->teacher_id);
         $session = AcademicSession::findOrFail($request->session_id);
-        $days    = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        $days    = self::SCHOOL_DAYS;
         $config  = TimetableConfig::where('session_id', $session->id)->first();
 
         $periods = TimetablePeriod::where('teacher_id', $teacher->id)
@@ -394,14 +422,32 @@ class TimetableController extends Controller
                                   ->get()
                                   ->groupBy('day_of_week');
 
-        $allSlots = $config ? $config->computeSlots() : [];
+        [, $allSlots] = $this->weekSlots($config, $days);
 
         return view('timetable.teacher', compact(
             'teachers', 'sessions', 'teacher', 'session', 'days', 'periods', 'allSlots'
         ));
     }
 
-    // Helper
+    private function weekSlots(?TimetableConfig $config, array $days): array
+    {
+        if (! $config) {
+            return [[], []];
+        }
+
+        $daySlots = [];
+        $allSlots = [];
+        foreach ($days as $day) {
+            $slots = $config->computeSlotsForDay($day);
+            $daySlots[$day] = $slots;
+            if (count($slots) > count($allSlots)) {
+                $allSlots = $slots;
+            }
+        }
+
+        return [$daySlots, $allSlots];
+    }
+
     private function timeDiffMins(string $start, string $end): int
     {
         [$sh, $sm] = explode(':', $start);
@@ -420,7 +466,6 @@ class TimetableController extends Controller
             ->with(['classArm.classLevel'])
             ->get();
 
-        // Group by teacher + day, then check every pair for time overlap
         $byTeacherDay = $periods->groupBy(fn($p) => $p->teacher_id . '|' . $p->day_of_week);
 
         foreach ($byTeacherDay as $key => $group) {
@@ -432,7 +477,6 @@ class TimetableController extends Controller
                 for ($j = $i + 1; $j < $items->count(); $j++) {
                     $a = $items[$i];
                     $b = $items[$j];
-                    // Two periods overlap when: a.start < b.end AND a.end > b.start
                     if ($a->start_time < $b->end_time && $a->end_time > $b->start_time) {
                         $teacher = \App\Models\User::where('tenant_id', $this->tenantId())->find($teacherId);
                         $conflicts[] = [
@@ -452,5 +496,4 @@ class TimetableController extends Controller
 
         return view('timetable.conflicts', compact('conflicts'));
     }
-
 }
