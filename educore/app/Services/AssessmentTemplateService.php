@@ -15,10 +15,6 @@ use Illuminate\Validation\ValidationException;
 
 class AssessmentTemplateService
 {
-    /**
-     * Assign a template to one or more class levels for a session and materialize
-     * its components into the existing assessment_types runtime contract.
-     */
     public function assign(
         AssessmentTemplate $template,
         AcademicSession $session,
@@ -80,7 +76,6 @@ class AssessmentTemplateService
         });
     }
 
-    /** Synchronize every active assignment after an editable template changes. */
     public function resynchronizeAssignments(AssessmentTemplate $template): int
     {
         $components = $this->validatedComponents($template);
@@ -108,10 +103,6 @@ class AssessmentTemplateService
         return $synced;
     }
 
-    /**
-     * Delete a template and its materialized runtime assessment rows only when
-     * no student score has ever been recorded against that template.
-     */
     public function deleteTemplate(AssessmentTemplate $template): void
     {
         if ($template->hasRecordedScores()) {
@@ -161,10 +152,6 @@ class AssessmentTemplateService
         });
     }
 
-    /**
-     * Called when a new term is created. Existing session assignments are
-     * materialized automatically so administrators never recreate assessments.
-     */
     public function materializeAssignmentsForTerm(Term $term): int
     {
         $assignments = AssessmentTemplateAssignment::withoutTenantScope()
@@ -231,8 +218,11 @@ class AssessmentTemplateService
                 'name' => $component->name,
                 'weight_percentage' => $component->weight_percentage,
                 'is_exam' => $component->isExam(),
-                'objective_max' => $component->objective_max,
-                'theory_max' => $component->theory_max,
+                // Objective/theory maxima belong to the CBT exam and its
+                // question/section marks. The score-sheet runtime stores only
+                // the template contribution weight.
+                'objective_max' => null,
+                'theory_max' => null,
             ]);
 
             $runtimeType->classLevels()->syncWithoutDetaching([$classLevelId]);
