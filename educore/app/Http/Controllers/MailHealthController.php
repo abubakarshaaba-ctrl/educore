@@ -1,0 +1,141 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
+
+class MailHealthController extends Controller
+{
+    public function check(Request $request)
+    {
+        $expected = (string) (config('app.deploy_token') ?: SelfDeployController::derivedToken());
+        $provided = (string) $request->query('token');
+
+        if ($expected === '' || $provided === '' || !hash_equals($expected, $provided)) {
+            abort(403, 'Invalid diagnostic token.');
+        }
+
+        $mailer = (string) config('mail.default');
+        $mailerConfig = (array) config("mail.mailers.{$mailer}", []);
+        $transport = (string) ($mailerConfig['transport'] ?? $mailer);
+        $fromAddress = (string) config('mail.from.address');
+        $fromName = (string) config('mail.from.name');
+
+        $errors = [];
+        $warnings = [];
+
+        if ($mailer === '') {
+            $errors[] = 'No default mailer is configured.';
+        }
+
+        if (in_array($transport, ['log', 'array'], true)) {
+            $errors[] = "The configured mail transport '{$transport}' does not deliver real email.";
+        }
+
+        if ($fromAddress === '' || !filter_var($fromAddress, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'MAIL_FROM_ADDRESS is missing or invalid.';
+        }
+
+        $safeConfig = [
+            'environment' => app()->environment(),
+            'mailer' => $mailer,
+            'transport' => $transport,
+            'from_address' => $fromAddress !== '' ? $this->maskEmail($fromAddress) : null,
+            'from_name' => $fromName !== '' ? $fromName : null,
+        ];
+
+        if ($transport === 'smtp') {
+            $host = (string) ($mailerConfig['host'] ?? '');
+            $port = $mailerConfig['port'] ?? null;
+            $username = (string) ($mailerConfig['username'] ?? '');
+
+            $safeConfig['smtp_host'] = $host !== '' ? $host : null;
+            $safeConfig['smtp_port'] = $port;
+            $safeConfig['smtp_username_configured'] = $username !== '';
+
+            if ($host === '') {
+                $errors[] = 'SMTP host is not configured.';
+            }
+            if (!$port) {
+                $errors[] = 'SMTP port is not configured.';
+            }
+            if ($username === '') {
+                $warnings[] = 'SMTP username is blank.';
+            }
+        }
+
+        $to = trim((string) $request->query('to'));
+        $sendResult = null;
+
+        if ($to !== '') {
+            if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                return response()->json([
+                    'ok' => false,
+                    'configuration_ok' => empty($errors),
+                    'safe_configuration' => $safeConfig,
+                    'errors' => array_merge($errors, ['The test recipient email address is invalid.']),
+                    'warnings' => $warnings,
+                    'test_email' => ['attempted' => false],
+                ], 422);
+            }
+
+            if (!empty($errors)) {
+                $sendResult = [
+                    'attempted' => false,
+                    'recipient' => $this->maskEmail($to),
+                    'reason' => 'Configuration checks failed, so no test email was sent.',
+                ];
+            } else {
+                try {
+                    Mail::raw(
+                        'This is a live EduCore email-service health test. If you received this message, outbound mail delivery is working.',
+                        function ($message) use ($to): void {
+                            $message->to($to)
+                                ->subject('EduCore email service test — ' . now()->format('Y-m-d H:i:s'));
+                        }
+                    );
+
+                    $sendResult = [
+                        'attempted' => true,
+                        'sent' => true,
+                        'recipient' => $this->maskEmail($to),
+                        'message' => 'Laravel completed the send operation without throwing an exception. Confirm receipt in the destination inbox/spam folder.',
+                    ];
+                } catch (Throwable $e) {
+                    report($e);
+                    $sendResult = [
+                        'attempted' => true,
+                        'sent' => false,
+                        'recipient' => $this->maskEmail($to),
+                        'error' => mb_substr($e->getMessage(), 0, 300),
+                    ];
+                }
+            }
+        }
+
+        $ok = empty($errors) && ($sendResult === null || ($sendResult['sent'] ?? false));
+
+        return response()->json([
+            'ok' => $ok,
+            'configuration_ok' => empty($errors),
+            'safe_configuration' => $safeConfig,
+            'errors' => $errors,
+            'warnings' => $warnings,
+            'test_email' => $sendResult,
+            'checked_at' => now()->toDateTimeString(),
+        ]);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        if ($domain === '') {
+            return '***';
+        }
+
+        $visible = mb_substr($local, 0, min(2, mb_strlen($local)));
+        return $visible . str_repeat('*', max(3, mb_strlen($local) - mb_strlen($visible))) . '@' . $domain;
+    }
+}
