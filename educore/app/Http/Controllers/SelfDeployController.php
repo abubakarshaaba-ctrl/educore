@@ -101,7 +101,8 @@ class SelfDeployController extends Controller
 
         file_put_contents($zipPath, $response->body());
 
-        // 2. Extract
+        // 2. Extract. Shared-host ZipArchive::extractTo() has intermittently
+        // failed to create nested directories, so extract each entry manually.
         $zip = new \ZipArchive();
         if ($zip->open($zipPath) !== true) {
             return response()->json(['ok' => false, 'step' => 'unzip'], 500);
@@ -109,8 +110,26 @@ class SelfDeployController extends Controller
 
         $extractDir = $work . '/tree';
         $this->rrmdir($extractDir);
-        @mkdir($extractDir, 0755, true);
-        $zip->extractTo($extractDir);
+        if (!$this->ensureDirectory($extractDir)) {
+            $zip->close();
+            return response()->json([
+                'ok' => false,
+                'step' => 'prepare-extract-dir',
+                'hint' => 'Unable to create the self-deploy extraction directory.',
+            ], 500);
+        }
+
+        try {
+            $this->extractZipSafely($zip, $extractDir);
+        } catch (\Throwable $e) {
+            $zip->close();
+            $this->rrmdir($extractDir);
+            return response()->json([
+                'ok' => false,
+                'step' => 'unzip',
+                'hint' => mb_substr($e->getMessage(), 0, 250),
+            ], 500);
+        }
         $zip->close();
 
         // Zipball wraps everything in "<repo>-master/"
@@ -130,8 +149,9 @@ class SelfDeployController extends Controller
             if (is_dir($src)) {
                 $copied += $this->copyTree($src, $dst, $repoPath);
             } elseif (is_file($src) && !in_array($repoPath, self::PRESERVED_LIVE_PATHS, true)) {
-                @mkdir(dirname($dst), 0755, true);
-                copy($src, $dst) && $copied++;
+                if ($this->ensureDirectory(dirname($dst)) && copy($src, $dst)) {
+                    $copied++;
+                }
             }
         }
 
@@ -192,6 +212,82 @@ class SelfDeployController extends Controller
     public static function derivedToken(): string
     {
         return hash_hmac('sha256', 'educore-self-deploy', (string) config('app.key'));
+    }
+
+    /**
+     * Extract a GitHub zipball one entry at a time. This avoids the shared-host
+     * ZipArchive::extractTo() failure where nested parent directories sometimes
+     * do not exist when a file entry is written. Entry paths are validated to
+     * prevent path traversal before anything is created.
+     */
+    private function extractZipSafely(\ZipArchive $zip, string $extractDir): void
+    {
+        $base = rtrim(str_replace('\\', '/', $extractDir), '/');
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if (!is_string($name) || $name === '') {
+                continue;
+            }
+
+            $name = str_replace('\\', '/', $name);
+            $name = ltrim($name, '/');
+
+            if ($name === '' || str_contains($name, "\0")) {
+                throw new \RuntimeException('Archive contains an invalid path.');
+            }
+
+            $segments = array_values(array_filter(explode('/', $name), static fn ($segment) => $segment !== ''));
+            if (in_array('..', $segments, true)) {
+                throw new \RuntimeException('Archive contains an unsafe relative path.');
+            }
+
+            $target = $base . '/' . implode('/', $segments);
+            if (str_ends_with($name, '/')) {
+                if (!$this->ensureDirectory($target)) {
+                    throw new \RuntimeException('Unable to create archive directory: ' . $name);
+                }
+                continue;
+            }
+
+            if (!$this->ensureDirectory(dirname($target))) {
+                throw new \RuntimeException('Unable to create parent directory for: ' . $name);
+            }
+
+            $source = $zip->getStream($name);
+            if ($source === false) {
+                throw new \RuntimeException('Unable to read archive entry: ' . $name);
+            }
+
+            $destination = @fopen($target, 'wb');
+            if ($destination === false) {
+                fclose($source);
+                throw new \RuntimeException('Unable to create extracted file: ' . $name);
+            }
+
+            try {
+                if (stream_copy_to_stream($source, $destination) === false) {
+                    throw new \RuntimeException('Unable to extract archive entry: ' . $name);
+                }
+            } finally {
+                fclose($source);
+                fclose($destination);
+            }
+        }
+    }
+
+    private function ensureDirectory(string $dir): bool
+    {
+        if (is_dir($dir)) {
+            return true;
+        }
+
+        if (@mkdir($dir, 0755, true)) {
+            return true;
+        }
+
+        clearstatcache(true, $dir);
+        return is_dir($dir);
     }
 
     /**
@@ -352,7 +448,7 @@ class SelfDeployController extends Controller
     private function copyTree(string $src, string $dst, string $repoPath): int
     {
         $count = 0;
-        @mkdir($dst, 0755, true);
+        $this->ensureDirectory($dst);
 
         $it = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
@@ -368,7 +464,7 @@ class SelfDeployController extends Controller
 
             $target = $dst . '/' . $it->getSubPathname();
             if ($item->isDir()) {
-                @mkdir($target, 0755, true);
+                $this->ensureDirectory($target);
             } else {
                 // Skip files that are byte-identical in size — avoids re-copying
                 // large unchanged assets on every deploy.
@@ -377,8 +473,9 @@ class SelfDeployController extends Controller
                     && hash_file('sha256', $target) === hash_file('sha256', $item->getPathname())) {
                     continue;
                 }
-                @mkdir(dirname($target), 0755, true);
-                copy($item->getPathname(), $target) && $count++;
+                if ($this->ensureDirectory(dirname($target)) && copy($item->getPathname(), $target)) {
+                    $count++;
+                }
             }
         }
 
