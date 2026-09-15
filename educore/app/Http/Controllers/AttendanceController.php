@@ -7,6 +7,7 @@ use App\Models\AttendanceRecord;
 use App\Models\ClassArm;
 use App\Models\Student;
 use App\Models\Term;
+use App\Services\Notifications\ActivityEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class AttendanceController extends Controller
             $classArms = ClassArm::with('classLevel')->get();
         } else {
             // A teacher can only mark attendance for the class they are FORM TUTOR of.
-            // Teaching a subject in a class does not grant attendance rights for that class.
+            // Teaching a subject here does not grant attendance rights for that class.
             $classArms = ClassArm::with('classLevel')
                 ->where('form_tutor_id', $user->id)
                 ->get();
@@ -147,10 +148,18 @@ class AttendanceController extends Controller
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        DB::transaction(function () use ($request, $allowedStudentIds) {
+        $notificationCandidates = [];
+
+        DB::transaction(function () use ($request, $allowedStudentIds, &$notificationCandidates) {
             foreach ($request->attendance as $studentId => $status) {
-                abort_unless(in_array((int) $studentId, $allowedStudentIds, true), 403);
+                $studentId = (int) $studentId;
+                abort_unless(in_array($studentId, $allowedStudentIds, true), 403);
                 if (!in_array($status, ['present', 'absent', 'late', 'excused'])) continue;
+
+                $existing = AttendanceRecord::where('student_id', $studentId)
+                    ->whereDate('attendance_date', $request->date)
+                    ->first();
+                $previousStatus = $existing?->status;
 
                 AttendanceRecord::updateOrCreate(
                     [
@@ -164,8 +173,31 @@ class AttendanceController extends Controller
                         'marked_by'    => Auth::id(),
                     ]
                 );
+
+                if (in_array($status, ['absent', 'late'], true)
+                    && !in_array($previousStatus, ['absent', 'late'], true)) {
+                    $notificationCandidates[] = [
+                        'student_id' => $studentId,
+                        'status' => $status,
+                    ];
+                }
             }
         });
+
+        if ($notificationCandidates !== []) {
+            $students = Student::with(['guardians', 'tenant'])
+                ->whereIn('id', collect($notificationCandidates)->pluck('student_id')->unique())
+                ->get()
+                ->keyBy('id');
+            $emailService = app(ActivityEmailService::class);
+
+            foreach ($notificationCandidates as $candidate) {
+                $student = $students->get($candidate['student_id']);
+                if ($student) {
+                    $emailService->notifyAttendanceStatus($student, $candidate['status'], $request->date);
+                }
+            }
+        }
 
         return back()->with('success', 'Attendance saved for ' . date('d M Y', strtotime($request->date)) . '.');
     }

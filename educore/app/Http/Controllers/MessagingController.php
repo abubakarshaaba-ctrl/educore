@@ -5,6 +5,7 @@ use App\Models\MessageThread;
 use App\Models\MessageThreadReply;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Notifications\ActivityEmailService;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +82,7 @@ class MessagingController extends Controller
         });
 
         app(PushNotificationService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
+        app(ActivityEmailService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
         return redirect()->route('messages.thread',$thread)->with('success','Message sent.');
     }
 
@@ -156,6 +158,7 @@ class MessagingController extends Controller
         });
 
         app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+        app(ActivityEmailService::class)->notifyMessageThread($thread, $user, $data['body']);
         return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Shared conversation started.' : 'Message sent.');
     }
 
@@ -192,6 +195,7 @@ class MessagingController extends Controller
         ]);
         $thread->touch();
         app(PushNotificationService::class)->notifyMessageThread($thread,$user,$data['body']);
+        app(ActivityEmailService::class)->notifyMessageThread($thread,$user,$data['body']);
         return back()->with('success','Reply sent.');
     }
 
