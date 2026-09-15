@@ -8,6 +8,7 @@ use App\Models\ExamPeriod;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\Exams\ExamSchedulerService;
+use App\Services\Notifications\ActivityEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -278,6 +279,7 @@ class ExamPeriodController extends Controller
         $period->update(['status' => 'published']);
 
         app(\App\Services\Notifications\PushNotificationService::class)->notifyExamSupervisionPublished($period);
+        app(ActivityEmailService::class)->notifyExamSupervisionPublished($period);
 
         return back()->with('success', 'Published. Each supervisor can now see their personal schedule on the EduCore app.');
     }
