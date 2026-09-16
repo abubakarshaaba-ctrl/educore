@@ -40,7 +40,7 @@ input:focus,select:focus{outline:none;border-color:#0b2a55;box-shadow:0 0 0 3px 
 <form method="POST" action="{{ route('staff.join.store',$token) }}">
 @csrf
 <div class="grid">
-    <div class="fg"><label>Full Name *</label><input name="name" value="{{ old('name') }}" required></div>
+    <div class="fg"><label>Full Name *</label><input name="name" value="{{ old('name') }}" placeholder="First name, Surname" required></div>
     <div class="fg"><label>Email *</label><input type="email" name="email" value="{{ old('email') }}" required></div>
     <div class="fg"><label>Phone</label><input name="phone" value="{{ old('phone') }}"></div>
     <div class="fg"><label>Date of Birth</label><input type="date" name="date_of_birth" value="{{ old('date_of_birth') }}"></div>
@@ -51,7 +51,7 @@ input:focus,select:focus{outline:none;border-color:#0b2a55;box-shadow:0 0 0 3px 
     <div class="fg"><label>Position Title *</label><input name="position_title" value="{{ old('position_title') }}" placeholder="e.g. Mathematics Teacher" required></div>
     <div class="fg"><label>Department</label><select name="department_name"><option value="">— Select Department —</option>@foreach($departments as $department)<option value="{{ $department }}" @selected(old('department_name')===$department)>{{ $department }}</option>@endforeach</select></div>
     <div class="fg"><label>Employment Type</label><select name="employment_type"><option value="">— Select Employment Type —</option>@foreach($employmentTypes as $employmentType)<option value="{{ $employmentType }}" @selected(old('employment_type')===$employmentType)>{{ $employmentType }}</option>@endforeach</select></div>
-    <div class="fg full"><label>Appointment Type</label><select name="appointment_type"><option value="">— Select Appointment Type —</option>@foreach($appointmentTypes as $appointmentType)<option value="{{ $appointmentType }}" @selected(old('appointment_type')===$appointmentType)>{{ $appointmentType }}</option>@endforeach</select></div>
+    <div class="fg full"><label>Appointment Type</label><select name="appointment_type"><option value="">— Select Employment History Event —</option>@foreach($appointmentTypes as $appointmentType)<option value="{{ $appointmentType }}" @selected(old('appointment_type')===$appointmentType)>{{ $appointmentType }}</option>@endforeach</select></div>
     <div class="fg"><label>Create Password *</label><input type="password" name="password" required></div>
     <div class="fg"><label>Confirm Password *</label><input type="password" name="password_confirmation" required></div>
     <div class="full"><button class="btn" type="submit">Submit Staff Profile</button></div>
