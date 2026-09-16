@@ -36,6 +36,11 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware([
                 'web', 'auth', 'active.account', 'tenant', 'tenant.access',
                 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
+            ])->group(base_path('routes/asc-official.php'));
+
+            Route::middleware([
+                'web', 'auth', 'active.account', 'tenant', 'tenant.access',
+                'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
             ])->group(base_path('routes/web-exam-timetable.php'));
 
             Route::prefix('api/v1/staff/cbt')
