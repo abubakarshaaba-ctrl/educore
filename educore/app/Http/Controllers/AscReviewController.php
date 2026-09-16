@@ -35,7 +35,8 @@ class AscReviewController extends Controller
             $sectionC,
             $sectionE,
             $sectionCUnsupported,
-            $sectionEUnassigned
+            $sectionEUnassigned,
+            $year
         ) {
             if ($section === 'C') {
                 $available = !empty($sectionC) && (bool) data_get($sectionC, 'available', true);
@@ -50,7 +51,7 @@ class AscReviewController extends Controller
                     'detail' => !$ascReturn
                         ? 'Synchronize EduCore records to generate the official enrolment derivations.'
                         : ($gapCount ? $gapCount . ' census field(s) cannot yet be derived reliably and require review.' : 'Derived from the synchronized census snapshot.'),
-                    'route' => route('asc.derived.show', ['section' => 'c', 'year' => $ascReturn?->census_year ?? now()->year]),
+                    'route' => route('asc.derived.show', ['section' => 'c', 'year' => $year]),
                 ];
             }
 
@@ -67,7 +68,7 @@ class AscReviewController extends Controller
                     'detail' => !$ascReturn
                         ? 'Synchronize EduCore records to generate teacher qualification and main-teaching-level statistics.'
                         : ($gapCount ? $gapCount . ' teacher(s) require allocation review.' : 'Derived from the synchronized census snapshot.'),
-                    'route' => route('asc.derived.show', ['section' => 'e', 'year' => $ascReturn?->census_year ?? now()->year]),
+                    'route' => route('asc.derived.show', ['section' => 'e', 'year' => $year]),
                 ];
             }
 
