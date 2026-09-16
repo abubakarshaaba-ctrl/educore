@@ -4,18 +4,21 @@
 
 @push('styles')
 <style>
-    .page-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+    .page-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px; }
     .page-header h1 { font-size:20px;font-weight:700;color:var(--midnight);letter-spacing:-0.02em; }
+    .page-actions { display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end; }
     .filters { background:white;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end; }
     .filter-group { display:flex;flex-direction:column;gap:5px; }
     .filter-label { font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em; }
     .filter-control { padding:8px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;min-width:180px; }
     .filter-control:focus { border-color:var(--indigo); }
-    .btn { display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms;min-height:38px; }
     .btn-primary { background:var(--indigo);color:white; }
     .btn-primary:hover { background:#1D4ED8; }
     .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border); }
-    .btn-sm { padding:5px 10px;font-size:12px; }
+    .btn-onboarding { background:#FFF7ED;color:#9A3412;border:1px solid #FED7AA; }
+    .btn-onboarding:hover { background:#FFEDD5; }
+    .btn-sm { padding:5px 10px;font-size:12px;min-height:auto; }
     .btn-indigo { background:var(--indigo-bg);color:var(--indigo); }
     .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px; }
     .card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
@@ -27,7 +30,7 @@
     .staff-avatar { width:32px;height:32px;border-radius:50%;background:var(--indigo);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0; }
     .staff-cell { display:flex;align-items:center;gap:10px; }
     .staff-name { font-weight:600; }
-    .staff-email { font-size:11px;color:var(--slate-light); }
+    .staff-email { font-size:11px;color:var(--slate-light);overflow-wrap:anywhere; }
     .role-badge { display:inline-flex;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px; }
     .role-admin                 { background:#EFF6FF;color:#2563EB; }
     .role-admission_officer     { background:#F5F3FF;color:#7C3AED; }
@@ -50,6 +53,20 @@
     .dot-inactive { background:#CBD5E1; }
     .empty-state { text-align:center;padding:50px;color:var(--slate-light); }
     .empty-state h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:6px; }
+    @media(max-width:900px){
+        .page-header{align-items:flex-start;flex-direction:column}
+        .page-actions{width:100%;justify-content:flex-start}
+        .page-actions .btn,.page-actions>a[style]{flex:1 1 180px;justify-content:center}
+    }
+    @media(max-width:600px){
+        .page-actions{display:grid;grid-template-columns:1fr;width:100%}
+        .page-actions .btn,.page-actions>a[style]{width:100%;min-width:0}
+        .filters{display:grid;grid-template-columns:1fr}
+        .filter-control{width:100%;min-width:0}
+        .filters .btn{width:100%}
+        .tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        table{min-width:720px}
+    }
 </style>
 @endpush
 
@@ -59,7 +76,13 @@
 
 <div class="page-header">
     <h1>Staff ({{ $staff->total() }})</h1>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div class="page-actions">
+        @if(auth()->user()->isAdmin() || auth()->user()->isPrincipal())
+        <a href="{{ route('staff.onboarding.manage') }}" class="btn btn-onboarding" title="View and share this school's short staff registration URL">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0"><path d="M10.59 13.41a2 2 0 010-2.82l2.83-2.83a2 2 0 012.82 2.83l-1 1 1.41 1.41 1-1a4 4 0 00-5.66-5.66l-2.83 2.83a4 4 0 000 5.66l.71.71 1.41-1.41-.69-.72zm2.82-2.82l-1.41 1.41.59.59a2 2 0 010 2.82l-2.83 2.83a2 2 0 01-2.82-2.83l1-1L6.53 13l-1 1a4 4 0 005.66 5.66l2.83-2.83a4 4 0 000-5.66l-.61-.58z"/></svg>
+            Staff Registration Link
+        </a>
+        @endif
         @if(auth()->user()->isAdmin())
         <a href="{{ route('staff.id-cards.download-all') }}" class="btn btn-ghost">
             Download all ID cards
@@ -70,7 +93,7 @@
             Staff Archive
         </a>
         @endcan
-        <a href="{{ route('staff.bulk-upload.index') }}" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;background:#059669;color:white;border-radius:8px;text-decoration:none">
+        <a href="{{ route('staff.bulk-upload.index') }}" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;min-height:38px;font-size:13px;font-weight:600;background:#059669;color:white;border-radius:8px;text-decoration:none">
             <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
             Bulk Upload
         </a>
