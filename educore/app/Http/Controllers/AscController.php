@@ -3,17 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\AscInfrastructure;
+use App\Models\AscReturn;
 use App\Models\AcademicSession;
-use App\Models\ClassLevel;
-use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\User;
+use App\Services\Asc\AscDataSyncService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AscController extends Controller
 {
-    // ── Infrastructure form (GET) ──────────────────────────────────────
+    // ── Infrastructure / census workspace (GET) ───────────────────────
     public function infrastructure(Request $request)
     {
         $tenant   = auth()->user()->tenant;
@@ -24,13 +24,91 @@ class AscController extends Controller
                     ->where('census_year', $year)
                     ->first();
 
-        return view('asc.infrastructure', compact('tenant', 'sessions', 'year', 'infra'));
+        $ascReturn = AscReturn::where('tenant_id', $tenant->id)
+            ->where('census_year', $year)
+            ->first();
+
+        return view('asc.infrastructure', compact('tenant', 'sessions', 'year', 'infra', 'ascReturn'));
     }
 
-    // ── Infrastructure form (POST) ────────────────────────────────────
-    public function saveInfrastructure(Request $request)
+    // ── Infrastructure + synchronization actions (POST) ───────────────
+    public function saveInfrastructure(Request $request, AscDataSyncService $syncService)
     {
         $tenant = auth()->user()->tenant;
+        $action = $request->string('_asc_action')->toString() ?: 'save_infrastructure';
+
+        if ($action === 'sync') {
+            $validated = $request->validate([
+                'census_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+                'reference_date' => ['required', 'date'],
+            ]);
+
+            $existing = AscReturn::where('tenant_id', $tenant->id)
+                ->where('census_year', $validated['census_year'])
+                ->first();
+
+            if ($existing?->isLocked()) {
+                return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                    ->with('error', 'This census return is finalized and locked. Its historical snapshot was not changed.');
+            }
+
+            $referenceDate = CarbonImmutable::parse($validated['reference_date'])->startOfDay();
+            $payload = $syncService->build($tenant, (int) $validated['census_year'], $referenceDate);
+
+            AscReturn::updateOrCreate(
+                ['tenant_id' => $tenant->id, 'census_year' => $validated['census_year']],
+                [
+                    'session_id' => $payload['session_id'],
+                    'reference_date' => $referenceDate->toDateString(),
+                    'status' => 'draft',
+                    'auto_data' => $payload['auto_data'],
+                    'manual_data' => $payload['manual_data'],
+                    'completeness' => $payload['completeness'],
+                    'reconciliation' => $payload['reconciliation'],
+                    'synchronized_at' => now(),
+                ]
+            );
+
+            return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                ->with('success', 'Census data synchronized from EduCore successfully.');
+        }
+
+        if ($action === 'finalize') {
+            $validated = $request->validate([
+                'census_year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            ]);
+
+            $ascReturn = AscReturn::where('tenant_id', $tenant->id)
+                ->where('census_year', $validated['census_year'])
+                ->first();
+
+            if (!$ascReturn) {
+                return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                    ->with('error', 'Synchronize the census return before finalizing it.');
+            }
+
+            if ($ascReturn->isLocked()) {
+                return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                    ->with('success', 'This census return is already finalized and locked.');
+            }
+
+            $blocking = $ascReturn->completeness['blocking_issues'] ?? [];
+            $ready = (bool) ($ascReturn->completeness['ready_to_finalize'] ?? false);
+
+            if (!$ready || count($blocking) > 0) {
+                return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                    ->with('error', 'Resolve the blocking census data issues and synchronize again before finalizing.');
+            }
+
+            $ascReturn->update([
+                'status' => 'finalized',
+                'finalized_at' => now(),
+                'finalized_by' => auth()->id(),
+            ]);
+
+            return redirect()->route('asc.infrastructure', ['year' => $validated['census_year']])
+                ->with('success', 'Census return finalized. The synchronized snapshot is now locked for historical accuracy.');
+        }
 
         $data = $request->validate([
             'census_year'                  => ['required', 'integer', 'min:2000', 'max:2100'],
@@ -61,12 +139,12 @@ class AscController extends Controller
             'fence_type'                   => ['nullable', 'string'],
         ]);
 
-        $data['tenant_id']       = $tenant->id;
-        $data['has_library']     = $request->boolean('has_library');
-        $data['has_computer_lab']= $request->boolean('has_computer_lab');
+        $data['tenant_id'] = $tenant->id;
+        $data['has_library'] = $request->boolean('has_library');
+        $data['has_computer_lab'] = $request->boolean('has_computer_lab');
         $data['has_science_lab'] = $request->boolean('has_science_lab');
         $data['has_sports_facility'] = $request->boolean('has_sports_facility');
-        $data['has_first_aid']   = $request->boolean('has_first_aid');
+        $data['has_first_aid'] = $request->boolean('has_first_aid');
 
         AscInfrastructure::updateOrCreate(
             ['tenant_id' => $tenant->id, 'census_year' => $data['census_year']],
@@ -74,7 +152,7 @@ class AscController extends Controller
         );
 
         return redirect()->route('asc.infrastructure', ['year' => $data['census_year']])
-                         ->with('success', 'Infrastructure data saved.');
+                         ->with('success', 'Infrastructure data saved. Synchronize the census return to refresh derived figures.');
     }
 
     // ── Report (GET) ──────────────────────────────────────────────────
@@ -87,6 +165,10 @@ class AscController extends Controller
         $infra = AscInfrastructure::where('tenant_id', $tenant->id)
                     ->where('census_year', $year)
                     ->first();
+
+        $ascReturn = AscReturn::where('tenant_id', $tenant->id)
+            ->where('census_year', $year)
+            ->first();
 
         // ── Enrollment by section & gender ──────────────────────────
         $enrollments = StudentEnrollment::query()
@@ -101,26 +183,45 @@ class AscController extends Controller
                 'class_levels.order_index',
                 'students.gender',
                 'students.has_special_needs',
-                DB::raw('COUNT(*) as count')
+                \DB::raw('COUNT(*) as count')
             )
             ->groupBy('class_levels.section', 'class_levels.name', 'class_levels.order_index', 'students.gender', 'students.has_special_needs')
             ->orderBy('class_levels.order_index')
             ->get();
 
-        // ── Age distribution (current enrollments) ───────────────────
+        // ── Age distribution against the census reference date ─────
+        $referenceDate = $ascReturn?->reference_date
+            ? CarbonImmutable::parse($ascReturn->reference_date)
+            : CarbonImmutable::create($year, 9, 30);
+
         $ageGroups = StudentEnrollment::query()
             ->join('students', 'students.id', '=', 'student_enrollments.student_id')
             ->where('student_enrollments.tenant_id', $tenant->id)
             ->where('student_enrollments.is_current', true)
             ->whereNotNull('students.date_of_birth')
-            ->select(
-                'students.gender',
-                DB::raw('TIMESTAMPDIFF(YEAR, students.date_of_birth, CURDATE()) as age'),
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('students.gender', 'age')
-            ->orderBy('age')
-            ->get();
+            ->get(['students.gender', 'students.date_of_birth'])
+            ->map(function ($row) use ($referenceDate) {
+                $dob = CarbonImmutable::parse($row->date_of_birth);
+                if ($dob->greaterThan($referenceDate)) {
+                    return null;
+                }
+                return (object) [
+                    'gender' => $row->gender,
+                    'age' => $dob->diffInYears($referenceDate),
+                ];
+            })
+            ->filter()
+            ->groupBy(fn ($row) => strtolower((string) $row->gender) . '|' . $row->age)
+            ->map(function ($group) {
+                $first = $group->first();
+                return (object) [
+                    'gender' => $first->gender,
+                    'age' => $first->age,
+                    'count' => $group->count(),
+                ];
+            })
+            ->sortBy('age')
+            ->values();
 
         // ── Staff by role, gender, qualification ─────────────────────
         $staffRoles = [
@@ -130,31 +231,10 @@ class AscController extends Controller
             'accountant', 'health_officer', 'librarian',
         ];
 
-        $staff = User::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->whereIn('role', $staffRoles)
-            ->select('role', 'date_of_birth',
-                DB::raw("COALESCE(NULLIF(qualification,''), 'Not Specified') as qualification"),
-                DB::raw("COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(JSON_OBJECT(), '$')), ''), 'unknown') as gender_raw")
-            )
-            ->get();
-
-        // Fetch staff with gender from profile if stored, else derive from name
-        $staffData = User::where('tenant_id', $tenant->id)
-            ->where('is_active', true)
-            ->whereIn('role', $staffRoles)
-            ->select('role', 'qualification',
-                DB::raw('COUNT(*) as count'),
-                DB::raw("SUM(CASE WHEN role IN('principal','head','head_teacher','vice_principal','academic_administrator','admin') THEN 1 ELSE 0 END) as is_management")
-            )
-            ->groupBy('role', 'qualification')
-            ->get();
-
-        // Simpler aggregation
         $allStaff = User::where('tenant_id', $tenant->id)
             ->where('is_active', true)
             ->whereIn('role', $staffRoles)
-            ->get(['role', 'qualification', 'name']);
+            ->get(['role', 'qualification', 'gender', 'name']);
 
         $teachingRoles = ['form_teacher','asst_form_teacher','subject_teacher','form_subject_teacher'];
         $managementRoles = ['admin','principal','head','head_teacher','vice_principal','academic_administrator'];
@@ -188,7 +268,7 @@ class AscController extends Controller
             ->count();
 
         return view('asc.report', compact(
-            'tenant', 'year', 'infra', 'session',
+            'tenant', 'year', 'infra', 'session', 'ascReturn', 'referenceDate',
             'enrollments', 'ageGroups',
             'allStaff', 'staffByQual',
             'qualificationMap',
