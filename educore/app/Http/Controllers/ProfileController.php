@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,19 +16,35 @@ class ProfileController extends Controller
         $salarySetting = \App\Models\StaffSalarySetting::where('tenant_id', $user->tenant_id)
             ->where('staff_id', $user->id)
             ->first();
-        return view('profile.edit', compact('user', 'salarySetting'));
+
+        return view('profile.edit', [
+            'user' => $user,
+            'salarySetting' => $salarySetting,
+            'highestQualifications' => config('staff.highest_qualifications', []),
+        ]);
     }
 
     public function update(Request $request)
     {
         $user = auth()->user();
 
-        $data = $request->validate([
+        $rules = [
             'name'          => ['required', 'string', 'max:150'],
             'phone'         => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date'],
             'address'       => ['nullable', 'string', 'max:255'],
-        ]);
+            'gender'        => ['nullable', 'in:male,female'],
+        ];
+
+        if ($user->isStaff()) {
+            $rules['qualification'] = ['nullable', Rule::in(config('staff.highest_qualifications', []))];
+        }
+
+        $data = $request->validate($rules);
+
+        if (!$user->isStaff()) {
+            unset($data['qualification']);
+        }
 
         $user->update($data);
 
@@ -120,7 +137,6 @@ class ProfileController extends Controller
 
         $user = auth()->user();
 
-        // Delete old photo if it exists
         if ($user->passport_photo && Storage::disk('public')->exists($user->passport_photo)) {
             Storage::disk('public')->delete($user->passport_photo);
         }
