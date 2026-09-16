@@ -12,10 +12,13 @@ Route::middleware(['web','throttle:20,1'])->group(function () {
         ->name('staff.join.store');
 });
 
+// Keep the management URL outside /staff/{staff}. The main staff routes are
+// registered earlier in web.php, so /staff/onboarding would otherwise be
+// captured by the generic staff profile route and model binding would return 404.
 Route::middleware([
     'web','auth','active.account','tenant','tenant.access','tenant.onboarding.complete',
     \App\Http\Middleware\StaffOnly::class,
-])->prefix('staff/onboarding')->name('staff.onboarding.')->group(function () {
+])->prefix('staff-registration')->name('staff.onboarding.')->group(function () {
     Route::get('/', [StaffProfileOnboardingController::class, 'manage'])->name('manage');
     Route::post('/rotate', [StaffProfileOnboardingController::class, 'rotate'])->name('rotate');
     Route::post('/{submission}/approve', [StaffProfileOnboardingController::class, 'approve'])->name('approve');
