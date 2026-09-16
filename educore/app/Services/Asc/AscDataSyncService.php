@@ -4,12 +4,12 @@ namespace App\Services\Asc;
 
 use App\Models\AcademicSession;
 use App\Models\AscInfrastructure;
+use App\Models\AscSectionData;
 use App\Models\StudentEnrollment;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class AscDataSyncService
 {
@@ -32,10 +32,6 @@ class AscDataSyncService
         'accountant', 'health_officer', 'librarian', 'admission_officer',
     ];
 
-    /**
-     * Build the synchronized census payload from EduCore operational records.
-     * No data is written here; callers decide when a snapshot should be persisted.
-     */
     public function build(Tenant $tenant, int $censusYear, CarbonImmutable $referenceDate): array
     {
         $session = AcademicSession::where('tenant_id', $tenant->id)
@@ -46,13 +42,18 @@ class AscDataSyncService
             ->where('census_year', $censusYear)
             ->first();
 
+        $officialSections = AscSectionData::where('tenant_id', $tenant->id)
+            ->where('census_year', $censusYear)
+            ->get()
+            ->keyBy('section');
+
         $studentRows = $this->studentRows($tenant->id);
         $staff = $this->staffRows($tenant->id);
 
         $enrolment = $this->enrolmentBreakdown($studentRows);
         $ageDistribution = $this->ageDistribution($studentRows, $referenceDate);
         $staffSummary = $this->staffSummary($staff);
-        $completeness = $this->completeness($tenant, $studentRows, $staff, $infrastructure);
+        $completeness = $this->completeness($tenant, $studentRows, $staff, $infrastructure, $officialSections);
         $reconciliation = $this->reconciliation($tenant->id, $studentRows);
 
         return [
@@ -85,7 +86,15 @@ class AscDataSyncService
                     'female' => $studentRows->where('has_special_needs', true)->filter(fn ($row) => $this->gender($row->gender) === 'female')->count(),
                 ],
             ],
-            'manual_data' => $this->infrastructureSnapshot($infrastructure),
+            'manual_data' => [
+                'legacy_infrastructure' => $this->infrastructureSnapshot($infrastructure),
+                'official_sections' => $officialSections->map(fn ($record) => [
+                    'section' => $record->section,
+                    'is_complete' => (bool) $record->is_complete,
+                    'data' => $record->data ?? [],
+                    'updated_at' => optional($record->updated_at)->toIso8601String(),
+                ])->all(),
+            ],
             'completeness' => $completeness,
             'reconciliation' => $reconciliation,
         ];
@@ -165,8 +174,10 @@ class AscDataSyncService
         return $rows
             ->filter(fn ($row) => !empty($row->date_of_birth))
             ->map(function ($row) use ($referenceDate) {
-                $dob = CarbonImmutable::parse($row->date_of_birth);
-                $age = $dob->greaterThan($referenceDate) ? null : $dob->diffInYears($referenceDate);
+                $dob = CarbonImmutable::parse($row->date_of_birth)->startOfDay();
+                $age = $dob->greaterThan($referenceDate)
+                    ? null
+                    : (int) floor($dob->diffInYears($referenceDate, true));
 
                 return [
                     'age' => $age,
@@ -218,8 +229,13 @@ class AscDataSyncService
         ];
     }
 
-    private function completeness(Tenant $tenant, Collection $students, Collection $staff, ?AscInfrastructure $infrastructure): array
-    {
+    private function completeness(
+        Tenant $tenant,
+        Collection $students,
+        Collection $staff,
+        ?AscInfrastructure $infrastructure,
+        Collection $officialSections
+    ): array {
         $issues = [];
         $blocking = [];
         $checks = [];
@@ -256,6 +272,18 @@ class AscDataSyncService
                 'fence_type' => 'Fence type',
             ] as $field => $label) {
                 $this->addCheck($checks, $issues, $label, !blank($infrastructure->{$field}), "Complete {$label} in ASC Infrastructure & Profile.");
+            }
+        }
+
+        foreach (config('asc.manual_sections', []) as $section) {
+            $record = $officialSections->get($section);
+            $complete = (bool) ($record?->is_complete ?? false);
+            $label = 'Official Section ' . $section . ' — ' . config("asc.sections.{$section}.title", $section);
+            $checks[] = ['label' => $label, 'complete' => $complete];
+            if (!$complete) {
+                $message = "Complete official census Section {$section} before finalization.";
+                $issues[] = $message;
+                $blocking[] = $message;
             }
         }
 
