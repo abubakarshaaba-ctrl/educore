@@ -28,8 +28,9 @@
             @if(in_array($s, ['C', 'E'], true))
                 @php
                     $isC = $s === 'C';
+                    $derivedData = $isC ? $derivedC : $derivedE;
                     $gapCount = $isC ? $cManualGapCount : $eGapCount;
-                    $hasSnapshot = (bool) $ascReturn;
+                    $hasSnapshot = (bool) $ascReturn && !empty($derivedData);
                     $label = $isC ? 'Enrolment' : 'Teachers';
                     $status = $hasSnapshot ? ($gapCount ? 'REVIEW REQUIRED' : 'AUTO / DERIVED') : 'SYNC REQUIRED';
                     $tone = !$hasSnapshot ? 'sync' : ($gapCount ? 'warning' : 'derived');
