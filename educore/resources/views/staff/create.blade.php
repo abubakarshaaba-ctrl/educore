@@ -124,24 +124,25 @@
                         @error('department_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Employment Type</label>
-                        <select name="employment_type" class="form-control {{ $errors->has('employment_type') ? 'is-invalid':'' }}">
+                        <label class="form-label">Employment Type <span>*</span></label>
+                        <select name="employment_type" class="form-control {{ $errors->has('employment_type') ? 'is-invalid':'' }}" required>
                             <option value="">— Select Employment Type —</option>
                             @foreach($employmentTypes as $employmentType)
                                 <option value="{{ $employmentType }}" @selected(old('employment_type') === $employmentType)>{{ $employmentType }}</option>
                             @endforeach
                         </select>
+                        <div class="hint">Working-time arrangement: Full-time or Part-time.</div>
                         @error('employment_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group full">
-                        <label class="form-label">Appointment Type</label>
-                        <select name="appointment_type" class="form-control {{ $errors->has('appointment_type') ? 'is-invalid':'' }}">
-                            <option value="">— Select Employment History Event —</option>
+                        <label class="form-label">Appointment Type <span>*</span></label>
+                        <select name="appointment_type" class="form-control {{ $errors->has('appointment_type') ? 'is-invalid':'' }}" required>
+                            <option value="">— Select Appointment Type —</option>
                             @foreach($appointmentTypes as $appointmentType)
                                 <option value="{{ $appointmentType }}" @selected(old('appointment_type') === $appointmentType)>{{ $appointmentType }}</option>
                             @endforeach
                         </select>
-                        <div class="hint">Select the event that best describes the staff member's employment history in this school.</div>
+                        <div class="hint">Administrative basis of appointment. Initial Appointment is recorded automatically as the first work-history event.</div>
                         @error('appointment_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group full">
@@ -165,6 +166,8 @@
     @foreach([
         ['Role','Assign the correct role to control module access permissions'],
         ['Qualification','Highest qualification is used in staff records and ASC teacher reporting'],
+        ['Employment','Employment type records working time; appointment type records the basis of appointment'],
+        ['Work History','Initial Appointment is created automatically; later promotion, confirmation and transfer events belong in Work History'],
         ['Staff ID','Leave blank to auto-generate (e.g. STF1001)'],
         ['Password','Staff should change this after first login'],
         ['Email','Used for notifications and login recovery'],
