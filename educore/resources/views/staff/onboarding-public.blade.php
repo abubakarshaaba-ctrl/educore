@@ -23,6 +23,7 @@ input:focus,select:focus{outline:none;border-color:#0b2a55;box-shadow:0 0 0 3px 
 .ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;padding:12px;border-radius:9px;margin-bottom:14px}
 .err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:12px;border-radius:9px;margin-bottom:14px}
 .note{font-size:12px;color:#64748b;line-height:1.5;margin-bottom:16px}
+.hint{font-size:11px;color:#64748b;line-height:1.45}
 @media(max-width:700px){.wrap{padding:10px}.head{padding:18px}.head h2{font-size:21px}.school-name{font-size:16px}.body{padding:14px}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
 </style>
 </head>
@@ -47,11 +48,11 @@ input:focus,select:focus{outline:none;border-color:#0b2a55;box-shadow:0 0 0 3px 
     <div class="fg"><label>Gender *</label><select name="gender" required><option value="">Select</option><option value="male" @selected(old('gender')==='male')>Male</option><option value="female" @selected(old('gender')==='female')>Female</option></select></div>
     <div class="fg"><label>Highest Qualification *</label><select name="qualification" required><option value="">— Select Qualification —</option>@foreach($highestQualifications as $q)<option value="{{ $q }}" @selected(old('qualification')===$q)>{{ $q }}</option>@endforeach</select></div>
     <div class="fg full"><label>Home Address</label><input name="address" value="{{ old('address') }}"></div>
-    <div class="fg"><label>Employment Start Date</label><input type="date" name="employment_started_at" value="{{ old('employment_started_at') }}"></div>
+    <div class="fg"><label>Employment Start Date *</label><input type="date" name="employment_started_at" value="{{ old('employment_started_at') }}" required></div>
     <div class="fg"><label>Position Title *</label><input name="position_title" value="{{ old('position_title') }}" placeholder="e.g. Mathematics Teacher" required></div>
     <div class="fg"><label>Department</label><select name="department_name"><option value="">— Select Department —</option>@foreach($departments as $department)<option value="{{ $department }}" @selected(old('department_name')===$department)>{{ $department }}</option>@endforeach</select></div>
-    <div class="fg"><label>Employment Type</label><select name="employment_type"><option value="">— Select Employment Type —</option>@foreach($employmentTypes as $employmentType)<option value="{{ $employmentType }}" @selected(old('employment_type')===$employmentType)>{{ $employmentType }}</option>@endforeach</select></div>
-    <div class="fg full"><label>Appointment Type</label><select name="appointment_type"><option value="">— Select Employment History Event —</option>@foreach($appointmentTypes as $appointmentType)<option value="{{ $appointmentType }}" @selected(old('appointment_type')===$appointmentType)>{{ $appointmentType }}</option>@endforeach</select></div>
+    <div class="fg"><label>Employment Type *</label><select name="employment_type" required><option value="">— Select Employment Type —</option>@foreach($employmentTypes as $employmentType)<option value="{{ $employmentType }}" @selected(old('employment_type')===$employmentType)>{{ $employmentType }}</option>@endforeach</select><div class="hint">Working-time arrangement: Full-time or Part-time.</div></div>
+    <div class="fg full"><label>Appointment Type *</label><select name="appointment_type" required><option value="">— Select Appointment Type —</option>@foreach($appointmentTypes as $appointmentType)<option value="{{ $appointmentType }}" @selected(old('appointment_type')===$appointmentType)>{{ $appointmentType }}</option>@endforeach</select><div class="hint">Administrative basis of the appointment. Employment-history events are recorded separately by the school.</div></div>
     <div class="fg"><label>Create Password *</label><input type="password" name="password" required></div>
     <div class="fg"><label>Confirm Password *</label><input type="password" name="password_confirmation" required></div>
     <div class="full"><button class="btn" type="submit">Submit Staff Profile</button></div>
