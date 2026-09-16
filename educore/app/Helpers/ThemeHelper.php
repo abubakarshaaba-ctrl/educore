@@ -157,6 +157,45 @@ select,select.form-control,select.fc{line-height:normal!important;}
 .page-tabs{min-height:48px;}
 .page-tab{padding-left:14px!important;padding-right:14px!important;}
 
+/* Attendance module navigation is a single tab strip, not a wrapping button grid. */
+.page-content div:has(> .nav-tab){
+    display:flex!important;
+    align-items:flex-end!important;
+    gap:2px!important;
+    flex-wrap:nowrap!important;
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+    border-bottom:1px solid #D7DEE8;
+    padding:0 2px 0!important;
+    margin-bottom:20px!important;
+}
+.page-content div:has(> .nav-tab) > .nav-tab{
+    flex:0 0 auto!important;
+    min-height:42px!important;
+    border:0!important;
+    border-bottom:3px solid transparent!important;
+    border-radius:8px 8px 0 0!important;
+    background:transparent!important;
+    color:#64748B!important;
+    padding:0 15px!important;
+    white-space:nowrap!important;
+    box-shadow:none!important;
+}
+.page-content div:has(> .nav-tab) > .nav-tab:hover{
+    background:#F8FAFC!important;
+    color:#071E45!important;
+}
+.page-content div:has(> .nav-tab) > .nav-tab.active{
+    background:#FEF9EC!important;
+    color:#071E45!important;
+    border-bottom-color:#D79A21!important;
+    font-weight:800!important;
+}
+
 /* Cards, tables and media resolve safely inside the viewport. */
 .card,.filter-card,.panel,.stat,.sc,.sum-card{
     border-radius:var(--card-radius)!important;
@@ -308,6 +347,17 @@ textarea:focus-visible,
         scrollbar-width:thin;
     }
     .page-tab,.scope-tab{flex:0 0 auto;}
+
+    .page-content div:has(> .nav-tab){
+        overscroll-behavior-x:contain;
+        scroll-snap-type:x proximity;
+    }
+    .page-content div:has(> .nav-tab) > .nav-tab{
+        min-height:44px!important;
+        padding-left:13px!important;
+        padding-right:13px!important;
+        scroll-snap-align:start;
+    }
 
     /* Unwrapped legacy tables remain usable rather than widening the page. */
     .page-content table{
