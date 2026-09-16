@@ -25,6 +25,9 @@ class StaffProfileOnboardingController extends Controller
             'tenant' => $tenant,
             'token' => $token,
             'highestQualifications' => config('staff.highest_qualifications', []),
+            'departments' => config('staff.departments', []),
+            'employmentTypes' => config('staff.employment_types', []),
+            'appointmentTypes' => config('staff.appointment_types', []),
         ]);
     }
 
@@ -43,11 +46,9 @@ class StaffProfileOnboardingController extends Controller
             'address' => ['nullable','string','max:255'],
             'employment_started_at' => ['nullable','date','before_or_equal:today'],
             'position_title' => ['required','string','max:255'],
-            'department_name' => ['nullable','string','max:255'],
-            'employment_type' => ['nullable','string','max:100'],
-            'functional_role' => ['nullable','string','max:150'],
-            'grade_level' => ['nullable','string','max:100'],
-            'appointment_type' => ['nullable','string','max:100'],
+            'department_name' => ['nullable', Rule::in(config('staff.departments', []))],
+            'employment_type' => ['nullable', Rule::in(config('staff.employment_types', []))],
+            'appointment_type' => ['nullable', Rule::in(config('staff.appointment_types', []))],
             'password' => ['required', Password::min(8), 'confirmed'],
         ]);
 
@@ -137,8 +138,8 @@ class StaffProfileOnboardingController extends Controller
                 'position_title' => $submission->position_title,
                 'department_name' => $submission->department_name,
                 'employment_type' => $submission->employment_type,
-                'functional_role' => $submission->functional_role,
-                'grade_level' => $submission->grade_level,
+                'functional_role' => null,
+                'grade_level' => null,
                 'appointment_type' => $submission->appointment_type,
                 'start_date' => $submission->employment_started_at ?: now()->toDateString(),
                 'change_type' => StaffWorkHistory::CHANGE_APPOINTMENT,
