@@ -4,26 +4,37 @@
 
 @push('styles')
 <style>
-.form-page{width:100%}
-.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px}
+.form-page{width:100%;min-width:0}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px;flex-wrap:wrap}
 .breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
-.card{background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden}
+.card{background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;min-width:0}
 .card-header{padding:14px 24px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:600;color:var(--midnight)}
 .card-body{padding:24px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.form-group{display:flex;flex-direction:column;gap:6px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px;min-width:0}
+.form-group.full{grid-column:1/-1}
 .form-label{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em}
 .form-label span{color:var(--crimson)}
-.form-control{padding:10px 12px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms;width:100%}
+.form-control{padding:10px 12px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms;width:100%;min-width:0;max-width:100%}
 .form-control:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1);background:white}
 .is-invalid{border-color:var(--crimson)!important}
 .invalid-feedback{font-size:12px;color:var(--crimson);margin-top:2px}
 .alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms;min-height:42px}
 .btn-primary{background:var(--indigo);color:white}.btn-primary:hover{background:#1D4ED8}
 .btn-ghost{background:white;color:var(--midnight);border:1px solid var(--border)}
-.hint{font-size:11px;color:var(--slate-light);margin-top:3px}
-@media(max-width:768px){.form-grid{grid-template-columns:1fr}}
+.hint{font-size:11px;color:var(--slate-light);margin-top:3px;line-height:1.45}
+.form-actions{display:flex;gap:12px;flex-wrap:wrap}
+@media(max-width:900px){
+    .form-grid{grid-template-columns:1fr}
+    .form-group.full{grid-column:auto}
+}
+@media(max-width:640px){
+    .card-header{padding:14px 16px}
+    .card-body{padding:16px}
+    .form-actions{display:grid;grid-template-columns:1fr;width:100%}
+    .form-actions .btn{width:100%}
+}
 </style>
 @endpush
 
@@ -67,14 +78,25 @@
                         <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="08012345678">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Gender</label>
-                        <select name="gender" class="form-control">
+                        <label class="form-label">Gender <span>*</span></label>
+                        <select name="gender" class="form-control {{ $errors->has('gender') ? 'is-invalid':'' }}" required>
                             <option value="">Select</option>
                             <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Male</option>
                             <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Female</option>
                         </select>
+                        @error('gender')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
-                    <div class="form-group" style="grid-column:span 2">
+                    <div class="form-group">
+                        <label class="form-label">Highest Qualification <span>*</span></label>
+                        <select name="qualification" class="form-control {{ $errors->has('qualification') ? 'is-invalid':'' }}" required>
+                            <option value="">— Select Qualification —</option>
+                            @foreach($highestQualifications as $qualification)
+                                <option value="{{ $qualification }}" @selected(old('qualification') === $qualification)>{{ $qualification }}</option>
+                            @endforeach
+                        </select>
+                        @error('qualification')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-group full">
                         <label class="form-label">Role <span>*</span></label>
                         @include('staff._role_select', ['selected' => old('role', '')])
                         @error('role')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -107,18 +129,18 @@
                         <label class="form-label">Grade Level</label>
                         <input type="text" name="grade_level" class="form-control" value="{{ old('grade_level') }}" placeholder="Optional">
                     </div>
-                    <div class="form-group" style="grid-column:span 2">
+                    <div class="form-group full">
                         <label class="form-label">Appointment Type</label>
                         <input type="text" name="appointment_type" class="form-control" value="{{ old('appointment_type') }}" placeholder="e.g. Initial appointment">
                     </div>
-                    <div class="form-group" style="grid-column:span 2">
+                    <div class="form-group full">
                         <label class="form-label">Password <span>*</span></label>
                         <input type="text" name="password" class="form-control"
                                value="{{ old('password', 'Staff@2025!') }}" placeholder="Minimum 8 characters" required>
                         <div class="hint">Staff should change this password after first login.</div>
                     </div>
                 </div>
-                <div style="display:flex;gap:12px">
+                <div class="form-actions">
                     <button type="submit" class="btn btn-primary">✓ Create Staff Account</button>
                     <a href="{{ route('staff.index') }}" class="btn btn-ghost">Cancel</a>
                 </div>
@@ -126,12 +148,12 @@
         </div>
     </div>
 </div>
-</div>{{-- /form side --}}
-<div>{{-- right tips panel --}}
+<div>
 <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px">
     <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:12px">Staff Account Tips</div>
     @foreach([
         ['Role','Assign the correct role to control module access permissions'],
+        ['Qualification','Highest qualification is used in staff records and ASC teacher reporting'],
         ['Staff ID','Leave blank to auto-generate (e.g. STF1001)'],
         ['Password','Staff should change this after first login'],
         ['Email','Used for notifications and login recovery'],
@@ -147,6 +169,6 @@
     <div style="font-size:12px;color:var(--midnight);line-height:1.5;margin-bottom:10px">Need to add many staff at once? Use the bulk upload feature.</div>
     <a href="{{ route('staff.bulk-upload.index') }}" style="display:block;padding:8px 12px;background:var(--indigo);color:white;border-radius:7px;text-decoration:none;font-size:12px;font-weight:700;text-align:center">Bulk Upload Staff</a>
 </div>
-</div>{{-- /tips panel --}}
-</div>{{-- /grid --}}
+</div>
+</div>
 @endsection
