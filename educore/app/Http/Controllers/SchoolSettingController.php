@@ -10,7 +10,7 @@ class SchoolSettingController extends Controller
 {
     public function index(SchoolWeekService $schoolWeek)
     {
-        $tenant   = auth()->user()->tenant;
+        $tenant = auth()->user()->tenant;
         $settings = SchoolSetting::where('tenant_id', $tenant->id)->get()->keyBy('key');
         $schoolOpenDays = $schoolWeek->openDays((int) $tenant->id);
         $schoolDayLabels = SchoolWeekService::DAY_LABELS;
@@ -21,60 +21,80 @@ class SchoolSettingController extends Controller
     public function update(Request $request, SchoolWeekService $schoolWeek)
     {
         $tenant = auth()->user()->tenant;
-        $data   = $request->validate([
-            'name'          => ['required', 'string', 'max:150'],
-            'motto'         => ['nullable', 'string', 'max:200'],
-            'address'       => ['nullable', 'string', 'max:300'],
-            'phone'         => ['nullable', 'string', 'max:20'],
-            'email'         => ['nullable', 'email'],
-            'website'       => ['nullable', 'url'],
-            'logo'          => ['nullable', 'image', 'max:2048'],
+        $currentYear = (int) date('Y');
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'motto' => ['nullable', 'string', 'max:200'],
+            'proprietor' => ['nullable', 'string', 'max:180'],
+            'established_year' => ['nullable', 'integer', 'min:1800', 'max:' . $currentYear],
+            'website' => ['nullable', 'url', 'max:255'],
+            'address' => ['nullable', 'string', 'max:300'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'school_state' => ['nullable', 'string', 'max:100'],
+            'school_lga' => ['nullable', 'string', 'max:120'],
+            'school_senatorial_district' => ['nullable', 'string', 'max:160'],
+            'emis_code' => ['nullable', 'string', 'max:100'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'authorized_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
-            'school_open_days' => ['nullable', 'array', 'min:1', 'max:7'],
+            'school_open_days' => ['required', 'array', 'min:1', 'max:7'],
             'school_open_days.*' => ['integer', 'in:1,2,3,4,5,6,7'],
         ]);
 
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store("logos/{$tenant->id}", 'public');
-            if ($tenant->logo_path && $tenant->logo_path !== $path) {
-                Storage::disk('public')->delete($tenant->logo_path);
-            }
+            $oldPath = $tenant->logo_path;
             $tenant->update(['logo_path' => $path]);
+
+            if ($oldPath && $oldPath !== $path) {
+                Storage::disk('public')->delete($oldPath);
+            }
         }
 
         if ($request->hasFile('authorized_signature')) {
-            $path = $request->file('authorized_signature')
-                ->store("signatures/{$tenant->id}", 'public');
-
-            if ($tenant->authorized_signature_path && $tenant->authorized_signature_path !== $path) {
-                Storage::disk('public')->delete($tenant->authorized_signature_path);
-            }
-
+            $path = $request->file('authorized_signature')->store("signatures/{$tenant->id}", 'public');
+            $oldPath = $tenant->authorized_signature_path;
             $tenant->update(['authorized_signature_path' => $path]);
+
+            if ($oldPath && $oldPath !== $path) {
+                Storage::disk('public')->delete($oldPath);
+            }
         }
 
         $tenant->update([
-            'name'    => $data['name'],
-            'motto'   => $data['motto'] ?? null,
+            'name' => $data['name'],
+            'motto' => $data['motto'] ?? null,
             'address' => $data['address'] ?? null,
-            'phone'   => $data['phone'] ?? null,
-            'email'   => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
         ]);
 
-        $extras = ['website', 'established_year', 'proprietor', 'slogan'];
-        foreach ($extras as $key) {
-            if ($request->filled($key)) {
-                SchoolSetting::updateOrCreate(
-                    ['tenant_id' => $tenant->id, 'key' => $key],
-                    ['value' => $request->input($key), 'group' => 'general']
-                );
+        $settingGroups = [
+            'proprietor' => 'general',
+            'established_year' => 'general',
+            'website' => 'general',
+            'school_state' => 'location',
+            'school_lga' => 'location',
+            'school_senatorial_district' => 'location',
+            'emis_code' => 'registration',
+        ];
+
+        foreach ($settingGroups as $key => $group) {
+            $value = $data[$key] ?? null;
+            if (is_string($value)) {
+                $value = trim($value);
+                $value = $value === '' ? null : $value;
             }
+
+            SchoolSetting::updateOrCreate(
+                ['tenant_id' => $tenant->id, 'key' => $key],
+                ['value' => $value, 'group' => $group]
+            );
         }
 
-        if (array_key_exists('school_open_days', $data)) {
-            $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
-        }
+        $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
 
-        return back()->with('success', 'School settings updated.');
+        return back()->with('success', 'School settings saved successfully.');
     }
 }
