@@ -1,44 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">EduCore premium icon</title>
   <desc id="desc">Rounded deep navy EduCore digital C icon with white and gold C forms and gold data blocks.</desc>
-  <defs>
-    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#12366f"/>
-      <stop offset="0.48" stop-color="#071e45"/>
-      <stop offset="1" stop-color="#03122d"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffd66b"/>
-      <stop offset="0.46" stop-color="#f2b72d"/>
-      <stop offset="1" stop-color="#c88608"/>
-    </linearGradient>
-    <linearGradient id="white" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="0.75" stop-color="#f7f8fb"/>
-      <stop offset="1" stop-color="#dfe5ef"/>
-    </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#000000" flood-opacity="0.28"/>
-    </filter>
-    <filter id="blockShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.24"/>
-    </filter>
-  </defs>
-
-  <rect x="8" y="8" width="496" height="496" rx="102" fill="url(#navy)"/>
-  <rect x="12" y="12" width="488" height="488" rx="98" fill="none" stroke="#1c4d91" stroke-width="8" opacity="0.55"/>
-
-  <g filter="url(#softShadow)">
-    <path d="M264 93a163 163 0 1 0 0 326v-82a81 81 0 1 1 0-162V93Z" fill="url(#white)"/>
-    <path d="M268 187a69 69 0 1 0 0 138v-56a13 13 0 1 1 0-26V187Z" fill="url(#gold)"/>
-  </g>
-
-  <g fill="url(#gold)" filter="url(#blockShadow)">
-    <rect x="319" y="136" width="44" height="44" rx="9"/>
-    <rect x="378" y="185" width="35" height="35" rx="8"/>
-    <rect x="317" y="242" width="42" height="42" rx="9"/>
-    <rect x="389" y="289" width="31" height="31" rx="8"/>
-  </g>
-
-  <path d="M49 92c49-48 106-71 172-71" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="18" stroke-linecap="round"/>
+  <rect x="10" y="10" width="492" height="492" rx="104" fill="#071E45"/>
+  <rect x="18" y="18" width="476" height="476" rx="96" fill="none" stroke="#163B75" stroke-width="8"/>
+  <path d="M264 92a164 164 0 1 0 0 328v-82a82 82 0 1 1 0-164V92Z" fill="#FFFFFF"/>
+  <path d="M269 187a69 69 0 1 0 0 138v-56a13 13 0 1 1 0-26V187Z" fill="#D79A21"/>
+  <rect x="319" y="136" width="44" height="44" rx="9" fill="#F2C35B"/>
+  <rect x="378" y="185" width="35" height="35" rx="8" fill="#D79A21"/>
+  <rect x="317" y="242" width="42" height="42" rx="9" fill="#D79A21"/>
+  <rect x="389" y="289" width="31" height="31" rx="8" fill="#F2C35B"/>
 </svg>
