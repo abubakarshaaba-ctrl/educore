@@ -115,23 +115,33 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Department</label>
-                        <input type="text" name="department_name" class="form-control" value="{{ old('department_name') }}" placeholder="e.g. Academics">
+                        <select name="department_name" class="form-control {{ $errors->has('department_name') ? 'is-invalid':'' }}">
+                            <option value="">— Select Department —</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department }}" @selected(old('department_name') === $department)>{{ $department }}</option>
+                            @endforeach
+                        </select>
+                        @error('department_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
                         <label class="form-label">Employment Type</label>
-                        <input type="text" name="employment_type" class="form-control" value="{{ old('employment_type') }}" placeholder="e.g. Full-time">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Functional Role</label>
-                        <input type="text" name="functional_role" class="form-control" value="{{ old('functional_role') }}" placeholder="e.g. Class Teacher">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Grade Level</label>
-                        <input type="text" name="grade_level" class="form-control" value="{{ old('grade_level') }}" placeholder="Optional">
+                        <select name="employment_type" class="form-control {{ $errors->has('employment_type') ? 'is-invalid':'' }}">
+                            <option value="">— Select Employment Type —</option>
+                            @foreach($employmentTypes as $employmentType)
+                                <option value="{{ $employmentType }}" @selected(old('employment_type') === $employmentType)>{{ $employmentType }}</option>
+                            @endforeach
+                        </select>
+                        @error('employment_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group full">
                         <label class="form-label">Appointment Type</label>
-                        <input type="text" name="appointment_type" class="form-control" value="{{ old('appointment_type') }}" placeholder="e.g. Initial appointment">
+                        <select name="appointment_type" class="form-control {{ $errors->has('appointment_type') ? 'is-invalid':'' }}">
+                            <option value="">— Select Appointment Type —</option>
+                            @foreach($appointmentTypes as $appointmentType)
+                                <option value="{{ $appointmentType }}" @selected(old('appointment_type') === $appointmentType)>{{ $appointmentType }}</option>
+                            @endforeach
+                        </select>
+                        @error('appointment_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group full">
                         <label class="form-label">Password <span>*</span></label>
