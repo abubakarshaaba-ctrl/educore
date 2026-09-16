@@ -3,7 +3,7 @@
 @section('page-title','Transport')
 @push('styles')
 <style>
-.tabs{display:flex;gap:6px;margin-bottom:20px}.tab{padding:8px 18px;font-size:13px;font-weight:600;border-radius:8px;border:1.5px solid var(--border);background:white;color:var(--slate);text-decoration:none;transition:all 150ms}.tab.active,.tab:hover{background:var(--indigo);border-color:var(--indigo);color:white}
+.tabs{display:flex;align-items:flex-end;gap:2px;width:100%;max-width:100%;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:thin;overscroll-behavior-x:contain;scroll-snap-type:x proximity}.tab{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:42px;padding:0 15px;font-size:12.5px;font-weight:700;border:0;border-bottom:3px solid transparent;border-radius:8px 8px 0 0;background:transparent;color:var(--slate);text-decoration:none;white-space:nowrap;transition:all 150ms;scroll-snap-align:start}.tab:hover{background:#F8FAFC;color:var(--midnight)}.tab.active{background:var(--indigo-bg);color:var(--midnight);border-bottom-color:var(--indigo);font-weight:800}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
 .card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between}
 table{width:100%;border-collapse:collapse;font-size:13px}th{padding:9px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate-light);text-align:left}td{padding:9px 14px;border-bottom:1px solid var(--border)}
@@ -12,13 +12,14 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{padding:9px 14px;bac
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}.fl{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.05em}.fc{padding:9px 12px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none}
 .alert-success{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px}
 .badge{display:inline-flex;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:#EFF6FF;color:var(--indigo)}
+@media(max-width:640px){.tab{min-height:44px;padding:0 13px}}
 </style>
 @endpush
 @section('content')
-<div class="tabs">
+<div class="tabs" role="tablist" aria-label="Transport sections">
     <a href="{{ route('transport.routes') }}" class="tab">🛣 Routes</a>
     <a href="{{ route('transport.buses') }}" class="tab">🚌 Buses</a>
-    <a href="{{ route('transport.assignments') }}" class="tab active">👦 Assignments</a>
+    <a href="{{ route('transport.assignments') }}" class="tab active" aria-current="page">👦 Student Assignments</a>
 </div>
 @if(session('success'))<div class="alert-success">✓ {{ session('success') }}</div>@endif
 <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
