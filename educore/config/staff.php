@@ -26,4 +26,33 @@ return [
         'MA/PDE',
         'MA/PGDE',
     ],
+
+    'departments' => [
+        'Academics',
+        'Administration',
+        'Admissions',
+        'Finance & Accounts',
+        'Human Resources',
+        'ICT',
+        'Library',
+        'Health',
+        'Transport',
+        'Communication & Media',
+        'Security',
+        'Maintenance',
+        'Other',
+    ],
+
+    'employment_types' => [
+        'Full-time',
+        'Part-time',
+    ],
+
+    'appointment_types' => [
+        'Permanent',
+        'Probationary',
+        'Contract',
+        'Temporary',
+        'Casual',
+    ],
 ];
