@@ -46,6 +46,8 @@
     <button type="submit" class="btn-secondary">Load Year</button>
 </form>
 
+@include('asc._official_sections')
+
 {{-- ── Synchronization / readiness workspace ── --}}
 @php
     $status = $ascReturn?->status ?? 'not synchronized';
