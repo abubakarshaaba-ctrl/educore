@@ -20,6 +20,9 @@
         <div class="official-sections-head-actions">
             <span class="official-mapping-badge">19-page form mapping</span>
             <a href="{{ route('asc.review', ['year' => $year]) }}" class="official-review-link">Review &amp; Validate</a>
+            @if($ascReturn)
+            <a href="{{ route('asc.export.pdf', ['year' => $year]) }}" class="official-export-link">Export PDF</a>
+            @endif
         </div>
     </div>
 
@@ -78,7 +81,8 @@
 .official-sections-subtitle{font-size:11px;color:var(--slate-light);margin-top:2px;line-height:1.5}
 .official-sections-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .official-mapping-badge{font-size:10px;font-weight:800;color:#475569;background:#F1F5F9;border-radius:999px;padding:5px 9px;white-space:nowrap}
-.official-review-link{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:5px 10px;border-radius:8px;background:var(--indigo);color:#fff;text-decoration:none;font-size:10px;font-weight:900;white-space:nowrap}
+.official-review-link,.official-export-link{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:5px 10px;border-radius:8px;text-decoration:none;font-size:10px;font-weight:900;white-space:nowrap}
+.official-review-link{background:var(--indigo);color:#fff}.official-export-link{background:#fff;color:var(--midnight);border:1px solid var(--border)}
 .official-section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:9px;min-width:0}
 .official-section-item{position:relative;text-decoration:none;border:1px solid #E2E8F0;background:#FAFAFA;border-radius:10px;padding:11px 34px 11px 12px;display:block;min-width:0;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
 .official-section-item:hover{box-shadow:0 5px 16px rgba(15,23,42,.07);transform:translateY(-1px)}
@@ -98,13 +102,11 @@
     .official-sections-head{align-items:flex-start}
     .official-sections-head-actions{width:100%}
     .official-mapping-badge{white-space:normal}
-    .official-review-link{flex:1 1 150px;min-height:38px;white-space:normal;text-align:center}
+    .official-review-link,.official-export-link{flex:1 1 140px;min-height:38px;white-space:normal;text-align:center}
     .official-section-grid{grid-template-columns:1fr;gap:10px}
     .official-section-item{padding:13px 36px 13px 14px}
     .official-section-main{align-items:flex-start;flex-direction:column;gap:4px}
     .official-section-status{white-space:normal}
-
-    /* Shared ASC workspace mobile rules. This partial is loaded by the workspace, so these also protect the surrounding page. */
     .sync-grid,.section-grid,.section-grid.small{grid-template-columns:1fr !important}
     .finput{max-width:100%}
     .btn-sync,.btn-secondary,.btn-finalize{width:100%;min-height:42px}
@@ -119,7 +121,7 @@
     .official-section-name{font-size:12px}
     .official-sections-head-actions{display:grid;grid-template-columns:1fr;width:100%}
     .official-mapping-badge{text-align:center}
-    .official-review-link{width:100%}
+    .official-review-link,.official-export-link{width:100%}
 }
 </style>
 @endpush
