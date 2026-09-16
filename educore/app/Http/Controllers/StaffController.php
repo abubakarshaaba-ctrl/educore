@@ -73,8 +73,8 @@ class StaffController extends Controller
             'employment_started_at' => ['required', 'date', 'before_or_equal:today'],
             'position_title' => ['required', 'string', 'max:255'],
             'department_name' => ['nullable', Rule::in(config('staff.departments', []))],
-            'employment_type' => ['nullable', Rule::in(config('staff.employment_types', []))],
-            'appointment_type' => ['nullable', Rule::in(config('staff.appointment_types', []))],
+            'employment_type' => ['required', Rule::in(config('staff.employment_types', []))],
+            'appointment_type' => ['required', Rule::in(config('staff.appointment_types', []))],
         ]);
 
         $staffId = $validated['staff_id'] ?? $this->generateStaffId();
@@ -104,10 +104,10 @@ class StaffController extends Controller
                 'user_id' => $staff->id,
                 'position_title' => $validated['position_title'],
                 'department_name' => $validated['department_name'] ?? null,
-                'employment_type' => $validated['employment_type'] ?? null,
+                'employment_type' => $validated['employment_type'],
                 'functional_role' => null,
                 'grade_level' => null,
-                'appointment_type' => $validated['appointment_type'] ?? null,
+                'appointment_type' => $validated['appointment_type'],
                 'start_date' => $validated['employment_started_at'],
                 'change_type' => StaffWorkHistory::CHANGE_APPOINTMENT,
                 'reason' => 'Initial staff account creation.',
