@@ -18,7 +18,7 @@
     $motto=$tenant?->motto?:'Excellence through education';
     $department=$staff->department_name?:($staff->currentWorkHistory?->department_name?:'School Administration');
     $schoolLogo=$tenant?->logo_path?asset('storage/'.preg_replace('#^storage/#','',ltrim($tenant->logo_path,'/'))):null;
-    $educoreIcon=asset('brand/educore-icon.svg');
+    $educoreIcon=asset('brand/educore-icon-id.svg');
 @endphp
 <div class="toolbar"><div><strong>{{ $staff->name }} — Option 13 Staff ID</strong><span>CR80 portrait • attendance QR • school + EduCore branding</span></div><div class="actions">@if(auth()->user()->isAdmin())<a class="btn primary" href="{{ route('staff.id-card.download',$staff) }}">Download PDF</a>@endif<button class="btn" onclick="window.print()">Print card</button><a class="btn" href="{{ route('staff.show',$staff) }}">Staff profile</a></div></div>
 <main class="cards">
