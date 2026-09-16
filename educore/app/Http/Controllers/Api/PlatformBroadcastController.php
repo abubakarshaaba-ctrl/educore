@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Tenant;
-use App\Services\Notifications\ActivityEmailService;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -109,19 +108,17 @@ class PlatformBroadcastController extends Controller
         }
 
         $push = app(PushNotificationService::class);
-        $email = app(ActivityEmailService::class);
         Announcement::query()
             ->where('platform_broadcast_id', $broadcastId)
             ->orderBy('id')
-            ->chunkById(100, function ($announcements) use ($push, $email): void {
+            ->chunkById(100, function ($announcements) use ($push): void {
                 foreach ($announcements as $announcement) {
                     $push->notifyAnnouncementPublished($announcement);
-                    $email->notifyAnnouncementPublished($announcement);
                 }
             });
 
         return response()->json([
-            'message' => "Broadcast published to {$tenantIds->count()} school(s); push and email notifications dispatched.",
+            'message' => "Broadcast published to {$tenantIds->count()} school(s); push notification dispatched and the notice is available in-app.",
             'status' => 'published',
             'id' => $broadcastId,
             'image_url' => $imagePath ? Storage::disk('public')->url($imagePath) : null,
