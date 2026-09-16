@@ -1,6 +1,94 @@
 @extends('layouts.app')
 @section('title', 'Lesson Planner')
 
+@push('styles')
+<style>
+.lesson-filter {
+    display: grid;
+    grid-template-columns: minmax(180px, .9fr) minmax(180px, .9fr) minmax(260px, 1.6fr) auto;
+    gap: 12px;
+    align-items: end;
+    width: 100%;
+    min-width: 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.lesson-filter__field {
+    min-width: 0;
+    margin: 0;
+}
+.lesson-filter__field .fl {
+    display: block;
+    margin-bottom: 6px;
+    white-space: nowrap;
+}
+.lesson-filter__field .fc {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 40px;
+}
+.lesson-filter__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.lesson-filter__actions .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+    .lesson-filter {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .lesson-filter__search {
+        grid-column: 1 / -1;
+    }
+    .lesson-filter__actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 640px) {
+    .lesson-filter {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+        padding: 14px;
+    }
+    .lesson-filter__search,
+    .lesson-filter__actions {
+        grid-column: auto;
+    }
+    .lesson-filter__field .fl {
+        font-size: 11px;
+        line-height: 1.25;
+    }
+    .lesson-filter__field .fc {
+        min-height: 44px;
+        font-size: 13px;
+    }
+    .lesson-filter__actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+    }
+    .lesson-filter__actions .btn {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+</style>
+@endpush
+
 @section('content')
 <div class="page-content">
     <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
@@ -19,32 +107,34 @@
     @endif
 
     {{-- Filters --}}
-    <form method="GET" style="background:white;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-        <div class="fg" style="flex:1;min-width:160px">
-            <label class="fl">Subject</label>
-            <select name="subject_id" class="fc">
+    <form method="GET" class="lesson-filter">
+        <div class="fg lesson-filter__field">
+            <label class="fl" for="lesson-filter-subject">Subject</label>
+            <select id="lesson-filter-subject" name="subject_id" class="fc">
                 <option value="">All Subjects</option>
                 @foreach($subjects as $s)
                 <option value="{{ $s->id }}" {{ request('subject_id') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
                 @endforeach
             </select>
         </div>
-        <div class="fg" style="flex:1;min-width:140px">
-            <label class="fl">Curriculum</label>
-            <select name="curriculum_type" class="fc">
+        <div class="fg lesson-filter__field">
+            <label class="fl" for="lesson-filter-curriculum">Curriculum</label>
+            <select id="lesson-filter-curriculum" name="curriculum_type" class="fc">
                 <option value="">All</option>
                 <option value="nerdc" {{ request('curriculum_type') === 'nerdc' ? 'selected' : '' }}>NERDC (Nigerian)</option>
                 <option value="british" {{ request('curriculum_type') === 'british' ? 'selected' : '' }}>British</option>
             </select>
         </div>
-        <div class="fg" style="flex:2;min-width:180px">
-            <label class="fl">Search Topic</label>
-            <input type="text" name="search" class="fc" value="{{ request('search') }}" placeholder="Search topic...">
+        <div class="fg lesson-filter__field lesson-filter__search">
+            <label class="fl" for="lesson-filter-search">Search Topic</label>
+            <input id="lesson-filter-search" type="text" name="search" class="fc" value="{{ request('search') }}" placeholder="Search topic...">
         </div>
-        <button type="submit" class="btn btn-primary" style="height:38px">Filter</button>
-        @if(request()->anyFilled(['subject_id','curriculum_type','search']))
-        <a href="{{ route('lesson-planner.index') }}" class="btn btn-secondary" style="height:38px">Clear</a>
-        @endif
+        <div class="lesson-filter__actions">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            @if(request()->anyFilled(['subject_id','curriculum_type','search']))
+            <a href="{{ route('lesson-planner.index') }}" class="btn btn-secondary">Clear</a>
+            @endif
+        </div>
     </form>
 
     @if($plans->isEmpty())
