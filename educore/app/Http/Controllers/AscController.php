@@ -7,7 +7,7 @@ use App\Models\AscReturn;
 use App\Models\AcademicSession;
 use App\Models\StudentEnrollment;
 use App\Models\User;
-use App\Services\Asc\AscDataSyncService;
+use App\Services\Asc\EnhancedAscDataSyncService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
@@ -32,7 +32,7 @@ class AscController extends Controller
     }
 
     // ── Infrastructure + synchronization actions (POST) ───────────────
-    public function saveInfrastructure(Request $request, AscDataSyncService $syncService)
+    public function saveInfrastructure(Request $request, EnhancedAscDataSyncService $syncService)
     {
         $tenant = auth()->user()->tenant;
         $action = $request->string('_asc_action')->toString() ?: 'save_infrastructure';
