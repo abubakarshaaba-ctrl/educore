@@ -46,7 +46,9 @@ class StaffController extends Controller
 
     public function create()
     {
-        return view('staff.create');
+        return view('staff.create', [
+            'highestQualifications' => config('staff.highest_qualifications', []),
+        ]);
     }
 
     public function store(Request $request)
@@ -62,7 +64,8 @@ class StaffController extends Controller
             'role'     => ['required', 'in:' . implode(',', User::staffRoleNames())],
             'password' => ['required', Password::min(8)],
             'phone'    => ['nullable', 'string', 'max:20'],
-            'gender'   => ['nullable', 'in:male,female'],
+            'gender'   => ['required', 'in:male,female'],
+            'qualification' => ['required', Rule::in(config('staff.highest_qualifications', []))],
             'staff_id' => ['nullable', 'string', 'max:40', Rule::unique('users', 'staff_id')->where('tenant_id', auth()->user()->tenant_id)],
             'employment_started_at' => ['required', 'date', 'before_or_equal:today'],
             'position_title' => ['required', 'string', 'max:255'],
@@ -73,7 +76,6 @@ class StaffController extends Controller
             'appointment_type' => ['nullable', 'string', 'max:100'],
         ]);
 
-        // Auto-generate staff_id if not provided
         $staffId = $validated['staff_id'] ?? $this->generateStaffId();
         $role = User::canonicalRole($validated['role']);
 
@@ -85,7 +87,8 @@ class StaffController extends Controller
                 'role'       => $role,
                 'password'   => Hash::make($validated['password']),
                 'phone'      => $validated['phone'] ?? null,
-                'gender'     => $validated['gender'] ?? null,
+                'gender'     => $validated['gender'],
+                'qualification' => $validated['qualification'],
                 'staff_id'   => $staffId,
                 'is_active'  => true,
                 'employment_status' => User::STAFF_STATUS_ACTIVE,
@@ -123,13 +126,19 @@ class StaffController extends Controller
     {
         $this->ensureTenantStaff($staff);
         $staff->load(['classArms.classLevel', 'currentWorkHistory', 'staffStatusHistories.changedBy', 'workHistories']);
-        return view('staff.show', compact('staff'));
+        return view('staff.show', [
+            'staff' => $staff,
+            'highestQualifications' => config('staff.highest_qualifications', []),
+        ]);
     }
 
     public function edit(User $staff)
     {
         $this->ensureTenantStaff($staff);
-        return view('staff.edit', compact('staff'));
+        return view('staff.edit', [
+            'staff' => $staff,
+            'highestQualifications' => config('staff.highest_qualifications', []),
+        ]);
     }
 
     public function update(Request $request, User $staff)
@@ -142,6 +151,7 @@ class StaffController extends Controller
             'phone'          => ['nullable', 'string', 'max:20'],
             'staff_id'       => ['nullable', 'string', 'max:40', Rule::unique('users', 'staff_id')->where('tenant_id', auth()->user()->tenant_id)->ignore($staff->id)],
             'gender'         => ['nullable', 'in:male,female'],
+            'qualification'  => ['nullable', Rule::in(config('staff.highest_qualifications', []))],
             'qualifications' => ['nullable', 'array'],
             'qualifications.*' => ['string', 'max:20'],
         ]);
@@ -154,7 +164,8 @@ class StaffController extends Controller
             'phone'          => $validated['phone'] ?? $staff->phone,
             'staff_id'       => $validated['staff_id'] ?? $staff->staff_id,
             'gender'         => $validated['gender'] ?? null,
-            'qualifications' => $validated['qualifications'] ?? [],
+            'qualification'  => $validated['qualification'] ?? null,
+            'qualifications' => $validated['qualifications'] ?? $staff->qualifications ?? [],
         ]);
         $staff->syncRoles($role);
 
