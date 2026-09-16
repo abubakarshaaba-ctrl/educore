@@ -12,22 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            // Shared hosting has no terminal/SSH access. This protected route
-            // provides the equivalent of `mail:health` from a browser without
-            // exposing SMTP credentials or any deployment secret in the response.
             Route::group([], base_path('routes/mail-health.php'));
+            Route::group([], base_path('routes/staff-profile-onboarding.php'));
 
-            // Override the legacy SuperAdminController broadcast POST route with
-            // the canonical publisher so web and API broadcasts share validation,
-            // image persistence, tenant notice fan-out and push delivery behavior.
             Route::middleware(['web', 'auth', 'active.account', 'super.admin'])
                 ->post('super/broadcasts', [\App\Http\Controllers\WebPlatformBroadcastController::class, 'store'])
                 ->name('super.broadcasts.store');
 
-            // Keep assessment-type management isolated from the large legacy score
-            // controller. This file is loaded after web.php, so the same route names
-            // and URIs replace the legacy handlers while retaining the surrounding
-            // tenant/authentication contract.
             Route::middleware([
                 'web', 'auth', 'active.account', 'tenant', 'tenant.access',
                 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class,
@@ -95,10 +86,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->middleware(\App\Http\Middleware\AuthenticateApiToken::class)
                 ->group(base_path('routes/mobile-admin-staff-attendance.php'));
 
-            // Codemagic calls this single protected endpoint only after a signed
-            // production APK and its checksum have been published successfully.
-            // It deliberately does not use user authentication; a dedicated
-            // bearer secret keeps release automation isolated from app sessions.
             Route::prefix('api/v1')
                 ->group(base_path('routes/mobile-release.php'));
         },
