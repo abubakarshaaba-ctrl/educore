@@ -49,6 +49,7 @@ class Tenant extends Model
     protected $fillable = [
         'name',
         'slug',
+        'staff_onboarding_token',
         'subdomain',
         'logo_path',
         'authorized_signature_path',
@@ -76,16 +77,11 @@ class Tenant extends Model
         ];
     }
 
-    // ---------------------------------------------------------------
-    // Relationships
-    // ---------------------------------------------------------------
-
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    /** Active school-admin accounts — who tenant lifecycle notifications go to. */
     public function admins(): HasMany
     {
         return $this->hasMany(User::class)
@@ -93,7 +89,6 @@ class Tenant extends Model
             ->where('is_active', true);
     }
 
-    /** Notify every active admin of this school. No-op safely if there are none. */
     public function notifyAdmins($notification): void
     {
         $admins = $this->admins()->whereNotNull('email')->get();
@@ -108,15 +103,6 @@ class Tenant extends Model
         return $this->hasMany(AcademicSession::class);
     }
 
-    /**
-     * Multi-campus school groups share a single subscription: the campus
-     * marked "lead" in school_group_members holds it, and every other
-     * member campus's access/features are resolved against the lead's
-     * subscription instead of needing one of their own.
-     *
-     * Returns the lead tenant if this tenant belongs to a group with one
-     * designated, otherwise returns itself.
-     */
     public function billingTenant(): self
     {
         if (!\Illuminate\Support\Facades\Schema::hasTable('school_group_members')) {
@@ -141,10 +127,6 @@ class Tenant extends Model
         return $this->hasMany(Student::class);
     }
 
-    // ---------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------
-
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -152,14 +134,10 @@ class Tenant extends Model
 
     public function isExpired(): bool
     {
-        // An explicit super-admin override (suspending/expiring a specific
-        // tenant) always applies, regardless of tier.
         if ($this->status === self::STATUS_SUBSCRIPTION_EXPIRED) {
             return true;
         }
 
-        // The free tier (≤50 students) never expires on the automatic
-        // date clock — matches the "free forever" pricing promise.
         if (\App\Services\PricingService::isFree(\App\Services\PricingService::activeStudentCount($this->id))) {
             return false;
         }
@@ -167,12 +145,6 @@ class Tenant extends Model
         return $this->subscription_expires_at && $this->subscription_expires_at->isPast();
     }
 
-    /**
-     * True only when the subscription is still active but falls due within $days.
-     * Uses an explicit future-window comparison rather than diffInDays(), whose
-     * sign convention changed in Carbon 3 (a future date yields a negative diff,
-     * which made "< 14" match every active subscription).
-     */
     public function isExpiringSoon(int $days = 14): bool
     {
         if (!$this->subscription_expires_at || $this->isExpired()) {
