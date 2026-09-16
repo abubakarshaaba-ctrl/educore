@@ -4,30 +4,33 @@
 @push('styles')
 <style>
 /* ── Layout ──────────────────────────────────────────────────────── */
-.ac-banner{background:linear-gradient(135deg,var(--midnight) 0%,#1a3a6b 100%);border-radius:14px;padding:20px 24px;color:white;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:640px){.ac-banner{grid-template-columns:1fr;padding:16px}.ac-banner h2{font-size:18px}}
+.ac-banner{background:linear-gradient(135deg,var(--midnight) 0%,#1a3a6b 100%);border-radius:14px;padding:20px 24px;color:white;margin-bottom:20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;width:100%;max-width:100%}
+@media(max-width:640px){.ac-banner{grid-template-columns:minmax(0,1fr);padding:16px}.ac-banner h2{font-size:18px}}
 .ac-status-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.65;margin-bottom:4px}
 .ac-status-value{font-size:18px;font-weight:800;line-height:1.2}
 .ac-status-sub{font-size:11px;opacity:.65;margin-top:3px}
 .ac-status-none{font-size:14px;font-weight:600;color:#F87171}
-.ac-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.ac-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-bottom:20px;width:100%;max-width:100%}
+.ac-grid>*{min-width:0;max-width:100%}
 .ac-term-column{display:contents}
 .ac-terms-card{grid-column:1/-1}
-@media(max-width:900px){.ac-grid{grid-template-columns:1fr}}
-.ac-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.ac-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between}
-.ac-card-title{font-size:14px;font-weight:800;color:var(--midnight)}
-.ac-card-body{padding:16px 18px}
-.ac-form .fg{margin-bottom:12px}
+@media(max-width:900px){.ac-grid{grid-template-columns:minmax(0,1fr)}}
+.ac-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;width:100%;max-width:100%;min-width:0}
+.ac-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;min-width:0}
+.ac-card-title{font-size:14px;font-weight:800;color:var(--midnight);min-width:0}
+.ac-card-body{padding:16px 18px;min-width:0}
+.ac-form{min-width:0;max-width:100%}
+.ac-form .fg{margin-bottom:12px;min-width:0}
 .ac-form label{display:block;font-size:11px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
-.ac-form input,.ac-form select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#F8FAFC;transition:border 150ms}
+.ac-form input,.ac-form select{width:100%;max-width:100%;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#F8FAFC;transition:border 150ms}
 .ac-form input:focus,.ac-form select:focus{border-color:var(--indigo);background:white}
-.ac-form .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.ac-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--midnight);margin-bottom:12px;cursor:pointer}
-.ac-check input{width:16px;height:16px;accent-color:var(--indigo);cursor:pointer}
-.btn-ac-save{width:100%;padding:10px;background:var(--indigo);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.ac-form .fg-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;min-width:0}
+.ac-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--midnight);margin-bottom:12px;cursor:pointer;min-width:0}
+.ac-check input{width:16px;height:16px;accent-color:var(--indigo);cursor:pointer;flex:0 0 16px}
+.btn-ac-save{width:100%;max-width:100%;padding:10px;background:var(--indigo);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .btn-ac-save:hover{background:#1D4ED8}
-.ac-table{width:100%;border-collapse:collapse}
+.ac-table-scroll{width:100%;max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.ac-table{width:100%;min-width:560px;border-collapse:collapse}
 .ac-table thead th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate-light);padding:8px 10px;background:#F8FAFC;border-bottom:1px solid var(--border);text-align:left}
 .ac-table tbody td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
 .ac-table tbody tr:last-child td{border-bottom:none}
@@ -42,17 +45,19 @@
 .edit-row{display:none}
 .edit-row.open{display:table-row}
 .edit-row td{padding:10px;background:#F0F4FF;border-top:1px solid #BFDBFE}
-.edit-inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.edit-inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
 @media(max-width:640px){
-    .ac-form .fg-row{grid-template-columns:1fr}
-    .ac-card-head{align-items:flex-start;gap:8px;flex-wrap:wrap}
+    .ac-form .fg-row{grid-template-columns:minmax(0,1fr)}
+    .ac-card-head{align-items:flex-start;gap:8px;flex-wrap:wrap;padding:12px 14px}
+    .ac-card-body{padding:14px}
     .edit-inline-form>*{flex:1 1 150px;min-width:0!important}
-    .ac-actions{min-width:150px}
+    .ac-actions{min-width:0;white-space:nowrap}
+    .ac-table{min-width:540px}
 }
-.edit-inline-form input{padding:7px 10px;border:1.5px solid #BFDBFE;border-radius:7px;font-size:12px;font-family:inherit;outline:none;background:white}
+.edit-inline-form input{padding:7px 10px;border:1.5px solid #BFDBFE;border-radius:7px;font-size:12px;font-family:inherit;outline:none;background:white;max-width:100%}
 .edit-inline-form input:focus{border-color:var(--indigo)}
-.alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:#065F46;margin-bottom:16px}
-.alert-e{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:12px 16px;font-size:13px;color:#991B1B;margin-bottom:16px}
+.alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:#065F46;margin-bottom:16px;max-width:100%}
+.alert-e{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:12px 16px;font-size:13px;color:#991B1B;margin-bottom:16px;max-width:100%}
 </style>
 @endpush
 @section('content')
@@ -131,7 +136,7 @@
     @if($sessions->isEmpty())
     <div style="padding:28px;text-align:center;color:var(--slate-light);font-size:13px">No academic sessions yet.</div>
     @else
-    <div style="overflow-x:auto">
+    <div class="ac-table-scroll">
     <table class="ac-table">
         <thead><tr><th>Session</th><th>Terms</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
@@ -224,7 +229,7 @@
     @if($terms->isEmpty())
     <div style="padding:28px;text-align:center;color:var(--slate-light);font-size:13px">No terms yet. Create a session first, then add terms.</div>
     @else
-    <div style="overflow-x:auto">
+    <div class="ac-table-scroll">
     <table class="ac-table">
         <thead><tr><th>Term</th><th>Session</th><th>Dates</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
