@@ -37,20 +37,20 @@ return [
         'Other',
     ],
 
+    // Employment type describes the staff member's working-time arrangement.
     'employment_types' => [
         'Full-time',
         'Part-time',
     ],
 
-    // Appointment type records the staff member's employment-history event
-    // in this school. It is not a synonym for employment type.
+    // Appointment type describes the administrative basis of the appointment.
+    // Employment-history events such as promotion, confirmation and transfer are
+    // stored separately in StaffWorkHistory.change_type.
     'appointment_types' => [
-        'Initial Appointment',
-        'Confirmation of Appointment',
-        'Promotion',
-        'Transfer',
-        'Reassignment',
-        'Acting Appointment',
-        'Reinstatement',
+        'Permanent',
+        'Probationary',
+        'Contract',
+        'Temporary',
+        'Casual',
     ],
 ];
