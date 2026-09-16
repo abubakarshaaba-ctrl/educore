@@ -44,11 +44,11 @@ class StaffProfileOnboardingController extends Controller
             'gender' => ['required','in:male,female'],
             'qualification' => ['required', Rule::in(config('staff.highest_qualifications', []))],
             'address' => ['nullable','string','max:255'],
-            'employment_started_at' => ['nullable','date','before_or_equal:today'],
+            'employment_started_at' => ['required','date','before_or_equal:today'],
             'position_title' => ['required','string','max:255'],
             'department_name' => ['nullable', Rule::in(config('staff.departments', []))],
-            'employment_type' => ['nullable', Rule::in(config('staff.employment_types', []))],
-            'appointment_type' => ['nullable', Rule::in(config('staff.appointment_types', []))],
+            'employment_type' => ['required', Rule::in(config('staff.employment_types', []))],
+            'appointment_type' => ['required', Rule::in(config('staff.appointment_types', []))],
             'password' => ['required', Password::min(8), 'confirmed'],
         ]);
 
@@ -127,7 +127,7 @@ class StaffProfileOnboardingController extends Controller
                 'staff_id' => $staffId,
                 'is_active' => true,
                 'employment_status' => User::STAFF_STATUS_ACTIVE,
-                'employment_started_at' => $submission->employment_started_at ?: now()->toDateString(),
+                'employment_started_at' => $submission->employment_started_at,
                 'status_changed_at' => now(),
             ]);
             $staff->assignRole($role);
@@ -141,9 +141,9 @@ class StaffProfileOnboardingController extends Controller
                 'functional_role' => null,
                 'grade_level' => null,
                 'appointment_type' => $submission->appointment_type,
-                'start_date' => $submission->employment_started_at ?: now()->toDateString(),
+                'start_date' => $submission->employment_started_at,
                 'change_type' => StaffWorkHistory::CHANGE_APPOINTMENT,
-                'reason' => 'Created from staff self-profile onboarding.',
+                'reason' => 'Initial staff account creation from staff self-profile onboarding.',
                 'recorded_by' => auth()->id(),
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
