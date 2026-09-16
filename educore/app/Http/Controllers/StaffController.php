@@ -48,6 +48,9 @@ class StaffController extends Controller
     {
         return view('staff.create', [
             'highestQualifications' => config('staff.highest_qualifications', []),
+            'departments' => config('staff.departments', []),
+            'employmentTypes' => config('staff.employment_types', []),
+            'appointmentTypes' => config('staff.appointment_types', []),
         ]);
     }
 
@@ -69,11 +72,9 @@ class StaffController extends Controller
             'staff_id' => ['nullable', 'string', 'max:40', Rule::unique('users', 'staff_id')->where('tenant_id', auth()->user()->tenant_id)],
             'employment_started_at' => ['required', 'date', 'before_or_equal:today'],
             'position_title' => ['required', 'string', 'max:255'],
-            'department_name' => ['nullable', 'string', 'max:255'],
-            'employment_type' => ['nullable', 'string', 'max:100'],
-            'functional_role' => ['nullable', 'string', 'max:150'],
-            'grade_level' => ['nullable', 'string', 'max:100'],
-            'appointment_type' => ['nullable', 'string', 'max:100'],
+            'department_name' => ['nullable', Rule::in(config('staff.departments', []))],
+            'employment_type' => ['nullable', Rule::in(config('staff.employment_types', []))],
+            'appointment_type' => ['nullable', Rule::in(config('staff.appointment_types', []))],
         ]);
 
         $staffId = $validated['staff_id'] ?? $this->generateStaffId();
@@ -104,8 +105,8 @@ class StaffController extends Controller
                 'position_title' => $validated['position_title'],
                 'department_name' => $validated['department_name'] ?? null,
                 'employment_type' => $validated['employment_type'] ?? null,
-                'functional_role' => $validated['functional_role'] ?? null,
-                'grade_level' => $validated['grade_level'] ?? null,
+                'functional_role' => null,
+                'grade_level' => null,
                 'appointment_type' => $validated['appointment_type'] ?? null,
                 'start_date' => $validated['employment_started_at'],
                 'change_type' => StaffWorkHistory::CHANGE_APPOINTMENT,
