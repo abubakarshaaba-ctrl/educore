@@ -5,6 +5,20 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
 
+// Shared hosting can retain an older Laravel route cache after files are synced.
+// If any route definition is newer than a cached route file, remove only the stale
+// route cache so the next bootstrap rebuilds the current route collection.
+$routeFiles = glob(__DIR__.'/../routes/*.php') ?: [];
+$routeCacheFiles = glob(__DIR__.'/cache/routes-*.php') ?: [];
+if ($routeFiles && $routeCacheFiles) {
+    $newestRouteMtime = max(array_map(static fn (string $file): int => (int) @filemtime($file), $routeFiles));
+    foreach ($routeCacheFiles as $routeCacheFile) {
+        if ((int) @filemtime($routeCacheFile) < $newestRouteMtime) {
+            @unlink($routeCacheFile);
+        }
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
