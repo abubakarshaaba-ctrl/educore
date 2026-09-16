@@ -58,7 +58,7 @@
                     <div class="form-group">
                         <label class="form-label">Full Name <span>*</span></label>
                         <input type="text" name="name" class="form-control {{ $errors->has('name') ? 'is-invalid':'' }}"
-                               value="{{ old('name') }}" placeholder="Full legal name" required>
+                               value="{{ old('name') }}" placeholder="First name, Surname" required>
                         @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group">
@@ -136,11 +136,12 @@
                     <div class="form-group full">
                         <label class="form-label">Appointment Type</label>
                         <select name="appointment_type" class="form-control {{ $errors->has('appointment_type') ? 'is-invalid':'' }}">
-                            <option value="">— Select Appointment Type —</option>
+                            <option value="">— Select Employment History Event —</option>
                             @foreach($appointmentTypes as $appointmentType)
                                 <option value="{{ $appointmentType }}" @selected(old('appointment_type') === $appointmentType)>{{ $appointmentType }}</option>
                             @endforeach
                         </select>
+                        <div class="hint">Select the event that best describes the staff member's employment history in this school.</div>
                         @error('appointment_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group full">
