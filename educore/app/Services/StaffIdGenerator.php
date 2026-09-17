@@ -12,7 +12,7 @@ class StaffIdGenerator
     {
         $highest = 1000;
 
-        foreach (User::query()->whereNotNull('staff_id')->pluck('staff_id') as $staffId) {
+        foreach (User::withTrashed()->whereNotNull('staff_id')->pluck('staff_id') as $staffId) {
             $highest = max($highest, $this->numericPart($staffId));
         }
 
@@ -29,7 +29,7 @@ class StaffIdGenerator
             $highest++;
             $candidate = 'STF' . str_pad((string) $highest, 4, '0', STR_PAD_LEFT);
         } while (
-            User::query()->where('staff_id', $candidate)->exists()
+            User::withTrashed()->where('staff_id', $candidate)->exists()
             || ($submissionTableReady && StaffProfileSubmission::withoutTenantScope()->where('staff_id', $candidate)->exists())
         );
 
