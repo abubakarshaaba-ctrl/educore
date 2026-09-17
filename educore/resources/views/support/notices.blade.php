@@ -10,14 +10,25 @@
 .notice.read{opacity:.65}
 .n-icon{width:38px;height:38px;border-radius:10px;background:#EFF6FF;color:#3B82F6;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
 .n-icon.read{background:#F1F5F9;color:#94A3B8}
-.n-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px}
-.n-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px}
-.n-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:10px}
+.n-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px;overflow-wrap:anywhere}
+.n-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px;line-height:1.6;overflow-wrap:anywhere}
+.n-body.is-collapsed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;white-space:normal}
+.n-body.is-expanded{display:block;overflow:visible;white-space:pre-line}
+.read-more-btn{display:none;align-items:center;gap:4px;margin:-1px 0 9px;padding:0;border:0;background:transparent;color:var(--indigo);font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.read-more-btn.is-visible{display:inline-flex}
+.read-more-btn:hover{text-decoration:underline}
+.read-more-btn:focus-visible{outline:2px solid var(--indigo);outline-offset:3px;border-radius:3px}
+.n-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .badge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
 .b-new{background:#EFF6FF;color:#3B82F6}
 .b-read{background:#F1F5F9;color:#64748B}
 .btn-sm{padding:5px 12px;font-size:11px;font-weight:700;font-family:inherit;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;color:var(--midnight)}
 .empty{padding:60px;text-align:center;color:#94A3B8}
+@media(max-width:640px){
+    .notice{padding:14px;gap:10px}
+    .n-icon{width:34px;height:34px;border-radius:9px;font-size:16px}
+    .n-meta{align-items:flex-start}
+}
 </style>
 @endpush
 @section('content')
@@ -38,7 +49,7 @@
     <div class="notice {{ $notice->dismissed ? 'read' : '' }}">
         <div class="n-icon {{ $notice->dismissed ? 'read' : '' }}">📢</div>
         <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                 <div class="n-title">{{ $notice->title }}</div>
                 @if(!$notice->dismissed)
                     <span class="badge b-new">New</span>
@@ -46,7 +57,17 @@
                     <span class="badge b-read">Seen</span>
                 @endif
             </div>
-            <div class="n-body">{{ $notice->body }}</div>
+            @if(trim((string) $notice->body) !== '')
+                <div class="n-body is-collapsed" id="notice-body-{{ $notice->id }}">{{ $notice->body }}</div>
+                <button type="button"
+                        class="read-more-btn"
+                        data-message-toggle
+                        data-target="notice-body-{{ $notice->id }}"
+                        aria-controls="notice-body-{{ $notice->id }}"
+                        aria-expanded="false">
+                    Read more
+                </button>
+            @endif
             <div class="n-meta">
                 <span>{{ \Carbon\Carbon::parse($notice->created_at)->format('d M Y, H:i') }}</span>
                 @if($notice->expires_at)
@@ -70,3 +91,36 @@
     @endforelse
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const buttons = Array.from(document.querySelectorAll('[data-message-toggle]'));
+
+    const refresh = () => {
+        buttons.forEach((button) => {
+            const body = document.getElementById(button.dataset.target);
+            if (!body || body.classList.contains('is-expanded')) return;
+
+            button.classList.toggle('is-visible', body.scrollHeight > body.clientHeight + 1);
+        });
+    };
+
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const body = document.getElementById(button.dataset.target);
+            if (!body) return;
+
+            const expanded = body.classList.toggle('is-expanded');
+            body.classList.toggle('is-collapsed', !expanded);
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            button.textContent = expanded ? 'Show less' : 'Read more';
+            button.classList.add('is-visible');
+        });
+    });
+
+    refresh();
+    window.addEventListener('resize', refresh, { passive: true });
+})();
+</script>
+@endpush
