@@ -60,6 +60,7 @@ class AppUpdateWorker(
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_educore_notification)
             .setLargeIcon(largeIcon)
+            .setColor(ContextCompat.getColor(applicationContext, R.color.educore_notification_accent))
             .setContentTitle(if (update.isRequired) "EduCore update required" else "EduCore update available")
             .setContentText("Version ${update.latestVersionName} is ready to install.")
             .setStyle(
