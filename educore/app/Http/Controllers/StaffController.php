@@ -171,7 +171,7 @@ class StaffController extends Controller
                     if (
                         $value
                         && $value !== $staff->staff_id
-                        && StaffProfileSubmission::query()
+                        && StaffProfileSubmission::withoutTenantScope()
                             ->where('staff_id', $value)
                             ->where('status', 'pending')
                             ->exists()
