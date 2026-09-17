@@ -16,12 +16,24 @@ select.fc{cursor:pointer}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:11px 16px;font-size:13px;color:#059669;margin-bottom:14px}
 .bcast{padding:16px 18px;border-bottom:1px solid var(--border)}
 .bcast:last-child{border-bottom:none}
-.b-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px}
-.b-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px}
+.b-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px;overflow-wrap:anywhere}
+.b-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px;line-height:1.6;overflow-wrap:anywhere}
+.b-body.is-collapsed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;white-space:normal}
+.b-body.is-expanded{display:block;overflow:visible;white-space:pre-line}
+.read-more-btn{display:none;align-items:center;gap:4px;margin:-1px 0 10px;padding:0;border:0;background:transparent;color:var(--indigo);font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.read-more-btn.is-visible{display:inline-flex}
+.read-more-btn:hover{text-decoration:underline}
+.read-more-btn:focus-visible{outline:2px solid var(--indigo);outline-offset:3px;border-radius:3px}
 .b-image{display:block;width:100%;max-width:640px;max-height:360px;object-fit:cover;border-radius:10px;margin:10px 0 12px;border:1px solid var(--border);background:#F8FAFC}
 .b-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#EFF6FF;color:#3B82F6}
 .help{font-size:11px;color:#64748B}
+@media(max-width:640px){
+    .bcast{padding:14px}
+    .bcast>div{flex-direction:column!important}
+    .bcast>div>form{width:100%}
+    .bcast>div>form .btn{width:100%;justify-content:center}
+}
 </style>
 @endpush
 @section('content')
@@ -84,7 +96,15 @@ select.fc{cursor:pointer}
                     @endif
                 </div>
                 @if(trim((string) $bc->body) !== '')
-                    <div class="b-body">{{ $bc->body }}</div>
+                    <div class="b-body is-collapsed" id="broadcast-body-{{ $bc->id }}">{{ $bc->body }}</div>
+                    <button type="button"
+                            class="read-more-btn"
+                            data-message-toggle
+                            data-target="broadcast-body-{{ $bc->id }}"
+                            aria-controls="broadcast-body-{{ $bc->id }}"
+                            aria-expanded="false">
+                        Read more
+                    </button>
                 @endif
                 @if($bc->image_path)
                     <img class="b-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($bc->image_path) }}" alt="{{ $bc->title }}">
@@ -107,3 +127,35 @@ select.fc{cursor:pointer}
 </div>
 {{ $broadcasts->links() }}
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const buttons = Array.from(document.querySelectorAll('[data-message-toggle]'));
+
+    const refresh = () => {
+        buttons.forEach((button) => {
+            const body = document.getElementById(button.dataset.target);
+            if (!body || body.classList.contains('is-expanded')) return;
+            button.classList.toggle('is-visible', body.scrollHeight > body.clientHeight + 1);
+        });
+    };
+
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const body = document.getElementById(button.dataset.target);
+            if (!body) return;
+
+            const expanded = body.classList.toggle('is-expanded');
+            body.classList.toggle('is-collapsed', !expanded);
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            button.textContent = expanded ? 'Show less' : 'Read more';
+            button.classList.add('is-visible');
+        });
+    });
+
+    refresh();
+    window.addEventListener('resize', refresh, { passive: true });
+})();
+</script>
+@endpush
