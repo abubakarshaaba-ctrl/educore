@@ -10,14 +10,13 @@
     .page-tab:hover:not(.active) { background:#F1F5F9; }
 
     .context-bar { background:white;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px; }
-    .context-info h2 { font-size:15px;font-weight:700;color:var(--midnight); }
+    .context-info{min-width:0}.context-info h2 { font-size:15px;font-weight:700;color:var(--midnight);overflow-wrap:anywhere; }
     .context-info p { font-size:12px;color:var(--slate);margin-top:2px; }
 
     .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px; }
     .alert-warning { background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--amber);margin-bottom:16px; }
 
-    /* Score sheet table */
-    .sheet-wrap { overflow-x:auto; }
+    .sheet-wrap { width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain; }
     .sheet-table { width:100%;border-collapse:collapse;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);min-width:600px; }
 
     .sheet-table thead tr:first-child th {
@@ -49,10 +48,9 @@
     .sheet-table tbody tr:hover td { background:#FAFBFF; }
     .sheet-table tbody tr:hover td.total-col { background:#EFF6FF; }
 
-    .student-name { font-weight:600;color:var(--midnight); }
-    .student-adm  { font-size:11px;color:var(--slate-light);margin-top:2px; }
+    .student-name { font-weight:600;color:var(--midnight);overflow-wrap:anywhere; }
+    .student-adm  { font-size:11px;color:var(--slate-light);margin-top:2px;overflow-wrap:anywhere; }
 
-    /* Score input */
     .score-input {
         width:62px;padding:6px 8px;font-size:13px;font-weight:600;
         text-align:center;border:1.5px solid var(--border);border-radius:7px;
@@ -65,7 +63,6 @@
 
     .max-label { font-size:10px;color:var(--slate-light);margin-top:2px;display:block;text-align:center; }
 
-    /* Split (objective + theory) cell */
     .split-cell { display:flex;flex-direction:column;gap:4px;align-items:center; }
     .split-obj { font-size:10.5px;font-weight:700;color:var(--slate);background:#F1F5F9;border-radius:6px;padding:3px 7px;white-space:nowrap; }
     .split-obj.missing { color:var(--crimson);background:#FEF2F2; }
@@ -83,20 +80,47 @@
 
     .sheet-footer { padding:14px 20px;border-top:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
     .footer-info { font-size:12px;color:var(--slate); }
-    .btn { display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
     .btn-primary { background:var(--indigo);color:white; }
     .btn-primary:hover { background:#1D4ED8; }
     .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border);padding:9px 16px; }
 
     .no-assessments { text-align:center;padding:50px;color:var(--slate-light); }
     .no-assessments h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:8px; }
+
+    @media(max-width:720px){
+        .page-tabs{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+        .page-tab{flex:0 0 auto;white-space:nowrap;padding:7px 12px}
+        .context-bar{padding:12px 14px;align-items:flex-start;flex-direction:column}
+        .context-bar .btn{width:100%}
+        .sheet-table{min-width:max(560px,100%)}
+        .sheet-table thead tr:first-child th{padding:8px 9px;font-size:10px}
+        .sheet-table thead tr:first-child th.student-col{min-width:150px;position:sticky;left:0;z-index:4;box-shadow:2px 0 0 var(--border)}
+        .sheet-table tbody td{padding:7px 8px;font-size:12px}
+        .sheet-table tbody td.student-col{min-width:150px;max-width:150px;position:sticky;left:0;z-index:2;background:#fff;box-shadow:2px 0 0 var(--border)}
+        .sheet-table tbody tr:hover td.student-col{background:#FAFBFF}
+        .student-name{font-size:12px;line-height:1.25}
+        .student-adm{font-size:10px}
+        .score-input{width:54px;padding:6px 4px;font-size:12px}
+        .split-theory-input{width:52px}
+        .source-score{padding:6px 7px;font-size:11px}
+        .sheet-footer{padding:12px 14px;align-items:stretch;flex-direction:column}
+        .sheet-footer>div:last-child{display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important;width:100%}
+        .sheet-footer .btn{width:100%;padding:10px 12px}
+        .footer-info{font-size:11px;line-height:1.5}
+        .no-assessments{padding:34px 16px}
+    }
+    @media(max-width:390px){
+        .sheet-footer>div:last-child{grid-template-columns:1fr}
+        .sheet-table thead tr:first-child th.student-col,.sheet-table tbody td.student-col{min-width:132px;max-width:132px}
+    }
 </style>
 @endpush
 
 @section('content')
 <div class="page-tabs">
-    <a href="{{ route('scores.index') }}"            class="page-tab">Score Entry</a>
-    <a href="{{ route('scores.broadsheet') }}"       class="page-tab">Broadsheet</a>
+    <a href="{{ route('scores.index') }}" class="page-tab">Score Entry</a>
+    <a href="{{ route('scores.broadsheet') }}" class="page-tab">Broadsheet</a>
     <a href="{{ route('scores.assessment-types') }}" class="page-tab">Assessment Types</a>
 </div>
 
@@ -125,16 +149,14 @@
 <form method="POST" action="{{ route('scores.save') }}">
     @csrf
     <input type="hidden" name="class_arm_id" value="{{ $classArm->id }}">
-    <input type="hidden" name="subject_id"   value="{{ $subject->id }}">
-    <input type="hidden" name="term_id"      value="{{ $term->id }}">
+    <input type="hidden" name="subject_id" value="{{ $subject->id }}">
+    <input type="hidden" name="term_id" value="{{ $term->id }}">
 
     <div class="sheet-wrap">
         <div class="tbl"><table class="sheet-table">
             <thead>
                 <tr>
-                    <th class="student-col" rowspan="2" style="vertical-align:middle;text-align:left">
-                        Student
-                    </th>
+                    <th class="student-col" rowspan="2" style="vertical-align:middle;text-align:left">Student</th>
                     @foreach($assessmentTypes as $at)
                     <th>
                         {{ $at->name }}
@@ -167,7 +189,6 @@
                         <div class="student-name">{{ $student->full_name }}</div>
                         <div class="student-adm">{{ $student->admission_number }}</div>
                     </td>
-
                     @foreach($assessmentTypes as $at)
                     @php $sourceRecord = $scoreRecords[$student->id][$at->id] ?? null; @endphp
                     @if($sourceRecord?->is_source_locked && $sourceRecord?->score_source === 'cbt')
@@ -184,56 +205,21 @@
                         @endphp
                         <td class="score-col">
                             <div class="split-cell">
-                                <span class="split-obj {{ $obj === null ? 'missing' : '' }}">
-                                    Obj: {{ $obj === null ? '—' : $obj }}/{{ $at->objective_max }}
-                                </span>
-                                <input
-                                    type="number"
-                                    name="scores[{{ $student->id }}][{{ $at->id }}]"
-                                    class="split-theory-input {{ $theoryVal !== '' ? 'has-value' : '' }}"
-                                    value="{{ $theoryVal !== '' ? $theoryVal : '' }}"
-                                    min="0"
-                                    max="{{ $at->theory_max }}"
-                                    step="0.5"
-                                    placeholder="Theory"
-                                    title="Theory score (max {{ $at->theory_max }})"
-                                    data-max="{{ $at->theory_max }}"
-                                    data-objective="{{ $obj ?? 0 }}"
-                                    data-split-cap="{{ $at->weight_percentage }}"
-                                    data-student="{{ $student->id }}"
-                                    oninput="updateTotal({{ $student->id }}); validateInput(this); updateSplitTotal({{ $student->id }}, {{ $at->id }})"
-                                >
-                                <span class="split-total" id="split_total_{{ $student->id }}_{{ $at->id }}">
-                                    = {{ ($obj !== null && $theoryVal !== '') ? min($obj + (float) $theoryVal, $at->weight_percentage) : '—' }}
-                                </span>
+                                <span class="split-obj {{ $obj === null ? 'missing' : '' }}">Obj: {{ $obj === null ? '—' : $obj }}/{{ $at->objective_max }}</span>
+                                <input type="number" name="scores[{{ $student->id }}][{{ $at->id }}]" class="split-theory-input {{ $theoryVal !== '' ? 'has-value' : '' }}" value="{{ $theoryVal !== '' ? $theoryVal : '' }}" min="0" max="{{ $at->theory_max }}" step="0.5" placeholder="Theory" title="Theory score (max {{ $at->theory_max }})" data-max="{{ $at->theory_max }}" data-objective="{{ $obj ?? 0 }}" data-split-cap="{{ $at->weight_percentage }}" data-student="{{ $student->id }}" oninput="updateTotal({{ $student->id }}); validateInput(this); updateSplitTotal({{ $student->id }}, {{ $at->id }})">
+                                <span class="split-total" id="split_total_{{ $student->id }}_{{ $at->id }}">= {{ ($obj !== null && $theoryVal !== '') ? min($obj + (float) $theoryVal, $at->weight_percentage) : '—' }}</span>
                             </div>
                         </td>
                     @else
                     @php $val = $existingScores[$student->id][$at->id] ?? ''; @endphp
                     <td class="score-col">
-                        <input
-                            type="number"
-                            name="scores[{{ $student->id }}][{{ $at->id }}]"
-                            class="score-input {{ $val !== '' ? 'has-value' : '' }}"
-                            value="{{ $val !== '' ? $val : '' }}"
-                            min="0"
-                            max="{{ $at->weight_percentage }}"
-                            step="0.5"
-                            placeholder="—"
-                            data-max="{{ $at->weight_percentage }}"
-                            data-student="{{ $student->id }}"
-                            oninput="updateTotal({{ $student->id }}); validateInput(this)"
-                        >
+                        <input type="number" name="scores[{{ $student->id }}][{{ $at->id }}]" class="score-input {{ $val !== '' ? 'has-value' : '' }}" value="{{ $val !== '' ? $val : '' }}" min="0" max="{{ $at->weight_percentage }}" step="0.5" placeholder="—" data-max="{{ $at->weight_percentage }}" data-student="{{ $student->id }}" oninput="updateTotal({{ $student->id }}); validateInput(this)">
                     </td>
                     @endif
                     @endforeach
-
                     <td class="total-col">
                         @php $t = $studentTotals[$student->id] ?? 0; @endphp
-                        <span class="total-val {{ $t >= $maxTotal * 0.5 ? 'total-green' : ($t >= $maxTotal * 0.3 ? 'total-amber' : 'total-red') }}"
-                              id="total_{{ $student->id }}">
-                            {{ $t > 0 ? $t : '—' }}
-                        </span>
+                        <span class="total-val {{ $t >= $maxTotal * 0.5 ? 'total-green' : ($t >= $maxTotal * 0.3 ? 'total-amber' : 'total-red') }}" id="total_{{ $student->id }}">{{ $t > 0 ? $t : '—' }}</span>
                     </td>
                 </tr>
                 @endforeach
@@ -242,10 +228,7 @@
     </div>
 
     <div class="sheet-footer">
-        <div class="footer-info">
-            Total possible score: <strong>{{ $maxTotal }}</strong> ·
-            Scores are saved per-assessment and auto-summed
-        </div>
+        <div class="footer-info">Total possible score: <strong>{{ $maxTotal }}</strong> · Scores are saved per-assessment and auto-summed</div>
         <div style="display:flex;gap:10px">
             <a href="{{ route('scores.index') }}" class="btn btn-ghost">Cancel</a>
             <button type="submit" class="btn btn-primary">
@@ -258,79 +241,48 @@
 
 @push('scripts')
 <script>
-// Assessment type max values keyed by ID
 const atMaxValues = {
     @foreach($assessmentTypes as $at)
     {{ $at->id }}: {{ $at->weight_percentage }},
     @endforeach
 };
-
-// Student IDs and their assessment type IDs
 const studentIds = @json($students->pluck('id'));
 const atIds = @json($assessmentTypes->pluck('id'));
-
 function updateTotal(studentId) {
     let total = 0;
     atIds.forEach(atId => {
-        const input = document.querySelector(
-            `input[name="scores[${studentId}][${atId}]"]`
-        );
+        const input = document.querySelector(`input[name="scores[${studentId}][${atId}]"]`);
         if (!input) return;
         const val = parseFloat(input.value || 0) || 0;
         const objective = parseFloat(input.dataset.objective || 0) || 0;
         const cap = parseFloat(input.dataset.splitCap || atMaxValues[atId]);
-        // Split cells (data-objective present) contribute objective+theory,
-        // capped at the assessment's total weight; plain cells contribute
-        // their single value as before.
-        total += input.dataset.objective !== undefined
-            ? Math.min(val + objective, cap)
-            : val;
+        total += input.dataset.objective !== undefined ? Math.min(val + objective, cap) : val;
     });
-
     const el = document.getElementById('total_' + studentId);
     if (!el) return;
-
     const maxTotal = {{ $maxTotal }};
     el.textContent = total > 0 ? total.toFixed(total % 1 === 0 ? 0 : 1) : '—';
-    el.className = 'total-val ' + (
-        total >= maxTotal * 0.5 ? 'total-green' :
-        total >= maxTotal * 0.3 ? 'total-amber' : 'total-red'
-    );
+    el.className = 'total-val ' + (total >= maxTotal * 0.5 ? 'total-green' : total >= maxTotal * 0.3 ? 'total-amber' : 'total-red');
 }
-
 function updateSplitTotal(studentId, atId) {
     const input = document.querySelector(`input[name="scores[${studentId}][${atId}]"]`);
     const el = document.getElementById(`split_total_${studentId}_${atId}`);
     if (!input || !el) return;
-
     const objective = parseFloat(input.dataset.objective || 0) || 0;
     const cap = parseFloat(input.dataset.splitCap);
-    if (input.value === '') {
-        el.textContent = '—';
-        return;
-    }
+    if (input.value === '') { el.textContent = '—'; return; }
     const theory = parseFloat(input.value) || 0;
     const total = Math.min(objective + theory, cap);
     el.textContent = '= ' + total.toFixed(total % 1 === 0 ? 0 : 1);
 }
-
 function validateInput(input) {
     const max = parseFloat(input.dataset.max);
     const val = parseFloat(input.value);
-
     input.classList.remove('has-value', 'over-limit');
     if (input.value === '') return;
-
-    if (val > max) {
-        input.classList.add('over-limit');
-        input.title = `Max allowed: ${max}`;
-    } else {
-        input.classList.add('has-value');
-        input.title = '';
-    }
+    if (val > max) { input.classList.add('over-limit'); input.title = `Max allowed: ${max}`; }
+    else { input.classList.add('has-value'); input.title = ''; }
 }
-
-// Tab key navigation — move to next input
 document.querySelectorAll('.score-input, .split-theory-input').forEach((input, idx, all) => {
     input.addEventListener('keydown', e => {
         if (e.key === 'Tab' && !e.shiftKey) {
