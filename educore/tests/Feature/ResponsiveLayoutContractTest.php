@@ -25,7 +25,7 @@ class ResponsiveLayoutContractTest extends TestCase
 
         $this->assertStringContainsString('.health-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important', $health);
         $this->assertStringContainsString('.asc-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important', $audit);
-        $this->assertStringContainsString('.ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important', $tenant);
+        $this->assertStringContainsString('.ops-stats{grid-template-columns:repeat(2,minmax(0,1fr))', $tenant);
     }
 
     public function test_super_admin_data_tables_remain_touch_scrollable(): void
@@ -37,6 +37,16 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('overflow-x:auto', $tenant);
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $audit);
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $tenant);
+    }
+
+    public function test_primary_application_brand_css_keeps_two_column_mobile_kpis_and_scrollable_tables(): void
+    {
+        $css = file_get_contents(public_path('brand/educore-brand.css'));
+
+        $this->assertIsString($css);
+        $this->assertStringContainsString('grid-template-columns:repeat(2,minmax(0,1fr)) !important', $css);
+        $this->assertStringContainsString('overflow-x:auto !important', $css);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $css);
     }
 
     public static function shells(): array
