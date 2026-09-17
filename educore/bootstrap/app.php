@@ -28,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function (): void {
             Route::group([], base_path('routes/mail-health.php'));
             Route::group([], base_path('routes/system-health.php'));
+            Route::group([], base_path('routes/audit-security.php'));
+            Route::group([], base_path('routes/tenant-operations.php'));
             Route::group([], base_path('routes/staff-profile-onboarding.php'));
 
             Route::middleware(['web', 'auth', 'active.account', 'super.admin'])
