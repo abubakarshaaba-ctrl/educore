@@ -4,25 +4,28 @@
 
 @push('styles')
 <style>
-    .invoice-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+    .invoice-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .invoice-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}
-    .invoice-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+    .invoice-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
     .invoice-kpi-label{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-    .invoice-kpi-value{font-size:22px;font-weight:800;color:var(--midnight);letter-spacing:-.02em}
+    .invoice-kpi-value{font-size:22px;font-weight:800;color:var(--midnight);letter-spacing:-.02em;overflow-wrap:anywhere}
     .invoice-kpi-value.success{color:var(--emerald)}
     .invoice-kpi-value.danger{color:var(--crimson)}
     .invoice-kpi-sub{font-size:12px;color:var(--slate-light);margin-top:3px}
-    .invoice-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
-    .invoice-filter{display:flex;flex-direction:column;gap:6px;min-width:180px}
-    .invoice-filter.search{min-width:min(300px,100%);flex:1}
+    .invoice-filters{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(160px,.8fr) minmax(150px,.7fr) auto auto;gap:12px;align-items:end}
+    .invoice-filter{display:flex;flex-direction:column;gap:6px;min-width:0}
+    .invoice-filter.search{min-width:0}
+    .invoice-filter input,.invoice-filter select{width:100%;min-width:0}
     .invoice-progress{width:88px;height:7px;background:#E2E8F0;border-radius:999px;overflow:hidden}
     .invoice-progress>span{display:block;height:100%;border-radius:999px;background:var(--emerald)}
     .invoice-number{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px}
     .invoice-student small{display:block;color:var(--slate-light);margin-top:2px}
     .invoice-money-paid{color:var(--emerald);font-weight:700}
     .invoice-money-balance{color:var(--crimson);font-weight:700}
-    @media(max-width:1024px){.invoice-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:640px){.invoice-summary{grid-template-columns:1fr}.invoice-filter,.invoice-filter.search{min-width:100%;width:100%}.invoice-filters .btn{width:100%;justify-content:center}}
+    .invoice-table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+    @media(max-width:1100px){.invoice-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.invoice-filters{grid-template-columns:1fr 1fr 1fr}.invoice-filters .btn{justify-content:center}}
+    @media(max-width:640px){.invoice-toolbar{flex-wrap:nowrap;padding-bottom:2px}.invoice-toolbar .page-tab{flex:0 0 auto}.invoice-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px;margin-bottom:14px}.invoice-kpi{padding:10px 11px;border-radius:10px}.invoice-kpi-label{font-size:8.5px;line-height:1.25;margin-bottom:4px}.invoice-kpi-value{font-size:17px}.invoice-kpi-sub{font-size:9px}.invoice-filters{grid-template-columns:1fr;gap:9px}.invoice-filters .btn{width:100%;min-height:40px;justify-content:center}.invoice-progress{width:72px}.invoice-table-wrap table,.tbl table{min-width:760px!important}.invoice-table-wrap th,.invoice-table-wrap td,.tbl th,.tbl td{font-size:10.5px;padding:8px 10px}}
+    @media(max-width:360px){.invoice-kpi{padding:9px}.invoice-kpi-label{font-size:8px}.invoice-kpi-value{font-size:16px}.invoice-kpi-sub{font-size:8.5px}}
 </style>
 @endpush
 
@@ -105,7 +108,7 @@
     </div>
 
     @if($invoices->count())
-        <div class="tbl">
+        <div class="tbl invoice-table-wrap">
             <table>
                 <thead>
                     <tr>
