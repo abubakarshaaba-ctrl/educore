@@ -20,8 +20,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
@@ -379,6 +384,9 @@ internal fun PlatformScreen(
                     }
                     if (broadcasts.broadcasts.isEmpty()) item { EduCoreEmptyState("No broadcasts", "Platform broadcasts will appear here after creation.") }
                     items(broadcasts.broadcasts, key = { it.id }) { broadcast ->
+                        var expanded by remember(broadcast.id) { mutableStateOf(false) }
+                        var canExpand by remember(broadcast.id, broadcast.body) { mutableStateOf(false) }
+
                         Card(
                             Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
@@ -390,7 +398,20 @@ internal fun PlatformScreen(
                                     EduCoreStatusBadge(if (broadcast.active) "Active" else "Expired", if (broadcast.active) EduCoreTone.Success else EduCoreTone.Neutral)
                                 }
                                 Text("Target: ${broadcast.target.replace('_', ' ')}", style = MaterialTheme.typography.bodySmall)
-                                Text(broadcast.body)
+                                Text(
+                                    text = broadcast.body,
+                                    maxLines = if (expanded) Int.MAX_VALUE else 4,
+                                    overflow = TextOverflow.Ellipsis,
+                                    onTextLayout = { result ->
+                                        if (!expanded) canExpand = result.hasVisualOverflow
+                                    },
+                                )
+                                if (canExpand || expanded) {
+                                    EduCoreSecondaryButton(
+                                        if (expanded) "Show less" else "Read more",
+                                        { expanded = !expanded },
+                                    )
+                                }
                                 Text(listOfNotNull(broadcast.creator, broadcast.createdAt, broadcast.expiresAt?.let { "Expires $it" }).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                                 if (broadcast.active) {
                                     EduCoreSecondaryButton(
