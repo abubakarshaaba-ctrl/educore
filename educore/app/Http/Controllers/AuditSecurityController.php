@@ -26,10 +26,16 @@ class AuditSecurityController extends Controller
         };
 
         $hasAudit = Schema::hasTable('audit_logs');
-        $hasSessions = Schema::hasTable('sessions');
-        $hasTokens = Schema::hasTable('api_tokens');
         $hasUsers = Schema::hasTable('users');
         $hasTenants = Schema::hasTable('tenants');
+        $hasSessions = Schema::hasTable('sessions')
+            && Schema::hasColumn('sessions', 'last_activity');
+        $hasTokens = Schema::hasTable('api_tokens')
+            && $hasUsers
+            && collect(['id', 'user_id', 'device', 'last_used_at', 'expires_at', 'created_at'])
+                ->every(fn (string $column) => Schema::hasColumn('api_tokens', $column))
+            && collect(['id', 'name', 'email', 'tenant_id'])
+                ->every(fn (string $column) => Schema::hasColumn('users', $column));
 
         $auditQuery = $hasAudit
             ? AuditLog::query()->with(['actor:id,name,email', 'tenant:id,name,slug'])
@@ -98,16 +104,27 @@ class AuditSecurityController extends Controller
         if ($hasSessions) {
             $cutoff = now()->subMinutes((int) config('session.lifetime', 120))->timestamp;
             $sessions = DB::table('sessions')->where('last_activity', '>=', $cutoff);
-            if (!empty($filters['tenant_id']) && $hasUsers) {
+
+            if (
+                !empty($filters['tenant_id'])
+                && $hasUsers
+                && Schema::hasColumn('sessions', 'user_id')
+                && Schema::hasColumn('users', 'tenant_id')
+            ) {
                 $sessions->whereIn('user_id', function ($q) use ($filters) {
                     $q->select('id')->from('users')->where('tenant_id', (int) $filters['tenant_id']);
                 });
+            } elseif (!empty($filters['tenant_id'])) {
+                // A tenant-scoped count would be misleading without a usable
+                // user/session relation, so do not fall back to a platform total.
+                $sessions->whereRaw('1 = 0');
             }
+
             $stats['active_web_sessions'] = $sessions->count();
         }
 
         $tokenRows = collect();
-        if ($hasTokens && $hasUsers) {
+        if ($hasTokens) {
             $tokens = DB::table('api_tokens')
                 ->leftJoin('users', 'users.id', '=', 'api_tokens.user_id')
                 ->select([
@@ -151,12 +168,17 @@ class AuditSecurityController extends Controller
                 $twoFactor['available'] = true;
                 $enabled = DB::table('users')->whereNotNull($twoFactorColumn);
                 $twoFactor['users_enabled'] = (clone $enabled)->count();
-                $twoFactor['super_admins'] = DB::table('users')->where('is_super_admin', true)->count();
-                $twoFactor['super_admins_enabled'] = (clone $enabled)->where('is_super_admin', true)->count();
+
+                if (Schema::hasColumn('users', 'is_super_admin')) {
+                    $twoFactor['super_admins'] = DB::table('users')->where('is_super_admin', true)->count();
+                    $twoFactor['super_admins_enabled'] = (clone $enabled)->where('is_super_admin', true)->count();
+                }
             }
         }
 
         $tenants = $hasTenants
+            && Schema::hasColumn('tenants', 'id')
+            && Schema::hasColumn('tenants', 'name')
             ? DB::table('tenants')->select('id', 'name')->orderBy('name')->get()
             : collect();
 
