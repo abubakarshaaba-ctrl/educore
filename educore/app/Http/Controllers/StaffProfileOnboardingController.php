@@ -7,6 +7,7 @@ use App\Models\StaffWorkHistory;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PlanLimitService;
+use App\Services\StaffIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,10 @@ use Illuminate\Validation\Rules\Password;
 
 class StaffProfileOnboardingController extends Controller
 {
+    public function __construct(private readonly StaffIdGenerator $staffIdGenerator)
+    {
+    }
+
     public function show(string $token)
     {
         $tenant = Tenant::where('staff_onboarding_token', $token)->firstOrFail();
@@ -52,14 +57,18 @@ class StaffProfileOnboardingController extends Controller
             'password' => ['required', Password::min(8), 'confirmed'],
         ]);
 
-        StaffProfileSubmission::create([
+        $submission = StaffProfileSubmission::create([
             ...collect($data)->except(['password','password_confirmation'])->all(),
             'tenant_id' => $tenant->id,
+            'staff_id' => $this->staffIdGenerator->generate(),
             'password_hash' => Hash::make($data['password']),
             'status' => 'pending',
         ]);
 
-        return back()->with('success', 'Your staff profile has been submitted successfully. The school administrator will review and activate your account.');
+        return back()->with(
+            'success',
+            "Your staff profile has been submitted successfully. Your Staff ID is {$submission->staff_id}. Please keep it for your records while the school administrator reviews and activates your account."
+        );
     }
 
     public function manage(Request $request)
@@ -109,8 +118,12 @@ class StaffProfileOnboardingController extends Controller
         ]);
 
         DB::transaction(function () use ($submission, $data, $tenant) {
-            $staffId = $this->generateStaffId($tenant->id);
+            $staffId = $submission->staff_id ?: $this->staffIdGenerator->generate();
             $role = User::canonicalRole($data['role']);
+
+            if (!$submission->staff_id) {
+                $submission->forceFill(['staff_id' => $staffId])->save();
+            }
 
             $staff = User::create([
                 'tenant_id' => $tenant->id,
@@ -152,7 +165,7 @@ class StaffProfileOnboardingController extends Controller
             $submission->update(['status'=>'approved','reviewed_by'=>auth()->id(),'reviewed_at'=>now()]);
         });
 
-        return back()->with('success', 'Staff profile approved and account activated.');
+        return back()->with('success', "Staff profile approved and account activated with Staff ID {$submission->fresh()->staff_id}.");
     }
 
     public function reject(StaffProfileSubmission $submission)
@@ -168,12 +181,5 @@ class StaffProfileOnboardingController extends Controller
         do { $token = Str::lower(Str::random(8)); }
         while (Tenant::where('staff_onboarding_token', $token)->exists());
         return $token;
-    }
-
-    private function generateStaffId(int $tenantId): string
-    {
-        $last = User::where('tenant_id', $tenantId)->whereNotNull('staff_id')->orderByDesc('id')->value('staff_id');
-        $num = $last ? ((int) preg_replace('/\D/', '', $last)) + 1 : 1001;
-        return 'STF' . str_pad($num, 4, '0', STR_PAD_LEFT);
     }
 }
