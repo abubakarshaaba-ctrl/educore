@@ -6,8 +6,8 @@ import online.educoreng.educore.core.model.SessionSnapshot
 /**
  * Staff workspace entry point for profile self-service.
  * The shared ProfileScreen owns profile editing, password changes, passport
- * upload, staff ID-card view/download, and payslip access so every shell uses
- * one consistent implementation.
+ * upload and staff ID-card view/download so every shell uses one consistent
+ * implementation.
  */
 @Composable
 internal fun StaffProfileScreen(
