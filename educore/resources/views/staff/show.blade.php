@@ -36,12 +36,19 @@
     .form-label span { color:var(--crimson); }
     .form-control { box-sizing:border-box;width:100%;min-width:0;max-width:100%;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms; }
     .form-control:focus { border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1);background:white; }
+    .is-invalid { border-color:var(--crimson)!important; }
+    .field-error { margin-top:5px;font-size:11px;color:var(--crimson);line-height:1.4;overflow-wrap:anywhere; }
+    .hint { margin-top:6px;font-size:11px;color:var(--slate-light);line-height:1.45;overflow-wrap:anywhere; }
+    .hint a { color:var(--indigo);font-weight:600;text-decoration:none; }
     .btn { box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms;min-height:40px; }
     .btn-primary { background:var(--indigo);color:white; }
     .btn-primary:hover { background:#1D4ED8; }
     .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border); }
     .btn-danger { background:#FEF2F2;color:var(--crimson);border:1px solid #FECACA; }
     .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px;overflow-wrap:anywhere; }
+    .alert-error { background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:#B91C1C;margin-bottom:16px;overflow-wrap:anywhere; }
+    .alert-error strong { display:block;margin-bottom:4px; }
+    .alert-error ul { margin:4px 0 0;padding-left:18px; }
     .form-actions { display:flex;gap:10px;flex-wrap:wrap; }
     @media(max-width:1024px) { .profile-grid { grid-template-columns:1fr; } }
     @media(max-width:760px) { .form-grid{grid-template-columns:1fr}.form-group.full{grid-column:auto} }
@@ -70,6 +77,14 @@
 </div>
 
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
+@if($errors->any())
+<div class="alert-error" role="alert">
+    <strong>Changes were not saved.</strong>
+    <ul>
+        @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+    </ul>
+</div>
+@endif
 
 <div class="profile-grid">
     <div>
@@ -112,13 +127,51 @@
                 <form method="POST" action="{{ route('staff.update', $staff) }}">
                     @csrf @method('PUT')
                     <div class="form-grid">
-                        <div class="form-group"><label class="form-label">Full Name <span>*</span></label><input type="text" name="name" class="form-control" value="{{ old('name', $staff->name) }}" required></div>
-                        <div class="form-group"><label class="form-label">Email <span>*</span></label><input type="email" name="email" class="form-control" value="{{ old('email', $staff->email) }}" required></div>
-                        <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="{{ old('phone', $staff->phone) }}"></div>
-                        <div class="form-group"><label class="form-label">Staff ID</label><input type="text" name="staff_id" class="form-control" value="{{ old('staff_id', $staff->staff_id) }}"></div>
-                        <div class="form-group"><label class="form-label">Gender</label><select name="gender" class="form-control"><option value="">— Select —</option><option value="male" @selected(old('gender', $staff->gender) === 'male')>Male</option><option value="female" @selected(old('gender', $staff->gender) === 'female')>Female</option></select></div>
-                        <div class="form-group"><label class="form-label">Highest Qualification</label><select name="qualification" class="form-control"><option value="">— Select Qualification —</option>@foreach($highestQualifications as $qualification)<option value="{{ $qualification }}" @selected(old('qualification', $staff->qualification) === $qualification)>{{ $qualification }}</option>@endforeach</select></div>
-                        <div class="form-group full"><label class="form-label">Role <span>*</span></label>@include('staff._role_select', ['selected' => old('role', $staff->role)])</div>
+                        <div class="form-group">
+                            <label class="form-label">Full Name <span>*</span></label>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $staff->name) }}" required>
+                            @error('name')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email <span>*</span></label>
+                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $staff->email) }}" required>
+                            @error('email')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror" value="{{ old('phone', $staff->phone) }}">
+                            @error('phone')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Staff ID</label>
+                            <input type="text" name="staff_id" class="form-control @error('staff_id') is-invalid @enderror" value="{{ old('staff_id', $staff->staff_id) }}">
+                            @error('staff_id')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select name="gender" class="form-control @error('gender') is-invalid @enderror">
+                                <option value="">— Select —</option>
+                                <option value="male" @selected(old('gender', $staff->gender) === 'male')>Male</option>
+                                <option value="female" @selected(old('gender', $staff->gender) === 'female')>Female</option>
+                            </select>
+                            @error('gender')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Highest Qualification</label>
+                            <select name="qualification" class="form-control @error('qualification') is-invalid @enderror">
+                                <option value="">— Select Qualification —</option>
+                                @foreach($highestQualifications as $qualification)
+                                    <option value="{{ $qualification }}" @selected(old('qualification', $staff->qualification) === $qualification)>{{ $qualification }}</option>
+                                @endforeach
+                            </select>
+                            @error('qualification')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">Role <span>*</span></label>
+                            @include('staff._role_select', ['selected' => old('role', $staff->role)])
+                            @error('role')<div class="field-error">{{ $message }}</div>@enderror
+                            <div class="hint">Role and Current Position are separate. Promotions, appointments and reassignments should be recorded in @can('staff.work-history.view')<a href="{{ route('staff.work-history.index', $staff) }}">Work History</a>@else Work History @endcan.</div>
+                        </div>
                     </div>
                     <div class="form-actions"><button type="submit" class="btn btn-primary">Save Changes</button><a href="{{ route('staff.index') }}" class="btn btn-ghost">Cancel</a></div>
                 </form>
