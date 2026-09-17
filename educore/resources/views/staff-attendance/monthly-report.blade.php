@@ -4,20 +4,21 @@
 
 @push('styles')
 <style>
-.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
-.month-nav{display:flex;align-items:center;gap:8px}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;font-size:12.5px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms}
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;min-width:0}
+.month-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;font-size:12.5px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms;min-width:0}
 .btn-p{background:var(--indigo);color:white}.btn-g{background:#F1F5F9;color:var(--midnight);border:1px solid var(--border)}.btn-sm{padding:4px 10px;font-size:11px}
-.summary-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
-.sc{background:white;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.summary-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px;min-width:0}
+.sc{background:white;border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;min-width:0}
 .sv{font-size:22px;font-weight:800}.sl{font-size:10px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
-.card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
-.ch{padding:12px 16px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;min-width:0;max-width:100%}
+.ch{padding:12px 16px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-width:0}
 /* Compact report table */
-.report-table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+.report-table{width:max-content;min-width:900px;border-collapse:collapse;font-size:12px}
 .report-table th{padding:8px 6px;background:#F8FAFC;border:1px solid var(--border);font-size:9px;font-weight:700;color:var(--slate-light);text-transform:uppercase;text-align:center;white-space:nowrap}
 .report-table td{padding:7px 8px;border:1px solid var(--border);text-align:center;vertical-align:middle}
-.report-table .name-col{text-align:left;font-weight:600;color:var(--midnight);white-space:nowrap;background:white;position:sticky;left:0;z-index:1;border-right:2px solid var(--border)}
+.report-table .name-col{text-align:left;font-weight:600;color:var(--midnight);white-space:nowrap;background:white;position:sticky;left:0;z-index:2;border-right:2px solid var(--border)}
+.report-table thead .name-col{z-index:3}
 .day-cell{width:28px;min-width:28px;cursor:default}
 .d-E{background:#E0F2FE;color:#0284C7;font-weight:700;font-size:10px}
 .d-P{background:#DCFCE7;color:#15803D;font-weight:700;font-size:10px}
@@ -28,19 +29,44 @@
 .c-E{color:#0284C7}.c-P{color:var(--emerald)}.c-L{color:var(--amber)}.c-A{color:var(--crimson)}
 .pct{font-size:11px;padding:2px 6px;border-radius:10px}
 .pct-good{background:#ECFDF5;color:var(--emerald)}.pct-ok{background:#FFFBEB;color:var(--amber)}.pct-bad{background:#FEF2F2;color:var(--crimson)}
-.table-wrap{overflow-x:auto}
+.table-wrap{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.tbl{width:max-content;min-width:100%}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;padding:8px 14px;border-top:1px solid var(--border);background:#FAFBFF}
 .leg-item{display:flex;align-items:center;gap:5px}
 .leg-dot{width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.attendance-nav{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;max-width:100%}
 .nav-tab{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;border:1.5px solid var(--border);background:white;color:var(--slate);text-decoration:none;transition:all 150ms}
 .nav-tab:hover{background:#F1F5F9;color:var(--midnight)}
 .nav-tab.active{background:var(--indigo);border-color:var(--indigo);color:white}
+@media(max-width:768px){
+    .attendance-nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:6px;margin-inline:-14px;padding-inline:14px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+    .attendance-nav .nav-tab{flex:0 0 auto;white-space:nowrap;padding:8px 11px;font-size:11.5px}
+    .top-bar{display:block;margin-bottom:14px}
+    .top-bar>div:first-child{font-size:15px!important;line-height:1.35;margin-bottom:10px}
+    .month-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
+    .month-nav .btn{width:100%;min-height:42px;padding:8px 9px;white-space:normal;text-align:center}
+    .summary-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .summary-cards .sc:first-child{grid-column:1/-1}
+    .sc{padding:11px 8px!important}
+    .sv{font-size:21px}.sl{font-size:9.5px}
+    .ch{align-items:flex-start;padding:12px 14px;line-height:1.35}
+    .ch>span{min-width:0}
+    .ch>span:last-child{width:100%;font-size:11px!important}
+    .report-table{min-width:820px}
+    .report-table .name-col{max-width:150px;min-width:150px!important;white-space:normal;line-height:1.25}
+    .legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:10px 12px;font-size:10.5px}
+}
+@media(max-width:420px){
+    .month-nav{grid-template-columns:1fr 1fr}
+    .summary-cards{gap:7px}
+    .legend{grid-template-columns:1fr}
+}
 </style>
 @endpush
 
 @section('content')
 {{-- Staff Attendance Nav --}}
-<div style="display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap">
+<div class="attendance-nav">
     <a href="{{ route('staff-attendance.my') }}"
        class="nav-tab {{ request()->routeIs('staff-attendance.my') ? 'active':'' }}">
         👤 My Attendance
