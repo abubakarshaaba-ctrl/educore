@@ -4,24 +4,9 @@
 
 @push('styles')
 <style>
-.page-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px}
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.card-header{padding:14px 18px;background:#F8FAFC;border-bottom:1px solid var(--border);font-weight:700;color:var(--midnight)}
-.card-body{padding:18px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
-.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate)}
-.control{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;font:inherit;font-size:13px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
-.btn-primary{background:var(--indigo);color:#fff;border-color:var(--indigo)}
-.btn-danger{background:#FEF2F2;color:var(--crimson);border-color:#FECACA}
-.btn-ghost{background:#fff;color:var(--midnight)}
-.alert{padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}
-.alert-error{background:#FEF2F2;border:1px solid #FECACA;color:var(--crimson)}
-.alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8}
-.timeline{display:grid;gap:10px}
-.timeline-item{border:1px solid var(--border);border-radius:10px;padding:12px}
-@media(max-width:768px){.grid{grid-template-columns:1fr}.page-head{display:block}}
+.page-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px;min-width:0}.page-head>div{min-width:0}.page-head h1,.page-head div{overflow-wrap:anywhere}.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;min-width:0}.card-header{padding:14px 18px;background:#F8FAFC;border-bottom:1px solid var(--border);font-weight:700;color:var(--midnight)}.card-body{padding:18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;min-width:0}.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate)}.control{width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;font:inherit;font-size:13px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;min-height:40px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}.btn-primary{background:var(--indigo);color:#fff;border-color:var(--indigo)}.btn-danger{background:#FEF2F2;color:var(--crimson);border-color:#FECACA}.btn-ghost{background:#fff;color:var(--midnight)}.alert{padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;overflow-wrap:anywhere;line-height:1.55}.alert-error{background:#FEF2F2;border:1px solid #FECACA;color:var(--crimson)}.alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8}.timeline{display:grid;gap:10px}.timeline-item{border:1px solid var(--border);border-radius:10px;padding:12px;min-width:0;overflow-wrap:anywhere}.confirm-row{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--slate);margin-bottom:14px}.confirm-row input{flex:0 0 auto;margin-top:2px}
+@media(max-width:768px){.grid{grid-template-columns:1fr}.page-head{flex-direction:column}.page-head .btn{width:100%}.card-body{padding:16px}.btn-danger{width:100%}}
+@media(max-width:420px){.card-header{padding:12px 14px}.card-body{padding:14px}.control{padding:9px 10px}.timeline-item{padding:10px}.alert{padding:11px 12px;font-size:12px}}
 </style>
 @endpush
 
@@ -82,7 +67,7 @@
                 <label class="label">Supporting Document</label>
                 <input type="file" name="document" class="control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             </div>
-            <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--slate);margin-bottom:14px">
+            <label class="confirm-row">
                 <input type="checkbox" name="confirmation" value="1" required>
                 I understand this immediately disables this staff member's login and future active staff eligibility.
             </label>
