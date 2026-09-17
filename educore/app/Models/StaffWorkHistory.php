@@ -55,6 +55,23 @@ class StaffWorkHistory extends BaseTenantModel
         'approved_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $history): void {
+            // Tenant provisioning currently has no employment-type input. Older
+            // provisioning code labelled every first administrator as full-time,
+            // which invents personnel data. Preserve the provisioning provenance
+            // but leave employment type unknown unless it was actually recorded.
+            if (
+                $history->appointment_type === 'initial_admin'
+                && $history->reason === 'Initial tenant administrator provisioned.'
+                && $history->employment_type === 'full_time'
+            ) {
+                $history->employment_type = null;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
