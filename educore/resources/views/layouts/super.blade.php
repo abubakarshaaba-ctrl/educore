@@ -78,7 +78,6 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
 .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
 .super-pill { font-size:11px; font-weight:700; background:#FEF2F2; color:#DC2626; padding:5px 12px; border-radius:20px; border:1px solid #FECACA; }
 
-/* Mobile hamburger */
 .super-hamburger {
     display:none; align-items:center; justify-content:center;
     width:36px; height:36px; background:#F1F5F9; border:1px solid var(--border);
@@ -126,7 +125,6 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
     .page-content .action-group { min-width:180px; }
     .page-content .btn { min-height:38px; justify-content:center; }
     .two, .fr { grid-template-columns:1fr; }
-    /* Stack inline flex space-between page headers on phones */
     .page-content > div[style*="justify-content:space-between"],
     .page-content > div[style*="justify-content: space-between"] {
         flex-direction:column !important;
@@ -141,7 +139,6 @@ body { font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif; backg
     .page-content .page-header > *,
     .page-content .page-header .btn { width:100%; }
 }
-/* Shared responsive utilities (mirrors app.blade.php global styles) */
 .tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
 .tbl table { min-width:480px; }
 table { width:100%; border-collapse:collapse; }
@@ -200,6 +197,18 @@ table { width:100%; border-collapse:collapse; }
         <a href="{{ route('super.dashboard') }}" class="nav-item {{ request()->routeIs('super.dashboard') ? 'active' : '' }}">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
             Platform Dashboard
+        </a>
+        <a href="{{ route('super.tenant-operations') }}" class="nav-item {{ request()->routeIs('super.tenant-operations') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h7v7H4V4zm9 0h7v4h-7V4zM4 13h7v7H4v-7zm9-3h7v10h-7V10z"/></svg>
+            Tenant Operations
+        </a>
+        <a href="{{ route('super.system-health') }}" class="nav-item {{ request()->routeIs('super.system-health') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h4l2-6 4 12 2-6h6v-2h-4.6L13 3 9 15l-1-4H3v2z"/></svg>
+            System Health
+        </a>
+        <a href="{{ route('super.audit-security') }}" class="nav-item {{ request()->routeIs('super.audit-security') ? 'active' : '' }}">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4.2l5 2.22V11c0 3.79-2.55 7.54-5 8.78C9.55 18.54 7 14.79 7 11V7.42l5-2.22z"/></svg>
+            Audit & Security
         </a>
         <a href="{{ route('super.migrations.index') }}" class="nav-item {{ request()->routeIs('super.migrations.*') ? 'active' : '' }}">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11l-3.5-3.5L16 2l6 6-6 6-1.5-1.5L18 9H7V7zm10 10H6l3.5 3.5L8 22l-6-6 6-6 1.5 1.5L6 15h11v2z"/></svg>
@@ -272,7 +281,6 @@ table { width:100%; border-collapse:collapse; }
     </div>
 
     <div class="sidebar-footer">
-        {{-- Sign out button — full width, above user block --}}
         <form method="POST" action="{{ route('logout') }}" style="margin:0 0 8px">
             @csrf
             <button type="submit" style="width:100%;padding:10px 14px;background:#7F1D1D;border:1px solid #991B1B;color:#FCA5A5;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 150ms;letter-spacing:.04em;text-transform:uppercase"
@@ -282,7 +290,6 @@ table { width:100%; border-collapse:collapse; }
                 Sign Out
             </button>
         </form>
-        {{-- User identity block --}}
         <div class="user-block" style="cursor:default">
             <div class="user-av">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
             <div style="flex:1;min-width:0">
