@@ -118,6 +118,24 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('.page-tabs::-webkit-scrollbar{display:none}', $timetable);
     }
 
+    public function test_score_entry_surfaces_keep_mobile_forms_and_grade_sheets_usable(): void
+    {
+        $index = file_get_contents(resource_path('views/scores/index.blade.php'));
+        $entry = file_get_contents(resource_path('views/scores/entry.blade.php'));
+        $broadsheet = file_get_contents(resource_path('views/scores/broadsheet.blade.php'));
+
+        $this->assertStringContainsString('.form-group.full{grid-column:auto}', $index);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $index);
+        $this->assertStringNotContainsString('style="grid-column:span 2"', $index);
+
+        $this->assertStringContainsString('.sheet-wrap { width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch', $entry);
+        $this->assertStringContainsString('position:sticky;left:0', $entry);
+        $this->assertStringContainsString('.sheet-footer>div:last-child{display:grid!important;grid-template-columns:1fr 1fr', $entry);
+
+        $this->assertStringContainsString('position:sticky;left:0', $broadsheet);
+        $this->assertStringContainsString('.sheet-outer{overflow-x:auto', $broadsheet);
+    }
+
     public static function shells(): array
     {
         return [
