@@ -33,7 +33,9 @@ object EduCoreColors {
 
     val Success700 = Color(0xFF0D5D39)
     val Success600 = Color(0xFF137447)
+    val Success200 = Color(0xFFA9E3C3)
     val Success100 = Color(0xFFDDF7E9)
+    val Success50 = Color(0xFFF1FBF6)
 
     val Warning700 = Color(0xFF7A4F00)
     val Warning600 = Color(0xFF986300)
