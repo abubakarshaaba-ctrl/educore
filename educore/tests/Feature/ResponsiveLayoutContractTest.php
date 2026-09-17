@@ -49,6 +49,23 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $css);
     }
 
+    public function test_finance_and_payroll_screens_keep_compact_mobile_cards_and_touch_tables(): void
+    {
+        $payrollIndex = file_get_contents(resource_path('views/payroll/index.blade.php'));
+        $payslips = file_get_contents(resource_path('views/payroll/payslip.blade.php'));
+        $invoices = file_get_contents(resource_path('views/fees/invoices.blade.php'));
+
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $payrollIndex);
+        $this->assertStringContainsString('.payroll-actions{display:grid;grid-template-columns:1fr 1fr', $payrollIndex);
+
+        $this->assertStringContainsString('.payroll-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important', $payslips);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $payslips);
+
+        $this->assertStringContainsString('.invoice-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important', $invoices);
+        $this->assertStringContainsString('.invoice-filters{grid-template-columns:1fr', $invoices);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $invoices);
+    }
+
     public static function shells(): array
     {
         return [
