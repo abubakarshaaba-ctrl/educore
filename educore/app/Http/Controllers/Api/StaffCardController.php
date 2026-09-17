@@ -7,6 +7,7 @@ use App\Models\PayrollItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /**
  * Staff self-service: ID card data and monthly payslips for the mobile app.
@@ -16,24 +17,24 @@ class StaffCardController extends Controller
     /** ID card payload — the app renders the card and QR natively. */
     public function idCard(Request $request)
     {
-        $user   = $request->user();
+        $user   = $this->staffUser($request);
         $tenant = $user->tenant;
 
         $hasPhoto = $user->passport_photo
-            && Storage::disk('public')->exists($user->passport_photo);
+            && Storage::disk('public')->exists($this->normalisePublicPath($user->passport_photo));
         $hasSignature = $tenant?->authorized_signature_path
-            && Storage::disk('public')->exists($tenant->authorized_signature_path);
+            && Storage::disk('public')->exists($this->normalisePublicPath($tenant->authorized_signature_path));
 
         return response()->json([
             'name'        => $user->name,
             'staff_id'    => $user->staff_id,
             'role'        => $user->roleLabel() ?? 'Staff',
-            'department'  => $user->department_name ?? null,
+            'department'  => $user->department_name ?? $user->currentWorkHistory?->department_name ?? null,
             'date_joined' => optional($user->employment_started_at ?? $user->created_at)->format('d M Y'),
             'email'       => $user->email,
             'phone'       => $user->phone,
             'has_photo'    => (bool) $hasPhoto,
-            'photo_version'=> $hasPhoto ? substr(md5($user->passport_photo), 0, 10) : null,
+            'photo_version'=> $hasPhoto ? substr(md5((string) $user->passport_photo), 0, 10) : null,
             'photo'        => $this->absolutePhotoUrl($user->passport_photo),
             'qr_payload'  => $user->personalQrPayload(),
             'school'      => [
@@ -45,7 +46,7 @@ class StaffCardController extends Controller
                 'website' => parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online',
                 'has_signature' => (bool) $hasSignature,
                 'signature_version' => $hasSignature
-                    ? substr(md5($tenant->authorized_signature_path), 0, 10)
+                    ? substr(md5((string) $tenant->authorized_signature_path), 0, 10)
                     : null,
             ],
         ]);
@@ -54,13 +55,14 @@ class StaffCardController extends Controller
     /** Stream the staff passport photo (authenticated; no public URL needed). */
     public function photoFile(Request $request)
     {
-        $user = $request->user();
+        $user = $this->staffUser($request);
+        $path = $this->normalisePublicPath($user->passport_photo);
 
-        if (!$user->passport_photo || !Storage::disk('public')->exists($user->passport_photo)) {
+        if (!$path || !Storage::disk('public')->exists($path)) {
             abort(404, 'No photo on file.');
         }
 
-        return Storage::disk('public')->response($user->passport_photo, null, [
+        return Storage::disk('public')->response($path, null, [
             'Cache-Control' => 'no-cache, private',
         ]);
     }
@@ -68,8 +70,9 @@ class StaffCardController extends Controller
     /** Stream the issuing school's authorized signature to authenticated staff. */
     public function signatureFile(Request $request)
     {
-        $tenant = $request->user()->tenant;
-        $path = $tenant?->authorized_signature_path;
+        $user = $this->staffUser($request);
+        $tenant = $user->tenant;
+        $path = $this->normalisePublicPath($tenant?->authorized_signature_path);
 
         if (!$path || !Storage::disk('public')->exists($path)) {
             abort(404, 'No authorized signature on file.');
@@ -87,14 +90,14 @@ class StaffCardController extends Controller
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
-        $user = $request->user();
-
-        if ($user->passport_photo && Storage::disk('public')->exists($user->passport_photo)) {
-            Storage::disk('public')->delete($user->passport_photo);
-        }
-
+        $user = $this->staffUser($request);
+        $oldPath = $this->normalisePublicPath($user->passport_photo);
         $path = $request->file('photo')->store('passports', 'public');
         $user->forceFill(['passport_photo' => $path])->save();
+
+        if ($oldPath && $oldPath !== $path && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
 
         return response()->json([
             'message' => 'Photo updated.',
@@ -102,16 +105,33 @@ class StaffCardController extends Controller
         ]);
     }
 
+    /**
+     * Download the authenticated staff member's official ID card as PDF.
+     * This reuses the same front/back template used by the school admin and
+     * never accepts a user ID, preventing cross-account card access.
+     */
+    public function idCardPdf(Request $request)
+    {
+        $user = $this->staffUser($request);
+        $user->loadMissing(['tenant', 'currentWorkHistory']);
+
+        $cards = collect([$this->pdfCardData($user)]);
+        $filename = 'staff-id-' . str($user->staff_id ?: $user->name)->slug() . '.pdf';
+
+        return Pdf::loadView('staff-attendance.id-cards-pdf', compact('cards'))
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
+    }
+
     /** Absolute, cache-busted URL for a stored public-disk image path. */
     private function absolutePhotoUrl(?string $path): ?string
     {
-        if (!$path) {
+        $clean = $this->normalisePublicPath($path);
+        if (!$clean) {
             return null;
         }
 
-        $clean = preg_replace('#^storage/#', '', ltrim($path, '/'));
-
-        return asset('storage/' . $clean) . '?v=' . substr(md5($path), 0, 8);
+        return asset('storage/' . $clean) . '?v=' . substr(md5((string) $clean), 0, 8);
     }
 
     /** All released monthly payslips issued to the authenticated staff member. */
@@ -188,6 +208,54 @@ class StaffCardController extends Controller
         $name = 'Payslip_' . str_replace([' ', '/'], '_', (string) optional($period)->title) . '.pdf';
 
         return $pdf->download($name);
+    }
+
+    private function pdfCardData($user): array
+    {
+        $tenant = $user->tenant;
+        $payload = $user->personalQrPayload();
+        $qrUrl = route('staff-attendance.my') . '?qr_token=' . urlencode($payload);
+
+        return [
+            'staff' => $user,
+            'tenant' => $tenant,
+            'qr' => $this->buildQrBase64($qrUrl, 220),
+            'photo' => $this->publicImageData($user->passport_photo),
+            'signature' => $this->publicImageData($tenant?->authorized_signature_path),
+            'department' => $user->department_name ?: $user->currentWorkHistory?->department_name ?: 'School Administration',
+            'joined' => optional($user->employment_started_at ?? $user->created_at)->format('d M Y'),
+            'website' => parse_url(config('app.url'), PHP_URL_HOST) ?: 'educoreng.online',
+        ];
+    }
+
+    private function buildQrBase64(string $data, int $size = 220): string
+    {
+        try {
+            $svg = QrCode::format('svg')->size($size)->margin(1)->generate($data);
+            return 'data:image/svg+xml;base64,' . base64_encode($svg);
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    private function publicImageData(?string $path): ?string
+    {
+        $clean = $this->normalisePublicPath($path);
+        if (!$clean || !Storage::disk('public')->exists($clean)) {
+            return null;
+        }
+
+        $mime = Storage::disk('public')->mimeType($clean) ?: 'image/png';
+        return 'data:' . $mime . ';base64,' . base64_encode(Storage::disk('public')->get($clean));
+    }
+
+    private function normalisePublicPath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        return preg_replace('#^storage/#', '', ltrim($path, '/'));
     }
 
     private function staffUser(Request $request)
