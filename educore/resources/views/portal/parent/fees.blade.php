@@ -1,5 +1,34 @@
 @extends('layouts.portal')
 @section('title','Fees & Payments')
+
+@push('styles')
+<style>
+.parent-fees-title{font-size:17px;font-weight:800;margin-bottom:18px;overflow-wrap:anywhere}
+.parent-fees-table{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.parent-fees-table>table{min-width:760px}
+.parent-fees-table th{white-space:nowrap}
+.parent-fees-table td{vertical-align:top}
+.parent-fees-table td:nth-child(2){min-width:160px;overflow-wrap:anywhere}
+.installment-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.installment-wrap table{min-width:650px;margin:0;border:none}
+.parent-fees-notice{padding:14px 16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:13px;color:#92400E;margin-top:8px;overflow-wrap:anywhere}
+.parent-fees-pagination{padding:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:768px){
+    .parent-fees-table>table{min-width:700px}
+    .parent-fees-table th,.parent-fees-table td{padding:8px 10px}
+    .installment-wrap table{min-width:600px}
+}
+@media(max-width:640px){
+    .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .parent-fees-table>table{min-width:660px;font-size:11px}
+    .installment-wrap table{min-width:560px;font-size:11px}
+    .parent-fees-notice{padding:11px 12px;font-size:12px}
+    .parent-fees-pagination{padding:10px 12px}
+}
+@media(max-width:380px){.kpi-row{grid-template-columns:1fr}.parent-fees-table>table{min-width:620px}}
+</style>
+@endpush
+
 @section('content')
 
 @if($students->count() > 1)
@@ -10,7 +39,7 @@
 </div>
 @endif
 
-<h2 style="font-size:17px;font-weight:800;margin-bottom:18px">💳 Fees & Payments — {{ optional($student)->full_name }}</h2>
+<h2 class="parent-fees-title">💳 Fees & Payments — {{ optional($student)->full_name }}</h2>
 
 @if($errors->any())
 <div class="alert-e">{{ $errors->first() }}</div>
@@ -24,10 +53,9 @@
 </div>
 @endif
 
-{{-- Invoice list --}}
 <div class="card">
     <div class="ch">Invoice History</div>
-    <div class="tbl"><table>
+    <div class="parent-fees-table"><table>
         <thead>
             <tr>
                 <th>Invoice #</th>
@@ -68,14 +96,13 @@
             </td>
         </tr>
 
-        {{-- Payment plan installments for this invoice --}}
         @if(isset($installments[$inv->id]) && $installments[$inv->id]->isNotEmpty())
         <tr style="background:#FAFAFA">
             <td colspan="7" style="padding:0">
                 <div style="padding:10px 14px 6px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-top:1px dashed var(--border)">
                     Payment Plan Installments
                 </div>
-                <table style="margin:0;border:none">
+                <div class="installment-wrap"><table>
                     <thead>
                         <tr style="background:#F1F5F9">
                             <th style="padding:6px 14px">Installment</th>
@@ -119,7 +146,7 @@
                     </tr>
                     @endforeach
                     </tbody>
-                </table>
+                </table></div>
             </td>
         </tr>
         @endif
@@ -129,11 +156,11 @@
         @endforelse
         </tbody>
     </table></div>
-    <div style="padding:14px">{{ $invoices->links() }}</div>
+    <div class="parent-fees-pagination">{{ $invoices->links() }}</div>
 </div>
 
 @if(!$gatewayActive)
-<div style="padding:14px 16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:13px;color:#92400E;margin-top:8px">
+<div class="parent-fees-notice">
     ⚠ Online payment is not yet enabled for this school. Please visit the school office to make payments.
 </div>
 @endif
