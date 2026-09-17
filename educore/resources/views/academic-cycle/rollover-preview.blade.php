@@ -6,20 +6,35 @@
 .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--indigo);font-size:13px;font-weight:600;text-decoration:none;margin-bottom:16px}
 .back-link:hover{text-decoration:underline}
 .ac-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.ac-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:800;color:var(--midnight)}
+.ac-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:800;color:var(--midnight);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ac-card-body{padding:18px}
-.fg{margin-bottom:14px}
+.fg{margin-bottom:14px;min-width:0}
 .fg label{display:block;font-size:11px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
-.fg select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit}
-.btn-p{padding:10px 18px;background:var(--indigo);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-.btn-danger{padding:10px 18px;background:#DC2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-.tbl-wrap{overflow-x:auto}
+.fg select{width:100%;min-width:0;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit}
+.rollover-filter{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:end}
+.btn-p{padding:10px 18px;background:var(--indigo);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;min-height:42px;white-space:nowrap}
+.btn-danger{padding:10px 18px;background:#DC2626;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;min-height:42px}
+.tbl-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse;min-width:900px}
 thead th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light);padding:9px 12px;background:#F8FAFC;border-bottom:1px solid var(--border);text-align:left}
-tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:top}
-.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;font-size:12px;color:#92400E;margin-bottom:14px}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:top;overflow-wrap:anywhere}
+.note{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;font-size:12px;color:#92400E;margin-bottom:14px;line-height:1.55}
 .confirm-box{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:16px;margin-top:14px}
-.confirm-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#991B1B;margin-bottom:12px;cursor:pointer}
+.confirm-check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:600;color:#991B1B;margin-bottom:12px;cursor:pointer;line-height:1.45}
+.confirm-check input{flex:0 0 auto;margin-top:2px}
+@media(max-width:768px){
+    .rollover-filter{grid-template-columns:1fr;align-items:stretch}
+    .ac-card-body{padding:14px}
+    .btn-p,.btn-danger{width:100%;display:flex;align-items:center;justify-content:center;white-space:normal;text-align:center}
+    table{min-width:820px}
+}
+@media(max-width:480px){
+    .ac-card{border-radius:8px}
+    .ac-card-head{padding:12px 14px}
+    .ac-card-body{padding:12px}
+    .note,.confirm-box{padding:12px}
+    .confirm-check{font-size:12px}
+}
 </style>
 @endpush
 @section('content')
@@ -32,7 +47,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5p
         <div class="note">
             &#9888;&#65039; This tool moves student enrolments from one session to the next based on promotion decisions. Click <strong>Dry-Run Preview</strong> first to see what will happen — no data is changed until you click <strong>Commit Rollover</strong>.
         </div>
-        <form method="GET" action="{{ route('academic-cycle.rollover.preview') }}" style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
+        <form method="GET" action="{{ route('academic-cycle.rollover.preview') }}" class="rollover-filter">
             <div class="fg" style="margin:0">
                 <label>Source Session (from)</label>
                 <select name="from" required>
@@ -58,7 +73,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5p
 
 @if($result)
 <div class="ac-card">
-    <div class="ac-card-head">Preview Results <span style="font-size:11px;font-weight:400;color:var(--slate-light);margin-left:8px">No changes made yet</span></div>
+    <div class="ac-card-head">Preview Results <span style="font-size:11px;font-weight:400;color:var(--slate-light)">No changes made yet</span></div>
     <div class="ac-card-body" style="padding:0">
         <div class="tbl-wrap">
             <table>
@@ -113,7 +128,7 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5p
                     <input type="hidden" name="to" value="{{ $to }}">
                     <label class="confirm-check">
                         <input type="checkbox" name="confirm" value="1" required style="width:16px;height:16px;accent-color:#DC2626">
-                        I confirm I want to commit this rollover. I understand it cannot be undone.
+                        <span>I confirm I want to commit this rollover. I understand it cannot be undone.</span>
                     </label>
                     <button type="submit" class="btn-danger">&#9889; Commit Rollover</button>
                 </form>
