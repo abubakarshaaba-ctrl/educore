@@ -4,21 +4,23 @@
 
 @push('styles')
 <style>
-    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content; }
-    .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms; }
+    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
+    .page-tabs::-webkit-scrollbar{display:none}
+    .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms;white-space:nowrap;flex:0 0 auto; }
     .page-tab.active { background:var(--indigo);color:white; }
     .page-tab:hover:not(.active) { background:#F1F5F9; }
 
-    .context-bar { background:white;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px; }
-    .context-info h2 { font-size:15px;font-weight:700;color:var(--midnight); }
-    .context-info p  { font-size:12px;color:var(--slate);margin-top:2px; }
-    .context-actions { display:flex;gap:8px; }
+    .context-bar { background:white;border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;min-width:0; }
+    .context-info{min-width:0;flex:1 1 260px}.context-info h2 { font-size:15px;font-weight:700;color:var(--midnight);overflow-wrap:anywhere; }
+    .context-info p  { font-size:12px;color:var(--slate);margin-top:2px;line-height:1.5;overflow-wrap:anywhere; }
+    .context-actions { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+    .context-actions form{margin:0}
 
-    .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px; }
-    .alert-error   { background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px; }
-    .conflict-item { font-size:12px;margin-top:4px; }
+    .alert-success { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px;overflow-wrap:anywhere; }
+    .alert-error   { background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px;overflow-wrap:anywhere; }
+    .conflict-item { font-size:12px;margin-top:4px;overflow-wrap:anywhere; }
 
-    .tt-outer { overflow-x:auto;margin-bottom:20px; }
+    .tt-outer { width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px; }
     .tt-table { width:100%;border-collapse:collapse;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);min-width:700px; }
     .tt-table thead th {
         background:var(--midnight);color:white;padding:10px 12px;
@@ -44,10 +46,10 @@
     }
 
     .period-cell { padding:6px 8px;min-height:54px; }
-    .period-item { background:var(--indigo-bg);border:1px solid #BFDBFE;border-radius:7px;padding:8px 10px;position:relative;margin-bottom:4px; }
-    .period-subject { font-size:12px;font-weight:700;color:var(--indigo);line-height:1.3; }
-    .period-teacher { font-size:11px;color:var(--slate);margin-top:2px; }
-    .period-del { position:absolute;top:4px;right:5px;background:none;border:none;color:#CBD5E1;cursor:pointer;font-size:13px;line-height:1;padding:0;transition:color 150ms; }
+    .period-item { background:var(--indigo-bg);border:1px solid #BFDBFE;border-radius:7px;padding:8px 26px 8px 10px;position:relative;margin-bottom:4px;min-width:0; }
+    .period-subject { font-size:12px;font-weight:700;color:var(--indigo);line-height:1.3;overflow-wrap:anywhere; }
+    .period-teacher { font-size:11px;color:var(--slate);margin-top:2px;overflow-wrap:anywhere; }
+    .period-del { position:absolute;top:4px;right:5px;background:none;border:none;color:#CBD5E1;cursor:pointer;font-size:13px;line-height:1;padding:4px;transition:color 150ms; }
     .period-del:hover { color:var(--crimson); }
     .empty-cell { display:flex;align-items:center;justify-content:center;min-height:54px; }
     .add-btn { font-size:11px;color:var(--slate-light);background:none;border:1.5px dashed #CBD5E1;border-radius:6px;cursor:pointer;padding:5px 10px;transition:all 150ms; }
@@ -55,21 +57,46 @@
     .closed-cell { min-height:54px;display:flex;align-items:center;justify-content:center;background:#F8FAFC;color:#94A3B8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em; }
     .break-row td.closed-break { background:#F8FAFC !important;color:#94A3B8 !important; }
 
-    .add-card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden; }
+    .add-card { background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;width:100%; }
     .add-card-header { padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:600;color:var(--midnight); }
     .add-card-body { padding:18px; }
-    .form-group { margin-bottom:12px; }
+    .form-group { margin-bottom:12px;min-width:0; }
     .form-label { display:block;font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px; }
     .form-label span { color:var(--crimson); }
-    .form-control { width:100%;padding:8px 10px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;transition:border-color 200ms; }
+    .form-control { box-sizing:border-box;width:100%;min-width:0;padding:8px 10px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;transition:border-color 200ms; }
     .form-control:focus { border-color:var(--indigo);background:white; }
-    .form-row { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
-    .btn { display:inline-flex;align-items:center;gap:5px;padding:9px 14px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
+    .form-row { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 14px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms;min-height:38px; }
     .btn-primary { background:var(--indigo);color:white;width:100%;justify-content:center; }
     .btn-primary:hover { background:#1D4ED8; }
     .btn-ghost { background:white;color:var(--midnight);border:1px solid var(--border); }
     .btn-sm { padding:6px 12px;font-size:12px; }
     .btn-generate { background:linear-gradient(135deg,#059669,#047857);color:white; }
+
+    @media(max-width:768px){
+        .page-tabs{width:100%;margin-bottom:14px}
+        .context-bar{padding:12px 14px;align-items:flex-start}
+        .context-info{flex-basis:100%}
+        .context-actions{width:100%}
+        .context-actions form,.context-actions .btn{flex:1 1 160px}
+        .tt-table{min-width:660px}
+        .add-card-header{padding:12px 14px}
+        .add-card-body{padding:14px}
+    }
+    @media(max-width:480px){
+        .page-tab{padding:7px 11px;font-size:11px}
+        .context-info h2{font-size:14px}
+        .context-info p{font-size:11px}
+        .context-actions{flex-direction:column;align-items:stretch}
+        .context-actions form,.context-actions .btn{width:100%;flex:none}
+        .form-row{grid-template-columns:1fr}
+        .tt-table{min-width:620px}
+        .tt-table thead th{padding:8px 9px;font-size:10px}
+        .tt-table tbody td.time-col{padding:8px 9px}
+        .period-cell{padding:5px 6px}
+        .period-item{padding:7px 24px 7px 8px}
+        .alert-success,.alert-error{padding:10px 12px;font-size:12px}
+    }
 </style>
 @endpush
 
