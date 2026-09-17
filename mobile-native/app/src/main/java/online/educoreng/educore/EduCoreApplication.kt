@@ -71,7 +71,7 @@ class EduCoreApplication : Application() {
             immediateCheck,
         )
 
-        val periodicCheck = PeriodicWorkRequestBuilder<AppUpdateWorker>(6, TimeUnit.HOURS)
+        val periodicCheck = PeriodicWorkRequestBuilder<AppUpdateWorker>(1, TimeUnit.HOURS)
             .setConstraints(connectedNetwork)
             .build()
 
