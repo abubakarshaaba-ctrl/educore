@@ -4,31 +4,45 @@
 
 @push('styles')
 <style>
-    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;flex-wrap:wrap; }
+    .page-tabs { display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;max-width:100%;flex-wrap:wrap; }
     .page-tab { padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);text-decoration:none;transition:all 150ms; }
     .page-tab.active { background:var(--indigo);color:white; }
     .page-tab:hover:not(.active) { background:#F1F5F9; }
-    .filter-card { background:white;border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap; }
-    .filter-group { display:flex;flex-direction:column;gap:5px; }
+    .filter-card { background:white;border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;min-width:0; }
+    .filter-group { display:flex;flex-direction:column;gap:5px;min-width:0;flex:1 1 210px; }
     .filter-label { font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em; }
-    .filter-control { padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;min-width:200px; }
-    .btn { display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms; }
+    .filter-control { box-sizing:border-box;width:100%;min-width:0;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none; }
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background 150ms;min-height:40px; }
     .btn-primary { background:var(--indigo);color:white; }
-    .tt-outer { overflow-x:auto; }
+    .tt-outer { width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch; }
     .tt-table { width:100%;border-collapse:collapse;background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);min-width:700px; }
     .tt-table thead th { background:var(--midnight);color:white;padding:10px 12px;font-size:11px;font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:0.05em;border-right:1px solid rgba(255,255,255,0.08); }
     .tt-table thead th:first-child { text-align:left;width:110px; }
-    .tt-table tbody td { border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:top;padding:6px 8px;min-height:54px; }
+    .tt-table tbody td { border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:top;padding:6px 8px;min-height:54px;overflow-wrap:anywhere; }
     .tt-table tbody td.time-col { font-size:11px;font-weight:700;color:var(--slate-light);text-transform:uppercase;background:#F8FAFC;text-align:center;vertical-align:middle;white-space:nowrap; }
     .tt-table tbody tr:last-child td { border-bottom:none; }
     .break-row td { background:#FFFBEB !important;padding:8px 12px !important;font-size:11px;font-weight:600;color:var(--amber);text-align:center; }
     .period-item { background:#ECFDF5;border:1px solid #A7F3D0;border-radius:7px;padding:7px 10px;margin-bottom:4px; }
-    .period-subject { font-size:12px;font-weight:700;color:var(--emerald); }
-    .period-class { font-size:11px;color:var(--slate);margin-top:2px; }
+    .period-subject { font-size:12px;font-weight:700;color:var(--emerald);overflow-wrap:anywhere; }
+    .period-class { font-size:11px;color:var(--slate);margin-top:2px;overflow-wrap:anywhere; }
     .closed-cell{background:#F8FAFC!important;color:#94A3B8!important;text-align:center!important;vertical-align:middle!important;font-size:10px!important;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-    .empty-state { text-align:center;padding:50px;color:var(--slate-light); }
+    .empty-state { text-align:center;padding:50px 20px;color:var(--slate-light); }
     .empty-state h3 { font-size:15px;font-weight:600;color:var(--slate);margin-bottom:6px; }
-    @media(max-width:700px){.page-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap}.page-tab{white-space:nowrap}}
+    @media(max-width:700px){
+        .page-tabs{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}.page-tabs::-webkit-scrollbar{display:none}.page-tab{white-space:nowrap;flex:0 0 auto}
+        .filter-card{padding:14px;align-items:stretch}
+        .filter-group{flex:1 1 100%}
+        .filter-card>.btn{width:100%}
+        .tt-table{min-width:660px}
+    }
+    @media(max-width:420px){
+        .page-tab{padding:7px 11px;font-size:11px}
+        .filter-card{padding:12px;border-radius:8px}
+        .tt-table thead th{padding:8px 9px;font-size:9px}
+        .tt-table tbody td{padding:6px;font-size:11px}
+        .period-item{padding:6px}
+        .empty-state{padding:36px 14px}
+    }
 </style>
 @endpush
 
@@ -65,7 +79,7 @@
             <span class="filter-label">Teacher</span>
             @if(count($teachers) === 1 && optional($teachers->first())->id === auth()->id())
             <input type="hidden" name="teacher_id" value="{{ auth()->id() }}">
-            <div style="font-size:13px;font-weight:600;color:var(--midnight);padding:8px 0">{{ auth()->user()->name }}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--midnight);padding:8px 0;overflow-wrap:anywhere">{{ auth()->user()->name }}</div>
             @else
             <select name="teacher_id" class="filter-control" required>
                 <option value="">Select teacher</option>
@@ -94,7 +108,7 @@
         ->where('session_id', $session->id)->first();
 @endphp
 <div class="tt-outer">
-    <div class="tbl"><table class="tt-table">
+    <table class="tt-table">
         <thead><tr><th>Time</th>@foreach($days as $day)<th>{{ ucfirst($day) }}@if($teacherTimetableConfig)<br><span style="font-size:9px;font-weight:400;opacity:.75">to {{ $teacherTimetableConfig->closingTimeFor($day) }}</span>@endif</th>@endforeach</tr></thead>
         <tbody>
             @foreach($allSlots as $slot)
@@ -114,7 +128,7 @@
                 @endif
             @endforeach
         </tbody>
-    </table></div>
+    </table>
 </div>
 @else
 <div class="empty-state"><h3>Select a teacher and session</h3><p>The teacher's full weekly schedule will appear here.</p></div>
