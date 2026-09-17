@@ -20,7 +20,7 @@ class StaffIdGenerator
             && Schema::hasColumn('staff_profile_submissions', 'staff_id');
 
         if ($submissionTableReady) {
-            foreach (StaffProfileSubmission::query()->whereNotNull('staff_id')->pluck('staff_id') as $staffId) {
+            foreach (StaffProfileSubmission::withoutTenantScope()->whereNotNull('staff_id')->pluck('staff_id') as $staffId) {
                 $highest = max($highest, $this->numericPart($staffId));
             }
         }
@@ -30,7 +30,7 @@ class StaffIdGenerator
             $candidate = 'STF' . str_pad((string) $highest, 4, '0', STR_PAD_LEFT);
         } while (
             User::query()->where('staff_id', $candidate)->exists()
-            || ($submissionTableReady && StaffProfileSubmission::query()->where('staff_id', $candidate)->exists())
+            || ($submissionTableReady && StaffProfileSubmission::withoutTenantScope()->where('staff_id', $candidate)->exists())
         );
 
         return $candidate;
