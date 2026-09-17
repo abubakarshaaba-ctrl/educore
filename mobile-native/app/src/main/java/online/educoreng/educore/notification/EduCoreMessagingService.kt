@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -114,6 +115,7 @@ class EduCoreMessagingService : FirebaseMessagingService() {
             NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.drawable.ic_educore_notification)
                 .setLargeIcon(largeIcon)
+                .setColor(ContextCompat.getColor(this, R.color.educore_notification_accent))
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
