@@ -136,6 +136,20 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('.sheet-outer{overflow-x:auto', $broadsheet);
     }
 
+    public function test_grading_and_timetable_frequency_keep_phone_safe_forms_and_tables(): void
+    {
+        $grading = file_get_contents(resource_path('views/settings/grading.blade.php'));
+        $frequency = file_get_contents(resource_path('views/timetable/frequency.blade.php'));
+
+        $this->assertStringContainsString('.grade-table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch', $grading);
+        $this->assertStringContainsString('.add-grade-grid{grid-template-columns:1fr}', $grading);
+        $this->assertStringContainsString('.snav{position:relative;top:0;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch', $grading);
+
+        $this->assertStringContainsString('.freq-table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch', $frequency);
+        $this->assertStringContainsString('.selector-grid { grid-template-columns:1fr; }', $frequency);
+        $this->assertStringContainsString('.total-bar{align-items:stretch;flex-direction:column', $frequency);
+    }
+
     public static function shells(): array
     {
         return [
