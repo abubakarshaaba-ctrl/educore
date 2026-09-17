@@ -99,6 +99,25 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $portal);
     }
 
+    public function test_people_management_and_timetable_keep_mobile_safe_actions_and_scroll_boundaries(): void
+    {
+        $students = file_get_contents(resource_path('views/students/index.blade.php'));
+        $staff = file_get_contents(resource_path('views/staff/index.blade.php'));
+        $timetable = file_get_contents(resource_path('views/timetable/index.blade.php'));
+
+        $this->assertStringContainsString('.student-page-actions { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));', $students);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $students);
+        $this->assertStringContainsString('.student-table-card table { min-width:700px; }', $students);
+
+        $this->assertStringContainsString('.page-actions{display:grid;grid-template-columns:1fr;width:100%}', $staff);
+        $this->assertStringContainsString('.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch}', $staff);
+        $this->assertStringContainsString('table{min-width:720px}', $staff);
+
+        $this->assertStringContainsString('.two-col { grid-template-columns:1fr; }', $timetable);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $timetable);
+        $this->assertStringContainsString('.page-tabs::-webkit-scrollbar{display:none}', $timetable);
+    }
+
     public static function shells(): array
     {
         return [
