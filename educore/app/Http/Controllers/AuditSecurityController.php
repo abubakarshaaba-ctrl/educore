@@ -107,7 +107,7 @@ class AuditSecurityController extends Controller
         }
 
         $tokenRows = collect();
-        if ($hasTokens) {
+        if ($hasTokens && $hasUsers) {
             $tokens = DB::table('api_tokens')
                 ->leftJoin('users', 'users.id', '=', 'api_tokens.user_id')
                 ->select([
@@ -144,7 +144,7 @@ class AuditSecurityController extends Controller
         ];
 
         if ($hasUsers) {
-            $twoFactorColumn = collect(['two_factor_secret', 'two_factor_confirmed_at'])
+            $twoFactorColumn = collect(['two_factor_confirmed_at', 'two_factor_secret'])
                 ->first(fn ($column) => Schema::hasColumn('users', $column));
 
             if ($twoFactorColumn) {
