@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\MobileTransfersController;
 use App\Http\Controllers\Api\ParentController;
 use App\Http\Controllers\Api\PlatformBroadcastController;
 use App\Http\Controllers\Api\PlatformController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\ReportsController;
 use App\Http\Controllers\Api\ScoreController;
@@ -93,6 +94,13 @@ Route::prefix('v1')->group(function () {
             Route::get('{lessonPlan}/note/pdf', [MobileLessonPlannerController::class, 'notePdf']);
         });
         Route::get('me', [TeacherController::class, 'me']);
+        Route::get('profile', [ProfileController::class, 'show']);
+        Route::patch('profile', [ProfileController::class, 'update']);
+        Route::put('profile/password', [ProfileController::class, 'updatePassword'])
+            ->middleware('throttle:8,1');
+        Route::post('profile/passport', [ProfileController::class, 'uploadPassport'])
+            ->middleware('throttle:12,1');
+        Route::get('profile/passport-file', [ProfileController::class, 'passportFile']);
         Route::get('portal/modules', [MobilePortalController::class, 'modules']);
         Route::post('portal/session', [MobilePortalController::class, 'createSession']);
         Route::get('classes', [MobileClassController::class, 'index']);
@@ -132,6 +140,7 @@ Route::prefix('v1')->group(function () {
         Route::get('timetable/form-class', [TimetableController::class, 'formClass']);
 
         Route::get('id-card', [StaffCardController::class, 'idCard']);
+        Route::get('id-card/pdf', [StaffCardController::class, 'idCardPdf']);
         Route::get('id-card/photo-file', [StaffCardController::class, 'photoFile']);
         Route::get('id-card/signature-file', [StaffCardController::class, 'signatureFile']);
         Route::post('id-card/photo', [StaffCardController::class, 'uploadPhoto']);
