@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePaymentController;
+use App\Http\Controllers\Api\MobileReleaseController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
 use App\Http\Controllers\Api\MobileTransfersController;
@@ -52,6 +53,14 @@ Route::prefix('v1')->group(function () {
         ->middleware('throttle:10,1');
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])
         ->middleware('throttle:5,1');
+
+
+    // Public Android release metadata + protected Codemagic release webhook.
+    // The webhook authenticates with its own bearer token inside the controller.
+    Route::get('mobile-release/latest', [MobileReleaseController::class, 'latest'])
+        ->middleware('throttle:60,1');
+    Route::post('mobile-release/notify', MobileReleaseController::class)
+        ->middleware('throttle:30,1');
 
     Route::middleware(AuthenticateApiToken::class)->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
