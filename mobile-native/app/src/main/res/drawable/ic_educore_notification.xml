@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Android status-bar notification icons must be a white silhouette on a transparent background. -->
+    <group
+        android:scaleX="0.88"
+        android:scaleY="0.88"
+        android:translateX="30.72"
+        android:translateY="30.72">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M271,178A78,78 0,0 0,271 334Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M339,120H369A7,7 0,0 1,376 127V157A7,7 0,0 1,369 164H339A7,7 0,0 1,332 157V127A7,7 0,0 1,339 120Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M395,172H418A6,6 0,0 1,424 178V201A6,6 0,0 1,418 207H395A6,6 0,0 1,389 201V178A6,6 0,0 1,395 172Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M336,234H366A6,6 0,0 1,372 240V270A6,6 0,0 1,366 276H336A6,6 0,0 1,330 270V240A6,6 0,0 1,336 234Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M405,267H423A6,6 0,0 1,429 273V291A6,6 0,0 1,423 297H405A6,6 0,0 1,399 291V273A6,6 0,0 1,405 267Z" />
+    </group>
+</vector>
