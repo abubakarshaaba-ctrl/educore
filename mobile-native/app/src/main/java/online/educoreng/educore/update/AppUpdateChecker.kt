@@ -1,18 +1,12 @@
 package online.educoreng.educore.update
 
-import online.educoreng.educore.BuildConfig
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import online.educoreng.educore.BuildConfig
+import org.json.JSONObject
 
-/**
- * Lightweight production-update discovery for APK installs distributed outside
- * Google Play. GitHub Releases is already the canonical signed-artifact source
- * used by EduCore's production pipeline, while users download through the
- * stable EduCore web endpoint.
- */
 data class AppUpdateInfo(
     val latestVersionCode: Int,
     val latestVersionName: String,
@@ -28,52 +22,41 @@ data class AppUpdateInfo(
 }
 
 object AppUpdateChecker {
-    private const val RELEASE_API =
-        "https://api.github.com/repos/abubakarshaaba-ctrl/educore/releases/latest"
+    private const val RELEASE_API = "https://educoreng.online/api/v1/mobile-release/latest"
     private const val DOWNLOAD_URL = "https://educoreng.online/download/app"
 
-    /**
-     * Check on each cold app launch. This intentionally avoids a long-lived
-     * client cache so a compulsory security update cannot be bypassed by
-     * force-closing and reopening the app during a cache window.
-     */
     suspend fun check(): AppUpdateInfo? = withContext(Dispatchers.IO) {
         runCatching {
             val connection = (URL(RELEASE_API).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8_000
                 readTimeout = 8_000
-                setRequestProperty("Accept", "application/vnd.github+json")
+                useCaches = false
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Cache-Control", "no-cache")
                 setRequestProperty("User-Agent", "EduCore-Android/${BuildConfig.VERSION_NAME}")
             }
 
             connection.useConnection { conn ->
                 if (conn.responseCode !in 200..299) return@runCatching null
-                val payload = conn.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(payload)
-                val tag = json.optString("tag_name")
-                val match = RELEASE_TAG.matchEntire(tag) ?: return@runCatching null
-                val versionName = match.groupValues[1]
-                val versionCode = match.groupValues[2].toIntOrNull() ?: return@runCatching null
-                val body = json.optString("body")
-                val minimum = MIN_VERSION.find(body)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toIntOrNull()
-                    ?: 1
-                val notes = WHATS_NEW.find(body)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?: "A newer EduCore version is available with the latest improvements and fixes."
+
+                val envelope = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                if (!envelope.optBoolean("available", false)) return@runCatching null
+                val release = envelope.optJSONObject("release") ?: return@runCatching null
+
+                val versionCode = release.optInt("version_code", 0)
+                if (versionCode <= 0) return@runCatching null
 
                 AppUpdateInfo(
                     latestVersionCode = versionCode,
-                    latestVersionName = versionName,
-                    minimumSupportedVersionCode = minimum,
-                    releaseNotes = notes,
-                    downloadUrl = DOWNLOAD_URL,
+                    latestVersionName = release.optString("version_name").trim().ifBlank { versionCode.toString() },
+                    minimumSupportedVersionCode = release.optInt("minimum_supported_version_code", 1).coerceAtLeast(1),
+                    releaseNotes = release.optString("message").trim().ifBlank {
+                        "A newer EduCore version is available with the latest improvements and fixes."
+                    },
+                    downloadUrl = release.optString("download_url").trim()
+                        .takeIf { it.startsWith("https://", ignoreCase = true) }
+                        ?: DOWNLOAD_URL,
                 )
             }
         }.getOrNull()
@@ -85,8 +68,4 @@ object AppUpdateChecker {
         } finally {
             disconnect()
         }
-
-    private val RELEASE_TAG = Regex("^android-v(.+)-code(\\d+)-b\\d+-[A-Za-z0-9._-]+$")
-    private val MIN_VERSION = Regex("(?im)^-?\\s*minimumSupportedVersionCode:\\s*(\\d+)\\s*$")
-    private val WHATS_NEW = Regex("(?is)##\\s*What's new\\s*(.+?)(?=\\n##\\s|\\z)")
 }
