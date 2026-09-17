@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class TenantOperationsController extends Controller
 {
@@ -45,98 +48,148 @@ class TenantOperationsController extends Controller
         $tenants = $query->orderBy('tenants.name')->paginate(30)->withQueryString();
         $tenantIds = collect($tenants->items())->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        $userCounts = $this->groupCount('users', 'tenant_id', $tenantIds, function ($q) {
-            if (Schema::hasColumn('users', 'deleted_at')) {
-                $q->whereNull('deleted_at');
-            }
-        });
-        $activeUserCounts = $this->groupCount('users', 'tenant_id', $tenantIds, function ($q) {
-            if (Schema::hasColumn('users', 'is_active')) {
-                $q->where('is_active', true);
-            }
-            if (Schema::hasColumn('users', 'deleted_at')) {
-                $q->whereNull('deleted_at');
-            }
-        });
-        $studentCounts = $this->groupCount('students', 'tenant_id', $tenantIds, function ($q) {
-            if (Schema::hasColumn('students', 'deleted_at')) {
-                $q->whereNull('deleted_at');
-            }
+        $userCounts = $this->safeMetric('user_counts', function () use ($tenantIds) {
+            return $this->groupCount('users', 'tenant_id', $tenantIds, function ($q) {
+                if (Schema::hasColumn('users', 'deleted_at')) {
+                    $q->whereNull('users.deleted_at');
+                }
+            });
         });
 
-        $supportCounts = collect();
-        if ($tenantIds && Schema::hasTable('platform_support_tickets') && Schema::hasColumn('platform_support_tickets', 'tenant_id')) {
-            $supportCounts = DB::table('platform_support_tickets')
+        $activeUserCounts = $this->safeMetric('active_user_counts', function () use ($tenantIds) {
+            return $this->groupCount('users', 'tenant_id', $tenantIds, function ($q) {
+                if (Schema::hasColumn('users', 'is_active')) {
+                    $q->where('users.is_active', true);
+                }
+                if (Schema::hasColumn('users', 'deleted_at')) {
+                    $q->whereNull('users.deleted_at');
+                }
+            });
+        });
+
+        $studentCounts = $this->safeMetric('student_counts', function () use ($tenantIds) {
+            return $this->groupCount('students', 'tenant_id', $tenantIds, function ($q) {
+                if (Schema::hasColumn('students', 'deleted_at')) {
+                    $q->whereNull('students.deleted_at');
+                }
+            });
+        });
+
+        $supportCounts = $this->safeMetric('support_counts', function () use ($tenantIds) {
+            if (!$tenantIds || !Schema::hasTable('platform_support_tickets') || !Schema::hasColumn('platform_support_tickets', 'tenant_id')) {
+                return collect();
+            }
+
+            return DB::table('platform_support_tickets')
                 ->whereIn('tenant_id', $tenantIds)
-                ->when(Schema::hasColumn('platform_support_tickets', 'status'), fn ($q) => $q->whereIn('status', ['open', 'pending']))
+                ->when(
+                    Schema::hasColumn('platform_support_tickets', 'status'),
+                    fn ($q) => $q->whereIn('status', ['open', 'pending'])
+                )
                 ->select('tenant_id', DB::raw('COUNT(*) as aggregate'))
-                ->groupBy('tenant_id')->pluck('aggregate', 'tenant_id');
-        }
+                ->groupBy('tenant_id')
+                ->pluck('aggregate', 'tenant_id');
+        });
 
-        $unpaidInvoices = collect();
-        if ($tenantIds && Schema::hasTable('platform_invoices') && Schema::hasColumn('platform_invoices', 'tenant_id')) {
-            $unpaidInvoices = DB::table('platform_invoices')
+        $unpaidInvoices = $this->safeMetric('unpaid_invoice_counts', function () use ($tenantIds) {
+            if (!$tenantIds || !Schema::hasTable('platform_invoices') || !Schema::hasColumn('platform_invoices', 'tenant_id')) {
+                return collect();
+            }
+
+            return DB::table('platform_invoices')
                 ->whereIn('tenant_id', $tenantIds)
-                ->when(Schema::hasColumn('platform_invoices', 'status'), fn ($q) => $q->where('status', '!=', 'paid'))
+                ->when(
+                    Schema::hasColumn('platform_invoices', 'status'),
+                    fn ($q) => $q->where(function ($status) {
+                        $status->whereNull('status')->orWhere('status', '!=', 'paid');
+                    })
+                )
                 ->select('tenant_id', DB::raw('COUNT(*) as aggregate'))
-                ->groupBy('tenant_id')->pluck('aggregate', 'tenant_id');
-        }
+                ->groupBy('tenant_id')
+                ->pluck('aggregate', 'tenant_id');
+        });
 
-        $recentActivity = collect();
-        if ($tenantIds && Schema::hasTable('users') && Schema::hasColumn('users', 'tenant_id') && Schema::hasColumn('users', 'last_login_at')) {
-            $recentActivity = DB::table('users')->whereIn('tenant_id', $tenantIds)
+        $recentActivity = $this->safeMetric('recent_activity', function () use ($tenantIds) {
+            if (
+                !$tenantIds
+                || !Schema::hasTable('users')
+                || !Schema::hasColumn('users', 'tenant_id')
+                || !Schema::hasColumn('users', 'last_login_at')
+            ) {
+                return collect();
+            }
+
+            return DB::table('users')
+                ->whereIn('tenant_id', $tenantIds)
                 ->select('tenant_id', DB::raw('MAX(last_login_at) as last_activity'))
-                ->groupBy('tenant_id')->pluck('last_activity', 'tenant_id');
-        }
+                ->groupBy('tenant_id')
+                ->pluck('last_activity', 'tenant_id');
+        });
 
-        $mobileSessions = collect();
-        if (
-            $tenantIds
-            && Schema::hasTable('api_tokens')
-            && Schema::hasTable('users')
-            && Schema::hasColumn('api_tokens', 'user_id')
-            && Schema::hasColumn('users', 'tenant_id')
-        ) {
+        $mobileSessions = $this->safeMetric('mobile_sessions', function () use ($tenantIds) {
+            if (
+                !$tenantIds
+                || !Schema::hasTable('api_tokens')
+                || !Schema::hasTable('users')
+                || !Schema::hasColumn('api_tokens', 'user_id')
+                || !Schema::hasColumn('users', 'id')
+                || !Schema::hasColumn('users', 'tenant_id')
+            ) {
+                return collect();
+            }
+
             $mobileQuery = DB::table('api_tokens')
                 ->join('users', 'users.id', '=', 'api_tokens.user_id')
                 ->whereIn('users.tenant_id', $tenantIds);
 
             if (Schema::hasColumn('api_tokens', 'expires_at')) {
                 $mobileQuery->where(function ($q) {
-                    $q->whereNull('api_tokens.expires_at')->orWhere('api_tokens.expires_at', '>', now());
+                    $q->whereNull('api_tokens.expires_at')
+                        ->orWhere('api_tokens.expires_at', '>', now());
                 });
             }
 
-            $mobileSessions = $mobileQuery
+            return $mobileQuery
                 ->select('users.tenant_id', DB::raw('COUNT(*) as aggregate'))
-                ->groupBy('users.tenant_id')->pluck('aggregate', 'users.tenant_id');
-        }
+                ->groupBy('users.tenant_id')
+                ->pluck('aggregate', 'users.tenant_id');
+        });
 
-        $webSessions = collect();
-        if (
-            $tenantIds
-            && Schema::hasTable('sessions')
-            && Schema::hasTable('users')
-            && Schema::hasColumn('sessions', 'user_id')
-            && Schema::hasColumn('sessions', 'last_activity')
-            && Schema::hasColumn('users', 'tenant_id')
-        ) {
+        $webSessions = $this->safeMetric('web_sessions', function () use ($tenantIds) {
+            if (
+                !$tenantIds
+                || !Schema::hasTable('sessions')
+                || !Schema::hasTable('users')
+                || !Schema::hasColumn('sessions', 'user_id')
+                || !Schema::hasColumn('sessions', 'last_activity')
+                || !Schema::hasColumn('users', 'id')
+                || !Schema::hasColumn('users', 'tenant_id')
+            ) {
+                return collect();
+            }
+
             $cutoff = now()->subMinutes((int) config('session.lifetime', 120))->timestamp;
-            $webSessions = DB::table('sessions')
+
+            return DB::table('sessions')
                 ->join('users', 'users.id', '=', 'sessions.user_id')
                 ->whereIn('users.tenant_id', $tenantIds)
                 ->where('sessions.last_activity', '>=', $cutoff)
                 ->select('users.tenant_id', DB::raw('COUNT(*) as aggregate'))
-                ->groupBy('users.tenant_id')->pluck('aggregate', 'users.tenant_id');
-        }
+                ->groupBy('users.tenant_id')
+                ->pluck('aggregate', 'users.tenant_id');
+        });
 
         $rows = collect($tenants->items())->map(function ($tenant) use (
-            $userCounts, $activeUserCounts, $studentCounts, $supportCounts, $unpaidInvoices,
-            $recentActivity, $mobileSessions, $webSessions
+            $userCounts,
+            $activeUserCounts,
+            $studentCounts,
+            $supportCounts,
+            $unpaidInvoices,
+            $recentActivity,
+            $mobileSessions,
+            $webSessions
         ) {
-            $expiry = $tenant->subscription_expires_at ?? null;
-            $expiryDate = $expiry ? \Illuminate\Support\Carbon::parse($expiry) : null;
-            $daysToExpiry = $expiryDate ? (int) now()->startOfDay()->diffInDays($expiryDate->startOfDay(), false) : null;
+            [$expiryDate, $daysToExpiry] = $this->subscriptionExpiry($tenant->subscription_expires_at ?? null);
             $attention = [];
 
             if (($tenant->status ?? '') !== 'active') {
@@ -164,6 +217,7 @@ class TenantOperationsController extends Controller
                 'web_sessions' => (int) ($webSessions[$tenant->id] ?? 0),
                 'mobile_sessions' => (int) ($mobileSessions[$tenant->id] ?? 0),
                 'last_activity' => $recentActivity[$tenant->id] ?? null,
+                'expiry_date' => $expiryDate,
                 'days_to_expiry' => $daysToExpiry,
                 'attention' => $attention,
             ];
@@ -181,7 +235,7 @@ class TenantOperationsController extends Controller
             'suspended' => Schema::hasColumn('tenants', 'status') ? (clone $base)->where('status', 'suspended')->count() : 0,
             'expired' => Schema::hasColumn('tenants', 'status') ? (clone $base)->where('status', 'subscription_expired')->count() : 0,
             'expiring_14d' => Schema::hasColumn('tenants', 'subscription_expires_at')
-                ? (clone $base)->whereBetween('subscription_expires_at', [now(), now()->addDays(14)])->count()
+                ? (clone $base)->whereBetween('subscription_expires_at', [now()->toDateString(), now()->addDays(14)->toDateString()])->count()
                 : 0,
         ];
 
@@ -216,7 +270,7 @@ class TenantOperationsController extends Controller
             if ($hasExpiry) {
                 $attention->orWhere(function ($expiry) {
                     $expiry->whereNotNull('tenants.subscription_expires_at')
-                        ->where('tenants.subscription_expires_at', '<=', now()->addDays(14));
+                        ->where('tenants.subscription_expires_at', '<=', now()->addDays(14)->toDateString());
                 });
             }
 
@@ -239,7 +293,10 @@ class TenantOperationsController extends Controller
                         ->whereColumn('platform_invoices.tenant_id', 'tenants.id');
 
                     if (Schema::hasColumn('platform_invoices', 'status')) {
-                        $subquery->where('platform_invoices.status', '!=', 'paid');
+                        $subquery->where(function ($status) {
+                            $status->whereNull('platform_invoices.status')
+                                ->orWhere('platform_invoices.status', '!=', 'paid');
+                        });
                     }
                 });
             }
@@ -258,6 +315,43 @@ class TenantOperationsController extends Controller
         }
 
         return $query->select($tenantColumn, DB::raw('COUNT(*) as aggregate'))
-            ->groupBy($tenantColumn)->pluck('aggregate', $tenantColumn);
+            ->groupBy($tenantColumn)
+            ->pluck('aggregate', $tenantColumn);
+    }
+
+    private function safeMetric(string $metric, callable $callback)
+    {
+        try {
+            return $callback();
+        } catch (Throwable $exception) {
+            Log::warning('Tenant Operations optional metric unavailable.', [
+                'metric' => $metric,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return collect();
+        }
+    }
+
+    private function subscriptionExpiry(mixed $value): array
+    {
+        if (!$value) {
+            return [null, null];
+        }
+
+        try {
+            $expiry = Carbon::parse($value)->startOfDay();
+            $days = (int) now()->startOfDay()->diffInDays($expiry, false);
+
+            return [$expiry, $days];
+        } catch (Throwable $exception) {
+            Log::warning('Tenant Operations encountered an invalid subscription expiry value.', [
+                'value' => is_scalar($value) ? (string) $value : gettype($value),
+                'exception' => $exception::class,
+            ]);
+
+            return [null, null];
+        }
     }
 }
