@@ -55,8 +55,10 @@ class StaffWorkHistory extends BaseTenantModel
         'approved_at',
     ];
 
-    protected static function booted(): void
+    protected static function boot(): void
     {
+        parent::boot();
+
         static::creating(function (self $history): void {
             // Tenant provisioning currently has no employment-type input. Older
             // provisioning code labelled every first administrator as full-time,
