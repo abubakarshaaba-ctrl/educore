@@ -4,25 +4,38 @@
 
 @push('styles')
 <style>
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;width:100%}
-.card-header{padding:14px 18px;background:#F8FAFC;border-bottom:1px solid var(--border);font-weight:700;color:var(--midnight)}
-.card-body{padding:18px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;width:100%;min-width:0}
+.card-header{padding:14px 18px;background:#F8FAFC;border-bottom:1px solid var(--border);font-weight:700;color:var(--midnight);overflow-wrap:anywhere}
+.card-body{padding:18px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;min-width:0}
 .label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate)}
-.control{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;font:inherit;font-size:13px}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
+.control{width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#F8FAFC;font:inherit;font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;min-height:42px;border-radius:8px;border:1px solid var(--border);font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;box-sizing:border-box}
 .btn-primary{background:var(--indigo);color:#fff;border-color:var(--indigo)}
 .btn-ghost{background:#fff;color:var(--midnight)}
-.alert{padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}
+.alert{padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;overflow-wrap:anywhere}
 .alert-error{background:#FEF2F2;border:1px solid #FECACA;color:var(--crimson)}
 .alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8}
+.confirm-row{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--slate);margin-bottom:14px;line-height:1.5;overflow-wrap:anywhere}
+.confirm-row input{flex:0 0 auto;width:16px;height:16px;margin-top:2px}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap}
+.page-intro{margin-bottom:18px;min-width:0}
+.page-intro h1,.page-intro div{overflow-wrap:anywhere}
+input[type="file"].control{padding:8px}
 @media(max-width:768px){.grid{grid-template-columns:1fr}}
+@media(max-width:640px){
+    .card-header{padding:12px 14px}
+    .card-body{padding:14px}
+    .form-actions{display:grid;grid-template-columns:1fr}
+    .form-actions .btn{width:100%}
+}
+@media(max-width:420px){.card-body{padding:12px}.field{margin-bottom:12px}}
 </style>
 @endpush
 
 @section('content')
-<div style="margin-bottom:18px">
+<div class="page-intro">
     <a href="{{ route('staff.archive.show', $staff) }}" style="font-size:13px;color:var(--indigo);text-decoration:none">Back to archived profile</a>
     <h1 style="font-size:20px;font-weight:800;color:var(--midnight);margin-top:6px">Reinstate {{ $staff->name }}</h1>
     <div style="font-size:13px;color:var(--slate)">Current status: {{ $staff->employmentStatusLabel() }}</div>
@@ -76,12 +89,14 @@
                 <label class="label">Supporting Document</label>
                 <input type="file" name="document" class="control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             </div>
-            <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--slate);margin-bottom:14px">
+            <label class="confirm-row">
                 <input type="checkbox" name="confirmation" value="1" required>
-                I understand this immediately reactivates the staff account and creates a new employment period.
+                <span>I understand this immediately reactivates the staff account and creates a new employment period.</span>
             </label>
-            <button type="submit" class="btn btn-primary">Reinstate Staff</button>
-            <a href="{{ route('staff.archive.show', $staff) }}" class="btn btn-ghost">Cancel</a>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Reinstate Staff</button>
+                <a href="{{ route('staff.archive.show', $staff) }}" class="btn btn-ghost">Cancel</a>
+            </div>
         </form>
     </div>
 </div>
