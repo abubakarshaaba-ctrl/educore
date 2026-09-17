@@ -12,7 +12,7 @@
 
         <div class="auth-brand__body">
             <p class="auth-eyebrow">Agent Network</p>
-            <h1 class="auth-brand__title" id="agent-register-title">
+            <h1 class="auth-brand__title" id="agent-register-title" style="color:#FFFFFF">
                 Apply to become an <span>EduCore agent.</span>
             </h1>
             <p class="auth-brand__lead">
