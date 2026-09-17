@@ -16,9 +16,15 @@ class RepairStaffWorkHistory extends Command
         {--dry-run : Preview repairs without changing data}
         {--apply : Apply safe repairs}
         {--tenant= : Limit to one tenant ID}
-        {--staff= : Limit to one staff user ID}';
+        {--staff= : Limit to one staff user ID}
+        {--position-title= : Known position title for a missing work-history row (requires --staff)}
+        {--employment-type= : Known employment type for a missing work-history row (requires --staff)}
+        {--functional-role= : Known functional role for a missing work-history row (requires --staff)}
+        {--appointment-type= : Known appointment type for a missing work-history row (requires --staff)}';
 
     protected $description = 'Detect and safely repair staff employment status and work-history consistency.';
+
+    private array $repairMetadata = [];
 
     public function __construct(private LifecycleAuditLogger $auditLogger)
     {
@@ -38,6 +44,7 @@ class RepairStaffWorkHistory extends Command
         try {
             $tenantId = $this->integerOption('tenant');
             $staffId = $this->integerOption('staff');
+            $this->repairMetadata = $this->validatedRepairMetadata($staffId);
         } catch (InvalidArgumentException $exception) {
             $this->error($exception->getMessage());
 
@@ -273,12 +280,16 @@ class RepairStaffWorkHistory extends Command
             StaffWorkHistory::create([
                 'tenant_id' => $staff->tenant_id,
                 'user_id' => $staff->id,
-                'position_title' => $staff->roleLabel(),
+                'position_title' => $this->repairMetadata['position_title'] ?? $staff->roleLabel(),
                 'department_name' => null,
+                'employment_type' => $this->repairMetadata['employment_type'] ?? null,
+                'functional_role' => $this->repairMetadata['functional_role'] ?? ($staff->roleKey() ?: null),
+                'grade_level' => null,
+                'appointment_type' => $this->repairMetadata['appointment_type'] ?? null,
                 'start_date' => $staff->employment_started_at,
                 'end_date' => null,
                 'change_type' => StaffWorkHistory::CHANGE_APPOINTMENT,
-                'reason' => 'Created by staff work-history repair command.',
+                'reason' => 'Created by staff work-history repair command. Historical employment metadata is only populated when explicitly supplied or safely derivable.',
                 'recorded_by' => $staff->id,
             ]);
         }
@@ -356,7 +367,7 @@ class RepairStaffWorkHistory extends Command
             $actions[] = 'set employment_status to active';
         }
         if (in_array('active_staff_no_open_work_history', $issues, true)) {
-            $actions[] = 'create open work-history period from employment_started_at';
+            $actions[] = 'create open work-history period from employment_started_at without inventing unknown historical appointment metadata';
         }
         if (in_array('active_staff_multiple_open_work_histories', $issues, true)) {
             $actions[] = 'keep newest open work-history row and close the others';
@@ -390,7 +401,11 @@ class RepairStaffWorkHistory extends Command
     private function administratorAction(array $issues): string
     {
         if (in_array('active_staff_no_open_work_history', $issues, true)) {
-            return 'Record employment_started_at and appointment details, then rerun dry-run.';
+            if (!$this->repairMetadata) {
+                return 'Record employment_started_at. If historical appointment metadata is known, target one staff member with --staff and the metadata options; otherwise the repair leaves unknown fields null.';
+            }
+
+            return 'Review supplied historical appointment metadata, then rerun with --apply when satisfied.';
         }
 
         if (in_array('inactive_staff_open_work_history', $issues, true)) {
@@ -414,6 +429,41 @@ class RepairStaffWorkHistory extends Command
         }
 
         return 'Review manually.';
+    }
+
+    private function validatedRepairMetadata(?int $staffId): array
+    {
+        $options = [
+            'position_title' => $this->stringOption('position-title'),
+            'employment_type' => $this->stringOption('employment-type'),
+            'functional_role' => $this->stringOption('functional-role'),
+            'appointment_type' => $this->stringOption('appointment-type'),
+        ];
+
+        $metadata = array_filter($options, fn ($value) => $value !== null);
+
+        if ($metadata !== [] && !$staffId) {
+            throw new InvalidArgumentException('Historical work-history metadata options require --staff so values cannot be applied across multiple staff records.');
+        }
+
+        return $metadata;
+    }
+
+    private function stringOption(string $name): ?string
+    {
+        $value = $this->option($name);
+
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        if (mb_strlen($value) > 255) {
+            throw new InvalidArgumentException("--{$name} must not exceed 255 characters.");
+        }
+
+        return $value;
     }
 
     private function integerOption(string $name): ?int
