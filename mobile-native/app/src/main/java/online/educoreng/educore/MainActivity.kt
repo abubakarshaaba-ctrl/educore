@@ -11,16 +11,28 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import dagger.hilt.android.AndroidEntryPoint
 import online.educoreng.educore.notification.NotificationDeepLinkParser
 import online.educoreng.educore.notification.NotificationDeepLinkStore
 import online.educoreng.educore.presentation.EduCoreFoundationApp
+import online.educoreng.educore.update.AppUpdateWorker
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { /* The app remains usable if the user declines. */ }
+    ) { granted ->
+        // The Application-level immediate update check can run before Android
+        // finishes the notification permission flow on a fresh install. Run a
+        // second check as soon as permission is granted so a pending app update
+        // is surfaced immediately instead of waiting for the periodic worker.
+        if (granted) enqueueImmediateUpdateCheck()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +49,21 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         NotificationDeepLinkStore.publish(NotificationDeepLinkParser.parse(intent))
+    }
+
+    private fun enqueueImmediateUpdateCheck() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val request = OneTimeWorkRequestBuilder<AppUpdateWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "educore_app_update_permission_granted",
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
     }
 
     private fun requestNotificationPermissionIfNeeded() {
