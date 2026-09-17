@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function (): void {
             Route::group([], base_path('routes/mail-health.php'));
+            Route::group([], base_path('routes/system-health.php'));
             Route::group([], base_path('routes/staff-profile-onboarding.php'));
 
             Route::middleware(['web', 'auth', 'active.account', 'super.admin'])
