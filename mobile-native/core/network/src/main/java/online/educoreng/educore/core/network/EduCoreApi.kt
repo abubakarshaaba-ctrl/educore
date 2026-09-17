@@ -46,6 +46,11 @@ import online.educoreng.educore.core.network.dto.PushTokenRequestDto
 import online.educoreng.educore.core.network.dto.PortalSessionRequestDto
 import online.educoreng.educore.core.network.dto.PortalSessionResponseDto
 import online.educoreng.educore.core.network.dto.ReadAllResponseDto
+import online.educoreng.educore.core.network.dto.ChangePasswordRequestDto
+import online.educoreng.educore.core.network.dto.ProfileMutationResponseDto
+import online.educoreng.educore.core.network.dto.ProfileResponseDto
+import online.educoreng.educore.core.network.dto.StaffIdCardDto
+import online.educoreng.educore.core.network.dto.UpdateProfileRequestDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -55,6 +60,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Query
 import retrofit2.http.Multipart
 import retrofit2.http.Part
@@ -71,6 +77,26 @@ interface EduCoreApi : AcademicKnowledgeApi {
 
     @GET("dashboard")
     suspend fun dashboard(): DashboardResponseDto
+
+    @GET("profile")
+    suspend fun profile(): ProfileResponseDto
+
+    @PATCH("profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequestDto): ProfileMutationResponseDto
+
+    @PUT("profile/password")
+    suspend fun changePassword(@Body request: ChangePasswordRequestDto): MessageDto
+
+    @Multipart
+    @POST("profile/passport")
+    suspend fun uploadPassport(@Part passport: MultipartBody.Part): ProfileMutationResponseDto
+
+    @GET("id-card")
+    suspend fun staffIdCard(): StaffIdCardDto
+
+    @Streaming
+    @GET("id-card/pdf")
+    suspend fun staffIdCardPdf(): ResponseBody
 
     @Streaming
     @GET("id-card/photo-file")
