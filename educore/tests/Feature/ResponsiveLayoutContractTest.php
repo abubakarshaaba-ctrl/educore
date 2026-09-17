@@ -80,14 +80,23 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('min-width:760px', $remarks);
     }
 
-    public function test_admissions_dashboard_keeps_compact_metrics_and_touch_table(): void
+    public function test_admissions_surfaces_keep_compact_metrics_and_responsive_actions(): void
     {
         $admissions = file_get_contents(resource_path('views/admissions/index.blade.php'));
+        $detail = file_get_contents(resource_path('views/admissions/show.blade.php'));
+        $portal = file_get_contents(resource_path('views/admissions/portal-list.blade.php'));
 
         $this->assertStringContainsString('.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))', $admissions);
         $this->assertStringContainsString('.ph-actions{width:100%;display:grid;grid-template-columns:1fr 1fr', $admissions);
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $admissions);
         $this->assertStringContainsString('.tbl table{min-width:820px}', $admissions);
+
+        $this->assertStringContainsString('@media(max-width:900px){.page-grid{grid-template-columns:1fr}', $detail);
+        $this->assertStringContainsString('@media(max-width:380px){.info-row{flex-direction:column', $detail);
+
+        $this->assertStringContainsString('.sg{grid-template-columns:repeat(2,minmax(0,1fr))', $portal);
+        $this->assertStringContainsString('.portal-actions{width:100%;display:grid;grid-template-columns:1fr 1fr', $portal);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $portal);
     }
 
     public static function shells(): array
