@@ -66,6 +66,30 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $invoices);
     }
 
+    public function test_report_management_remains_usable_on_phone_widths(): void
+    {
+        $publications = file_get_contents(resource_path('views/reports/publications.blade.php'));
+        $remarks = file_get_contents(resource_path('views/reports/remarks.blade.php'));
+
+        $this->assertStringContainsString('.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))', $publications);
+        $this->assertStringContainsString('overflow-x:auto;-webkit-overflow-scrolling:touch', $publications);
+        $this->assertStringContainsString('.pub-actions{display:grid;grid-template-columns:1fr 1fr', $publications);
+
+        $this->assertStringContainsString('.remarks-table .tbl{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch', $remarks);
+        $this->assertStringContainsString('.filter-card{grid-template-columns:1fr', $remarks);
+        $this->assertStringContainsString('min-width:760px', $remarks);
+    }
+
+    public function test_admissions_dashboard_keeps_compact_metrics_and_touch_table(): void
+    {
+        $admissions = file_get_contents(resource_path('views/admissions/index.blade.php'));
+
+        $this->assertStringContainsString('.stats-row{grid-template-columns:repeat(2,minmax(0,1fr))', $admissions);
+        $this->assertStringContainsString('.ph-actions{width:100%;display:grid;grid-template-columns:1fr 1fr', $admissions);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $admissions);
+        $this->assertStringContainsString('.tbl table{min-width:820px}', $admissions);
+    }
+
     public static function shells(): array
     {
         return [
