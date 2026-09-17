@@ -4,29 +4,30 @@
     android:height="24dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
-    <!-- Android status-bar notification icons must be a white silhouette on a transparent background. -->
+    <!--
+        Android status-bar icons are monochrome masks. Keep the EduCore mark
+        transparent and intentionally simplified so the branded C + pixel motif
+        remains legible at 18-24dp instead of becoming a muddy full-colour icon.
+    -->
     <group
-        android:scaleX="0.88"
-        android:scaleY="0.88"
-        android:translateX="30.72"
-        android:translateY="30.72">
+        android:scaleX="0.96"
+        android:scaleY="0.96"
+        android:translateX="10.24"
+        android:translateY="10.24">
         <path
             android:fillColor="#FFFFFFFF"
             android:pathData="M264,70A186,186 0,1 0,264 442V360A104,104 0,1 1,264 152Z" />
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M271,178A78,78 0,0 0,271 334Z" />
+            android:pathData="M339,120H371A8,8 0,0 1,379 128V160A8,8 0,0 1,371 168H339A8,8 0,0 1,331 160V128A8,8 0,0 1,339 120Z" />
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M339,120H369A7,7 0,0 1,376 127V157A7,7 0,0 1,369 164H339A7,7 0,0 1,332 157V127A7,7 0,0 1,339 120Z" />
+            android:pathData="M395,174H421A7,7 0,0 1,428 181V207A7,7 0,0 1,421 214H395A7,7 0,0 1,388 207V181A7,7 0,0 1,395 174Z" />
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M395,172H418A6,6 0,0 1,424 178V201A6,6 0,0 1,418 207H395A6,6 0,0 1,389 201V178A6,6 0,0 1,395 172Z" />
+            android:pathData="M336,236H369A7,7 0,0 1,376 243V276A7,7 0,0 1,369 283H336A7,7 0,0 1,329 276V243A7,7 0,0 1,336 236Z" />
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M336,234H366A6,6 0,0 1,372 240V270A6,6 0,0 1,366 276H336A6,6 0,0 1,330 270V240A6,6 0,0 1,336 234Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M405,267H423A6,6 0,0 1,429 273V291A6,6 0,0 1,423 297H405A6,6 0,0 1,399 291V273A6,6 0,0 1,405 267Z" />
+            android:pathData="M404,271H425A7,7 0,0 1,432 278V299A7,7 0,0 1,425 306H404A7,7 0,0 1,397 299V278A7,7 0,0 1,404 271Z" />
     </group>
 </vector>
