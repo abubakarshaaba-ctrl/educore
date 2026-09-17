@@ -15,9 +15,10 @@ use Illuminate\Support\Str;
 /**
  * Sends push notifications through Firebase Cloud Messaging HTTP v1.
  *
- * The implementation is dependency-free for shared-host compatibility. It
- * signs the service-account JWT with PHP OpenSSL, then exchanges it for the
- * short-lived OAuth token required by FCM.
+ * EduCore Android pushes are data-only and high priority so the native
+ * FirebaseMessagingService always builds the notification. This guarantees
+ * the correct notification channel, deep link and EduCore icon are used in
+ * foreground and background instead of delegating background rendering to FCM.
  */
 class PushNotificationService
 {
@@ -193,14 +194,16 @@ class PushNotificationService
 
     public function send(string $deviceToken, string $title, string $body, array $data = []): bool
     {
-        return $this->sendMessage(['token' => $deviceToken], $title, $body, $data, $deviceToken, true);
+        return $this->sendMessage(
+            ['token' => $deviceToken],
+            $title,
+            $body,
+            array_merge($data, ['title' => $title, 'body' => $body]),
+            $deviceToken,
+            false,
+        );
     }
 
-    /**
-     * Release broadcasts are data-only so EduCore's FirebaseMessagingService
-     * receives them in foreground and background and can build a notification
-     * whose tap action consistently opens the signed APK download URL.
-     */
     public function sendToTopic(string $topic, string $title, string $body, array $data = []): bool
     {
         $topic = trim($topic);
@@ -224,7 +227,7 @@ class PushNotificationService
         string $body,
         array $data = [],
         ?string $deviceToken = null,
-        bool $includeNotification = true,
+        bool $includeNotification = false,
     ): bool {
         try {
             $projectId = config('services.fcm.project_id');
@@ -240,15 +243,17 @@ class PushNotificationService
                 'data' => array_map('strval', $data),
                 'android' => [
                     'priority' => 'high',
-                    'notification' => [
-                        'channel_id' => 'educore_updates',
-                        'sound' => 'default',
-                    ],
                 ],
             ]);
 
             if ($includeNotification) {
                 $message['notification'] = ['title' => $title, 'body' => $body];
+                $message['android']['notification'] = [
+                    'channel_id' => 'educore_notifications',
+                    'sound' => 'default',
+                    'icon' => 'ic_educore_notification',
+                    'color' => '#E89A1C',
+                ];
             }
 
             $response = Http::timeout(15)
