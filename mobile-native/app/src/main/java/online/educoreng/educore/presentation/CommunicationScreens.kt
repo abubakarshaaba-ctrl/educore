@@ -401,6 +401,9 @@ private fun selectedRecipientLabel(name: String, supporting: String, className: 
 
 @Composable
 private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Unit) {
+    var expanded by remember(notice.id) { mutableStateOf(false) }
+    var canExpand by remember(notice.id, notice.body) { mutableStateOf(false) }
+
     Card(
         onClick = { if (! notice.isRead) onMarkRead(notice.id) },
         colors = CardDefaults.cardColors(containerColor = if (notice.isRead) EduCoreColors.White else EduCoreColors.Info100),
@@ -414,7 +417,21 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
                     Text(notice.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
                 }
-                Text(notice.body, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
+                Text(
+                    text = notice.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EduCoreColors.Ink900,
+                    maxLines = if (expanded) Int.MAX_VALUE else 4,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        if (!expanded) canExpand = result.hasVisualOverflow
+                    },
+                )
+                if (canExpand || expanded) {
+                    OutlinedButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "Show less" else "Read more")
+                    }
+                }
                 NoticeImage(notice.imageUrl)
                 Text(notice.publishedAt, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
             }
