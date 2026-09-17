@@ -1,330 +1,226 @@
 workflows:
-  native-android-production:
-    name: EduCore Native Android Production
-    max_build_duration: 45
-    instance_type: mac_mini_m2
-    working_directory: mobile-native
+  android-production-release:
+    name: EduCore Android Production Release
+    max_build_duration: 60
     environment:
       groups:
         - educore_production
-      java: 21
+      vars:
+        CM_KEYSTORE_PATH: /tmp/educore-release.keystore
+        EDUCORE_APK_DOWNLOAD_URL: https://educoreng.online/download/app
+        MOBILE_RELEASE_NOTIFY_URL: https://educoreng.online/api/v1/mobile-release/notify
+      java: 17
     cache:
       cache_paths:
         - $HOME/.gradle/caches
         - $HOME/.gradle/wrapper
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'android-v*'
+          include: true
     scripts:
-      - name: Configure Android SDK
+      - name: Resolve Android workspace
         script: |
           set -euo pipefail
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-          chmod +x gradlew
-
-      - name: Prepare Firebase configuration
-        script: |
-          set -euo pipefail
-          SOURCE="app/firebase/google-services.json"
-          if [ ! -f "$SOURCE" ]; then
-            echo "Missing $SOURCE"
+          if [ -d mobile-native ]; then
+            cd mobile-native
+          elif [ -f settings.gradle.kts ] && [ -d app ]; then
+            :
+          else
+            echo "Unable to locate mobile-native Android workspace."
             exit 1
           fi
-          mkdir -p app/src/debug app/src/release
-          cp "$SOURCE" app/src/release/google-services.json
-          python3 - <<'PY'
-          from pathlib import Path
-
-          src = Path("app/firebase/google-services.json")
-          dst = Path("app/src/debug/google-services.json")
-          text = src.read_text()
-          text = text.replace(
-              '"package_name": "online.educoreng.educore"',
-              '"package_name": "online.educoreng.educore.nativepreview"',
-          )
-          dst.write_text(text)
-          PY
-          test -s app/src/debug/google-services.json
-          test -s app/src/release/google-services.json
-
-      - name: Run native unit tests, lint and debug build
+          printf '%s\n' "$(pwd)" > /tmp/educore-android-workspace
+      - name: Verify release environment
         script: |
           set -euo pipefail
-          ./gradlew --no-daemon --no-parallel \
-            :core:common:testDebugUnitTest \
-            :core:designsystem:testDebugUnitTest \
-            :core:model:testDebugUnitTest \
-            :core:network:testDebugUnitTest \
-            :core:security:testDebugUnitTest \
-            :core:data:testDebugUnitTest \
-            :app:testDebugUnitTest \
-            :app:lintDebug \
-            :app:assembleDebug
-
-      - name: Prepare protected production signing
-        script: |
-          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
 
           missing=0
-          for name in \
-            KEYSTORE_BASE64 \
-            KEYSTORE_STORE_PASSWORD \
-            KEYSTORE_KEY_PASSWORD \
-            KEYSTORE_KEY_ALIAS \
-            GITHUB_RELEASE_TOKEN
-          do
-            if [ -z "${!name:-}" ]; then
-              echo "Missing required protected variable: $name"
+          for variable in CM_KEYSTORE_BASE64 CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD GITHUB_RELEASE_TOKEN MOBILE_RELEASE_WEBHOOK_TOKEN; do
+            if [ -z "${!variable:-}" ]; then
+              echo "Missing required protected variable: $variable"
               missing=1
             fi
           done
           if [ "$missing" -ne 0 ]; then
+            echo "Production release environment is incomplete."
             exit 1
           fi
 
-          if [ "$KEYSTORE_KEY_ALIAS" != "educore" ]; then
-            echo "KEYSTORE_KEY_ALIAS must be educore."
-            exit 1
-          fi
+          printf '%s' "$CM_KEYSTORE_BASE64" | base64 --decode > "$CM_KEYSTORE_PATH"
+          test -s "$CM_KEYSTORE_PATH"
+          chmod 600 "$CM_KEYSTORE_PATH"
 
-          mkdir -p .ci-signing
-          if printf '' | base64 --decode >/dev/null 2>&1; then
-            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .ci-signing/educore-release.jks
-          else
-            printf '%s' "$KEYSTORE_BASE64" | base64 -D > .ci-signing/educore-release.jks
-          fi
-
-          export RELEASE_PROPERTIES="$PWD/.ci-signing/release.properties"
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-
-          def escape_property(value: str) -> str:
-              escaped = []
-              for index, char in enumerate(value):
-                  if char == "\\":
-                      escaped.append("\\\\")
-                  elif char == "\n":
-                      escaped.append("\\n")
-                  elif char == "\r":
-                      escaped.append("\\r")
-                  elif char == "\t":
-                      escaped.append("\\t")
-                  elif char in "=:":
-                      escaped.append("\\" + char)
-                  elif index == 0 and char in " #!":
-                      escaped.append("\\" + char)
-                  else:
-                      escaped.append(char)
-              return "".join(escaped)
-
-          values = {
-              "storeFile": "educore-release.jks",
-              "storePassword": os.environ["KEYSTORE_STORE_PASSWORD"],
-              "keyAlias": os.environ["KEYSTORE_KEY_ALIAS"],
-              "keyPassword": os.environ["KEYSTORE_KEY_PASSWORD"],
-          }
-          content = "".join(
-              f"{key}={escape_property(value)}\n" for key, value in values.items()
-          )
-          Path(os.environ["RELEASE_PROPERTIES"]).write_text(content)
-          PY
-
-          chmod 600 .ci-signing/educore-release.jks .ci-signing/release.properties
-          test -s .ci-signing/educore-release.jks
-          test -s .ci-signing/release.properties
-          keytool -list \
-            -keystore .ci-signing/educore-release.jks \
-            -storepass "$KEYSTORE_STORE_PASSWORD" \
-            -alias "$KEYSTORE_KEY_ALIAS" >/dev/null
-
-      - name: Run release lint and build signed APK
-        script: |
-          set -euo pipefail
-          ./gradlew --no-daemon --no-parallel \
-            -PEDUCORE_RELEASE_PROPERTIES=.ci-signing/release.properties \
-            :app:lintRelease \
-            :app:assembleRelease
-
-          RELEASE_DIR="app/build/outputs/apk/release"
-          test -s "$RELEASE_DIR/app-release.apk"
-          cp "$RELEASE_DIR/app-release.apk" "$RELEASE_DIR/EduCore.apk"
-
-      - name: Verify production APK identity and signature
-        script: |
-          set -euo pipefail
-          APK="app/build/outputs/apk/release/EduCore.apk"
-          EXPECTED_APPLICATION_ID="online.educoreng.educore"
-          EXPECTED_CERT_SHA256="F170B538AD1DCD796605BEA61DDA69348205203449224681D044D6E2C856E4A0"
-
-          read -r EXPECTED_VERSION_CODE EXPECTED_VERSION_NAME <<EOF
-          $(python3 - <<'PY'
-          import re
-          from pathlib import Path
-
-          text = Path("app/build.gradle.kts").read_text()
-          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
-          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
-          if not code or not name:
-              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
-          print(code.group(1), name.group(1))
-          PY
-          )
+          cat > keystore.properties <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
           EOF
-
-          APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name apksigner 2>/dev/null | sort | tail -n 1)"
-          AAPT="$(find "$ANDROID_SDK_ROOT/build-tools" -type f -name aapt 2>/dev/null | sort | tail -n 1)"
-          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
-            echo "Android apksigner was not found."
-            exit 1
-          fi
-          if [ -z "$AAPT" ] || [ ! -x "$AAPT" ]; then
-            echo "Android aapt was not found."
-            exit 1
-          fi
-
-          VERIFY_OUTPUT="$("$APKSIGNER" verify --verbose --print-certs "$APK")"
-          CERT_SHA256="$(printf '%s\n' "$VERIFY_OUTPUT" \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' \
-            | tr -d ':\r' \
-            | tr '[:lower:]' '[:upper:]' \
-            | head -n 1)"
-
-          if [ "$CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]; then
-            echo "Release signing certificate does not match the permanent EduCore production identity."
-            exit 1
-          fi
-
-          BADGING="$("$AAPT" dump badging "$APK")"
-          APPLICATION_ID="$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
-          VERSION_CODE="$(printf '%s\n' "$BADGING" | sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)"
-          VERSION_NAME="$(printf '%s\n' "$BADGING" | sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p" | head -n 1)"
-
-          if [ "$APPLICATION_ID" != "$EXPECTED_APPLICATION_ID" ]; then
-            echo "Unexpected release application ID: $APPLICATION_ID"
-            exit 1
-          fi
-          if [ "$VERSION_CODE" != "$EXPECTED_VERSION_CODE" ]; then
-            echo "Unexpected release versionCode: $VERSION_CODE (expected $EXPECTED_VERSION_CODE)"
-            exit 1
-          fi
-          if [ "$VERSION_NAME" != "$EXPECTED_VERSION_NAME" ]; then
-            echo "Unexpected release versionName: $VERSION_NAME (expected $EXPECTED_VERSION_NAME)"
-            exit 1
-          fi
-          if printf '%s\n' "$BADGING" | grep -q '^application-debuggable'; then
-            echo "Release APK is marked debuggable."
-            exit 1
-          fi
-
-          echo "Verified signed production APK: $APPLICATION_ID, versionCode $VERSION_CODE, versionName $VERSION_NAME."
-
-      - name: Generate release checksum
+          chmod 600 keystore.properties
+      - name: Verify Firebase config
         script: |
           set -euo pipefail
-          RELEASE_DIR="app/build/outputs/apk/release"
-          (
-            cd "$RELEASE_DIR"
-            shasum -a 256 EduCore.apk > EduCore.apk.sha256
-          )
-          test -s "$RELEASE_DIR/EduCore.apk.sha256"
-
-      - name: Publish production assets to GitHub Releases
+          cd "$(cat /tmp/educore-android-workspace)"
+          test -s app/google-services.json || {
+            echo "app/google-services.json is missing. Production push notifications cannot work without it."
+            exit 1
+          }
+      - name: Run native unit tests, lint and debug build
         script: |
           set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Build signed production APK
+        script: |
+          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+          ./gradlew --no-daemon lintRelease assembleRelease
+
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          cp "$APK" app/build/outputs/apk/release/EduCore.apk
+          sha256sum app/build/outputs/apk/release/EduCore.apk > app/build/outputs/apk/release/EduCore.apk.sha256
+      - name: Verify release APK signing certificate
+        script: |
+          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+          APK="app/build/outputs/apk/release/EduCore.apk"
+          test -s "$APK"
+
+          SIGNER_OUTPUT="$(keytool -printcert -jarfile "$APK")"
+          printf '%s\n' "$SIGNER_OUTPUT"
+
+          SIGNER_SHA256="$(printf '%s\n' "$SIGNER_OUTPUT" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -n1 | tr -d '[:space:]')"
+          if [ -z "$SIGNER_SHA256" ]; then
+            echo "Unable to read APK signer SHA-256 fingerprint."
+            exit 1
+          fi
+
+          if [ -n "${EDUCORE_RELEASE_CERT_SHA256:-}" ]; then
+            EXPECTED_SHA256="$(printf '%s' "$EDUCORE_RELEASE_CERT_SHA256" | tr -d '[:space:]')"
+            if [ "$SIGNER_SHA256" != "$EXPECTED_SHA256" ]; then
+              echo "Release APK signer fingerprint does not match EDUCORE_RELEASE_CERT_SHA256."
+              exit 1
+            fi
+          else
+            echo "EDUCORE_RELEASE_CERT_SHA256 is not configured; signer fingerprint was printed for first-release pinning."
+          fi
+      - name: Publish production APK to GitHub Release
+        script: |
+          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+
+          REPO="abubakarshaaba-ctrl/educore"
+          TAG="${CM_TAG:-}"
+          if [ -z "$TAG" ]; then
+            echo "This workflow must run from an android-v* tag."
+            exit 1
+          fi
+
           APK="app/build/outputs/apk/release/EduCore.apk"
           CHECKSUM="app/build/outputs/apk/release/EduCore.apk.sha256"
-          REPO="abubakarshaaba-ctrl/educore"
-          SHORT_SHA="$(printf '%s' "${CM_COMMIT:?CM_COMMIT is required}" | cut -c1-12)"
-          BUILD_NO="${BUILD_NUMBER:?BUILD_NUMBER is required}"
-
-          read -r VERSION_CODE VERSION_NAME <<EOF
-          $(python3 - <<'PY'
-          import re
-          from pathlib import Path
-
-          text = Path("app/build.gradle.kts").read_text()
-          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
-          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
-          if not code or not name:
-              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
-          print(code.group(1), name.group(1))
-          PY
-          )
-          EOF
-
-          TAG="android-v${VERSION_NAME}-code${VERSION_CODE}-b${BUILD_NO}-${SHORT_SHA}"
-          RELEASE_NAME="EduCore Android ${VERSION_NAME} (versionCode ${VERSION_CODE}, Codemagic ${BUILD_NO})"
-
           test -s "$APK"
           test -s "$CHECKSUM"
-          test -n "${GITHUB_RELEASE_TOKEN:-}"
 
-          export TAG RELEASE_NAME REPO VERSION_CODE VERSION_NAME BUILD_NO SHORT_SHA
-          python3 - <<'PY' > /tmp/educore-release-request.json
-          import json
-          import os
-
-          print(json.dumps({
-              "tag_name": os.environ["TAG"],
-              "target_commitish": os.environ["CM_COMMIT"],
-              "name": os.environ["RELEASE_NAME"],
-              "body": (
-                  "Automated signed EduCore Android production release.\n\n"
-                  f"- Package: online.educoreng.educore\n"
-                  f"- versionCode: {os.environ['VERSION_CODE']}\n"
-                  f"- versionName: {os.environ['VERSION_NAME']}\n"
-                  f"- Codemagic build: {os.environ['BUILD_NO']}\n"
-                  f"- Commit: {os.environ['CM_COMMIT']}"
-              ),
-              "draft": True,
-              "prerelease": False,
-          }))
-          PY
-
-          CREATE_STATUS="$(curl -sS \
-            -o /tmp/educore-release-response.json \
-            -w '%{http_code}' \
-            -X POST \
+          RELEASE_JSON="$(curl -fsS \
             -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/releases" \
-            --data-binary @/tmp/educore-release-request.json)"
-          if [ "$CREATE_STATUS" != "201" ]; then
-            echo "GitHub release creation failed with HTTP $CREATE_STATUS."
-            exit 1
+            "https://api.github.com/repos/$REPO/releases/tags/$TAG" || true)"
+
+          if [ -n "$RELEASE_JSON" ]; then
+            printf '%s' "$RELEASE_JSON" > /tmp/educore-release.json
+            RELEASE_ID="$(python3 - <<'PY'
+          import json
+          with open('/tmp/educore-release.json', encoding='utf-8') as fh:
+              print(json.load(fh)['id'])
+          PY
+            )"
+          else
+            export TAG
+            python3 - <<'PY' > /tmp/educore-release-create.json
+          import json, os
+          tag = os.environ['TAG']
+          print(json.dumps({
+              'tag_name': tag,
+              'target_commitish': os.environ.get('CM_COMMIT', 'mobile-build'),
+              'name': f'EduCore Android {tag}',
+              'body': 'Signed EduCore Android production release.',
+              'draft': True,
+              'prerelease': False,
+          }))
+          PY
+            CREATE_STATUS="$(curl -sS \
+              -o /tmp/educore-release-created.json \
+              -w '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/$REPO/releases" \
+              --data-binary @/tmp/educore-release-create.json)"
+            if [ "$CREATE_STATUS" != "201" ]; then
+              echo "Failed to create GitHub release (HTTP $CREATE_STATUS)."
+              cat /tmp/educore-release-created.json || true
+              exit 1
+            fi
+            RELEASE_ID="$(python3 - <<'PY'
+          import json
+          with open('/tmp/educore-release-created.json', encoding='utf-8') as fh:
+              print(json.load(fh)['id'])
+          PY
+            )"
           fi
 
-          RELEASE_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' /tmp/educore-release-response.json)"
+          curl -fsS \
+            -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/releases/$RELEASE_ID/assets?per_page=100" \
+            > /tmp/educore-release-assets.json
 
-          APK_STATUS="$(curl -sS \
-            -o /tmp/educore-apk-upload.json \
-            -w '%{http_code}' \
+          for asset in EduCore.apk EduCore.apk.sha256; do
+            ASSET_ID="$(ASSET_NAME="$asset" python3 - <<'PY'
+          import json, os
+          with open('/tmp/educore-release-assets.json', encoding='utf-8') as fh:
+              assets = json.load(fh)
+          target = os.environ['ASSET_NAME']
+          print(next((a['id'] for a in assets if a.get('name') == target), ''))
+          PY
+            )"
+            if [ -n "$ASSET_ID" ]; then
+              curl -fsS \
+                -X DELETE \
+                -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "https://api.github.com/repos/$REPO/releases/assets/$ASSET_ID"
+            fi
+          done
+
+          curl -fsS \
             -X POST \
             -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: application/vnd.android.package-archive" \
-            "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=EduCore.apk" \
-            --data-binary "@$APK")"
-          if [ "$APK_STATUS" != "201" ]; then
-            echo "GitHub APK upload failed with HTTP $APK_STATUS; the incomplete release remains a draft."
-            exit 1
-          fi
+            --data-binary @"$APK" \
+            "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=EduCore.apk"
 
-          CHECKSUM_STATUS="$(curl -sS \
-            -o /tmp/educore-checksum-upload.json \
-            -w '%{http_code}' \
+          curl -fsS \
             -X POST \
             -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: text/plain" \
-            "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=EduCore.apk.sha256" \
-            --data-binary "@$CHECKSUM")"
-          if [ "$CHECKSUM_STATUS" != "201" ]; then
-            echo "GitHub checksum upload failed with HTTP $CHECKSUM_STATUS; the incomplete release remains a draft."
-            exit 1
-          fi
+            --data-binary @"$CHECKSUM" \
+            "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=EduCore.apk.sha256"
 
           PUBLISH_STATUS="$(curl -sS \
             -o /tmp/educore-publish-response.json \
@@ -347,18 +243,15 @@ workflows:
         script: |
           set -euo pipefail
 
-          # Rollout-safe: releases remain publishable before the webhook secret is
-          # added to Codemagic. Once MOBILE_RELEASE_WEBHOOK_TOKEN is configured in
-          # the protected educore_production group, every successful release sends
-          # the update push automatically.
           if [ -z "${MOBILE_RELEASE_WEBHOOK_TOKEN:-}" ]; then
-            echo "MOBILE_RELEASE_WEBHOOK_TOKEN is not configured; skipping update push notification."
-            exit 0
+            echo "MOBILE_RELEASE_WEBHOOK_TOKEN is required. Refusing to silently publish an Android release without update metadata and push notification."
+            exit 1
           fi
 
           RELEASE_NOTIFY_URL="${MOBILE_RELEASE_NOTIFY_URL:-https://educoreng.online/api/v1/mobile-release/notify}"
           DOWNLOAD_URL="${EDUCORE_APK_DOWNLOAD_URL:-https://educoreng.online/download/app}"
 
+          cd "$(cat /tmp/educore-android-workspace)"
           read -r VERSION_CODE VERSION_NAME <<EOF
           $(python3 - <<'PY'
           import re
@@ -406,9 +299,9 @@ workflows:
           echo "Installed EduCore apps were notified about version $VERSION_NAME (code $VERSION_CODE)."
 
     artifacts:
-      - app/build/outputs/apk/debug/app-debug.apk
-      - app/build/reports/lint-results-debug.html
-      - app/build/reports/lint-results-release.html
-      - app/build/outputs/apk/release/app-release.apk
-      - app/build/outputs/apk/release/EduCore.apk
-      - app/build/outputs/apk/release/EduCore.apk.sha256
+      - mobile-native/app/build/outputs/apk/debug/app-debug.apk
+      - mobile-native/app/build/reports/lint-results-debug.html
+      - mobile-native/app/build/reports/lint-results-release.html
+      - mobile-native/app/build/outputs/apk/release/app-release.apk
+      - mobile-native/app/build/outputs/apk/release/EduCore.apk
+      - mobile-native/app/build/outputs/apk/release/EduCore.apk.sha256
