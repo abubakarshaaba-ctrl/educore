@@ -4,25 +4,27 @@
 
 @push('styles')
 <style>
-.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px;min-width:0}
 .breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
-.breadcrumb svg{width:14px;height:14px}
-.two-col{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.stat-card{background:white;border:1px solid var(--border);border-radius:10px;padding:14px 16px}
-.stat-val{font-size:20px;font-weight:800;color:var(--midnight)}
+.breadcrumb svg{width:14px;height:14px;flex:0 0 auto}
+.two-col{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:16px;align-items:start}
+.two-col>div{min-width:0}
+.stats-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:white;border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.stat-val{font-size:20px;font-weight:800;color:var(--midnight);overflow-wrap:anywhere}
 .stat-lbl{font-size:10px;font-weight:700;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
-.card{background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;margin-bottom:14px}
-.card-header{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between}
+.card{background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;margin-bottom:14px;min-width:0}
+.card-header{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .card-title{font-size:13px;font-weight:700;color:var(--midnight)}
-.card-body{padding:18px}
-.info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px}
+.card-body{padding:18px;min-width:0}
+.info-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px;min-width:0}
 .info-row:last-child{border-bottom:none}
-.info-key{color:var(--slate);font-size:12px}
-.info-val{font-weight:600;color:var(--midnight)}
+.info-key{color:var(--slate);font-size:12px;flex:0 0 auto}
+.info-val{font-weight:600;color:var(--midnight);min-width:0;max-width:64%;text-align:right;overflow-wrap:anywhere;word-break:break-word}
 .agent-av{width:56px;height:56px;border-radius:50%;background:var(--indigo);color:white;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
-table{width:100%;border-collapse:collapse}
-thead th{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border)}
+.tbl{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;min-width:680px;border-collapse:collapse}
+thead th{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border);white-space:nowrap}
 tbody td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--midnight);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#F8FAFC}
@@ -39,13 +41,47 @@ tbody tr:hover td{background:#F8FAFC}
 .btn-success{background:var(--emerald);color:white}
 .btn-ghost{background:white;color:var(--midnight);border:1px solid var(--border)}
 .btn-danger{background:#FEF2F2;color:var(--crimson);border:1px solid #FECACA}
-.form-group{margin-bottom:14px}
-.form-label{display:block;font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-.form-control{width:100%;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;transition:border-color 200ms}
+.form-group{margin-bottom:14px;min-width:0}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;overflow-wrap:anywhere}
+.form-control{width:100%;max-width:100%;padding:9px 12px;font-size:13px;font-family:inherit;border:1px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;transition:border-color 200ms;min-width:0}
 .form-control:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,.1);background:white}
 .alert-success{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--emerald);margin-bottom:16px}
 .alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px}
-@media(max-width:900px){.two-col{grid-template-columns:1fr}.stats-row{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){
+    .two-col{grid-template-columns:1fr}
+    .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+    .breadcrumb{flex-wrap:wrap;margin-bottom:14px;overflow-wrap:anywhere}
+    .stats-row{grid-template-columns:1fr}
+    .card-header{padding:12px 14px;align-items:flex-start;flex-wrap:wrap}
+    .card-body{padding:14px}
+    .info-row{align-items:flex-start;padding:10px 14px;gap:10px}
+    .info-key{flex:0 0 38%;line-height:1.4}
+    .info-val{flex:1 1 auto;max-width:none;line-height:1.4}
+    .tbl{overflow:visible}
+    .tbl table{display:block;width:100%;min-width:0}
+    .tbl thead{display:none}
+    .tbl tbody{display:grid;gap:10px;padding:10px}
+    .tbl tbody tr{display:block;width:100%;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff}
+    .tbl tbody tr:hover td{background:#fff}
+    .tbl tbody td{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:10px 12px;border-bottom:1px solid var(--border);text-align:right;overflow-wrap:anywhere}
+    .tbl tbody td:last-child{border-bottom:none}
+    .tbl tbody td::before{flex:0 0 86px;content:"";font-size:10px;font-weight:700;color:var(--slate-light);letter-spacing:.05em;text-transform:uppercase;text-align:left}
+    .tbl tbody td:nth-child(1)::before{content:"School"}
+    .tbl tbody td:nth-child(2)::before{content:"Date"}
+    .tbl tbody td:nth-child(3)::before{content:"Sale Amount"}
+    .tbl tbody td:nth-child(4)::before{content:"Commission"}
+    .tbl tbody td:nth-child(5)::before{content:"Status"}
+    .tbl tbody td[colspan]{display:block;text-align:center;padding:28px 16px}
+    .tbl tbody td[colspan]::before{display:none}
+    .card-body .btn{max-width:100%}
+}
+@media(max-width:380px){
+    .info-row{display:block}
+    .info-key{display:block;margin-bottom:5px}
+    .info-val{display:block;max-width:100%;text-align:left}
+}
 </style>
 @endpush
 
@@ -65,8 +101,8 @@ tbody tr:hover td{background:#F8FAFC}
         <div class="card">
             <div style="padding:22px;text-align:center;border-bottom:1px solid var(--border)">
                 <div class="agent-av">{{ strtoupper(substr($agent->name, 0, 1)) }}</div>
-                <div style="font-size:16px;font-weight:700;color:var(--midnight)">{{ $agent->name }}</div>
-                <div style="font-size:12px;color:var(--slate-light);margin-top:3px">{{ $agent->email }}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--midnight);overflow-wrap:anywhere">{{ $agent->name }}</div>
+                <div style="font-size:12px;color:var(--slate-light);margin-top:3px;overflow-wrap:anywhere;word-break:break-word">{{ $agent->email }}</div>
                 <div style="margin-top:8px">
                     @if(!$agent->password)
                         <span class="badge badge-pending">Pending Activation</span>
@@ -83,8 +119,8 @@ tbody tr:hover td{background:#F8FAFC}
             </div>
             <div class="info-row">
                 <span class="info-key">Referral Link</span>
-                <span class="info-val" style="max-width:220px;text-align:right;word-break:break-all">
-                    <a href="{{ $agent->referralLink() }}" target="_blank" rel="noopener" style="color:var(--indigo);text-decoration:none">{{ $agent->referralLink() }}</a>
+                <span class="info-val">
+                    <a href="{{ $agent->referralLink() }}" target="_blank" rel="noopener" style="color:var(--indigo);text-decoration:none;overflow-wrap:anywhere;word-break:break-all">{{ $agent->referralLink() }}</a>
                 </span>
             </div>
             <div class="info-row">
