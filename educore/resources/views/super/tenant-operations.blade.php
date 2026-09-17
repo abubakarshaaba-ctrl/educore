@@ -39,7 +39,7 @@
 </form>
 
 <section class="panel">
-    <div class="panel-head"><h2>School operations</h2><span style="font-size:10.5px;color:var(--slate)">{{ $tenants->total() }} tenant records before attention-only client filtering</span></div>
+    <div class="panel-head"><h2>School operations</h2><span style="font-size:10.5px;color:var(--slate)">{{ $tenants->total() }} school{{ $tenants->total() === 1 ? '' : 's' }} matched the selected filters</span></div>
     <div class="responsive-table">
         <table class="ops-table">
             <thead><tr><th>School</th><th>Status</th><th>Students</th><th>Users</th><th>Live sessions</th><th>Subscription</th><th>Support</th><th>Billing</th><th>Recent activity</th><th>Attention</th></tr></thead>
@@ -50,7 +50,7 @@
                     $expiry = $row->tenant->subscription_expires_at ?? null;
                 @endphp
                 <tr>
-                    <td><div class="school">{{ $row->tenant->name }}</div><div class="slug">{{ $row->tenant->slug }}</div></td>
+                    <td><div class="school">{{ $row->tenant->name }}</div><div class="slug">{{ $row->tenant->slug ?? '—' }}</div></td>
                     <td><span class="badge2 {{ in_array($status,['active','pending','suspended','subscription_expired']) ? $status : 'unknown' }}">{{ str_replace('_',' ', $status) }}</span></td>
                     <td><span class="metric">{{ number_format($row->students) }}</span></td>
                     <td><span class="metric">{{ number_format($row->active_users) }}</span><div class="subtle">{{ number_format($row->users) }} total</div></td>
