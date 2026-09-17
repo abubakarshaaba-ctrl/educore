@@ -5,25 +5,43 @@
 
 @push('styles')
 <style>
-    .page-grid{display:grid;grid-template-columns:1fr 360px;gap:16px}
-    .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px}
-    .muted{color:var(--slate);font-size:13px}
-    .form-row{margin-bottom:14px}
+    .status-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;min-width:0}
+    .status-head>div{min-width:0}
+    .status-head h2,.status-head .muted{overflow-wrap:anywhere}
+    .page-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:16px;min-width:0}
+    .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;min-width:0}
+    .muted{color:var(--slate);font-size:13px;overflow-wrap:anywhere}
+    .form-row{margin-bottom:14px;min-width:0}
     .form-row label{display:block;font-size:12px;font-weight:700;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
-    .form-control{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font:inherit}
-    .btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;padding:9px 14px;font-weight:700;text-decoration:none;cursor:pointer}
+    .form-control{width:100%;min-width:0;max-width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font:inherit}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:9px 14px;min-height:40px;font-weight:700;text-decoration:none;cursor:pointer}
     .btn-primary{background:var(--indigo);color:#fff}
     .btn-ghost{background:#fff;color:var(--midnight);border:1px solid var(--border)}
-    .error{color:#dc2626;font-size:12px;margin-top:4px}
-    .timeline{display:flex;flex-direction:column;gap:10px}
-    .timeline-item{border-left:3px solid var(--indigo);padding-left:12px}
-    .badge{display:inline-flex;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:#eff6ff;color:#2563eb}
+    .error{color:#dc2626;font-size:12px;margin-top:4px;overflow-wrap:anywhere}
+    .timeline{display:flex;flex-direction:column;gap:10px;min-width:0}
+    .timeline-item{border-left:3px solid var(--indigo);padding-left:12px;min-width:0;overflow-wrap:anywhere}
+    .timeline-item>div:first-child{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .badge{display:inline-flex;max-width:100%;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:#eff6ff;color:#2563eb;overflow-wrap:anywhere}
+    .status-extra label[style]{text-wrap:pretty}
+    .status-extra input[type="checkbox"]{flex:0 0 auto;margin-top:2px}
     @media(max-width:900px){.page-grid{grid-template-columns:1fr}}
+    @media(max-width:640px){
+        .status-head{align-items:flex-start;flex-direction:column}
+        .status-head .btn{width:100%}
+        .card{padding:15px}
+        .btn-primary{width:100%}
+        .timeline-item{padding-left:10px}
+    }
+    @media(max-width:420px){
+        .card{padding:13px}
+        .form-control{padding:9px 10px}
+        .badge{font-size:10px}
+    }
 </style>
 @endpush
 
 @section('content')
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<div class="status-head">
     <div>
         <h2 style="margin:0;font-size:20px">{{ $student->full_name }}</h2>
         <div class="muted">{{ $student->admission_number }} - Current status: <strong>{{ $student->status_label }}</strong></div>
