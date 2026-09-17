@@ -5,21 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Application Fee Payment</title>
 <style>
-body{font-family:system-ui,sans-serif;background:#F8FAFC;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-.card{background:white;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}
-.amount{font-size:36px;font-weight:900;color:#1E3A5F;margin:16px 0 4px}
-.desc{font-size:13px;color:#64748B;margin-bottom:24px}
-.btn{width:100%;padding:14px;background:#2563EB;color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#F8FAFC;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;color:#1E293B}
+.card{background:white;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center;min-width:0}
+.amount{font-size:36px;font-weight:900;color:#1E3A5F;margin:16px 0 4px;overflow-wrap:anywhere}
+.desc{font-size:13px;color:#64748B;margin-bottom:24px;overflow-wrap:anywhere}
+.ref{font-size:11px;color:#94A3B8;margin-bottom:16px;overflow-wrap:anywhere;word-break:break-all}
+.btn{width:100%;padding:14px;background:#2563EB;color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;min-height:46px}
 .btn:hover{background:#1D4ED8}
-.secure{font-size:11px;color:#94A3B8;margin-top:12px}
+.secure{font-size:11px;color:#94A3B8;margin-top:12px;overflow-wrap:anywhere}
+@media(max-width:480px){body{padding:12px}.card{padding:26px 18px}.amount{font-size:30px}.btn{font-size:14px}}
+@media(max-width:360px){body{padding:8px}.card{padding:22px 14px;border-radius:14px}.amount{font-size:27px}}
 </style>
 </head>
 <body>
 <div class="card">
     <div style="font-size:32px;margin-bottom:8px">🏫</div>
     <div style="font-size:18px;font-weight:800;color:#1E293B;margin-bottom:4px">Application Fee</div>
-    <div style="font-size:13px;color:#64748B;margin-bottom:4px">{{ $admission->first_name }} {{ $admission->last_name }}</div>
-    <div style="font-size:11px;color:#94A3B8;margin-bottom:16px">Ref: {{ $admission->application_number }}</div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:4px;overflow-wrap:anywhere">{{ $admission->first_name }} {{ $admission->last_name }}</div>
+    <div class="ref">Ref: {{ $admission->application_number }}</div>
     <div class="amount">₦{{ number_format($amount) }}</div>
     <div class="desc">Pay your application fee to complete your submission</div>
     <button class="btn" onclick="payWithPaystack()">💳 Pay Now with Paystack</button>
