@@ -1,9 +1,35 @@
 @extends('layouts.portal')
 @section('title','My Results')
+
+@push('styles')
+<style>
+.results-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;min-width:0}
+.results-head h2{font-size:17px;font-weight:800;overflow-wrap:anywhere}
+.term-select{padding:8px 14px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;max-width:100%;min-width:220px;box-sizing:border-box}
+.results-table{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.results-table table{min-width:760px}
+.results-table th{white-space:nowrap}
+.results-table td{overflow-wrap:anywhere}
+.remarks-text{font-size:13px;font-style:italic;overflow-wrap:anywhere}
+.pdf-actions{margin-top:8px;display:flex;flex-wrap:wrap}
+@media(max-width:640px){
+    .results-head{align-items:stretch;flex-direction:column}
+    .term-select{width:100%;min-width:0}
+    .results-table table{min-width:680px}
+    .pdf-actions .btn{width:100%;justify-content:center;min-height:42px}
+}
+@media(max-width:420px){
+    .results-head h2{font-size:16px}
+    .results-table table{min-width:640px;font-size:12px}
+    .results-table th,.results-table td{padding:8px 10px}
+}
+</style>
+@endpush
+
 @section('content')
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <h2 style="font-size:17px;font-weight:800">📊 My Report Cards</h2>
-    <select onchange="location.href='?term_id='+this.value" style="padding:8px 14px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none">
+<div class="results-head">
+    <h2>📊 My Report Cards</h2>
+    <select class="term-select" onchange="location.href='?term_id='+this.value">
         @foreach($terms as $t)
         <option value="{{ $t->id }}" {{ $t->id==$termId ? 'selected':'' }}>{{ $t->name }} — {{ optional($t->session)->name }}</option>
         @endforeach
@@ -24,7 +50,7 @@
 @if($summary->subject_breakdown)
 <div class="card">
     <div class="ch">Subject Breakdown</div>
-    <div style="overflow-x:auto">
+    <div class="results-table">
     <table>
         <thead><tr><th>#</th><th>Subject</th><th>Score</th><th>Grade</th><th>Position</th><th>Class High</th><th>Class Low</th><th>Remark</th></tr></thead>
         <tbody>
@@ -55,13 +81,13 @@
         @if($summary->form_tutor_remark)
         <div style="margin-bottom:12px">
             <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Form Tutor's Remark</div>
-            <div style="font-size:13px;font-style:italic">{{ $summary->form_tutor_remark }}</div>
+            <div class="remarks-text">{{ $summary->form_tutor_remark }}</div>
         </div>
         @endif
         @if($summary->principal_remark)
         <div>
             <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Principal's Remark</div>
-            <div style="font-size:13px;font-style:italic">{{ $summary->principal_remark }}</div>
+            <div class="remarks-text">{{ $summary->principal_remark }}</div>
         </div>
         @endif
     </div>
@@ -69,7 +95,7 @@
 @endif
 
 {{-- PDF download --}}
-<div style="margin-top:8px">
+<div class="pdf-actions">
     <a href="{{ route('student.portal.report-card.pdf', ['term_id' => $termId]) }}"
        class="btn btn-primary">🖨 Download Report Card PDF</a>
 </div>
