@@ -27,7 +27,7 @@
         flex-wrap:wrap;
     }
 
-    .student-table-card { overflow:hidden; }
+    .student-table-card { overflow:hidden; min-width:0; }
 
     .student-table-meta {
         display:flex;
@@ -42,6 +42,16 @@
     }
 
     .student-table-meta strong { color:var(--brand-navy, var(--midnight)); }
+
+    .student-table-card .ec-table-wrap {
+        width:100%;
+        max-width:100%;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior-inline:contain;
+    }
+
+    .student-table-card table { min-width:760px; }
 
     .student-name-cell {
         display:flex;
@@ -64,8 +74,8 @@
         font-weight:800;
     }
 
-    .student-name { font-weight:700; color:var(--brand-text, var(--midnight)); }
-    .student-adm { margin-top:2px; font-size:11px; color:var(--brand-gray, var(--slate-light)); }
+    .student-name { font-weight:700; color:var(--brand-text, var(--midnight)); overflow-wrap:anywhere; }
+    .student-adm { margin-top:2px; font-size:11px; color:var(--brand-gray, var(--slate-light)); overflow-wrap:anywhere; }
 
     .student-row-actions {
         display:flex;
@@ -126,6 +136,8 @@
         background:#fff;
         color:var(--brand-gray, var(--slate));
         font-size:13px;
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
     }
 
     @media (max-width:980px) {
@@ -135,12 +147,26 @@
 
     @media (max-width:640px) {
         .page-header { align-items:flex-start; gap:12px; }
-        .student-page-actions { width:100%; justify-content:flex-start; }
-        .student-page-actions .btn { flex:1 1 auto; justify-content:center; }
-        .student-filters { grid-template-columns:1fr; }
-        .student-filter-actions { grid-column:auto; }
-        .student-filter-actions .btn { flex:1 1 auto; justify-content:center; }
-        .student-table-meta,.student-pagination { align-items:flex-start; flex-direction:column; }
+        .student-page-actions { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .student-page-actions .btn { width:100%; min-width:0; justify-content:center; padding-inline:10px; font-size:11px; }
+        .student-page-actions .btn:last-child:nth-child(odd) { grid-column:1/-1; }
+        .student-filters { grid-template-columns:1fr; gap:10px; }
+        .student-filter-actions { grid-column:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+        .student-filter-actions .btn { width:100%; min-width:0; justify-content:center; }
+        .student-table-meta { align-items:flex-start; flex-direction:column; padding:11px 12px; font-size:11px; }
+        .student-pagination { padding:10px 12px; font-size:11px; }
+        .student-table-card table { min-width:700px; }
+        .student-table-card table th { font-size:9px; padding:8px 10px; }
+        .student-table-card table td { font-size:11px; padding:9px 10px; }
+        .student-avatar { width:30px; height:30px; flex-basis:30px; }
+        .student-name-cell { min-width:155px; }
+        .student-row-actions { min-width:170px; }
+    }
+
+    @media (max-width:360px) {
+        .student-page-actions { grid-template-columns:1fr; }
+        .student-page-actions .btn:last-child:nth-child(odd) { grid-column:auto; }
+        .student-filter-actions { grid-template-columns:1fr; }
     }
 </style>
 @endpush
