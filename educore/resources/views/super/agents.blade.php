@@ -25,8 +25,8 @@
 .card-header{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .card-title{font-size:13px;font-weight:700;color:var(--midnight)}
 .card-body{padding:18px}
-table{width:100%;border-collapse:collapse;table-layout:fixed}
-thead th{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border)}
+table{width:100%;min-width:980px;border-collapse:collapse;table-layout:auto}
+thead th{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:uppercase;letter-spacing:.05em;padding:10px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border);white-space:nowrap}
 tbody td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--midnight);vertical-align:middle;overflow-wrap:anywhere}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#F8FAFC}
@@ -65,6 +65,42 @@ tbody tr:hover td{background:#F8FAFC}
 .modal-sub{font-size:13px;color:var(--slate-light);margin-top:4px;line-height:1.6}
 @media(max-width:1100px){
     .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:820px){
+    .agent-actions{margin-left:-2px;margin-right:-2px;padding:0 2px 8px;scrollbar-width:thin}
+    .link-box{padding:12px}
+    .link-code{font-size:11px;line-height:1.45}
+    .card > div[style*="overflow:auto"]{overflow:visible!important}
+    .card table{display:block;width:100%;min-width:0;table-layout:auto}
+    .card thead{display:none}
+    .card tbody{display:grid;gap:12px;padding:12px}
+    .card tbody tr{display:block;width:100%;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+    .card tbody tr:hover td{background:#fff}
+    .card tbody td{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%!important;padding:10px 12px;border-bottom:1px solid var(--border);text-align:right!important;overflow-wrap:anywhere}
+    .card tbody td:last-child{border-bottom:none}
+    .card tbody td::before{flex:0 0 78px;content:"";color:var(--slate-light);font-size:10px;font-weight:700;letter-spacing:.05em;text-align:left;text-transform:uppercase}
+    .card tbody td:nth-child(1)::before{content:"Agent"}
+    .card tbody td:nth-child(2)::before{content:"Referral"}
+    .card tbody td:nth-child(3)::before{content:"Rate"}
+    .card tbody td:nth-child(4)::before{content:"Schools"}
+    .card tbody td:nth-child(5)::before{content:"Earned"}
+    .card tbody td:nth-child(6)::before{content:"Unpaid"}
+    .card tbody td:nth-child(7)::before{content:"Status"}
+    .card tbody td:nth-child(8)::before{content:"Actions"}
+    .card tbody td:nth-child(1),.card tbody td:nth-child(2){display:block;text-align:left!important}
+    .card tbody td:nth-child(1)::before,.card tbody td:nth-child(2)::before{display:block;margin-bottom:7px}
+    .card tbody td[colspan]{display:block;text-align:center!important;padding:32px 18px}
+    .card tbody td[colspan]::before{display:none}
+    .agent-cell,.agent-text,.ref-link{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+    .ref-link{line-height:1.45}
+    .card tbody td:nth-child(2) .btn{width:100%;justify-content:center;margin-top:8px!important}
+    .action-group{justify-content:flex-end;min-width:0!important}
+    .modal{padding:10px}
+    .modal-panel{padding:18px;max-height:calc(100dvh - 20px)}
+    .modal-head{flex-direction:column;align-items:stretch}
+    .modal-head > .btn{align-self:flex-end}
+    .modal-panel form > div[style*="justify-content:flex-end"]{flex-direction:column-reverse!important;align-items:stretch!important}
+    .modal-panel form > div[style*="justify-content:flex-end"] .btn{width:100%;justify-content:center}
 }
 @media(max-width:720px){
     .stats-row{grid-template-columns:1fr}
