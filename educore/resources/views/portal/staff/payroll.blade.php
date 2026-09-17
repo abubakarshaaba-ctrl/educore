@@ -4,32 +4,41 @@
 
 @push('styles')
 <style>
-.pr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-.pr-kpi{background:white;border:1px solid var(--border);border-radius:12px;padding:16px}
-.pr-kpi-val{font-size:22px;font-weight:800;letter-spacing:-.02em}
-.pr-kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light,#7A7F87);margin-top:4px}
+.pr-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.pr-kpi{background:white;border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
+.pr-kpi-val{font-size:22px;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.pr-kpi-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light,#7A7F87);margin-top:4px;overflow-wrap:anywhere}
 
-.pr-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pr-card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}
 .pr-card-head{padding:13px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight)}
-.pr-table{width:100%;border-collapse:collapse;font-size:13px}
-.pr-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light,#7A7F87);padding:11px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border)}
-.pr-table td{padding:12px 16px;border-bottom:1px solid var(--border)}
+.pr-table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.pr-table{width:100%;min-width:760px;border-collapse:collapse;font-size:13px}
+.pr-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light,#7A7F87);padding:11px 16px;text-align:left;background:#F8FAFC;border-bottom:1px solid var(--border);white-space:nowrap}
+.pr-table td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
 .pr-table tr:last-child td{border-bottom:none}
 .pr-table tr:hover td{background:#FAFBFC}
 .pr-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:capitalize}
 .pr-badge-paid{background:#ECFDF5;color:#059669}
 .pr-badge-pending{background:#FFFBEB;color:#D97706}
 .pr-empty{padding:48px;text-align:center;color:var(--slate-light,#7A7F87);font-size:13px}
-.pr-print-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;background:#071E45;color:white;border-radius:7px;font-size:11px;font-weight:700;text-decoration:none}
+.pr-print-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;background:#071E45;color:white;border-radius:7px;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap}
+.pr-pagination{padding:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 
-@media(max-width:1000px){.pr-kpis{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.pr-kpis{grid-template-columns:1fr}}
+@media(max-width:1000px){.pr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){
+    .pr-kpis{grid-template-columns:1fr;gap:10px}
+    .pr-kpi{padding:14px}
+    .pr-table{min-width:700px;font-size:12px}
+    .pr-table th,.pr-table td{padding:9px 11px}
+    .pr-empty{padding:36px 16px}
+    .pr-pagination{padding:10px 12px}
+}
 </style>
 @endpush
 
 @section('content')
 
-<h2 style="font-size:17px;font-weight:800;color:var(--midnight);margin-bottom:16px">💰 My Payroll & Payslips</h2>
+<h2 style="font-size:17px;font-weight:800;color:var(--midnight);margin-bottom:16px;overflow-wrap:anywhere">💰 My Payroll & Payslips</h2>
 
 @if($totals && $totals->count > 0)
 <div class="pr-kpis">
@@ -42,7 +51,7 @@
 
 <div class="pr-card">
     <div class="pr-card-head">Payslip History</div>
-    <div style="overflow-x:auto"><table class="pr-table">
+    <div class="pr-table-wrap"><table class="pr-table">
         <thead>
             <tr>
                 <th>Period</th><th>Dates</th><th>Gross Pay</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th>
@@ -77,6 +86,6 @@
         @endforelse
         </tbody>
     </table></div>
-    <div style="padding:14px">{{ $items->links() }}</div>
+    <div class="pr-pagination">{{ $items->links() }}</div>
 </div>
 @endsection
