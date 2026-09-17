@@ -4,28 +4,55 @@
 
 @push('styles')
 <style>
-.tabs{display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content}
-.tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);cursor:pointer;border:none;background:none;font-family:inherit}
+.tabs{display:flex;gap:4px;background:white;border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{padding:7px 16px;border-radius:7px;font-size:13px;font-weight:500;color:var(--slate);cursor:pointer;border:none;background:none;font-family:inherit;white-space:nowrap;flex:0 0 auto}
 .tab.active{background:var(--indigo);color:white}
-.card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
-.ch{padding:12px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight);display:flex;align-items:center;justify-content:space-between}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{padding:9px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#94A3B8);text-align:left}
-td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--midnight)}
+.card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px;min-width:0}
+.ch{padding:12px 18px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:13px;font-weight:700;color:var(--midnight);display:flex;align-items:center;justify-content:space-between;min-width:0}
+.account-table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+table{width:100%;min-width:760px;border-collapse:collapse;font-size:13px}
+th{padding:9px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#94A3B8);text-align:left;white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--midnight);vertical-align:top}
 tr:hover td{background:#FAFBFF}
-.badge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+.badge{display:inline-flex;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;max-width:240px;overflow-wrap:anywhere;word-break:break-word;white-space:normal}
 .b-active{background:#ECFDF5;color:#059669}.b-inactive{background:#FEF2F2;color:#DC2626}
 .b-has{background:#EFF6FF;color:#2563EB}.b-none{background:#F1F5F9;color:#64748B}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;border-radius:7px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 12px;font-size:12px;font-weight:600;font-family:inherit;border-radius:7px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms}
 .btn-p{background:var(--indigo);color:white}.btn-ghost{background:#F1F5F9;color:var(--slate);border:1px solid var(--border)}
 .btn-g{background:#059669;color:white}.btn-warn{background:#FFFBEB;color:#D97706;border:1px solid #FDE68A}
 .btn-danger{background:#FEF2F2;color:#DC2626;border:1px solid #FECACA}
-.alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px}
-.alert-e{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px}
-.inline-form{display:flex;gap:6px;align-items:center}
-.fc-sm{padding:6px 10px;font-size:12px;font-family:inherit;border:1.5px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;min-width:160px}
+.alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px;overflow-wrap:anywhere}
+.alert-e{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px;overflow-wrap:anywhere}
+.inline-form{display:flex;gap:6px;align-items:center;min-width:0}
+.fc-sm{padding:6px 10px;font-size:12px;font-family:inherit;border:1.5px solid var(--border);border-radius:7px;background:#F8FAFC;outline:none;min-width:160px;max-width:100%}
 .fc-sm:focus{border-color:var(--indigo)}
-.info-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;font-size:13px;color:#1D4ED8;margin-bottom:18px;line-height:1.6}
+.info-box{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;font-size:13px;color:#1D4ED8;margin-bottom:18px;line-height:1.6;overflow-wrap:anywhere}
+.bulk-actions{padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.account-actions{display:flex;gap:5px;flex-wrap:wrap}
+.reset-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;padding:18px;overflow-y:auto}
+.reset-dialog{background:white;border-radius:14px;padding:28px;max-width:380px;width:100%;max-height:calc(100vh - 36px);overflow-y:auto;overflow-wrap:anywhere}
+.reset-buttons{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:640px){
+    .tabs{width:100%;margin-bottom:14px}
+    .tab{flex:1 0 auto;min-height:42px}
+    .info-box{padding:12px 14px;font-size:12px}
+    .bulk-actions{padding:12px 14px;align-items:stretch}
+    .bulk-actions form,.bulk-actions .btn{width:100%}
+    table{min-width:700px;font-size:12px}
+    th,td{padding:8px 10px}
+    .inline-form{flex-direction:column;align-items:stretch;min-width:190px}
+    .inline-form .fc-sm,.inline-form .btn{width:100%;min-width:0;min-height:38px}
+    .account-actions{min-width:160px}
+    .account-actions form,.account-actions .btn{flex:1 1 auto}
+    .reset-dialog{padding:20px 16px}
+    .reset-dialog .fc-sm{font-size:16px}
+    .reset-buttons{flex-direction:column}
+    .reset-buttons .btn{width:100%;min-height:42px}
+}
+@media(max-width:380px){
+    table{min-width:660px}
+    .tab{padding:7px 12px;font-size:12px}
+}
 </style>
 @endpush
 
@@ -43,7 +70,7 @@ tr:hover td{background:#FAFBFF}
 {{-- Bulk action --}}
 <div class="card" style="margin-bottom:16px">
     <div class="ch">⚡ Bulk Actions</div>
-    <div style="padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div class="bulk-actions">
         <form method="POST" action="{{ route('portal-accounts.bulk-students') }}">
             @csrf
             <button type="submit" class="btn btn-g"
@@ -65,7 +92,7 @@ tr:hover td{background:#FAFBFF}
 <div id="tab-students">
 <div class="card">
     <div class="ch">🎓 Student Portal Accounts</div>
-    <div style="overflow-x:auto">
+    <div class="account-table-wrap">
     <table>
         <thead>
             <tr>
@@ -98,7 +125,7 @@ tr:hover td{background:#FAFBFF}
             </td>
             <td>
                 @if($account)
-                <div style="display:flex;gap:5px;flex-wrap:wrap">
+                <div class="account-actions">
                     <form method="POST" action="{{ route('portal-accounts.toggle', $account->id) }}">
                         @csrf @method('PATCH')
                         <button class="btn {{ $account->is_active ? 'btn-danger':'btn-g' }}" style="padding:4px 8px;font-size:11px">
@@ -129,7 +156,7 @@ tr:hover td{background:#FAFBFF}
 <div id="tab-parents" style="display:none">
 <div class="card">
     <div class="ch">👪 Parent / Guardian Portal Accounts</div>
-    <div style="overflow-x:auto">
+    <div class="account-table-wrap">
     <table>
         <thead>
             <tr>
@@ -167,7 +194,7 @@ tr:hover td{background:#FAFBFF}
             </td>
             <td>
                 @if($account)
-                <div style="display:flex;gap:5px;flex-wrap:wrap">
+                <div class="account-actions">
                     <form method="POST" action="{{ route('portal-accounts.toggle', $account->id) }}">
                         @csrf @method('PATCH')
                         <button class="btn {{ $account->is_active ? 'btn-danger':'btn-g' }}" style="padding:4px 8px;font-size:11px">
@@ -195,8 +222,8 @@ tr:hover td{background:#FAFBFF}
 </div>
 
 {{-- Reset password modal --}}
-<div id="resetModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:none;align-items:center;justify-content:center">
-    <div style="background:white;border-radius:14px;padding:28px;max-width:380px;width:90%">
+<div id="resetModal" class="reset-modal">
+    <div class="reset-dialog">
         <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">🔑 Reset Password — <span id="resetName"></span></h3>
         <form method="POST" id="resetForm" action="">
             @csrf
@@ -205,7 +232,7 @@ tr:hover td{background:#FAFBFF}
                 <input type="text" name="password" class="fc-sm" style="width:100%;padding:9px 12px"
                        placeholder="Min 6 characters" required minlength="6">
             </div>
-            <div style="display:flex;gap:8px">
+            <div class="reset-buttons">
                 <button type="submit" class="btn btn-p">Reset Password</button>
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('resetModal').style.display='none'">Cancel</button>
             </div>
