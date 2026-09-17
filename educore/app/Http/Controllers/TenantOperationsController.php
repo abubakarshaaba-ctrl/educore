@@ -214,8 +214,10 @@ class TenantOperationsController extends Controller
             }
 
             if ($hasExpiry) {
-                $attention->orWhereNotNull('tenants.subscription_expires_at')
-                    ->where('tenants.subscription_expires_at', '<=', now()->addDays(14));
+                $attention->orWhere(function ($expiry) {
+                    $expiry->whereNotNull('tenants.subscription_expires_at')
+                        ->where('tenants.subscription_expires_at', '<=', now()->addDays(14));
+                });
             }
 
             if ($hasSupport) {
