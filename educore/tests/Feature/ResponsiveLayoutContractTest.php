@@ -150,6 +150,22 @@ class ResponsiveLayoutContractTest extends TestCase
         $this->assertStringContainsString('.total-bar{align-items:stretch;flex-direction:column', $frequency);
     }
 
+    public function test_assessment_template_surfaces_keep_tabs_tables_modals_and_actions_mobile_safe(): void
+    {
+        $templates = file_get_contents(resource_path('views/scores/assessment-types.blade.php'));
+        $legacy = file_get_contents(resource_path('views/scores/assessment-types-admin.blade.php'));
+
+        $this->assertStringContainsString('.at-tabs{display:flex', $templates);
+        $this->assertStringContainsString('-webkit-overflow-scrolling:touch', $templates);
+        $this->assertStringContainsString('.at-table-wrap{width:100%;max-width:100%;overflow-x:auto', $templates);
+        $this->assertStringContainsString('.at-modal-backdrop{padding:8px;align-items:flex-end}', $templates);
+        $this->assertStringContainsString('.at-checks{grid-template-columns:1fr 1fr}', $templates);
+
+        $this->assertStringContainsString('.assessment-scroll { width:100%; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }', $legacy);
+        $this->assertStringContainsString('.assessment-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }', $legacy);
+        $this->assertStringContainsString('.assessment-layout { grid-template-columns:1fr; }', $legacy);
+    }
+
     public static function shells(): array
     {
         return [
