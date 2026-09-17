@@ -1,5 +1,33 @@
 @extends('layouts.portal')
 @section('title','Report Cards')
+
+@push('styles')
+<style>
+.parent-results-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;min-width:0}
+.parent-results-head h2{font-size:17px;font-weight:800;min-width:0;overflow-wrap:anywhere}
+.parent-results-term{padding:8px 14px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;max-width:100%;min-width:0}
+.parent-results-table{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.parent-results-table table{min-width:900px}
+.parent-results-table th{white-space:nowrap}
+.parent-results-table td{vertical-align:top}
+.parent-results-table td:nth-child(2),.parent-results-table td:last-child{overflow-wrap:anywhere}
+.parent-results-remarks{overflow-wrap:anywhere;word-break:break-word}
+.parent-results-download{margin-top:4px}
+@media(max-width:768px){
+    .parent-results-table table{min-width:820px}
+    .parent-results-table th,.parent-results-table td{padding:8px 10px}
+}
+@media(max-width:640px){
+    .parent-results-head{display:grid;grid-template-columns:1fr}
+    .parent-results-term{width:100%;font-size:16px;min-height:42px}
+    .parent-results-table table{min-width:760px;font-size:11px}
+    .parent-results-download{width:100%;justify-content:center;min-height:42px}
+    .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:380px){.kpi-row{grid-template-columns:1fr}.parent-results-table table{min-width:720px}}
+</style>
+@endpush
+
 @section('content')
 @if($students->count() > 1)
 <div class="child-tabs">
@@ -8,10 +36,9 @@
     @endforeach
 </div>
 @endif
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
-    <h2 style="font-size:17px;font-weight:800">📊 Report Cards — {{ optional($student)->full_name }}</h2>
-    <select onchange="location.href='?student_id={{ optional($student)->id }}&term_id='+this.value"
-            style="padding:8px 14px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none">
+<div class="parent-results-head">
+    <h2>📊 Report Cards — {{ optional($student)->full_name }}</h2>
+    <select class="parent-results-term" onchange="location.href='?student_id={{ optional($student)->id }}&term_id='+this.value">
         @foreach($terms as $t)
         <option value="{{ $t->id }}" {{ $t->id==$termId ? 'selected':'' }}>{{ $t->name }} — {{ optional($t->session)->name }}</option>
         @endforeach
@@ -29,7 +56,7 @@
 @php $isThirdTerm = isset($summary->subject_breakdown[0]['annual_total']); @endphp
 <div class="card">
     <div class="ch">Subject Breakdown</div>
-    <div style="overflow-x:auto"><table>
+    <div class="parent-results-table"><table>
         <thead><tr>
             <th>#</th><th>Subject</th>
             @foreach($assessmentTypes as $at)<th style="font-size:11px">{{ $at->name }}</th>@endforeach
@@ -71,11 +98,10 @@
 </div>
 @endif
 
-{{-- Remarks --}}
 @if($summary->form_tutor_remark || $summary->principal_remark)
 <div class="card">
     <div class="ch">Remarks</div>
-    <div class="cb">
+    <div class="cb parent-results-remarks">
         @if($summary->form_tutor_remark)
         <div style="margin-bottom:12px">
             <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Form Tutor's Remark</div>
@@ -92,7 +118,7 @@
 </div>
 @endif
 
-<a href="{{ route('parent.results.pdf', ['student_id' => optional($student)->id, 'term_id' => $termId]) }}" target="_blank" class="btn btn-primary" style="margin-top:4px">🖨 Download Report Card PDF</a>
+<a href="{{ route('parent.results.pdf', ['student_id' => optional($student)->id, 'term_id' => $termId]) }}" target="_blank" class="btn btn-primary parent-results-download">🖨 Download Report Card PDF</a>
 @else
 <div class="card">
     <div class="empty">
