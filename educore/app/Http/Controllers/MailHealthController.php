@@ -12,13 +12,6 @@ class MailHealthController extends Controller
 {
     public function check(Request $request)
     {
-        $expected = (string) (config('app.deploy_token') ?: SelfDeployController::derivedToken());
-        $provided = (string) $request->query('token');
-
-        if ($expected === '' || $provided === '' || !hash_equals($expected, $provided)) {
-            abort(403, 'Invalid diagnostic token.');
-        }
-
         $mailer = (string) config('mail.default');
         $mailerConfig = (array) config("mail.mailers.{$mailer}", []);
         $transport = (string) ($mailerConfig['transport'] ?? $mailer);
@@ -72,8 +65,10 @@ class MailHealthController extends Controller
             }
         }
 
-        $to = trim((string) $request->query('to'));
-        $mode = strtolower(trim((string) $request->query('mode', 'notification')));
+        // Sending email is a state-changing diagnostic action. It is only
+        // accepted through the CSRF-protected POST route; GET is read-only.
+        $to = $request->isMethod('post') ? trim((string) $request->input('to')) : '';
+        $mode = strtolower(trim((string) $request->input('mode', 'notification')));
         if (!in_array($mode, ['notification', 'raw'], true)) {
             $mode = 'notification';
         }
