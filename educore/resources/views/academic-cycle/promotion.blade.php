@@ -7,9 +7,26 @@
 <style>
 .cycle-form,.cycle-panel{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:18px}
 .cycle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:end}
-.cycle-grid select{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px}
-.cycle-btn{border:0;border-radius:8px;padding:10px 14px;background:#0f3b6f;color:#fff;font-weight:800;cursor:pointer}
-.cycle-table-wrap{overflow-x:auto}.cycle-table{width:100%;border-collapse:collapse;min-width:760px}.cycle-table th,.cycle-table td{padding:11px 12px;border-bottom:1px solid #e5e7eb;text-align:left}.cycle-table th{background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase}.cycle-table select{border:1px solid #cbd5e1;border-radius:8px;padding:8px}
+.cycle-grid label{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cycle-grid select{width:100%;min-width:0;border:1px solid #cbd5e1;border-radius:8px;padding:10px}
+.cycle-btn{border:0;border-radius:8px;padding:10px 14px;background:#0f3b6f;color:#fff;font-weight:800;cursor:pointer;min-height:42px}
+.cycle-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cycle-table{width:100%;border-collapse:collapse;min-width:760px}
+.cycle-table th,.cycle-table td{padding:11px 12px;border-bottom:1px solid #e5e7eb;text-align:left}
+.cycle-table th{background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase}
+.cycle-table select{width:100%;min-width:140px;border:1px solid #cbd5e1;border-radius:8px;padding:8px}
+.cycle-panel p{color:#475569;line-height:1.6;margin:14px 0}
+@media (max-width:768px){
+    .cycle-grid{grid-template-columns:1fr;align-items:stretch}
+    .cycle-form,.cycle-panel{padding:14px;margin-bottom:14px}
+    .cycle-btn{width:100%;display:flex;align-items:center;justify-content:center}
+    .cycle-table{min-width:680px}
+}
+@media (max-width:480px){
+    .cycle-form,.cycle-panel{padding:12px;border-radius:6px}
+    .cycle-table th,.cycle-table td{padding:10px}
+    .cycle-panel p{font-size:13px}
+}
 </style>
 @endpush
 
