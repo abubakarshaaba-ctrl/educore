@@ -5,26 +5,27 @@
 @push('styles')
 <style>
 .form-page{width:100%;min-width:0}
-.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px;flex-wrap:wrap}
-.breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate-light);margin-bottom:20px;flex-wrap:wrap;min-width:0}
+.breadcrumb a{color:var(--indigo);text-decoration:none;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.breadcrumb svg{flex:0 0 14px}
 .card{background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}
-.card-header{padding:14px 24px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:600;color:var(--midnight)}
-.card-body{padding:24px}
+.card-header{padding:14px 24px;border-bottom:1px solid var(--border);background:#F8FAFC;font-size:14px;font-weight:600;color:var(--midnight);overflow-wrap:anywhere}
+.card-body{padding:24px;min-width:0}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .form-group{display:flex;flex-direction:column;gap:6px;min-width:0}
 .form-group.full{grid-column:1/-1}
 .form-label{font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.05em}
 .form-label span{color:var(--crimson)}
-.form-control{padding:10px 12px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms;width:100%;min-width:0;max-width:100%}
+.form-control{box-sizing:border-box;padding:10px 12px;font-size:13px;font-family:inherit;border:1.5px solid var(--border);border-radius:8px;background:#F8FAFC;outline:none;transition:border-color 200ms;width:100%;min-width:0;max-width:100%}
 .form-control:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(37,99,235,0.1);background:white}
 .is-invalid{border-color:var(--crimson)!important}
-.invalid-feedback{font-size:12px;color:var(--crimson);margin-top:2px}
-.alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms;min-height:42px}
+.invalid-feedback{font-size:12px;color:var(--crimson);margin-top:2px;overflow-wrap:anywhere}
+.alert-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;color:var(--crimson);margin-bottom:16px;overflow-wrap:anywhere}
+.btn{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms;min-height:42px}
 .btn-primary{background:var(--indigo);color:white}.btn-ghost{background:white;color:var(--midnight);border:1px solid var(--border)}
-.hint{font-size:11px;color:var(--slate-light);margin-top:3px;line-height:1.45}
-.toggle-row{display:flex;align-items:center;gap:10px}
-.toggle{position:relative;display:inline-block;width:44px;height:24px}
+.hint{font-size:11px;color:var(--slate-light);margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+.toggle-row{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.toggle{position:relative;display:inline-block;width:44px;height:24px;flex:0 0 44px}
 .toggle input{opacity:0;width:0;height:0}
 .slider{position:absolute;cursor:pointer;inset:0;background:#CBD5E1;border-radius:24px;transition:.3s}
 .slider::before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s}
@@ -32,7 +33,8 @@ input:checked+.slider{background:var(--indigo)}
 input:checked+.slider::before{transform:translateX(20px)}
 .form-actions{display:flex;gap:12px;flex-wrap:wrap}
 @media(max-width:900px){.form-grid{grid-template-columns:1fr}.form-group.full{grid-column:auto}}
-@media(max-width:640px){.card-header{padding:14px 16px}.card-body{padding:16px}.form-actions{display:grid;grid-template-columns:1fr}.form-actions .btn{width:100%}}
+@media(max-width:640px){.breadcrumb{font-size:12px;margin-bottom:14px}.card-header{padding:12px 16px}.card-body{padding:16px}.form-actions{display:grid;grid-template-columns:1fr}.form-actions .btn{width:100%}}
+@media(max-width:420px){.card{border-radius:10px}.card-header{padding:11px 13px;font-size:13px}.card-body{padding:13px}.alert-error{padding:10px 12px;font-size:12px}.toggle-row span{font-size:12px!important;line-height:1.45}.btn{width:100%;padding-inline:12px}}
 </style>
 @endpush
 
@@ -45,7 +47,7 @@ input:checked+.slider::before{transform:translateX(20px)}
     </div>
 
     @if($errors->any())<div class="alert-error">{{ $errors->first() }}</div>@endif
-    @if(session('success'))<div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px">✓ {{ session('success') }}</div>@endif
+    @if(session('success'))<div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:#059669;margin-bottom:14px;overflow-wrap:anywhere">✓ {{ session('success') }}</div>@endif
 
     <div class="card">
         <div class="card-header">Edit Staff — {{ $staff->name }}</div>
@@ -68,28 +70,9 @@ input:checked+.slider::before{transform:translateX(20px)}
                         <input type="text" name="staff_id" class="form-control" value="{{ old('staff_id', $staff->staff_id) }}" placeholder="e.g. STF1001">
                         <div class="hint">Used for login.</div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Phone</label>
-                        <input type="text" name="phone" class="form-control" value="{{ old('phone', $staff->phone) }}" placeholder="08012345678">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Gender</label>
-                        <select name="gender" class="form-control">
-                            <option value="">Select</option>
-                            <option value="male" {{ old('gender', $staff->gender) === 'male' ? 'selected' : '' }}>Male</option>
-                            <option value="female" {{ old('gender', $staff->gender) === 'female' ? 'selected' : '' }}>Female</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Highest Qualification</label>
-                        <select name="qualification" class="form-control {{ $errors->has('qualification') ? 'is-invalid':'' }}">
-                            <option value="">— Select Qualification —</option>
-                            @foreach($highestQualifications as $qualification)
-                                <option value="{{ $qualification }}" @selected(old('qualification', $staff->qualification) === $qualification)>{{ $qualification }}</option>
-                            @endforeach
-                        </select>
-                        @error('qualification')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
+                    <div class="form-group"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="{{ old('phone', $staff->phone) }}" placeholder="08012345678"></div>
+                    <div class="form-group"><label class="form-label">Gender</label><select name="gender" class="form-control"><option value="">Select</option><option value="male" {{ old('gender', $staff->gender) === 'male' ? 'selected' : '' }}>Male</option><option value="female" {{ old('gender', $staff->gender) === 'female' ? 'selected' : '' }}>Female</option></select></div>
+                    <div class="form-group"><label class="form-label">Highest Qualification</label><select name="qualification" class="form-control {{ $errors->has('qualification') ? 'is-invalid':'' }}"><option value="">— Select Qualification —</option>@foreach($highestQualifications as $qualification)<option value="{{ $qualification }}" @selected(old('qualification', $staff->qualification) === $qualification)>{{ $qualification }}</option>@endforeach</select>@error('qualification')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
                     <div class="form-group full">
                         <label class="form-label">Role <span>*</span></label>
                         @include('staff._role_select', ['selected' => old('role', $staff->role)])
@@ -99,24 +82,14 @@ input:checked+.slider::before{transform:translateX(20px)}
                     <div class="form-group full">
                         <label class="form-label">Employment Start Date</label>
                         <div class="form-control" style="color:var(--slate);background:#F1F5F9">{{ optional($staff->employment_started_at)->format('d M Y') ?? 'Not recorded' }}</div>
-                        <div class="hint">Employment dates are controlled through lifecycle and work-history workflows.
-                            @can('staff.work-history.manage')
-                                <a href="{{ route('staff.work-history.index', $staff) }}" style="color:var(--indigo)">Open work history</a>
-                            @endcan
-                        </div>
+                        <div class="hint">Employment dates are controlled through lifecycle and work-history workflows. @can('staff.work-history.manage')<a href="{{ route('staff.work-history.index', $staff) }}" style="color:var(--indigo)">Open work history</a>@endcan</div>
                     </div>
                     <div class="form-group full">
                         <label class="form-label">Employment Status</label>
-                        <div class="toggle-row">
-                            <label class="toggle"><input type="checkbox" disabled {{ $staff->is_active ? 'checked':'' }}><span class="slider"></span></label>
-                            <span style="font-size:13px;color:var(--slate)">{{ $staff->is_active ? 'Active — Staff can log in' : 'Inactive — Login disabled' }}</span>
-                        </div>
+                        <div class="toggle-row"><label class="toggle"><input type="checkbox" disabled {{ $staff->is_active ? 'checked':'' }}><span class="slider"></span></label><span style="font-size:13px;color:var(--slate);overflow-wrap:anywhere">{{ $staff->is_active ? 'Active — Staff can log in' : 'Inactive — Login disabled' }}</span></div>
                     </div>
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">✓ Save Changes</button>
-                    <a href="{{ route('staff.show', $staff) }}" class="btn btn-ghost">Cancel</a>
-                </div>
+                <div class="form-actions"><button type="submit" class="btn btn-primary">✓ Save Changes</button><a href="{{ route('staff.show', $staff) }}" class="btn btn-ghost">Cancel</a></div>
             </form>
         </div>
     </div>
