@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\StaffProfileSubmission;
 use App\Models\StaffWorkHistory;
 use App\Models\User;
 use App\Services\PlanLimitService;
+use App\Services\StaffIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +15,10 @@ use Illuminate\Validation\Rules\Password;
 
 class StaffController extends Controller
 {
+    public function __construct(private readonly StaffIdGenerator $staffIdGenerator)
+    {
+    }
+
     private function ensureTenantStaff(User $staff): void
     {
         abort_if(
@@ -69,7 +75,13 @@ class StaffController extends Controller
             'phone'    => ['nullable', 'string', 'max:20'],
             'gender'   => ['required', 'in:male,female'],
             'qualification' => ['required', Rule::in(config('staff.highest_qualifications', []))],
-            'staff_id' => ['nullable', 'string', 'max:40', Rule::unique('users', 'staff_id')->where('tenant_id', auth()->user()->tenant_id)],
+            'staff_id' => [
+                'nullable',
+                'string',
+                'max:40',
+                Rule::unique('users', 'staff_id'),
+                Rule::unique('staff_profile_submissions', 'staff_id'),
+            ],
             'employment_started_at' => ['required', 'date', 'before_or_equal:today'],
             'position_title' => ['required', 'string', 'max:255'],
             'department_name' => ['nullable', Rule::in(config('staff.departments', []))],
@@ -77,7 +89,7 @@ class StaffController extends Controller
             'appointment_type' => ['required', Rule::in(config('staff.appointment_types', []))],
         ]);
 
-        $staffId = $validated['staff_id'] ?? $this->generateStaffId();
+        $staffId = $validated['staff_id'] ?? $this->staffIdGenerator->generate();
         $role = User::canonicalRole($validated['role']);
 
         $staff = DB::transaction(function () use ($validated, $staffId, $role) {
@@ -150,7 +162,24 @@ class StaffController extends Controller
             'email'          => ['required', 'email', 'unique:users,email,' . $staff->id],
             'role'           => ['required', 'in:' . implode(',', User::staffRoleNames())],
             'phone'          => ['nullable', 'string', 'max:20'],
-            'staff_id'       => ['nullable', 'string', 'max:40', Rule::unique('users', 'staff_id')->where('tenant_id', auth()->user()->tenant_id)->ignore($staff->id)],
+            'staff_id'       => [
+                'nullable',
+                'string',
+                'max:40',
+                Rule::unique('users', 'staff_id')->ignore($staff->id),
+                function (string $attribute, mixed $value, \Closure $fail) use ($staff) {
+                    if (
+                        $value
+                        && $value !== $staff->staff_id
+                        && StaffProfileSubmission::query()
+                            ->where('staff_id', $value)
+                            ->where('status', 'pending')
+                            ->exists()
+                    ) {
+                        $fail('This Staff ID is already reserved for a pending staff onboarding submission.');
+                    }
+                },
+            ],
             'gender'         => ['nullable', 'in:male,female'],
             'qualification'  => ['nullable', Rule::in(config('staff.highest_qualifications', []))],
             'qualifications' => ['nullable', 'array'],
@@ -190,17 +219,5 @@ class StaffController extends Controller
         return redirect()
             ->route('staff.status.show', $staff)
             ->withErrors(['staff' => 'Use the staff lifecycle workflow to deactivate or reinstate staff.']);
-    }
-
-    private function generateStaffId(): string
-    {
-        $tid    = auth()->user()->tenant_id;
-        $prefix = 'STF';
-        $last   = User::where('tenant_id', $tid)
-            ->whereNotNull('staff_id')
-            ->orderByDesc('id')->value('staff_id');
-
-        $num = $last ? ((int) preg_replace('/\D/', '', $last)) + 1 : 1001;
-        return $prefix . str_pad($num, 4, '0', STR_PAD_LEFT);
     }
 }
