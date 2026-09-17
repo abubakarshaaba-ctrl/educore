@@ -5,26 +5,47 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Staff Profile — {{ $tenant->name }}</title>
 <style>
+*{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:hidden}
 body{margin:0;font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a}
-.wrap{max-width:860px;margin:0 auto;padding:20px}
-.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden}
+.wrap{max-width:860px;margin:0 auto;padding:20px;width:100%}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;min-width:0}
 .head{background:#0b2a55;color:#fff;padding:20px;border-bottom:4px solid #d9a017}
-.head h2,.head .school-name{color:#fff!important}
+.head h2,.head .school-name{color:#fff!important;overflow-wrap:anywhere}
 .head h2{margin:0;font-size:24px;font-weight:800;line-height:1.2}
 .school-name{margin-top:6px;font-size:17px;opacity:.95}
-.body{padding:20px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.fg{display:flex;flex-direction:column;gap:6px}
-.full{grid-column:1/-1}
-label{font-size:12px;font-weight:700;text-transform:uppercase}
-input,select{width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:14px;color:#0f172a}
+.body{padding:20px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+.fg{display:flex;flex-direction:column;gap:6px;min-width:0}
+.full{grid-column:1/-1;min-width:0}
+label{font-size:12px;font-weight:700;text-transform:uppercase;line-height:1.35}
+input,select{width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:14px;color:#0f172a;font-family:inherit}
 input:focus,select:focus{outline:none;border-color:#0b2a55;box-shadow:0 0 0 3px rgba(217,160,23,.28);background:#fff}
-.btn{width:100%;padding:13px;border:0;border-radius:9px;background:#d9a017;color:#0b2a55;font-weight:800;font-size:15px}
-.ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;padding:12px;border-radius:9px;margin-bottom:14px}
-.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:12px;border-radius:9px;margin-bottom:14px}
-.note{font-size:12px;color:#64748b;line-height:1.5;margin-bottom:16px}
-.hint{font-size:11px;color:#64748b;line-height:1.45}
-@media(max-width:700px){.wrap{padding:10px}.head{padding:18px}.head h2{font-size:21px}.school-name{font-size:16px}.body{padding:14px}.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+.btn{width:100%;min-height:46px;padding:13px;border:0;border-radius:9px;background:#d9a017;color:#0b2a55;font-weight:800;font-size:15px;font-family:inherit;cursor:pointer}
+.ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;padding:12px;border-radius:9px;margin-bottom:14px;overflow-wrap:anywhere}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:12px;border-radius:9px;margin-bottom:14px;overflow-wrap:anywhere}
+.note{font-size:12px;color:#64748b;line-height:1.5;margin-bottom:16px;overflow-wrap:anywhere}
+.hint{font-size:11px;color:#64748b;line-height:1.45;overflow-wrap:anywhere}
+@media(max-width:700px){
+    .wrap{padding:10px}
+    .head{padding:18px 16px}
+    .head h2{font-size:21px}
+    .school-name{font-size:16px}
+    .body{padding:14px}
+    .grid{grid-template-columns:1fr;gap:12px}
+    .full{grid-column:auto}
+    input,select{font-size:16px;padding:11px}
+}
+@media(max-width:420px){
+    .wrap{padding:0}
+    .card{border-radius:0;border-left:0;border-right:0}
+    .head{padding:16px 14px}
+    .head h2{font-size:19px}
+    .school-name{font-size:14px}
+    .body{padding:12px}
+    .note{font-size:11px}
+    .btn{font-size:14px}
+}
 </style>
 </head>
 <body>
