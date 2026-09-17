@@ -45,17 +45,26 @@
             <thead><tr><th>School</th><th>Status</th><th>Students</th><th>Users</th><th>Live sessions</th><th>Subscription</th><th>Support</th><th>Billing</th><th>Recent activity</th><th>Attention</th></tr></thead>
             <tbody>
             @forelse($rows as $row)
-                @php
-                    $status = $row->tenant->status ?? 'unknown';
-                    $expiry = $row->tenant->subscription_expires_at ?? null;
-                @endphp
+                @php $status = $row->tenant->status ?? 'unknown'; @endphp
                 <tr>
-                    <td><div class="school">{{ $row->tenant->name }}</div><div class="slug">{{ $row->tenant->slug ?? '—' }}</div></td>
+                    <td><div class="school">{{ $row->tenant->name ?? 'Unnamed school' }}</div><div class="slug">{{ $row->tenant->slug ?? '—' }}</div></td>
                     <td><span class="badge2 {{ in_array($status,['active','pending','suspended','subscription_expired']) ? $status : 'unknown' }}">{{ str_replace('_',' ', $status) }}</span></td>
                     <td><span class="metric">{{ number_format($row->students) }}</span></td>
                     <td><span class="metric">{{ number_format($row->active_users) }}</span><div class="subtle">{{ number_format($row->users) }} total</div></td>
                     <td><span class="metric">{{ number_format($row->web_sessions + $row->mobile_sessions) }}</span><div class="subtle">Web {{ $row->web_sessions }} · Mobile {{ $row->mobile_sessions }}</div></td>
-                    <td>@if($expiry)<span class="metric">{{ \Illuminate\Support\Carbon::parse($expiry)->format('d M Y') }}</span><div class="subtle">@if($row->days_to_expiry < 0)Expired {{ abs($row->days_to_expiry) }}d ago@elseif($row->days_to_expiry === 0)Expires today@else{{ $row->days_to_expiry }}d remaining@endif</div>@else<span class="subtle">No expiry date</span>@endif</td>
+                    <td>
+                        @if($row->expiry_date)
+                            <span class="metric">{{ $row->expiry_date->format('d M Y') }}</span>
+                            <div class="subtle">
+                                @if($row->days_to_expiry < 0)Expired {{ abs($row->days_to_expiry) }}d ago
+                                @elseif($row->days_to_expiry === 0)Expires today
+                                @else{{ $row->days_to_expiry }}d remaining
+                                @endif
+                            </div>
+                        @else
+                            <span class="subtle">No valid expiry date</span>
+                        @endif
+                    </td>
                     <td><span class="metric">{{ $row->open_support }}</span><div class="subtle">open/pending</div></td>
                     <td><span class="metric">{{ $row->unpaid_invoices }}</span><div class="subtle">unpaid invoices</div></td>
                     <td>@if($row->last_activity){{ \Illuminate\Support\Carbon::parse($row->last_activity)->diffForHumans() }}@else<span class="subtle">No login timestamp</span>@endif</td>
