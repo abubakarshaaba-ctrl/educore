@@ -12,6 +12,7 @@ use App\Models\CbtExam;
 use App\Models\CbtStudentSession;
 use App\Models\Announcement;
 use App\Models\TimetablePeriod;
+use App\Services\ParallelCurriculumResultService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -188,12 +189,20 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
+        $parallelResults = $termId
+            ? app(ParallelCurriculumResultService::class)
+                ->publishedForStudent($student)
+                ->where('term_id', (int) $termId)
+                ->values()
+            : collect();
+
         return view('portal.student.results', compact(
             'student',
             'terms',
             'availableTerms',
             'termId',
-            'summary'
+            'summary',
+            'parallelResults'
         ));
     }
 
