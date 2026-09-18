@@ -19,6 +19,11 @@ class ParallelCurriculum extends BaseTenantModel
         return $this->belongsTo(AssessmentTemplate::class, 'default_assessment_template_id');
     }
 
+    public function subjects(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumSubject::class)->orderBy('name');
+    }
+
     public function classes(): HasMany
     {
         return $this->hasMany(ParallelCurriculumClass::class)->orderBy('sort_order')->orderBy('name');
