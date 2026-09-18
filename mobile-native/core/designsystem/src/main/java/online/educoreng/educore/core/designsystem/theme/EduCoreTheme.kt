@@ -43,12 +43,40 @@ private val EduCoreColorScheme = lightColorScheme(
  * their 48dp touch target; only visual type density is reduced.
  */
 private val EduCoreTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.30).sp,
+    ),
+    displayMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 21.sp,
+        lineHeight = 25.sp,
+        letterSpacing = (-0.25).sp,
+    ),
     displaySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
         fontSize = 19.sp,
         lineHeight = 23.sp,
         letterSpacing = (-0.20).sp,
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 19.sp,
+        lineHeight = 23.sp,
+        letterSpacing = (-0.15).sp,
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.12).sp,
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
