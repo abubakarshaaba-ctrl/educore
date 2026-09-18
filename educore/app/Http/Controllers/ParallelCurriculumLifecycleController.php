@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -56,14 +57,25 @@ class ParallelCurriculumLifecycleController extends Controller
 
         $tenantId = $this->tenantId();
 
-        $curricula = ParallelCurriculum::with([
-            'classes.arms.subjectTeachers.teacher',
+        $armTeacherOverridesReady = Schema::hasTable(
+            'parallel_curriculum_arm_subject_teachers'
+        );
+
+        $curriculumRelations = [
             'classes.classGrades',
             'classes.promotionRule.destinationClass',
             'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
             'grades',
-        ])->orderBy('name')->get();
+        ];
+
+        $curriculumRelations[] = $armTeacherOverridesReady
+            ? 'classes.arms.subjectTeachers.teacher'
+            : 'classes.arms';
+
+        $curricula = ParallelCurriculum::with($curriculumRelations)
+            ->orderBy('name')
+            ->get();
 
         $sessions = AcademicSession::orderByDesc('is_current')
             ->orderByDesc('id')
@@ -171,7 +183,8 @@ class ParallelCurriculumLifecycleController extends Controller
             'preview',
             'sourceSessionId',
             'targetSessionId',
-            'staff'
+            'staff',
+            'armTeacherOverridesReady'
         ));
     }
 
@@ -419,6 +432,12 @@ class ParallelCurriculumLifecycleController extends Controller
     public function storeArmTeacher(Request $request)
     {
         $this->assertManage();
+
+        if (! Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
+            return back()->withErrors([
+                'arm_teacher' => 'Arm-specific teacher assignments are not available until the latest database migration has been applied.',
+            ]);
+        }
 
         $tenantId = $this->tenantId();
         $data = $request->validate([
