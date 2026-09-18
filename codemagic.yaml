@@ -6,9 +6,7 @@ workflows:
       groups:
         - educore_production
       vars:
-        CM_KEYSTORE_PATH: /tmp/educore-release.keystore
         EDUCORE_APK_DOWNLOAD_URL: https://educoreng.online/download/app
-        MOBILE_RELEASE_NOTIFY_URL: https://educoreng.online/api/v1/mobile-release/notify
       java: 17
     cache:
       cache_paths:
