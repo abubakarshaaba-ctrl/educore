@@ -24,6 +24,7 @@ use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ParallelCurriculumController extends Controller
 {
@@ -890,6 +891,29 @@ class ParallelCurriculumController extends Controller
         }
 
         return back()->with('success', 'Conventional result integration rule saved.');
+    }
+
+    public function destroyIntegration(ParallelCurriculumIntegration $integration)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+        abort_unless((int) $integration->tenant_id === $this->tenantId(), 403);
+
+        if (! $integration->is_active) {
+            return back()->with('success', 'This conventional result mapping is already inactive.');
+        }
+
+        $result = $this->service->deactivateIntegration($integration);
+
+        $message = 'Conventional result mapping removed.';
+        if ($result['cleared'] > 0) {
+            $message .= " {$result['cleared']} unpublished derived score set(s) were cleared.";
+        }
+        if ($result['preserved'] > 0) {
+            $message .= " {$result['preserved']} published derived score set(s) were preserved for result integrity.";
+        }
+
+        return back()->with('success', $message);
     }
 
     public function scoreSheet(Request $request)
