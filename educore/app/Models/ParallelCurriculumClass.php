@@ -27,6 +27,26 @@ class ParallelCurriculumClass extends BaseTenantModel
         return $this->belongsTo(AssessmentTemplate::class, 'assessment_template_id');
     }
 
+    public function arms(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumClassArm::class)
+            ->orderBy('sort_order')
+            ->orderBy('name');
+    }
+
+    public function classGrades(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumClassGrade::class)
+            ->orderByDesc('min_score')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function promotionRule(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ParallelCurriculumPromotionRule::class, 'source_class_id');
+    }
+
     public function subjectAssignments(): HasMany
     {
         return $this->hasMany(ParallelCurriculumClassSubject::class);
