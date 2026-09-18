@@ -32,7 +32,7 @@
 @endif
 <input type="hidden" name="recipient_id" id="recipientId" value="{{ old('recipient_id') }}">
 <div class="fg"><label>Subject</label><input type="text" name="subject" class="fc" maxlength="150" required value="{{ old('subject') }}">@error('subject')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror</div>
-<div class="fg"><label>Message</label><textarea name="body" class="fc" rows="6" maxlength="10000" required>{{ old('body') }}</textarea>@error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror</div>
+<div class="fg"><label>Message</label><x-rich-text-toolbar target="internalMessageBody" /><textarea id="internalMessageBody" name="body" class="fc edu-rich-target" rows="7" maxlength="10000" required>{{ old('body') }}</textarea>@error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror</div>
 <div style="display:flex;gap:10px"><button type="submit" class="btn btn-p">Send Message</button><a href="{{ route('messages.inbox') }}" class="btn btn-ghost">Cancel</a></div>
 </form></div></div>
 <script>
