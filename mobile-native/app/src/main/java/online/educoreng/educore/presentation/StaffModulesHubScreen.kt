@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
@@ -77,12 +78,18 @@ internal fun StaffModulesHubScreen(
     var gradebookOpen by rememberSaveable { mutableStateOf(false) }
     var reportsOpen by rememberSaveable { mutableStateOf(false) }
     var profileOpen by rememberSaveable { mutableStateOf(false) }
+    var idCardOpen by rememberSaveable { mutableStateOf(false) }
     var portalAccountsOpen by rememberSaveable { mutableStateOf(false) }
     var schoolSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var skillsOpen by rememberSaveable { mutableStateOf(false) }
 
     if (profileOpen) {
         ProfileScreen(session = session, onBack = { profileOpen = false })
+        return
+    }
+
+    if (idCardOpen) {
+        StaffIdCardScreen(session = session, onBack = { idCardOpen = false })
         return
     }
 
@@ -314,6 +321,7 @@ internal fun StaffModulesHubScreen(
     fun openModule(module: ModuleDescriptor) {
         when (module.key.lowercase()) {
             "profile" -> profileOpen = true
+            "staff-id-card" -> idCardOpen = true
             "portal-accounts" -> { portalAccountsOpen = true; portalAccountsViewModel.load() }
             "settings" -> { schoolSettingsOpen = true; schoolSettingsViewModel.load() }
             "skills" -> { skillsOpen = true; skillsViewModel.load() }
@@ -365,6 +373,21 @@ internal fun StaffModulesHubScreen(
                         onClick = { openModule(module) },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                if (
+                    group.key == "account" &&
+                    session.user.portal.lowercase() in setOf("staff", "admin") &&
+                    !session.user.staffId.isNullOrBlank() &&
+                    visibleModules.none { it.key.equals("staff-id-card", ignoreCase = true) }
+                ) {
+                    item(key = "hub-account-staff-id-card") {
+                        EduCoreShowcaseTile(
+                            label = "Staff ID Card",
+                            icon = Icons.Default.Badge,
+                            onClick = { idCardOpen = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
@@ -436,6 +459,7 @@ private fun moduleHubLabel(module: ModuleDescriptor): String = when (module.key.
     "fees" -> "Fees"
     "transfers" -> "Transfers"
     "portal-accounts" -> "Portal Accounts"
+    "staff-id-card" -> "Staff ID Card"
     "analytics" -> "Analytics"
     "risk" -> "Risk Flags"
     "exports" -> "Exports"
@@ -455,10 +479,11 @@ private val OPERATION_KEYS = setOf(
     "staff", "students", "staff-attendance.admin", "staff-attendance.self", "academic-cycle", "fees", "expenses", "payroll",
     "admissions", "transfers", "transport", "health", "inventory", "hostels", "analytics", "risk", "exports",
 )
-private val ACCOUNT_KEYS = setOf("profile", "portal-accounts", "settings")
+private val ACCOUNT_KEYS = setOf("profile", "staff-id-card", "portal-accounts", "settings")
 
 private fun moduleHubIcon(key: String): ImageVector = when {
     key.equals("profile", ignoreCase = true) -> Icons.Default.Person
+    key.equals("staff-id-card", ignoreCase = true) -> Icons.Default.Badge
     key.equals("staff", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("transfer", ignoreCase = true) -> EduCoreIcons.Students
     key.contains("student", ignoreCase = true) -> EduCoreIcons.Students
