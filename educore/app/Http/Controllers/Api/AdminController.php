@@ -255,7 +255,7 @@ class AdminController extends Controller
 
         $student = Student::create($data);
 
-        return response()->json(['message' => 'Student added.', 'student' => ['id' => $student->id, 'name' => $student->full_name]], 201);
+        return response()->json(['message' => 'Student added.', 'student' => ['id' => $student->id, 'name' => $student->full_name, 'student_id' => $student->admission_number]], 201);
     }
 
     public function storeStaff(Request $request)
@@ -286,7 +286,7 @@ class AdminController extends Controller
         ]);
         $member->assignRole($member->role);
 
-        return response()->json(['message' => 'Staff account added.', 'staff' => ['id' => $member->id, 'name' => $member->name]], 201);
+        return response()->json(['message' => 'Staff account added.', 'staff' => ['id' => $member->id, 'name' => $member->name, 'staff_id' => $member->staff_id]], 201);
     }
 
     public function storeClass(Request $request)
