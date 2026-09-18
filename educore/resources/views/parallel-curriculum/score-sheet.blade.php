@@ -28,8 +28,8 @@
 
 <div class="context">
     <div>
-        <h2>{{ $class->curriculum?->name }} · {{ $class->name }} · {{ $subject->name }}</h2>
-        <p>{{ $term->name }} · {{ $term->session?->name }} · {{ $template?->name ?: 'No assessment template' }}</p>
+        <h2>{{ $class->curriculum?->name }} · {{ $class->name }}{{ $arm ? ' '.$arm->name : '' }} · {{ $subject->name }}</h2>
+        <p>{{ $term->name }} · {{ $term->session?->name }} · {{ $arm ? 'Arm-specific roster · ' : 'All class arms · ' }}{{ $template?->name ?: 'No assessment template' }}</p>
     </div>
     <a href="{{ route('parallel-curriculum.index') }}" class="btn btn-s">← Back to Workspace</a>
 </div>
@@ -39,7 +39,7 @@
 @elseif(abs((float)$components->sum('weight_percentage') - 100.0) > 0.001)
     <div class="alert-e">The selected parallel Assessment Template totals {{ number_format($components->sum('weight_percentage'),2) }}%. It must total 100% before composite results can be synchronized.</div>
 @elseif($enrolments->isEmpty())
-    <div class="note">No active students are assigned to this parallel class for {{ $term->session?->name }}.</div>
+    <div class="note">No active students are assigned to this parallel class{{ $arm ? ' arm' : '' }} for {{ $term->session?->name }}.</div>
 @else
     @php($allLocked = $enrolments->isNotEmpty() && $lockedStudents->every(fn($locked) => (bool) $locked))
     <div class="note">Enter each component against its template weight. Once all required parallel subjects are complete, EduCore calculates the student's programme average and distributes it into the mapped conventional subject automatically when auto-sync is enabled. Students whose parallel or conventional results are already published are locked to preserve result integrity.</div>
@@ -47,6 +47,7 @@
     <form method="POST" action="{{ route('parallel-curriculum.scores.save') }}">
         @csrf
         <input type="hidden" name="class_id" value="{{ $class->id }}">
+        @if($arm)<input type="hidden" name="arm_id" value="{{ $arm->id }}">@endif
         <input type="hidden" name="subject_id" value="{{ $subject->id }}">
         <input type="hidden" name="term_id" value="{{ $term->id }}">
 
