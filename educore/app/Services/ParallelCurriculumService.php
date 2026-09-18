@@ -10,6 +10,8 @@ use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumArmSubjectTeacher;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
+use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumIntegration;
