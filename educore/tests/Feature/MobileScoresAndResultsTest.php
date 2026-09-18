@@ -33,6 +33,7 @@ class MobileScoresAndResultsTest extends TestCase
         }
 
         foreach ([
+            'parallel_curriculum_report_publications', 'parallel_curriculum_grades',
             'parallel_curriculum_composites', 'parallel_curriculum_integrations', 'parallel_curriculum_scores',
             'parallel_curriculum_enrolments', 'parallel_curriculum_class_subjects', 'parallel_curriculum_classes',
             'parallel_curriculum_subjects', 'parallel_curricula', 'assessment_template_components', 'assessment_templates',
@@ -356,6 +357,30 @@ class MobileScoresAndResultsTest extends TestCase
             $table->string('sync_status')->default('pending');
             $table->string('sync_message')->nullable();
             $table->timestamp('computed_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_grades', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->string('grade_letter');
+            $table->float('min_score');
+            $table->float('max_score');
+            $table->string('remark')->nullable();
+            $table->boolean('is_pass_grade')->default(true);
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_report_publications', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('parallel_curriculum_class_id');
+            $table->unsignedBigInteger('term_id');
+            $table->string('status')->default('draft');
+            $table->unsignedBigInteger('published_by')->nullable();
+            $table->timestamp('published_at')->nullable();
+            $table->timestamp('unpublished_at')->nullable();
             $table->timestamps();
         });
     }
