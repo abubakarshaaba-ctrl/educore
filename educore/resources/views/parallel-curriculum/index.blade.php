@@ -213,23 +213,123 @@
         </section>
 
         <section class="pc-card">
-            <div class="pc-head">Current programme structure</div>
+            <div class="pc-head">
+                <span>Current programme structure</span>
+                <span class="hint">Published result structures must be unpublished before protected edits.</span>
+            </div>
             <div class="pc-body">
                 @forelse($curricula as $curriculum)
-                    <div class="item"><div class="item-main"><strong>{{ $curriculum->name }}</strong><span>Default: {{ $curriculum->defaultAssessmentTemplate?->name ?: 'No template' }} · Subjects: {{ $curriculum->subjects->where('is_active',true)->pluck('name')->join(', ') ?: 'None yet' }}</span></div></div>
-                    @foreach($curriculum->classes as $class)
-                        <div style="padding:8px 0 8px 12px;border-bottom:1px solid #F1F5F9">
-                            <div style="font-size:11px;font-weight:800;color:var(--midnight)">{{ $class->name }}</div>
-                            @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
-                                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px">
-                                    <span style="font-size:10px;color:var(--slate)">{{ $assignment->subject?->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
-                                    <form method="POST" action="{{ route('parallel-curriculum.class-subjects.destroy',$assignment) }}">@csrf @method('DELETE')<button class="btn btn-d" style="padding:4px 7px">Remove</button></form>
+                    <div class="pc-structure-group">
+                        <div class="item" style="padding-top:0">
+                            <div class="item-main">
+                                <strong>{{ $curriculum->name }} @if($curriculum->code) · {{ $curriculum->code }}@endif</strong>
+                                <span>Default: {{ $curriculum->defaultAssessmentTemplate?->name ?: 'No template' }} · {{ $curriculum->subjects->where('is_active',true)->count() }} active subject(s) · {{ $curriculum->classes->where('is_active',true)->count() }} active class(es)</span>
+                            </div>
+                            <details class="pc-edit-details">
+                                <summary>Edit programme</summary>
+                                <div class="pc-edit-panel">
+                                    <form method="POST" action="{{ route('parallel-curriculum.curricula.update',$curriculum) }}">
+                                        @csrf
+                                        @method('PUT')
+                                        <div class="form-row">
+                                            <div class="fg"><label class="fl">Programme name</label><input class="fc" name="name" value="{{ $curriculum->name }}" required></div>
+                                            <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $curriculum->code }}"></div>
+                                        </div>
+                                        <div class="fg">
+                                            <label class="fl">Default Assessment Template</label>
+                                            <select class="fc" name="default_assessment_template_id" required>
+                                                @foreach($templates as $template)
+                                                    <option value="{{ $template->id }}" @selected((int)$curriculum->default_assessment_template_id === (int)$template->id)>{{ $template->name }} · {{ number_format($template->total_weight,0) }}%</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="hint">Template changes are blocked once parallel scores exist; programme-detail changes are blocked while programme results are published.</div>
+                                        </div>
+                                        <button class="btn btn-p" type="submit">Save Programme Changes</button>
+                                    </form>
                                 </div>
-                            @empty
-                                <div class="hint" style="margin-top:4px">No subjects yet.</div>
-                            @endforelse
+                            </details>
                         </div>
-                    @endforeach
+
+                        <div class="pc-structure-label">Programme subjects</div>
+                        @forelse($curriculum->subjects->where('is_active',true) as $subject)
+                            <div class="pc-structure-child">
+                                <div class="pc-structure-child-head">
+                                    <div class="pc-structure-child-title">
+                                        <strong>{{ $subject->name }}</strong>
+                                        <span>{{ $subject->code ?: 'No code' }}</span>
+                                    </div>
+                                    <details class="pc-edit-details">
+                                        <summary>Edit subject</summary>
+                                        <div class="pc-edit-panel">
+                                            <form method="POST" action="{{ route('parallel-curriculum.subjects.update',$subject) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <div class="form-row">
+                                                    <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" value="{{ $subject->name }}" required></div>
+                                                    <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $subject->code }}"></div>
+                                                </div>
+                                                <div class="hint" style="margin-bottom:10px">Renaming is blocked while a published parallel result uses this subject.</div>
+                                                <button class="btn btn-p" type="submit">Save Subject Changes</button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="hint">No active programme subjects yet.</div>
+                        @endforelse
+
+                        <div class="pc-structure-label">Parallel classes</div>
+                        @forelse($curriculum->classes as $class)
+                            <div class="pc-structure-child">
+                                <div class="pc-structure-child-head">
+                                    <div class="pc-structure-child-title">
+                                        <strong>{{ $class->name }} @if($class->code) · {{ $class->code }}@endif</strong>
+                                        <span>Template: {{ $class->assessmentTemplate?->name ?: 'Programme default' }}</span>
+                                    </div>
+                                    <details class="pc-edit-details">
+                                        <summary>Edit class</summary>
+                                        <div class="pc-edit-panel">
+                                            <form method="POST" action="{{ route('parallel-curriculum.classes.update',$class) }}">
+                                                @csrf
+                                                @method('PUT')
+                                                <div class="form-row">
+                                                    <div class="fg"><label class="fl">Class name</label><input class="fc" name="name" value="{{ $class->name }}" required></div>
+                                                    <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $class->code }}"></div>
+                                                </div>
+                                                <div class="fg">
+                                                    <label class="fl">Assessment Template</label>
+                                                    <select class="fc" name="assessment_template_id">
+                                                        <option value="">Use programme default</option>
+                                                        @foreach($templates as $template)
+                                                            <option value="{{ $template->id }}" @selected((int)$class->assessment_template_id === (int)$template->id)>{{ $template->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <div class="hint">Template changes are blocked after scores are recorded; all class-detail edits are blocked while this class result is published.</div>
+                                                </div>
+                                                <button class="btn btn-p" type="submit">Save Class Changes</button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                </div>
+
+                                @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;flex-wrap:wrap">
+                                        <span class="hint">{{ $assignment->subject?->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
+                                        <form method="POST" action="{{ route('parallel-curriculum.class-subjects.destroy',$assignment) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-d" type="submit">Remove</button>
+                                        </form>
+                                    </div>
+                                @empty
+                                    <div class="hint" style="margin-top:6px">No subjects assigned to this class yet.</div>
+                                @endforelse
+                            </div>
+                        @empty
+                            <div class="hint">No parallel classes yet.</div>
+                        @endforelse
+                    </div>
                 @empty
                     <div class="empty">Create the first programme above.</div>
                 @endforelse
