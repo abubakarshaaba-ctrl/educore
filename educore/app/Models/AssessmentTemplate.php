@@ -57,6 +57,18 @@ class AssessmentTemplate extends BaseTenantModel
             return false;
         }
 
+        $componentIds = $this->relationLoaded('components')
+            ? $this->components->pluck('id')->filter()->values()
+            : $this->components()->pluck('id')->filter()->values();
+
+        if ($componentIds->isNotEmpty()
+            && ParallelCurriculumScore::withoutTenantScope()
+                ->where('tenant_id', $this->tenant_id)
+                ->whereIn('assessment_template_component_id', $componentIds)
+                ->exists()) {
+            return true;
+        }
+
         $assignments = $this->relationLoaded('assignments')
             ? $this->assignments
             : $this->assignments()->get();
