@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AssessmentTemplateComponent;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassGrade;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumGrade;
 use App\Models\ParallelCurriculumReportPublication;
@@ -163,6 +164,7 @@ class ParallelCurriculumResultService
             'subject_assignments' => $subjectAssignments,
             'results' => $results,
             'grades' => $grades,
+            'grading_source' => $gradingSource,
             'grading_scale_complete' => $this->gradingScaleCoversAllScores($grades),
             'publication' => $publication,
             'is_published' => $publication?->isPublished() ?? false,
@@ -384,10 +386,10 @@ class ParallelCurriculumResultService
         return $coveredThrough >= 99.999;
     }
 
-    private function resolveGrade(Collection $grades, float $score): ?ParallelCurriculumGrade
+    private function resolveGrade(Collection $grades, float $score): ParallelCurriculumGrade|ParallelCurriculumClassGrade|null
     {
         return $grades->first(
-            fn (ParallelCurriculumGrade $grade) =>
+            fn ($grade) =>
                 $score >= (float) $grade->min_score
                 && $score <= (float) $grade->max_score
         );
