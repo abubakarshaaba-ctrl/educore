@@ -81,6 +81,19 @@ final class EduCoreRichText
         return implode("\n", $html);
     }
 
+    public static function plainText(?string $markdown): string
+    {
+        $text = (string) $markdown;
+        $text = preg_replace('/^\\s*#{1,3}\\s+/mu', '', $text) ?? $text;
+        $text = preg_replace('/^\\s*[-*]\\s+/mu', '• ', $text) ?? $text;
+        $text = preg_replace('/^\\s*\\d+[.)]\\s+/mu', '', $text) ?? $text;
+        $text = preg_replace('/\\[([^]\\n]+)]\\(([^\\s)]+)\\)/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\\*\\*([^*\\n]+)\\*\\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/(?<!\\*)\\*([^*\\n]+)\\*(?!\\*)/u', '$1', $text) ?? $text;
+
+        return trim($text);
+    }
+
     private static function inline(string $text): string
     {
         $escaped = e($text);
