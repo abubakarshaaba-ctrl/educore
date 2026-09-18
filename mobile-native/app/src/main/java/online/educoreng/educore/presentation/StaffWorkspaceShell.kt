@@ -59,6 +59,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreTopAppBar
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreAdaptiveLayout
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
+import online.educoreng.educore.core.designsystem.layout.eduCoreGridMinCellWidth
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -704,13 +705,8 @@ private fun StaffDashboardRoot(
     onModuleClick: (ModuleDescriptor) -> Unit,
     onRetry: () -> Unit,
 ) {
-    val columns = when (width) {
-        EduCoreWindowWidth.Compact -> 2
-        EduCoreWindowWidth.Medium -> 3
-        EduCoreWindowWidth.Expanded -> 4
-    }
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Adaptive(minSize = eduCoreGridMinCellWidth(width)),
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(eduCoreScreenPadding()),
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
@@ -727,11 +723,6 @@ private fun StaffMoreRoot(
     onModuleClick: (ModuleDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
-    val columns = when (width) {
-        EduCoreWindowWidth.Compact -> 2
-        EduCoreWindowWidth.Medium -> 3
-        EduCoreWindowWidth.Expanded -> 4
-    }
     val modules = remember(session.modules, session.user.portal) {
         session.modules
             .filterNot { it.key.lowercase() in StaffRoutes.ROOT_MODULES }
@@ -745,7 +736,7 @@ private fun StaffMoreRoot(
     }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Adaptive(minSize = eduCoreGridMinCellWidth(width)),
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(eduCoreScreenPadding()),
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
