@@ -610,6 +610,59 @@ class ParallelCurriculumLifecycleService
         );
     }
 
+    public function armOperationalLoad(ParallelCurriculumClassArm $arm): int
+    {
+        $currentSession = AcademicSession::withoutTenantScope()
+            ->where('tenant_id', $arm->tenant_id)
+            ->where('is_current', true)
+            ->first();
+
+        $sessionIds = AcademicSession::withoutTenantScope()
+            ->where('tenant_id', $arm->tenant_id)
+            ->when(
+                $currentSession,
+                fn ($query) => $query->where('id', '>=', $currentSession->id)
+            )
+            ->pluck('id');
+
+        if ($sessionIds->isEmpty()) {
+            return 0;
+        }
+
+        return ParallelCurriculumEnrolment::withoutTenantScope()
+            ->where('tenant_id', $arm->tenant_id)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->whereIn('session_id', $sessionIds)
+            ->where('is_active', true)
+            ->selectRaw('session_id, COUNT(*) as aggregate')
+            ->groupBy('session_id')
+            ->pluck('aggregate')
+            ->map(fn ($count) => (int) $count)
+            ->max() ?? 0;
+    }
+
+    public function armHasOperationalPlacements(ParallelCurriculumClassArm $arm): bool
+    {
+        return $this->armOperationalLoad($arm) > 0;
+    }
+
+    public function assertArmCapacityChange(
+        ParallelCurriculumClassArm $arm,
+        ?int $capacity
+    ): void {
+        if ($capacity === null) {
+            return;
+        }
+
+        $load = $this->armOperationalLoad($arm);
+        if ($capacity < $load) {
+            throw ValidationException::withMessages([
+                'capacity' =>
+                    "Capacity cannot be reduced below {$load}, the largest current/future-session placement in this arm.",
+            ]);
+        }
+    }
+
     private function armHasCapacity(
         ParallelCurriculumClassArm $arm,
         int $sessionId,
