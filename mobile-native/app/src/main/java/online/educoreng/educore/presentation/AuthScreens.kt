@@ -131,6 +131,7 @@ internal fun AuthenticationScreen(
                     else -> 196.dp
                 }
                 val overlap = if (shortScreen) 18.dp else 24.dp
+                val compactHorizontalPadding = if (maxWidth < 380.dp) 14.dp else 18.dp
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -148,7 +149,7 @@ internal fun AuthenticationScreen(
                         onBackToLogin = onBackToLogin,
                         compact = true,
                         modifier = Modifier
-                            .padding(horizontal = if (maxWidth < 380.dp) 14.dp else 18.dp)
+                            .padding(horizontal = compactHorizontalPadding)
                             .offset(y = -overlap)
                             .widthIn(max = 480.dp),
                     )
