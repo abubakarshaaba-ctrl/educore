@@ -8,6 +8,7 @@ use App\Models\ExamPeriod;
 use App\Models\MessageThread;
 use App\Models\User;
 use App\Services\Messaging\SchoolMessagingAudienceService;
+use App\Support\EduCoreRichText;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -44,7 +45,7 @@ class PushNotificationService
                     $announcement->priority === 'urgent'
                         ? 'Urgent school announcement'
                         : 'New school announcement',
-                    Str::limit(strip_tags($announcement->title.': '.$announcement->body), 180),
+                    Str::limit(EduCoreRichText::plainText($announcement->title.': '.$announcement->body), 180),
                     [
                         'type' => 'announcement',
                         'announcement_id' => (string) $announcement->id,
@@ -98,7 +99,7 @@ class PushNotificationService
                 $this->sendToUser(
                     $user,
                     Str::limit(strip_tags($title), 100),
-                    Str::limit(strip_tags($body), 180),
+                    Str::limit(EduCoreRichText::plainText($body), 180),
                     [
                         'type' => 'platform_broadcast',
                         'broadcast_id' => (string) $broadcastId,
@@ -171,7 +172,7 @@ class PushNotificationService
             ->each(fn (User $user) => $this->sendToUser(
                 $user,
                 'New message: '.Str::limit($thread->subject, 70),
-                Str::limit($sender->name.': '.strip_tags($body), 180),
+                Str::limit($sender->name.': '.EduCoreRichText::plainText($body), 180),
                 [
                     'type' => 'message',
                     'thread_id' => (string) $thread->id,
