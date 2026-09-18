@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicSession;
 use App\Models\AssessmentTemplate;
+use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
@@ -150,6 +151,117 @@ class ParallelCurriculumController extends Controller
             'canManage', 'currentSession', 'currentTerm', 'curricula', 'workspaces',
             'templates', 'conventionalSubjects', 'classLevels', 'students', 'staff',
             'integrations', 'enrolments', 'recentComposites'
+        ));
+    }
+
+    public function studentAssignments(Request $request)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        $tenantId = $this->tenantId();
+        $currentSession = AcademicSession::current()->first();
+
+        $sessionId = (int) ($request->integer('session_id') ?: ($currentSession?->id ?? 0));
+        $session = $sessionId
+            ? AcademicSession::where('tenant_id', $tenantId)->findOrFail($sessionId)
+            : null;
+
+        $curricula = ParallelCurriculum::with([
+            'classes' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
+        ])->where('is_active', true)->orderBy('name')->get();
+
+        $curriculumId = (int) ($request->integer('parallel_curriculum_id') ?: ($curricula->first()?->id ?? 0));
+        $selectedCurriculum = $curriculumId
+            ? $curricula->firstWhere('id', $curriculumId)
+            : null;
+
+        abort_if($curriculumId && ! $selectedCurriculum, 404, 'The selected parallel curriculum is unavailable.');
+
+        $classArms = ClassArm::with('classLevel')
+            ->orderBy('class_level_id')
+            ->orderBy('name')
+            ->get();
+
+        $conventionalClassArmId = $request->integer('conventional_class_arm_id');
+        $gender = trim((string) $request->query('gender', ''));
+        $assignmentStatus = trim((string) $request->query('assignment_status', 'all'));
+        $search = trim((string) $request->query('q', ''));
+
+        $assignedStudentIds = collect();
+        if ($session && $selectedCurriculum) {
+            $assignedStudentIds = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $selectedCurriculum->id)
+                ->where('session_id', $session->id)
+                ->where('is_active', true)
+                ->pluck('student_id');
+        }
+
+        $studentsQuery = Student::active()
+            ->with(['currentClassArm.classLevel'])
+            ->when($conventionalClassArmId, function ($query) use ($conventionalClassArmId, $session): void {
+                $query->where(function ($studentQuery) use ($conventionalClassArmId, $session): void {
+                    $studentQuery->where('current_class_arm_id', $conventionalClassArmId);
+
+                    if ($session) {
+                        $studentQuery->orWhereHas('enrollments', fn ($enrolmentQuery) => $enrolmentQuery
+                            ->where('session_id', $session->id)
+                            ->where('class_arm_id', $conventionalClassArmId));
+                    }
+                });
+            })
+            ->when($gender !== '', fn ($query) => $query->where('gender', $gender))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($studentQuery) use ($search): void {
+                    $studentQuery
+                        ->where('admission_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                $assignmentStatus === 'assigned' && $selectedCurriculum,
+                fn ($query) => $query->whereIn('id', $assignedStudentIds)
+            )
+            ->when(
+                $assignmentStatus === 'unassigned' && $selectedCurriculum,
+                fn ($query) => $query->whereNotIn('id', $assignedStudentIds)
+            )
+            ->orderBy('last_name')
+            ->orderBy('first_name');
+
+        $students = $studentsQuery->paginate(100)->withQueryString();
+
+        $activeAssignments = collect();
+        if ($session && $selectedCurriculum && $students->isNotEmpty()) {
+            $activeAssignments = ParallelCurriculumEnrolment::with('curriculumClass')
+                ->where('parallel_curriculum_id', $selectedCurriculum->id)
+                ->where('session_id', $session->id)
+                ->where('is_active', true)
+                ->whereIn('student_id', $students->getCollection()->pluck('id'))
+                ->get()
+                ->keyBy('student_id');
+        }
+
+        $sessions = AcademicSession::where('tenant_id', $tenantId)
+            ->orderByDesc('is_current')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('parallel-curriculum.student-assignments', compact(
+            'curricula',
+            'selectedCurriculum',
+            'curriculumId',
+            'sessions',
+            'session',
+            'sessionId',
+            'classArms',
+            'conventionalClassArmId',
+            'gender',
+            'assignmentStatus',
+            'search',
+            'students',
+            'activeAssignments'
         ));
     }
 
@@ -330,7 +442,11 @@ class ParallelCurriculumController extends Controller
             );
         }
 
-        return back()->with('success', 'Student parallel-class assignments updated.');
+        return back()->with(
+            'success',
+            count(array_unique(array_map('intval', $data['student_ids']))).
+            ' student parallel-class assignment(s) updated. Existing students in this programme were moved to the selected parallel class.'
+        );
     }
 
     public function destroyEnrolment(ParallelCurriculumEnrolment $enrolment)
