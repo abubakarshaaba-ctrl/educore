@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\StaffWorkHistory;
 use App\Models\User;
+use App\Services\StaffIdGenerator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -12,6 +13,10 @@ use Illuminate\Support\Str;
 
 class StaffBulkUploadController extends Controller
 {
+    public function __construct(private readonly StaffIdGenerator $staffIdGenerator)
+    {
+    }
+
     public function index()
     {
         return view('staff.bulk-upload');
@@ -133,6 +138,7 @@ class StaffBulkUploadController extends Controller
                     'password'  => Hash::make($tempPassword),
                     'role'      => $role,
                     'phone'     => $phone ?: null,
+                    'staff_id'  => $this->staffIdGenerator->generate(),
                     'is_active' => true,
                     'employment_status' => User::STAFF_STATUS_ACTIVE,
                     'employment_started_at' => $startedAt,
@@ -167,7 +173,7 @@ class StaffBulkUploadController extends Controller
                 'email'  => $email,
                 'role'   => $role,
                 'status' => 'ok',
-                'note'   => "Imported. Temp password: {$tempPassword}",
+                'note'   => "Imported. Staff ID: {$user->staff_id}. Temp password: {$tempPassword}",
             ];
         }
 
