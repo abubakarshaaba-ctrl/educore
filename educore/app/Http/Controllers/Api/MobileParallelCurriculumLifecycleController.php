@@ -408,6 +408,13 @@ class MobileParallelCurriculumLifecycleController extends Controller
             abort(423, 'Unpublish the affected result before renaming this class arm.');
         }
 
+        $this->lifecycle->assertArmCapacityChange(
+            $arm,
+            array_key_exists('capacity', $data) && $data['capacity'] !== null
+                ? (int) $data['capacity']
+                : null
+        );
+
         $arm->save();
 
         return response()->json(['message' => 'Parallel class arm updated.']);
@@ -418,16 +425,9 @@ class MobileParallelCurriculumLifecycleController extends Controller
         $tenantId = $this->assertManage($request);
         abort_unless((int) $arm->tenant_id === $tenantId, 403);
 
-        $currentSession = AcademicSession::current()->first();
-        if (
-            $currentSession
-            && ParallelCurriculumEnrolment::where('parallel_curriculum_class_arm_id', $arm->id)
-                ->where('session_id', $currentSession->id)
-                ->where('is_active', true)
-                ->exists()
-        ) {
+        if ($this->lifecycle->armHasOperationalPlacements($arm)) {
             throw ValidationException::withMessages([
-                'arm' => 'Move current-session learners out of this arm before archiving it.',
+                'arm' => 'Move all current/future-session learners out of this arm before archiving it.',
             ]);
         }
 
