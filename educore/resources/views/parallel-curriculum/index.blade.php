@@ -58,7 +58,7 @@
                         @php($arm=$workspace['arm'] ?? null)
                         <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',array_filter(['class_id'=>$workspace['class']->id,'arm_id'=>$arm?->id,'subject_id'=>$assignment->parallel_curriculum_subject_id,'term_id'=>$currentTerm->id])) : '#' }}">
                             <strong>{{ $assignment->subject?->name }} · {{ $workspace['class']->name }}{{ $arm ? ' '.$arm->name : '' }}</strong>
-                            <span>{{ $workspace['curriculum']->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif @if($arm) · Arm-specific roster @endif</span>
+                            <span>{{ $workspace['curriculum']->name }} @if(!empty($workspace['effective_teacher_name'])) · {{ $workspace['effective_teacher_name'] }}@else · Admin / unassigned@endif @if($arm) · Arm-specific roster @endif</span>
                         </a>
                     @endforeach
                 </div>
@@ -118,8 +118,8 @@
                 <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
                     <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">The selected subject must belong to the same programme as the class.</div></div>
-                        <div class="fg"><label class="fl">Teacher (optional)</label><select class="fc" name="teacher_id"><option value="">Admin entry / unassigned</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select></div>
+                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">The selected subject must belong to the same programme as the class. This teacher is the default; individual arms can override it in Academic Lifecycle.</div></div>
+                        <div class="fg"><label class="fl">Default teacher for all arms (optional)</label><select class="fc" name="teacher_id"><option value="">Admin entry / unassigned</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select></div>
                     </div>
                     <button class="btn btn-p">Assign Subject</button>
                 </form>
