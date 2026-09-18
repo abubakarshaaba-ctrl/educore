@@ -881,7 +881,7 @@ class ParallelCurriculumController extends Controller
             $enrolment = $enrolments->get((int) $studentId);
             if ($this->service->scoreEntryLocked($enrolment, $term)) {
                 $errors["scores.{$studentId}"][] =
-                    'This student\'s conventional report card is published. Unpublish it before changing parallel source scores.';
+                    'A published result depends on this student\'s parallel source scores. Unpublish the relevant result before changing them.';
                 continue;
             }
 
