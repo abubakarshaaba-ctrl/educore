@@ -2,7 +2,10 @@ package online.educoreng.educore.core.data.repository
 
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
-import java.time.OffsetDateTime
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -246,7 +249,7 @@ class DefaultClassWorkspaceRepository(
                         userId = scope.userId,
                         cacheKey = STAFF_ATTENDANCE_CACHE_KEY,
                         payloadJson = staffAttendanceAdapter.toJson(result.value),
-                        sourceGeneratedAt = OffsetDateTime.now().toString(),
+                        sourceGeneratedAt = iso8601Utc(nowEpochMs()),
                         cachedAtEpochMs = nowEpochMs(),
                     ),
                 )
@@ -275,7 +278,7 @@ class DefaultClassWorkspaceRepository(
                 val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
                 val requestId = UUID.randomUUID().toString()
                 val queuedRequest = request.copy(
-                    capturedAt = OffsetDateTime.now().toString(),
+                    capturedAt = iso8601Utc(nowEpochMs()),
                     requestId = requestId,
                 )
                 val operation = SyncOperationEntity(
@@ -457,6 +460,15 @@ class DefaultClassWorkspaceRepository(
             ),
         )
     }
+
+    /**
+     * Format a UTC ISO-8601 timestamp without java.time so the repository
+     * remains compatible with EduCore's minSdk 23 devices.
+     */
+    private fun iso8601Utc(epochMs: Long): String =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date(epochMs))
 
     private data class UserScope(val tenantKey: String, val userId: Long)
 
