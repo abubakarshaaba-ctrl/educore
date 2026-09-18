@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
 use App\Http\Controllers\Api\MobileTransfersController;
 use App\Http\Controllers\Api\ParentController;
+use App\Http\Controllers\Api\ParallelCurriculumScoreController;
 use App\Http\Controllers\Api\PlatformBroadcastController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\ProfileController;
@@ -134,6 +135,10 @@ Route::prefix('v1')->group(function () {
         Route::get('scores/teaching', [ScoreController::class, 'teaching']);
         Route::get('scores/sheet', [ScoreController::class, 'sheet']);
         Route::post('scores/save', [ScoreController::class, 'save']);
+
+        Route::get('parallel-scores/teaching', [ParallelCurriculumScoreController::class, 'teaching']);
+        Route::get('parallel-scores/sheet', [ParallelCurriculumScoreController::class, 'sheet']);
+        Route::post('parallel-scores/save', [ParallelCurriculumScoreController::class, 'save']);
 
         Route::get('skills', [SkillsController::class, 'index']);
         Route::get('skills/sheet', [SkillsController::class, 'sheet']);
