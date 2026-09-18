@@ -100,7 +100,7 @@ class StudentController extends Controller
             'guardian_relationship' => ['required', 'in:father,mother,guardian,other'],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $student = DB::transaction(function () use ($validated, $request) {
             // Auto-generate the next platform-wide incremental student ID.
             $admissionNumber = $this->studentIdGenerator->generate();
 
@@ -135,10 +135,12 @@ class StudentController extends Controller
                 'tenant_id'          => auth()->user()->tenant_id,
                 'is_primary_contact' => true,
             ]);
+
+            return $student;
         });
 
         return redirect()->route('students.index')
-            ->with('success', "Student admitted successfully. Student ID: {$admissionNumber}");
+            ->with('success', "Student admitted successfully. Student ID: {$student->admission_number}");
     }
 
     // ---------------------------------------------------------------
