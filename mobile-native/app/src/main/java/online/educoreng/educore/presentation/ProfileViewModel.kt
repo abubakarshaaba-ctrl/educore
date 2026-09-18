@@ -62,7 +62,10 @@ class ProfileViewModel @Inject constructor(
                     if (portal != "student" && portal != "parent" && portal != "platform") {
                         when (val cardResult = repository.staffIdCard()) {
                             is AppResult.Success -> _uiState.update { it.copy(idCard = cardResult.value) }
-                            is AppResult.Failure -> _uiState.update { it.copy(errorMessage = cardResult.error.userMessage) }
+                            // ID-card data is supplementary to profile self-service.
+                            // Do not turn an unavailable card into a page-wide access
+                            // error when the authenticated profile itself loaded.
+                            is AppResult.Failure -> Unit
                         }
                     }
                 }
