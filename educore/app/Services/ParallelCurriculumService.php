@@ -325,6 +325,7 @@ class ParallelCurriculumService
                 'sync_status' => 'pending',
                 'sync_message' => 'No conventional assessment template is materialized for this class level and term.',
             ]);
+            $this->clearDerivedScoresIfSafe($composite);
 
             return $composite->refresh();
         }
