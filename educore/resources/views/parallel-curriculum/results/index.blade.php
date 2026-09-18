@@ -12,6 +12,10 @@
 </style>
 @endpush
 
+@push('styles')
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
 @section('content')
 <div class="pc-results">
     @if(session('success'))<div class="note" style="background:#ECFDF3;color:#067647;border-color:#ABEFC6;margin-bottom:12px">{{ session('success') }}</div>@endif
