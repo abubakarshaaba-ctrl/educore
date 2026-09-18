@@ -49,6 +49,19 @@ class ShellNavigationPolicyTest {
         assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(parentResults))
     }
 
+    @Test
+    fun parallel_curriculum_module_is_native_academic_module() {
+        val module = ModuleDescriptor(
+            "parallel-curriculum",
+            "Parallel Curriculum",
+            "/parallel-curriculum",
+            "curriculum",
+        )
+
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(module.key))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(module))
+    }
+
     private fun session(portal: String, role: String): SessionSnapshot = SessionSnapshot(
         user = UserIdentity(
             id = 5,
