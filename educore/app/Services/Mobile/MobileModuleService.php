@@ -4,9 +4,12 @@ namespace App\Services\Mobile;
 
 use App\Models\ClassArm;
 use App\Models\User;
+use App\Services\ParallelCurriculumService;
 
 class MobileModuleService
 {
+    public function __construct(private readonly ParallelCurriculumService $parallel) {}
+
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
         'students' => ['Students', '/students', 'students'],
@@ -14,6 +17,7 @@ class MobileModuleService
         'classes' => ['Classes', '/classes', 'classes'],
         'subjects' => ['Subjects', '/subjects', 'subjects'],
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
+        'parallel-curriculum' => ['Parallel Curriculum', '/parallel-curriculum', 'curriculum'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
@@ -51,7 +55,7 @@ class MobileModuleService
     ];
 
     private const ACADEMIC_MODULES = [
-        'classes', 'subjects', 'curriculum', 'academic-cycle', 'attendance',
+        'classes', 'subjects', 'curriculum', 'parallel-curriculum', 'academic-cycle', 'attendance',
         'skills', 'scores', 'reports', 'timetable', 'lesson-planner', 'academic-repository',
     ];
 
@@ -67,6 +71,7 @@ class MobileModuleService
         'classes' => ['classes', 'classes.view'],
         'subjects' => ['subjects', 'subjects.view'],
         'curriculum' => ['curriculum', 'curriculum.view'],
+        'parallel-curriculum' => ['scores'],
         'academic-cycle' => ['academic-cycle', 'academic-session'],
         'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
         'skills' => ['skills', 'skills.rate'],
@@ -145,6 +150,13 @@ class MobileModuleService
                 if ($key === 'subscription') {
                     return $roleKey === 'admin';
                 }
+
+                if ($key === 'parallel-curriculum') {
+                    return $isSchoolAdmin
+                        && (bool) $user->tenant_id
+                        && $this->parallel->enabledForTenant((int) $user->tenant_id);
+                }
+
 
                 if (
                     $user->roleKey() === 'admission_officer'
