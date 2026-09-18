@@ -562,16 +562,32 @@ class ParallelCurriculumController extends Controller
             'assessment_template_id' => ['nullable', Rule::exists('assessment_templates', 'id')->where('tenant_id', $tenantId)],
         ]);
 
-        ParallelCurriculumClass::create([
-            'tenant_id' => $tenantId,
-            'parallel_curriculum_id' => $data['parallel_curriculum_id'],
-            'assessment_template_id' => $data['assessment_template_id'] ?? null,
-            'name' => trim($data['name']),
-            'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
-            'is_active' => true,
-        ]);
+        $class = DB::transaction(function () use ($tenantId, $data): ParallelCurriculumClass {
+            $class = ParallelCurriculumClass::create([
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $data['parallel_curriculum_id'],
+                'assessment_template_id' => $data['assessment_template_id'] ?? null,
+                'name' => trim($data['name']),
+                'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+                'is_active' => true,
+            ]);
 
-        return back()->with('success', 'Parallel curriculum class created.');
+            ParallelCurriculumClassArm::create([
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_class_id' => $class->id,
+                'name' => 'A',
+                'code' => 'A',
+                'sort_order' => 1,
+                'is_active' => true,
+            ]);
+
+            return $class;
+        });
+
+        return back()->with(
+            'success',
+            "Parallel curriculum class level {$class->name} created with default Arm A."
+        );
     }
 
     public function updateClass(Request $request, ParallelCurriculumClass $class)
