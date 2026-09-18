@@ -36,7 +36,10 @@ class ParallelCurriculumResultService
             ->filter(fn ($assignment) => $assignment->subject?->is_active)
             ->values();
 
-        $enrolments = ParallelCurriculumEnrolment::with('student.currentClassArm.classLevel')
+        $enrolments = ParallelCurriculumEnrolment::with([
+                'student.currentClassArm.classLevel',
+                'curriculumClassArm',
+            ])
             ->where('parallel_curriculum_class_id', $class->id)
             ->where('session_id', $term->session_id)
             ->where('is_active', true)
@@ -201,7 +204,10 @@ class ParallelCurriculumResultService
 
     public function publishedForStudent(Student $student): Collection
     {
-        $enrolments = ParallelCurriculumEnrolment::with('curriculumClass.curriculum')
+        $enrolments = ParallelCurriculumEnrolment::with([
+                'curriculumClass.curriculum',
+                'curriculumClassArm',
+            ])
             ->where('student_id', $student->id)
             ->where('is_active', true)
             ->get();
@@ -260,6 +266,10 @@ class ParallelCurriculumResultService
                     'curriculum' => $report['curriculum']?->name,
                     'class_id' => (int) $class->id,
                     'class_name' => $class->name,
+                    'class_arm_id' => $row['enrolment']->parallel_curriculum_class_arm_id
+                        ? (int) $row['enrolment']->parallel_curriculum_class_arm_id
+                        : null,
+                    'class_arm_name' => $row['enrolment']->curriculumClassArm?->name,
                     'term_id' => (int) $term->id,
                     'term' => $term->name,
                     'session' => $term->session?->name,
@@ -318,7 +328,13 @@ class ParallelCurriculumResultService
         }
 
         $class = ParallelCurriculumClass::withoutTenantScope()
-            ->with(['curriculum.grades', 'curriculum.defaultAssessmentTemplate', 'assessmentTemplate', 'subjectAssignments.subject'])
+            ->with([
+                'curriculum.grades',
+                'curriculum.defaultAssessmentTemplate',
+                'assessmentTemplate',
+                'classGrades',
+                'subjectAssignments.subject',
+            ])
             ->where('tenant_id', $student->tenant_id)
             ->find($publication->parallel_curriculum_class_id);
 
