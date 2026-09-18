@@ -24,6 +24,16 @@ class EduCoreTokensTest {
     }
 
     @Test
+    fun adaptive_font_scale_grows_with_available_window_size() {
+        assertEquals(1.00f, eduCoreAdaptiveFontMultiplier(widthDp = 360, heightDp = 800), 0.001f)
+        assertEquals(1.05f, eduCoreAdaptiveFontMultiplier(widthDp = 393, heightDp = 873), 0.001f)
+        assertEquals(1.08f, eduCoreAdaptiveFontMultiplier(widthDp = 430, heightDp = 932), 0.001f)
+        assertEquals(1.18f, eduCoreAdaptiveFontMultiplier(widthDp = 600, heightDp = 960), 0.001f)
+        assertEquals(1.26f, eduCoreAdaptiveFontMultiplier(widthDp = 1280, heightDp = 720), 0.001f)
+        assertEquals(1.38f, eduCoreAdaptiveFontMultiplier(widthDp = 1440, heightDp = 900), 0.001f)
+    }
+
+    @Test
     fun institutional_brand_tokens_are_stable() {
         assertEquals(Color(0xFF071E45), EduCoreColors.Navy900)
         assertEquals(Color(0xFF0B2D63), EduCoreColors.Navy800)
