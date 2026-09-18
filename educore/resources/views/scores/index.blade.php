@@ -69,6 +69,9 @@
 
 <div class="page-tabs">
     <a href="{{ route('scores.index') }}" class="page-tab active">Score Entry</a>
+    @if($parallelCurriculumEnabled ?? false)
+    <a href="{{ route('parallel-curriculum.index') }}" class="page-tab">Parallel Curriculum</a>
+    @endif
     @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
     <a href="{{ route('scores.broadsheet') }}" class="page-tab">Broadsheet</a>
     @endif
