@@ -1,6 +1,7 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -188,7 +191,12 @@ private fun ScoreHeader(sheet: ScoreSheet, onBack: () -> Unit) {
 }
 
 @Composable
-internal fun PublishedResultsScreen(state: ScoresUiState, onBack: () -> Unit, onRetry: () -> Unit) {
+internal fun PublishedResultsScreen(
+    state: ScoresUiState,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+    onChild: (Long) -> Unit = {},
+) {
     if (state.isLoading && state.publishedResults == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading published results")
     val results = state.publishedResults ?: return EduCoreErrorState(
         state.errorMessage ?: "Published results are unavailable.",
@@ -206,6 +214,34 @@ internal fun PublishedResultsScreen(state: ScoresUiState, onBack: () -> Unit, on
                 listOfNotNull(results.studentName, results.admissionNumber, results.className).joinToString(" · "),
                 onBack = onBack,
             )
+        }
+        if (results.children.size > 1) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                    Text(
+                        "Select child",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = EduCoreColors.Slate600,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        results.children.forEach { child ->
+                            FilterChip(
+                                selected = child.id == results.studentId,
+                                onClick = { onChild(child.id) },
+                                label = {
+                                    Text(
+                                        listOfNotNull(child.name, child.className).joinToString(" · "),
+                                        maxLines = 1,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
 
