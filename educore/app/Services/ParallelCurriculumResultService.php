@@ -159,6 +159,7 @@ class ParallelCurriculumResultService
             'subject_assignments' => $subjectAssignments,
             'results' => $results,
             'grades' => $grades,
+            'grading_scale_complete' => $this->gradingScaleCoversAllScores($grades),
             'publication' => $publication,
             'is_published' => $publication?->isPublished() ?? false,
             'students_count' => $results->count(),
@@ -198,11 +199,45 @@ class ParallelCurriculumResultService
             return false;
         }
 
-        if ($report['grades']->isEmpty() || $report['ungraded_subject_results_count'] > 0) {
+        if (
+            $report['grades']->isEmpty()
+            || ! $report['grading_scale_complete']
+            || $report['ungraded_subject_results_count'] > 0
+        ) {
             return false;
         }
 
         return $report['complete_students_count'] === $report['students_count'];
+    }
+
+    private function gradingScaleCoversAllScores(Collection $grades): bool
+    {
+        if ($grades->isEmpty()) {
+            return false;
+        }
+
+        $ordered = $grades->sortBy('min_score')->values();
+        $first = $ordered->first();
+        if (! $first || (float) $first->min_score > 0.001) {
+            return false;
+        }
+
+        $coveredThrough = (float) $first->max_score;
+
+        foreach ($ordered->skip(1) as $grade) {
+            $minimum = (float) $grade->min_score;
+            $maximum = (float) $grade->max_score;
+
+            // Parallel scores are stored to two decimal places. A next band may
+            // therefore start at most 0.01 above the previous inclusive maximum.
+            if ($minimum > $coveredThrough + 0.01001) {
+                return false;
+            }
+
+            $coveredThrough = max($coveredThrough, $maximum);
+        }
+
+        return $coveredThrough >= 99.999;
     }
 
     private function resolveGrade(Collection $grades, float $score): ?ParallelCurriculumGrade
