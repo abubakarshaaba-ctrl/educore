@@ -501,6 +501,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('enrolments', [\App\Http\Controllers\ParallelCurriculumController::class, 'assignStudents'])->name('enrolments.store');
         Route::delete('enrolments/{enrolment}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyEnrolment'])->name('enrolments.destroy');
         Route::post('integrations', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeIntegration'])->name('integrations.store');
+        Route::get('results', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'index'])->name('results.index');
+        Route::get('results/class/{class}/student/{student}', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'student'])->name('results.student');
+        Route::get('results/class/{class}/student/{student}/pdf', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'pdf'])->name('results.student.pdf');
+        Route::post('results/publish', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'publish'])->name('results.publish');
+        Route::post('results/unpublish', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'unpublish'])->name('results.unpublish');
         Route::get('score-sheet', [\App\Http\Controllers\ParallelCurriculumController::class, 'scoreSheet'])->name('score-sheet');
         Route::post('scores', [\App\Http\Controllers\ParallelCurriculumController::class, 'saveScores'])->name('scores.save');
         Route::post('sync', [\App\Http\Controllers\ParallelCurriculumController::class, 'sync'])->name('sync');
