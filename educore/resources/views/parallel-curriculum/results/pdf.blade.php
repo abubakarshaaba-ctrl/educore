@@ -19,7 +19,7 @@
     <tr>
         <td><span class="label">Student</span><span class="value">{{ $row['student']->full_name }}</span></td>
         <td><span class="label">Admission No.</span><span class="value">{{ $row['student']->admission_number }}</span></td>
-        <td><span class="label">Parallel Class</span><span class="value">{{ $report['class']->name }}</span></td>
+        <td><span class="label">Parallel Class</span><span class="value">{{ $report['class']->name }}{{ $row['enrolment']->curriculumClassArm ? ' · Arm '.$row['enrolment']->curriculumClassArm->name : '' }}</span></td>
         <td><span class="label">Result Status</span><span class="value">{{ $report['is_published'] ? 'Published' : 'Draft' }}</span></td>
     </tr>
 </table>
