@@ -1046,7 +1046,9 @@ class ParallelCurriculumController extends Controller
 
         foreach ($studentIds as $studentId) {
             $existing = $existingEnrolments->get($studentId);
-            $changesPlacement = ! $existing || (int) $existing->parallel_curriculum_class_id !== (int) $class->id;
+            $changesPlacement = ! $existing
+                || (int) $existing->parallel_curriculum_class_id !== (int) $class->id
+                || (int) $existing->parallel_curriculum_class_arm_id !== (int) $arm->id;
 
             if (! $changesPlacement) {
                 continue;
