@@ -88,7 +88,7 @@ fun EduCoreMetricCard(
     supportingText: String? = null,
     tone: EduCoreTone = EduCoreTone.Brand,
 ) {
-    EduCoreDashboardCard(modifier.height(EduCoreSizes.MetricCardHeight)) {
+    EduCoreDashboardCard(modifier.heightIn(min = EduCoreSizes.MetricCardHeight)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Surface(
