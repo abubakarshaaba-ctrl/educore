@@ -121,6 +121,9 @@ Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show']
 Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, 'pull'])
     ->middleware('throttle:5,10')
     ->name('deploy.pull');
+Route::get('/deploy/parallel-diagnostics', [\App\Http\Controllers\SelfDeployController::class, 'parallelDiagnostics'])
+    ->middleware('throttle:5,10')
+    ->name('deploy.parallel-diagnostics');
 
 // Unified mobile app download — serves the signed production APK.
 Route::get('/download/app', function () {
