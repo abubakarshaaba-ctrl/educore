@@ -23,7 +23,7 @@ class AppUpdateWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val update = AppUpdateChecker.check() ?: return Result.retry()
+        val update = AppUpdateChecker.check() ?: return Result.success()
         if (!update.isUpdateAvailable) return Result.success()
 
         val prefs = applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
