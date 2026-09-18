@@ -43,7 +43,8 @@
         </div>
         <div class="fg">
             <label class="fl">Message <span>*</span></label>
-            <textarea name="body" class="fc" rows="6" required placeholder="Type your message here...">{{ old('body') }}</textarea>
+            <x-rich-text-toolbar target="messageBody" />
+            <textarea id="messageBody" name="body" class="fc edu-rich-target" rows="7" required placeholder="Type your message here...">{{ old('body') }}</textarea>
         </div>
         <div style="display:flex;gap:10px">
             <button type="submit" class="btn btn-p">Send Message</button>
