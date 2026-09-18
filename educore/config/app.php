@@ -14,6 +14,7 @@ return [
     */
 
     'deploy_token' => env('DEPLOY_TOKEN'),
+    'deploy_gh_token' => env('DEPLOY_GH_TOKEN'),
 
     'name' => env('APP_NAME', 'Laravel'),
 
