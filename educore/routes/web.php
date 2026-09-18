@@ -491,6 +491,15 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::prefix('parallel-curriculum')->name('parallel-curriculum.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
         Route::get('student-assignments', [\App\Http\Controllers\ParallelCurriculumController::class, 'studentAssignments'])->name('student-assignments');
+        Route::get('lifecycle', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'index'])->name('lifecycle.index');
+        Route::post('lifecycle/arms', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArm'])->name('lifecycle.arms.store');
+        Route::put('lifecycle/arms/{arm}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'updateArm'])->name('lifecycle.arms.update');
+        Route::delete('lifecycle/arms/{arm}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'archiveArm'])->name('lifecycle.arms.archive');
+        Route::post('lifecycle/class-grades', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeClassGrade'])->name('lifecycle.grades.store');
+        Route::delete('lifecycle/class-grades/{grade}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'destroyClassGrade'])->name('lifecycle.grades.destroy');
+        Route::post('lifecycle/promotion-rules', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storePromotionRule'])->name('lifecycle.promotion-rules.store');
+        Route::post('lifecycle/promotions/execute', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'executePromotion'])->name('lifecycle.promotions.execute');
+        Route::post('lifecycle/transfers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'transfer'])->name('lifecycle.transfers.store');
         Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
         Route::post('student-assignments/import', [\App\Http\Controllers\ParallelCurriculumController::class, 'importStudentAssignments'])->name('student-assignments.import');
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
