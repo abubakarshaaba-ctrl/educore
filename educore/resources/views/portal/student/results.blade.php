@@ -100,7 +100,7 @@
        class="btn btn-primary">🖨 Download Report Card PDF</a>
 </div>
 
-@else
+@elseif($parallelResults->isEmpty())
 <div class="card">
     <div class="empty">
         <div class="empty-icon">📋</div>
@@ -109,4 +109,6 @@
     </div>
 </div>
 @endif
+
+@include('portal.partials.parallel-results', ['parallelResults' => $parallelResults])
 @endsection
