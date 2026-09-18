@@ -80,6 +80,47 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertSame(80.0, $composite->average_score);
     }
 
+    public function test_unpublishing_conventional_result_cleans_preserved_score_from_inactive_mapping(): void
+    {
+        $fixture = $this->mappingFixture();
+        $service = app(ParallelCurriculumService::class);
+
+        $publication = ReportCardPublication::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_arm_id' => $fixture['classArm']->id,
+            'term_id' => $fixture['term']->id,
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $service->deactivateIntegration($fixture['integration']);
+
+        $this->assertDatabaseHas('scores', ['id' => $fixture['score']->id]);
+        $this->assertSame(
+            $fixture['integration']->id,
+            $fixture['composite']->fresh()->parallel_curriculum_integration_id
+        );
+
+        $publication->update([
+            'status' => 'draft',
+            'archived_at' => now(),
+        ]);
+
+        $cleaned = $service->cleanupAfterConventionalUnpublish(
+            $fixture['tenant']->id,
+            [$fixture['classArm']->id],
+            $fixture['term']->id
+        );
+
+        $this->assertSame(1, $cleaned);
+        $this->assertDatabaseMissing('scores', ['id' => $fixture['score']->id]);
+
+        $composite = $fixture['composite']->fresh();
+        $this->assertNull($composite->parallel_curriculum_integration_id);
+        $this->assertNull($composite->destination_subject_id);
+        $this->assertSame('unmapped', $composite->sync_status);
+    }
+
     public function test_published_conventional_result_locks_mapping_configuration(): void
     {
         $fixture = $this->mappingFixture();
