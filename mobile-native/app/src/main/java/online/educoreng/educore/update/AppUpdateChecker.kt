@@ -45,7 +45,7 @@ object AppUpdateChecker {
                 val release = envelope.optJSONObject("release") ?: return@runCatching null
 
                 val versionCode = release.optInt("version_code", 0)
-                if (versionCode <= 0) return@runCatching null
+                if (versionCode <= BuildConfig.VERSION_CODE) return@runCatching null
 
                 AppUpdateInfo(
                     latestVersionCode = versionCode,
