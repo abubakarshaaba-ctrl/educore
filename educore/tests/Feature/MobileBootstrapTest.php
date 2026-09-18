@@ -319,7 +319,8 @@ class MobileBootstrapTest extends TestCase
             ->assertOk()
             ->assertJsonPath('user.id', $user->id)
             ->assertJsonPath('user.portal', 'student')
-            ->assertJsonFragment(['key' => 'student.dashboard']);
+            ->assertJsonFragment(['key' => 'student.dashboard'])
+            ->assertJsonFragment(['key' => 'student.results']);
     }
 
     public function test_authenticated_super_admin_receives_one_authoritative_bootstrap_contract(): void
