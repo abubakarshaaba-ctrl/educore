@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumScore;
@@ -34,14 +35,18 @@ class ParallelCurriculumScoreController extends Controller
 
         if (! $this->parallel->enabledForTenant($tenantId)) {
             return response()->json([
-                'contract_version' => 3,
+                'contract_version' => 4,
                 'generated_at' => now()->toIso8601String(),
                 'term' => $term ? ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name] : null,
                 'assignments' => [],
             ]);
         }
 
-        $assignments = ParallelCurriculumClassSubject::with(['curriculumClass.curriculum', 'subject'])
+        $assignments = ParallelCurriculumClassSubject::with([
+                'curriculumClass.curriculum',
+                'curriculumClass.arms',
+                'subject',
+            ])
             ->where('is_active', true)
             ->when(! $this->canEnterAll($user), fn ($query) => $query->where('teacher_id', $user->id))
             ->get()
@@ -50,16 +55,41 @@ class ParallelCurriculumScoreController extends Controller
                 && $assignment->curriculumClass?->curriculum?->is_active
                 && $assignment->subject?->is_active
             )
-            ->unique(fn (ParallelCurriculumClassSubject $assignment) =>
-                $assignment->parallel_curriculum_class_id.':'.$assignment->parallel_curriculum_subject_id
-            )
-            ->map(fn (ParallelCurriculumClassSubject $assignment) => [
-                'workspace_type' => 'parallel_curriculum',
-                'class_arm_id' => $assignment->parallel_curriculum_class_id,
-                'class_name' => trim($assignment->curriculumClass->curriculum->name.' · '.$assignment->curriculumClass->name),
-                'subject_id' => $assignment->parallel_curriculum_subject_id,
-                'subject_name' => $assignment->subject->name,
-            ])->values();
+            ->flatMap(function (ParallelCurriculumClassSubject $assignment) {
+                $arms = $assignment->curriculumClass->arms
+                    ->where('is_active', true)
+                    ->values();
+
+                // Before the lifecycle migration runs, keep a legacy all-arms
+                // workspace rather than disappearing from older deployments.
+                if ($arms->isEmpty()) {
+                    return [[
+                        'workspace_type' => 'parallel_curriculum',
+                        'class_arm_id' => $assignment->parallel_curriculum_class_id,
+                        'class_name' => trim(
+                            $assignment->curriculumClass->curriculum->name.
+                            ' · '.$assignment->curriculumClass->name
+                        ),
+                        'subject_id' => $assignment->parallel_curriculum_subject_id,
+                        'subject_name' => $assignment->subject->name,
+                    ]];
+                }
+
+                return $arms->map(fn (ParallelCurriculumClassArm $arm) => [
+                    'workspace_type' => 'parallel_curriculum',
+                    // Parallel arm IDs live in their own API namespace so old
+                    // cached class-level IDs cannot collide with real arm IDs.
+                    'class_arm_id' => self::PARALLEL_ARM_API_OFFSET + (int) $arm->id,
+                    'class_name' => trim(
+                        $assignment->curriculumClass->curriculum->name.
+                        ' · '.$assignment->curriculumClass->name.
+                        ' '.$arm->name
+                    ),
+                    'subject_id' => $assignment->parallel_curriculum_subject_id,
+                    'subject_name' => $assignment->subject->name,
+                ])->all();
+            })
+            ->values();
 
         return response()->json([
             'contract_version' => 3,
@@ -81,8 +111,7 @@ class ParallelCurriculumScoreController extends Controller
         $user = $request->user();
         $this->assertCanEnterScores($user);
         $this->assertEnabled($user);
-        $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
-            ->findOrFail($data['class_arm_id']);
+        [$class, $arm] = $this->resolveParallelWorkspace((int) $data['class_arm_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
         $this->assertAssignment($user, $class, $subject);
 
@@ -90,7 +119,7 @@ class ParallelCurriculumScoreController extends Controller
         $components = $this->parallel->componentsForClass($class);
         abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
 
-        $students = $this->enrolmentsFor($class, $term);
+        $students = $this->enrolmentsFor($class, $term, $arm);
         $lockedStudents = $students->mapWithKeys(fn (ParallelCurriculumEnrolment $enrolment) => [
             (int) $enrolment->student_id => $this->parallel->scoreEntryLocked($enrolment, $term),
         ]);
@@ -109,8 +138,8 @@ class ParallelCurriculumScoreController extends Controller
                 ? 'A published result depends on these source scores. Unpublish the relevant parallel or conventional result before changing them.'
                 : null,
             'class' => [
-                'id' => $class->id,
-                'name' => trim($class->curriculum->name.' · '.$class->name),
+                'id' => (int) $data['class_arm_id'],
+                'name' => trim($class->curriculum->name.' · '.$class->name.($arm ? ' '.$arm->name : '')),
             ],
             'subject' => ['id' => $subject->id, 'name' => $subject->name],
             'term' => ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name],
@@ -164,19 +193,18 @@ class ParallelCurriculumScoreController extends Controller
         $user = $request->user();
         $this->assertCanEnterScores($user);
         $this->assertEnabled($user);
-        $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
-            ->findOrFail($data['class_arm_id']);
+        [$class, $arm] = $this->resolveParallelWorkspace((int) $data['class_arm_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
         $this->assertAssignment($user, $class, $subject);
         $term = $this->resolveTerm((int) $data['term_id']);
 
         $response = $this->idempotency->execute(
             $user,
-            "parallel-scores.{$class->id}.{$subject->id}.{$term->id}.save",
+            "parallel-scores.{$data['class_arm_id']}.{$subject->id}.{$term->id}.save",
             $data['request_id'],
             $data,
-            function () use ($data, $class, $subject, $term, $user): array {
-                $enrolments = $this->enrolmentsFor($class, $term);
+            function () use ($data, $class, $arm, $subject, $term, $user): array {
+                $enrolments = $this->enrolmentsFor($class, $term, $arm);
                 $components = $this->parallel->componentsForClass($class);
                 abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
 
@@ -343,18 +371,60 @@ class ParallelCurriculumScoreController extends Controller
         return $term;
     }
 
-    private function enrolmentsFor(ParallelCurriculumClass $class, Term $term): Collection
-    {
-        return ParallelCurriculumEnrolment::with('student')
+    private function enrolmentsFor(
+        ParallelCurriculumClass $class,
+        Term $term,
+        ?ParallelCurriculumClassArm $arm = null
+    ): Collection {
+        return ParallelCurriculumEnrolment::with(['student', 'curriculumClassArm'])
             ->where('parallel_curriculum_class_id', $class->id)
             ->where('session_id', $term->session_id)
             ->where('is_active', true)
+            ->when(
+                $arm,
+                fn ($query) => $query->where(
+                    'parallel_curriculum_class_arm_id',
+                    $arm->id
+                )
+            )
             ->get()
             ->filter(fn (ParallelCurriculumEnrolment $enrolment) => $enrolment->student?->status === 'active')
             ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) =>
                 strtolower(($enrolment->student?->last_name ?? '').' '.($enrolment->student?->first_name ?? ''))
             )
             ->values();
+    }
+
+    /**
+     * API v4 uses a namespaced synthetic ID for a real parallel class arm.
+     * Values below the offset remain valid legacy class-level workspaces.
+     *
+     * @return array{0: ParallelCurriculumClass, 1: ?ParallelCurriculumClassArm}
+     */
+    private function resolveParallelWorkspace(int $workspaceId): array
+    {
+        if ($workspaceId >= self::PARALLEL_ARM_API_OFFSET) {
+            $armId = $workspaceId - self::PARALLEL_ARM_API_OFFSET;
+
+            $arm = ParallelCurriculumClassArm::with([
+                    'curriculumClass.curriculum',
+                    'curriculumClass.assessmentTemplate',
+                    'curriculumClass.curriculum.defaultAssessmentTemplate',
+                ])
+                ->where('is_active', true)
+                ->findOrFail($armId);
+
+            return [$arm->curriculumClass, $arm];
+        }
+
+        $class = ParallelCurriculumClass::with([
+                'curriculum',
+                'assessmentTemplate',
+                'curriculum.defaultAssessmentTemplate',
+            ])
+            ->findOrFail($workspaceId);
+
+        return [$class, null];
     }
 
     private function scoresFor(
@@ -377,6 +447,8 @@ class ParallelCurriculumScoreController extends Controller
 
         return $lock ? $query->lockForUpdate()->get() : $query->get();
     }
+
+    private const PARALLEL_ARM_API_OFFSET = 1000000000;
 
     private function sheetVersion(
         Collection $enrolments,
