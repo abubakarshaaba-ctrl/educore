@@ -32,6 +32,37 @@ class ParallelCurriculumAcademicLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_arm_capacity_cannot_be_reduced_below_operational_session_load(): void
+    {
+        $f = $this->fixture();
+        $service = app(ParallelCurriculumLifecycleService::class);
+
+        $this->assertSame(1, $service->armOperationalLoad($f['sourceArmA']));
+
+        $this->expectException(ValidationException::class);
+        $service->assertArmCapacityChange($f['sourceArmA'], 0);
+    }
+
+    public function test_future_session_placement_prevents_arm_archive(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumEnrolment::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'parallel_curriculum_class_arm_id' => $f['sourceArmB']->id,
+            'student_id' => $f['student']->id,
+            'session_id' => $f['targetSession']->id,
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue(
+            app(ParallelCurriculumLifecycleService::class)
+                ->armHasOperationalPlacements($f['sourceArmB'])
+        );
+    }
+
     public function test_intra_class_transfer_changes_arm_and_records_history(): void
     {
         $f = $this->fixture();
