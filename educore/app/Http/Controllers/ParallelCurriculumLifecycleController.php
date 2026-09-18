@@ -247,6 +247,13 @@ class ParallelCurriculumLifecycleController extends Controller
             );
         }
 
+        $this->lifecycle->assertArmCapacityChange(
+            $arm,
+            array_key_exists('capacity', $data) && $data['capacity'] !== null
+                ? (int) $data['capacity']
+                : null
+        );
+
         $arm->save();
 
         return back()->with('success', 'Parallel class arm updated.');
@@ -257,20 +264,9 @@ class ParallelCurriculumLifecycleController extends Controller
         $this->assertManage();
         abort_unless((int) $arm->tenant_id === $this->tenantId(), 403);
 
-        $currentSession = AcademicSession::current()->first();
-
-        if (
-            $currentSession
-            && ParallelCurriculumEnrolment::where(
-                'parallel_curriculum_class_arm_id',
-                $arm->id
-            )
-                ->where('session_id', $currentSession->id)
-                ->where('is_active', true)
-                ->exists()
-        ) {
+        if ($this->lifecycle->armHasOperationalPlacements($arm)) {
             throw ValidationException::withMessages([
-                'arm' => 'Move current-session learners out of this arm before archiving it.',
+                'arm' => 'Move all current/future-session learners out of this arm before archiving it.',
             ]);
         }
 
