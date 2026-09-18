@@ -43,7 +43,7 @@
             <span class="msg-sender">{{ $isMe ? 'You' : (optional($reply->sender)->name ?? 'Admin') }}</span>
             <span class="msg-time">{{ $reply->created_at->diffForHumans() }}</span>
         </div>
-        <div class="msg-body">{{ $reply->body }}</div>
+        <x-rich-text :text="$reply->body" class="msg-body" />
     </div>
     @endforeach
 
@@ -52,7 +52,8 @@
         <form method="POST" action="{{ route('staff.portal.messages.reply', $thread) }}">
             @csrf
             <div style="margin-bottom:10px">
-                <textarea name="body" class="fc" rows="3" placeholder="Type your reply..." required></textarea>
+                <x-rich-text-toolbar target="staffReplyBody" />
+                <textarea id="staffReplyBody" name="body" class="fc edu-rich-target" rows="4" placeholder="Type your reply..." required></textarea>
             </div>
             <button type="submit" class="btn btn-p">Send Reply</button>
         </form>
