@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -276,7 +277,7 @@ internal fun RepositoryHeader(title: String, subtitle: String, onBack: () -> Uni
 
 @Composable
 private fun RepositoryMetric(label: String, value: String) {
-    Card(Modifier.width(132.dp), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
+    Card(Modifier.widthIn(min = 132.dp, max = 180.dp), colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
         Column(Modifier.padding(EduCoreSpacing.Md)) {
             Text(value, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Navy900, fontWeight = FontWeight.SemiBold)
             Text(label, color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
