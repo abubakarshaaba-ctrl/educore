@@ -29,6 +29,7 @@
         <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
         @if($canManage)
             <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
+            <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
             <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
         @endif
         @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
@@ -54,9 +55,10 @@
                 <div class="workspaces">
                     @foreach($workspaces as $workspace)
                         @php($assignment=$workspace['assignment'])
-                        <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',['class_id'=>$workspace['class']->id,'subject_id'=>$assignment->parallel_curriculum_subject_id,'term_id'=>$currentTerm->id]) : '#' }}">
-                            <strong>{{ $assignment->subject?->name }} · {{ $workspace['class']->name }}</strong>
-                            <span>{{ $workspace['curriculum']->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
+                        @php($arm=$workspace['arm'] ?? null)
+                        <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',array_filter(['class_id'=>$workspace['class']->id,'arm_id'=>$arm?->id,'subject_id'=>$assignment->parallel_curriculum_subject_id,'term_id'=>$currentTerm->id])) : '#' }}">
+                            <strong>{{ $assignment->subject?->name }} · {{ $workspace['class']->name }}{{ $arm ? ' '.$arm->name : '' }}</strong>
+                            <span>{{ $workspace['curriculum']->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif @if($arm) · Arm-specific roster @endif</span>
                         </a>
                     @endforeach
                 </div>
@@ -81,12 +83,12 @@
         </section>
 
         <section class="pc-card">
-            <div class="pc-head">2. Create independent class</div>
+            <div class="pc-head">2. Create parallel class level</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.classes.store') }}">@csrf
                     <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Class name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1B"></div>
+                        <div class="fg"><label class="fl">Class level name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1B"></div>
                         <div class="fg"><label class="fl">Code</label><input class="fc" name="code"></div>
                     </div>
                     <div class="fg"><label class="fl">Template override (optional)</label><select class="fc" name="assessment_template_id"><option value="">Use programme default</option>@foreach($templates as $template)<option value="{{ $template->id }}">{{ $template->name }}</option>@endforeach</select></div>
