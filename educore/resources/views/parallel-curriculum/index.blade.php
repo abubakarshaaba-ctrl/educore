@@ -23,6 +23,10 @@
     <div class="pc-tabs">
         <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
         <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
+        @if($canManage)
+            <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
+            <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
+        @endif
         @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
             <a href="{{ route('scores.broadsheet') }}" class="pc-tab">Broadsheet</a>
         @endif
@@ -151,6 +155,56 @@
                     </div>
                     <button class="btn btn-p">Save Integration Mapping</button>
                 </form>
+            </div>
+        </section>
+
+        <section class="pc-card full">
+            <div class="pc-head">7. Configure standalone result grading scale</div>
+            <div class="pc-body">
+                <form method="POST" action="{{ route('parallel-curriculum.grades.store') }}">@csrf
+                    <div class="form-row">
+                        <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
+                        <div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required maxlength="20" placeholder="e.g. A"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="fg"><label class="fl">Minimum score</label><input class="fc" type="number" name="min_score" min="0" max="100" step="0.01" required placeholder="70"></div>
+                        <div class="fg"><label class="fl">Maximum score</label><input class="fc" type="number" name="max_score" min="0" max="100" step="0.01" required placeholder="100"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="fg"><label class="fl">Remark</label><input class="fc" name="remark" maxlength="100" placeholder="e.g. Excellent"></div>
+                        <div style="padding-top:22px">
+                            <input type="hidden" name="is_pass_grade" value="0">
+                            <label class="checkbox-row"><input type="checkbox" name="is_pass_grade" value="1" checked><span>Count this as a pass grade.</span></label>
+                        </div>
+                    </div>
+                    <div class="hint" style="margin-bottom:10px">Grade ranges must not overlap. For formal publication, the configured bands should cover every possible score from 0 to 100 without gaps.</div>
+                    <button class="btn btn-p">Save Grade Band</button>
+                </form>
+
+                <div style="margin-top:14px;border-top:1px solid #EEF2F7;padding-top:10px">
+                    @forelse($curricula as $curriculum)
+                        <div class="item">
+                            <div class="item-main">
+                                <strong>{{ $curriculum->name }}</strong>
+                                <span>
+                                    @if($curriculum->grades->isEmpty())
+                                        No grading bands configured.
+                                    @else
+                                        {{ $curriculum->grades->map(fn($grade) => $grade->grade_letter.' '.$grade->min_score.'–'.$grade->max_score)->join(' · ') }}
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                        @foreach($curriculum->grades as $grade)
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0 6px 12px;border-bottom:1px solid #F4F6F8">
+                                <span style="font-size:10px;color:var(--slate)"><strong>{{ $grade->grade_letter }}</strong> · {{ number_format($grade->min_score,2) }}–{{ number_format($grade->max_score,2) }} · {{ $grade->remark ?: 'No remark' }} · {{ $grade->is_pass_grade ? 'Pass' : 'Fail' }}</span>
+                                <form method="POST" action="{{ route('parallel-curriculum.grades.destroy',$grade) }}">@csrf @method('DELETE')<button class="btn btn-d" style="padding:4px 7px">Remove</button></form>
+                            </div>
+                        @endforeach
+                    @empty
+                        <div class="empty">Create a programme before configuring its grading scale.</div>
+                    @endforelse
+                </div>
             </div>
         </section>
 
