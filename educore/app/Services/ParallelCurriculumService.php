@@ -55,6 +55,40 @@ class ParallelCurriculumService
             ->get();
     }
 
+    public function classPlacementLocked(ParallelCurriculumClass $class, int $sessionId): bool
+    {
+        if (! Schema::hasTable('parallel_curriculum_report_publications')) {
+            return false;
+        }
+
+        $termIds = Term::withoutTenantScope()
+            ->where('tenant_id', $class->tenant_id)
+            ->where('session_id', $sessionId)
+            ->pluck('id');
+
+        if ($termIds->isEmpty()) {
+            return false;
+        }
+
+        return ParallelCurriculumReportPublication::withoutTenantScope()
+            ->where('tenant_id', $class->tenant_id)
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->whereIn('term_id', $termIds)
+            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+            ->exists();
+    }
+
+    public function enrolmentPlacementLocked(ParallelCurriculumEnrolment $enrolment): bool
+    {
+        $class = ParallelCurriculumClass::withoutTenantScope()
+            ->where('tenant_id', $enrolment->tenant_id)
+            ->find($enrolment->parallel_curriculum_class_id);
+
+        return $class
+            ? $this->classPlacementLocked($class, (int) $enrolment->session_id)
+            : false;
+    }
+
     public function scoreEntryLocked(ParallelCurriculumEnrolment $enrolment, Term $term): bool
     {
         if ((int) $term->session_id !== (int) $enrolment->session_id) {
