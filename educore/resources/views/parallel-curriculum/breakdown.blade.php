@@ -9,8 +9,12 @@
 </style>
 @endpush
 
+@push('styles')
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
 @section('content')
-<div class="wrap">
+<div class="wrap pc-breakdown">
     <a class="btn" href="{{ route('parallel-curriculum.index') }}">← Back to Parallel Curriculum</a>
 
     <div class="hero" style="margin-top:12px">
