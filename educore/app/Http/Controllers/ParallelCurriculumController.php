@@ -93,6 +93,7 @@ class ParallelCurriculumController extends Controller
             'grades',
             'subjects',
             'classes.assessmentTemplate',
+            'classes.arms',
             'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
         ])->orderBy('name')->get();
@@ -101,14 +102,22 @@ class ParallelCurriculumController extends Controller
             return $curriculum->classes
                 ->where('is_active', true)
                 ->flatMap(function (ParallelCurriculumClass $class) use ($curriculum, $canManage) {
-                    return $class->subjectAssignments
-                        ->where('is_active', true)
-                        ->filter(fn ($assignment) => $canManage || (int) $assignment->teacher_id === (int) auth()->id())
-                        ->map(fn ($assignment) => [
-                            'curriculum' => $curriculum,
-                            'class' => $class,
-                            'assignment' => $assignment,
-                        ]);
+                    $arms = $class->arms->where('is_active', true)->values();
+                    if ($arms->isEmpty()) {
+                        $arms = collect([null]);
+                    }
+
+                    return $arms->flatMap(function ($arm) use ($class, $curriculum, $canManage) {
+                        return $class->subjectAssignments
+                            ->where('is_active', true)
+                            ->filter(fn ($assignment) => $canManage || (int) $assignment->teacher_id === (int) auth()->id())
+                            ->map(fn ($assignment) => [
+                                'curriculum' => $curriculum,
+                                'class' => $class,
+                                'arm' => $arm,
+                                'assignment' => $assignment,
+                            ]);
+                    });
                 });
         })->values();
 
@@ -137,7 +146,7 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $enrolments = ($canManage && $currentSession)
-            ? ParallelCurriculumEnrolment::with(['student.currentClassArm.classLevel', 'curriculumClass', 'curriculum'])
+            ? ParallelCurriculumEnrolment::with(['student.currentClassArm.classLevel', 'curriculumClass', 'curriculumClassArm', 'curriculum'])
                 ->where('session_id', $currentSession->id)
                 ->where('is_active', true)
                 ->orderBy('parallel_curriculum_class_id')
@@ -1370,6 +1379,7 @@ class ParallelCurriculumController extends Controller
             'class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
             'subject_id' => ['required', Rule::exists('parallel_curriculum_subjects', 'id')->where('tenant_id', $tenantId)],
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $tenantId)],
+            'arm_id' => ['nullable', Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId)],
         ]);
 
         $class = $this->classForTenant((int) $data['class_id']);
@@ -1382,6 +1392,11 @@ class ParallelCurriculumController extends Controller
 
         $term = Term::with('session')->findOrFail($data['term_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
+        $arm = ! empty($data['arm_id'])
+            ? ParallelCurriculumClassArm::where('parallel_curriculum_class_id', $class->id)
+                ->where('is_active', true)
+                ->findOrFail($data['arm_id'])
+            : null;
 
         abort_unless(
             (int) $subject->parallel_curriculum_id === (int) $class->parallel_curriculum_id
@@ -1396,10 +1411,11 @@ class ParallelCurriculumController extends Controller
         $components = $this->service->componentsForClass($class);
         $template = $this->service->templateForClass($class);
 
-        $enrolments = ParallelCurriculumEnrolment::with('student')
+        $enrolments = ParallelCurriculumEnrolment::with(['student', 'curriculumClassArm'])
             ->where('parallel_curriculum_class_id', $class->id)
             ->where('session_id', $term->session_id)
             ->where('is_active', true)
+            ->when($arm, fn ($query) => $query->where('parallel_curriculum_class_arm_id', $arm->id))
             ->get()
             ->sortBy(fn ($enrolment) => strtolower($enrolment->student?->last_name.' '.$enrolment->student?->first_name))
             ->values();
@@ -1416,7 +1432,7 @@ class ParallelCurriculumController extends Controller
         ]);
 
         return view('parallel-curriculum.score-sheet', compact(
-            'class', 'subject', 'term', 'template', 'components', 'enrolments', 'scores', 'lockedStudents'
+            'class', 'arm', 'subject', 'term', 'template', 'components', 'enrolments', 'scores', 'lockedStudents'
         ));
     }
 
@@ -1429,6 +1445,7 @@ class ParallelCurriculumController extends Controller
             'class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
             'subject_id' => ['required', Rule::exists('parallel_curriculum_subjects', 'id')->where('tenant_id', $tenantId)],
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $tenantId)],
+            'arm_id' => ['nullable', Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId)],
             'scores' => ['required', 'array'],
         ]);
 
@@ -1450,6 +1467,11 @@ class ParallelCurriculumController extends Controller
             'This subject is not active in the selected parallel curriculum class.'
         );
         $term = Term::findOrFail($data['term_id']);
+        $arm = ! empty($data['arm_id'])
+            ? ParallelCurriculumClassArm::where('parallel_curriculum_class_id', $class->id)
+                ->where('is_active', true)
+                ->findOrFail($data['arm_id'])
+            : null;
         $components = $this->service->componentsForClass($class)->keyBy('id');
 
         abort_if($components->isEmpty(), 422, 'Assign an assessment template to this parallel curriculum class first.');
@@ -1457,6 +1479,7 @@ class ParallelCurriculumController extends Controller
         $enrolments = ParallelCurriculumEnrolment::where('parallel_curriculum_class_id', $class->id)
             ->where('session_id', $term->session_id)
             ->where('is_active', true)
+            ->when($arm, fn ($query) => $query->where('parallel_curriculum_class_arm_id', $arm->id))
             ->get()
             ->keyBy('student_id');
 
