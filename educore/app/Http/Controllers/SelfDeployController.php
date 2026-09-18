@@ -167,9 +167,23 @@ class SelfDeployController extends Controller
             }
         }
 
-        // 4. Clear caches + run migrations
+        // 4. Clear every Laravel cache before loading the new route/controller tree.
+        // Manually deleting the common cache files is not sufficient when a
+        // previous deployment created additional compiled caches (or when a
+        // shared host keeps stale route/config bytecode alive). optimize:clear
+        // is safe here and ensures /parallel-curriculum executes the version
+        // just copied from master.
         foreach (glob(storage_path('framework/views') . '/*.php') ?: [] as $f) @unlink($f);
-        foreach (['routes-v7.php', 'config.php', 'events.php'] as $f) @unlink(base_path('bootstrap/cache/' . $f));
+        foreach (['routes-v7.php', 'config.php', 'events.php', 'services.php', 'packages.php'] as $f) {
+            @unlink(base_path('bootstrap/cache/' . $f));
+        }
+
+        try {
+            Artisan::call('optimize:clear');
+        } catch (\Throwable $e) {
+            // Cache cleanup must never prevent the database migration from
+            // running; the explicit file cleanup above remains the fallback.
+        }
 
         $migrated = 'skipped';
         $migrationOk = true;
