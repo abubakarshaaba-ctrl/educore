@@ -20,6 +20,7 @@ class ParallelCurriculumResultService
     {
         $class->loadMissing([
             'curriculum.grades',
+            'classGrades',
             'curriculum.defaultAssessmentTemplate',
             'assessmentTemplate',
             'subjectAssignments.subject',
@@ -58,7 +59,9 @@ class ParallelCurriculumResultService
                 );
         }
 
-        $grades = $class->curriculum?->grades ?? collect();
+        $grades = $class->classGrades->isNotEmpty()
+            ? $class->classGrades
+            : ($class->curriculum?->grades ?? collect());
 
         $results = $enrolments->map(function (ParallelCurriculumEnrolment $enrolment) use (
             $subjectAssignments,
