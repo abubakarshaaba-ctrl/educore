@@ -53,6 +53,33 @@ class ParallelCurriculumService
             ->get();
     }
 
+    public function scoreEntryLocked(ParallelCurriculumEnrolment $enrolment, Term $term): bool
+    {
+        if ((int) $term->session_id !== (int) $enrolment->session_id) {
+            return false;
+        }
+
+        $enrolment->loadMissing('student.currentClassArm');
+        $student = $enrolment->student;
+        if (! $student) {
+            return false;
+        }
+
+        $conventionalArm = $this->resolveConventionalClassArm($student->id, $term)
+            ?: $student->currentClassArm;
+
+        if (! $conventionalArm) {
+            return false;
+        }
+
+        return ReportCardPublication::withoutTenantScope()
+            ->where('tenant_id', $enrolment->tenant_id)
+            ->where('class_arm_id', $conventionalArm->id)
+            ->where('term_id', $term->id)
+            ->where('status', 'published')
+            ->exists();
+    }
+
     public function syncCurriculum(ParallelCurriculum $curriculum, Term $term, bool $force = true): array
     {
         $enrolments = ParallelCurriculumEnrolment::withoutTenantScope()
