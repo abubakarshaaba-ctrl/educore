@@ -12,7 +12,12 @@
 </style>
 @endpush
 
+@push('styles')
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
 @section('content')
+<div class="pc-score">
 <div class="pc-tabs">
     <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
     <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
@@ -103,6 +108,7 @@
         </div>
     </form>
 @endif
+</div>
 @endsection
 
 @push('scripts')
