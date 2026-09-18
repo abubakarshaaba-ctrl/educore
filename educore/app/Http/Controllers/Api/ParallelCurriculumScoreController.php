@@ -91,6 +91,9 @@ class ParallelCurriculumScoreController extends Controller
         abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
 
         $students = $this->enrolmentsFor($class, $term);
+        $lockedStudents = $students->mapWithKeys(fn (ParallelCurriculumEnrolment $enrolment) => [
+            (int) $enrolment->student_id => $this->parallel->scoreEntryLocked($enrolment, $term),
+        ]);
         $records = $this->scoresFor($class, $subject, $term, $students);
         $byCell = $records->keyBy(fn (ParallelCurriculumScore $score) =>
             $score->student_id.':'.$score->assessment_template_component_id
@@ -100,9 +103,11 @@ class ParallelCurriculumScoreController extends Controller
             'contract_version' => 3,
             'workspace_type' => 'parallel_curriculum',
             'generated_at' => now()->toIso8601String(),
-            'version' => $this->sheetVersion($students, $components, $records),
-            'locked' => false,
-            'lock_reason' => null,
+            'version' => $this->sheetVersion($students, $components, $records, $lockedStudents),
+            'locked' => $students->isNotEmpty() && $lockedStudents->every(fn ($locked) => $locked),
+            'lock_reason' => $students->isNotEmpty() && $lockedStudents->every(fn ($locked) => $locked)
+                ? 'The conventional report cards for these students are published. Unpublish them before changing source scores.'
+                : null,
             'class' => [
                 'id' => $class->id,
                 'name' => trim($class->curriculum->name.' · '.$class->name),
@@ -119,9 +124,10 @@ class ParallelCurriculumScoreController extends Controller
                 'theory_max' => null,
                 'objective_source_available' => null,
             ])->values(),
-            'students' => $students->map(function (ParallelCurriculumEnrolment $enrolment) use ($components, $byCell) {
+            'students' => $students->map(function (ParallelCurriculumEnrolment $enrolment) use ($components, $byCell, $lockedStudents) {
                 $student = $enrolment->student;
-                $cells = $components->mapWithKeys(function ($component) use ($student, $byCell) {
+                $locked = (bool) $lockedStudents->get((int) $enrolment->student_id, false);
+                $cells = $components->mapWithKeys(function ($component) use ($student, $byCell, $locked) {
                     $record = $byCell->get($student->id.':'.$component->id);
 
                     return [(string) $component->id => [
@@ -129,7 +135,7 @@ class ParallelCurriculumScoreController extends Controller
                         'value' => $record?->score,
                         'objective_score' => null,
                         'theory_score' => null,
-                        'locked' => false,
+                        'locked' => $locked,
                         'source' => 'parallel_curriculum_entry',
                     ]];
                 });
@@ -174,54 +180,63 @@ class ParallelCurriculumScoreController extends Controller
                 $components = $this->parallel->componentsForClass($class);
                 abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
 
-                $records = $this->scoresFor($class, $subject, $term, $enrolments, true);
-                $serverVersion = $this->sheetVersion($enrolments, $components, $records);
-                abort_unless(
-                    hash_equals($serverVersion, (string) $data['version']),
-                    409,
-                    'Parallel scores changed on the server. Reload the sheet before saving your draft.'
-                );
-
-                $enrolmentsByStudent = $enrolments->keyBy('student_id');
-                $componentsById = $components->keyBy('id');
-                $errors = [];
-
-                foreach ($data['scores'] as $studentId => $values) {
-                    if (! $enrolmentsByStudent->has((int) $studentId) || ! is_array($values)) {
-                        $errors["scores.{$studentId}"][] = 'The student is not active in this parallel class.';
-                        continue;
-                    }
-
-                    foreach ($values as $componentId => $value) {
-                        $component = $componentsById->get((int) $componentId);
-                        $path = "scores.{$studentId}.{$componentId}";
-                        if (! $component) {
-                            $errors[$path][] = 'This assessment component is not part of the parallel class template.';
-                            continue;
-                        }
-                        if ($value === null || $value === '') {
-                            continue;
-                        }
-                        if (! is_numeric($value)) {
-                            $errors[$path][] = 'Enter a numeric score.';
-                            continue;
-                        }
-                        $maximum = (float) $component->weight_percentage;
-                        if ((float) $value < 0 || (float) $value > $maximum) {
-                            $errors[$path][] = "Enter a score between 0 and {$maximum}.";
-                        }
-                    }
-                }
-
-                if ($errors !== []) {
-                    throw ValidationException::withMessages($errors);
-                }
+                $lockedStudents = $enrolments->mapWithKeys(fn (ParallelCurriculumEnrolment $enrolment) => [
+                    (int) $enrolment->student_id => $this->parallel->scoreEntryLocked($enrolment, $term),
+                ]);
 
                 $saved = DB::transaction(function () use (
-                    $data, $class, $subject, $term, $user, $enrolmentsByStudent, $componentsById
+                    $data, $class, $subject, $term, $user, $enrolments, $components, $lockedStudents
                 ): int {
-                    $savedCount = 0;
+                    $records = $this->scoresFor($class, $subject, $term, $enrolments, true);
+                    $serverVersion = $this->sheetVersion($enrolments, $components, $records, $lockedStudents);
+                    abort_unless(
+                        hash_equals($serverVersion, (string) $data['version']),
+                        409,
+                        'Parallel scores changed on the server. Reload the sheet before saving your draft.'
+                    );
 
+                    $enrolmentsByStudent = $enrolments->keyBy('student_id');
+                    $componentsById = $components->keyBy('id');
+                    $errors = [];
+
+                    foreach ($data['scores'] as $studentId => $values) {
+                        if (! $enrolmentsByStudent->has((int) $studentId) || ! is_array($values)) {
+                            $errors["scores.{$studentId}"][] = 'The student is not active in this parallel class.';
+                            continue;
+                        }
+
+                        if ((bool) $lockedStudents->get((int) $studentId, false)) {
+                            $errors["scores.{$studentId}"][] =
+                                'This student\'s conventional report card is published. Unpublish it before changing parallel source scores.';
+                            continue;
+                        }
+
+                        foreach ($values as $componentId => $value) {
+                            $component = $componentsById->get((int) $componentId);
+                            $path = "scores.{$studentId}.{$componentId}";
+                            if (! $component) {
+                                $errors[$path][] = 'This assessment component is not part of the parallel class template.';
+                                continue;
+                            }
+                            if ($value === null || $value === '') {
+                                continue;
+                            }
+                            if (! is_numeric($value)) {
+                                $errors[$path][] = 'Enter a numeric score.';
+                                continue;
+                            }
+                            $maximum = (float) $component->weight_percentage;
+                            if ((float) $value < 0 || (float) $value > $maximum) {
+                                $errors[$path][] = "Enter a score between 0 and {$maximum}.";
+                            }
+                        }
+                    }
+
+                    if ($errors !== []) {
+                        throw ValidationException::withMessages($errors);
+                    }
+
+                    $savedCount = 0;
                     foreach ($data['scores'] as $studentId => $values) {
                         foreach ($values as $componentId => $value) {
                             $component = $componentsById->get((int) $componentId);
@@ -263,7 +278,7 @@ class ParallelCurriculumScoreController extends Controller
                     'message' => "Saved {$saved} parallel curriculum scores.",
                     'saved' => $saved,
                     'request_id' => $data['request_id'],
-                    'version' => $this->sheetVersion($enrolments, $components, $freshRecords),
+                    'version' => $this->sheetVersion($enrolments, $components, $freshRecords, $lockedStudents),
                     'saved_at' => now()->toIso8601String(),
                 ];
             }
@@ -363,8 +378,12 @@ class ParallelCurriculumScoreController extends Controller
         return $lock ? $query->lockForUpdate()->get() : $query->get();
     }
 
-    private function sheetVersion(Collection $enrolments, Collection $components, Collection $records): string
-    {
+    private function sheetVersion(
+        Collection $enrolments,
+        Collection $components,
+        Collection $records,
+        ?Collection $lockedStudents = null,
+    ): string {
         return hash('sha256', json_encode([
             'students' => $enrolments->pluck('student_id')->map(fn ($id) => (int) $id)->all(),
             'components' => $components->map(fn ($component) => [
@@ -372,6 +391,7 @@ class ParallelCurriculumScoreController extends Controller
                 (float) $component->weight_percentage,
                 $component->name,
             ])->all(),
+            'locks' => ($lockedStudents ?? collect())->map(fn ($locked) => (bool) $locked)->all(),
             'scores' => $records->map(fn (ParallelCurriculumScore $score) => [
                 $score->id,
                 $score->student_id,
