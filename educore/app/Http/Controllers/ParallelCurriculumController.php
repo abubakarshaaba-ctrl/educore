@@ -113,7 +113,16 @@ class ParallelCurriculumController extends Controller
         $classLevels = $canManage ? ClassLevel::orderBy('order_index')->orderBy('name')->get() : collect();
         $students = $canManage ? Student::active()->orderBy('last_name')->orderBy('first_name')->get() : collect();
         $staff = $canManage
-            ? User::where('tenant_id', $tenantId)->where('is_active', true)->whereIn('role', User::staffRoleNames())->orderBy('name')->get()
+            ? User::where('tenant_id', $tenantId)
+                ->where('is_active', true)
+                ->whereIn('role', User::staffRoleNames())
+                ->orderBy('name')
+                ->get()
+                ->filter(fn (User $person) =>
+                    ! $person->isAccountant()
+                    && ($person->canAccessExactModule('scores') || $person->canAccessExactModule('scores.entry'))
+                )
+                ->values()
             : collect();
 
         $integrations = $canManage
@@ -241,6 +250,19 @@ class ParallelCurriculumController extends Controller
             422,
             'The selected subject belongs to a different parallel curriculum.'
         );
+
+        if (! empty($data['teacher_id'])) {
+            $teacher = User::where('tenant_id', $tenantId)
+                ->where('is_active', true)
+                ->findOrFail($data['teacher_id']);
+
+            abort_unless(
+                ! $teacher->isAccountant()
+                    && ($teacher->canAccessExactModule('scores') || $teacher->canAccessExactModule('scores.entry')),
+                422,
+                'The selected staff member does not have academic score-entry permission.'
+            );
+        }
 
         ParallelCurriculumClassSubject::updateOrCreate(
             [
