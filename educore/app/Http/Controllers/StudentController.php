@@ -7,6 +7,7 @@ use App\Models\ClassLevel;
 use App\Models\Guardian;
 use App\Models\Student;
 use App\Services\PlanLimitService;
+use App\Services\StudentIdGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
+    public function __construct(private readonly StudentIdGenerator $studentIdGenerator)
+    {
+    }
+
     private function tenantId(): int
     {
         return (int) auth()->user()->tenant_id;
@@ -96,11 +101,8 @@ class StudentController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request) {
-            // Auto-generate admission number
-            $lastNumber = Student::withoutTenantScope()
-                ->where('tenant_id', auth()->user()->tenant_id)
-                ->max(DB::raw('CAST(SUBSTRING(admission_number, 4) AS UNSIGNED)'));
-            $admissionNumber = 'STU' . str_pad(($lastNumber + 1), 4, '0', STR_PAD_LEFT);
+            // Auto-generate the next platform-wide incremental student ID.
+            $admissionNumber = $this->studentIdGenerator->generate();
 
             // Create student
             $student = Student::create([
