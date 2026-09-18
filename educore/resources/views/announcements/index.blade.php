@@ -50,7 +50,7 @@
           @if($ann->priority!=='normal')<span class="pri pri-{{ $ann->priority }}">{{ ucfirst($ann->priority) }}</span>@endif
           {{ $ann->title }}
         </div>
-        @if(filled($ann->body))<div class="ann-body">{{ $ann->body }}</div>@endif
+        @if(filled($ann->body))<x-rich-text :text="$ann->body" class="ann-body" />@endif
         @if($ann->image_path)
           @php($imageUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($ann->image_path))
           <a class="ann-image-link js-image-lightbox" href="{{ $imageUrl }}" data-image="{{ $imageUrl }}" aria-label="View full image: {{ $ann->title }}">
@@ -78,7 +78,7 @@
         <form method="POST" action="{{ route('announcements.store') }}">
           @csrf
           <div class="fg"><label class="fl">Title *</label><input type="text" name="title" class="fc" required></div>
-          <div class="fg"><label class="fl">Message *</label><textarea name="body" class="fc" rows="4" required></textarea></div>
+          <div class="fg"><label class="fl">Message *</label><x-rich-text-toolbar target="announcementBody" /><textarea id="announcementBody" name="body" class="fc edu-rich-target" rows="6" required></textarea></div>
           <div class="fg"><label class="fl">For *</label>
             <select name="audience" class="fc">
               <option value="all">All (Staff + Parents)</option>
