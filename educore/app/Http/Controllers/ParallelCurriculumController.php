@@ -11,7 +11,9 @@ use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
+use App\Models\ParallelCurriculumGrade;
 use App\Models\ParallelCurriculumIntegration;
+use App\Models\ParallelCurriculumReportPublication;
 use App\Models\ParallelCurriculumScore;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\Student;
@@ -85,6 +87,7 @@ class ParallelCurriculumController extends Controller
 
         $curricula = ParallelCurriculum::with([
             'defaultAssessmentTemplate',
+            'grades',
             'subjects',
             'classes.assessmentTemplate',
             'classes.subjectAssignments.subject',
@@ -338,6 +341,86 @@ class ParallelCurriculumController extends Controller
         );
 
         return back()->with('success', 'Parallel curriculum subject saved.');
+    }
+
+    public function storeGrade(Request $request)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId),
+            ],
+            'grade_letter' => ['required', 'string', 'max:20'],
+            'min_score' => ['required', 'numeric', 'min:0', 'max:100'],
+            'max_score' => ['required', 'numeric', 'gte:min_score', 'max:100'],
+            'remark' => ['nullable', 'string', 'max:100'],
+            'is_pass_grade' => ['nullable', 'boolean'],
+        ]);
+
+        $curriculumId = (int) $data['parallel_curriculum_id'];
+        abort_if(
+            ParallelCurriculumReportPublication::where('parallel_curriculum_id', $curriculumId)
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists(),
+            423,
+            'Unpublish this programme\'s results before changing its grading scale.'
+        );
+
+        $gradeLetter = strtoupper(trim($data['grade_letter']));
+        $existing = ParallelCurriculumGrade::where('parallel_curriculum_id', $curriculumId)
+            ->where('grade_letter', $gradeLetter)
+            ->first();
+
+        $overlap = ParallelCurriculumGrade::where('parallel_curriculum_id', $curriculumId)
+            ->when($existing, fn ($query) => $query->where('id', '!=', $existing->id))
+            ->where('min_score', '<=', (float) $data['max_score'])
+            ->where('max_score', '>=', (float) $data['min_score'])
+            ->exists();
+
+        if ($overlap) {
+            throw ValidationException::withMessages([
+                'min_score' => 'This score range overlaps another grade in the selected parallel curriculum.',
+            ]);
+        }
+
+        ParallelCurriculumGrade::updateOrCreate(
+            [
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $curriculumId,
+                'grade_letter' => $gradeLetter,
+            ],
+            [
+                'min_score' => round((float) $data['min_score'], 2),
+                'max_score' => round((float) $data['max_score'], 2),
+                'remark' => filled($data['remark'] ?? null) ? trim($data['remark']) : null,
+                'is_pass_grade' => $request->boolean('is_pass_grade', true),
+            ]
+        );
+
+        return back()->with('success', "Grade {$gradeLetter} saved.");
+    }
+
+    public function destroyGrade(ParallelCurriculumGrade $grade)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+        abort_unless((int) $grade->tenant_id === $this->tenantId(), 403);
+
+        abort_if(
+            ParallelCurriculumReportPublication::where('parallel_curriculum_id', $grade->parallel_curriculum_id)
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists(),
+            423,
+            'Unpublish this programme\'s results before changing its grading scale.'
+        );
+
+        $grade->delete();
+
+        return back()->with('success', 'Parallel curriculum grade removed.');
     }
 
     public function storeClass(Request $request)
