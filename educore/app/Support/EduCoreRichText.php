@@ -87,7 +87,7 @@ final class EduCoreRichText
         $text = preg_replace('/^\\s*#{1,3}\\s+/mu', '', $text) ?? $text;
         $text = preg_replace('/^\\s*[-*]\\s+/mu', '• ', $text) ?? $text;
         $text = preg_replace('/^\\s*\\d+[.)]\\s+/mu', '', $text) ?? $text;
-        $text = preg_replace('/\\[([^]\\n]+)]\\(([^\\s)]+)\\)/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\\[([^\\]\\r\\n]+)\\]\\(([^)\\s]+)\\)/u', '$1', $text) ?? $text;
         $text = preg_replace('/\\*\\*([^*\\n]+)\\*\\*/u', '$1', $text) ?? $text;
         $text = preg_replace('/(?<!\\*)\\*([^*\\n]+)\\*(?!\\*)/u', '$1', $text) ?? $text;
 
@@ -99,7 +99,7 @@ final class EduCoreRichText
         $escaped = e($text);
 
         $escaped = preg_replace_callback(
-            '/\[([^\]\n]+)]\(([^\s)]+)\)/u',
+            '/\[([^\]\r\n]+)\]\(([^)\s]+)\)/u',
             static function (array $match): string {
                 $label = $match[1];
                 $url = html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
