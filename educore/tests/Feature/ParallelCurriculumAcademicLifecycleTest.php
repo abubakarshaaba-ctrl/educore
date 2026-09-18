@@ -113,6 +113,119 @@ class ParallelCurriculumAcademicLifecycleTest extends TestCase
         );
     }
 
+    public function test_promotion_requires_published_source_result_even_when_complete_result_is_optional(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumClassGrade::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'grade_letter' => 'P',
+            'min_score' => 0,
+            'max_score' => 100,
+            'remark' => 'Pass',
+            'is_pass_grade' => true,
+        ]);
+
+        ParallelCurriculumPromotionRule::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'source_class_id' => $f['sourceClass']->id,
+            'destination_class_id' => $f['destinationClass']->id,
+            'minimum_average' => 50,
+            'max_failed_subjects' => 0,
+            'require_complete_result' => false,
+            'failure_action' => 'repeat',
+            'arm_strategy' => 'same_name',
+            'is_terminal' => false,
+            'is_active' => true,
+        ]);
+
+        $preview = app(ParallelCurriculumLifecycleService::class)->promotionPreview(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession']
+        );
+
+        $this->assertSame(1, $preview['counts']['blocked']);
+        $this->assertSame('blocked', $preview['rows']->first()['decision']);
+        $this->assertStringContainsString(
+            'Publish the final parallel result',
+            $preview['rows']->first()['reason']
+        );
+    }
+
+    public function test_promotion_preview_does_not_overwrite_existing_target_session_placement(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumClassGrade::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'grade_letter' => 'P',
+            'min_score' => 0,
+            'max_score' => 100,
+            'remark' => 'Pass',
+            'is_pass_grade' => true,
+        ]);
+
+        ParallelCurriculumReportPublication::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'term_id' => $f['term']->id,
+            'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        ParallelCurriculumPromotionRule::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'source_class_id' => $f['sourceClass']->id,
+            'destination_class_id' => $f['destinationClass']->id,
+            'minimum_average' => 50,
+            'max_failed_subjects' => 0,
+            'require_complete_result' => true,
+            'failure_action' => 'repeat',
+            'arm_strategy' => 'same_name',
+            'is_terminal' => false,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumEnrolment::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'parallel_curriculum_class_arm_id' => $f['sourceArmB']->id,
+            'student_id' => $f['student']->id,
+            'session_id' => $f['targetSession']->id,
+            'is_active' => true,
+        ]);
+
+        $preview = app(ParallelCurriculumLifecycleService::class)->promotionPreview(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession']
+        );
+
+        $this->assertSame(1, $preview['counts']['blocked']);
+        $this->assertStringContainsString(
+            'placement already exists',
+            $preview['rows']->first()['reason']
+        );
+
+        $this->expectException(ValidationException::class);
+
+        app(ParallelCurriculumLifecycleService::class)->executePromotion(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession'],
+            null
+        );
+    }
+
     public function test_promotion_creates_next_session_placement_and_preserves_source_session(): void
     {
         $f = $this->fixture();
