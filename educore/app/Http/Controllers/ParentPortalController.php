@@ -8,6 +8,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Announcement;
 use App\Models\ParentPortalAccount;
 use App\Models\Guardian;
+use App\Services\ParallelCurriculumResultService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -149,7 +150,22 @@ class ParentPortalController extends Controller
         $terms    = \App\Models\Term::where('tenant_id', $account->tenant_id)->with('session')->latest()->get();
         $termId   = $request->get('term_id', optional($terms->firstWhere('is_current',true))->id ?? optional($terms->first())->id);
         $summary  = $termId && $student ? TermlySummary::where('student_id',$student->id)->where('term_id',$termId)->first() : null;
-        return view('parent.results', compact('account','students','student','terms','summary','termId'));
+        $parallelResults = ($student && $termId)
+            ? app(ParallelCurriculumResultService::class)
+                ->publishedForStudent($student)
+                ->where('term_id', (int) $termId)
+                ->values()
+            : collect();
+
+        return view('parent.results', compact(
+            'account',
+            'students',
+            'student',
+            'terms',
+            'summary',
+            'termId',
+            'parallelResults'
+        ));
     }
 
     // ── Fees ──────────────────────────────────────────────────────────
