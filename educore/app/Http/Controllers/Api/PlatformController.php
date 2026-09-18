@@ -11,6 +11,7 @@ use App\Models\ApiToken;
 use App\Models\AuditLog;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\PricingService;
+use App\Services\StaffIdGenerator;
 use App\Services\TenantOnboardingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -244,7 +245,7 @@ class PlatformController extends Controller
         return response()->json(['message' => 'School removed. Accounts and mobile sessions were disabled; records remain recoverable for audit.']);
     }
 
-    public function storeTenant(Request $request, TenantOnboardingService $onboarding)
+    public function storeTenant(Request $request, TenantOnboardingService $onboarding, StaffIdGenerator $staffIdGenerator)
     {
         $this->guard($request);
         $request->merge(['slug' => Tenant::normalizeSlug($request->input('slug'))]);
@@ -256,7 +257,7 @@ class PlatformController extends Controller
             'admin_password' => ['required', 'string', 'min:8'],
         ]);
 
-        $tenant = DB::transaction(function () use ($data, $onboarding) {
+        $tenant = DB::transaction(function () use ($data, $onboarding, $staffIdGenerator) {
             $tenant = Tenant::create([
                 'name' => $data['name'], 'slug' => $data['slug'], 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null, 'status' => Tenant::STATUS_ACTIVE,
@@ -267,7 +268,7 @@ class PlatformController extends Controller
                 'tenant_id' => $tenant->id, 'name' => $data['admin_name'], 'email' => $data['admin_email'],
                 'password' => Hash::make($data['admin_password']), 'role' => 'admin', 'is_super_admin' => false,
                 'is_active' => true, 'employment_status' => User::STAFF_STATUS_ACTIVE,
-                'employment_started_at' => today(), 'status_changed_at' => now(),
+                'employment_started_at' => today(), 'status_changed_at' => now(), 'staff_id' => $staffIdGenerator->generate(),
             ]);
             $admin->assignRole('admin');
             $onboarding->createProvisioningDefaults($tenant);
