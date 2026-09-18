@@ -60,6 +60,10 @@ class ParallelCurriculumResultService
                 );
         }
 
+        $gradingSource = $class->classGrades->isNotEmpty()
+            ? 'class'
+            : 'programme';
+
         $grades = $class->classGrades->isNotEmpty()
             ? $class->classGrades
             : ($class->curriculum?->grades ?? collect());
