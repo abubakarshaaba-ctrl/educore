@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -216,7 +217,7 @@ private fun DutyListRow(duty: ExamDuty) {
 @Composable
 private fun DutyField(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
-        Text(label, Modifier.width(62.dp), style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
+        Text(label, Modifier.widthIn(min = 62.dp, max = 104.dp), style = MaterialTheme.typography.labelMedium, color = EduCoreColors.Slate600)
         Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Ink900)
     }
 }
