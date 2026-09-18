@@ -145,10 +145,23 @@
                                 </div>
                                 <div class="fg" style="margin:0">
                                     <label class="fl">Destination parallel class</label>
-                                    <select class="fc" name="parallel_curriculum_class_id" required>
+                                    <select class="fc" name="parallel_curriculum_class_id" id="destination-parallel-class" required>
                                         <option value="">Choose destination class</option>
                                         @foreach($selectedCurriculum->classes as $parallelClass)
                                             <option value="{{ $parallelClass->id }}">{{ $selectedCurriculum->name }} · {{ $parallelClass->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="fg" style="margin:0">
+                                    <label class="fl">Destination class arm</label>
+                                    <select class="fc" name="parallel_curriculum_class_arm_id" id="destination-parallel-arm" required disabled>
+                                        <option value="">Choose class first</option>
+                                        @foreach($selectedCurriculum->classes as $parallelClass)
+                                            @foreach($parallelClass->arms as $arm)
+                                                <option value="{{ $arm->id }}" data-class-id="{{ $parallelClass->id }}" hidden disabled>
+                                                    {{ $parallelClass->name }} · {{ $arm->name }}{{ $arm->capacity ? ' · Capacity '.$arm->capacity : '' }}
+                                                </option>
+                                            @endforeach
                                         @endforeach
                                     </select>
                                 </div>
@@ -195,7 +208,7 @@
                                             <td>{{ $student->gender ? ucfirst($student->gender) : '—' }}</td>
                                             <td>
                                                 @if($assignment)
-                                                    <span class="badge assigned">{{ $assignment->curriculumClass?->name ?: 'Assigned' }}</span>
+                                                    <span class="badge assigned">{{ $assignment->curriculumClass?->name ?: 'Assigned' }}{{ $assignment->curriculumClassArm ? ' · '.$assignment->curriculumClassArm->name : '' }}</span>
                                                 @else
                                                     <span class="badge">Not assigned</span>
                                                 @endif
@@ -220,7 +233,7 @@
                                     <div class="assignment">
                                         <span class="hint">Current parallel class</span>
                                         @if($assignment)
-                                            <span class="badge assigned">{{ $assignment->curriculumClass?->name ?: 'Assigned' }}</span>
+                                            <span class="badge assigned">{{ $assignment->curriculumClass?->name ?: 'Assigned' }}{{ $assignment->curriculumClassArm ? ' · '.$assignment->curriculumClassArm->name : '' }}</span>
                                         @else
                                             <span class="badge">Not assigned</span>
                                         @endif
@@ -261,7 +274,7 @@
                         </div>
                     </div>
                     <div class="hint" style="margin:3px 0 10px">
-                        Required columns: <strong>admission_number</strong> and <strong>parallel_class</strong>. The class value can be the exact parallel class name or class code. Import is validated before any assignment is written, so a bad row will not partially update the programme.
+                        Required columns: <strong>admission_number</strong>, <strong>parallel_class</strong> and <strong>parallel_arm</strong>. Class and arm values may use exact names or codes. The full file, class-arm relationship and capacity are validated before any assignment is written.
                     </div>
                     <button class="btn btn-p" type="submit">Import Student Assignments</button>
                 </form>
@@ -275,7 +288,7 @@
         <div class="pc-head">How this placement works</div>
         <div class="pc-body">
             <div class="hint">
-                A learner can have one active class per parallel programme per academic session. Assigning the same learner again within the same programme and session updates the existing placement instead of creating a duplicate. To roll students into a new academic session, filter the source class/session, select the learners, choose the new destination session and destination class, then assign. Conventional class placement is never changed.
+                A learner can have one active parallel class and arm per programme per academic session. Same-session reassignment moves the learner to the selected class arm. For next-session progression, use the Promotion Engine in the Academic Lifecycle workspace; manual assignment remains available for exceptional placements. Conventional class placement is never changed.
             </div>
         </div>
     </section>
@@ -291,6 +304,31 @@
     const master = document.getElementById('master-check');
     const selectVisible = document.getElementById('select-visible');
     const clear = document.getElementById('clear-selection');
+    const destinationClass = document.getElementById('destination-parallel-class');
+    const destinationArm = document.getElementById('destination-parallel-arm');
+
+    function refreshDestinationArms(){
+        if(!destinationClass || !destinationArm) return;
+        const classId = destinationClass.value;
+        let available = 0;
+
+        Array.from(destinationArm.options).forEach((option, index) => {
+            if(index === 0) return;
+            const show = !!classId && option.dataset.classId === classId;
+            option.hidden = !show;
+            option.disabled = !show;
+            if(show) available++;
+        });
+
+        destinationArm.value = '';
+        destinationArm.disabled = available === 0;
+        destinationArm.options[0].textContent = classId
+            ? (available ? 'Choose destination arm' : 'No active arm in this class')
+            : 'Choose class first';
+    }
+
+    destinationClass?.addEventListener('change', refreshDestinationArms);
+    refreshDestinationArms();
 
     function uniqueSelectedIds(){
         return new Set(checks.filter(check => check.checked).map(check => check.value));
