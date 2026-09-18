@@ -55,6 +55,19 @@ class ParallelCurriculumService
             ->get();
     }
 
+    public function classStructureLocked(ParallelCurriculumClass $class): bool
+    {
+        if (! Schema::hasTable('parallel_curriculum_report_publications')) {
+            return false;
+        }
+
+        return ParallelCurriculumReportPublication::withoutTenantScope()
+            ->where('tenant_id', $class->tenant_id)
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+            ->exists();
+    }
+
     public function classPlacementLocked(ParallelCurriculumClass $class, int $sessionId): bool
     {
         if (! Schema::hasTable('parallel_curriculum_report_publications')) {
