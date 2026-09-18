@@ -156,22 +156,6 @@ class ParallelCurriculumService
             return $composite;
         }
 
-        if (! $force && ! $integration->auto_sync) {
-            return $this->persistStatus(
-                $existingComposite,
-                $enrolment,
-                $term,
-                $conventionalArm,
-                $integration,
-                null,
-                0,
-                0,
-                [],
-                'pending',
-                'Composite auto-sync is disabled for this conventional class-level mapping.'
-            );
-        }
-
         $template = $this->templateForClass($class);
         $components = $this->componentsForClass($class);
         $componentWeight = round((float) $components->sum('weight_percentage'), 2);
@@ -304,6 +288,15 @@ class ParallelCurriculumService
             'pending',
             'Composite calculated; waiting for conventional score distribution.'
         );
+
+        if (! $force && ! $integration->auto_sync) {
+            $composite->update([
+                'sync_status' => 'pending',
+                'sync_message' => 'Composite calculated. Conventional score auto-sync is disabled; run a manual sync when ready.',
+            ]);
+
+            return $composite->refresh();
+        }
 
         if (ReportCardPublication::withoutTenantScope()
             ->where('tenant_id', $tenantId)
