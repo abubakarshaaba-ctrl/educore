@@ -31,7 +31,7 @@ workflows:
           cd "$(cat /tmp/educore-android-workspace)"
 
           missing=0
-          for variable in KEYSTORE_BASE64 KEYSTORE_STORE_PASSWORD KEYSTORE_KEY_ALIAS KEYSTORE_KEY_PASSWORD GITHUB_RELEASE_TOKEN; do
+          for variable in KEYSTORE_BASE64 KEYSTORE_STORE_PASSWORD KEYSTORE_KEY_ALIAS KEYSTORE_KEY_PASSWORD GITHUB_RELEASE_TOKEN MOBILE_RELEASE_WEBHOOK_TOKEN; do
             if [ -z "${!variable:-}" ]; then
               echo "Missing required protected variable: $variable"
               missing=1
@@ -96,6 +96,48 @@ workflows:
             -keystore .ci-signing/educore-release.jks \
             -storepass "$KEYSTORE_STORE_PASSWORD" \
             -alias "$KEYSTORE_KEY_ALIAS" >/dev/null
+
+      - name: Verify Android version is newer than production
+        script: |
+          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+
+          LOCAL_VERSION_CODE="$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("app/build.gradle.kts").read_text()
+          match = re.search(r'\bversionCode\s*=\s*(\d+)', text)
+          if not match:
+              raise SystemExit("Unable to read versionCode from app/build.gradle.kts")
+          print(match.group(1))
+          PY
+          )"
+
+          LATEST_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer $GITHUB_RELEASE_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/abubakarshaaba-ctrl/educore/releases/latest" || true)"
+
+          if [ -n "$LATEST_JSON" ]; then
+            LATEST_VERSION_CODE="$(printf '%s' "$LATEST_JSON" | python3 -c '
+          import json, re, sys
+          try:
+              tag = str(json.load(sys.stdin).get("tag_name", ""))
+          except Exception:
+              print(0)
+              raise SystemExit
+          match = re.search(r"-code(\d+)-", tag)
+          print(match.group(1) if match else 0)
+          ')"
+
+            if [ "$LATEST_VERSION_CODE" -gt 0 ] && [ "$LOCAL_VERSION_CODE" -le "$LATEST_VERSION_CODE" ]; then
+              echo "Refusing production release: versionCode $LOCAL_VERSION_CODE is not newer than published versionCode $LATEST_VERSION_CODE."
+              echo "Increment versionCode before publishing another installable Android release."
+              exit 1
+            fi
+          fi
 
       - name: Verify Firebase config
         script: |
@@ -275,12 +317,41 @@ workflows:
             exit 1
           fi
 
-          echo "Published EduCore production release $TAG with APK and checksum assets."
+          APK_SHA256="$(awk '{print $1}' "$CHECKSUM" | tr '[:upper:]' '[:lower:]')"
+          ASSET_URL="https://github.com/$REPO/releases/download/$TAG/EduCore.apk"
 
-      - name: Update notification handoff
-        script: |
-          set -euo pipefail
-          echo "GitHub release published. EduCore server deployment will sync /download/app, record release metadata and notify installed apps."
+          export TAG VERSION_CODE VERSION_NAME APK_SHA256 ASSET_URL
+          python3 - <<'PY' > /tmp/educore-mobile-release-notify.json
+          import json
+          import os
+
+          print(json.dumps({
+              "version_name": os.environ["VERSION_NAME"],
+              "version_code": int(os.environ["VERSION_CODE"]),
+              "download_url": os.environ["ASSET_URL"],
+              "message": f"EduCore {os.environ['VERSION_NAME']} is ready to install. Tap to update.",
+              "force_update": False,
+              "sha256": os.environ["APK_SHA256"],
+              "source_release_tag": os.environ["TAG"],
+          }))
+          PY
+
+          NOTIFY_STATUS="$(curl -sS \
+            -o /tmp/educore-mobile-release-notify-response.json \
+            -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $MOBILE_RELEASE_WEBHOOK_TOKEN" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            "https://educoreng.online/api/v1/mobile-release/notify" \
+            --data-binary @/tmp/educore-mobile-release-notify.json)"
+          if [ "$NOTIFY_STATUS" != "200" ]; then
+            echo "EduCore app-update push handoff failed with HTTP $NOTIFY_STATUS."
+            cat /tmp/educore-mobile-release-notify-response.json || true
+            exit 1
+          fi
+
+          echo "Published EduCore production release $TAG and confirmed the app-update push handoff."
 
     artifacts:
       - mobile-native/app/build/outputs/apk/debug/app-debug.apk
