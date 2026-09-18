@@ -56,6 +56,7 @@ import online.educoreng.educore.core.model.PublishedResult
 import online.educoreng.educore.core.model.ScoreAssignment
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.SyncState
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_PARALLEL
 
 @Composable
 internal fun ScoreAssignmentsScreen(
@@ -84,7 +85,7 @@ internal fun ScoreAssignmentsScreen(
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
         item { EduCoreSearchBar(state.search, onSearch, placeholder = "Search class or subject") }
         if (filtered.isEmpty()) item { EduCoreEmptyState("No score workspaces", "No current teaching assignment is available for score entry.") }
-        items(filtered, key = { "${it.classId}:${it.subjectId}" }) { assignment ->
+        items(filtered, key = { "${it.workspaceType}:${it.classId}:${it.subjectId}" }) { assignment ->
             Card(
                 onClick = { onOpen(assignment, assignments.termId) },
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
@@ -99,7 +100,10 @@ internal fun ScoreAssignmentsScreen(
                         Text(assignment.subjectName, style = MaterialTheme.typography.titleMedium)
                         Text(assignment.className, color = EduCoreColors.Slate600)
                     }
-                    EduCoreStatusBadge("Open sheet", EduCoreTone.Info)
+                    EduCoreStatusBadge(
+                        if (assignment.workspaceType == SCORE_WORKSPACE_PARALLEL) "Parallel" else "Open sheet",
+                        if (assignment.workspaceType == SCORE_WORKSPACE_PARALLEL) EduCoreTone.Warning else EduCoreTone.Info,
+                    )
                 }
             }
         }
