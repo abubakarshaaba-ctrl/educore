@@ -31,7 +31,7 @@ workflows:
           cd "$(cat /tmp/educore-android-workspace)"
 
           missing=0
-          for variable in KEYSTORE_BASE64 KEYSTORE_STORE_PASSWORD KEYSTORE_KEY_ALIAS KEYSTORE_KEY_PASSWORD GITHUB_RELEASE_TOKEN MOBILE_RELEASE_WEBHOOK_TOKEN; do
+          for variable in KEYSTORE_BASE64 KEYSTORE_STORE_PASSWORD KEYSTORE_KEY_ALIAS KEYSTORE_KEY_PASSWORD GITHUB_RELEASE_TOKEN; do
             if [ -z "${!variable:-}" ]; then
               echo "Missing required protected variable: $variable"
               missing=1
@@ -340,18 +340,17 @@ workflows:
             -o /tmp/educore-mobile-release-notify-response.json \
             -w '%{http_code}' \
             -X POST \
-            -H "Authorization: Bearer $MOBILE_RELEASE_WEBHOOK_TOKEN" \
             -H "Accept: application/json" \
             -H "Content-Type: application/json" \
             "https://educoreng.online/api/v1/mobile-release/notify" \
             --data-binary @/tmp/educore-mobile-release-notify.json)"
           if [ "$NOTIFY_STATUS" != "200" ]; then
-            echo "EduCore app-update push handoff failed with HTTP $NOTIFY_STATUS."
+            echo "EduCore app-update push handoff failed GitHub Release attestation with HTTP $NOTIFY_STATUS."
             cat /tmp/educore-mobile-release-notify-response.json || true
             exit 1
           fi
 
-          echo "Published EduCore production release $TAG and confirmed the app-update push handoff."
+          echo "Published EduCore production release $TAG and confirmed the attested app-update push handoff."
 
     artifacts:
       - mobile-native/app/build/outputs/apk/debug/app-debug.apk
