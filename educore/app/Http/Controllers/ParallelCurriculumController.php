@@ -437,8 +437,12 @@ class ParallelCurriculumController extends Controller
             ->get()
             ->keyBy(fn ($score) => $score->student_id.':'.$score->assessment_template_component_id);
 
+        $lockedStudents = $enrolments->mapWithKeys(fn (ParallelCurriculumEnrolment $enrolment) => [
+            (int) $enrolment->student_id => $this->service->scoreEntryLocked($enrolment, $term),
+        ]);
+
         return view('parallel-curriculum.score-sheet', compact(
-            'class', 'subject', 'term', 'template', 'components', 'enrolments', 'scores'
+            'class', 'subject', 'term', 'template', 'components', 'enrolments', 'scores', 'lockedStudents'
         ));
     }
 
@@ -481,6 +485,13 @@ class ParallelCurriculumController extends Controller
         foreach ($data['scores'] as $studentId => $componentValues) {
             if (! $enrolments->has((int) $studentId) || ! is_array($componentValues)) {
                 $errors["scores.{$studentId}"][] = 'Student is not active in this parallel curriculum class.';
+                continue;
+            }
+
+            $enrolment = $enrolments->get((int) $studentId);
+            if ($this->service->scoreEntryLocked($enrolment, $term)) {
+                $errors["scores.{$studentId}"][] =
+                    'This student\'s conventional report card is published. Unpublish it before changing parallel source scores.';
                 continue;
             }
 
@@ -539,7 +550,10 @@ class ParallelCurriculumController extends Controller
             $this->service->syncStudent($enrolment, $term, false);
         }
 
-        return back()->with('success', 'Parallel curriculum scores saved and eligible composite results synchronized.');
+        return back()->with(
+            'success',
+            'Parallel curriculum scores saved. Programme composites were refreshed and conventional synchronization followed the configured auto-sync rules.'
+        );
     }
 
     public function sync(Request $request)
