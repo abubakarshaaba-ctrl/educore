@@ -878,10 +878,23 @@ class ParallelCurriculumController extends Controller
 
         $tenantId = $this->tenantId();
         $data = $request->validate([
-            'parallel_curriculum_id' => ['required', Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId)],
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true),
+            ],
             'destination_class_level_ids' => ['required', 'array', 'min:1'],
-            'destination_class_level_ids.*' => ['integer', Rule::exists('class_levels', 'id')->where('tenant_id', $tenantId)],
-            'destination_subject_id' => ['required', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
+            'destination_class_level_ids.*' => [
+                'integer',
+                Rule::exists('class_levels', 'id')->where('tenant_id', $tenantId),
+            ],
+            'destination_subject_id' => [
+                'required',
+                Rule::exists('subjects', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true),
+            ],
             'minimum_completed_subjects' => ['nullable', 'integer', 'min:1', 'max:50'],
             'require_all_subjects' => ['nullable', 'boolean'],
             'auto_sync' => ['nullable', 'boolean'],
@@ -946,25 +959,109 @@ class ParallelCurriculumController extends Controller
             ]);
         }
 
+        $mappingAttributes = [
+            'destination_subject_id' => (int) $data['destination_subject_id'],
+            'calculation_method' => 'arithmetic_mean',
+            'require_all_subjects' => $request->boolean('require_all_subjects', true),
+            'minimum_completed_subjects' => (int) ($data['minimum_completed_subjects'] ?? 1),
+            'auto_sync' => $request->boolean('auto_sync', true),
+            'is_active' => true,
+        ];
+
+        $existingByLevel = ParallelCurriculumIntegration::where(
+                'parallel_curriculum_id',
+                $data['parallel_curriculum_id']
+            )
+            ->whereIn('destination_class_level_id', $classLevelIds)
+            ->get()
+            ->keyBy('destination_class_level_id');
+
+        $lockedChanges = [];
         foreach ($classLevelIds as $classLevelId) {
-            ParallelCurriculumIntegration::updateOrCreate(
-                [
-                    'tenant_id' => $tenantId,
-                    'parallel_curriculum_id' => $data['parallel_curriculum_id'],
-                    'destination_class_level_id' => $classLevelId,
-                ],
-                [
-                    'destination_subject_id' => $data['destination_subject_id'],
-                    'calculation_method' => 'arithmetic_mean',
-                    'require_all_subjects' => $request->boolean('require_all_subjects', true),
-                    'minimum_completed_subjects' => (int) ($data['minimum_completed_subjects'] ?? 1),
-                    'auto_sync' => $request->boolean('auto_sync', true),
-                    'is_active' => true,
-                ]
-            );
+            $existing = $existingByLevel->get($classLevelId);
+            if (! $existing) {
+                continue;
+            }
+
+            $configurationChanged =
+                (int) $existing->destination_subject_id !== $mappingAttributes['destination_subject_id']
+                || (bool) $existing->require_all_subjects !== $mappingAttributes['require_all_subjects']
+                || (int) $existing->minimum_completed_subjects !== $mappingAttributes['minimum_completed_subjects']
+                || (bool) $existing->auto_sync !== $mappingAttributes['auto_sync']
+                || ! $existing->is_active;
+
+            if (
+                $configurationChanged
+                && $this->service->integrationHasPublishedDependencies($existing)
+            ) {
+                $lockedChanges[] = $levels->get($classLevelId)?->name ?: "Class level #{$classLevelId}";
+            }
         }
 
-        return back()->with('success', 'Conventional result integration rule saved.');
+        if ($lockedChanges !== []) {
+            throw ValidationException::withMessages([
+                'destination_class_level_ids' => [
+                    'Unpublish the conventional report card before changing the parallel result mapping for: '.
+                    implode(', ', $lockedChanges).'.',
+                ],
+            ]);
+        }
+
+        $savedIntegrations = collect();
+
+        DB::transaction(function () use (
+            $classLevelIds,
+            $tenantId,
+            $data,
+            $mappingAttributes,
+            $existingByLevel,
+            $savedIntegrations
+        ): void {
+            foreach ($classLevelIds as $classLevelId) {
+                $existing = $existingByLevel->get($classLevelId);
+
+                $configurationChanged = ! $existing
+                    || (int) $existing->destination_subject_id !== $mappingAttributes['destination_subject_id']
+                    || (bool) $existing->require_all_subjects !== $mappingAttributes['require_all_subjects']
+                    || (int) $existing->minimum_completed_subjects !== $mappingAttributes['minimum_completed_subjects']
+                    || (bool) $existing->auto_sync !== $mappingAttributes['auto_sync']
+                    || ! $existing->is_active;
+
+                $integration = ParallelCurriculumIntegration::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_id' => $data['parallel_curriculum_id'],
+                        'destination_class_level_id' => $classLevelId,
+                    ],
+                    $mappingAttributes
+                );
+
+                $savedIntegrations->push([
+                    'integration' => $integration,
+                    'changed' => $configurationChanged,
+                ]);
+            }
+        });
+
+        foreach ($savedIntegrations as $saved) {
+            if ($saved['changed']) {
+                $this->service->reconcileIntegration($saved['integration'], true);
+            }
+        }
+
+        $curriculum = ParallelCurriculum::findOrFail($data['parallel_curriculum_id']);
+        $currentTerm = Term::current()->first();
+        if ($currentTerm) {
+            // New mappings have no existing composite rows to reconcile.
+            // Refreshing the current term materializes them immediately while
+            // still respecting each mapping's auto_sync flag.
+            $this->service->syncCurriculum($curriculum, $currentTerm, false);
+        }
+
+        return back()->with(
+            'success',
+            'Conventional result integration rule saved and current result mappings refreshed.'
+        );
     }
 
     public function destroyIntegration(ParallelCurriculumIntegration $integration)
