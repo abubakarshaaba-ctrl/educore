@@ -115,11 +115,11 @@ data class PublishedResult(
 )
 
 data class PublishedResults(
-    val studentId: Long?,
     val studentName: String?,
     val admissionNumber: String?,
     val className: String?,
     val results: List<PublishedResult>,
     val parallelResults: List<PublishedResult> = emptyList(),
+    val studentId: Long? = null,
     val children: List<ResultLearner> = emptyList(),
 )
