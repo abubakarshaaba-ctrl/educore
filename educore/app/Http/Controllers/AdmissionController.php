@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\ClassArm;
 use App\Models\Guardian;
 use App\Notifications\AdmissionOfferNotification;
+use App\Services\StudentIdGenerator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use Illuminate\Support\Str;
 
 class AdmissionController extends Controller
 {
+    public function __construct(private readonly StudentIdGenerator $studentIdGenerator)
+    {
+    }
+
     public function index(Request $request)
     {
         $query = Admission::with('applyingForClassLevel')->latest();
@@ -158,12 +163,8 @@ class AdmissionController extends Controller
             $tenant  = auth()->user()->tenant;
             $session = \App\Models\AcademicSession::where('is_current', true)->first();
 
-            // Generate admission number scoped to this tenant to avoid cross-tenant collisions
-            $maxNum = Student::withoutTenantScope()
-                ->where('tenant_id', $tenant->id)
-                ->whereRaw("admission_number REGEXP '^STU[0-9]+$'")
-                ->max(\Illuminate\Support\Facades\DB::raw('CAST(SUBSTRING(admission_number, 4) AS UNSIGNED)'));
-            $admNum = 'STU' . str_pad((int) $maxNum + 1, 4, '0', STR_PAD_LEFT);
+            // Generate the next platform-wide incremental student ID.
+            $admNum = $this->studentIdGenerator->generate();
 
             $student = Student::create([
                 'first_name'           => $admission->first_name,
