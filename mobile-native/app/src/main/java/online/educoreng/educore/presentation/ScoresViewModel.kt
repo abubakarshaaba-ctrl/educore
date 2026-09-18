@@ -16,6 +16,7 @@ import online.educoreng.educore.core.model.PublishedResults
 import online.educoreng.educore.core.model.ScoreAssignments
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.SyncState
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 
 data class ScoresUiState(
@@ -46,9 +47,14 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
-    fun openSheet(classId: Long, subjectId: Long, termId: Long?) = viewModelScope.launch {
+    fun openSheet(
+        classId: Long,
+        subjectId: Long,
+        termId: Long?,
+        workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
+    ) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, sheet = null) }
-        when (val result = repository.loadSheet(classId, subjectId, termId)) {
+        when (val result = repository.loadSheet(classId, subjectId, termId, workspaceType)) {
             is AppResult.Success -> _uiState.update { it.copy(sheet = result.value, isLoading = false) }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
@@ -88,7 +94,7 @@ class ScoresViewModel @Inject constructor(
         val sheet = _uiState.value.sheet ?: return
         viewModelScope.launch {
             repository.discardDraft(sheet)
-            openSheet(sheet.classId, sheet.subjectId, sheet.termId)
+            openSheet(sheet.classId, sheet.subjectId, sheet.termId, sheet.workspaceType)
         }
     }
 
