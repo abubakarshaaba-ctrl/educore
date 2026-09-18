@@ -46,7 +46,7 @@
                 <div class="workspaces">
                     @foreach($workspaces as $workspace)
                         @php($assignment=$workspace['assignment'])
-                        <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',['class_id'=>$workspace['class']->id,'subject_id'=>$assignment->subject_id,'term_id'=>$currentTerm->id]) : '#' }}">
+                        <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',['class_id'=>$workspace['class']->id,'subject_id'=>$assignment->parallel_curriculum_subject_id,'term_id'=>$currentTerm->id]) : '#' }}">
                             <strong>{{ $assignment->subject?->name }} · {{ $workspace['class']->name }}</strong>
                             <span>{{ $workspace['curriculum']->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
                         </a>
@@ -88,12 +88,27 @@
         </section>
 
         <section class="pc-card">
-            <div class="pc-head">3. Assign subjects & teacher</div>
+            <div class="pc-head">3. Create programme subject</div>
+            <div class="pc-body">
+                <form method="POST" action="{{ route('parallel-curriculum.subjects.store') }}">@csrf
+                    <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
+                    <div class="form-row">
+                        <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" required placeholder="e.g. Qur'an, Fiqh, Hadith"></div>
+                        <div class="fg"><label class="fl">Code (optional)</label><input class="fc" name="code" placeholder="e.g. QRN"></div>
+                    </div>
+                    <div class="hint" style="margin-bottom:10px">Programme subjects are independent and do not appear in conventional subject selectors.</div>
+                    <button class="btn btn-p">Save Programme Subject</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="pc-card">
+            <div class="pc-head">4. Assign subjects & teacher</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
                     <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Subject</label><select class="fc" name="subject_id" required><option value="">Select subject</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select></div>
+                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">The selected subject must belong to the same programme as the class.</div></div>
                         <div class="fg"><label class="fl">Teacher (optional)</label><select class="fc" name="teacher_id"><option value="">Admin entry / unassigned</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select></div>
                     </div>
                     <button class="btn btn-p">Assign Subject</button>
@@ -102,7 +117,7 @@
         </section>
 
         <section class="pc-card">
-            <div class="pc-head">4. Assign students independently</div>
+            <div class="pc-head">5. Assign students independently</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.enrolments.store') }}">@csrf
                     <div class="form-row">
@@ -116,12 +131,12 @@
         </section>
 
         <section class="pc-card full">
-            <div class="pc-head">5. Map programme average to conventional results</div>
+            <div class="pc-head">6. Map programme average to conventional results</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}">@csrf
                     <div class="form-row">
                         <div class="fg"><label class="fl">Source programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
-                        <div class="fg"><label class="fl">Destination subject</label><select class="fc" name="destination_subject_id" required><option value="">Select conventional subject</option>@foreach($subjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select><div class="hint">Example: Islamiyyah Studies. Derived rows are locked against manual editing.</div></div>
+                        <div class="fg"><label class="fl">Destination subject</label><select class="fc" name="destination_subject_id" required><option value="">Select conventional subject</option>@foreach($conventionalSubjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select><div class="hint">Example: Islamiyyah Studies. Derived rows are locked against manual editing.</div></div>
                     </div>
                     <div class="fg"><label class="fl">Conventional class levels</label><select class="fc" name="destination_class_level_ids[]" multiple required>@foreach($classLevels as $level)<option value="{{ $level->id }}">{{ $level->name }}</option>@endforeach</select><div class="hint">Each selected class level continues to use its own Assessment Template when the composite is distributed.</div></div>
                     <div class="form-row">
@@ -142,7 +157,7 @@
             <div class="pc-head">Current programme structure</div>
             <div class="pc-body">
                 @forelse($curricula as $curriculum)
-                    <div class="item"><div class="item-main"><strong>{{ $curriculum->name }}</strong><span>Default: {{ $curriculum->defaultAssessmentTemplate?->name ?: 'No template' }}</span></div></div>
+                    <div class="item"><div class="item-main"><strong>{{ $curriculum->name }}</strong><span>Default: {{ $curriculum->defaultAssessmentTemplate?->name ?: 'No template' }} · Subjects: {{ $curriculum->subjects->where('is_active',true)->pluck('name')->join(', ') ?: 'None yet' }}</span></div></div>
                     @foreach($curriculum->classes as $class)
                         <div style="padding:8px 0 8px 12px;border-bottom:1px solid #F1F5F9">
                             <div style="font-size:11px;font-weight:800;color:var(--midnight)">{{ $class->name }}</div>
