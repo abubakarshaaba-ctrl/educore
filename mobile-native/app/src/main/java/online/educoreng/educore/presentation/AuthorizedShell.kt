@@ -62,6 +62,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreTopAppBar
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreAdaptiveLayout
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
+import online.educoreng.educore.core.designsystem.layout.eduCoreGridMinCellWidth
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -795,15 +796,10 @@ private fun ShellTabScreen(
         return
     }
 
-    val columns = when (width) {
-        EduCoreWindowWidth.Compact -> 2
-        EduCoreWindowWidth.Medium -> 3
-        EduCoreWindowWidth.Expanded -> 4
-    }
     val modules = ShellNavigationPolicy.modulesFor(tab.id, session)
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Adaptive(minSize = eduCoreGridMinCellWidth(width)),
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(eduCoreScreenPadding()),
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
