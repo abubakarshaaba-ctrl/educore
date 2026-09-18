@@ -23,6 +23,7 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\ParallelCurriculumService;
+use App\Services\ParallelCurriculumLifecycleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -30,7 +31,10 @@ use Illuminate\Validation\ValidationException;
 
 class ParallelCurriculumController extends Controller
 {
-    public function __construct(private readonly ParallelCurriculumService $service) {}
+    public function __construct(
+        private readonly ParallelCurriculumService $service,
+        private readonly ParallelCurriculumLifecycleService $lifecycle,
+    ) {}
 
     private function tenantId(): int
     {
