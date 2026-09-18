@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -409,7 +410,7 @@ private fun RiskSummaryStrip(total: Int, critical: Int, high: Int, open: Int, re
 @Composable
 private fun SummaryPill(label: String, value: Int) {
     Card(
-        modifier = Modifier.width(104.dp),
+        modifier = Modifier.widthIn(min = 104.dp, max = 168.dp),
         colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
         border = BorderStroke(1.dp, EduCoreColors.Line200),
     ) {
