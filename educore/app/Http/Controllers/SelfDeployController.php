@@ -172,11 +172,31 @@ class SelfDeployController extends Controller
         foreach (['routes-v7.php', 'config.php', 'events.php'] as $f) @unlink(base_path('bootstrap/cache/' . $f));
 
         $migrated = 'skipped';
+        $migrationOk = true;
         try {
             Artisan::call('migrate', ['--force' => true]);
             $migrated = trim(Artisan::output()) ?: 'nothing to migrate';
         } catch (\Throwable $e) {
+            $migrationOk = false;
             $migrated = 'error: ' . $e->getMessage();
+        }
+
+        if (! $migrationOk) {
+            $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
+
+            @unlink($zipPath);
+            $this->rrmdir($extractDir);
+
+            return response()->json([
+                'ok' => false,
+                'step' => 'migrate',
+                'copied' => $copied,
+                'removed' => $removed,
+                'opcache_reset' => $opcacheReset,
+                'migrated' => mb_substr($migrated, 0, 1000),
+                'deployed_at' => now()->toDateTimeString(),
+                'hint' => 'Code was copied, but a required database migration failed. Resolve the migration error before using the updated application.',
+            ], 500);
         }
 
         // 5. Pull and verify the newest signed Android production release.
