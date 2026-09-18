@@ -490,6 +490,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     // ── Parallel Curriculum Integration ───────────────────────────────
     Route::prefix('parallel-curriculum')->name('parallel-curriculum.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
+        Route::get('diagnostics', \App\Http\Controllers\ParallelCurriculumDiagnosticsController::class)->name('diagnostics');
         Route::get('student-assignments', [\App\Http\Controllers\ParallelCurriculumController::class, 'studentAssignments'])->name('student-assignments');
         Route::get('lifecycle', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'index'])->name('lifecycle.index');
         Route::post('lifecycle/arms', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArm'])->name('lifecycle.arms.store');
