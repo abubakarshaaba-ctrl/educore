@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePaymentController;
+use App\Http\Controllers\Api\MobileParallelCurriculumLifecycleController;
 use App\Http\Controllers\Api\MobileReleaseController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
@@ -139,6 +140,20 @@ Route::prefix('v1')->group(function () {
         Route::get('parallel-scores/teaching', [ParallelCurriculumScoreController::class, 'teaching']);
         Route::get('parallel-scores/sheet', [ParallelCurriculumScoreController::class, 'sheet']);
         Route::post('parallel-scores/save', [ParallelCurriculumScoreController::class, 'save']);
+
+        Route::prefix('parallel-curriculum/lifecycle')->group(function () {
+            Route::get('/', [MobileParallelCurriculumLifecycleController::class, 'index']);
+            Route::get('promotion-preview', [MobileParallelCurriculumLifecycleController::class, 'previewPromotion']);
+            Route::post('promotions/execute', [MobileParallelCurriculumLifecycleController::class, 'executePromotion']);
+            Route::post('transfers', [MobileParallelCurriculumLifecycleController::class, 'transfer']);
+            Route::post('arms', [MobileParallelCurriculumLifecycleController::class, 'storeArm']);
+            Route::put('arms/{arm}', [MobileParallelCurriculumLifecycleController::class, 'updateArm']);
+            Route::delete('arms/{arm}', [MobileParallelCurriculumLifecycleController::class, 'archiveArm']);
+            Route::post('grades', [MobileParallelCurriculumLifecycleController::class, 'storeClassGrade']);
+            Route::delete('grades/{grade}', [MobileParallelCurriculumLifecycleController::class, 'destroyClassGrade']);
+            Route::post('promotion-rules', [MobileParallelCurriculumLifecycleController::class, 'storePromotionRule']);
+        });
+
 
         Route::get('skills', [SkillsController::class, 'index']);
         Route::get('skills/sheet', [SkillsController::class, 'sheet']);
