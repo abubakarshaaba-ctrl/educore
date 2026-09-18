@@ -33,4 +33,17 @@ class ParallelCurriculum extends BaseTenantModel
     {
         return $this->hasMany(ParallelCurriculumIntegration::class);
     }
+
+    public function grades(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumGrade::class)
+            ->orderByDesc('min_score')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function reportPublications(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumReportPublication::class);
+    }
 }
