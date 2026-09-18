@@ -13,6 +13,7 @@ use App\Models\CbtStudentSession;
 use App\Models\Announcement;
 use App\Models\TimetablePeriod;
 use App\Services\ParallelCurriculumResultService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -194,6 +195,11 @@ class StudentPortalController extends Controller
                 ->publishedForStudent($student)
                 ->where('term_id', (int) $termId)
                 ->values()
+                ->map(fn (array $result) => $result + [
+                    'pdf_url' => route('student.portal.parallel-results.pdf', [
+                        'publication' => $result['id'],
+                    ]),
+                ])
             : collect();
 
         return view('portal.student.results', compact(
@@ -204,6 +210,25 @@ class StudentPortalController extends Controller
             'summary',
             'parallelResults'
         ));
+    }
+
+    public function parallelResultPdf(int $publication)
+    {
+        $student = $this->getStudent();
+        $report = app(ParallelCurriculumResultService::class)
+            ->publishedReportForStudent($student, $publication);
+
+        abort_unless($report, 404, 'This published parallel curriculum result is unavailable.');
+
+        $filename = str($student->admission_number ?: $student->full_name)
+            ->slug('_')
+            ->append('_', str($report['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
+            ->append('_result.pdf')
+            ->toString();
+
+        return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
     }
 
     // ── Timetable ─────────────────────────────────────────────────────
