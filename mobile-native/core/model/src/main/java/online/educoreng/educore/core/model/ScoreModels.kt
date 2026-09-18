@@ -109,6 +109,7 @@ data class PublishedResult(
     val resultType: String = "conventional",
     val curriculumName: String? = null,
     val resultClassName: String? = null,
+    val resultClassArmName: String? = null,
     val maximumTotal: Double? = null,
     val publicationStatus: String? = null,
     val publishedAt: String? = null,
