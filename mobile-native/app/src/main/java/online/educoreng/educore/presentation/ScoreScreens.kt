@@ -430,6 +430,27 @@ internal fun ScoreSheetScreen(
                                             },
                                         ),
                                     )
+                                    if (cell?.locked == true && !sheet.locked) {
+                                        val sourceLabel = when (cell.source) {
+                                            "parallel_curriculum" -> "🔒 Parallel-derived"
+                                            "cbt" -> "🔒 CBT source"
+                                            null, "" -> "🔒 Source-controlled"
+                                            else -> "🔒 " + cell.source
+                                                .replace('_', ' ')
+                                                .replaceFirstChar(Char::uppercase)
+                                        }
+                                        Text(
+                                            sourceLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (cell.source == "parallel_curriculum") {
+                                                EduCoreColors.Gold600
+                                            } else {
+                                                EduCoreColors.Slate600
+                                            },
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                 }
                             }
                         }
