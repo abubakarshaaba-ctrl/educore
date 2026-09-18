@@ -213,10 +213,13 @@ class ParallelCurriculumLifecycleService
             ->orderBy('student_id')
             ->get();
 
+        $reservedByArm = [];
+
         $rows = $enrolments->map(function (ParallelCurriculumEnrolment $enrolment) use (
             $rules,
             $finalTerm,
-            $targetSession
+            $targetSession,
+            &$reservedByArm
         ): array {
             $rule = $rules->get($enrolment->parallel_curriculum_class_id);
 
@@ -231,6 +234,33 @@ class ParallelCurriculumLifecycleService
                 return $this->blockedPromotionRow(
                     $enrolment,
                     'The source session has no academic term to use for promotion assessment.'
+                );
+            }
+
+            $targetPlacementExists = ParallelCurriculumEnrolment::withoutTenantScope()
+                ->where('tenant_id', $enrolment->tenant_id)
+                ->where('parallel_curriculum_id', $enrolment->parallel_curriculum_id)
+                ->where('student_id', $enrolment->student_id)
+                ->where('session_id', $targetSession->id)
+                ->exists();
+
+            if ($targetPlacementExists) {
+                return $this->blockedPromotionRow(
+                    $enrolment,
+                    'A placement already exists for this learner in the target academic session.'
+                );
+            }
+
+            $promotionExists = ParallelCurriculumPromotion::withoutTenantScope()
+                ->where('tenant_id', $enrolment->tenant_id)
+                ->where('source_enrolment_id', $enrolment->id)
+                ->where('target_session_id', $targetSession->id)
+                ->exists();
+
+            if ($promotionExists) {
+                return $this->blockedPromotionRow(
+                    $enrolment,
+                    'A promotion decision has already been processed for this learner and target session.'
                 );
             }
 
@@ -261,7 +291,7 @@ class ParallelCurriculumLifecycleService
                 );
             }
 
-            if ($rule->require_complete_result && ! $report['is_published']) {
+            if (! $report['is_published']) {
                 return $this->blockedPromotionRow(
                     $enrolment,
                     'Publish the final parallel result before promotion.',
@@ -297,11 +327,21 @@ class ParallelCurriculumLifecycleService
                     );
                 }
 
+                if ($this->parallel->classPlacementLocked($destinationClass, $targetSession->id)) {
+                    return $this->blockedPromotionRow(
+                        $enrolment,
+                        'The destination class already has a published result in the target academic session.',
+                        $average,
+                        $failedSubjects
+                    );
+                }
+
                 $destinationArm = $this->resolveDestinationArm(
                     $enrolment,
                     $destinationClass,
                     $rule->arm_strategy,
-                    $targetSession->id
+                    $targetSession->id,
+                    $reservedByArm
                 );
 
                 if (! $destinationArm) {
@@ -312,6 +352,8 @@ class ParallelCurriculumLifecycleService
                         $failedSubjects
                     );
                 }
+
+                $reservedByArm[$destinationArm->id] = ($reservedByArm[$destinationArm->id] ?? 0) + 1;
 
                 return $this->promotionRow(
                     $enrolment,
@@ -328,15 +370,22 @@ class ParallelCurriculumLifecycleService
                 ? ParallelCurriculumPromotion::DECISION_RETAIN
                 : ParallelCurriculumPromotion::DECISION_REPEAT;
 
-            $repeatArm = $enrolment->curriculumClassArm;
-            if (! $repeatArm || ! $repeatArm->is_active) {
-                $repeatArm = $this->resolveDestinationArm(
+            if ($this->parallel->classPlacementLocked($enrolment->curriculumClass, $targetSession->id)) {
+                return $this->blockedPromotionRow(
                     $enrolment,
-                    $enrolment->curriculumClass,
-                    'same_name',
-                    $targetSession->id
+                    'The repeat/retain class already has a published result in the target academic session.',
+                    $average,
+                    $failedSubjects
                 );
             }
+
+            $repeatArm = $this->resolveDestinationArm(
+                $enrolment,
+                $enrolment->curriculumClass,
+                'same_name',
+                $targetSession->id,
+                $reservedByArm
+            );
 
             if (! $repeatArm) {
                 return $this->blockedPromotionRow(
@@ -346,6 +395,8 @@ class ParallelCurriculumLifecycleService
                     $failedSubjects
                 );
             }
+
+            $reservedByArm[$repeatArm->id] = ($reservedByArm[$repeatArm->id] ?? 0) + 1;
 
             return $this->promotionRow(
                 $enrolment,
@@ -434,29 +485,32 @@ class ParallelCurriculumLifecycleService
                     ->where('parallel_curriculum_id', $curriculum->id)
                     ->where('student_id', $source->student_id)
                     ->where('session_id', $targetSession->id)
+                    ->lockForUpdate()
                     ->first();
+
+                if ($existing) {
+                    throw ValidationException::withMessages([
+                        'promotion' => $source->student?->full_name.
+                            ' already has a placement in the target academic session.',
+                    ]);
+                }
 
                 $this->assertArmCapacity(
                     $destinationArm,
-                    $targetSession->id,
-                    $existing?->id
+                    $targetSession->id
                 );
 
-                ParallelCurriculumEnrolment::withoutTenantScope()->updateOrCreate(
-                    [
-                        'tenant_id' => $curriculum->tenant_id,
-                        'parallel_curriculum_id' => $curriculum->id,
-                        'student_id' => $source->student_id,
-                        'session_id' => $targetSession->id,
-                    ],
-                    [
-                        'parallel_curriculum_class_id' => $destinationClass->id,
-                        'parallel_curriculum_class_arm_id' => $destinationArm->id,
-                        'is_active' => true,
-                    ]
-                );
+                ParallelCurriculumEnrolment::withoutTenantScope()->create([
+                    'tenant_id' => $curriculum->tenant_id,
+                    'parallel_curriculum_id' => $curriculum->id,
+                    'student_id' => $source->student_id,
+                    'session_id' => $targetSession->id,
+                    'parallel_curriculum_class_id' => $destinationClass->id,
+                    'parallel_curriculum_class_arm_id' => $destinationArm->id,
+                    'is_active' => true,
+                ]);
 
-                $existing ? $updated++ : $created++;
+                $created++;
 
                 ParallelCurriculumPromotion::withoutTenantScope()->updateOrCreate(
                     [
@@ -514,7 +568,8 @@ class ParallelCurriculumLifecycleService
         ParallelCurriculumEnrolment $source,
         ParallelCurriculumClass $destinationClass,
         string $strategy,
-        int $targetSessionId
+        int $targetSessionId,
+        array $reservedByArm = []
     ): ?ParallelCurriculumClassArm {
         $arms = $destinationClass->arms
             ->where('is_active', true)
@@ -531,21 +586,35 @@ class ParallelCurriculumLifecycleService
                     === mb_strtolower(trim($source->curriculumClassArm->name))
             );
 
-            if ($sameName && $this->armHasCapacity($sameName, $targetSessionId)) {
+            if (
+                $sameName
+                && $this->armHasCapacity(
+                    $sameName,
+                    $targetSessionId,
+                    null,
+                    (int) ($reservedByArm[$sameName->id] ?? 0)
+                )
+            ) {
                 return $sameName;
             }
         }
 
         return $arms->first(
             fn (ParallelCurriculumClassArm $arm) =>
-                $this->armHasCapacity($arm, $targetSessionId)
+                $this->armHasCapacity(
+                    $arm,
+                    $targetSessionId,
+                    null,
+                    (int) ($reservedByArm[$arm->id] ?? 0)
+                )
         );
     }
 
     private function armHasCapacity(
         ParallelCurriculumClassArm $arm,
         int $sessionId,
-        ?int $excludeEnrolmentId = null
+        ?int $excludeEnrolmentId = null,
+        int $reserved = 0
     ): bool {
         if (! $arm->capacity) {
             return true;
@@ -559,7 +628,7 @@ class ParallelCurriculumLifecycleService
             ->when($excludeEnrolmentId, fn ($query) => $query->where('id', '!=', $excludeEnrolmentId))
             ->count();
 
-        return $count < (int) $arm->capacity;
+        return ($count + $reserved) < (int) $arm->capacity;
     }
 
     private function assertArmCapacity(
