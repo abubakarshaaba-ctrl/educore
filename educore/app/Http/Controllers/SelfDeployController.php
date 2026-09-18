@@ -375,11 +375,21 @@ class SelfDeployController extends Controller
             }
 
             $checksumLine = trim($checksumDownload->body());
-            if (!preg_match('/\A([a-f0-9]{64})[ \t]+\*?EduCore\.apk\z/i', $checksumLine, $matches)) {
+            // Accept both canonical "sha256  EduCore.apk" checksum files and
+            // sha256sum output that includes the build-relative path. Older
+            // alpha05 was published in the latter form, so rejecting it left
+            // /download/app pinned to the previous APK even though deployment
+            // itself completed successfully.
+            if (!preg_match(
+                '/\A([a-f0-9]{64})[ \t]+\*?(?:.*[\\\\\/])?EduCore\.apk\z/i',
+                $checksumLine,
+                $matches,
+            )) {
                 return [
                     'status' => 'skipped',
                     'reason' => 'checksum-format-invalid',
                     'release' => $releaseTag,
+                    'checksum_preview' => mb_substr($checksumLine, 0, 160),
                 ];
             }
             $expectedSha256 = strtolower($matches[1]);
