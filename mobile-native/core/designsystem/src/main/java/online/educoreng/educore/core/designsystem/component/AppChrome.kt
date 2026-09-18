@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Badge
@@ -126,7 +127,7 @@ fun EduCoreBottomNavigation(
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier,
+        modifier = modifier.height(64.dp),
         containerColor = Color.White,
         tonalElevation = EduCoreSpacing.Xs,
     ) {
@@ -143,7 +144,7 @@ fun EduCoreBottomNavigation(
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
                 },
-                label = { Text(item.label, maxLines = 1, style = MaterialTheme.typography.labelMedium) },
+                label = { Text(item.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
@@ -168,7 +169,7 @@ fun EduCoreTenantHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(EduCoreColors.Navy900)
-            .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
+            .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
