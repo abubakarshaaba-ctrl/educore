@@ -14,7 +14,18 @@ class ParallelCurriculumWorkspaceController extends Controller
         ParallelCurriculumService $service
     ) {
         try {
-            return $workspace->index();
+            $response = $workspace->index();
+
+            // A controller can successfully return a View object while the
+            // actual Blade rendering fails later in the HTTP kernel. Force the
+            // view to render inside this guarded block so Blade/template
+            // exceptions are captured and surfaced by the diagnostics instead
+            // of escaping as another generic 500 page.
+            if ($response instanceof \Illuminate\View\View) {
+                return response($response->render());
+            }
+
+            return $response;
         } catch (\Throwable $e) {
             report($e);
 
