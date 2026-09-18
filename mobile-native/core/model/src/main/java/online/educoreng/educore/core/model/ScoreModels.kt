@@ -7,6 +7,7 @@ data class ScoreAssignment(
     val className: String,
     val subjectId: Long,
     val subjectName: String,
+    val workspaceType: String = "conventional",
 )
 
 data class ScoreAssignments(
@@ -47,6 +48,7 @@ data class ScoreStudent(
 )
 
 data class ScoreSheet(
+    val workspaceType: String = "conventional",
     val classId: Long,
     val className: String,
     val subjectId: Long,
