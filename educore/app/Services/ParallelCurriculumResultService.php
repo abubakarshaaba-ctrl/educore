@@ -8,6 +8,7 @@ use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumGrade;
 use App\Models\ParallelCurriculumReportPublication;
 use App\Models\ParallelCurriculumScore;
+use App\Models\Student;
 use App\Models\Term;
 use Illuminate\Support\Collection;
 
@@ -187,6 +188,99 @@ class ParallelCurriculumResultService
         $report['student_result'] = $studentResult;
 
         return $report;
+    }
+
+    public function publishedForStudent(Student $student): Collection
+    {
+        $enrolments = ParallelCurriculumEnrolment::with('curriculumClass.curriculum')
+            ->where('student_id', $student->id)
+            ->where('is_active', true)
+            ->get();
+
+        if ($enrolments->isEmpty()) {
+            return collect();
+        }
+
+        $classIds = $enrolments->pluck('parallel_curriculum_class_id')->unique()->values();
+        $enrolmentsByClassAndSession = $enrolments->keyBy(
+            fn (ParallelCurriculumEnrolment $enrolment) =>
+                $enrolment->parallel_curriculum_class_id.':'.$enrolment->session_id
+        );
+
+        $publications = ParallelCurriculumReportPublication::with([
+                'curriculum',
+                'curriculumClass.curriculum',
+                'term.session',
+            ])
+            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+            ->whereIn('parallel_curriculum_class_id', $classIds)
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return $publications
+            ->filter(function (ParallelCurriculumReportPublication $publication) use ($enrolmentsByClassAndSession): bool {
+                $term = $publication->term;
+                if (! $term) {
+                    return false;
+                }
+
+                return $enrolmentsByClassAndSession->has(
+                    $publication->parallel_curriculum_class_id.':'.$term->session_id
+                );
+            })
+            ->map(function (ParallelCurriculumReportPublication $publication) use ($student): ?array {
+                $class = $publication->curriculumClass;
+                $term = $publication->term;
+
+                if (! $class || ! $term) {
+                    return null;
+                }
+
+                $report = $this->studentReport($class, $term, (int) $student->id);
+                if (! $report) {
+                    return null;
+                }
+
+                $row = $report['student_result'];
+
+                return [
+                    'id' => (int) $publication->id,
+                    'result_type' => 'parallel_curriculum',
+                    'curriculum_id' => (int) $class->parallel_curriculum_id,
+                    'curriculum' => $report['curriculum']?->name,
+                    'class_id' => (int) $class->id,
+                    'class_name' => $class->name,
+                    'term_id' => (int) $term->id,
+                    'term' => $term->name,
+                    'session' => $term->session?->name,
+                    'average' => $row['average'],
+                    'total_score' => $row['grand_total'],
+                    'maximum_total' => $row['maximum_total'],
+                    'position' => $row['position'],
+                    'class_size' => $report['students_count'],
+                    'subjects_offered' => $row['subject_count'],
+                    'subjects_failed' => $row['failed_subjects'],
+                    'publication_status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+                    'published_at' => $publication->published_at?->toIso8601String(),
+                    'subjects' => $row['subjects']->map(fn (array $subject) => [
+                        'subject_id' => $subject['subject_id'],
+                        'subject' => $subject['subject'],
+                        'assessments' => collect($subject['components'])->map(fn (array $component) => [
+                            'id' => $component['id'],
+                            'name' => $component['name'],
+                            'score' => $component['score'],
+                            'maximum' => $component['maximum'],
+                        ])->values()->all(),
+                        'total' => $subject['percentage'],
+                        'grade' => $subject['grade'] ?? '—',
+                        'remark' => $subject['remark'] ?? '—',
+                        'is_pass' => $subject['is_pass'],
+                    ])->values()->all(),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     public function canPublish(array $report): bool
