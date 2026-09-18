@@ -37,7 +37,7 @@
     <div class="note">No active students are assigned to this parallel class for {{ $term->session?->name }}.</div>
 @else
     @php($allLocked = $enrolments->isNotEmpty() && $lockedStudents->every(fn($locked) => (bool) $locked))
-    <div class="note">Enter each component against its template weight. Once all required parallel subjects are complete, EduCore calculates the student's programme average and distributes it into the mapped conventional subject automatically when auto-sync is enabled. Students whose conventional report cards are already published are locked to preserve result integrity.</div>
+    <div class="note">Enter each component against its template weight. Once all required parallel subjects are complete, EduCore calculates the student's programme average and distributes it into the mapped conventional subject automatically when auto-sync is enabled. Students whose parallel or conventional results are already published are locked to preserve result integrity.</div>
 
     <form method="POST" action="{{ route('parallel-curriculum.scores.save') }}">
         @csrf
@@ -98,7 +98,7 @@
             @if(!$allLocked)
                 <button class="btn btn-p">Save Parallel Scores</button>
             @else
-                <span class="hint">All rows are locked because the corresponding conventional report cards are published.</span>
+                <span class="hint">All rows are locked because a published result depends on these source scores.</span>
             @endif
         </div>
     </form>
