@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import online.educoreng.educore.BuildConfig
 import online.educoreng.educore.MainActivity
 import online.educoreng.educore.R
 import online.educoreng.educore.core.data.repository.CommunicationRepository
@@ -35,6 +36,13 @@ class EduCoreMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val isAppUpdate = message.data["type"] == APP_UPDATE_TYPE
+        if (isAppUpdate) {
+            val announcedVersionCode = message.data["version_code"]?.toIntOrNull()
+            if (announcedVersionCode != null && announcedVersionCode <= BuildConfig.VERSION_CODE) {
+                return
+            }
+        }
+
         val target = if (isAppUpdate) null else NotificationDeepLinkParser.parse(message.data)
         if (target != null) NotificationDeepLinkStore.publish(target)
 
