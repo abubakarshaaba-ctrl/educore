@@ -9,6 +9,7 @@ use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumComposite;
+use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumIntegration;
 use App\Models\ReportCardPublication;
 use App\Models\Score;
@@ -77,6 +78,50 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertSame($fixture['subject']->id, $composite->destination_subject_id);
         $this->assertSame('synced', $composite->sync_status);
         $this->assertSame(80.0, $composite->average_score);
+    }
+
+    public function test_published_conventional_result_locks_mapping_configuration(): void
+    {
+        $fixture = $this->mappingFixture();
+        $service = app(ParallelCurriculumService::class);
+
+        $this->assertFalse(
+            $service->integrationHasPublishedDependencies($fixture['integration'])
+        );
+
+        ReportCardPublication::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_arm_id' => $fixture['classArm']->id,
+            'term_id' => $fixture['term']->id,
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $this->assertTrue(
+            $service->integrationHasPublishedDependencies($fixture['integration'])
+        );
+    }
+
+    public function test_manual_sync_mapping_change_clears_stale_unpublished_derived_score(): void
+    {
+        $fixture = $this->mappingFixture();
+        $fixture['integration']->update(['auto_sync' => false]);
+
+        $summary = app(ParallelCurriculumService::class)
+            ->reconcileIntegration($fixture['integration']->fresh(), true);
+
+        $this->assertDatabaseMissing('scores', [
+            'id' => $fixture['score']->id,
+        ]);
+
+        $this->assertSame(0, $summary['locked']);
+        $this->assertSame(1, array_sum([
+            $summary['synced'],
+            $summary['pending'],
+            $summary['conflict'],
+            $summary['unmapped'],
+            $summary['skipped'],
+        ]));
     }
 
     public function test_destination_subject_must_be_offered_when_master_curriculum_rules_exist(): void
@@ -200,6 +245,15 @@ class ParallelCurriculumLifecycleTest extends TestCase
             'parallel_curriculum_id' => $curriculum->id,
             'name' => 'Mutawassitah 1',
             'code' => 'M1',
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumEnrolment::create([
+            'tenant_id' => $tenant->id,
+            'parallel_curriculum_id' => $curriculum->id,
+            'parallel_curriculum_class_id' => $parallelClass->id,
+            'student_id' => $student->id,
+            'session_id' => $session->id,
             'is_active' => true,
         ]);
 
