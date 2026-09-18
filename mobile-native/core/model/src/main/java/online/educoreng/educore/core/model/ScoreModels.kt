@@ -48,7 +48,6 @@ data class ScoreStudent(
 )
 
 data class ScoreSheet(
-    val workspaceType: String = "conventional",
     val classId: Long,
     val className: String,
     val subjectId: Long,
@@ -66,6 +65,7 @@ data class ScoreSheet(
     val isDraftStale: Boolean = false,
     val syncState: SyncState = SyncState.NONE,
     val syncMessage: String? = null,
+    val workspaceType: String = "conventional",
 )
 
 data class ResultAssessment(
