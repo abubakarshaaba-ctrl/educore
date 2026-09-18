@@ -61,15 +61,16 @@ fun EduCoreTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
         modifier = modifier,
         enabled = enabled,
         readOnly = readOnly,
         singleLine = singleLine,
         isError = error != null,
+        textStyle = MaterialTheme.typography.bodyMedium,
         supportingText = when {
-            error != null -> ({ Text(error) })
-            supportingText != null -> ({ Text(supportingText) })
+            error != null -> ({ Text(error, style = MaterialTheme.typography.bodySmall) })
+            supportingText != null -> ({ Text(supportingText, style = MaterialTheme.typography.bodySmall) })
             else -> null
         },
         visualTransformation = visualTransformation,
