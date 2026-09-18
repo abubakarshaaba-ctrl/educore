@@ -102,7 +102,7 @@ internal fun ProfileScreen(
             ) {
                 EduCorePageHeader(
                     title = "My Profile",
-                    subtitle = "Manage your personal details, password, passport and identity",
+                    subtitle = "Manage your personal details, passport and account security",
                     onBack = onBack,
                 )
                 EduCoreProfileHeader(
@@ -159,7 +159,7 @@ internal fun ProfileScreen(
                     label = { Text("Full name", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 OutlinedTextField(
                     value = state.email,
@@ -167,7 +167,7 @@ internal fun ProfileScreen(
                     label = { Text("Email", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 OutlinedTextField(
                     value = state.phone,
@@ -175,7 +175,7 @@ internal fun ProfileScreen(
                     label = { Text("Phone", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 OutlinedTextField(
                     value = state.dateOfBirth,
@@ -183,7 +183,7 @@ internal fun ProfileScreen(
                     label = { Text("Date of birth", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 Text(
                     "YYYY-MM-DD",
@@ -197,7 +197,7 @@ internal fun ProfileScreen(
                     label = { Text("Gender", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 OutlinedTextField(
                     value = state.address,
@@ -206,7 +206,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     minLines = 2,
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
+                    modifier = Modifier.fillMaxWidth().height(84.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isSaving) "Saving…" else "Save profile changes",
@@ -233,7 +233,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 OutlinedTextField(
                     value = state.newPassword,
@@ -242,7 +242,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 Text(
                     "Minimum 8 characters",
@@ -257,7 +257,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isChangingPassword) "Changing password…" else "Change password",
@@ -270,9 +270,82 @@ internal fun ProfileScreen(
             }
         }
 
-        state.idCard?.let { card ->
-            item {
-                ProfileCard("Staff ID card", Icons.Default.Badge) {
+        item {
+            ProfileCard("Account context", Icons.Default.Badge) {
+                ReadOnlyProfileRow("Staff ID", state.profile?.staffId ?: session.user.staffId ?: "Not assigned")
+                ReadOnlyProfileRow("Role", state.profile?.role ?: session.user.roleLabel)
+                ReadOnlyProfileRow("School", session.school.name)
+                ReadOnlyProfileRow("Academic session", session.academicPeriod.sessionName ?: "Not set")
+                ReadOnlyProfileRow("Current term", session.academicPeriod.termName ?: "Not set")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    EduCoreStatusBadge("Active", EduCoreTone.Success)
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(EduCoreSpacing.Md)) }
+    }
+}
+
+@Composable
+internal fun StaffIdCardScreen(
+    session: SessionSnapshot,
+    onBack: () -> Unit,
+) {
+    val viewModel: ProfileViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    OpenDocumentEffect(state.document, viewModel::consumeDocument)
+
+    if (state.isLoading && state.profile == null) {
+        EduCoreLoadingState(Modifier.fillMaxSize(), "Loading your staff ID card")
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
+        contentPadding = PaddingValues(eduCoreScreenPadding()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+    ) {
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth().widthIn(max = 820.dp),
+                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCorePageHeader(
+                    title = "Staff ID Card",
+                    subtitle = "View and download your school-issued staff identity card",
+                    onBack = onBack,
+                )
+                EduCoreProfileHeader(
+                    name = state.profile?.name ?: session.user.name,
+                    role = state.profile?.role ?: session.user.roleLabel,
+                    identifier = state.profile?.staffId ?: session.user.staffId ?: state.profile?.email ?: session.user.email,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                state.errorMessage?.let { EduCoreErrorBanner(it) }
+                state.message
+                    ?.takeIf { it.contains("ID card", ignoreCase = true) }
+                    ?.let { ProfileSuccessBanner(it) }
+            }
+        }
+
+        item {
+            val card = state.idCard
+            ProfileCard("Staff ID card", Icons.Default.Badge) {
+                if (card == null) {
+                    Text(
+                        "No staff ID card is currently available for this account. Refresh after your school completes the staff identity details.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                    EduCoreSecondaryButton(
+                        text = if (state.isLoading) "Refreshing…" else "Refresh ID card",
+                        onClick = viewModel::load,
+                        enabled = !state.isLoading,
+                    )
+                } else {
                     Text(
                         "Your current school-issued staff identity card is shown below. Download produces the official front/back PDF.",
                         style = MaterialTheme.typography.bodySmall,
@@ -287,19 +360,6 @@ internal fun ProfileScreen(
                         loading = state.isDownloadingIdCard,
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
                     )
-                }
-            }
-        }
-
-        item {
-            ProfileCard("Account context", Icons.Default.Badge) {
-                ReadOnlyProfileRow("Staff ID", state.profile?.staffId ?: session.user.staffId ?: "Not assigned")
-                ReadOnlyProfileRow("Role", state.profile?.role ?: session.user.roleLabel)
-                ReadOnlyProfileRow("School", session.school.name)
-                ReadOnlyProfileRow("Academic session", session.academicPeriod.sessionName ?: "Not set")
-                ReadOnlyProfileRow("Current term", session.academicPeriod.termName ?: "Not set")
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    EduCoreStatusBadge("Active", EduCoreTone.Success)
                 }
             }
         }
