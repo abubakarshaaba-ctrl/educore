@@ -26,6 +26,8 @@ import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.data.repository.DefaultScoreWorkspaceRepository
 import online.educoreng.educore.core.data.repository.ScoreWorkspaceRepository
 import online.educoreng.educore.core.data.repository.DefaultScheduleRepository
+import online.educoreng.educore.core.data.repository.ParallelCurriculumLifecycleRepository
+import online.educoreng.educore.core.data.repository.DefaultParallelCurriculumLifecycleRepository
 import online.educoreng.educore.core.data.repository.ScheduleRepository
 import online.educoreng.educore.core.data.repository.AcademicContentRepository
 import online.educoreng.educore.core.data.repository.DefaultAcademicContentRepository
@@ -159,6 +161,14 @@ object FoundationModule {
         database: EduCoreDatabase,
         tenantContextStore: TenantContextStore,
     ): ScoreWorkspaceRepository = DefaultScoreWorkspaceRepository(api, moshi, database, tenantContextStore)
+
+    @Provides
+    @Singleton
+    fun provideParallelCurriculumLifecycleRepository(
+        api: EduCoreApi,
+        moshi: Moshi,
+    ): ParallelCurriculumLifecycleRepository =
+        DefaultParallelCurriculumLifecycleRepository(api, moshi)
 
     @Provides
     @Singleton
