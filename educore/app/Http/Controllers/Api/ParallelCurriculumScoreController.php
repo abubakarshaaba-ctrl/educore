@@ -1,0 +1,368 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\AcademicSession;
+use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassSubject;
+use App\Models\ParallelCurriculumEnrolment;
+use App\Models\ParallelCurriculumScore;
+use App\Models\ParallelCurriculumSubject;
+use App\Models\Term;
+use App\Services\Mobile\MobileIdempotencyService;
+use App\Services\ParallelCurriculumService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class ParallelCurriculumScoreController extends Controller
+{
+    public function __construct(
+        private readonly ParallelCurriculumService $parallel,
+        private readonly MobileIdempotencyService $idempotency,
+    ) {}
+
+    public function teaching(Request $request)
+    {
+        $user = $request->user();
+        $tenantId = (int) $user->tenant_id;
+        $session = AcademicSession::current()->first();
+        $term = Term::current()->with('session')->first();
+
+        if (! $this->parallel->enabledForTenant($tenantId)) {
+            return response()->json([
+                'contract_version' => 3,
+                'generated_at' => now()->toIso8601String(),
+                'term' => $term ? ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name] : null,
+                'assignments' => [],
+            ]);
+        }
+
+        $assignments = ParallelCurriculumClassSubject::with(['curriculumClass.curriculum', 'subject'])
+            ->where('is_active', true)
+            ->when(! $this->canEnterAll($user), fn ($query) => $query->where('teacher_id', $user->id))
+            ->get()
+            ->filter(fn (ParallelCurriculumClassSubject $assignment) =>
+                $assignment->curriculumClass?->is_active
+                && $assignment->curriculumClass?->curriculum?->is_active
+                && $assignment->subject?->is_active
+            )
+            ->unique(fn (ParallelCurriculumClassSubject $assignment) =>
+                $assignment->parallel_curriculum_class_id.':'.$assignment->parallel_curriculum_subject_id
+            )
+            ->map(fn (ParallelCurriculumClassSubject $assignment) => [
+                'workspace_type' => 'parallel_curriculum',
+                'class_arm_id' => $assignment->parallel_curriculum_class_id,
+                'class_name' => trim($assignment->curriculumClass->curriculum->name.' · '.$assignment->curriculumClass->name),
+                'subject_id' => $assignment->parallel_curriculum_subject_id,
+                'subject_name' => $assignment->subject->name,
+            ])->values();
+
+        return response()->json([
+            'contract_version' => 3,
+            'generated_at' => now()->toIso8601String(),
+            'session' => $session?->only(['id', 'name']),
+            'term' => $term ? ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name] : null,
+            'assignments' => $assignments,
+        ]);
+    }
+
+    public function sheet(Request $request)
+    {
+        $data = $request->validate([
+            'class_arm_id' => ['required', 'integer'],
+            'subject_id' => ['required', 'integer'],
+            'term_id' => ['nullable', 'integer'],
+        ]);
+
+        $user = $request->user();
+        $this->assertEnabled($user);
+        $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
+            ->findOrFail($data['class_arm_id']);
+        $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
+        $this->assertAssignment($user, $class, $subject);
+
+        $term = $this->resolveTerm($data['term_id'] ?? null);
+        $components = $this->parallel->componentsForClass($class);
+        abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
+
+        $students = $this->enrolmentsFor($class, $term);
+        $records = $this->scoresFor($class, $subject, $term, $students);
+        $byCell = $records->keyBy(fn (ParallelCurriculumScore $score) =>
+            $score->student_id.':'.$score->assessment_template_component_id
+        );
+
+        return response()->json([
+            'contract_version' => 3,
+            'workspace_type' => 'parallel_curriculum',
+            'generated_at' => now()->toIso8601String(),
+            'version' => $this->sheetVersion($students, $components, $records),
+            'locked' => false,
+            'lock_reason' => null,
+            'class' => [
+                'id' => $class->id,
+                'name' => trim($class->curriculum->name.' · '.$class->name),
+            ],
+            'subject' => ['id' => $subject->id, 'name' => $subject->name],
+            'term' => ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name],
+            'assessment_types' => $components->map(fn ($component) => [
+                'id' => $component->id,
+                'name' => $component->name,
+                'max' => (float) $component->weight_percentage,
+                'is_exam' => false,
+                'is_split' => false,
+                'objective_max' => null,
+                'theory_max' => null,
+                'objective_source_available' => null,
+            ])->values(),
+            'students' => $students->map(function (ParallelCurriculumEnrolment $enrolment) use ($components, $byCell) {
+                $student = $enrolment->student;
+                $cells = $components->mapWithKeys(function ($component) use ($student, $byCell) {
+                    $record = $byCell->get($student->id.':'.$component->id);
+
+                    return [(string) $component->id => [
+                        'total' => $record?->score,
+                        'value' => $record?->score,
+                        'objective_score' => null,
+                        'theory_score' => null,
+                        'locked' => false,
+                        'source' => 'parallel_curriculum_entry',
+                    ]];
+                });
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->full_name,
+                    'admission_number' => $student->admission_number,
+                    'scores' => (object) $cells->all(),
+                ];
+            })->values(),
+        ]);
+    }
+
+    public function save(Request $request)
+    {
+        $data = $request->validate([
+            'class_arm_id' => ['required', 'integer'],
+            'subject_id' => ['required', 'integer'],
+            'term_id' => ['required', 'integer'],
+            'version' => ['required', 'string', 'max:128'],
+            'request_id' => ['required', 'uuid'],
+            'scores' => ['required', 'array', 'min:1'],
+        ]);
+
+        $user = $request->user();
+        $this->assertEnabled($user);
+        $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
+            ->findOrFail($data['class_arm_id']);
+        $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
+        $this->assertAssignment($user, $class, $subject);
+        $term = $this->resolveTerm((int) $data['term_id']);
+
+        $response = $this->idempotency->execute(
+            $user,
+            "parallel-scores.{$class->id}.{$subject->id}.{$term->id}.save",
+            $data['request_id'],
+            $data,
+            function () use ($data, $class, $subject, $term, $user): array {
+                $enrolments = $this->enrolmentsFor($class, $term);
+                $components = $this->parallel->componentsForClass($class);
+                abort_if($components->isEmpty(), 422, 'This parallel class has no usable Assessment Template.');
+
+                $records = $this->scoresFor($class, $subject, $term, $enrolments, true);
+                $serverVersion = $this->sheetVersion($enrolments, $components, $records);
+                abort_unless(
+                    hash_equals($serverVersion, (string) $data['version']),
+                    409,
+                    'Parallel scores changed on the server. Reload the sheet before saving your draft.'
+                );
+
+                $enrolmentsByStudent = $enrolments->keyBy('student_id');
+                $componentsById = $components->keyBy('id');
+                $errors = [];
+
+                foreach ($data['scores'] as $studentId => $values) {
+                    if (! $enrolmentsByStudent->has((int) $studentId) || ! is_array($values)) {
+                        $errors["scores.{$studentId}"][] = 'The student is not active in this parallel class.';
+                        continue;
+                    }
+
+                    foreach ($values as $componentId => $value) {
+                        $component = $componentsById->get((int) $componentId);
+                        $path = "scores.{$studentId}.{$componentId}";
+                        if (! $component) {
+                            $errors[$path][] = 'This assessment component is not part of the parallel class template.';
+                            continue;
+                        }
+                        if ($value === null || $value === '') {
+                            continue;
+                        }
+                        if (! is_numeric($value)) {
+                            $errors[$path][] = 'Enter a numeric score.';
+                            continue;
+                        }
+                        $maximum = (float) $component->weight_percentage;
+                        if ((float) $value < 0 || (float) $value > $maximum) {
+                            $errors[$path][] = "Enter a score between 0 and {$maximum}.";
+                        }
+                    }
+                }
+
+                if ($errors !== []) {
+                    throw ValidationException::withMessages($errors);
+                }
+
+                $saved = DB::transaction(function () use (
+                    $data, $class, $subject, $term, $user, $enrolmentsByStudent, $componentsById
+                ): int {
+                    $savedCount = 0;
+
+                    foreach ($data['scores'] as $studentId => $values) {
+                        foreach ($values as $componentId => $value) {
+                            $component = $componentsById->get((int) $componentId);
+                            $key = [
+                                'tenant_id' => $class->tenant_id,
+                                'parallel_curriculum_id' => $class->parallel_curriculum_id,
+                                'student_id' => (int) $studentId,
+                                'parallel_curriculum_subject_id' => $subject->id,
+                                'assessment_template_component_id' => $component->id,
+                                'term_id' => $term->id,
+                            ];
+
+                            if ($value === null || $value === '') {
+                                $savedCount += ParallelCurriculumScore::where($key)->delete();
+                                continue;
+                            }
+
+                            ParallelCurriculumScore::updateOrCreate($key, [
+                                'parallel_curriculum_class_id' => $class->id,
+                                'session_id' => $term->session_id,
+                                'entered_by' => $user->id,
+                                'score' => round((float) $value, 2),
+                                'entered_at' => now(),
+                            ]);
+                            $savedCount++;
+                        }
+                    }
+
+                    return $savedCount;
+                });
+
+                foreach ($enrolments as $enrolment) {
+                    $this->parallel->syncStudent($enrolment, $term, false);
+                }
+
+                $freshRecords = $this->scoresFor($class, $subject, $term, $enrolments);
+
+                return [
+                    'message' => "Saved {$saved} parallel curriculum scores.",
+                    'saved' => $saved,
+                    'request_id' => $data['request_id'],
+                    'version' => $this->sheetVersion($enrolments, $components, $freshRecords),
+                    'saved_at' => now()->toIso8601String(),
+                ];
+            }
+        );
+
+        return response()->json($response);
+    }
+
+    private function assertEnabled($user): void
+    {
+        abort_unless(
+            $user->tenant_id && $this->parallel->enabledForTenant((int) $user->tenant_id),
+            404,
+            'Parallel Curriculum Integration is not enabled for this school.'
+        );
+    }
+
+    private function assertAssignment($user, ParallelCurriculumClass $class, ParallelCurriculumSubject $subject): void
+    {
+        abort_unless(
+            (int) $subject->parallel_curriculum_id === (int) $class->parallel_curriculum_id,
+            422,
+            'The selected subject does not belong to this parallel curriculum.'
+        );
+
+        if ($this->canEnterAll($user)) {
+            return;
+        }
+
+        $allowed = ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
+            ->where('parallel_curriculum_subject_id', $subject->id)
+            ->where('teacher_id', $user->id)
+            ->where('is_active', true)
+            ->exists();
+
+        abort_unless($allowed, 403, 'You are not assigned to this parallel curriculum class and subject.');
+    }
+
+    private function canEnterAll($user): bool
+    {
+        return $user->isSuperAdmin() || $user->canAccessExactModule('scores');
+    }
+
+    private function resolveTerm(?int $termId): Term
+    {
+        $term = $termId ? Term::with('session')->find($termId) : Term::current()->with('session')->first();
+        abort_unless($term, 422, $termId ? 'The selected term is not available for this school.' : 'No current term is set.');
+
+        return $term;
+    }
+
+    private function enrolmentsFor(ParallelCurriculumClass $class, Term $term): Collection
+    {
+        return ParallelCurriculumEnrolment::with('student')
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->where('session_id', $term->session_id)
+            ->where('is_active', true)
+            ->get()
+            ->filter(fn (ParallelCurriculumEnrolment $enrolment) => $enrolment->student?->status === 'active')
+            ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) =>
+                strtolower(($enrolment->student?->last_name ?? '').' '.($enrolment->student?->first_name ?? ''))
+            )
+            ->values();
+    }
+
+    private function scoresFor(
+        ParallelCurriculumClass $class,
+        ParallelCurriculumSubject $subject,
+        Term $term,
+        Collection $enrolments,
+        bool $lock = false,
+    ): Collection {
+        if ($enrolments->isEmpty()) {
+            return collect();
+        }
+
+        $query = ParallelCurriculumScore::where('parallel_curriculum_class_id', $class->id)
+            ->where('parallel_curriculum_subject_id', $subject->id)
+            ->where('term_id', $term->id)
+            ->whereIn('student_id', $enrolments->pluck('student_id'))
+            ->orderBy('student_id')
+            ->orderBy('assessment_template_component_id');
+
+        return $lock ? $query->lockForUpdate()->get() : $query->get();
+    }
+
+    private function sheetVersion(Collection $enrolments, Collection $components, Collection $records): string
+    {
+        return hash('sha256', json_encode([
+            'students' => $enrolments->pluck('student_id')->map(fn ($id) => (int) $id)->all(),
+            'components' => $components->map(fn ($component) => [
+                $component->id,
+                (float) $component->weight_percentage,
+                $component->name,
+            ])->all(),
+            'scores' => $records->map(fn (ParallelCurriculumScore $score) => [
+                $score->id,
+                $score->student_id,
+                $score->assessment_template_component_id,
+                $score->score,
+                $score->updated_at?->format('Y-m-d H:i:s.u'),
+            ])->all(),
+        ], JSON_PRESERVE_ZERO_FRACTION));
+    }
+}
