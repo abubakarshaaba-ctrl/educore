@@ -44,6 +44,13 @@ class ApiRoleAccessPolicy
             return true;
         }
 
+        // Authenticated users always retain access to their own account
+        // self-service surface. These routes never accept another user's ID,
+        // so module-level role permissions must not block profile maintenance.
+        if ($path === 'profile' || str_starts_with($path, 'profile/')) {
+            return true;
+        }
+
         if ($path === 'dashboard' || $path === 'admin/dashboard') {
             return $this->allowsAny($user, ['dashboard']);
         }
@@ -56,8 +63,10 @@ class ApiRoleAccessPolicy
             return true;
         }
 
+        // Staff ID cards and payslips are strictly self-scoped again in
+        // their controllers; no route accepts an arbitrary staff-user ID.
         if (str_starts_with($path, 'id-card') || str_starts_with($path, 'payslips')) {
-            return $this->allowsAny($user, ['profile']);
+            return true;
         }
 
         if (str_starts_with($path, 'exam-duties')) {
