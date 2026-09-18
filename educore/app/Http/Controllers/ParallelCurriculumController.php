@@ -9,6 +9,7 @@ use App\Models\ClassLevel;
 use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
@@ -172,7 +173,14 @@ class ParallelCurriculumController extends Controller
             : null;
 
         $curricula = ParallelCurriculum::with([
-            'classes' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
+            'classes' => fn ($query) => $query
+                ->where('is_active', true)
+                ->with(['arms' => fn ($armQuery) => $armQuery
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')])
+                ->orderBy('sort_order')
+                ->orderBy('name'),
         ])->where('is_active', true)->orderBy('name')->get();
 
         $curriculumId = (int) ($request->integer('parallel_curriculum_id') ?: ($curricula->first()?->id ?? 0));
@@ -259,7 +267,7 @@ class ParallelCurriculumController extends Controller
 
         $activeAssignments = collect();
         if ($session && $selectedCurriculum && $students->isNotEmpty()) {
-            $activeAssignments = ParallelCurriculumEnrolment::with('curriculumClass')
+            $activeAssignments = ParallelCurriculumEnrolment::with(['curriculumClass', 'curriculumClassArm'])
                 ->where('parallel_curriculum_id', $selectedCurriculum->id)
                 ->where('session_id', $session->id)
                 ->where('is_active', true)
@@ -919,6 +927,7 @@ class ParallelCurriculumController extends Controller
                     ],
                     [
                         'parallel_curriculum_class_id' => $class->id,
+                        'parallel_curriculum_class_arm_id' => $arm->id,
                         'is_active' => true,
                     ]
                 );
@@ -939,12 +948,20 @@ class ParallelCurriculumController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate([
             'parallel_curriculum_class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
+            'parallel_curriculum_class_arm_id' => ['required', Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId)],
             'session_id' => ['required', Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId)],
             'student_ids' => ['required', 'array', 'min:1'],
             'student_ids.*' => ['integer', Rule::exists('students', 'id')->where('tenant_id', $tenantId)],
         ]);
 
         $class = $this->classForTenant((int) $data['parallel_curriculum_class_id']);
+        $arm = ParallelCurriculumClassArm::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
+            ->where('is_active', true)
+            ->findOrFail($data['parallel_curriculum_class_arm_id']);
+
         abort_unless(
             $class->is_active && $class->curriculum?->is_active,
             422,
@@ -1001,7 +1018,25 @@ class ParallelCurriculumController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($studentIds, $tenantId, $class, $data): void {
+        if ($arm->capacity) {
+            $existingInArm = ParallelCurriculumEnrolment::where(
+                    'parallel_curriculum_class_arm_id',
+                    $arm->id
+                )
+                ->where('session_id', $data['session_id'])
+                ->where('is_active', true)
+                ->whereNotIn('student_id', $studentIds)
+                ->count();
+
+            if ($existingInArm + $studentIds->count() > (int) $arm->capacity) {
+                throw ValidationException::withMessages([
+                    'parallel_curriculum_class_arm_id' =>
+                        "The selected arm has capacity for ".max(0, (int) $arm->capacity - $existingInArm)." additional learner(s).",
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($studentIds, $tenantId, $class, $arm, $data): void {
             foreach ($studentIds as $studentId) {
                 ParallelCurriculumEnrolment::updateOrCreate(
                     [
@@ -1021,7 +1056,7 @@ class ParallelCurriculumController extends Controller
         return back()->with(
             'success',
             $studentIds->count().
-            ' student parallel-class assignment(s) updated. Existing students in this programme were moved to the selected parallel class.'
+            ' student parallel placement(s) updated. Existing students in this programme were moved to the selected parallel class arm.'
         );
     }
 
