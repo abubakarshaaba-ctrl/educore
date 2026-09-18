@@ -88,7 +88,7 @@
                 <form method="POST" action="{{ route('parallel-curriculum.classes.store') }}">@csrf
                     <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Class level name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1B"></div>
+                        <div class="fg"><label class="fl">Class level name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1"></div>
                         <div class="fg"><label class="fl">Code</label><input class="fc" name="code"></div>
                     </div>
                     <div class="fg"><label class="fl">Template override (optional)</label><select class="fc" name="assessment_template_id"><option value="">Use programme default</option>@foreach($templates as $template)<option value="{{ $template->id }}">{{ $template->name }}</option>@endforeach</select></div>
@@ -106,7 +106,7 @@
                         <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" required placeholder="e.g. Qur'an, Fiqh, Hadith"></div>
                         <div class="fg"><label class="fl">Code (optional)</label><input class="fc" name="code" placeholder="e.g. QRN"></div>
                     </div>
-                    <div class="hint" style="margin-bottom:10px">Programme subjects are independent and do not appear in conventional subject selectors.</div>
+                    <div class="hint" style="margin-bottom:10px">Programme subjects are independent and do not appear in conventional subject selectors. Create class arms separately in Academic Lifecycle.</div>
                     <button class="btn btn-p">Save Programme Subject</button>
                 </form>
             </div>
