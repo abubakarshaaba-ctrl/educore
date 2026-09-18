@@ -205,6 +205,21 @@ class ParallelCurriculumService
         return $result;
     }
 
+    public function integrationHasPublishedDependencies(ParallelCurriculumIntegration $integration): bool
+    {
+        if (! Schema::hasTable('report_card_publications')) {
+            return false;
+        }
+
+        return ParallelCurriculumComposite::withoutTenantScope()
+            ->where('tenant_id', $integration->tenant_id)
+            ->where('parallel_curriculum_integration_id', $integration->id)
+            ->get(['conventional_class_arm_id', 'term_id'])
+            ->contains(fn (ParallelCurriculumComposite $composite) =>
+                $this->compositeConventionalResultPublished($composite)
+            );
+    }
+
     public function deactivateIntegration(ParallelCurriculumIntegration $integration): array
     {
         $tenantId = (int) $integration->tenant_id;
@@ -230,6 +245,16 @@ class ParallelCurriculumService
                 ->where('source_reference_id', $composite->id);
 
             $hadDerivedScores = (clone $derivedQuery)->exists();
+
+            // A published conventional report is an immutable historical
+            // artifact. Keep both its generated score rows and the composite
+            // provenance that explains how those rows were produced.
+            if ($this->compositeConventionalResultPublished($composite)) {
+                if ($hadDerivedScores) {
+                    $result['preserved']++;
+                }
+                continue;
+            }
 
             $term = Term::withoutTenantScope()
                 ->where('tenant_id', $tenantId)
@@ -264,8 +289,6 @@ class ParallelCurriculumService
             $hasDerivedScores = (clone $derivedQuery)->exists();
             if ($hadDerivedScores && ! $hasDerivedScores) {
                 $result['cleared']++;
-            } elseif ($hadDerivedScores && $hasDerivedScores) {
-                $result['preserved']++;
             }
 
             $result['recomputed']++;
@@ -692,6 +715,23 @@ class ParallelCurriculumService
         }
 
         return ParallelCurriculumComposite::withoutTenantScope()->create($attributes);
+    }
+
+    private function compositeConventionalResultPublished(ParallelCurriculumComposite $composite): bool
+    {
+        if (
+            ! $composite->conventional_class_arm_id
+            || ! Schema::hasTable('report_card_publications')
+        ) {
+            return false;
+        }
+
+        return ReportCardPublication::withoutTenantScope()
+            ->where('tenant_id', $composite->tenant_id)
+            ->where('class_arm_id', $composite->conventional_class_arm_id)
+            ->where('term_id', $composite->term_id)
+            ->where('status', 'published')
+            ->exists();
     }
 
     private function clearDerivedScoresIfSafe(
