@@ -146,6 +146,12 @@ class ParentPortalController extends Controller
                 ->publishedForStudent($student)
                 ->where('term_id', (int) $termId)
                 ->values()
+                ->map(fn (array $result) => $result + [
+                    'pdf_url' => route('parent.parallel-results.pdf', [
+                        'publication' => $result['id'],
+                        'student_id' => $student->id,
+                    ]),
+                ])
             : collect();
 
         return view('portal.parent.results', compact(
@@ -159,6 +165,29 @@ class ParentPortalController extends Controller
             'rawScoresBySubject',
             'parallelResults'
         ));
+    }
+
+    public function parallelResultPdf(Request $request, int $publication)
+    {
+        $guardian = $this->getGuardian();
+        $student = $this->resolveStudent($request, $guardian);
+
+        abort_unless($student, 404, 'No student selected.');
+
+        $report = app(ParallelCurriculumResultService::class)
+            ->publishedReportForStudent($student, $publication);
+
+        abort_unless($report, 404, 'This published parallel curriculum result is unavailable.');
+
+        $filename = str($student->admission_number ?: $student->full_name)
+            ->slug('_')
+            ->append('_', str($report['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
+            ->append('_result.pdf')
+            ->toString();
+
+        return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
     }
 
     // ── Fees ──────────────────────────────────────────────────────────
