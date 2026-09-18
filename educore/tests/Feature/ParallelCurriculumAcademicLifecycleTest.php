@@ -226,6 +226,91 @@ class ParallelCurriculumAcademicLifecycleTest extends TestCase
         );
     }
 
+    public function test_promotion_preview_reserves_arm_capacity_across_the_batch(): void
+    {
+        $f = $this->fixture();
+
+        $f['destinationArmA']->update(['capacity' => 1]);
+
+        $secondStudent = Student::create([
+            'tenant_id' => $f['tenant']->id,
+            'current_class_arm_id' => $f['conventionalArm']->id,
+            'admission_number' => 'PC-LIFE-002',
+            'first_name' => 'Musa',
+            'last_name' => 'Aliyu',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+
+        ParallelCurriculumEnrolment::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'parallel_curriculum_class_arm_id' => $f['sourceArmB']->id,
+            'student_id' => $secondStudent->id,
+            'session_id' => $f['sourceSession']->id,
+            'is_active' => true,
+        ]);
+
+        foreach ([[$f['ca'], 35], [$f['exam'], 50]] as [$component, $score]) {
+            ParallelCurriculumScore::create([
+                'tenant_id' => $f['tenant']->id,
+                'parallel_curriculum_id' => $f['curriculum']->id,
+                'parallel_curriculum_class_id' => $f['sourceClass']->id,
+                'student_id' => $secondStudent->id,
+                'parallel_curriculum_subject_id' => $f['subject']->id,
+                'assessment_template_component_id' => $component->id,
+                'term_id' => $f['term']->id,
+                'session_id' => $f['sourceSession']->id,
+                'score' => $score,
+                'entered_at' => now(),
+            ]);
+        }
+
+        ParallelCurriculumClassGrade::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'grade_letter' => 'P',
+            'min_score' => 0,
+            'max_score' => 100,
+            'remark' => 'Pass',
+            'is_pass_grade' => true,
+        ]);
+
+        ParallelCurriculumReportPublication::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'term_id' => $f['term']->id,
+            'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        ParallelCurriculumPromotionRule::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'source_class_id' => $f['sourceClass']->id,
+            'destination_class_id' => $f['destinationClass']->id,
+            'minimum_average' => 50,
+            'max_failed_subjects' => 0,
+            'require_complete_result' => true,
+            'failure_action' => 'repeat',
+            'arm_strategy' => 'first_available',
+            'is_terminal' => false,
+            'is_active' => true,
+        ]);
+
+        $preview = app(ParallelCurriculumLifecycleService::class)->promotionPreview(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession']
+        );
+
+        $this->assertSame(2, $preview['counts']['total']);
+        $this->assertSame(1, $preview['counts']['promoted']);
+        $this->assertSame(1, $preview['counts']['blocked']);
+    }
+
     public function test_promotion_creates_next_session_placement_and_preserves_source_session(): void
     {
         $f = $this->fixture();
