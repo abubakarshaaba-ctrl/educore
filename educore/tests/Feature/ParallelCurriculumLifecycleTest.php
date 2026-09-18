@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcademicSession;
 use App\Models\ClassArm;
 use App\Models\ClassLevel;
+use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumComposite;
@@ -70,6 +71,53 @@ class ParallelCurriculumLifecycleTest extends TestCase
             'score_source' => ParallelCurriculumService::SCORE_SOURCE,
             'source_reference_id' => $fixture['composite']->id,
         ]);
+    }
+
+    public function test_destination_subject_must_be_offered_when_master_curriculum_rules_exist(): void
+    {
+        $fixture = $this->mappingFixture();
+        $service = app(ParallelCurriculumService::class);
+
+        $otherSubject = Subject::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'name' => 'Mathematics',
+            'code' => 'MTH',
+            'is_active' => true,
+        ]);
+
+        ClassLevelSubject::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_level_id' => $fixture['classLevel']->id,
+            'academic_track_id' => null,
+            'subject_id' => $otherSubject->id,
+            'subject_status' => 'compulsory',
+            'is_active' => true,
+        ]);
+
+        $this->assertFalse(
+            $service->conventionalSubjectAvailableForArm(
+                $fixture['tenant']->id,
+                $fixture['subject']->id,
+                $fixture['classArm']
+            )
+        );
+
+        ClassLevelSubject::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_level_id' => $fixture['classLevel']->id,
+            'academic_track_id' => null,
+            'subject_id' => $fixture['subject']->id,
+            'subject_status' => 'compulsory',
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue(
+            $service->conventionalSubjectAvailableForArm(
+                $fixture['tenant']->id,
+                $fixture['subject']->id,
+                $fixture['classArm']
+            )
+        );
     }
 
     public function test_parallel_mapping_removal_route_is_registered(): void
