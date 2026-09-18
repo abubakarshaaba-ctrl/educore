@@ -240,7 +240,22 @@
             <div class="pc-head">Conventional result mappings</div>
             <div class="pc-body">
                 @forelse($integrations as $rule)
-                    <div class="item"><div class="item-main"><strong>{{ $rule->curriculum?->name }} → {{ $rule->destinationSubject?->name }}</strong><span>{{ $rule->destinationClassLevel?->name }} · {{ $rule->require_all_subjects ? 'All subjects required' : 'Minimum '.$rule->minimum_completed_subjects }} · {{ $rule->auto_sync ? 'Auto sync' : 'Manual sync' }}</span></div><span class="badge">Active</span></div>
+                    <div class="item">
+                        <div class="item-main">
+                            <strong>{{ $rule->curriculum?->name }} → {{ $rule->destinationSubject?->name }}</strong>
+                            <span>{{ $rule->destinationClassLevel?->name }} · {{ $rule->require_all_subjects ? 'All subjects required' : 'Minimum '.$rule->minimum_completed_subjects }} · {{ $rule->auto_sync ? 'Auto sync' : 'Manual sync' }}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+                            <span class="badge {{ $rule->is_active ? 'synced' : 'unmapped' }}">{{ $rule->is_active ? 'Active' : 'Inactive' }}</span>
+                            @if($rule->is_active)
+                                <form method="POST" action="{{ route('parallel-curriculum.integrations.destroy',$rule) }}" onsubmit="return confirm('Remove this conventional result mapping? Unpublished derived scores will be cleared; already-published results will be preserved.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn btn-d" type="submit">Remove</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
                 @empty
                     <div class="empty">No integration rules configured yet.</div>
                 @endforelse
