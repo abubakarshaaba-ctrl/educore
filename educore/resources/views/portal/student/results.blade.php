@@ -29,10 +29,12 @@
 @section('content')
 <div class="results-head">
     <h2>📊 My Report Cards</h2>
-    <select class="term-select" onchange="location.href='?term_id='+this.value">
-        @foreach($terms as $t)
+    <select class="term-select" onchange="location.href='?term_id='+this.value" {{ $availableTerms->isEmpty() ? 'disabled' : '' }}>
+        @forelse($availableTerms as $t)
         <option value="{{ $t->id }}" {{ $t->id==$termId ? 'selected':'' }}>{{ $t->name }} — {{ optional($t->session)->name }}</option>
-        @endforeach
+        @empty
+        <option value="">No published/computed result term yet</option>
+        @endforelse
     </select>
 </div>
 
