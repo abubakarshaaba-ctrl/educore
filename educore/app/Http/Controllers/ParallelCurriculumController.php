@@ -115,18 +115,35 @@ class ParallelCurriculumController extends Controller
         // parallel-curriculum schema. Keep the workspace renderable while a
         // shared-host deployment is reconciling an older database instead of
         // throwing a 500 merely because one optional table is still pending.
+        $subjectSchemaReady = Schema::hasTable('parallel_curriculum_subjects')
+            && Schema::hasTable('parallel_curriculum_class_subjects')
+            && Schema::hasColumn(
+                'parallel_curriculum_class_subjects',
+                'parallel_curriculum_subject_id'
+            );
         $gradingReady = Schema::hasTable('parallel_curriculum_grades');
         $integrationReady = Schema::hasTable('parallel_curriculum_integrations');
         $enrolmentReady = Schema::hasTable('parallel_curriculum_enrolments');
         $compositeReady = Schema::hasTable('parallel_curriculum_composites');
+        $reportPublicationReady = Schema::hasTable('parallel_curriculum_report_publications');
+        $armTeacherReady = Schema::hasTable('parallel_curriculum_arm_subject_teachers');
+
+        $schemaReconciliationPending = ! $subjectSchemaReady
+            || ! $gradingReady
+            || ! $armLifecycleReady
+            || ! $reportPublicationReady
+            || ! $armTeacherReady;
 
         $curriculumRelations = [
             'defaultAssessmentTemplate',
-            'subjects',
             'classes.assessmentTemplate',
-            'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
         ];
+
+        if ($subjectSchemaReady) {
+            $curriculumRelations[] = 'subjects';
+            $curriculumRelations[] = 'classes.subjectAssignments.subject';
+        }
 
         if ($gradingReady) {
             $curriculumRelations[] = 'grades';
@@ -139,6 +156,18 @@ class ParallelCurriculumController extends Controller
         $curricula = ParallelCurriculum::with($curriculumRelations)
             ->orderBy('name')
             ->get();
+
+        if (! $subjectSchemaReady) {
+            $curricula->each(function (ParallelCurriculum $curriculum): void {
+                $curriculum->setRelation('subjects', collect());
+
+                $curriculum->classes->each(function (ParallelCurriculumClass $class): void {
+                    $class->subjectAssignments->each(
+                        fn ($assignment) => $assignment->setRelation('subject', null)
+                    );
+                });
+            });
+        }
 
         if (! $gradingReady) {
             $curricula->each(
@@ -308,7 +337,8 @@ class ParallelCurriculumController extends Controller
             'integrations',
             'enrolments',
             'recentComposites',
-            'armLifecycleReady'
+            'armLifecycleReady',
+            'schemaReconciliationPending'
         ));
     }
 
