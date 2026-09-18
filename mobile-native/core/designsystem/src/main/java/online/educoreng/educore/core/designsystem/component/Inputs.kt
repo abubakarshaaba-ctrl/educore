@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,7 +62,7 @@ fun EduCoreTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-        modifier = modifier,
+        modifier = modifier.heightIn(min = EduCoreSizes.ControlHeight),
         enabled = enabled,
         readOnly = readOnly,
         singleLine = singleLine,
@@ -93,7 +93,7 @@ fun EduCoreSearchBar(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth().height(EduCoreSizes.ControlHeight),
+        modifier = modifier.fillMaxWidth().heightIn(min = EduCoreSizes.ControlHeight),
         enabled = enabled,
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyMedium,
