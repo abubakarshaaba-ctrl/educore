@@ -317,6 +317,62 @@ class ParallelCurriculumController extends Controller
         return back()->with('success', 'Parallel curriculum created.');
     }
 
+    public function updateCurriculum(Request $request, ParallelCurriculum $curriculum)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+        abort_unless((int) $curriculum->tenant_id === $this->tenantId(), 403);
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:120',
+                Rule::unique('parallel_curricula', 'name')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
+                    ->ignore($curriculum->id),
+            ],
+            'code' => ['nullable', 'string', 'max:40'],
+            'default_assessment_template_id' => [
+                'required',
+                Rule::exists('assessment_templates', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', AssessmentTemplate::STATUS_ACTIVE),
+            ],
+        ]);
+
+        $curriculum->fill([
+            'name' => trim($data['name']),
+            'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+            'default_assessment_template_id' => (int) $data['default_assessment_template_id'],
+        ]);
+
+        if (! $curriculum->isDirty()) {
+            return back()->with('success', 'Parallel curriculum is already up to date.');
+        }
+
+        abort_if(
+            ParallelCurriculumReportPublication::where('parallel_curriculum_id', $curriculum->id)
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists(),
+            423,
+            'Unpublish this programme\'s results before editing its programme details.'
+        );
+
+        if ($curriculum->isDirty('default_assessment_template_id')) {
+            abort_if(
+                ParallelCurriculumScore::where('parallel_curriculum_id', $curriculum->id)->exists(),
+                423,
+                'The default assessment template cannot be changed after parallel scores have been recorded. Create a new programme or clear the unpublished scores first.'
+            );
+        }
+
+        $curriculum->save();
+
+        return back()->with('success', 'Parallel curriculum updated.');
+    }
+
     public function storeSubject(Request $request)
     {
         $this->assertEnabled();
@@ -342,6 +398,58 @@ class ParallelCurriculumController extends Controller
         );
 
         return back()->with('success', 'Parallel curriculum subject saved.');
+    }
+
+    public function updateSubject(Request $request, ParallelCurriculumSubject $subject)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+        abort_unless((int) $subject->tenant_id === $this->tenantId(), 403);
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:120',
+                Rule::unique('parallel_curriculum_subjects', 'name')
+                    ->where(fn ($query) => $query
+                        ->where('parallel_curriculum_id', $subject->parallel_curriculum_id))
+                    ->ignore($subject->id),
+            ],
+            'code' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $subject->fill([
+            'name' => trim($data['name']),
+            'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+        ]);
+
+        if (! $subject->isDirty()) {
+            return back()->with('success', 'Parallel curriculum subject is already up to date.');
+        }
+
+        $classIds = ParallelCurriculumClassSubject::where(
+                'parallel_curriculum_subject_id',
+                $subject->id
+            )
+            ->pluck('parallel_curriculum_class_id');
+
+        abort_if(
+            $classIds->isNotEmpty()
+                && ParallelCurriculumReportPublication::whereIn(
+                    'parallel_curriculum_class_id',
+                    $classIds
+                )
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists(),
+            423,
+            'Unpublish every result that uses this programme subject before renaming it.'
+        );
+
+        $subject->save();
+
+        return back()->with('success', 'Parallel curriculum subject updated.');
     }
 
     public function storeGrade(Request $request)
@@ -447,6 +555,61 @@ class ParallelCurriculumController extends Controller
         ]);
 
         return back()->with('success', 'Parallel curriculum class created.');
+    }
+
+    public function updateClass(Request $request, ParallelCurriculumClass $class)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+        abort_unless((int) $class->tenant_id === $this->tenantId(), 403);
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:120',
+                Rule::unique('parallel_curriculum_classes', 'name')
+                    ->where(fn ($query) => $query
+                        ->where('parallel_curriculum_id', $class->parallel_curriculum_id))
+                    ->ignore($class->id),
+            ],
+            'code' => ['nullable', 'string', 'max:40'],
+            'assessment_template_id' => [
+                'nullable',
+                Rule::exists('assessment_templates', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', AssessmentTemplate::STATUS_ACTIVE),
+            ],
+        ]);
+
+        $class->fill([
+            'name' => trim($data['name']),
+            'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+            'assessment_template_id' => $data['assessment_template_id'] ?? null,
+        ]);
+
+        if (! $class->isDirty()) {
+            return back()->with('success', 'Parallel curriculum class is already up to date.');
+        }
+
+        abort_if(
+            $this->service->classStructureLocked($class),
+            423,
+            'Unpublish this class\'s parallel results before editing its class details.'
+        );
+
+        if ($class->isDirty('assessment_template_id')) {
+            abort_if(
+                ParallelCurriculumScore::where('parallel_curriculum_class_id', $class->id)->exists(),
+                423,
+                'The class assessment template cannot be changed after parallel scores have been recorded. Clear the unpublished scores first or create a new class.'
+            );
+        }
+
+        $class->save();
+
+        return back()->with('success', 'Parallel curriculum class updated.');
     }
 
     public function storeClassSubject(Request $request)
