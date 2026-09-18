@@ -119,14 +119,15 @@
         <section class="pc-card">
             <div class="pc-head">5. Assign students independently</div>
             <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.enrolments.store') }}">@csrf
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
-                        <div class="fg"><label class="fl">Session</label><select class="fc" name="session_id" required>@if($currentSession)<option value="{{ $currentSession->id }}">{{ $currentSession->name }}</option>@endif</select></div>
+                <div class="item" style="padding-top:0">
+                    <div class="item-main">
+                        <strong>Bulk student assignment workspace</strong>
+                        <span>Filter learners by conventional class, gender, assignment status, name or admission number. Select many learners at once and place or move them into an independent parallel class.</span>
                     </div>
-                    <div class="fg"><label class="fl">Students</label><select class="fc" name="student_ids[]" multiple required>@foreach($students as $student)<option value="{{ $student->id }}">{{ $student->full_name }} · {{ $student->admission_number }} · {{ $student->currentClassArm?->full_name ?: 'No conventional class' }}</option>@endforeach</select><div class="hint">A learner may be in a completely different parallel class from the conventional class. Use Ctrl/Cmd or long-press selection as supported by your device.</div></div>
-                    <button class="btn btn-p">Assign Students</button>
-                </form>
+                    <span class="badge">{{ $enrolments->count() }} active</span>
+                </div>
+                <div class="hint" style="margin:10px 0 12px">Conventional classes are used only to find students. A learner's conventional placement is never changed by parallel-curriculum assignment.</div>
+                <a class="btn btn-p" href="{{ route('parallel-curriculum.student-assignments') }}">Open Student Assignment Workspace</a>
             </div>
         </section>
 
