@@ -85,6 +85,13 @@ data class ResultSubject(
     val remark: String,
 )
 
+data class ResultLearner(
+    val id: Long,
+    val name: String,
+    val admissionNumber: String,
+    val className: String? = null,
+)
+
 data class PublishedResult(
     val id: Long,
     val term: String?,
@@ -108,9 +115,11 @@ data class PublishedResult(
 )
 
 data class PublishedResults(
+    val studentId: Long?,
     val studentName: String?,
     val admissionNumber: String?,
     val className: String?,
     val results: List<PublishedResult>,
     val parallelResults: List<PublishedResult> = emptyList(),
+    val children: List<ResultLearner> = emptyList(),
 )
