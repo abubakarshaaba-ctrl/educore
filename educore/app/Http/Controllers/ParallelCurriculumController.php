@@ -654,7 +654,43 @@ class ParallelCurriculumController extends Controller
                 continue;
             }
 
-            $assignments[] = [$student, $class];
+            $assignments[] = [$student, $class, $entry['row']];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages([
+                'assignment_file' => array_slice($errors, 0, 20),
+            ]);
+        }
+
+        $studentIds = collect($assignments)->map(fn (array $assignment) => (int) $assignment[0]->id)->unique()->values();
+        $existingEnrolments = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $curriculum->id)
+            ->where('session_id', $data['session_id'])
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy('student_id');
+        $destinationLocks = [];
+
+        foreach ($assignments as [$student, $class, $rowNumber]) {
+            $existing = $existingEnrolments->get($student->id);
+            $changesPlacement = ! $existing || (int) $existing->parallel_curriculum_class_id !== (int) $class->id;
+
+            if (! $changesPlacement) {
+                continue;
+            }
+
+            if ($existing && $this->service->enrolmentPlacementLocked($existing)) {
+                $errors[] = "Row {$rowNumber}: {$student->admission_number} cannot be moved because the current parallel-class result is published.";
+                continue;
+            }
+
+            if (! array_key_exists($class->id, $destinationLocks)) {
+                $destinationLocks[$class->id] = $this->service->classPlacementLocked($class, (int) $data['session_id']);
+            }
+
+            if ($destinationLocks[$class->id]) {
+                $errors[] = "Row {$rowNumber}: {$class->name} already has a published result for this session. Unpublish it before adding or moving students.";
+            }
         }
 
         if ($errors !== []) {
@@ -700,25 +736,69 @@ class ParallelCurriculumController extends Controller
         ]);
 
         $class = $this->classForTenant((int) $data['parallel_curriculum_class_id']);
+        $studentIds = collect($data['student_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $students = Student::active()
+            ->whereIn('id', $studentIds)
+            ->get()
+            ->keyBy('id');
 
-        foreach (collect($data['student_ids'])->map(fn ($id) => (int) $id)->unique() as $studentId) {
-            ParallelCurriculumEnrolment::updateOrCreate(
-                [
-                    'tenant_id' => $tenantId,
-                    'parallel_curriculum_id' => $class->parallel_curriculum_id,
-                    'student_id' => $studentId,
-                    'session_id' => $data['session_id'],
-                ],
-                [
-                    'parallel_curriculum_class_id' => $class->id,
-                    'is_active' => true,
-                ]
-            );
+        $existingEnrolments = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $class->parallel_curriculum_id)
+            ->where('session_id', $data['session_id'])
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy('student_id');
+
+        $destinationLocked = null;
+        $placementErrors = [];
+
+        foreach ($studentIds as $studentId) {
+            $existing = $existingEnrolments->get($studentId);
+            $changesPlacement = ! $existing || (int) $existing->parallel_curriculum_class_id !== (int) $class->id;
+
+            if (! $changesPlacement) {
+                continue;
+            }
+
+            $student = $students->get($studentId);
+            $studentLabel = $student?->admission_number ?: 'Student #'.$studentId;
+
+            if ($existing && $this->service->enrolmentPlacementLocked($existing)) {
+                $placementErrors[] = "{$studentLabel} cannot be moved because the current parallel-class result is published.";
+                continue;
+            }
+
+            $destinationLocked ??= $this->service->classPlacementLocked($class, (int) $data['session_id']);
+            if ($destinationLocked) {
+                $placementErrors[] = "{$studentLabel} cannot be assigned to {$class->name} because that class already has a published result for this session.";
+            }
         }
+
+        if ($placementErrors !== []) {
+            throw ValidationException::withMessages([
+                'student_ids' => array_slice($placementErrors, 0, 20),
+            ]);
+        }
+
+        DB::transaction(function () use ($studentIds, $tenantId, $class, $data): void {
+            foreach ($studentIds as $studentId) {
+                ParallelCurriculumEnrolment::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_id' => $class->parallel_curriculum_id,
+                        'student_id' => $studentId,
+                        'session_id' => $data['session_id'],
+                    ],
+                    [
+                        'parallel_curriculum_class_id' => $class->id,
+                        'is_active' => true,
+                    ]
+                );
+            }
+        });
 
         return back()->with(
             'success',
-            count(array_unique(array_map('intval', $data['student_ids']))).
+            $studentIds->count().
             ' student parallel-class assignment(s) updated. Existing students in this programme were moved to the selected parallel class.'
         );
     }
@@ -728,6 +808,12 @@ class ParallelCurriculumController extends Controller
         $this->assertEnabled();
         $this->assertManage();
         abort_unless((int) $enrolment->tenant_id === $this->tenantId(), 403);
+
+        abort_if(
+            $this->service->enrolmentPlacementLocked($enrolment),
+            423,
+            'This student placement belongs to a published parallel result. Unpublish the class result before removing or moving the student.'
+        );
 
         $hasScores = ParallelCurriculumScore::where('parallel_curriculum_id', $enrolment->parallel_curriculum_id)
             ->where('student_id', $enrolment->student_id)
