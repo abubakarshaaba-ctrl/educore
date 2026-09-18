@@ -95,6 +95,14 @@ class ReportCardController extends Controller
 
         $classArm      = ClassArm::with('classLevel', 'formTutor')->findOrFail($request->class_arm_id);
         $term          = Term::findOrFail($request->term_id);
+
+        $parallelService = app(\App\Services\ParallelCurriculumService::class);
+        if ($parallelService->enabledForTenant($tid)) {
+            \App\Models\ParallelCurriculum::where('is_active', true)
+                ->get()
+                ->each(fn ($curriculum) => $parallelService->syncCurriculum($curriculum, $term, true));
+        }
+
         $students      = Student::where('current_class_arm_id', $classArm->id)->where('status', Student::STATUS_ACTIVE)->get();
         $gradingSystem = GradingSystem::where('class_level_id', $classArm->class_level_id)->get();
 
