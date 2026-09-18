@@ -38,6 +38,17 @@ class ShellNavigationPolicyTest {
         assertEquals(session.modules.map { it.key }.toSet(), grouped.map { it.key }.toSet())
     }
 
+    @Test
+    fun student_and_parent_result_modules_are_native_academic_modules() {
+        val studentResults = ModuleDescriptor("student.results", "Results", "/student/results", "reports")
+        val parentResults = ModuleDescriptor("parent.results", "Results", "/parent/results", "reports")
+
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(studentResults.key))
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(parentResults.key))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(studentResults))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(parentResults))
+    }
+
     private fun session(portal: String, role: String): SessionSnapshot = SessionSnapshot(
         user = UserIdentity(
             id = 5,
