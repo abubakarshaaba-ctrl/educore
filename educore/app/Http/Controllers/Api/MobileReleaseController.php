@@ -90,6 +90,8 @@ class MobileReleaseController extends Controller
             'download_url' => ['required', 'url', 'max:2048'],
             'message' => ['nullable', 'string', 'max:4000'],
             'force_update' => ['nullable', 'boolean'],
+            'sha256' => ['nullable', 'regex:/\A[a-fA-F0-9]{64}\z/'],
+            'source_release_tag' => ['nullable', 'string', 'max:180'],
         ]);
 
         $versionName = trim($data['version_name']);
@@ -99,6 +101,17 @@ class MobileReleaseController extends Controller
         if ($body === '') {
             $body = "EduCore {$versionName} is ready to install. Tap to update.";
         }
+
+        $previous = null;
+        if (Storage::disk('local')->exists(self::RELEASE_FILE)) {
+            $decoded = json_decode((string) Storage::disk('local')->get(self::RELEASE_FILE), true);
+            if (is_array($decoded)) {
+                $previous = $decoded;
+            }
+        }
+
+        $sourceReleaseTag = trim((string) ($data['source_release_tag'] ?? ''));
+        $sha256 = strtolower(trim((string) ($data['sha256'] ?? '')));
 
         $release = [
             'platform' => 'android',
@@ -110,6 +123,13 @@ class MobileReleaseController extends Controller
             'force_update' => $forceUpdate,
             'published_at' => now()->toIso8601String(),
         ];
+
+        if ($sourceReleaseTag !== '') {
+            $release['source_release_tag'] = $sourceReleaseTag;
+        }
+        if ($sha256 !== '') {
+            $release['sha256'] = $sha256;
+        }
 
         Storage::disk('local')->put(
             self::RELEASE_FILE,
@@ -125,6 +145,22 @@ class MobileReleaseController extends Controller
             'force_update' => $forceUpdate ? 'true' : 'false',
         ];
 
+        if (
+            $sourceReleaseTag !== ''
+            && ($previous['source_release_tag'] ?? null) === $sourceReleaseTag
+            && (int) ($previous['version_code'] ?? 0) === $versionCode
+        ) {
+            return response()->json([
+                'status' => 'accepted',
+                'version_name' => $versionName,
+                'version_code' => $versionCode,
+                'topic' => self::APP_UPDATES_TOPIC,
+                'delivered' => true,
+                'push' => 'skipped-already-notified',
+                'release_recorded' => true,
+            ]);
+        }
+
         $title = $forceUpdate ? 'EduCore update required' : 'EduCore update available';
         $delivered = $push->sendToTopic(
             self::APP_UPDATES_TOPIC,
@@ -139,6 +175,7 @@ class MobileReleaseController extends Controller
             'version_code' => $versionCode,
             'topic' => self::APP_UPDATES_TOPIC,
             'delivered' => $delivered,
+            'push' => $delivered ? 'sent' : 'failed',
             'release_recorded' => true,
         ], $delivered ? 200 : 502);
     }
