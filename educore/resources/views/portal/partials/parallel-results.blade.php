@@ -10,6 +10,9 @@
 .parallel-result-title{min-width:0}
 .parallel-result-title strong{display:block;font-size:14px;line-height:1.4;color:var(--midnight,#071E45);overflow-wrap:anywhere}
 .parallel-result-title span{display:block;margin-top:3px;font-size:12px;line-height:1.45;color:var(--muted,#64748B)}
+.parallel-result-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.parallel-result-download{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 11px;border-radius:8px;background:var(--midnight,#071E45);color:#fff!important;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap}
+.parallel-result-download:hover{opacity:.92}
 .parallel-result-badge{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:4px 9px;border-radius:999px;background:#ECFDF3;color:#067647;font-size:11px;font-weight:800;white-space:nowrap}
 .parallel-result-body{padding:15px}
 .parallel-result-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
@@ -40,6 +43,8 @@
 @media(max-width:760px){
     .parallel-result-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     .parallel-result-head,.parallel-result-body{padding:13px}
+    .parallel-result-head-actions{width:100%;justify-content:flex-start}
+    .parallel-result-download{min-height:42px}
 }
 @media(max-width:640px){
     .parallel-result-table-wrap{display:none}
@@ -70,7 +75,12 @@
                     <strong>{{ $parallelResult['curriculum'] ?: 'Parallel Curriculum' }} · {{ $parallelResult['class_name'] ?: 'Class' }}</strong>
                     <span>{{ $parallelResult['term'] ?: 'Term' }} · {{ $parallelResult['session'] ?: 'Academic Session' }}</span>
                 </div>
-                <span class="parallel-result-badge">Published</span>
+                <div class="parallel-result-head-actions">
+                    <span class="parallel-result-badge">Published</span>
+                    @if(!empty($parallelResult['pdf_url']))
+                        <a class="parallel-result-download" href="{{ $parallelResult['pdf_url'] }}">Download PDF</a>
+                    @endif
+                </div>
             </div>
 
             <div class="parallel-result-body">
