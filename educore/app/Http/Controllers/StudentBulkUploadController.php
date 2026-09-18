@@ -6,12 +6,17 @@ use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\Guardian;
 use App\Models\Student;
+use App\Services\StudentIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class StudentBulkUploadController extends Controller
 {
+    public function __construct(private readonly StudentIdGenerator $studentIdGenerator)
+    {
+    }
+
     public function index()
     {
         $classArms = ClassArm::with('classLevel')->orderBy('class_level_id')->get();
@@ -106,8 +111,7 @@ class StudentBulkUploadController extends Controller
                 // Generate admission number if not provided
                 $admNum = trim($row['admission_number'] ?? '');
                 if (!$admNum) {
-                    $count  = Student::withoutTenantScope()->count() + $imported + 1;
-                    $admNum = 'STU' . str_pad($count, 4, '0', STR_PAD_LEFT);
+                    $admNum = $this->studentIdGenerator->generate();
                 }
 
                 // Create student
