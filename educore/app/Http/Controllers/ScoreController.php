@@ -132,7 +132,12 @@ class ScoreController extends Controller
             }
         }
 
-        return view('scores.index', compact('currentTerm', 'progress', 'classArms', 'terms', 'subjects'));
+        $parallelCurriculumEnabled = app(\App\Services\ParallelCurriculumService::class)
+            ->enabledForTenant($this->tenantId());
+
+        return view('scores.index', compact(
+            'currentTerm', 'progress', 'classArms', 'terms', 'subjects', 'parallelCurriculumEnabled'
+        ));
     }
 
     // ---------------------------------------------------------------
@@ -211,11 +216,15 @@ class ScoreController extends Controller
             $studentTotals[$student->id] = $total;
         }
 
+        $parallelCurriculumEnabled = app(\App\Services\ParallelCurriculumService::class)
+            ->enabledForTenant($this->tenantId());
+
         return view('scores.entry', compact(
             'classArm', 'subject', 'term',
             'students', 'assessmentTypes',
             'existingScores', 'existingTheory', 'studentTotals',
-            'objectiveScores', 'objectiveExamMissing', 'scoreRecords'
+            'objectiveScores', 'objectiveExamMissing', 'scoreRecords',
+            'parallelCurriculumEnabled'
         ));
     }
 
