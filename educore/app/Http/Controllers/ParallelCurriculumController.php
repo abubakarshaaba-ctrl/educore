@@ -443,7 +443,6 @@ class ParallelCurriculumController extends Controller
                     $key = [
                         'tenant_id' => $tenantId,
                         'parallel_curriculum_id' => $class->parallel_curriculum_id,
-                        'parallel_curriculum_class_id' => $class->id,
                         'student_id' => (int) $studentId,
                         'subject_id' => (int) $data['subject_id'],
                         'assessment_template_component_id' => $component->id,
@@ -456,6 +455,7 @@ class ParallelCurriculumController extends Controller
                     }
 
                     ParallelCurriculumScore::updateOrCreate($key, [
+                        'parallel_curriculum_class_id' => $class->id,
                         'session_id' => $term->session_id,
                         'entered_by' => auth()->id(),
                         'score' => round(min((float) $value, (float) $component->weight_percentage), 2),
