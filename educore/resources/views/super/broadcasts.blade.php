@@ -62,7 +62,8 @@ select.fc{cursor:pointer}
             </div>
             <div class="fg">
                 <label>Message Body (optional if an image is selected)</label>
-                <textarea name="body" class="fc" rows="4" placeholder="Write a message, or leave blank for an image-only broadcast...">{{ old('body') }}</textarea>
+                <x-rich-text-toolbar target="broadcastBody" />
+                <textarea id="broadcastBody" name="body" class="fc edu-rich-target" rows="6" placeholder="Write a message, or leave blank for an image-only broadcast...">{{ old('body') }}</textarea>
                 <span class="help">A broadcast can contain text only, an image only, or both.</span>
                 @error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
@@ -96,7 +97,7 @@ select.fc{cursor:pointer}
                     @endif
                 </div>
                 @if(trim((string) $bc->body) !== '')
-                    <div class="b-body is-collapsed" id="broadcast-body-{{ $bc->id }}">{{ $bc->body }}</div>
+                    <x-rich-text :text="$bc->body" class="b-body is-collapsed" id="broadcast-body-{{ $bc->id }}" />
                     <button type="button"
                             class="read-more-btn"
                             data-message-toggle
