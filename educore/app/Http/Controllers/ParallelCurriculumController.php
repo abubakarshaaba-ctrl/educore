@@ -480,6 +480,23 @@ class ParallelCurriculumController extends Controller
             );
         }
 
+        $existingAssignment = ParallelCurriculumClassSubject::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
+            ->where('parallel_curriculum_subject_id', $parallelSubject->id)
+            ->first();
+
+        if (
+            $this->service->classStructureLocked($class)
+            && (! $existingAssignment || ! $existingAssignment->is_active)
+        ) {
+            abort(
+                423,
+                'This parallel class has published results. Unpublish them before adding or reactivating subjects.'
+            );
+        }
+
         ParallelCurriculumClassSubject::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
@@ -500,6 +517,13 @@ class ParallelCurriculumController extends Controller
         $this->assertEnabled();
         $this->assertManage();
         abort_unless((int) $assignment->tenant_id === $this->tenantId(), 403);
+
+        $class = $this->classForTenant((int) $assignment->parallel_curriculum_class_id);
+        abort_if(
+            $this->service->classStructureLocked($class),
+            423,
+            'This parallel class has published results. Unpublish them before removing subjects from its result structure.'
+        );
 
         $hasScores = ParallelCurriculumScore::where('parallel_curriculum_class_id', $assignment->parallel_curriculum_class_id)
             ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
