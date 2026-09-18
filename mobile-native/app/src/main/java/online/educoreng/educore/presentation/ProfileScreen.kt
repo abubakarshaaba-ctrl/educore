@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -159,7 +160,7 @@ internal fun ProfileScreen(
                     label = { Text("Full name", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 OutlinedTextField(
                     value = state.email,
@@ -167,7 +168,7 @@ internal fun ProfileScreen(
                     label = { Text("Email", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 OutlinedTextField(
                     value = state.phone,
@@ -175,7 +176,7 @@ internal fun ProfileScreen(
                     label = { Text("Phone", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 OutlinedTextField(
                     value = state.dateOfBirth,
@@ -183,7 +184,7 @@ internal fun ProfileScreen(
                     label = { Text("Date of birth", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 Text(
                     "YYYY-MM-DD",
@@ -197,7 +198,7 @@ internal fun ProfileScreen(
                     label = { Text("Gender", style = MaterialTheme.typography.labelMedium) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 OutlinedTextField(
                     value = state.address,
@@ -206,7 +207,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     minLines = 2,
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth().height(84.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isSaving) "Saving…" else "Save profile changes",
@@ -233,7 +234,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 OutlinedTextField(
                     value = state.newPassword,
@@ -242,7 +243,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 Text(
                     "Minimum 8 characters",
@@ -257,7 +258,7 @@ internal fun ProfileScreen(
                     textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isChangingPassword) "Changing password…" else "Change password",
