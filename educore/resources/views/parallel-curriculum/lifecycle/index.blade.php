@@ -6,6 +6,7 @@
 <style>
 .pcl{max-width:1280px;margin:0 auto}.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:16px}.tab{flex:0 0 auto;padding:8px 13px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--slate);font-size:12px;font-weight:700;text-decoration:none}.tab.active,.tab:hover{background:var(--midnight);color:#fff}.hero{padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#071E45,#0B2D63);color:#fff;margin-bottom:16px}.hero h2{margin:0 0 5px;font-size:19px}.hero p{margin:0;color:#DCE5F2;font-size:11.5px;line-height:1.5;max-width:900px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}.card.full{grid-column:1/-1}.head{padding:12px 15px;background:#F8FAFC;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.head strong{font-size:12.5px;color:var(--midnight)}.head span{font-size:10.5px;color:var(--slate-light)}.body{padding:15px}.filter{display:grid;grid-template-columns:1.2fr 1fr auto;gap:10px;align-items:end;margin-bottom:14px}.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-width:0}.fl{font-size:10.5px;font-weight:800;color:var(--slate)}.fc{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font:500 12px inherit}select[multiple].fc{min-height:150px}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.row.three{grid-template-columns:repeat(3,minmax(0,1fr))}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 13px;border-radius:8px;border:0;font:700 11.5px inherit;cursor:pointer;text-decoration:none}.p{background:var(--indigo);color:#fff}.s{background:#fff;color:var(--midnight);border:1px solid var(--border)}.d{background:#FEF2F2;color:#B42318;border:1px solid #FECDCA}.hint{font-size:10.5px;color:var(--slate-light);line-height:1.45}.ok,.err{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.ok{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.err{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}.level{padding:12px 0;border-bottom:1px solid #EEF2F7}.level:last-child{border-bottom:0}.arms{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.arm{padding:10px;border:1px solid var(--border);border-radius:10px;background:#FAFCFF}.arm strong{display:block;font-size:11.5px;color:var(--midnight)}.arm span{display:block;font-size:10px;color:var(--slate-light);margin-top:2px}.rule{padding:9px 0;border-bottom:1px solid #EEF2F7}.rule:last-child{border-bottom:0}.rule strong{display:block;font-size:11.5px;color:var(--midnight)}.rule span{display:block;font-size:10px;color:var(--slate-light);margin-top:3px}.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:12px 0}.kpi{padding:10px;border:1px solid var(--border);border-radius:9px;text-align:center}.kpi strong{display:block;font-size:17px;color:var(--midnight)}.kpi span{font-size:9.5px;color:var(--slate-light)}.wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}.tbl{width:100%;min-width:850px;border-collapse:collapse}.tbl th{padding:9px 10px;background:var(--midnight);color:#fff;text-align:left;font-size:9.5px;white-space:nowrap}.tbl td{padding:9px 10px;border-bottom:1px solid #EEF2F7;font-size:10.5px;color:var(--slate);vertical-align:top}.badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9.5px;font-weight:800;background:#F2F4F7;color:#475467}.badge.promoted{background:#ECFDF3;color:#067647}.badge.repeat,.badge.retain{background:#FFFAEB;color:#B54708}.badge.graduated{background:#EEF4FF;color:#3538CD}.badge.blocked{background:#FEF3F2;color:#B42318}.check{display:flex;align-items:flex-start;gap:7px;font-size:10.5px;color:var(--slate)}details summary{cursor:pointer;color:var(--indigo);font-size:10.5px;font-weight:800}.mobile{display:none}@media(max-width:840px){.grid{grid-template-columns:1fr}.card.full{grid-column:auto}.filter{grid-template-columns:1fr 1fr}.filter .btn{grid-column:1/-1}.row.three{grid-template-columns:1fr 1fr}.kpis{grid-template-columns:repeat(3,1fr)}}@media(max-width:640px){.hero,.body{padding:13px}.filter,.row,.row.three{grid-template-columns:1fr}.btn{width:100%;min-height:42px}.arms{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}.desktop{display:none}.mobile{display:block}.mrow{padding:10px;border:1px solid var(--border);border-radius:9px;margin-bottom:7px}.mrow strong{display:block;font-size:11.5px;color:var(--midnight)}.mrow span{display:block;font-size:10px;color:var(--slate-light);margin-top:3px}}
 </style>
+@include('parallel-curriculum.partials.global-ui')
 @endpush
 
 @section('content')
@@ -56,7 +57,26 @@
 <div class="row three"><div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required></div><div class="fg"><label class="fl">Min</label><input class="fc" type="number" step=".01" min="0" max="100" name="min_score" required></div><div class="fg"><label class="fl">Max</label><input class="fc" type="number" step=".01" min="0" max="100" name="max_score" required></div></div>
 <div class="row"><div class="fg"><label class="fl">Remark</label><input class="fc" name="remark"></div><div class="fg"><label class="fl">Grade point</label><input class="fc" type="number" step=".01" min="0" name="grade_point"></div></div>
 <label class="check"><input type="hidden" name="is_pass_grade" value="0"><input type="checkbox" name="is_pass_grade" value="1" checked> Pass grade</label><div style="margin-top:10px"><button class="btn p" type="submit">Apply Grade Band</button></div></form>
-<div style="margin-top:14px">@foreach($selectedCurriculum->classes as $class)<div class="rule"><strong>{{ $class->name }}</strong>@if($class->classGrades->isNotEmpty())<span>@foreach($class->classGrades as $grade){{ $grade->grade_letter }} {{ number_format($grade->min_score,0) }}–{{ number_format($grade->max_score,0) }} @endforeach</span>@else<span>Uses programme default grading scale.</span>@endif</div>@endforeach</div>
+<div style="margin-top:14px">
+@foreach($selectedCurriculum->classes as $class)
+<div class="rule">
+    <strong>{{ $class->name }}</strong>
+    @if($class->classGrades->isNotEmpty())
+        @foreach($class->classGrades as $grade)
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px">
+                <span>{{ $grade->grade_letter }} · {{ number_format($grade->min_score,0) }}–{{ number_format($grade->max_score,0) }} · {{ $grade->remark ?: 'No remark' }} · {{ $grade->is_pass_grade ? 'Pass' : 'Fail' }}</span>
+                <form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.destroy',$grade) }}">
+                    @csrf @method('DELETE')
+                    <button class="btn d" type="submit">Remove</button>
+                </form>
+            </div>
+        @endforeach
+    @else
+        <span>Uses programme default grading scale.</span>
+    @endif
+</div>
+@endforeach
+</div>
 </div></section>
 
 <section class="card"><div class="head"><div><strong>3. Promotion rules</strong><br><span>Define pass criteria and the next parallel level.</span></div></div><div class="body">
@@ -81,8 +101,8 @@
 
 <section class="card full"><div class="head"><div><strong>5. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.transfers.store') }}">@csrf
-<div class="row"><div class="fg"><label class="fl">Student / current placement</label><select class="fc" name="enrolment_id" required><option value="">Select learner</option>@foreach($enrolments as $enrolment)<option value="{{ $enrolment->id }}">{{ $enrolment->student?->full_name }} · {{ $enrolment->student?->admission_number }} · {{ $enrolment->curriculumClass?->name }} {{ $enrolment->curriculumClassArm?->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination level</label><select class="fc" name="destination_class_id" required><option value="">Select</option>@foreach($selectedCurriculum->classes->where('is_active',true) as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
-<div class="row"><div class="fg"><label class="fl">Destination arm</label><select class="fc" name="destination_arm_id" required><option value="">Select</option>@foreach($selectedCurriculum->classes as $class)@foreach($class->arms->where('is_active',true) as $arm)<option value="{{ $arm->id }}">{{ $class->name }} · {{ $arm->name }}</option>@endforeach @endforeach</select></div><div class="fg"><label class="fl">Effective date</label><input class="fc" type="date" name="effective_date" value="{{ now()->toDateString() }}"></div></div>
+<div class="row"><div class="fg"><label class="fl">Student / current placement</label><select class="fc" name="enrolment_id" required><option value="">Select learner</option>@foreach($enrolments as $enrolment)<option value="{{ $enrolment->id }}">{{ $enrolment->student?->full_name }} · {{ $enrolment->student?->admission_number }} · {{ $enrolment->curriculumClass?->name }} {{ $enrolment->curriculumClassArm?->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination level</label><select class="fc" name="destination_class_id" id="life-destination-class" required><option value="">Select</option>@foreach($selectedCurriculum->classes->where('is_active',true) as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
+<div class="row"><div class="fg"><label class="fl">Destination arm</label><select class="fc" name="destination_arm_id" id="life-destination-arm" required disabled><option value="">Choose destination level first</option>@foreach($selectedCurriculum->classes as $class)@foreach($class->arms->where('is_active',true) as $arm)<option value="{{ $arm->id }}" data-class-id="{{ $class->id }}" hidden disabled>{{ $class->name }} · {{ $arm->name }}{{ $arm->capacity ? ' · Capacity '.$arm->capacity : '' }}</option>@endforeach @endforeach</select></div><div class="fg"><label class="fl">Effective date</label><input class="fc" type="date" name="effective_date" value="{{ now()->toDateString() }}"></div></div>
 <div class="fg"><label class="fl">Reason</label><textarea class="fc" name="reason" rows="3" required></textarea></div><button class="btn p" type="submit">Complete Transfer</button></form>
 </div></section>
 
@@ -94,3 +114,34 @@
 @endif
 </div>
 @endsection
+
+
+@push('scripts')
+<script>
+(function(){
+    const classSelect = document.getElementById('life-destination-class');
+    const armSelect = document.getElementById('life-destination-arm');
+
+    function refreshTransferArms(){
+        if(!classSelect || !armSelect) return;
+        const classId = classSelect.value;
+        let count = 0;
+        Array.from(armSelect.options).forEach((option,index) => {
+            if(index === 0) return;
+            const show = !!classId && option.dataset.classId === classId;
+            option.hidden = !show;
+            option.disabled = !show;
+            if(show) count++;
+        });
+        armSelect.value = '';
+        armSelect.disabled = count === 0;
+        armSelect.options[0].textContent = classId
+            ? (count ? 'Choose destination arm' : 'No active arm in this level')
+            : 'Choose destination level first';
+    }
+
+    classSelect?.addEventListener('change', refreshTransferArms);
+    refreshTransferArms();
+})();
+</script>
+@endpush
