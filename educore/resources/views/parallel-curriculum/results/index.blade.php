@@ -125,6 +125,7 @@
                                 <tr>
                                     <th>Student</th>
                                     <th>Admission No.</th>
+                                    <th>Arm</th>
                                     <th>Subjects Complete</th>
                                     <th>Total</th>
                                     <th>Average</th>
@@ -138,6 +139,7 @@
                                     <tr>
                                         <td><div class="name">{{ $row['student']->full_name }}</div></td>
                                         <td>{{ $row['student']->admission_number }}</td>
+                                        <td>{{ $row['enrolment']->curriculumClassArm?->name ?: '—' }}</td>
                                         <td>{{ $row['completed_subject_count'] }}/{{ $row['subject_count'] }}</td>
                                         <td>{{ number_format($row['grand_total'],1) }}/{{ number_format($row['maximum_total'],0) }}</td>
                                         <td>{{ $row['average'] === null ? '—' : number_format($row['average'],2).'%' }}</td>
