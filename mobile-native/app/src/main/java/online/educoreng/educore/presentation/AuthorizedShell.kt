@@ -108,6 +108,7 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
+        currentRoute == NativeRoute.RESULTS -> "Published Results"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
@@ -303,6 +304,10 @@ internal fun AuthorizedShell(
                                                         onOpenWebModule(module.path)
                                                     }
                                                 }
+                                                "student.results", "parent.results" -> {
+                                                    scoresViewModel.loadResults()
+                                                    navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
+                                                }
                                                 "timetable", "student.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
@@ -462,6 +467,13 @@ internal fun AuthorizedShell(
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
                                 onRetry = { scoresViewModel.openSheet(classId, subjectId, termId, workspaceType) },
+                            )
+                        }
+                        composable(NativeRoute.RESULTS) {
+                            PublishedResultsScreen(
+                                state = scoresState,
+                                onBack = navController::popBackStack,
+                                onRetry = { scoresViewModel.loadResults() },
                             )
                         }
                         composable(
@@ -639,6 +651,7 @@ private object NativeRoute {
     const val STAFF_ATTENDANCE = "native/staff-attendance"
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{workspaceType}/{classId}/{subjectId}/{termId}"
+    const val RESULTS = "native/results"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
