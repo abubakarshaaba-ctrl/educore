@@ -27,7 +27,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr:hover td{background:#F8FAFC}
         <tbody>
         @forelse($announcements as $ann)
         <tr>
-            <td><strong>{{ $ann->title }}</strong><br><span style="font-size:11px;color:var(--slate-light)">{{ Str::limit($ann->body,60) }}</span></td>
+            <td><strong>{{ $ann->title }}</strong><br><span style="font-size:11px;color:var(--slate-light)">{{ Str::limit(\App\Support\EduCoreRichText::plainText($ann->body),60) }}</span></td>
             <td style="font-size:11px;text-transform:capitalize">{{ $ann->audience }}</td>
             <td><span class="pri pri-{{ $ann->priority }}">{{ ucfirst($ann->priority) }}</span></td>
             <td style="font-size:11px">{{ \Carbon\Carbon::parse($ann->publish_date)->format('d M Y') }}</td>
