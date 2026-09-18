@@ -166,6 +166,75 @@ class ParallelCurriculumService
         return $result;
     }
 
+    public function deactivateIntegration(ParallelCurriculumIntegration $integration): array
+    {
+        $tenantId = (int) $integration->tenant_id;
+
+        $integration->update(['is_active' => false]);
+
+        $composites = ParallelCurriculumComposite::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_integration_id', $integration->id)
+            ->get();
+
+        $result = [
+            'recomputed' => 0,
+            'cleared' => 0,
+            'preserved' => 0,
+        ];
+
+        foreach ($composites as $composite) {
+            $derivedQuery = Score::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('score_source', self::SCORE_SOURCE)
+                ->where('source_reference_type', self::SOURCE_REFERENCE_TYPE)
+                ->where('source_reference_id', $composite->id);
+
+            $hadDerivedScores = (clone $derivedQuery)->exists();
+
+            $term = Term::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->find($composite->term_id);
+
+            $enrolment = ParallelCurriculumEnrolment::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_id', $composite->parallel_curriculum_id)
+                ->where('student_id', $composite->student_id)
+                ->where('session_id', $composite->session_id)
+                ->orderByDesc('is_active')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($term && $enrolment) {
+                $this->syncStudent($enrolment, $term, true);
+            } else {
+                $composite->update([
+                    'parallel_curriculum_integration_id' => null,
+                    'destination_subject_id' => null,
+                    'average_score' => null,
+                    'subject_count' => 0,
+                    'completed_subject_count' => 0,
+                    'subject_breakdown' => [],
+                    'sync_status' => 'unmapped',
+                    'sync_message' => 'The conventional result-integration mapping was removed.',
+                    'computed_at' => now(),
+                ]);
+                $this->clearDerivedScoresIfSafe($composite);
+            }
+
+            $hasDerivedScores = (clone $derivedQuery)->exists();
+            if ($hadDerivedScores && ! $hasDerivedScores) {
+                $result['cleared']++;
+            } elseif ($hadDerivedScores && $hasDerivedScores) {
+                $result['preserved']++;
+            }
+
+            $result['recomputed']++;
+        }
+
+        return $result;
+    }
+
     public function syncStudent(ParallelCurriculumEnrolment $enrolment, Term $term, bool $force = true): ?ParallelCurriculumComposite
     {
         $tenantId = (int) $enrolment->tenant_id;
