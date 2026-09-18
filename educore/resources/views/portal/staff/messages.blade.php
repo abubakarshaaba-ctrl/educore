@@ -57,7 +57,7 @@
         <div class="th-av">{{ strtoupper(substr($otherName, 0, 1)) }}</div>
         <div style="flex:1;min-width:0">
             <div class="th-subject">{{ $thread->subject }}</div>
-            <div class="th-preview">{{ optional($lastReply)->body ?? 'No replies yet' }}</div>
+            <div class="th-preview">{{ $lastReply ? \App\Support\EduCoreRichText::plainText($lastReply->body) : 'No replies yet' }}</div>
             <div class="th-meta">
                 @if(($thread->thread_type ?? 'student') === 'internal')
                     with {{ $otherName }} · Internal · {{ ucfirst($thread->status) }}
