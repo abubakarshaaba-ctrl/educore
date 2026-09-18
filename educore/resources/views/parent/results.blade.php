@@ -58,8 +58,10 @@ select{padding:8px 12px;font-size:13px;font-family:inherit;border:1.5px solid va
     @endforeach
     </tbody></table></div></div>
     @endif
-    @else
+    @elseif($parallelResults->isEmpty())
     <div class="empty-state">No report card computed for this term yet.</div>
     @endif
+
+    @include('portal.partials.parallel-results', ['parallelResults' => $parallelResults])
 </div>
 </body></html>
