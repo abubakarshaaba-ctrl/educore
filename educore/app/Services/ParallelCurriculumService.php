@@ -205,6 +205,68 @@ class ParallelCurriculumService
         return $result;
     }
 
+    public function cleanupAfterConventionalUnpublish(
+        int $tenantId,
+        array $classArmIds,
+        int $termId
+    ): int {
+        if (
+            ! Schema::hasTable('parallel_curriculum_composites')
+            || ! Schema::hasTable('parallel_curriculum_integrations')
+            || ! Schema::hasTable('scores')
+        ) {
+            return 0;
+        }
+
+        $armIds = collect($classArmIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($armIds->isEmpty()) {
+            return 0;
+        }
+
+        $composites = ParallelCurriculumComposite::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('term_id', $termId)
+            ->whereIn('conventional_class_arm_id', $armIds)
+            ->get();
+
+        $cleaned = 0;
+
+        foreach ($composites as $composite) {
+            $integration = $composite->parallel_curriculum_integration_id
+                ? ParallelCurriculumIntegration::withoutTenantScope()
+                    ->where('tenant_id', $tenantId)
+                    ->find($composite->parallel_curriculum_integration_id)
+                : null;
+
+            if ($integration?->is_active) {
+                continue;
+            }
+
+            $this->clearDerivedScoresIfSafe($composite);
+
+            $composite->update([
+                'parallel_curriculum_integration_id' => null,
+                'destination_subject_id' => null,
+                'average_score' => null,
+                'subject_count' => 0,
+                'completed_subject_count' => 0,
+                'subject_breakdown' => [],
+                'sync_status' => 'unmapped',
+                'sync_message' => 'The conventional result-integration mapping is inactive.',
+                'computed_at' => now(),
+            ]);
+
+            $cleaned++;
+        }
+
+        return $cleaned;
+    }
+
     public function integrationHasPublishedDependencies(ParallelCurriculumIntegration $integration): bool
     {
         if (! Schema::hasTable('report_card_publications')) {
