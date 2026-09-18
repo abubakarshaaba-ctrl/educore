@@ -642,6 +642,189 @@ class MobileScoresAndResultsTest extends TestCase
         ]);
     }
 
+    public function test_student_api_returns_published_parallel_curriculum_result_and_locks_source_scores(): void
+    {
+        $school = $this->school();
+        $studentUser = $this->user($school['tenant'], 'student');
+        $teacher = $this->user($school['tenant'], 'subject_teacher');
+        $school['student']->update(['user_id' => $studentUser->id]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $templateId = DB::table('assessment_templates')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'name' => 'Parallel 40/60',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $caId = DB::table('assessment_template_components')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'assessment_template_id' => $templateId,
+            'name' => 'CA',
+            'weight_percentage' => 40,
+            'component_type' => 'continuous_assessment',
+            'entry_mode' => 'manual',
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $examId = DB::table('assessment_template_components')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'assessment_template_id' => $templateId,
+            'name' => 'Exam',
+            'weight_percentage' => 60,
+            'component_type' => 'exam',
+            'entry_mode' => 'manual',
+            'sort_order' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $curriculumId = DB::table('parallel_curricula')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'name' => 'Islamiyyah',
+            'code' => 'ISL',
+            'default_assessment_template_id' => $templateId,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $subjectId = DB::table('parallel_curriculum_subjects')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'name' => 'Qur\'an',
+            'code' => 'QRN',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $classId = DB::table('parallel_curriculum_classes')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'name' => 'Mutawassitah 1',
+            'code' => 'M1',
+            'sort_order' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('parallel_curriculum_class_subjects')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_class_id' => $classId,
+            'parallel_curriculum_subject_id' => $subjectId,
+            'teacher_id' => $teacher->id,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('parallel_curriculum_enrolments')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'parallel_curriculum_class_id' => $classId,
+            'student_id' => $school['student']->id,
+            'session_id' => $school['session']->id,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('parallel_curriculum_scores')->insert([
+            [
+                'tenant_id' => $school['tenant']->id,
+                'parallel_curriculum_id' => $curriculumId,
+                'parallel_curriculum_class_id' => $classId,
+                'student_id' => $school['student']->id,
+                'parallel_curriculum_subject_id' => $subjectId,
+                'assessment_template_component_id' => $caId,
+                'term_id' => $school['term']->id,
+                'session_id' => $school['session']->id,
+                'entered_by' => $teacher->id,
+                'score' => 35,
+                'entered_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => $school['tenant']->id,
+                'parallel_curriculum_id' => $curriculumId,
+                'parallel_curriculum_class_id' => $classId,
+                'student_id' => $school['student']->id,
+                'parallel_curriculum_subject_id' => $subjectId,
+                'assessment_template_component_id' => $examId,
+                'term_id' => $school['term']->id,
+                'session_id' => $school['session']->id,
+                'entered_by' => $teacher->id,
+                'score' => 48,
+                'entered_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('parallel_curriculum_grades')->insert([
+            [
+                'tenant_id' => $school['tenant']->id,
+                'parallel_curriculum_id' => $curriculumId,
+                'grade_letter' => 'A',
+                'min_score' => 70,
+                'max_score' => 100,
+                'remark' => 'Excellent',
+                'is_pass_grade' => true,
+                'sort_order' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => $school['tenant']->id,
+                'parallel_curriculum_id' => $curriculumId,
+                'grade_letter' => 'F',
+                'min_score' => 0,
+                'max_score' => 69.99,
+                'remark' => 'Needs improvement',
+                'is_pass_grade' => false,
+                'sort_order' => 2,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        DB::table('parallel_curriculum_report_publications')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'parallel_curriculum_class_id' => $classId,
+            'term_id' => $school['term']->id,
+            'status' => 'published',
+            'published_by' => $teacher->id,
+            'published_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withToken(ApiToken::issue($studentUser, 'student-parallel-results'))
+            ->getJson('/api/v1/student/results')
+            ->assertOk()
+            ->assertJsonCount(1, 'parallel_results')
+            ->assertJsonPath('parallel_results.0.result_type', 'parallel_curriculum')
+            ->assertJsonPath('parallel_results.0.curriculum', 'Islamiyyah')
+            ->assertJsonPath('parallel_results.0.class_name', 'Mutawassitah 1')
+            ->assertJsonPath('parallel_results.0.subjects.0.subject', 'Qur\'an')
+            ->assertJsonPath('parallel_results.0.subjects.0.grade', 'A');
+
+        $this->withToken(ApiToken::issue($teacher, 'teacher-parallel-lock'))
+            ->getJson("/api/v1/parallel-scores/sheet?class_arm_id={$classId}&subject_id={$subjectId}")
+            ->assertOk()
+            ->assertJsonPath('locked', true)
+            ->assertJsonPath("students.0.scores.{$caId}.locked", true);
+    }
+
     public function test_mobile_report_service_returns_only_published_summaries(): void
     {
         $school = $this->school();
