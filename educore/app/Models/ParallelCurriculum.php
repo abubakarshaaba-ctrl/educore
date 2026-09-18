@@ -42,6 +42,22 @@ class ParallelCurriculum extends BaseTenantModel
             ->orderBy('id');
     }
 
+    public function promotionRules(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumPromotionRule::class)
+            ->orderBy('source_class_id');
+    }
+
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumPromotion::class);
+    }
+
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumTransfer::class);
+    }
+
     public function reportPublications(): HasMany
     {
         return $this->hasMany(ParallelCurriculumReportPublication::class);
