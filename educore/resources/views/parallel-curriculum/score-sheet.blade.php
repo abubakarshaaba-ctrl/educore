@@ -21,6 +21,11 @@
 <div class="pc-tabs">
     <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
     <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
+    @if(auth()->user()->isSuperAdmin() || auth()->user()->canAccessExactModule('scores'))
+        <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
+        <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
+        <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
+    @endif
 </div>
 
 @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
