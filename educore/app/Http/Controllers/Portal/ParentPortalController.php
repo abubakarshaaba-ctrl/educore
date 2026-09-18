@@ -15,6 +15,7 @@ use App\Models\TermlySummary;
 use App\Models\AttendanceRecord;
 use App\Models\Invoice;
 use App\Models\Announcement;
+use App\Services\ParallelCurriculumResultService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -140,7 +141,24 @@ class ParentPortalController extends Controller
             }
         }
 
-        return view('portal.parent.results', compact('guardian', 'students', 'student', 'terms', 'termId', 'summary', 'assessmentTypes', 'rawScoresBySubject'));
+        $parallelResults = ($student && $termId)
+            ? app(ParallelCurriculumResultService::class)
+                ->publishedForStudent($student)
+                ->where('term_id', (int) $termId)
+                ->values()
+            : collect();
+
+        return view('portal.parent.results', compact(
+            'guardian',
+            'students',
+            'student',
+            'terms',
+            'termId',
+            'summary',
+            'assessmentTypes',
+            'rawScoresBySubject',
+            'parallelResults'
+        ));
     }
 
     // ── Fees ──────────────────────────────────────────────────────────
