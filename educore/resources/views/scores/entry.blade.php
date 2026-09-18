@@ -203,7 +203,7 @@
                         </td>
                     @elseif($sourceRecord?->is_source_locked && $sourceRecord?->score_source === \App\Services\ParallelCurriculumService::SCORE_SOURCE)
                         <td class="score-col">
-                            @if($sourceRecord->source_reference_id)
+                            @if(($parallelCurriculumEnabled ?? false) && $sourceRecord->source_reference_id)
                                 <a class="source-score" href="{{ route('parallel-curriculum.breakdown', $sourceRecord->source_reference_id) }}" title="Open the parallel curriculum composite and distribution">
                                     <span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}
                                 </a>
