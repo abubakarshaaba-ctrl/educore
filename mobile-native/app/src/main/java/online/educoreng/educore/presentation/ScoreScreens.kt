@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -386,7 +387,7 @@ internal fun ScoreSheetScreen(
                         sheet.assessments.forEach { assessment ->
                             val cell = student.scores[assessment.id]
                             Surface(
-                                modifier = Modifier.width(88.dp),
+                                modifier = Modifier.widthIn(min = 96.dp, max = 132.dp),
                                 shape = MaterialTheme.shapes.medium,
                                 color = EduCoreColors.Page50,
                                 border = BorderStroke(1.dp, EduCoreColors.Line200),
@@ -415,7 +416,7 @@ internal fun ScoreSheetScreen(
                                         enabled = !sheet.locked &&
                                             cell?.locked != true &&
                                             sheet.syncState == SyncState.NONE,
-                                        modifier = Modifier.width(70.dp),
+                                        modifier = Modifier.widthIn(min = 72.dp, max = 100.dp),
                                         singleLine = true,
                                         keyboardOptions = KeyboardOptions(
                                             keyboardType = KeyboardType.Decimal,
