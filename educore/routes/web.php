@@ -487,6 +487,22 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('broadsheet/pdf',    [ScoreController::class, 'broadsheetPdf'])->name('broadsheet.pdf');
     });
 
+    // ── Parallel Curriculum Integration ───────────────────────────────
+    Route::prefix('parallel-curriculum')->name('parallel-curriculum.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
+        Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
+        Route::post('classes', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClass'])->name('classes.store');
+        Route::post('class-subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClassSubject'])->name('class-subjects.store');
+        Route::delete('class-subjects/{assignment}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyClassSubject'])->name('class-subjects.destroy');
+        Route::post('enrolments', [\App\Http\Controllers\ParallelCurriculumController::class, 'assignStudents'])->name('enrolments.store');
+        Route::delete('enrolments/{enrolment}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyEnrolment'])->name('enrolments.destroy');
+        Route::post('integrations', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeIntegration'])->name('integrations.store');
+        Route::get('score-sheet', [\App\Http\Controllers\ParallelCurriculumController::class, 'scoreSheet'])->name('score-sheet');
+        Route::post('scores', [\App\Http\Controllers\ParallelCurriculumController::class, 'saveScores'])->name('scores.save');
+        Route::post('sync', [\App\Http\Controllers\ParallelCurriculumController::class, 'sync'])->name('sync');
+        Route::get('breakdown/{composite}', [\App\Http\Controllers\ParallelCurriculumController::class, 'breakdown'])->name('breakdown');
+    });
+
     // â”€â”€ Score Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('scores/import')->name('scores.import.')->group(function () {
         Route::get('/',          [\App\Http\Controllers\ScoreImportController::class, 'index'])->name('index');
