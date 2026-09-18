@@ -111,14 +111,26 @@ class ParallelCurriculumController extends Controller
                 'parallel_curriculum_class_arm_id'
             );
 
+        // Result/lifecycle migrations were introduced after the original
+        // parallel-curriculum schema. Keep the workspace renderable while a
+        // shared-host deployment is reconciling an older database instead of
+        // throwing a 500 merely because one optional table is still pending.
+        $gradingReady = Schema::hasTable('parallel_curriculum_grades');
+        $integrationReady = Schema::hasTable('parallel_curriculum_integrations');
+        $enrolmentReady = Schema::hasTable('parallel_curriculum_enrolments');
+        $compositeReady = Schema::hasTable('parallel_curriculum_composites');
+
         $curriculumRelations = [
             'defaultAssessmentTemplate',
-            'grades',
             'subjects',
             'classes.assessmentTemplate',
             'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
         ];
+
+        if ($gradingReady) {
+            $curriculumRelations[] = 'grades';
+        }
 
         if ($armLifecycleReady) {
             $curriculumRelations[] = 'classes.arms';
@@ -127,6 +139,13 @@ class ParallelCurriculumController extends Controller
         $curricula = ParallelCurriculum::with($curriculumRelations)
             ->orderBy('name')
             ->get();
+
+        if (! $gradingReady) {
+            $curricula->each(
+                fn (ParallelCurriculum $curriculum) =>
+                    $curriculum->setRelation('grades', collect())
+            );
+        }
 
         $workspaces = $curricula->flatMap(
             function (ParallelCurriculum $curriculum) use (
@@ -233,7 +252,7 @@ class ParallelCurriculumController extends Controller
                 ->values()
             : collect();
 
-        $integrations = $canManage
+        $integrations = ($canManage && $integrationReady)
             ? ParallelCurriculumIntegration::with([
                     'curriculum',
                     'destinationClassLevel',
@@ -245,7 +264,7 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $enrolments = collect();
-        if ($canManage && $currentSession) {
+        if ($canManage && $currentSession && $enrolmentReady) {
             $enrolmentRelations = [
                 'student.currentClassArm.classLevel',
                 'curriculumClass',
@@ -263,7 +282,7 @@ class ParallelCurriculumController extends Controller
                 ->get();
         }
 
-        $recentComposites = $currentTerm
+        $recentComposites = ($currentTerm && $compositeReady)
             ? ParallelCurriculumComposite::with([
                     'student',
                     'curriculum',
