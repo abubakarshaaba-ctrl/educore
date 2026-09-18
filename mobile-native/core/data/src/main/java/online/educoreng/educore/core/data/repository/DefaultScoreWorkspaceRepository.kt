@@ -40,8 +40,16 @@ class DefaultScoreWorkspaceRepository(
         val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
         when (val result = safeApiCall(moshi) { api.scoreAssignments() }) {
             is AppResult.Success -> {
-                cache(scope, ASSIGNMENTS_KEY, assignmentsAdapter.toJson(result.value))
-                AppResult.Success(result.value.toDomain())
+                val parallelAssignments = when (val parallel = safeApiCall(moshi) { api.parallelScoreAssignments() }) {
+                    is AppResult.Success -> parallel.value.assignments
+                    is AppResult.Failure -> emptyList()
+                }
+                val merged = result.value.copy(
+                    assignments = (result.value.assignments + parallelAssignments)
+                        .distinctBy { it.workspaceType + ":" + it.classId + ":" + it.subjectId },
+                )
+                cache(scope, ASSIGNMENTS_KEY, assignmentsAdapter.toJson(merged))
+                AppResult.Success(merged.toDomain())
             }
             is AppResult.Failure -> cached(scope, ASSIGNMENTS_KEY, assignmentsAdapter)?.let {
                 AppResult.Success(it.toDomain(fromCache = true))
@@ -49,21 +57,33 @@ class DefaultScoreWorkspaceRepository(
         }
     }
 
-    override suspend fun loadSheet(classId: Long, subjectId: Long, termId: Long?): AppResult<ScoreSheet> =
+    override suspend fun loadSheet(workspaceType: String, classId: Long, subjectId: Long, termId: Long?): AppResult<ScoreSheet> =
         withContext(Dispatchers.IO) {
             val scope = scope() ?: return@withContext AppResult.Failure(AppError.Unauthenticated())
-            val key = sheetKey(classId, subjectId, termId)
-            val dto = when (val result = safeApiCall(moshi) { api.scoreSheet(classId, subjectId, termId) }) {
+            val localClassId = localClassId(workspaceType, classId)
+            val key = sheetKey(workspaceType, classId, subjectId, termId)
+            val dto = when (val result = safeApiCall(moshi) {
+                if (workspaceType == PARALLEL_WORKSPACE) {
+                    api.parallelScoreSheet(classId, subjectId, termId)
+                } else {
+                    api.scoreSheet(classId, subjectId, termId)
+                }
+            }) {
                 is AppResult.Success -> {
                     cache(scope, key, sheetAdapter.toJson(result.value))
                     result.value
                 }
                 is AppResult.Failure -> cached(scope, key, sheetAdapter) ?: return@withContext result
             }
-            val drafts = database.scoreWorkspaceDao().drafts(scope.tenantKey, scope.userId, classId, subjectId, dto.term.id)
+            val drafts = database.scoreWorkspaceDao().drafts(scope.tenantKey, scope.userId, localClassId, subjectId, dto.term.id)
             val values = drafts.associate { (it.studentId to it.assessmentId) to it.value }
             val sheet = dto.toDomain(values, drafts.firstOrNull()?.serverVersion?.let { it != dto.version } == true)
-            val operation = database.syncOperationDao().get(scope.tenantKey, scope.userId, scoreKey(classId, subjectId, dto.term.id))
+                .copy(workspaceType = workspaceType)
+            val operation = database.syncOperationDao().get(
+                scope.tenantKey,
+                scope.userId,
+                scoreKey(workspaceType, classId, subjectId, dto.term.id),
+            )
             val syncState = when (operation?.state) {
                 "conflict" -> SyncState.CONFLICT
                 "failed" -> SyncState.FAILED
