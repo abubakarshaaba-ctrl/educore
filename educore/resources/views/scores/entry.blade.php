@@ -120,6 +120,9 @@
 @section('content')
 <div class="page-tabs">
     <a href="{{ route('scores.index') }}" class="page-tab">Score Entry</a>
+    @if($parallelCurriculumEnabled ?? false)
+    <a href="{{ route('parallel-curriculum.index') }}" class="page-tab">Parallel Curriculum</a>
+    @endif
     <a href="{{ route('scores.broadsheet') }}" class="page-tab">Broadsheet</a>
     <a href="{{ route('scores.assessment-types') }}" class="page-tab">Assessment Types</a>
 </div>
@@ -197,6 +200,23 @@
                                 <span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}
                             </a>
                             <span class="max-label">View breakdown</span>
+                        </td>
+                    @elseif($sourceRecord?->is_source_locked && $sourceRecord?->score_source === \App\Services\ParallelCurriculumService::SCORE_SOURCE)
+                        <td class="score-col">
+                            @if($sourceRecord->source_reference_id)
+                                <a class="source-score" href="{{ route('parallel-curriculum.breakdown', $sourceRecord->source_reference_id) }}" title="Open the parallel curriculum composite and distribution">
+                                    <span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}
+                                </a>
+                                <span class="max-label">Derived · View breakdown</span>
+                            @else
+                                <span class="source-score"><span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}</span>
+                                <span class="max-label">Derived from parallel curriculum</span>
+                            @endif
+                        </td>
+                    @elseif($sourceRecord?->is_source_locked)
+                        <td class="score-col">
+                            <span class="source-score"><span aria-hidden="true">🔒</span> {{ number_format((float) $sourceRecord->score, 1) }}</span>
+                            <span class="max-label">{{ ucfirst(str_replace('_',' ',(string)$sourceRecord->score_source)) }}</span>
                         </td>
                     @elseif($at->isSplit())
                         @php
