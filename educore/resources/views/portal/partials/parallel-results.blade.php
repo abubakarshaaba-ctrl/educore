@@ -72,7 +72,7 @@
         <article class="parallel-result-card">
             <div class="parallel-result-head">
                 <div class="parallel-result-title">
-                    <strong>{{ $parallelResult['curriculum'] ?: 'Parallel Curriculum' }} · {{ $parallelResult['class_name'] ?: 'Class' }}</strong>
+                    <strong>{{ $parallelResult['curriculum'] ?: 'Parallel Curriculum' }} · {{ $parallelResult['class_name'] ?: 'Class' }}@if(!empty($parallelResult['class_arm_name'])) · Arm {{ $parallelResult['class_arm_name'] }}@endif</strong>
                     <span>{{ $parallelResult['term'] ?: 'Term' }} · {{ $parallelResult['session'] ?: 'Academic Session' }}</span>
                 </div>
                 <div class="parallel-result-head-actions">
