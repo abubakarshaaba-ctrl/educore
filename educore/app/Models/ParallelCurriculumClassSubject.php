@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ParallelCurriculumClassSubject extends BaseTenantModel
 {
     protected $fillable = [
-        'tenant_id','parallel_curriculum_class_id','subject_id','teacher_id','is_active',
+        'tenant_id','parallel_curriculum_class_id','parallel_curriculum_subject_id','teacher_id','is_active',
     ];
 
     protected function casts(): array
@@ -22,7 +22,7 @@ class ParallelCurriculumClassSubject extends BaseTenantModel
 
     public function subject(): BelongsTo
     {
-        return $this->belongsTo(Subject::class);
+        return $this->belongsTo(ParallelCurriculumSubject::class, 'parallel_curriculum_subject_id');
     }
 
     public function teacher(): BelongsTo
