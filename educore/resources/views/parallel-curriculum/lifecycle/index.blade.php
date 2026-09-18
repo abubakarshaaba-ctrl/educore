@@ -80,6 +80,11 @@
 </div></section>
 
 <section class="card full"><div class="head"><div><strong>3. Arm-specific subject teachers</strong><br><span>Each class-level subject keeps its default teacher unless an arm override is selected here.</span></div></div><div class="body">
+@if(!$armTeacherOverridesReady)
+    <div class="alert-e" style="margin:0">
+        Arm-specific teacher overrides are waiting for the latest database migration. The rest of Parallel Curriculum remains available.
+    </div>
+@else
 @foreach($selectedCurriculum->classes as $class)
 <div class="level">
     <div class="rule"><strong>{{ $class->name }}</strong><span>{{ $class->arms->where('is_active',true)->count() }} active arm(s) · {{ $class->subjectAssignments->where('is_active',true)->count() }} active subject(s)</span></div>
@@ -121,6 +126,7 @@
     @endforelse
 </div>
 @endforeach
+@endif
 </div></section>
 
 <section class="card"><div class="head"><div><strong>4. Promotion rules</strong><br><span>Define pass criteria and the next parallel level.</span></div></div><div class="body">
