@@ -16,7 +16,7 @@
       @foreach($platformNotices as $broadcast)
       <div class="ann-item platform-notice">
         <div class="ann-title"><span class="pri platform-badge">Platform</span>{{ $broadcast->title }}</div>
-        <div class="ann-body">{{ $broadcast->body }}</div>
+        <div class="ann-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($broadcast->body) !!}</div>
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($broadcast->created_at)->format('d M Y, H:i') }}
           @if($broadcast->expires_at) · Expires: {{ \Carbon\Carbon::parse($broadcast->expires_at)->format('d M Y, H:i') }}@endif
@@ -37,7 +37,7 @@
           @if($ann->priority!=='normal')<span class="pri pri-{{ $ann->priority }}">{{ ucfirst($ann->priority) }}</span>@endif
           {{ $ann->title }}
         </div>
-        <div class="ann-body">{{ $ann->body }}</div>
+        <div class="ann-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($ann->body) !!}</div>
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($ann->publish_date)->format('d M Y') }}
           · For: {{ ucfirst($ann->audience) }}
@@ -58,7 +58,7 @@
         <form method="POST" action="{{ route('announcements.store') }}">
           @csrf
           <div class="fg"><label class="fl">Title *</label><input type="text" name="title" class="fc" required></div>
-          <div class="fg"><label class="fl">Message *</label><textarea name="body" class="fc" rows="4" required></textarea></div>
+          <div class="fg"><label class="fl">Message *</label><x-rich-text-toolbar target="announcementBody" /><textarea id="announcementBody" name="body" class="fc edu-rich-target" rows="6" required></textarea></div>
           <div class="fg"><label class="fl">For *</label>
             <select name="audience" class="fc"><option value="all">All (Staff + Parents)</option><option value="staff">Staff Only</option><option value="students">Students</option><option value="parents">Parents Only</option></select>
           </div>
