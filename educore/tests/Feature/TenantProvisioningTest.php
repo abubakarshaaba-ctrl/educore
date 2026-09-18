@@ -52,6 +52,7 @@ class TenantProvisioningTest extends TestCase
         $this->assertFalse((bool) $admin->is_super_admin);
         $this->assertTrue((bool) $admin->is_active);
         $this->assertSame(User::STAFF_STATUS_ACTIVE, $admin->employment_status);
+        $this->assertSame('STF1001', $admin->staff_id);
         $this->assertTrue($admin->hasRole('admin'));
         $this->assertSame(1, StaffWorkHistory::withoutTenantScope()->where('user_id', $admin->id)->whereNull('end_date')->count());
         // New tenants start on the pay-per-student free tier — no legacy
