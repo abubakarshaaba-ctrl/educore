@@ -110,50 +110,171 @@ return new class extends Migration
         }
 
         if ($legacyClassSubjects) {
-            Schema::table('parallel_curriculum_class_subjects', function (Blueprint $table): void {
-                $table->dropForeign('fk_pc_cs_subject');
-                $table->dropUnique('uq_pc_class_subject');
-            });
+            // This migration may be retried after a shared-host deployment was
+            // interrupted mid-DDL. Drop only constraints/indexes that still
+            // exist, then remove the legacy conventional-subject column.
+            $this->dropForeignKeyIfExists(
+                'parallel_curriculum_class_subjects',
+                'fk_pc_cs_subject'
+            );
+            $this->dropUniqueIndexIfExists(
+                'parallel_curriculum_class_subjects',
+                'uq_pc_class_subject'
+            );
 
-            Schema::table('parallel_curriculum_class_subjects', function (Blueprint $table): void {
-                $table->dropColumn('subject_id');
-            });
-
-            Schema::table('parallel_curriculum_class_subjects', function (Blueprint $table): void {
-                $table->foreign('parallel_curriculum_subject_id', 'fk_pc_cs_subject')
-                    ->references('id')->on('parallel_curriculum_subjects')->cascadeOnDelete();
-                $table->unique(
-                    ['parallel_curriculum_class_id', 'parallel_curriculum_subject_id'],
-                    'uq_pc_class_subject'
-                );
-            });
+            if (Schema::hasColumn('parallel_curriculum_class_subjects', 'subject_id')) {
+                Schema::table('parallel_curriculum_class_subjects', function (Blueprint $table): void {
+                    $table->dropColumn('subject_id');
+                });
+            }
         }
 
         if ($legacyScores) {
-            Schema::table('parallel_curriculum_scores', function (Blueprint $table): void {
-                $table->dropForeign('fk_pc_score_subject');
-                $table->dropUnique('uq_pc_score_cell');
-            });
+            $this->dropForeignKeyIfExists(
+                'parallel_curriculum_scores',
+                'fk_pc_score_subject'
+            );
+            $this->dropUniqueIndexIfExists(
+                'parallel_curriculum_scores',
+                'uq_pc_score_cell'
+            );
 
-            Schema::table('parallel_curriculum_scores', function (Blueprint $table): void {
-                $table->dropColumn('subject_id');
-            });
-
-            Schema::table('parallel_curriculum_scores', function (Blueprint $table): void {
-                $table->foreign('parallel_curriculum_subject_id', 'fk_pc_score_subject')
-                    ->references('id')->on('parallel_curriculum_subjects')->cascadeOnDelete();
-                $table->unique(
-                    [
-                        'parallel_curriculum_id',
-                        'student_id',
-                        'parallel_curriculum_subject_id',
-                        'assessment_template_component_id',
-                        'term_id',
-                    ],
-                    'uq_pc_score_cell'
-                );
-            });
+            if (Schema::hasColumn('parallel_curriculum_scores', 'subject_id')) {
+                Schema::table('parallel_curriculum_scores', function (Blueprint $table): void {
+                    $table->dropColumn('subject_id');
+                });
+            }
         }
+
+        // Re-create the new constraints even when a previous migration attempt
+        // already removed subject_id before failing. That makes this migration
+        // safely restartable instead of trapping production in a partial schema.
+        $this->ensureForeignKey(
+            'parallel_curriculum_class_subjects',
+            'parallel_curriculum_subject_id',
+            'fk_pc_cs_subject',
+            'parallel_curriculum_subjects'
+        );
+        $this->ensureUniqueIndex(
+            'parallel_curriculum_class_subjects',
+            'uq_pc_class_subject',
+            ['parallel_curriculum_class_id', 'parallel_curriculum_subject_id']
+        );
+
+        $this->ensureForeignKey(
+            'parallel_curriculum_scores',
+            'parallel_curriculum_subject_id',
+            'fk_pc_score_subject',
+            'parallel_curriculum_subjects'
+        );
+        $this->ensureUniqueIndex(
+            'parallel_curriculum_scores',
+            'uq_pc_score_cell',
+            [
+                'parallel_curriculum_id',
+                'student_id',
+                'parallel_curriculum_subject_id',
+                'assessment_template_component_id',
+                'term_id',
+            ]
+        );
+    }
+
+    private function foreignKeyExists(string $table, string $name): bool
+    {
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        foreach (Schema::getForeignKeys($table) as $foreignKey) {
+            if (($foreignKey['name'] ?? null) === $name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function indexExists(string $table, string $name): bool
+    {
+        if (! Schema::hasTable($table)) {
+            return false;
+        }
+
+        foreach (Schema::getIndexes($table) as $index) {
+            if (($index['name'] ?? null) === $name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function dropForeignKeyIfExists(string $tableName, string $name): void
+    {
+        if (! $this->foreignKeyExists($tableName, $name)) {
+            return;
+        }
+
+        Schema::table($tableName, function (Blueprint $table) use ($name): void {
+            $table->dropForeign($name);
+        });
+    }
+
+    private function dropUniqueIndexIfExists(string $tableName, string $name): void
+    {
+        if (! $this->indexExists($tableName, $name)) {
+            return;
+        }
+
+        Schema::table($tableName, function (Blueprint $table) use ($name): void {
+            $table->dropUnique($name);
+        });
+    }
+
+    private function ensureForeignKey(
+        string $tableName,
+        string $column,
+        string $name,
+        string $referencedTable,
+    ): void {
+        if (
+            ! Schema::hasTable($tableName)
+            || ! Schema::hasColumn($tableName, $column)
+            || $this->foreignKeyExists($tableName, $name)
+        ) {
+            return;
+        }
+
+        Schema::table(
+            $tableName,
+            function (Blueprint $table) use ($column, $name, $referencedTable): void {
+                $table->foreign($column, $name)
+                    ->references('id')
+                    ->on($referencedTable)
+                    ->cascadeOnDelete();
+            }
+        );
+    }
+
+    private function ensureUniqueIndex(
+        string $tableName,
+        string $name,
+        array $columns,
+    ): void {
+        if (! Schema::hasTable($tableName) || $this->indexExists($tableName, $name)) {
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if (! Schema::hasColumn($tableName, $column)) {
+                return;
+            }
+        }
+
+        Schema::table($tableName, function (Blueprint $table) use ($columns, $name): void {
+            $table->unique($columns, $name);
+        });
     }
 
     private function parallelSubjectId(
