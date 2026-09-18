@@ -247,6 +247,28 @@
     line-height: 1.5;
 }
 
+/* Compact structure editing */
+.pc-edit-details{flex:0 0 auto;min-width:132px}
+.pc-edit-details summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--midnight);font-size:12px;font-weight:700;user-select:none}
+.pc-edit-details summary::-webkit-details-marker{display:none}
+.pc-edit-details[open] summary{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(215,154,33,.12)}
+.pc-edit-panel{width:min(520px,72vw);margin-top:8px;padding:12px;border:1px solid var(--border);border-radius:10px;background:#F8FAFC;box-shadow:var(--shadow);position:relative;z-index:2}
+.pc-edit-panel .form-row{margin-bottom:0}
+.pc-structure-group{padding:10px 0;border-bottom:1px solid #EEF2F7}
+.pc-structure-group:last-child{border-bottom:0}
+.pc-structure-label{margin:8px 0 4px;font-size:11.5px;font-weight:800;color:var(--slate);text-transform:uppercase;letter-spacing:.035em}
+.pc-structure-child{padding:8px 0 8px 12px;border-left:2px solid #EEF2F7}
+.pc-structure-child-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pc-structure-child-title{min-width:0;flex:1}
+.pc-structure-child-title strong{display:block;font-size:12.5px;color:var(--midnight);line-height:1.4}
+.pc-structure-child-title span{display:block;margin-top:2px;font-size:11.5px;color:var(--slate-light);line-height:1.4}
+@media(max-width:640px){
+    .pc-edit-details{width:100%;min-width:0}
+    .pc-edit-details summary{width:100%;min-height:42px}
+    .pc-edit-panel{width:100%}
+    .pc-structure-child{padding-left:8px}
+}
+
 /* Student assignment workspace */
 .pc-assign .students th,
 .pc-results .results-table th,
