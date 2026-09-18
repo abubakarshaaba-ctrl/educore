@@ -42,6 +42,7 @@
             <button type="button" class="settings-tab" data-settings-tab="contact">Contact & Location</button>
             <button type="button" class="settings-tab" data-settings-tab="branding">Branding</button>
             <button type="button" class="settings-tab" data-settings-tab="week">School Week</button>
+            <button type="button" class="settings-tab" data-settings-tab="parallel">Parallel Curriculum</button>
             @if($_portalBase)<button type="button" class="settings-tab" data-settings-tab="links">Portal Links</button>@endif
         </div>
     </div>
@@ -112,6 +113,41 @@
                 <div class="settings-card-body">
                     <div class="school-days">@foreach(($schoolDayLabels ?? \App\Services\SchoolWeekService::DAY_LABELS) as $dayNumber=>$dayLabel)<label class="school-day"><input type="checkbox" name="school_open_days[]" value="{{ $dayNumber }}" {{ in_array((int)$dayNumber,$selectedSchoolDays,true) ? 'checked' : '' }}><span>{{ $dayLabel }}</span></label>@endforeach</div>
                     <div class="section-note">At least one day must remain selected. Closed days do not permit routine attendance clock-in; administrators can still make manual corrections when necessary.</div>
+                </div>
+            </section>
+        </div>
+
+        <div class="settings-panel" data-settings-panel="parallel">
+            <section class="settings-card">
+                <div class="settings-card-head">
+                    <h3>Parallel Curriculum Integration</h3>
+                    <p>Optional support for schools that run a second curriculum alongside the conventional programme, such as Islamiyyah, Arabic, Montessori, Cambridge or vocational programmes.</p>
+                </div>
+                <div class="settings-card-body">
+                    @php($parallelEnabled = old('parallel_curriculum_enabled', $settingValue('parallel_curriculum_enabled','0')) == '1')
+                    <label style="display:flex;align-items:flex-start;gap:10px;padding:13px;border:1px solid #DDE3EC;border-radius:10px;background:#FAFBFD;cursor:pointer">
+                        <input type="hidden" name="parallel_curriculum_enabled" value="0">
+                        <input type="checkbox" name="parallel_curriculum_enabled" value="1" {{ $parallelEnabled ? 'checked' : '' }} style="width:17px;height:17px;margin-top:1px;accent-color:#D79A21">
+                        <span>
+                            <strong style="display:block;color:#071E45;font-size:12px">Enable Parallel Curriculum Integration</strong>
+                            <span class="hint" style="display:block;margin-top:4px">When disabled, EduCore behaves exactly as before and parallel-curriculum controls stay out of the normal academic workflow.</span>
+                        </span>
+                    </label>
+
+                    <div class="section-note">
+                        Parallel classes are independent from conventional classes. A learner can therefore belong to JSS 2A conventionally and Mutawassitah 1B in a second curriculum. Completed parallel-subject results can be averaged and distributed into a locked conventional destination subject using that conventional class level's assigned Assessment Template.
+                    </div>
+
+                    @if($settingValue('parallel_curriculum_enabled','0') === '1')
+                        <div style="margin-top:13px">
+                            <a href="{{ route('parallel-curriculum.index') }}" class="portal-link" style="max-width:420px">
+                                <span>Academic configuration</span>
+                                <strong>Open Parallel Curriculum Workspace →</strong>
+                            </a>
+                        </div>
+                    @else
+                        <div class="hint" style="margin-top:10px">Save this setting after enabling it. The configuration workspace will then become available.</div>
+                    @endif
                 </div>
             </section>
         </div>
