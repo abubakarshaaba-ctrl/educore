@@ -99,6 +99,12 @@ data class PublishedResult(
     val formTutorRemark: String?,
     val principalRemark: String?,
     val subjects: List<ResultSubject>,
+    val resultType: String = "conventional",
+    val curriculumName: String? = null,
+    val resultClassName: String? = null,
+    val maximumTotal: Double? = null,
+    val publicationStatus: String? = null,
+    val publishedAt: String? = null,
 )
 
 data class PublishedResults(
@@ -106,4 +112,5 @@ data class PublishedResults(
     val admissionNumber: String?,
     val className: String?,
     val results: List<PublishedResult>,
+    val parallelResults: List<PublishedResult> = emptyList(),
 )
