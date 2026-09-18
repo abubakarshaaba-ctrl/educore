@@ -213,9 +213,15 @@ class User extends Authenticatable
         'curriculum' => ['curriculum'],
 
         // ── Scores (write vs read-only) ───────────────────────────────
-        'scores' => ['scores'],          // full score access
-        'scores.entry' => ['scores.index', 'scores.entry', 'scores.save', 'scores.import'], // enter+save only
-        'scores.view' => ['scores.index', 'scores.broadsheet'],   // read-only
+        'scores' => ['scores', 'parallel-curriculum'],          // full score access, including parallel-curriculum management
+        'scores.entry' => [
+            'scores.index', 'scores.entry', 'scores.save', 'scores.import',
+            'parallel-curriculum.index', 'parallel-curriculum.score-sheet',
+            'parallel-curriculum.scores.save', 'parallel-curriculum.breakdown',
+        ], // enter+save assigned conventional/parallel scores only
+        'scores.view' => [
+            'scores.index', 'scores.broadsheet', 'parallel-curriculum.breakdown',
+        ],   // read-only score access and derived-score provenance
 
         // ── Timetable (view vs manage) ────────────────────────────────
         'timetable' => ['timetable'],       // full timetable access
