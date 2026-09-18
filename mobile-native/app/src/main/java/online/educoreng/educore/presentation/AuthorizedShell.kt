@@ -67,6 +67,7 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 import online.educoreng.educore.notification.NotificationDeepLinkStore
 
 @Composable
@@ -369,8 +370,15 @@ internal fun AuthorizedShell(
                                 },
                                 onOpenScores = { selectedClassId, subjectId ->
                                     val termId = session.academicPeriod.termId
-                                    scoresViewModel.openSheet(selectedClassId, subjectId, termId)
-                                    navController.navigate("native/scores/$selectedClassId/$subjectId/${termId ?: 0}")
+                                    scoresViewModel.openSheet(
+                                        selectedClassId,
+                                        subjectId,
+                                        termId,
+                                        SCORE_WORKSPACE_CONVENTIONAL,
+                                    )
+                                    navController.navigate(
+                                        "native/scores/$SCORE_WORKSPACE_CONVENTIONAL/$selectedClassId/$subjectId/${termId ?: 0}"
+                                    )
                                 },
                                 onOpenSchedule = { selectedClassId ->
                                     scheduleViewModel.load(classId = selectedClassId)
@@ -420,8 +428,15 @@ internal fun AuthorizedShell(
                                 state = scoresState,
                                 onSearch = scoresViewModel::setSearch,
                                 onOpen = { assignment, termId ->
-                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId)
-                                    navController.navigate("native/scores/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}")
+                                    scoresViewModel.openSheet(
+                                        assignment.classId,
+                                        assignment.subjectId,
+                                        termId,
+                                        assignment.workspaceType,
+                                    )
+                                    navController.navigate(
+                                        "native/scores/${assignment.workspaceType}/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}"
+                                    )
                                 },
                                 onRetry = scoresViewModel::loadAssignments,
                             )
@@ -429,12 +444,14 @@ internal fun AuthorizedShell(
                         composable(
                             route = NativeRoute.SCORE_SHEET,
                             arguments = listOf(
+                                navArgument("workspaceType") { type = NavType.StringType },
                                 navArgument("classId") { type = NavType.LongType },
                                 navArgument("subjectId") { type = NavType.LongType },
                                 navArgument("termId") { type = NavType.LongType },
                             ),
                         ) { entry ->
                             val arguments = requireNotNull(entry.arguments)
+                            val workspaceType = arguments.getString("workspaceType") ?: SCORE_WORKSPACE_CONVENTIONAL
                             val classId = arguments.getLong("classId")
                             val subjectId = arguments.getLong("subjectId")
                             val termId = arguments.getLong("termId").takeIf { it > 0 }
@@ -444,7 +461,7 @@ internal fun AuthorizedShell(
                                 onValue = scoresViewModel::updateScore,
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
-                                onRetry = { scoresViewModel.openSheet(classId, subjectId, termId) },
+                                onRetry = { scoresViewModel.openSheet(classId, subjectId, termId, workspaceType) },
                             )
                         }
                         composable(
@@ -621,7 +638,7 @@ private object NativeRoute {
     const val ATTENDANCE = "native/classes/{classId}/attendance"
     const val STAFF_ATTENDANCE = "native/staff-attendance"
     const val SCORES = "native/scores"
-    const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
+    const val SCORE_SHEET = "native/scores/{workspaceType}/{classId}/{subjectId}/{termId}"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
