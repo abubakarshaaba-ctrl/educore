@@ -233,6 +233,41 @@
     </section>
 
     <section class="pc-panel">
+        <div class="pc-head">
+            <span>3. Import assignments from CSV or Excel</span>
+            <a class="btn btn-s" href="{{ route('parallel-curriculum.student-assignments.template') }}">Download Template</a>
+        </div>
+        <div class="pc-body">
+            @if($selectedCurriculum && $session)
+                <form method="POST" action="{{ route('parallel-curriculum.student-assignments.import') }}" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+                    <div class="destination-grid">
+                        <div class="fg">
+                            <label class="fl">Destination session</label>
+                            <select class="fc" name="session_id" required>
+                                @foreach($sessions as $item)
+                                    <option value="{{ $item->id }}" @selected((int)$item->id === (int)$session->id)>{{ $item->name }}{{ $item->is_current ? ' · Current' : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="fg">
+                            <label class="fl">Assignment file</label>
+                            <input class="fc" type="file" name="assignment_file" accept=".csv,.txt,.xls,.xlsx" required>
+                        </div>
+                    </div>
+                    <div class="hint" style="margin:3px 0 10px">
+                        Required columns: <strong>admission_number</strong> and <strong>parallel_class</strong>. The class value can be the exact parallel class name or class code. Import is validated before any assignment is written, so a bad row will not partially update the programme.
+                    </div>
+                    <button class="btn btn-p" type="submit">Import Student Assignments</button>
+                </form>
+            @else
+                <div class="empty">Select a parallel programme and academic session before importing assignments.</div>
+            @endif
+        </div>
+    </section>
+
+    <section class="pc-panel">
         <div class="pc-head">How this placement works</div>
         <div class="pc-body">
             <div class="hint">
