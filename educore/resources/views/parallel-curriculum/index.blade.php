@@ -15,6 +15,10 @@
 </style>
 @endpush
 
+@push('styles')
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
 @section('content')
 <div class="pc-shell">
     @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
