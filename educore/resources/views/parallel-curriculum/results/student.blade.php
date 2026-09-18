@@ -16,6 +16,10 @@
 </style>
 @endpush
 
+@push('styles')
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
 @section('content')
 @php($row=$report['student_result'])
 <div class="pc-result">
