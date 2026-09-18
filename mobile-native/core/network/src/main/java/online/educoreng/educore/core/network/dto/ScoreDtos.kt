@@ -116,15 +116,22 @@ data class PublishedResultDto(
     @param:Json(name = "class_size") val classSize: Int? = null,
     @param:Json(name = "subjects_offered") val subjectsOffered: Int,
     @param:Json(name = "subjects_failed") val subjectsFailed: Int,
-    @param:Json(name = "promotion_status") val promotionStatus: String,
+    @param:Json(name = "promotion_status") val promotionStatus: String = "",
     @param:Json(name = "form_tutor_remark") val formTutorRemark: String? = null,
     @param:Json(name = "principal_remark") val principalRemark: String? = null,
     val subjects: List<ResultSubjectDto> = emptyList(),
+    @param:Json(name = "result_type") val resultType: String = "conventional",
+    @param:Json(name = "curriculum") val curriculumName: String? = null,
+    @param:Json(name = "class_name") val resultClassName: String? = null,
+    @param:Json(name = "maximum_total") val maximumTotal: Double? = null,
+    @param:Json(name = "publication_status") val publicationStatus: String? = null,
+    @param:Json(name = "published_at") val publishedAt: String? = null,
 )
 
 data class PublishedResultsResponseDto(
     val student: ResultStudentDto? = null,
     val results: List<PublishedResultDto> = emptyList(),
+    @param:Json(name = "parallel_results") val parallelResults: List<PublishedResultDto> = emptyList(),
 )
 
 fun ScoreAssignmentsResponseDto.toDomain(fromCache: Boolean = false) = ScoreAssignments(
@@ -152,14 +159,39 @@ fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = empt
 )
 
 fun PublishedResultsResponseDto.toDomain() = PublishedResults(
-    studentName = student?.name, admissionNumber = student?.admissionNumber, className = student?.classRoom?.name,
-    results = results.map { result ->
-        PublishedResult(
-            result.id, result.term, result.session, result.average, result.totalScore, result.position, result.classSize,
-            result.subjectsOffered, result.subjectsFailed, result.promotionStatus, result.formTutorRemark, result.principalRemark,
-            result.subjects.map { subject ->
-                ResultSubject(subject.name, subject.assessments.map { ResultAssessment(it.name, it.score, it.maximum) }, subject.total, subject.grade, subject.remark)
-            },
+    studentName = student?.name,
+    admissionNumber = student?.admissionNumber,
+    className = student?.classRoom?.name,
+    results = results.map(PublishedResultDto::toDomain),
+    parallelResults = parallelResults.map(PublishedResultDto::toDomain),
+)
+
+private fun PublishedResultDto.toDomain() = PublishedResult(
+    id = id,
+    term = term,
+    session = session,
+    average = average,
+    totalScore = totalScore,
+    position = position,
+    classSize = classSize,
+    subjectsOffered = subjectsOffered,
+    subjectsFailed = subjectsFailed,
+    promotionStatus = promotionStatus,
+    formTutorRemark = formTutorRemark,
+    principalRemark = principalRemark,
+    subjects = subjects.map { subject ->
+        ResultSubject(
+            subject.name,
+            subject.assessments.map { ResultAssessment(it.name, it.score, it.maximum) },
+            subject.total,
+            subject.grade,
+            subject.remark,
         )
     },
+    resultType = resultType,
+    curriculumName = curriculumName,
+    resultClassName = resultClassName,
+    maximumTotal = maximumTotal,
+    publicationStatus = publicationStatus,
+    publishedAt = publishedAt,
 )
