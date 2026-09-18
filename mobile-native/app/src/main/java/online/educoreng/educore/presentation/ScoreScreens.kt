@@ -300,7 +300,12 @@ private fun PublishedResultCard(result: PublishedResult, parallel: Boolean) {
                     )
                     Text(
                         if (parallel) {
-                            listOfNotNull(result.resultClassName, result.term, result.session).joinToString(" · ")
+                            listOfNotNull(
+                                result.resultClassName,
+                                result.resultClassArmName?.let { "Arm " + it },
+                                result.term,
+                                result.session,
+                            ).joinToString(" · ")
                         } else {
                             result.session.orEmpty()
                         },
