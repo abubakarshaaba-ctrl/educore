@@ -496,6 +496,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
         Route::post('classes', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClass'])->name('classes.store');
         Route::post('subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeSubject'])->name('subjects.store');
+        Route::post('grades', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeGrade'])->name('grades.store');
+        Route::delete('grades/{grade}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyGrade'])->name('grades.destroy');
         Route::post('class-subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClassSubject'])->name('class-subjects.store');
         Route::delete('class-subjects/{assignment}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyClassSubject'])->name('class-subjects.destroy');
         Route::post('enrolments', [\App\Http\Controllers\ParallelCurriculumController::class, 'assignStudents'])->name('enrolments.store');
