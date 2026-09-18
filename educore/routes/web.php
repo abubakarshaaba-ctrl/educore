@@ -498,6 +498,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('lifecycle/class-grades', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeClassGrade'])->name('lifecycle.grades.store');
         Route::delete('lifecycle/class-grades/{grade}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'destroyClassGrade'])->name('lifecycle.grades.destroy');
         Route::post('lifecycle/promotion-rules', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storePromotionRule'])->name('lifecycle.promotion-rules.store');
+        Route::post('lifecycle/arm-teachers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArmTeacher'])->name('lifecycle.arm-teachers.store');
         Route::post('lifecycle/promotions/execute', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'executePromotion'])->name('lifecycle.promotions.execute');
         Route::post('lifecycle/transfers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'transfer'])->name('lifecycle.transfers.store');
         Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
