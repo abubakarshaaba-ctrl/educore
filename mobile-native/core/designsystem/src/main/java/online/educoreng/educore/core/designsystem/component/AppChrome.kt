@@ -198,7 +198,7 @@ fun EduCorePageHeader(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    compactActions: Boolean = false,
+    compactActions: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     // Page-level arrow buttons are intentionally suppressed across the native
@@ -214,7 +214,7 @@ fun EduCorePageHeader(
         border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm)) {
-            if (maxWidth < 520.dp && compactActions) {
+            if (maxWidth < 600.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PageHeaderIdentity(title, subtitle)
