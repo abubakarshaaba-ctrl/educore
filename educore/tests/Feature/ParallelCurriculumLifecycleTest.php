@@ -165,6 +165,49 @@ class ParallelCurriculumLifecycleTest extends TestCase
         ]));
     }
 
+    public function test_conventional_publication_locks_parallel_class_structure(): void
+    {
+        $fixture = $this->mappingFixture();
+        $service = app(ParallelCurriculumService::class);
+
+        $this->assertFalse(
+            $service->classStructureLocked($fixture['parallelClass'])
+        );
+
+        ReportCardPublication::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_arm_id' => $fixture['classArm']->id,
+            'term_id' => $fixture['term']->id,
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $this->assertTrue(
+            $service->classStructureLocked($fixture['parallelClass'])
+        );
+    }
+
+    public function test_structure_reconciliation_clears_stale_unpublished_derived_score(): void
+    {
+        $fixture = $this->mappingFixture();
+
+        $summary = app(ParallelCurriculumService::class)
+            ->reconcileClassStructure($fixture['parallelClass']);
+
+        $this->assertDatabaseMissing('scores', [
+            'id' => $fixture['score']->id,
+        ]);
+
+        $this->assertSame(0, $summary['locked']);
+        $this->assertSame(1, array_sum([
+            $summary['synced'],
+            $summary['pending'],
+            $summary['conflict'],
+            $summary['unmapped'],
+            $summary['skipped'],
+        ]));
+    }
+
     public function test_destination_subject_must_be_offered_when_master_curriculum_rules_exist(): void
     {
         $fixture = $this->mappingFixture();
