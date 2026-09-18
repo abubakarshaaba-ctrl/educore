@@ -474,6 +474,7 @@ internal fun AuthorizedShell(
                                 state = scoresState,
                                 onBack = navController::popBackStack,
                                 onRetry = { scoresViewModel.loadResults() },
+                                onChild = scoresViewModel::loadResults,
                             )
                         }
                         composable(
