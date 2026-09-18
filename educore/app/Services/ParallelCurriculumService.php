@@ -42,22 +42,6 @@ class ParallelCurriculumService
 
     public function componentsForClass(ParallelCurriculumClass $class): Collection
     {
-        if (! $force && ! $integration->auto_sync) {
-            return $this->persistStatus(
-                $existingComposite,
-                $enrolment,
-                $term,
-                $conventionalArm,
-                $integration,
-                null,
-                0,
-                0,
-                [],
-                'pending',
-                'Composite auto-sync is disabled for this conventional class-level mapping.'
-            );
-        }
-
         $template = $this->templateForClass($class);
         if (! $template) {
             return collect();
@@ -170,6 +154,22 @@ class ParallelCurriculumService
             $this->clearDerivedScoresIfSafe($composite);
 
             return $composite;
+        }
+
+        if (! $force && ! $integration->auto_sync) {
+            return $this->persistStatus(
+                $existingComposite,
+                $enrolment,
+                $term,
+                $conventionalArm,
+                $integration,
+                null,
+                0,
+                0,
+                [],
+                'pending',
+                'Composite auto-sync is disabled for this conventional class-level mapping.'
+            );
         }
 
         $template = $this->templateForClass($class);
