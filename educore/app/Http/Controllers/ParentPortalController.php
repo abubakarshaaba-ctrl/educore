@@ -9,6 +9,7 @@ use App\Models\Announcement;
 use App\Models\ParentPortalAccount;
 use App\Models\Guardian;
 use App\Services\ParallelCurriculumResultService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -155,6 +156,12 @@ class ParentPortalController extends Controller
                 ->publishedForStudent($student)
                 ->where('term_id', (int) $termId)
                 ->values()
+                ->map(fn (array $result) => $result + [
+                    'pdf_url' => route('portal.parent.parallel-results.pdf', [
+                        'publication' => $result['id'],
+                        'student_id' => $student->id,
+                    ]),
+                ])
             : collect();
 
         return view('parent.results', compact(
@@ -166,6 +173,30 @@ class ParentPortalController extends Controller
             'termId',
             'parallelResults'
         ));
+    }
+
+    public function parallelResultPdf(Request $request, int $publication)
+    {
+        $account = $this->getAccount();
+        $students = $this->studentsForAccount($account);
+        $student = $this->resolveStudent($request, $students);
+
+        abort_unless($student, 404, 'No student selected.');
+
+        $report = app(ParallelCurriculumResultService::class)
+            ->publishedReportForStudent($student, $publication);
+
+        abort_unless($report, 404, 'This published parallel curriculum result is unavailable.');
+
+        $filename = str($student->admission_number ?: $student->full_name)
+            ->slug('_')
+            ->append('_', str($report['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
+            ->append('_result.pdf')
+            ->toString();
+
+        return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
     }
 
     // ── Fees ──────────────────────────────────────────────────────────
