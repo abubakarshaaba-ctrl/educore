@@ -72,8 +72,10 @@
             @endif
             @if($report['grades']->isEmpty())
                 <div class="note warning">No grading scale is configured for {{ $report['curriculum']?->name }}. Add grade bands in the Parallel Curriculum workspace before publishing.</div>
+            @elseif(!$report['grading_scale_complete'])
+                <div class="note warning">The grading scale does not cover the full 0–100 range. Close all gaps before publishing results.</div>
             @elseif($report['ungraded_subject_results_count'] > 0)
-                <div class="note warning">{{ $report['ungraded_subject_results_count'] }} completed subject result(s) do not resolve to a grade. Review the grading ranges for gaps.</div>
+                <div class="note warning">{{ $report['ungraded_subject_results_count'] }} completed subject result(s) do not resolve to a grade. Review the grading ranges.</div>
             @endif
             @if($report['complete_students_count'] < $report['students_count'])
                 <div class="note warning">{{ $report['students_count'] - $report['complete_students_count'] }} student result(s) are incomplete. Publication remains blocked until all active subjects are complete.</div>
