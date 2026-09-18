@@ -739,9 +739,9 @@ class ParallelCurriculumController extends Controller
 
         return response()->streamDownload(function (): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['admission_number', 'parallel_class']);
-            fputcsv($handle, ['STU001', 'Mutawassitah 1']);
-            fputcsv($handle, ['STU002', 'Mutawassitah 2']);
+            fputcsv($handle, ['admission_number', 'parallel_class', 'parallel_arm']);
+            fputcsv($handle, ['STU001', 'Mutawassitah 1', 'A']);
+            fputcsv($handle, ['STU002', 'Mutawassitah 2', 'B']);
             fclose($handle);
         }, 'parallel_curriculum_student_assignment_template.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -767,7 +767,14 @@ class ParallelCurriculumController extends Controller
         ]);
 
         $curriculum = ParallelCurriculum::with([
-            'classes' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
+            'classes' => fn ($query) => $query
+                ->where('is_active', true)
+                ->with(['arms' => fn ($armQuery) => $armQuery
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')])
+                ->orderBy('sort_order')
+                ->orderBy('name'),
         ])->findOrFail($data['parallel_curriculum_id']);
 
         abort_unless($curriculum->is_active, 422, 'This parallel curriculum programme is inactive.');
@@ -799,9 +806,14 @@ class ParallelCurriculumController extends Controller
             $classIndex = array_search('parallel_class_code', $header, true);
         }
 
-        if ($admissionIndex === false || $classIndex === false) {
+        $armIndex = array_search('parallel_arm', $header, true);
+        if ($armIndex === false) {
+            $armIndex = array_search('parallel_arm_code', $header, true);
+        }
+
+        if ($admissionIndex === false || $classIndex === false || $armIndex === false) {
             throw ValidationException::withMessages([
-                'assignment_file' => 'Required columns are admission_number and parallel_class (or parallel_class_code).',
+                'assignment_file' => 'Required columns are admission_number, parallel_class (or parallel_class_code), and parallel_arm (or parallel_arm_code).',
             ]);
         }
 
@@ -813,13 +825,14 @@ class ParallelCurriculumController extends Controller
             $rowNumber = $offset + 2;
             $admissionNumber = trim((string) ($row[$admissionIndex] ?? ''));
             $parallelClass = trim((string) ($row[$classIndex] ?? ''));
+            $parallelArm = trim((string) ($row[$armIndex] ?? ''));
 
-            if ($admissionNumber === '' && $parallelClass === '') {
+            if ($admissionNumber === '' && $parallelClass === '' && $parallelArm === '') {
                 continue;
             }
 
-            if ($admissionNumber === '' || $parallelClass === '') {
-                $errors[] = "Row {$rowNumber}: both admission_number and parallel_class are required.";
+            if ($admissionNumber === '' || $parallelClass === '' || $parallelArm === '') {
+                $errors[] = "Row {$rowNumber}: admission_number, parallel_class and parallel_arm are required.";
                 continue;
             }
 
@@ -836,6 +849,8 @@ class ParallelCurriculumController extends Controller
                 'admission_key' => $admissionKey,
                 'parallel_class' => $parallelClass,
                 'class_key' => mb_strtolower($parallelClass),
+                'parallel_arm' => $parallelArm,
+                'arm_key' => mb_strtolower($parallelArm),
             ];
         }
 
@@ -871,7 +886,17 @@ class ParallelCurriculumController extends Controller
                 continue;
             }
 
-            $assignments[] = [$student, $class, $entry['row']];
+            $arm = $class->arms->first(fn (ParallelCurriculumClassArm $item) =>
+                mb_strtolower(trim($item->name)) === $entry['arm_key']
+                || (filled($item->code) && mb_strtolower(trim((string) $item->code)) === $entry['arm_key'])
+            );
+
+            if (! $arm) {
+                $errors[] = "Row {$entry['row']}: arm {$entry['parallel_arm']} was not found in {$class->name}.";
+                continue;
+            }
+
+            $assignments[] = [$student, $class, $arm, $entry['row']];
         }
 
         if ($errors !== []) {
@@ -888,9 +913,11 @@ class ParallelCurriculumController extends Controller
             ->keyBy('student_id');
         $destinationLocks = [];
 
-        foreach ($assignments as [$student, $class, $rowNumber]) {
+        foreach ($assignments as [$student, $class, $arm, $rowNumber]) {
             $existing = $existingEnrolments->get($student->id);
-            $changesPlacement = ! $existing || (int) $existing->parallel_curriculum_class_id !== (int) $class->id;
+            $changesPlacement = ! $existing
+                || (int) $existing->parallel_curriculum_class_id !== (int) $class->id
+                || (int) $existing->parallel_curriculum_class_arm_id !== (int) $arm->id;
 
             if (! $changesPlacement) {
                 continue;
@@ -916,8 +943,35 @@ class ParallelCurriculumController extends Controller
             ]);
         }
 
+        $assignmentsByArm = collect($assignments)->groupBy(fn (array $assignment) => $assignment[2]->id);
+        foreach ($assignmentsByArm as $armId => $armAssignments) {
+            $arm = $armAssignments->first()[2];
+            if (! $arm->capacity) {
+                continue;
+            }
+
+            $movingStudentIds = $armAssignments
+                ->map(fn (array $assignment) => (int) $assignment[0]->id)
+                ->values();
+
+            $existingInArm = ParallelCurriculumEnrolment::where(
+                    'parallel_curriculum_class_arm_id',
+                    $armId
+                )
+                ->where('session_id', $data['session_id'])
+                ->where('is_active', true)
+                ->whereNotIn('student_id', $movingStudentIds)
+                ->count();
+
+            if ($existingInArm + $movingStudentIds->count() > (int) $arm->capacity) {
+                throw ValidationException::withMessages([
+                    'assignment_file' => "{$arm->full_name} does not have enough capacity for the imported learners.",
+                ]);
+            }
+        }
+
         DB::transaction(function () use ($assignments, $tenantId, $data): void {
-            foreach ($assignments as [$student, $class]) {
+            foreach ($assignments as [$student, $class, $arm]) {
                 ParallelCurriculumEnrolment::updateOrCreate(
                     [
                         'tenant_id' => $tenantId,
@@ -1047,6 +1101,7 @@ class ParallelCurriculumController extends Controller
                     ],
                     [
                         'parallel_curriculum_class_id' => $class->id,
+                        'parallel_curriculum_class_arm_id' => $arm->id,
                         'is_active' => true,
                     ]
                 );
