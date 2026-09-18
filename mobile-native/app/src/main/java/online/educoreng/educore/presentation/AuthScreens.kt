@@ -1,6 +1,8 @@
 package online.educoreng.educore.presentation
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -140,7 +142,9 @@ internal fun AuthenticationScreen(
                 val compactHorizontalPadding = if (maxWidth < 380.dp) 14.dp else 18.dp
 
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     BrandPanel(
@@ -339,7 +343,7 @@ private fun LoginForm(
         value = loginId,
         onValueChange = { loginId = it },
         label = "Login ID",
-        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().heightIn(min = 56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["login_id"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
@@ -360,7 +364,7 @@ private fun LoginForm(
         value = password,
         onValueChange = { password = it },
         label = "Password",
-        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().heightIn(min = 56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["password"],
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -450,7 +454,7 @@ private fun ForgotPasswordForm(
         value = email,
         onValueChange = { email = it },
         label = "Email address",
-        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().heightIn(min = 56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["email"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
