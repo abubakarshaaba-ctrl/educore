@@ -248,6 +248,231 @@ class SelfDeployController extends Controller
     }
 
     /**
+     * Deployment-token protected production diagnostic for the persistent
+     * Parallel Curriculum 500. This intentionally lives outside tenant/auth
+     * middleware so it can still inspect the runtime when the failing request
+     * dies before the controller action is reached.
+     */
+    public function parallelDiagnostics(Request $request)
+    {
+        $expected = (string) (config('app.deploy_token') ?: self::derivedToken());
+
+        if ($expected === '' || ! hash_equals($expected, (string) $request->query('token'))) {
+            abort(403, 'Invalid deploy token.');
+        }
+
+        $result = [
+            'ok' => true,
+            'generated_at' => now()->toIso8601String(),
+            'php' => PHP_VERSION,
+            'laravel' => app()->version(),
+            'environment' => app()->environment(),
+            'routes' => [],
+            'classes' => [],
+            'live_files' => [],
+            'schema' => [],
+            'migrations' => [],
+            'recent_log' => [],
+        ];
+
+        foreach ([
+            'parallel-curriculum.index',
+            'parallel-curriculum.diagnostics',
+            'parallel-curriculum.student-assignments',
+            'parallel-curriculum.lifecycle.index',
+            'parallel-curriculum.results.index',
+        ] as $name) {
+            try {
+                $route = app('router')->getRoutes()->getByName($name);
+                $result['routes'][$name] = $route ? [
+                    'exists' => true,
+                    'uri' => $route->uri(),
+                    'action' => $route->getActionName(),
+                    'middleware' => $route->gatherMiddleware(),
+                ] : ['exists' => false];
+            } catch (\Throwable $e) {
+                $result['routes'][$name] = [
+                    'exists' => null,
+                    'error' => mb_substr($e->getMessage(), 0, 800),
+                ];
+            }
+        }
+
+        foreach ([
+            ParallelCurriculumController::class,
+            ParallelCurriculumWorkspaceController::class,
+            ParallelCurriculumDiagnosticsController::class,
+            \App\Models\ParallelCurriculum::class,
+            \App\Models\ParallelCurriculumClass::class,
+            \App\Models\ParallelCurriculumClassSubject::class,
+            \App\Models\ParallelCurriculumSubject::class,
+            \App\Services\ParallelCurriculumService::class,
+        ] as $class) {
+            try {
+                $result['classes'][$class] = class_exists($class);
+            } catch (\Throwable $e) {
+                $result['classes'][$class] = [
+                    'exists' => false,
+                    'exception' => get_class($e),
+                    'message' => mb_substr($e->getMessage(), 0, 1000),
+                ];
+            }
+        }
+
+        foreach ([
+            'app/Http/Controllers/ParallelCurriculumController.php',
+            'app/Http/Controllers/ParallelCurriculumWorkspaceController.php',
+            'app/Http/Controllers/ParallelCurriculumDiagnosticsController.php',
+            'app/Models/ParallelCurriculumClassSubject.php',
+            'resources/views/parallel-curriculum/index.blade.php',
+            'routes/web.php',
+        ] as $relative) {
+            $full = base_path($relative);
+            $result['live_files'][$relative] = [
+                'exists' => is_file($full),
+                'modified_at' => is_file($full)
+                    ? date(DATE_ATOM, (int) filemtime($full))
+                    : null,
+                'sha256' => is_file($full) ? hash_file('sha256', $full) : null,
+            ];
+        }
+
+        foreach ([
+            'parallel_curricula',
+            'parallel_curriculum_subjects',
+            'parallel_curriculum_classes',
+            'parallel_curriculum_class_subjects',
+            'parallel_curriculum_enrolments',
+            'parallel_curriculum_scores',
+            'parallel_curriculum_integrations',
+            'parallel_curriculum_composites',
+            'parallel_curriculum_grades',
+            'parallel_curriculum_report_publications',
+            'parallel_curriculum_class_arms',
+            'parallel_curriculum_class_grades',
+            'parallel_curriculum_promotion_rules',
+            'parallel_curriculum_promotions',
+            'parallel_curriculum_transfers',
+            'parallel_curriculum_arm_subject_teachers',
+        ] as $table) {
+            try {
+                $exists = \Illuminate\Support\Facades\Schema::hasTable($table);
+                $result['schema'][$table] = [
+                    'exists' => $exists,
+                    'columns' => $exists
+                        ? \Illuminate\Support\Facades\Schema::getColumnListing($table)
+                        : [],
+                ];
+            } catch (\Throwable $e) {
+                $result['schema'][$table] = [
+                    'exists' => null,
+                    'error' => mb_substr($e->getMessage(), 0, 1000),
+                ];
+            }
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
+                $result['migrations'] = \Illuminate\Support\Facades\DB::table('migrations')
+                    ->where('migration', 'like', '%parallel_curriculum%')
+                    ->orderBy('id')
+                    ->get(['migration', 'batch'])
+                    ->map(fn ($row) => (array) $row)
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            $result['migrations_error'] = mb_substr($e->getMessage(), 0, 1000);
+        }
+
+        $result['recent_log'] = $this->recentParallelCurriculumLog();
+
+        $result['ok'] = collect($result['routes'])
+                ->every(fn ($route) => ($route['exists'] ?? false) === true)
+            && collect($result['classes'])
+                ->every(fn ($state) => $state === true);
+
+        return response()->json($result, 200, [], JSON_PRETTY_PRINT);
+    }
+
+    private function recentParallelCurriculumLog(): array
+    {
+        $path = storage_path('logs/laravel.log');
+        if (! is_file($path) || ! is_readable($path)) {
+            return [
+                'available' => false,
+                'path' => basename($path),
+            ];
+        }
+
+        $size = (int) filesize($path);
+        $readBytes = min($size, 750000);
+        $handle = @fopen($path, 'rb');
+        if (! $handle) {
+            return [
+                'available' => false,
+                'reason' => 'unreadable',
+            ];
+        }
+
+        try {
+            if ($readBytes < $size) {
+                fseek($handle, -$readBytes, SEEK_END);
+            }
+            $tail = (string) stream_get_contents($handle);
+        } finally {
+            fclose($handle);
+        }
+
+        $lines = preg_split('/\R/', $tail) ?: [];
+        $matching = [];
+
+        foreach ($lines as $index => $line) {
+            if (
+                stripos($line, 'parallel') !== false
+                || stripos($line, 'ERROR') !== false
+                || stripos($line, 'exception') !== false
+                || stripos($line, 'SQLSTATE') !== false
+            ) {
+                $start = max(0, $index - 2);
+                $end = min(count($lines) - 1, $index + 10);
+                for ($i = $start; $i <= $end; $i++) {
+                    $matching[$i] = $lines[$i];
+                }
+            }
+        }
+
+        ksort($matching);
+        $matching = array_slice(array_values($matching), -220);
+
+        $redact = static function (string $line): string {
+            $line = preg_replace(
+                '/([?&](?:token|key|secret|password)=)[^&\s]+/i',
+                '$1[REDACTED]',
+                $line
+            ) ?? $line;
+            $line = preg_replace(
+                '/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i',
+                '[REDACTED_EMAIL]',
+                $line
+            ) ?? $line;
+            $line = preg_replace(
+                '/(Bearer\s+)[A-Za-z0-9._\-]+/i',
+                '$1[REDACTED]',
+                $line
+            ) ?? $line;
+
+            return mb_substr($line, 0, 2500);
+        };
+
+        return [
+            'available' => true,
+            'file_size' => $size,
+            'tail_bytes_scanned' => $readBytes,
+            'lines' => array_map($redact, $matching),
+        ];
+    }
+
+    /**
      * Deterministic fallback token derived from APP_KEY, so no .env edit is
      * needed on the server (cPanel editor risks BOM corruption). Retrieve it
      * once via tools/show-deploy-token.php or artisan tinker.
