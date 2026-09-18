@@ -92,7 +92,7 @@ class ParallelCurriculumScoreController extends Controller
             ->values();
 
         return response()->json([
-            'contract_version' => 3,
+            'contract_version' => 4,
             'generated_at' => now()->toIso8601String(),
             'session' => $session?->only(['id', 'name']),
             'term' => $term ? ['id' => $term->id, 'name' => $term->name, 'session' => $term->session?->name] : null,
@@ -129,7 +129,7 @@ class ParallelCurriculumScoreController extends Controller
         );
 
         return response()->json([
-            'contract_version' => 3,
+            'contract_version' => 4,
             'workspace_type' => 'parallel_curriculum',
             'generated_at' => now()->toIso8601String(),
             'version' => $this->sheetVersion($students, $components, $records, $lockedStudents),
