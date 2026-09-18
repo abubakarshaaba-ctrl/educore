@@ -154,6 +154,19 @@ interface EduCoreApi {
     @POST("scores/save")
     suspend fun saveScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
 
+    @GET("parallel-scores/teaching")
+    suspend fun parallelScoreAssignments(): ScoreAssignmentsResponseDto
+
+    @GET("parallel-scores/sheet")
+    suspend fun parallelScoreSheet(
+        @Query("class_arm_id") classId: Long,
+        @Query("subject_id") subjectId: Long,
+        @Query("term_id") termId: Long? = null,
+    ): ScoreSheetResponseDto
+
+    @POST("parallel-scores/save")
+    suspend fun saveParallelScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
+
     @GET("student/results")
     suspend fun studentResults(): PublishedResultsResponseDto
 
