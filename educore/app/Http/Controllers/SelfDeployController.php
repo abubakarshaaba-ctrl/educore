@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Shell-free deployment for shared hosting.
@@ -55,7 +57,7 @@ class SelfDeployController extends Controller
         'educore/resources/views/exam-bodies/index.blade.php',
     ];
 
-    public function pull(Request $request)
+    public function pull(Request $request, PushNotificationService $push)
     {
         $expected = (string) (config('app.deploy_token') ?: self::derivedToken());
 
@@ -182,6 +184,12 @@ class SelfDeployController extends Controller
         // independently published checksum have both been validated.
         $apk = $this->syncLatestApk($headers, $docroot);
 
+        // Only announce an Android update after the canonical /download/app
+        // asset has been atomically replaced and checksum-verified. This avoids
+        // notifying users while the public download URL still serves the
+        // previous APK.
+        $mobileRelease = $this->recordAndNotifyMobileRelease($apk, $push);
+
         // opcache_reset() only clears the CURRENT PHP-FPM worker's cache —
         // other workers keep serving stale bytecode until they individually
         // revalidate. The shipped .user.ini (opcache.validate_timestamps=1)
@@ -198,6 +206,7 @@ class SelfDeployController extends Controller
             'copied'   => $copied,
             'removed'  => $removed,
             'apk'      => $apk,
+            'mobile_release' => $mobileRelease,
             'opcache_reset' => $opcacheReset,
             'migrated' => mb_substr($migrated, 0, 500),
             'deployed_at' => now()->toDateTimeString(),
@@ -440,6 +449,112 @@ class SelfDeployController extends Controller
             return [
                 'status' => 'skipped',
                 'reason' => 'exception',
+                'message' => mb_substr($e->getMessage(), 0, 200),
+            ];
+        }
+    }
+
+    /**
+     * Record the newly deployed Android release for the native app's polling
+     * endpoint and notify the global update topic. This deliberately runs after
+     * syncLatestApk() succeeds so a notification can never point at a stale APK.
+     */
+    private function recordAndNotifyMobileRelease(array $apk, PushNotificationService $push): array
+    {
+        if (($apk['status'] ?? null) !== 'updated') {
+            return [
+                'status' => 'skipped',
+                'reason' => 'apk-not-updated',
+            ];
+        }
+
+        $tag = trim((string) ($apk['release'] ?? ''));
+        if (!preg_match('/^android-v(.+)-code(\d+)-b\d+-[0-9a-f]{7,40}$/i', $tag, $matches)) {
+            return [
+                'status' => 'skipped',
+                'reason' => 'release-tag-unparseable',
+                'release' => $tag ?: null,
+            ];
+        }
+
+        $versionName = trim($matches[1]);
+        $versionCode = (int) $matches[2];
+        if ($versionName === '' || $versionCode < 1) {
+            return [
+                'status' => 'skipped',
+                'reason' => 'release-version-invalid',
+                'release' => $tag,
+            ];
+        }
+
+        $releaseFile = 'mobile-releases/android.json';
+        $previous = null;
+        if (Storage::disk('local')->exists($releaseFile)) {
+            $decoded = json_decode((string) Storage::disk('local')->get($releaseFile), true);
+            if (is_array($decoded)) {
+                $previous = $decoded;
+            }
+        }
+
+        $downloadUrl = url('/download/app');
+        $body = "EduCore {$versionName} is ready to install. Tap to update.";
+        $release = [
+            'platform' => 'android',
+            'version_name' => $versionName,
+            'version_code' => $versionCode,
+            'minimum_supported_version_code' => 1,
+            'download_url' => $downloadUrl,
+            'message' => $body,
+            'force_update' => false,
+            'published_at' => now()->toIso8601String(),
+            'source_release_tag' => $tag,
+            'sha256' => $apk['sha256'] ?? null,
+        ];
+
+        Storage::disk('local')->put(
+            $releaseFile,
+            json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+        );
+
+        if (($previous['source_release_tag'] ?? null) === $tag) {
+            return [
+                'status' => 'recorded',
+                'release' => $tag,
+                'version_name' => $versionName,
+                'version_code' => $versionCode,
+                'push' => 'skipped-already-notified',
+            ];
+        }
+
+        try {
+            $delivered = $push->sendToTopic(
+                'educore_app_updates',
+                'EduCore update available',
+                $body,
+                [
+                    'type' => 'app_update',
+                    'version_name' => $versionName,
+                    'version_code' => (string) $versionCode,
+                    'minimum_supported_version_code' => '1',
+                    'download_url' => $downloadUrl,
+                    'force_update' => 'false',
+                ],
+            );
+
+            return [
+                'status' => 'recorded',
+                'release' => $tag,
+                'version_name' => $versionName,
+                'version_code' => $versionCode,
+                'push' => $delivered ? 'sent' : 'failed',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'recorded',
+                'release' => $tag,
+                'version_name' => $versionName,
+                'version_code' => $versionCode,
+                'push' => 'failed',
                 'message' => mb_substr($e->getMessage(), 0, 200),
             ];
         }
