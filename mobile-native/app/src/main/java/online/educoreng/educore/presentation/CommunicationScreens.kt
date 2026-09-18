@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,11 +61,13 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreRichText
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreStatusBadge
 import online.educoreng.educore.core.designsystem.component.EduCoreTabs
 import online.educoreng.educore.core.designsystem.component.EduCoreTone
+import online.educoreng.educore.core.designsystem.component.eduCoreRichTextPlainText
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -319,11 +323,12 @@ internal fun MessageThreadScreen(
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = EduCoreColors.White), border = BorderStroke(1.dp, EduCoreColors.Line200)) {
                     Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                        RichTextComposerToolbar(state.replyBody, onReplyChange)
                         OutlinedTextField(
                             value = state.replyBody,
                             onValueChange = onReplyChange,
                             label = { Text("Reply") },
-                            minLines = 3,
+                            minLines = 4,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         AttachmentSelection(state, { picker.launch(ALLOWED_ATTACHMENTS) }, onClearAttachment)
@@ -383,7 +388,12 @@ internal fun ComposeMessageScreen(
             }
         }
         item { OutlinedTextField(state.composeSubject, onSubject, label = { Text("Subject") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)) }
-        item { OutlinedTextField(state.composeBody, onBody, label = { Text("Message") }, minLines = 6, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)) }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+                RichTextComposerToolbar(state.composeBody, onBody)
+                OutlinedTextField(state.composeBody, onBody, label = { Text("Message") }, minLines = 7, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done))
+            }
+        }
         item { AttachmentSelection(state, { picker.launch(ALLOWED_ATTACHMENTS) }, onClearAttachment) }
         item {
             EduCorePrimaryButton(
@@ -417,9 +427,8 @@ private fun NotificationCard(notice: NotificationItem, onMarkRead: (Long) -> Uni
                     Text(notice.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     EduCoreStatusBadge(notice.priority.replaceFirstChar(Char::uppercase), notice.priority.noticeTone())
                 }
-                Text(
-                    text = notice.body,
-                    style = MaterialTheme.typography.bodyMedium,
+                EduCoreRichText(
+                    markdown = notice.body,
                     color = EduCoreColors.Ink900,
                     maxLines = if (expanded) Int.MAX_VALUE else 4,
                     overflow = TextOverflow.Ellipsis,
@@ -450,7 +459,7 @@ private fun MessageThreadCard(thread: MessageThreadSummary, onOpen: () -> Unit) 
             Column(Modifier.weight(1f)) {
                 Text(thread.subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(listOfNotNull(thread.studentName, thread.otherName).joinToString(" · "), color = EduCoreColors.Slate600, style = MaterialTheme.typography.bodySmall)
-                thread.lastMessage?.let { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, color = EduCoreColors.Ink900) }
+                thread.lastMessage?.let { Text(eduCoreRichTextPlainText(it), maxLines = 2, overflow = TextOverflow.Ellipsis, color = EduCoreColors.Ink900) }
             }
             EduCoreStatusBadge(thread.status.replaceFirstChar(Char::uppercase), if (thread.status == "open") EduCoreTone.Success else EduCoreTone.Neutral)
         }
@@ -486,7 +495,10 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
         ) {
             Column(Modifier.padding(EduCoreSpacing.Lg), verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 Text(reply.senderName ?: if (reply.isMine) "You" else "School", color = if (reply.isMine) EduCoreColors.Gold400 else EduCoreColors.Gold600, fontWeight = FontWeight.SemiBold)
-                Text(reply.body, color = if (reply.isMine) EduCoreColors.White else EduCoreColors.Ink900)
+                EduCoreRichText(
+                    markdown = reply.body,
+                    color = if (reply.isMine) EduCoreColors.White else EduCoreColors.Ink900,
+                )
                 reply.attachment?.let { attachment ->
                     OutlinedButton(onClick = { onDownload(attachment) }) {
                         Icon(Icons.Default.Download, null)
@@ -497,6 +509,43 @@ private fun ReplyCard(reply: MessageReply, onDownload: (MessageAttachment) -> Un
                 Text(reply.createdAt, style = MaterialTheme.typography.bodySmall, color = if (reply.isMine) EduCoreColors.Line300 else EduCoreColors.Muted500)
             }
         }
+    }
+}
+
+@Composable
+private fun RichTextComposerToolbar(value: String, onChange: (String) -> Unit) {
+    val tools = listOf(
+        "B" to "**bold text**",
+        "I" to "*italic text*",
+        "H1" to "# Heading",
+        "H2" to "## Subheading",
+        "H3" to "### Minor heading",
+        "•" to "- List item",
+        "1." to "1. List item",
+        "Link" to "[link text](https://)",
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+        ) {
+            tools.forEach { (label, template) ->
+                OutlinedButton(
+                    onClick = {
+                        val separator = if (value.isBlank() || value.endsWith("\n")) "" else "\n"
+                        onChange(value + separator + template)
+                    },
+                ) {
+                    Text(label, fontWeight = if (label.startsWith("H") || label == "B") FontWeight.Bold else FontWeight.Medium)
+                }
+            }
+        }
+        Text(
+            "H1/H2/H3 create heavy section headings. Markdown formatting is preserved when the message is sent.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
     }
 }
 
