@@ -47,7 +47,7 @@
             <div class="identity">
                 <div class="field"><span>Student</span><strong>{{ $row['student']->full_name }}</strong></div>
                 <div class="field"><span>Admission No.</span><strong>{{ $row['student']->admission_number }}</strong></div>
-                <div class="field"><span>Parallel Class</span><strong>{{ $report['class']->name }}</strong></div>
+                <div class="field"><span>Parallel Class</span><strong>{{ $report['class']->name }}{{ $row['enrolment']->curriculumClassArm ? ' · Arm '.$row['enrolment']->curriculumClassArm->name : '' }}</strong></div>
                 <div class="field"><span>Academic Period</span><strong>{{ $report['term']->session?->name }} · {{ $report['term']->name }}</strong></div>
             </div>
         </div>
