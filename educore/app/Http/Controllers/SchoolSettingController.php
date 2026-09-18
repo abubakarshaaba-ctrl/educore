@@ -40,6 +40,7 @@ class SchoolSettingController extends Controller
             'authorized_signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'school_open_days' => ['required', 'array', 'min:1', 'max:7'],
             'school_open_days.*' => ['integer', 'in:1,2,3,4,5,6,7'],
+            'parallel_curriculum_enabled' => ['nullable', 'boolean'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -92,6 +93,11 @@ class SchoolSettingController extends Controller
                 ['value' => $value, 'group' => $group]
             );
         }
+
+        SchoolSetting::updateOrCreate(
+            ['tenant_id' => $tenant->id, 'key' => 'parallel_curriculum_enabled'],
+            ['value' => $request->boolean('parallel_curriculum_enabled') ? '1' : '0', 'group' => 'academic']
+        );
 
         $schoolWeek->save((int) $tenant->id, $data['school_open_days']);
 
