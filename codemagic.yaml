@@ -33,7 +33,7 @@ workflows:
           cd "$(cat /tmp/educore-android-workspace)"
 
           missing=0
-          for variable in CM_KEYSTORE_BASE64 CM_KEYSTORE_PASSWORD CM_KEY_ALIAS CM_KEY_PASSWORD GITHUB_RELEASE_TOKEN MOBILE_RELEASE_WEBHOOK_TOKEN; do
+          for variable in KEYSTORE_BASE64 KEYSTORE_STORE_PASSWORD KEYSTORE_KEY_ALIAS KEYSTORE_KEY_PASSWORD GITHUB_RELEASE_TOKEN; do
             if [ -z "${!variable:-}" ]; then
               echo "Missing required protected variable: $variable"
               missing=1
@@ -44,17 +44,61 @@ workflows:
             exit 1
           fi
 
-          printf '%s' "$CM_KEYSTORE_BASE64" | base64 --decode > "$CM_KEYSTORE_PATH"
-          test -s "$CM_KEYSTORE_PATH"
-          chmod 600 "$CM_KEYSTORE_PATH"
+          if [ "$KEYSTORE_KEY_ALIAS" != "educore" ]; then
+            echo "KEYSTORE_KEY_ALIAS must be educore."
+            exit 1
+          fi
 
-          cat > keystore.properties <<EOF
-          storeFile=$CM_KEYSTORE_PATH
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          keyPassword=$CM_KEY_PASSWORD
-          EOF
-          chmod 600 keystore.properties
+          mkdir -p .ci-signing
+          if printf '' | base64 --decode >/dev/null 2>&1; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .ci-signing/educore-release.jks
+          else
+            printf '%s' "$KEYSTORE_BASE64" | base64 -D > .ci-signing/educore-release.jks
+          fi
+
+          export RELEASE_PROPERTIES="$PWD/.ci-signing/release.properties"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def escape_property(value: str) -> str:
+              escaped = []
+              for index, char in enumerate(value):
+                  if char == "\\":
+                      escaped.append("\\\\")
+                  elif char == "\n":
+                      escaped.append("\\n")
+                  elif char == "\r":
+                      escaped.append("\\r")
+                  elif char == "\t":
+                      escaped.append("\\t")
+                  elif char in "=:":
+                      escaped.append("\\" + char)
+                  elif index == 0 and char in " #!":
+                      escaped.append("\\" + char)
+                  else:
+                      escaped.append(char)
+              return "".join(escaped)
+
+          values = {
+              "storeFile": "educore-release.jks",
+              "storePassword": os.environ["KEYSTORE_STORE_PASSWORD"],
+              "keyAlias": os.environ["KEYSTORE_KEY_ALIAS"],
+              "keyPassword": os.environ["KEYSTORE_KEY_PASSWORD"],
+          }
+          Path(os.environ["RELEASE_PROPERTIES"]).write_text(
+              "".join(f"{key}={escape_property(value)}\\n" for key, value in values.items())
+          )
+          PY
+
+          chmod 600 .ci-signing/educore-release.jks .ci-signing/release.properties
+          test -s .ci-signing/educore-release.jks
+          test -s .ci-signing/release.properties
+          keytool -list \
+            -keystore .ci-signing/educore-release.jks \
+            -storepass "$KEYSTORE_STORE_PASSWORD" \
+            -alias "$KEYSTORE_KEY_ALIAS" >/dev/null
+
       - name: Verify Firebase config
         script: |
           set -euo pipefail
@@ -81,7 +125,9 @@ workflows:
         script: |
           set -euo pipefail
           cd "$(cat /tmp/educore-android-workspace)"
-          ./gradlew --no-daemon lintRelease assembleRelease
+          ./gradlew --no-daemon \
+            -PEDUCORE_RELEASE_PROPERTIES=.ci-signing/release.properties \
+            lintRelease assembleRelease
 
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
@@ -103,14 +149,11 @@ workflows:
             exit 1
           fi
 
-          if [ -n "${EDUCORE_RELEASE_CERT_SHA256:-}" ]; then
-            EXPECTED_SHA256="$(printf '%s' "$EDUCORE_RELEASE_CERT_SHA256" | tr -d '[:space:]')"
-            if [ "$SIGNER_SHA256" != "$EXPECTED_SHA256" ]; then
-              echo "Release APK signer fingerprint does not match EDUCORE_RELEASE_CERT_SHA256."
-              exit 1
-            fi
-          else
-            echo "EDUCORE_RELEASE_CERT_SHA256 is not configured; signer fingerprint was printed for first-release pinning."
+          EXPECTED_SHA256="F170B538AD1DCD796605BEA61DDA69348205203449224681D044D6E2C856E4A0"
+          NORMALIZED_SIGNER_SHA256="$(printf '%s' "$SIGNER_SHA256" | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          if [ "$NORMALIZED_SIGNER_SHA256" != "$EXPECTED_SHA256" ]; then
+            echo "Release APK signer fingerprint does not match the permanent EduCore production identity."
+            exit 1
           fi
       - name: Publish production APK to GitHub Release
         script: |
@@ -232,64 +275,10 @@ workflows:
 
           echo "Published EduCore production release $TAG with APK and checksum assets."
 
-      - name: Notify installed apps about production release
+      - name: Update notification handoff
         script: |
           set -euo pipefail
-
-          if [ -z "${MOBILE_RELEASE_WEBHOOK_TOKEN:-}" ]; then
-            echo "MOBILE_RELEASE_WEBHOOK_TOKEN is required. Refusing to silently publish an Android release without update metadata and push notification."
-            exit 1
-          fi
-
-          RELEASE_NOTIFY_URL="${MOBILE_RELEASE_NOTIFY_URL:-https://educoreng.online/api/v1/mobile-release/notify}"
-          DOWNLOAD_URL="${EDUCORE_APK_DOWNLOAD_URL:-https://educoreng.online/download/app}"
-
-          cd "$(cat /tmp/educore-android-workspace)"
-          read -r VERSION_CODE VERSION_NAME <<EOF
-          $(python3 - <<'PY'
-          import re
-          from pathlib import Path
-
-          text = Path("app/build.gradle.kts").read_text()
-          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
-          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
-          if not code or not name:
-              raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
-          print(code.group(1), name.group(1))
-          PY
-          )
-          EOF
-
-          export VERSION_CODE VERSION_NAME DOWNLOAD_URL
-          python3 - <<'PY' > /tmp/educore-update-notification.json
-          import json
-          import os
-
-          print(json.dumps({
-              "version_name": os.environ["VERSION_NAME"],
-              "version_code": int(os.environ["VERSION_CODE"]),
-              "download_url": os.environ["DOWNLOAD_URL"],
-              "message": f"EduCore {os.environ['VERSION_NAME']} is ready to install. Tap to update.",
-              "force_update": False,
-          }))
-          PY
-
-          NOTIFY_STATUS="$(curl -sS \
-            -o /tmp/educore-update-notification-response.json \
-            -w '%{http_code}' \
-            -X POST \
-            -H "Authorization: Bearer $MOBILE_RELEASE_WEBHOOK_TOKEN" \
-            -H "Content-Type: application/json" \
-            "$RELEASE_NOTIFY_URL" \
-            --data-binary @/tmp/educore-update-notification.json)"
-
-          if [ "$NOTIFY_STATUS" != "200" ]; then
-            echo "Release was published, but app update notification failed with HTTP $NOTIFY_STATUS."
-            cat /tmp/educore-update-notification-response.json || true
-            exit 1
-          fi
-
-          echo "Installed EduCore apps were notified about version $VERSION_NAME (code $VERSION_CODE)."
+          echo "GitHub release published. EduCore server deployment will sync /download/app, record release metadata and notify installed apps."
 
     artifacts:
       - mobile-native/app/build/outputs/apk/debug/app-debug.apk
