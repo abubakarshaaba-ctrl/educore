@@ -6,6 +6,7 @@ use App\Models\AssessmentTemplate;
 use App\Models\AssessmentTemplateComponent;
 use App\Models\AssessmentType;
 use App\Models\ClassArm;
+use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumComposite;
@@ -139,6 +140,44 @@ class ParallelCurriculumService
             ->where('class_arm_id', $conventionalArm->id)
             ->where('term_id', $term->id)
             ->where('status', 'published')
+            ->exists();
+    }
+
+    public function conventionalSubjectAvailableForArm(
+        int $tenantId,
+        int $subjectId,
+        ClassArm $classArm
+    ): bool {
+        if (! Schema::hasTable('class_level_subjects')) {
+            return true;
+        }
+
+        $hasCurriculumRules = ClassLevelSubject::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('class_level_id', $classArm->class_level_id)
+            ->where('is_active', true)
+            ->exists();
+
+        // Preserve legacy schools that have not yet configured the master
+        // ClassLevelSubject curriculum for this class level.
+        if (! $hasCurriculumRules) {
+            return true;
+        }
+
+        return ClassLevelSubject::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('class_level_id', $classArm->class_level_id)
+            ->where('subject_id', $subjectId)
+            ->where('is_active', true)
+            ->where('subject_status', '!=', 'not_offered')
+            ->where(function ($query) use ($classArm): void {
+                if ($classArm->academic_track_id) {
+                    $query->whereNull('academic_track_id')
+                        ->orWhere('academic_track_id', $classArm->academic_track_id);
+                } else {
+                    $query->whereNull('academic_track_id');
+                }
+            })
             ->exists();
     }
 
@@ -308,6 +347,29 @@ class ParallelCurriculumService
                 [],
                 'unmapped',
                 'No result-integration rule is configured for the student\'s conventional class level.'
+            );
+            $this->clearDerivedScoresIfSafe($composite);
+
+            return $composite;
+        }
+
+        if (! $this->conventionalSubjectAvailableForArm(
+            $tenantId,
+            (int) $integration->destination_subject_id,
+            $conventionalArm
+        )) {
+            $composite = $this->persistStatus(
+                $existingComposite,
+                $enrolment,
+                $term,
+                $conventionalArm,
+                $integration,
+                null,
+                0,
+                0,
+                [],
+                'unmapped',
+                'The mapped conventional subject is not offered for this student\'s class level or academic track.'
             );
             $this->clearDerivedScoresIfSafe($composite);
 
