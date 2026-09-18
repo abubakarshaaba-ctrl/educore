@@ -223,16 +223,16 @@ class ParallelCurriculumService
             ->where('parallel_curriculum_class_id', $class->id)
             ->where('student_id', $student->id)
             ->where('term_id', $term->id)
-            ->whereIn('subject_id', $subjectAssignments->pluck('subject_id'))
+            ->whereIn('parallel_curriculum_subject_id', $subjectAssignments->pluck('parallel_curriculum_subject_id'))
             ->whereIn('assessment_template_component_id', $components->pluck('id'))
             ->get()
-            ->groupBy('subject_id');
+            ->groupBy('parallel_curriculum_subject_id');
 
         $breakdown = [];
         $completedTotals = [];
 
         foreach ($subjectAssignments as $assignment) {
-            $rows = $scores->get($assignment->subject_id, collect());
+            $rows = $scores->get($assignment->parallel_curriculum_subject_id, collect());
             $rowsByComponent = $rows->keyBy('assessment_template_component_id');
             $complete = $components->every(fn (AssessmentTemplateComponent $component) =>
                 $rowsByComponent->has($component->id) && $rowsByComponent->get($component->id)?->score !== null
@@ -248,7 +248,7 @@ class ParallelCurriculumService
             }
 
             $breakdown[] = [
-                'subject_id' => (int) $assignment->subject_id,
+                'parallel_curriculum_subject_id' => (int) $assignment->parallel_curriculum_subject_id,
                 'subject_name' => $assignment->subject->name,
                 'complete' => $complete,
                 'weighted_total' => $weightedTotal,
