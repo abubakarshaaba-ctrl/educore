@@ -115,7 +115,6 @@ class ParallelCurriculumController extends Controller
 
         $conventionalSubjects = $canManage ? Subject::where('is_active', true)->orderBy('name')->get() : collect();
         $classLevels = $canManage ? ClassLevel::orderBy('order_index')->orderBy('name')->get() : collect();
-        $students = $canManage ? Student::active()->orderBy('last_name')->orderBy('first_name')->get() : collect();
         $staff = $canManage
             ? User::where('tenant_id', $tenantId)
                 ->where('is_active', true)
@@ -152,7 +151,7 @@ class ParallelCurriculumController extends Controller
 
         return view('parallel-curriculum.index', compact(
             'canManage', 'currentSession', 'currentTerm', 'curricula', 'workspaces',
-            'templates', 'conventionalSubjects', 'classLevels', 'students', 'staff',
+            'templates', 'conventionalSubjects', 'classLevels', 'staff',
             'integrations', 'enrolments', 'recentComposites'
         ));
     }
