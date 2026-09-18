@@ -6,6 +6,7 @@ use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumReportPublication;
 use App\Models\Student;
 use App\Models\Term;
+use App\Services\GuardianNotifier;
 use App\Services\ParallelCurriculumResultService;
 use App\Services\ParallelCurriculumService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -163,22 +164,91 @@ class ParallelCurriculumResultController extends Controller
             throw ValidationException::withMessages(['publication' => $message]);
         }
 
-        ParallelCurriculumReportPublication::updateOrCreate(
-            [
-                'tenant_id' => $tenantId,
-                'parallel_curriculum_class_id' => $class->id,
-                'term_id' => $term->id,
-            ],
-            [
-                'parallel_curriculum_id' => $class->parallel_curriculum_id,
-                'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
-                'published_by' => auth()->id(),
-                'published_at' => now(),
-                'unpublished_at' => null,
-            ]
-        );
+        $publication = ParallelCurriculumReportPublication::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
+            ->where('term_id', $term->id)
+            ->first();
 
-        return back()->with('success', 'Parallel curriculum result published. Source scores are now locked.');
+        $wasPublished = $publication?->isPublished() ?? false;
+
+        $publication ??= new ParallelCurriculumReportPublication([
+            'tenant_id' => $tenantId,
+            'parallel_curriculum_class_id' => $class->id,
+            'term_id' => $term->id,
+        ]);
+
+        $publication->fill([
+            'parallel_curriculum_id' => $class->parallel_curriculum_id,
+            'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+            'published_by' => auth()->id(),
+            'published_at' => now(),
+            'unpublished_at' => null,
+        ])->save();
+
+        $notified = 0;
+        if (! $wasPublished) {
+            $studentIds = $report['results']
+                ->pluck('student.id')
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            $students = Student::with('guardians')
+                ->whereIn('id', $studentIds)
+                ->get()
+                ->keyBy('id');
+
+            $notifier = app(GuardianNotifier::class);
+            $schoolName = auth()->user()->tenant?->name;
+            $programmeName = $class->curriculum?->name ?: 'Parallel Curriculum';
+
+            foreach ($report['results'] as $row) {
+                $student = $students->get((int) $row['student']->id);
+                if (! $student) {
+                    continue;
+                }
+
+                $guardian = $student->guardians->firstWhere('pivot.is_primary_contact', true)
+                    ?? $student->guardians->first();
+
+                if (! $guardian) {
+                    continue;
+                }
+
+                try {
+                    $notifier->send(
+                        $guardian,
+                        $programmeName.' result published — '.$student->full_name,
+                        [
+                            ($term->name ?? 'Term').' '.$programmeName.
+                                ' result for '.$student->full_name.' is now available.',
+                            'Sign in to the parent portal to view or download the published result.',
+                        ],
+                        smsBody: 'Dear Parent, '.$student->full_name."'s ".
+                            ($term->name ?? 'term').' '.$programmeName.
+                            ' result is now available on the EduCore parent portal.',
+                        actionLabel: 'View Results',
+                        actionUrl: route('login'),
+                        schoolName: $schoolName,
+                    );
+                    $notified++;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error(
+                        "Parallel-result notification failed for student {$student->id}: ".$e->getMessage()
+                    );
+                }
+            }
+        }
+
+        $message = 'Parallel curriculum result published. Source scores are now locked.';
+        if (! $wasPublished && $notified > 0) {
+            $message .= " {$notified} parent/guardian notification(s) were queued/sent.";
+        }
+
+        return back()->with('success', $message);
     }
 
     public function unpublish(Request $request)
