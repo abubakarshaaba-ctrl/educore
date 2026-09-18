@@ -5,10 +5,14 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -150,12 +154,40 @@ private val EduCoreShapes = Shapes(
     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
 )
 
+internal fun eduCoreAdaptiveFontMultiplier(widthDp: Int, heightDp: Int): Float {
+    val shortestSideDp = minOf(widthDp, heightDp)
+
+    return when {
+        shortestSideDp >= 900 -> 1.32f
+        shortestSideDp >= 720 -> 1.25f
+        shortestSideDp >= 600 -> 1.15f
+        else -> 1.00f
+    }
+}
+
 @Composable
 fun EduCoreTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = EduCoreColorScheme,
-        typography = EduCoreTypography,
-        shapes = EduCoreShapes,
-        content = content,
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val adaptiveFontMultiplier = eduCoreAdaptiveFontMultiplier(
+        widthDp = configuration.screenWidthDp,
+        heightDp = configuration.screenHeightDp,
     )
+
+    // Keep dp geometry unchanged while enlarging every sp-based text style on
+    // tablet/large-screen windows. Multiplying the existing Android fontScale
+    // preserves the user's accessibility preference instead of replacing it.
+    val adaptiveDensity = Density(
+        density = density.density,
+        fontScale = density.fontScale * adaptiveFontMultiplier,
+    )
+
+    CompositionLocalProvider(LocalDensity provides adaptiveDensity) {
+        MaterialTheme(
+            colorScheme = EduCoreColorScheme,
+            typography = EduCoreTypography,
+            shapes = EduCoreShapes,
+            content = content,
+        )
+    }
 }
