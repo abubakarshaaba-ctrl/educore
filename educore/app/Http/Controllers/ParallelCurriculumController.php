@@ -184,16 +184,33 @@ class ParallelCurriculumController extends Controller
             ->get();
 
         $conventionalClassArmId = $request->integer('conventional_class_arm_id');
+        $parallelClassId = $request->integer('parallel_class_id');
         $gender = trim((string) $request->query('gender', ''));
         $assignmentStatus = trim((string) $request->query('assignment_status', 'all'));
         $search = trim((string) $request->query('q', ''));
 
+        if ($parallelClassId) {
+            abort_unless(
+                $selectedCurriculum?->classes->contains('id', $parallelClassId),
+                422,
+                'The selected source parallel class does not belong to this programme.'
+            );
+        }
+
         $assignedStudentIds = collect();
+        $parallelClassStudentIds = collect();
         if ($session && $selectedCurriculum) {
-            $assignedStudentIds = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $selectedCurriculum->id)
+            $programmeEnrolments = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $selectedCurriculum->id)
                 ->where('session_id', $session->id)
-                ->where('is_active', true)
-                ->pluck('student_id');
+                ->where('is_active', true);
+
+            $assignedStudentIds = (clone $programmeEnrolments)->pluck('student_id');
+
+            if ($parallelClassId) {
+                $parallelClassStudentIds = (clone $programmeEnrolments)
+                    ->where('parallel_curriculum_class_id', $parallelClassId)
+                    ->pluck('student_id');
+            }
         }
 
         $studentsQuery = Student::active()
@@ -219,6 +236,10 @@ class ParallelCurriculumController extends Controller
                         ->orWhere('last_name', 'like', "%{$search}%");
                 });
             })
+            ->when(
+                $parallelClassId && $selectedCurriculum,
+                fn ($query) => $query->whereIn('id', $parallelClassStudentIds)
+            )
             ->when(
                 $assignmentStatus === 'assigned' && $selectedCurriculum,
                 fn ($query) => $query->whereIn('id', $assignedStudentIds)
@@ -257,6 +278,7 @@ class ParallelCurriculumController extends Controller
             'sessionId',
             'classArms',
             'conventionalClassArmId',
+            'parallelClassId',
             'gender',
             'assignmentStatus',
             'search',
