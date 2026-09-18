@@ -861,9 +861,20 @@ class ReportCardController extends Controller
             ->where('term_id', $termId)
             ->update(['status' => 'draft', 'archived_at' => now()]);
 
+        $parallelCleanup = app(\App\Services\ParallelCurriculumService::class)
+            ->cleanupAfterConventionalUnpublish(
+                $tid,
+                array_map('intval', $armIds),
+                (int) $termId
+            );
+
         $msg = count($armIds) === 1
             ? 'Report cards unpublished (set back to draft).'
             : count($armIds) . ' class(es) unpublished.';
+
+        if ($parallelCleanup > 0) {
+            $msg .= " {$parallelCleanup} stale parallel-derived mapping(s) were cleaned up.";
+        }
 
         return redirect()->route('reports.publications', ['term_id' => $termId])
                          ->with('success', $msg);
