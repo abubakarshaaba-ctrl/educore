@@ -494,8 +494,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
         Route::post('student-assignments/import', [\App\Http\Controllers\ParallelCurriculumController::class, 'importStudentAssignments'])->name('student-assignments.import');
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
+        Route::put('curricula/{curriculum}', [\App\Http\Controllers\ParallelCurriculumController::class, 'updateCurriculum'])->name('curricula.update');
         Route::post('classes', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClass'])->name('classes.store');
+        Route::put('classes/{class}', [\App\Http\Controllers\ParallelCurriculumController::class, 'updateClass'])->name('classes.update');
         Route::post('subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeSubject'])->name('subjects.store');
+        Route::put('subjects/{subject}', [\App\Http\Controllers\ParallelCurriculumController::class, 'updateSubject'])->name('subjects.update');
         Route::post('grades', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeGrade'])->name('grades.store');
         Route::delete('grades/{grade}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyGrade'])->name('grades.destroy');
         Route::post('class-subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClassSubject'])->name('class-subjects.store');
