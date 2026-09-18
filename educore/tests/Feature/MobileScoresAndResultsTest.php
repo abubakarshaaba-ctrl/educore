@@ -18,6 +18,7 @@ use App\Models\TermlySummary;
 use App\Models\User;
 use App\Services\MobileReportCardService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -32,9 +33,12 @@ class MobileScoresAndResultsTest extends TestCase
         }
 
         foreach ([
-            'mobile_idempotency_keys', 'api_tokens', 'report_card_publications', 'termly_summaries', 'scores', 'assessment_types',
-            'class_arm_subjects', 'students', 'subjects', 'class_arms', 'class_levels', 'terms',
-            'academic_sessions', 'users', 'tenants',
+            'parallel_curriculum_composites', 'parallel_curriculum_integrations', 'parallel_curriculum_scores',
+            'parallel_curriculum_enrolments', 'parallel_curriculum_class_subjects', 'parallel_curriculum_classes',
+            'parallel_curriculum_subjects', 'parallel_curricula', 'assessment_template_components', 'assessment_templates',
+            'student_enrollments', 'school_settings', 'mobile_idempotency_keys', 'api_tokens', 'report_card_publications',
+            'termly_summaries', 'scores', 'assessment_types', 'class_arm_subjects', 'students', 'subjects', 'class_arms',
+            'class_levels', 'terms', 'academic_sessions', 'users', 'tenants',
         ] as $table) {
             Schema::dropIfExists($table);
         }
@@ -209,6 +213,151 @@ class MobileScoresAndResultsTest extends TestCase
             $table->text('note')->nullable();
             $table->timestamps();
         });
+        Schema::create('school_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('key');
+            $table->text('value')->nullable();
+            $table->string('group')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('student_enrollments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('student_id');
+            $table->unsignedBigInteger('class_arm_id');
+            $table->unsignedBigInteger('session_id');
+            $table->unsignedBigInteger('term_id')->nullable();
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
+            $table->boolean('is_current')->default(true);
+            $table->string('status')->default('active');
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('ended_by')->nullable();
+            $table->text('ended_reason')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('assessment_templates', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamps();
+        });
+        Schema::create('assessment_template_components', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('assessment_template_id');
+            $table->string('name');
+            $table->float('weight_percentage');
+            $table->string('component_type')->default('continuous_assessment');
+            $table->string('entry_mode')->default('manual');
+            $table->float('objective_max')->nullable();
+            $table->float('theory_max')->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curricula', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('name');
+            $table->string('code')->nullable();
+            $table->unsignedBigInteger('default_assessment_template_id')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_subjects', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->string('name');
+            $table->string('code')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_classes', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('assessment_template_id')->nullable();
+            $table->string('name');
+            $table->string('code')->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_class_subjects', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_class_id');
+            $table->unsignedBigInteger('parallel_curriculum_subject_id');
+            $table->unsignedBigInteger('teacher_id')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_enrolments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('parallel_curriculum_class_id');
+            $table->unsignedBigInteger('student_id');
+            $table->unsignedBigInteger('session_id');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_scores', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('parallel_curriculum_class_id');
+            $table->unsignedBigInteger('student_id');
+            $table->unsignedBigInteger('parallel_curriculum_subject_id');
+            $table->unsignedBigInteger('assessment_template_component_id');
+            $table->unsignedBigInteger('term_id');
+            $table->unsignedBigInteger('session_id');
+            $table->unsignedBigInteger('entered_by')->nullable();
+            $table->float('score')->nullable();
+            $table->timestamp('entered_at')->nullable();
+            $table->timestamps();
+            $table->unique([
+                'parallel_curriculum_id', 'student_id', 'parallel_curriculum_subject_id',
+                'assessment_template_component_id', 'term_id',
+            ]);
+        });
+        Schema::create('parallel_curriculum_integrations', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('destination_class_level_id');
+            $table->unsignedBigInteger('destination_subject_id');
+            $table->string('calculation_method')->default('arithmetic_mean');
+            $table->boolean('require_all_subjects')->default(true);
+            $table->unsignedSmallInteger('minimum_completed_subjects')->default(1);
+            $table->boolean('auto_sync')->default(true);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('parallel_curriculum_composites', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('parallel_curriculum_id');
+            $table->unsignedBigInteger('parallel_curriculum_integration_id')->nullable();
+            $table->unsignedBigInteger('parallel_curriculum_class_id');
+            $table->unsignedBigInteger('conventional_class_arm_id')->nullable();
+            $table->unsignedBigInteger('student_id');
+            $table->unsignedBigInteger('destination_subject_id')->nullable();
+            $table->unsignedBigInteger('term_id');
+            $table->unsignedBigInteger('session_id');
+            $table->float('average_score')->nullable();
+            $table->unsignedSmallInteger('subject_count')->default(0);
+            $table->unsignedSmallInteger('completed_subject_count')->default(0);
+            $table->json('subject_breakdown')->nullable();
+            $table->string('sync_status')->default('pending');
+            $table->string('sync_message')->nullable();
+            $table->timestamp('computed_at')->nullable();
+            $table->timestamps();
+        });
     }
 
     public function test_teacher_receives_only_current_session_assignments_without_duplicates(): void
@@ -297,6 +446,175 @@ class MobileScoresAndResultsTest extends TestCase
             ->assertOk()->assertJsonPath('locked', true);
         $payload['version'] = $fresh->json('version');
         $this->withToken($token)->postJson('/api/v1/scores/save', $payload)->assertStatus(423);
+    }
+
+    public function test_parallel_score_api_is_assignment_scoped_and_locks_after_publication(): void
+    {
+        $school = $this->school();
+        $teacher = $this->user($school['tenant'], 'subject_teacher');
+        $unassignedTeacher = $this->user($school['tenant'], 'subject_teacher');
+        $accountant = $this->user($school['tenant'], 'accountant');
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $templateId = DB::table('assessment_templates')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'name' => 'Parallel 40/60',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $componentId = DB::table('assessment_template_components')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'assessment_template_id' => $templateId,
+            'name' => 'Continuous Assessment',
+            'weight_percentage' => 40,
+            'component_type' => 'continuous_assessment',
+            'entry_mode' => 'manual',
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $curriculumId = DB::table('parallel_curricula')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'name' => 'Islamiyyah',
+            'code' => 'ISL',
+            'default_assessment_template_id' => $templateId,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $parallelSubjectId = DB::table('parallel_curriculum_subjects')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'name' => 'Qur\'an',
+            'code' => 'QRN',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $parallelClassId = DB::table('parallel_curriculum_classes')->insertGetId([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'assessment_template_id' => null,
+            'name' => 'Mutawassitah 1',
+            'code' => 'M1',
+            'sort_order' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('parallel_curriculum_class_subjects')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_class_id' => $parallelClassId,
+            'parallel_curriculum_subject_id' => $parallelSubjectId,
+            'teacher_id' => $teacher->id,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('parallel_curriculum_enrolments')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'parallel_curriculum_id' => $curriculumId,
+            'parallel_curriculum_class_id' => $parallelClassId,
+            'student_id' => $school['student']->id,
+            'session_id' => $school['session']->id,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('student_enrollments')->insert([
+            'tenant_id' => $school['tenant']->id,
+            'student_id' => $school['student']->id,
+            'class_arm_id' => $school['class']->id,
+            'session_id' => $school['session']->id,
+            'term_id' => $school['term']->id,
+            'start_date' => now()->toDateString(),
+            'is_current' => true,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $teacherToken = ApiToken::issue($teacher, 'parallel-score-teacher');
+        $this->withToken($teacherToken)->getJson('/api/v1/parallel-scores/teaching')
+            ->assertOk()
+            ->assertJsonCount(1, 'assignments')
+            ->assertJsonPath('assignments.0.workspace_type', 'parallel_curriculum')
+            ->assertJsonPath('assignments.0.subject_name', 'Qur\'an');
+
+        $this->withToken(ApiToken::issue($unassignedTeacher, 'parallel-score-other'))
+            ->getJson('/api/v1/parallel-scores/teaching')
+            ->assertOk()
+            ->assertJsonCount(0, 'assignments');
+
+        $this->withToken(ApiToken::issue($accountant, 'parallel-score-accountant'))
+            ->getJson('/api/v1/parallel-scores/teaching')
+            ->assertForbidden();
+
+        $sheet = $this->withToken($teacherToken)->getJson(
+            "/api/v1/parallel-scores/sheet?class_arm_id={$parallelClassId}&subject_id={$parallelSubjectId}"
+        )->assertOk()
+            ->assertJsonPath('workspace_type', 'parallel_curriculum')
+            ->assertJsonPath('locked', false)
+            ->assertJsonPath("assessment_types.0.id", $componentId);
+
+        $payload = [
+            'class_arm_id' => $parallelClassId,
+            'subject_id' => $parallelSubjectId,
+            'term_id' => $school['term']->id,
+            'version' => $sheet->json('version'),
+            'request_id' => '2199322b-7cc8-73de-a9f1-3e34cb662dde',
+            'scores' => [
+                $school['student']->id => [$componentId => 35],
+            ],
+        ];
+
+        $this->withToken($teacherToken)->postJson('/api/v1/parallel-scores/save', $payload)
+            ->assertOk()
+            ->assertJsonPath('saved', 1);
+
+        $this->assertDatabaseHas('parallel_curriculum_scores', [
+            'student_id' => $school['student']->id,
+            'parallel_curriculum_subject_id' => $parallelSubjectId,
+            'assessment_template_component_id' => $componentId,
+            'score' => 35,
+        ]);
+
+        ReportCardPublication::create([
+            'tenant_id' => $school['tenant']->id,
+            'class_arm_id' => $school['class']->id,
+            'term_id' => $school['term']->id,
+            'status' => 'published',
+        ]);
+
+        $lockedSheet = $this->withToken($teacherToken)->getJson(
+            "/api/v1/parallel-scores/sheet?class_arm_id={$parallelClassId}&subject_id={$parallelSubjectId}"
+        )->assertOk()
+            ->assertJsonPath('locked', true)
+            ->assertJsonPath("students.0.scores.{$componentId}.locked", true);
+
+        $payload['version'] = $lockedSheet->json('version');
+        $payload['request_id'] = '3199322b-7cc8-73de-a9f1-3e34cb662dde';
+        $payload['scores'][$school['student']->id][$componentId] = 30;
+
+        $this->withToken($teacherToken)->postJson('/api/v1/parallel-scores/save', $payload)
+            ->assertUnprocessable();
+
+        $this->assertDatabaseHas('parallel_curriculum_scores', [
+            'student_id' => $school['student']->id,
+            'parallel_curriculum_subject_id' => $parallelSubjectId,
+            'assessment_template_component_id' => $componentId,
+            'score' => 35,
+        ]);
     }
 
     public function test_mobile_report_service_returns_only_published_summaries(): void
