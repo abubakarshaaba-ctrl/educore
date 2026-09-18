@@ -23,6 +23,12 @@
 <div class="pc-shell">
     @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert-e"><strong>Could not save.</strong> {{ $errors->first() }}</div>@endif
+    @if($canManage && $schemaReconciliationPending)
+        <div class="alert-e">
+            <strong>Database update pending.</strong>
+            The parallel-curriculum workspace is being rendered in compatibility mode because one or more newer schema components are not yet available. Deploy the latest master build and allow the database migrations to complete before making configuration changes.
+        </div>
+    @endif
 
     <div class="pc-tabs">
         <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
