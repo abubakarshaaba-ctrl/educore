@@ -126,9 +126,7 @@ object ShellNavigationPolicy {
             key == "student.exams" ||
             key == "reports" ||
             key == "report-cards" ||
-            key == "results" ||
-            key == "student.results" ||
-            key == "parent.results"
+            key == "results"
     }
 
     fun groupFor(module: ModuleDescriptor): ModuleGroup {
@@ -151,6 +149,7 @@ object ShellNavigationPolicy {
         "curriculum",
         "attendance",
         "score",
+        "result",
         "lesson",
         "repository",
         "exam",
