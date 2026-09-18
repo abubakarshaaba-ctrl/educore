@@ -18,11 +18,11 @@ data class ScoreClassDto(val id: Long, val name: String)
 data class ScoreSubjectDto(val id: Long, val name: String)
 
 data class ScoreAssignmentDto(
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
     @param:Json(name = "class_arm_id") val classId: Long,
     @param:Json(name = "class_name") val className: String,
     @param:Json(name = "subject_id") val subjectId: Long,
     @param:Json(name = "subject_name") val subjectName: String,
+    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
 )
 
 data class ScoreAssignmentsResponseDto(
@@ -61,7 +61,6 @@ data class ScoreStudentDto(
 
 data class ScoreSheetResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int,
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
     @param:Json(name = "generated_at") val generatedAt: String,
     val version: String,
     val locked: Boolean,
@@ -71,16 +70,17 @@ data class ScoreSheetResponseDto(
     val term: ScoreTermDto,
     @param:Json(name = "assessment_types") val assessmentTypes: List<ScoreAssessmentDto> = emptyList(),
     val students: List<ScoreStudentDto> = emptyList(),
+    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
 )
 
 data class SaveScoresRequestDto(
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
     @param:Json(name = "class_arm_id") val classId: Long,
     @param:Json(name = "subject_id") val subjectId: Long,
     @param:Json(name = "term_id") val termId: Long,
     val version: String,
     @param:Json(name = "request_id") val requestId: String,
     val scores: Map<String, Map<String, Double?>>,
+    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
 )
 
 data class SaveScoresResponseDto(
