@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
@@ -198,15 +199,15 @@ fun EduCoreProfileHeader(
     avatar: @Composable (() -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (avatar != null) {
             avatar()
         } else {
             Surface(
-                modifier = Modifier.size(EduCoreSizes.LargeAvatar),
+                modifier = Modifier.size(42.dp),
                 shape = MaterialTheme.shapes.large,
                 color = EduCoreColors.Gold100,
                 contentColor = EduCoreColors.Navy900,
