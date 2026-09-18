@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,6 +32,11 @@ class EduCoreMessagingService : FirebaseMessagingService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
+        // Token rotation must not silently detach the installation from the
+        // global app-update topic. Reassert the subscription whenever Firebase
+        // issues a new registration token, while preserving the per-user token
+        // registration used by school-specific notifications.
+        FirebaseMessaging.getInstance().subscribeToTopic(APP_UPDATE_CHANNEL_ID)
         serviceScope.launch { communicationRepository.registerPushToken(token) }
     }
 
