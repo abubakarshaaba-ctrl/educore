@@ -127,7 +127,7 @@ class ParallelCurriculumService
             ?: $student->currentClassArm;
 
         if (! $conventionalArm?->class_level_id) {
-            return $this->persistStatus(
+            $composite = $this->persistStatus(
                 $existingComposite,
                 $enrolment,
                 $term,
@@ -140,6 +140,9 @@ class ParallelCurriculumService
                 'unmapped',
                 'No conventional class is available for this student in the selected session.'
             );
+            $this->clearDerivedScoresIfSafe($composite, $existingComposite?->conventional_class_arm_id);
+
+            return $composite;
         }
 
         $integration = ParallelCurriculumIntegration::withoutTenantScope()
@@ -151,7 +154,7 @@ class ParallelCurriculumService
             ->first();
 
         if (! $integration) {
-            return $this->persistStatus(
+            $composite = $this->persistStatus(
                 $existingComposite,
                 $enrolment,
                 $term,
@@ -164,13 +167,16 @@ class ParallelCurriculumService
                 'unmapped',
                 'No result-integration rule is configured for the student\'s conventional class level.'
             );
+            $this->clearDerivedScoresIfSafe($composite);
+
+            return $composite;
         }
 
         $template = $this->templateForClass($class);
         $components = $this->componentsForClass($class);
         $componentWeight = round((float) $components->sum('weight_percentage'), 2);
         if (! $template || $components->isEmpty() || $componentWeight <= 0) {
-            return $this->persistStatus(
+            $composite = $this->persistStatus(
                 $existingComposite,
                 $enrolment,
                 $term,
@@ -183,6 +189,9 @@ class ParallelCurriculumService
                 'pending',
                 'The parallel class has no usable assessment template.'
             );
+            $this->clearDerivedScoresIfSafe($composite);
+
+            return $composite;
         }
 
         $subjectAssignments = $class->subjectAssignments
@@ -191,7 +200,7 @@ class ParallelCurriculumService
             ->values();
 
         if ($subjectAssignments->isEmpty()) {
-            return $this->persistStatus(
+            $composite = $this->persistStatus(
                 $existingComposite,
                 $enrolment,
                 $term,
@@ -204,6 +213,9 @@ class ParallelCurriculumService
                 'pending',
                 'No active subjects are assigned to the parallel class.'
             );
+            $this->clearDerivedScoresIfSafe($composite);
+
+            return $composite;
         }
 
         $scores = ParallelCurriculumScore::withoutTenantScope()
@@ -346,6 +358,7 @@ class ParallelCurriculumService
                 'sync_status' => 'conflict',
                 'sync_message' => 'Existing conventional score(s) prevent derived sync: '.implode(', ', $conflicts).'.',
             ]);
+            $this->clearDerivedScoresIfSafe($composite);
 
             return $composite->refresh();
         }
@@ -467,18 +480,20 @@ class ParallelCurriculumService
         return ParallelCurriculumComposite::withoutTenantScope()->create($attributes);
     }
 
-    private function clearDerivedScoresIfSafe(ParallelCurriculumComposite $composite): void
-    {
-        if (! $composite->conventional_class_arm_id) {
-            return;
-        }
+    private function clearDerivedScoresIfSafe(
+        ParallelCurriculumComposite $composite,
+        ?int $fallbackConventionalClassArmId = null
+    ): void {
+        $classArmId = $composite->conventional_class_arm_id ?: $fallbackConventionalClassArmId;
 
-        $published = ReportCardPublication::withoutTenantScope()
+        $published = $classArmId
+            ? ReportCardPublication::withoutTenantScope()
             ->where('tenant_id', $composite->tenant_id)
-            ->where('class_arm_id', $composite->conventional_class_arm_id)
+            ->where('class_arm_id', $classArmId)
             ->where('term_id', $composite->term_id)
             ->where('status', 'published')
-            ->exists();
+            ->exists()
+            : false;
 
         if ($published) {
             return;
