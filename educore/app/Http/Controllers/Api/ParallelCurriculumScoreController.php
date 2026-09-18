@@ -27,6 +27,7 @@ class ParallelCurriculumScoreController extends Controller
     public function teaching(Request $request)
     {
         $user = $request->user();
+        $this->assertCanEnterScores($user);
         $tenantId = (int) $user->tenant_id;
         $session = AcademicSession::current()->first();
         $term = Term::current()->with('session')->first();
@@ -78,6 +79,7 @@ class ParallelCurriculumScoreController extends Controller
         ]);
 
         $user = $request->user();
+        $this->assertCanEnterScores($user);
         $this->assertEnabled($user);
         $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
             ->findOrFail($data['class_arm_id']);
@@ -154,6 +156,7 @@ class ParallelCurriculumScoreController extends Controller
         ]);
 
         $user = $request->user();
+        $this->assertCanEnterScores($user);
         $this->assertEnabled($user);
         $class = ParallelCurriculumClass::with(['curriculum', 'assessmentTemplate', 'curriculum.defaultAssessmentTemplate'])
             ->findOrFail($data['class_arm_id']);
@@ -267,6 +270,19 @@ class ParallelCurriculumScoreController extends Controller
         );
 
         return response()->json($response);
+    }
+
+    private function assertCanEnterScores($user): void
+    {
+        abort_if($user->isAccountant(), 403, 'Accountants cannot enter academic scores.');
+
+        abort_unless(
+            $user->isSuperAdmin()
+                || $user->canAccessExactModule('scores')
+                || $user->canAccessExactModule('scores.entry'),
+            403,
+            'You do not have permission to enter parallel curriculum scores.'
+        );
     }
 
     private function assertEnabled($user): void
