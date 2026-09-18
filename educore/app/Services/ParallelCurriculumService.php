@@ -8,6 +8,7 @@ use App\Models\AssessmentType;
 use App\Models\ClassArm;
 use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
+use App\Models\ParallelCurriculumArmSubjectTeacher;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
@@ -41,6 +42,27 @@ class ParallelCurriculumService
         $class->loadMissing(['assessmentTemplate', 'curriculum.defaultAssessmentTemplate']);
 
         return $class->assessmentTemplate ?: $class->curriculum?->defaultAssessmentTemplate;
+    }
+
+    public function effectiveTeacherId(
+        ParallelCurriculumClassSubject $assignment,
+        ?ParallelCurriculumClassArm $arm = null
+    ): ?int {
+        if ($arm && Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
+            $override = ParallelCurriculumArmSubjectTeacher::withoutTenantScope()
+                ->where('tenant_id', $assignment->tenant_id)
+                ->where('parallel_curriculum_class_id', $assignment->parallel_curriculum_class_id)
+                ->where('parallel_curriculum_class_arm_id', $arm->id)
+                ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($override) {
+                return (int) $override->teacher_id;
+            }
+        }
+
+        return $assignment->teacher_id ? (int) $assignment->teacher_id : null;
     }
 
     public function componentsForClass(ParallelCurriculumClass $class): Collection
