@@ -127,7 +127,9 @@
                     <div class="form-row">
                         <div class="fg"><label class="fl">Minimum completed subjects</label><input class="fc" type="number" name="minimum_completed_subjects" value="1" min="1" max="50"></div>
                         <div style="padding-top:22px">
+                            <input type="hidden" name="require_all_subjects" value="0">
                             <label class="checkbox-row"><input type="checkbox" name="require_all_subjects" value="1" checked><span>Require all active parallel subjects before calculating the average.</span></label>
+                            <input type="hidden" name="auto_sync" value="0">
                             <label class="checkbox-row" style="margin-top:8px"><input type="checkbox" name="auto_sync" value="1" checked><span>Automatically refresh the conventional score after parallel score entry.</span></label>
                         </div>
                     </div>
