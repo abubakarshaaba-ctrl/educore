@@ -42,6 +42,22 @@ class ParallelCurriculumService
 
     public function componentsForClass(ParallelCurriculumClass $class): Collection
     {
+        if (! $force && ! $integration->auto_sync) {
+            return $this->persistStatus(
+                $existingComposite,
+                $enrolment,
+                $term,
+                $conventionalArm,
+                $integration,
+                null,
+                0,
+                0,
+                [],
+                'pending',
+                'Composite auto-sync is disabled for this conventional class-level mapping.'
+            );
+        }
+
         $template = $this->templateForClass($class);
         if (! $template) {
             return collect();
@@ -53,7 +69,7 @@ class ParallelCurriculumService
             ->get();
     }
 
-    public function syncCurriculum(ParallelCurriculum $curriculum, Term $term): array
+    public function syncCurriculum(ParallelCurriculum $curriculum, Term $term, bool $force = true): array
     {
         $enrolments = ParallelCurriculumEnrolment::withoutTenantScope()
             ->where('tenant_id', $curriculum->tenant_id)
@@ -66,7 +82,7 @@ class ParallelCurriculumService
         $result = ['synced' => 0, 'pending' => 0, 'conflict' => 0, 'locked' => 0, 'unmapped' => 0];
 
         foreach ($enrolments as $enrolment) {
-            $status = $this->syncStudent($enrolment, $term)?->sync_status ?? 'pending';
+            $status = $this->syncStudent($enrolment, $term, $force)?->sync_status ?? 'pending';
             if (array_key_exists($status, $result)) {
                 $result[$status]++;
             } else {
@@ -77,7 +93,7 @@ class ParallelCurriculumService
         return $result;
     }
 
-    public function syncStudent(ParallelCurriculumEnrolment $enrolment, Term $term): ?ParallelCurriculumComposite
+    public function syncStudent(ParallelCurriculumEnrolment $enrolment, Term $term, bool $force = true): ?ParallelCurriculumComposite
     {
         $tenantId = (int) $enrolment->tenant_id;
         if (! $this->enabledForTenant($tenantId) || (int) $term->session_id !== (int) $enrolment->session_id) {
