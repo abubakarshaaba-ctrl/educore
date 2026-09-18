@@ -491,6 +491,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::prefix('parallel-curriculum')->name('parallel-curriculum.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
         Route::get('student-assignments', [\App\Http\Controllers\ParallelCurriculumController::class, 'studentAssignments'])->name('student-assignments');
+        Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
+        Route::post('student-assignments/import', [\App\Http\Controllers\ParallelCurriculumController::class, 'importStudentAssignments'])->name('student-assignments.import');
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
         Route::post('classes', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeClass'])->name('classes.store');
         Route::post('subjects', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeSubject'])->name('subjects.store');
