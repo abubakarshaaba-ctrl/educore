@@ -13,13 +13,20 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
+use App\Services\StaffIdGenerator;
+use App\Services\StudentIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    public function __construct(
+        private readonly StaffIdGenerator $staffIdGenerator,
+        private readonly StudentIdGenerator $studentIdGenerator,
+    ) {
+    }
+
     private const ROLES = [
         'admin', 'principal', 'head', 'head_teacher',
         'vice_principal', 'academic_administrator',
@@ -242,11 +249,7 @@ class AdminController extends Controller
             'current_class_arm_id' => ['required', Rule::exists('class_arms', 'id')->where('tenant_id', $user->tenant_id)],
         ]);
 
-        $prefix = 'STU-' . now()->format('Y') . '-';
-        $last = Student::withoutTenantScope()->where('tenant_id', $user->tenant_id)
-            ->where('admission_number', 'like', $prefix . '%')
-            ->max('admission_number');
-        $data['admission_number'] = $prefix . str_pad((string) (((int) Str::afterLast((string) $last, '-')) + 1), 4, '0', STR_PAD_LEFT);
+        $data['admission_number'] = $this->studentIdGenerator->generate();
         $data['tenant_id'] = $user->tenant_id;
         $data['status'] = Student::STATUS_ACTIVE;
 
@@ -279,6 +282,7 @@ class AdminController extends Controller
             'employment_status' => User::STAFF_STATUS_ACTIVE,
             'employment_started_at' => today(),
             'status_changed_at' => now(),
+            'staff_id' => $this->staffIdGenerator->generate(),
         ]);
         $member->assignRole($member->role);
 
