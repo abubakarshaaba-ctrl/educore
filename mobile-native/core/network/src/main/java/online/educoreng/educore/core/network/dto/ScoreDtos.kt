@@ -4,6 +4,7 @@ import com.squareup.moshi.Json
 import online.educoreng.educore.core.model.PublishedResult
 import online.educoreng.educore.core.model.PublishedResults
 import online.educoreng.educore.core.model.ResultAssessment
+import online.educoreng.educore.core.model.ResultLearner
 import online.educoreng.educore.core.model.ResultSubject
 import online.educoreng.educore.core.model.ScoreAssessment
 import online.educoreng.educore.core.model.ScoreAssignment
@@ -130,6 +131,7 @@ data class PublishedResultDto(
 
 data class PublishedResultsResponseDto(
     val student: ResultStudentDto? = null,
+    val children: List<ResultStudentDto> = emptyList(),
     val results: List<PublishedResultDto> = emptyList(),
     @param:Json(name = "parallel_results") val parallelResults: List<PublishedResultDto> = emptyList(),
 )
@@ -159,11 +161,20 @@ fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = empt
 )
 
 fun PublishedResultsResponseDto.toDomain() = PublishedResults(
+    studentId = student?.id,
     studentName = student?.name,
     admissionNumber = student?.admissionNumber,
     className = student?.classRoom?.name,
-    results = results.map(PublishedResultDto::toDomain),
-    parallelResults = parallelResults.map(PublishedResultDto::toDomain),
+    results = results.map { it.toDomain() },
+    parallelResults = parallelResults.map { it.toDomain() },
+    children = children.map {
+        ResultLearner(
+            id = it.id,
+            name = it.name,
+            admissionNumber = it.admissionNumber,
+            className = it.classRoom?.name,
+        )
+    },
 )
 
 private fun PublishedResultDto.toDomain() = PublishedResult(
