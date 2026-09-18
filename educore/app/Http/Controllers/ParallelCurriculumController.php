@@ -652,9 +652,11 @@ class ParallelCurriculumController extends Controller
             ->where('parallel_curriculum_subject_id', $parallelSubject->id)
             ->first();
 
+        $structureChanged = ! $existingAssignment || ! $existingAssignment->is_active;
+
         if (
             $this->service->classStructureLocked($class)
-            && (! $existingAssignment || ! $existingAssignment->is_active)
+            && $structureChanged
         ) {
             abort(
                 423,
@@ -674,7 +676,16 @@ class ParallelCurriculumController extends Controller
             ]
         );
 
-        return back()->with('success', 'Subject assigned to parallel curriculum class.');
+        if ($structureChanged) {
+            $this->service->reconcileClassStructure($class);
+        }
+
+        return back()->with(
+            'success',
+            $structureChanged
+                ? 'Subject assigned and dependent parallel composites refreshed.'
+                : 'Subject teacher assignment updated.'
+        );
     }
 
     public function destroyClassSubject(ParallelCurriculumClassSubject $assignment)
@@ -696,13 +707,21 @@ class ParallelCurriculumController extends Controller
 
         if ($hasScores) {
             $assignment->update(['is_active' => false]);
+            $this->service->reconcileClassStructure($class);
 
-            return back()->with('success', 'Subject archived because result records already exist.');
+            return back()->with(
+                'success',
+                'Subject archived and dependent parallel composites refreshed because result records already exist.'
+            );
         }
 
         $assignment->delete();
+        $this->service->reconcileClassStructure($class);
 
-        return back()->with('success', 'Subject removed from parallel curriculum class.');
+        return back()->with(
+            'success',
+            'Subject removed and dependent parallel composites refreshed.'
+        );
     }
 
     public function downloadStudentAssignmentTemplate()
