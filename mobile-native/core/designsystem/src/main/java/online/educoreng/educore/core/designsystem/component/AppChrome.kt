@@ -127,7 +127,7 @@ fun EduCoreBottomNavigation(
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier.height(64.dp),
+        modifier = modifier,
         containerColor = Color.White,
         tonalElevation = EduCoreSpacing.Xs,
     ) {
