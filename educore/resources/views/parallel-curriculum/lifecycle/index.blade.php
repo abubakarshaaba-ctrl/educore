@@ -79,7 +79,51 @@
 </div>
 </div></section>
 
-<section class="card"><div class="head"><div><strong>3. Promotion rules</strong><br><span>Define pass criteria and the next parallel level.</span></div></div><div class="body">
+<section class="card full"><div class="head"><div><strong>3. Arm-specific subject teachers</strong><br><span>Each class-level subject keeps its default teacher unless an arm override is selected here.</span></div></div><div class="body">
+@foreach($selectedCurriculum->classes as $class)
+<div class="level">
+    <div class="rule"><strong>{{ $class->name }}</strong><span>{{ $class->arms->where('is_active',true)->count() }} active arm(s) · {{ $class->subjectAssignments->where('is_active',true)->count() }} active subject(s)</span></div>
+    @forelse($class->arms->where('is_active',true) as $arm)
+        <div class="arm" style="margin-top:8px">
+            <strong>{{ $class->name }} {{ $arm->name }}</strong>
+            @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
+                @php($override=$arm->subjectTeachers->where('is_active',true)->firstWhere('parallel_curriculum_subject_id',$assignment->parallel_curriculum_subject_id))
+                <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teachers.store') }}" style="margin-top:9px;padding-top:9px;border-top:1px solid #EEF2F7">
+                    @csrf
+                    <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
+                    <input type="hidden" name="parallel_curriculum_subject_id" value="{{ $assignment->parallel_curriculum_subject_id }}">
+                    <div class="row">
+                        <div class="fg" style="margin:0">
+                            <label class="fl">{{ $assignment->subject?->name }}</label>
+                            <div class="hint">Class default: {{ $assignment->teacher?->name ?: 'Admin / unassigned' }}</div>
+                        </div>
+                        <div class="fg" style="margin:0">
+                            <label class="fl">Teacher for this arm</label>
+                            <select class="fc" name="teacher_id">
+                                <option value="">Use class default{{ $assignment->teacher ? ' · '.$assignment->teacher->name : '' }}</option>
+                                @foreach($staff as $teacher)
+                                    <option value="{{ $teacher->id }}" @selected((int)($override?->teacher_id ?? 0)===(int)$teacher->id)>{{ $teacher->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top:7px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                        <span class="hint">Effective teacher: {{ $override?->teacher?->name ?: ($assignment->teacher?->name ?: 'Admin / unassigned') }}</span>
+                        <button class="btn s" type="submit">Save Teacher</button>
+                    </div>
+                </form>
+            @empty
+                <span>No active subjects assigned to this class.</span>
+            @endforelse
+        </div>
+    @empty
+        <div class="hint">Create at least one active arm for this class level.</div>
+    @endforelse
+</div>
+@endforeach
+</div></section>
+
+<section class="card"><div class="head"><div><strong>4. Promotion rules</strong><br><span>Define pass criteria and the next parallel level.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}">@csrf<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <div class="row"><div class="fg"><label class="fl">Source level</label><select class="fc" name="source_class_id" required><option value="">Select</option>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Next level</label><select class="fc" name="destination_class_id"><option value="">None / terminal</option>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
 <div class="row"><div class="fg"><label class="fl">Minimum average</label><input class="fc" type="number" step=".01" min="0" max="100" name="minimum_average" value="50" required></div><div class="fg"><label class="fl">Max failed subjects</label><input class="fc" type="number" min="0" name="max_failed_subjects" value="2" required></div></div>
@@ -88,7 +132,7 @@
 <div style="margin-top:14px">@foreach($selectedCurriculum->classes as $class)@php($rule=$class->promotionRule)<div class="rule"><strong>{{ $class->name }}</strong>@if($rule)<span>{{ $rule->is_terminal?'Terminal → Graduate':'Next: '.($rule->destinationClass?->name?:'Not configured') }} · Avg ≥ {{ number_format($rule->minimum_average,1) }}% · Failed ≤ {{ $rule->max_failed_subjects }} · {{ ucfirst($rule->failure_action) }} if unsuccessful</span>@else<span>No rule configured.</span>@endif</div>@endforeach</div>
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>4. Promotion engine</strong><br><span>Preview before execution. Source-session placement remains unchanged.</span></div></div><div class="body">
+<section class="card full"><div class="head"><div><strong>5. Promotion engine</strong><br><span>Preview before execution. Source-session placement remains unchanged.</span></div></div><div class="body">
 <form method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}"><input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}"><input type="hidden" name="session_id" value="{{ $sessionId }}"><input type="hidden" name="preview_promotion" value="1">
 <div class="row"><div class="fg"><label class="fl">Source session</label><select class="fc" name="source_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$sourceSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination session</label><select class="fc" name="target_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$targetSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div></div><button class="btn s" type="submit">Preview Promotion</button></form>
 @if($preview)
@@ -99,7 +143,7 @@
 @endif
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>5. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
+<section class="card full"><div class="head"><div><strong>6. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.transfers.store') }}">@csrf
 <div class="row"><div class="fg"><label class="fl">Student / current placement</label><select class="fc" name="enrolment_id" required><option value="">Select learner</option>@foreach($enrolments as $enrolment)<option value="{{ $enrolment->id }}">{{ $enrolment->student?->full_name }} · {{ $enrolment->student?->admission_number }} · {{ $enrolment->curriculumClass?->name }} {{ $enrolment->curriculumClassArm?->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination level</label><select class="fc" name="destination_class_id" id="life-destination-class" required><option value="">Select</option>@foreach($selectedCurriculum->classes->where('is_active',true) as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
 <div class="row"><div class="fg"><label class="fl">Destination arm</label><select class="fc" name="destination_arm_id" id="life-destination-arm" required disabled><option value="">Choose destination level first</option>@foreach($selectedCurriculum->classes as $class)@foreach($class->arms->where('is_active',true) as $arm)<option value="{{ $arm->id }}" data-class-id="{{ $class->id }}" hidden disabled>{{ $class->name }} · {{ $arm->name }}{{ $arm->capacity ? ' · Capacity '.$arm->capacity : '' }}</option>@endforeach @endforeach</select></div><div class="fg"><label class="fl">Effective date</label><input class="fc" type="date" name="effective_date" value="{{ now()->toDateString() }}"></div></div>
