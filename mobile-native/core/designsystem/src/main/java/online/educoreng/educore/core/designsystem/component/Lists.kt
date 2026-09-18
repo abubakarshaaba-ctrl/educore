@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -59,7 +60,7 @@ fun EduCoreStatusBadge(
             text = text,
             modifier = Modifier.padding(horizontal = EduCoreSpacing.Sm, vertical = EduCoreSpacing.Xs),
             style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
+            maxLines = 2,
         )
     }
 }
@@ -85,23 +86,47 @@ fun EduCoreSectionHeader(
         color = EduCoreColors.White,
         border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = EduCoreColors.Navy900,
-                )
-                supportingText?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val stackAction = maxWidth < 360.dp && actionLabel != null && onAction != null
+            if (stackAction) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                ) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = EduCoreColors.Navy900,
+                    )
+                    supportingText?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+                    }
+                    EduCoreTextButton(
+                        text = requireNotNull(actionLabel),
+                        onClick = requireNotNull(onAction),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-            }
-            if (actionLabel != null && onAction != null) {
-                EduCoreTextButton(actionLabel, onAction)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = EduCoreColors.Navy900,
+                        )
+                        supportingText?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
+                        }
+                    }
+                    if (actionLabel != null && onAction != null) {
+                        EduCoreTextButton(actionLabel, onAction)
+                    }
+                }
             }
         }
     }
