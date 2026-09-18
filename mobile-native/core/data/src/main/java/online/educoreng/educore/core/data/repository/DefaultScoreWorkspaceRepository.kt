@@ -171,13 +171,13 @@ class DefaultScoreWorkspaceRepository(
             return@withContext AppResult.Failure(AppError.Conflict(existing.lastError ?: "Reload this score sheet before retrying."))
         }
         val fresh = SaveScoresRequestDto(
-            sheet.workspaceType,
-            sheet.classId,
-            sheet.subjectId,
-            sheet.termId,
-            sheet.version,
-            UUID.randomUUID().toString(),
-            payload,
+            classId = sheet.classId,
+            subjectId = sheet.subjectId,
+            termId = sheet.termId,
+            version = sheet.version,
+            requestId = UUID.randomUUID().toString(),
+            scores = payload,
+            workspaceType = sheet.workspaceType,
         )
         val operation = existing ?: SyncOperationEntity(
             scope.tenantKey,
