@@ -119,7 +119,7 @@
 @endif
 
 <a href="{{ route('parent.results.pdf', ['student_id' => optional($student)->id, 'term_id' => $termId]) }}" target="_blank" class="btn btn-primary parent-results-download">🖨 Download Report Card PDF</a>
-@else
+@elseif($parallelResults->isEmpty())
 <div class="card">
     <div class="empty">
         <div class="empty-icon">📋</div>
@@ -134,4 +134,6 @@
     </div>
 </div>
 @endif
+
+@include('portal.partials.parallel-results', ['parallelResults' => $parallelResults])
 @endsection
