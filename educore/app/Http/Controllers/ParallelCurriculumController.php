@@ -580,6 +580,7 @@ class ParallelCurriculumController extends Controller
             'classes' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
         ])->findOrFail($data['parallel_curriculum_id']);
 
+        abort_unless($curriculum->is_active, 422, 'This parallel curriculum programme is inactive.');
         abort_if($curriculum->classes->isEmpty(), 422, 'Create an active parallel class before importing student assignments.');
 
         try {
@@ -762,11 +763,24 @@ class ParallelCurriculumController extends Controller
         ]);
 
         $class = $this->classForTenant((int) $data['parallel_curriculum_class_id']);
+        abort_unless(
+            $class->is_active && $class->curriculum?->is_active,
+            422,
+            'Students can only be assigned to an active parallel curriculum class and programme.'
+        );
+
         $studentIds = collect($data['student_ids'])->map(fn ($id) => (int) $id)->unique()->values();
         $students = Student::active()
             ->whereIn('id', $studentIds)
             ->get()
             ->keyBy('id');
+
+        $inactiveStudentIds = $studentIds->diff($students->keys()->map(fn ($id) => (int) $id));
+        if ($inactiveStudentIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'student_ids' => ['Only active students can be assigned to a parallel curriculum class.'],
+            ]);
+        }
 
         $existingEnrolments = ParallelCurriculumEnrolment::where('parallel_curriculum_id', $class->parallel_curriculum_id)
             ->where('session_id', $data['session_id'])
@@ -988,6 +1002,11 @@ class ParallelCurriculumController extends Controller
         ]);
 
         $class = $this->classForTenant((int) $data['class_id']);
+        abort_unless(
+            $class->is_active && $class->curriculum?->is_active,
+            422,
+            'Score entry is unavailable because this parallel curriculum class or programme is inactive.'
+        );
         $this->assertCanEnter($class, (int) $data['subject_id']);
 
         $term = Term::with('session')->findOrFail($data['term_id']);
@@ -1043,6 +1062,11 @@ class ParallelCurriculumController extends Controller
         ]);
 
         $class = $this->classForTenant((int) $data['class_id']);
+        abort_unless(
+            $class->is_active && $class->curriculum?->is_active,
+            422,
+            'Score entry is unavailable because this parallel curriculum class or programme is inactive.'
+        );
         $this->assertCanEnter($class, (int) $data['subject_id']);
         $parallelSubject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
         abort_unless(
