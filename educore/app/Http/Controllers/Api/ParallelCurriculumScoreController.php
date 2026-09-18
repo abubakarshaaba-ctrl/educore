@@ -106,7 +106,7 @@ class ParallelCurriculumScoreController extends Controller
             'version' => $this->sheetVersion($students, $components, $records, $lockedStudents),
             'locked' => $students->isNotEmpty() && $lockedStudents->every(fn ($locked) => $locked),
             'lock_reason' => $students->isNotEmpty() && $lockedStudents->every(fn ($locked) => $locked)
-                ? 'The conventional report cards for these students are published. Unpublish them before changing source scores.'
+                ? 'A published result depends on these source scores. Unpublish the relevant parallel or conventional result before changing them.'
                 : null,
             'class' => [
                 'id' => $class->id,
