@@ -23,9 +23,9 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\ParallelCurriculumService;
-use App\Services\ParallelCurriculumLifecycleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -33,7 +33,6 @@ class ParallelCurriculumController extends Controller
 {
     public function __construct(
         private readonly ParallelCurriculumService $service,
-        private readonly ParallelCurriculumLifecycleService $lifecycle,
     ) {}
 
     private function tenantId(): int
@@ -105,63 +104,119 @@ class ParallelCurriculumController extends Controller
         $currentSession = AcademicSession::current()->first();
         $currentTerm = Term::current()->with('session')->first();
 
-        $curricula = ParallelCurriculum::with([
+        $armLifecycleReady = Schema::hasTable('parallel_curriculum_class_arms')
+            && Schema::hasTable('parallel_curriculum_enrolments')
+            && Schema::hasColumn(
+                'parallel_curriculum_enrolments',
+                'parallel_curriculum_class_arm_id'
+            );
+
+        $curriculumRelations = [
             'defaultAssessmentTemplate',
             'grades',
             'subjects',
             'classes.assessmentTemplate',
-            'classes.arms',
             'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
-        ])->orderBy('name')->get();
+        ];
 
-        $workspaces = $curricula->flatMap(function (ParallelCurriculum $curriculum) use ($canManage) {
-            return $curriculum->classes
-                ->where('is_active', true)
-                ->flatMap(function (ParallelCurriculumClass $class) use ($curriculum, $canManage) {
-                    $arms = $class->arms->where('is_active', true)->values();
-                    if ($arms->isEmpty()) {
-                        $arms = collect([null]);
-                    }
+        if ($armLifecycleReady) {
+            $curriculumRelations[] = 'classes.arms';
+        }
 
-                    return $arms->flatMap(function ($arm) use ($class, $curriculum, $canManage) {
-                        return $class->subjectAssignments
-                            ->where('is_active', true)
-                            ->map(function ($assignment) use ($arm, $class, $curriculum, $canManage) {
-                                $effectiveTeacherId = $this->service->effectiveTeacherId(
-                                    $assignment,
-                                    $arm
-                                );
+        $curricula = ParallelCurriculum::with($curriculumRelations)
+            ->orderBy('name')
+            ->get();
 
-                                if (
-                                    ! $canManage
-                                    && (int) $effectiveTeacherId !== (int) auth()->id()
+        $workspaces = $curricula->flatMap(
+            function (ParallelCurriculum $curriculum) use (
+                $canManage,
+                $armLifecycleReady
+            ) {
+                return $curriculum->classes
+                    ->where('is_active', true)
+                    ->flatMap(
+                        function (ParallelCurriculumClass $class) use (
+                            $curriculum,
+                            $canManage,
+                            $armLifecycleReady
+                        ) {
+                            $arms = $armLifecycleReady
+                                ? $class->arms->where('is_active', true)->values()
+                                : collect();
+
+                            if ($arms->isEmpty()) {
+                                $arms = collect([null]);
+                            }
+
+                            return $arms->flatMap(
+                                function ($arm) use (
+                                    $class,
+                                    $curriculum,
+                                    $canManage
                                 ) {
-                                    return null;
-                                }
+                                    return $class->subjectAssignments
+                                        ->where('is_active', true)
+                                        ->map(
+                                            function ($assignment) use (
+                                                $arm,
+                                                $class,
+                                                $curriculum,
+                                                $canManage
+                                            ) {
+                                                $effectiveTeacherId =
+                                                    $this->service->effectiveTeacherId(
+                                                        $assignment,
+                                                        $arm
+                                                    );
 
-                                return [
-                                    'curriculum' => $curriculum,
-                                    'class' => $class,
-                                    'arm' => $arm,
-                                    'assignment' => $assignment,
-                                    'effective_teacher_id' => $effectiveTeacherId,
-                                    'effective_teacher_name' => $effectiveTeacherId
-                                        ? User::whereKey($effectiveTeacherId)->value('name')
-                                        : null,
-                                ];
-                            })
-                            ->filter();
-                    });
-                });
-        })->values();
+                                                if (
+                                                    ! $canManage
+                                                    && (int) $effectiveTeacherId
+                                                        !== (int) auth()->id()
+                                                ) {
+                                                    return null;
+                                                }
+
+                                                return [
+                                                    'curriculum' => $curriculum,
+                                                    'class' => $class,
+                                                    'arm' => $arm,
+                                                    'assignment' => $assignment,
+                                                    'effective_teacher_id' =>
+                                                        $effectiveTeacherId,
+                                                    'effective_teacher_name' =>
+                                                        $effectiveTeacherId
+                                                            ? User::whereKey(
+                                                                $effectiveTeacherId
+                                                            )->value('name')
+                                                            : null,
+                                                ];
+                                            }
+                                        )
+                                        ->filter();
+                                }
+                            );
+                        }
+                    );
+            }
+        )->values();
 
         $templates = $canManage
-            ? AssessmentTemplate::with('components')->where('status', AssessmentTemplate::STATUS_ACTIVE)->orderBy('name')->get()
+            ? AssessmentTemplate::with('components')
+                ->where('status', AssessmentTemplate::STATUS_ACTIVE)
+                ->orderBy('name')
+                ->get()
             : collect();
 
-        $conventionalSubjects = $canManage ? Subject::where('is_active', true)->orderBy('name')->get() : collect();
-        $classLevels = $canManage ? ClassLevel::orderBy('order_index')->orderBy('name')->get() : collect();
+        $conventionalSubjects = $canManage
+            ? Subject::where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        $classLevels = $canManage
+            ? ClassLevel::orderBy('order_index')->orderBy('name')->get()
+            : collect();
+
         $staff = $canManage
             ? User::where('tenant_id', $tenantId)
                 ->where('is_active', true)
@@ -170,26 +225,51 @@ class ParallelCurriculumController extends Controller
                 ->get()
                 ->filter(fn (User $person) =>
                     ! $person->isAccountant()
-                    && ($person->canAccessExactModule('scores') || $person->canAccessExactModule('scores.entry'))
+                    && (
+                        $person->canAccessExactModule('scores')
+                        || $person->canAccessExactModule('scores.entry')
+                    )
                 )
                 ->values()
             : collect();
 
         $integrations = $canManage
-            ? ParallelCurriculumIntegration::with(['curriculum', 'destinationClassLevel', 'destinationSubject'])
-                ->orderBy('parallel_curriculum_id')->orderBy('destination_class_level_id')->get()
-            : collect();
-
-        $enrolments = ($canManage && $currentSession)
-            ? ParallelCurriculumEnrolment::with(['student.currentClassArm.classLevel', 'curriculumClass', 'curriculumClassArm', 'curriculum'])
-                ->where('session_id', $currentSession->id)
-                ->where('is_active', true)
-                ->orderBy('parallel_curriculum_class_id')
+            ? ParallelCurriculumIntegration::with([
+                    'curriculum',
+                    'destinationClassLevel',
+                    'destinationSubject',
+                ])
+                ->orderBy('parallel_curriculum_id')
+                ->orderBy('destination_class_level_id')
                 ->get()
             : collect();
 
+        $enrolments = collect();
+        if ($canManage && $currentSession) {
+            $enrolmentRelations = [
+                'student.currentClassArm.classLevel',
+                'curriculumClass',
+                'curriculum',
+            ];
+
+            if ($armLifecycleReady) {
+                $enrolmentRelations[] = 'curriculumClassArm';
+            }
+
+            $enrolments = ParallelCurriculumEnrolment::with($enrolmentRelations)
+                ->where('session_id', $currentSession->id)
+                ->where('is_active', true)
+                ->orderBy('parallel_curriculum_class_id')
+                ->get();
+        }
+
         $recentComposites = $currentTerm
-            ? ParallelCurriculumComposite::with(['student', 'curriculum', 'curriculumClass', 'destinationSubject'])
+            ? ParallelCurriculumComposite::with([
+                    'student',
+                    'curriculum',
+                    'curriculumClass',
+                    'destinationSubject',
+                ])
                 ->where('term_id', $currentTerm->id)
                 ->latest('computed_at')
                 ->limit(30)
@@ -197,9 +277,19 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         return view('parallel-curriculum.index', compact(
-            'canManage', 'currentSession', 'currentTerm', 'curricula', 'workspaces',
-            'templates', 'conventionalSubjects', 'classLevels', 'staff',
-            'integrations', 'enrolments', 'recentComposites'
+            'canManage',
+            'currentSession',
+            'currentTerm',
+            'curricula',
+            'workspaces',
+            'templates',
+            'conventionalSubjects',
+            'classLevels',
+            'staff',
+            'integrations',
+            'enrolments',
+            'recentComposites',
+            'armLifecycleReady'
         ));
     }
 
