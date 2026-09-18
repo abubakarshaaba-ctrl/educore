@@ -74,7 +74,7 @@ select.fc{cursor:pointer}
                         <span style="font-size:11px;color:#DC2626;font-weight:600">Expired</span>
                     @endif
                 </div>
-                <div class="b-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($bc->body) !!}</div>
+                <x-rich-text :text="$bc->body" class="b-body" />
                 <div class="b-meta">
                     <span>By {{ $bc->creator_name ?? 'Admin' }}</span>
                     <span>· {{ \Carbon\Carbon::parse($bc->created_at)->format('d M Y, H:i') }}</span>
