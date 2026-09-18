@@ -8,7 +8,7 @@ class ParallelCurriculumEnrolment extends BaseTenantModel
 {
     protected $fillable = [
         'tenant_id','parallel_curriculum_id','parallel_curriculum_class_id',
-        'student_id','session_id','is_active',
+        'parallel_curriculum_class_arm_id','student_id','session_id','is_active',
     ];
 
     protected function casts(): array
@@ -24,6 +24,14 @@ class ParallelCurriculumEnrolment extends BaseTenantModel
     public function curriculumClass(): BelongsTo
     {
         return $this->belongsTo(ParallelCurriculumClass::class, 'parallel_curriculum_class_id');
+    }
+
+    public function curriculumClassArm(): BelongsTo
+    {
+        return $this->belongsTo(
+            ParallelCurriculumClassArm::class,
+            'parallel_curriculum_class_arm_id'
+        );
     }
 
     public function student(): BelongsTo
