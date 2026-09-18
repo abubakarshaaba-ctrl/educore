@@ -20,6 +20,7 @@ use App\Models\StudentEnrollment;
 use App\Models\Term;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ParallelCurriculumService
 {
@@ -60,15 +61,17 @@ class ParallelCurriculumService
             return false;
         }
 
-        $parallelPublished = ParallelCurriculumReportPublication::withoutTenantScope()
-            ->where('tenant_id', $enrolment->tenant_id)
-            ->where('parallel_curriculum_class_id', $enrolment->parallel_curriculum_class_id)
-            ->where('term_id', $term->id)
-            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
-            ->exists();
+        if (Schema::hasTable('parallel_curriculum_report_publications')) {
+            $parallelPublished = ParallelCurriculumReportPublication::withoutTenantScope()
+                ->where('tenant_id', $enrolment->tenant_id)
+                ->where('parallel_curriculum_class_id', $enrolment->parallel_curriculum_class_id)
+                ->where('term_id', $term->id)
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists();
 
-        if ($parallelPublished) {
-            return true;
+            if ($parallelPublished) {
+                return true;
+            }
         }
 
         $enrolment->loadMissing('student.currentClassArm');
