@@ -124,13 +124,19 @@ internal fun AuthenticationScreen(
                     .background(EduCoreColors.Page50)
                     .imePadding(),
             ) {
+                val veryShortScreen = maxHeight < 640.dp
                 val shortScreen = maxHeight < 720.dp
                 val brandHeight = when {
-                    maxHeight < 640.dp -> 142.dp
-                    shortScreen -> 164.dp
-                    else -> 188.dp
+                    veryShortScreen -> 180.dp
+                    shortScreen -> 230.dp
+                    maxHeight < 840.dp -> 300.dp
+                    else -> 340.dp
                 }
-                val overlap = if (shortScreen) 14.dp else 18.dp
+                val overlap = when {
+                    veryShortScreen -> 14.dp
+                    shortScreen -> 18.dp
+                    else -> 22.dp
+                }
                 val compactHorizontalPadding = if (maxWidth < 380.dp) 14.dp else 18.dp
 
                 Column(
@@ -179,7 +185,7 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
                 .fillMaxSize()
                 .padding(
                     horizontal = if (expanded) 56.dp else 20.dp,
-                    vertical = if (expanded) 64.dp else 16.dp,
+                    vertical = if (expanded) 64.dp else 24.dp,
                 ),
             horizontalAlignment = if (expanded) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -187,7 +193,7 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.ic_educore_mark),
                 contentDescription = "EduCore",
-                modifier = Modifier.size(if (expanded) 86.dp else 52.dp),
+                modifier = Modifier.size(if (expanded) 86.dp else 64.dp),
             )
             Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Sm))
             Row(verticalAlignment = Alignment.Bottom) {
