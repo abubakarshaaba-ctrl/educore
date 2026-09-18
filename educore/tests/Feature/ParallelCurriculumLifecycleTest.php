@@ -71,6 +71,12 @@ class ParallelCurriculumLifecycleTest extends TestCase
             'score_source' => ParallelCurriculumService::SCORE_SOURCE,
             'source_reference_id' => $fixture['composite']->id,
         ]);
+
+        $composite = $fixture['composite']->fresh();
+        $this->assertSame($fixture['integration']->id, $composite->parallel_curriculum_integration_id);
+        $this->assertSame($fixture['subject']->id, $composite->destination_subject_id);
+        $this->assertSame('synced', $composite->sync_status);
+        $this->assertSame(80.0, $composite->average_score);
     }
 
     public function test_destination_subject_must_be_offered_when_master_curriculum_rules_exist(): void
