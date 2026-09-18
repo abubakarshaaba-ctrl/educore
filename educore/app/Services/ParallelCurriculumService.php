@@ -58,15 +58,32 @@ class ParallelCurriculumService
 
     public function classStructureLocked(ParallelCurriculumClass $class): bool
     {
-        if (! Schema::hasTable('parallel_curriculum_report_publications')) {
+        if (Schema::hasTable('parallel_curriculum_report_publications')) {
+            $parallelPublished = ParallelCurriculumReportPublication::withoutTenantScope()
+                ->where('tenant_id', $class->tenant_id)
+                ->where('parallel_curriculum_class_id', $class->id)
+                ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+                ->exists();
+
+            if ($parallelPublished) {
+                return true;
+            }
+        }
+
+        if (
+            ! Schema::hasTable('parallel_curriculum_composites')
+            || ! Schema::hasTable('report_card_publications')
+        ) {
             return false;
         }
 
-        return ParallelCurriculumReportPublication::withoutTenantScope()
+        return ParallelCurriculumComposite::withoutTenantScope()
             ->where('tenant_id', $class->tenant_id)
             ->where('parallel_curriculum_class_id', $class->id)
-            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
-            ->exists();
+            ->get(['conventional_class_arm_id', 'term_id'])
+            ->contains(fn (ParallelCurriculumComposite $composite) =>
+                $this->compositeConventionalResultPublished($composite)
+            );
     }
 
     public function classPlacementLocked(ParallelCurriculumClass $class, int $sessionId): bool
@@ -141,6 +158,108 @@ class ParallelCurriculumService
             ->where('term_id', $term->id)
             ->where('status', 'published')
             ->exists();
+    }
+
+    public function reconcileClassStructure(ParallelCurriculumClass $class): array
+    {
+        $tenantId = (int) $class->tenant_id;
+
+        $enrolments = ParallelCurriculumEnrolment::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->where('is_active', true)
+            ->get();
+
+        $summary = [
+            'synced' => 0,
+            'pending' => 0,
+            'conflict' => 0,
+            'locked' => 0,
+            'unmapped' => 0,
+            'skipped' => 0,
+        ];
+
+        if ($enrolments->isEmpty()) {
+            return $summary;
+        }
+
+        $termIds = collect();
+
+        if (Schema::hasTable('parallel_curriculum_composites')) {
+            $termIds = $termIds->merge(
+                ParallelCurriculumComposite::withoutTenantScope()
+                    ->where('tenant_id', $tenantId)
+                    ->where('parallel_curriculum_class_id', $class->id)
+                    ->pluck('term_id')
+            );
+        }
+
+        if (Schema::hasTable('parallel_curriculum_scores')) {
+            $termIds = $termIds->merge(
+                ParallelCurriculumScore::withoutTenantScope()
+                    ->where('tenant_id', $tenantId)
+                    ->where('parallel_curriculum_class_id', $class->id)
+                    ->pluck('term_id')
+            );
+        }
+
+        $currentTerm = Term::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('is_current', true)
+            ->first();
+
+        if (
+            $currentTerm
+            && $enrolments->contains(
+                fn (ParallelCurriculumEnrolment $enrolment) =>
+                    (int) $enrolment->session_id === (int) $currentTerm->session_id
+            )
+        ) {
+            $termIds->push($currentTerm->id);
+        }
+
+        $terms = Term::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $termIds->filter()->unique()->values())
+            ->get()
+            ->keyBy('id');
+
+        foreach ($enrolments as $enrolment) {
+            foreach ($terms as $term) {
+                if ((int) $term->session_id !== (int) $enrolment->session_id) {
+                    continue;
+                }
+
+                $existingComposite = ParallelCurriculumComposite::withoutTenantScope()
+                    ->where('tenant_id', $tenantId)
+                    ->where('parallel_curriculum_id', $enrolment->parallel_curriculum_id)
+                    ->where('student_id', $enrolment->student_id)
+                    ->where('term_id', $term->id)
+                    ->first();
+
+                if ($existingComposite) {
+                    if ($this->compositeConventionalResultPublished($existingComposite)) {
+                        $summary['locked']++;
+                        continue;
+                    }
+
+                    // A subject-structure change invalidates any unpublished
+                    // conventional row produced from the previous denominator.
+                    $this->clearDerivedScoresIfSafe($existingComposite);
+                }
+
+                $refreshed = $this->syncStudent($enrolment, $term, false);
+                $status = $refreshed?->sync_status;
+
+                if ($status && array_key_exists($status, $summary)) {
+                    $summary[$status]++;
+                } else {
+                    $summary['skipped']++;
+                }
+            }
+        }
+
+        return $summary;
     }
 
     public function conventionalSubjectAvailableForArm(
