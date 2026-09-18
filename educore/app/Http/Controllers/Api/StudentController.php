@@ -14,6 +14,7 @@ use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\TimetablePeriod;
 use App\Services\MobileReportCardService;
+use App\Services\ParallelCurriculumResultService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -109,13 +110,17 @@ class StudentController extends Controller
         ]);
     }
 
-    public function results(Request $request, MobileReportCardService $reports)
-    {
+    public function results(
+        Request $request,
+        MobileReportCardService $reports,
+        ParallelCurriculumResultService $parallelResults
+    ) {
         $student = $this->student($request);
 
         return response()->json([
             'student' => $this->studentPayload($student->loadMissing('currentClassArm.classLevel')),
             'results' => $reports->forStudent($student),
+            'parallel_results' => $parallelResults->publishedForStudent($student),
         ]);
     }
 
