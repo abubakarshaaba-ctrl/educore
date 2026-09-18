@@ -85,7 +85,7 @@ workflows:
               "keyPassword": os.environ["KEYSTORE_KEY_PASSWORD"],
           }
           Path(os.environ["RELEASE_PROPERTIES"]).write_text(
-              "".join(f"{key}={escape_property(value)}\\n" for key, value in values.items())
+              "".join(f"{key}={escape_property(value)}\n" for key, value in values.items())
           )
           PY
 
@@ -170,8 +170,8 @@ workflows:
           from pathlib import Path
 
           text = Path("app/build.gradle.kts").read_text()
-          code = re.search(r'\\bversionCode\\s*=\\s*(\\d+)', text)
-          name = re.search(r'\\bversionName\\s*=\\s*"([^"]+)"', text)
+          code = re.search(r'\bversionCode\s*=\s*(\d+)', text)
+          name = re.search(r'\bversionName\s*=\s*"([^"]+)"', text)
           if not code or not name:
               raise SystemExit("Unable to read versionCode/versionName from app/build.gradle.kts")
           print(code.group(1), name.group(1))
@@ -196,11 +196,11 @@ workflows:
               "target_commitish": os.environ["CM_COMMIT"],
               "name": os.environ["RELEASE_NAME"],
               "body": (
-                  "Automated signed EduCore Android production release.\\n\\n"
-                  f"- Package: online.educoreng.educore\\n"
-                  f"- versionCode: {os.environ['VERSION_CODE']}\\n"
-                  f"- versionName: {os.environ['VERSION_NAME']}\\n"
-                  f"- Codemagic build: {os.environ['BUILD_NO']}\\n"
+                  "Automated signed EduCore Android production release.\n\n"
+                  f"- Package: online.educoreng.educore\n"
+                  f"- versionCode: {os.environ['VERSION_CODE']}\n"
+                  f"- versionName: {os.environ['VERSION_NAME']}\n"
+                  f"- Codemagic build: {os.environ['BUILD_NO']}\n"
                   f"- Commit: {os.environ['CM_COMMIT']}"
               ),
               "draft": True,
