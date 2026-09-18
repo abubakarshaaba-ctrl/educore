@@ -1254,6 +1254,7 @@ Route::prefix('portal')->name('portal.parent.')->group(function () {
     Route::post('logout',  [\App\Http\Controllers\ParentPortalController::class, 'logout'])->name('logout');
     Route::get('/',        [\App\Http\Controllers\ParentPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('results',  [\App\Http\Controllers\ParentPortalController::class, 'results'])->name('results');
+    Route::get('parallel-results/{publication}/pdf', [\App\Http\Controllers\ParentPortalController::class, 'parallelResultPdf'])->name('parallel-results.pdf');
     Route::get('fees',     [\App\Http\Controllers\ParentPortalController::class, 'fees'])->name('fees');
     Route::get('messages',                        [\App\Http\Controllers\ParentPortalController::class, 'messages'])->name('messages');
     Route::post('messages/{thread}/reply',        [\App\Http\Controllers\ParentPortalController::class, 'replyToThread'])->name('messages.reply');
@@ -1265,6 +1266,7 @@ Route::middleware(['auth', 'active.account', \App\Http\Middleware\IdentifyTenant
      ->prefix('student')->name('student.portal.')->group(function () {
     Route::get('dashboard',   [\App\Http\Controllers\Portal\StudentPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('results',     [\App\Http\Controllers\Portal\StudentPortalController::class, 'results'])->name('results');
+    Route::get('parallel-results/{publication}/pdf', [\App\Http\Controllers\Portal\StudentPortalController::class, 'parallelResultPdf'])->name('parallel-results.pdf');
     Route::get('timetable',   [\App\Http\Controllers\Portal\StudentPortalController::class, 'timetable'])->name('timetable');
     Route::get('attendance',  [\App\Http\Controllers\Portal\StudentPortalController::class, 'attendance'])->name('attendance');
     Route::get('exams',       [\App\Http\Controllers\Portal\StudentPortalController::class, 'exams'])->name('exams');
@@ -1277,6 +1279,7 @@ Route::middleware(['auth', 'active.account', \App\Http\Middleware\IdentifyTenant
      ->prefix('parent')->name('parent.')->group(function () {
     Route::get('dashboard',             [\App\Http\Controllers\Portal\ParentPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('results',               [\App\Http\Controllers\Portal\ParentPortalController::class, 'results'])->name('results');
+    Route::get('parallel-results/{publication}/pdf', [\App\Http\Controllers\Portal\ParentPortalController::class, 'parallelResultPdf'])->name('parallel-results.pdf');
     Route::get('results/pdf',           [\App\Http\Controllers\Portal\ParentPortalController::class, 'reportCardPdf'])->name('results.pdf');
     Route::get('fees',                  [\App\Http\Controllers\Portal\ParentPortalController::class, 'fees'])->name('fees');
     Route::get('fees/pay/{invoice}',    [\App\Http\Controllers\Portal\ParentPortalController::class, 'payFee'])->name('fees.pay');
