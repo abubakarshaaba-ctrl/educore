@@ -21,12 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -66,6 +64,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import online.educoreng.educore.BuildConfig
 import online.educoreng.educore.R
 import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreOfflineBanner
@@ -102,41 +101,64 @@ internal fun AuthenticationScreen(
                         .padding(40.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                    ) {
+                        AuthCard(
+                            state = state,
+                            onLogin = onLogin,
+                            onForgotPassword = onForgotPassword,
+                            onRequestReset = onRequestReset,
+                            onBackToLogin = onBackToLogin,
+                            modifier = Modifier.widthIn(max = 520.dp),
+                        )
+                        AppVersionLabel()
+                    }
+                }
+            }
+        } else {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(EduCoreColors.Page50)
+                    .imePadding(),
+            ) {
+                val shortScreen = maxHeight < 720.dp
+                val brandHeight = when {
+                    maxHeight < 640.dp -> 138.dp
+                    shortScreen -> 164.dp
+                    else -> 196.dp
+                }
+                val overlap = if (shortScreen) 18.dp else 24.dp
+
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    BrandPanel(
+                        modifier = Modifier.fillMaxWidth().height(brandHeight),
+                        expanded = false,
+                    )
                     AuthCard(
                         state = state,
                         onLogin = onLogin,
                         onForgotPassword = onForgotPassword,
                         onRequestReset = onRequestReset,
                         onBackToLogin = onBackToLogin,
-                        modifier = Modifier.widthIn(max = 520.dp),
+                        compact = true,
+                        modifier = Modifier
+                            .padding(horizontal = if (maxWidth < 380.dp) 14.dp else 18.dp)
+                            .offset(y = -overlap)
+                            .widthIn(max = 480.dp),
                     )
+                    AppVersionLabel(
+                        modifier = Modifier.offset(y = -(overlap - 4.dp)),
+                    )
+                    if (!shortScreen) {
+                        SecureAccessFooter(Modifier.offset(y = -(overlap - 2.dp)))
+                    }
                 }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(EduCoreColors.Page50)
-                    .imePadding()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                BrandPanel(
-                    modifier = Modifier.fillMaxWidth().height(292.dp),
-                    expanded = false,
-                )
-                AuthCard(
-                    state = state,
-                    onLogin = onLogin,
-                    onForgotPassword = onForgotPassword,
-                    onRequestReset = onRequestReset,
-                    onBackToLogin = onBackToLogin,
-                    modifier = Modifier
-                        .padding(horizontal = EduCoreSpacing.Lg)
-                        .offset(y = (-36).dp)
-                        .widthIn(max = 480.dp),
-                )
-                SecureAccessFooter(Modifier.offset(y = (-18).dp))
             }
         }
     }
@@ -257,6 +279,7 @@ private fun AuthCard(
     onRequestReset: (String) -> Unit,
     onBackToLogin: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -266,15 +289,19 @@ private fun AuthCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
         BoxWithConstraints {
-            val contentPadding = if (maxWidth < 380.dp) EduCoreSpacing.Xl else EduCoreSpacing.Xxl
+            val contentPadding = if (compact) {
+                if (maxWidth < 380.dp) 16.dp else 20.dp
+            } else {
+                if (maxWidth < 380.dp) EduCoreSpacing.Xl else EduCoreSpacing.Xxl
+            }
             Column(Modifier.padding(contentPadding)) {
                 if (!state.isOnline) {
                     EduCoreOfflineBanner(message = "Connect to the internet to sign in.")
                     Spacer(Modifier.height(EduCoreSpacing.Lg))
                 }
                 when (state.authMode) {
-                    AuthMode.LOGIN -> LoginForm(state, onLogin, onForgotPassword)
-                    AuthMode.FORGOT_PASSWORD -> ForgotPasswordForm(state, onRequestReset, onBackToLogin)
+                    AuthMode.LOGIN -> LoginForm(state, onLogin, onForgotPassword, compact)
+                    AuthMode.FORGOT_PASSWORD -> ForgotPasswordForm(state, onRequestReset, onBackToLogin, compact)
                 }
             }
         }
@@ -282,7 +309,12 @@ private fun AuthCard(
 }
 
 @Composable
-private fun LoginForm(state: AppUiState, onLogin: (String, String) -> Unit, onForgotPassword: () -> Unit) {
+private fun LoginForm(
+    state: AppUiState,
+    onLogin: (String, String) -> Unit,
+    onForgotPassword: () -> Unit,
+    compact: Boolean = false,
+) {
     var loginId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -295,7 +327,7 @@ private fun LoginForm(state: AppUiState, onLogin: (String, String) -> Unit, onFo
         style = MaterialTheme.typography.bodyMedium,
         color = EduCoreColors.Slate600,
     )
-    Spacer(Modifier.height(EduCoreSpacing.Xxl))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Md else EduCoreSpacing.Xxl))
     EduCoreTextField(
         value = loginId,
         onValueChange = { loginId = it },
@@ -309,7 +341,7 @@ private fun LoginForm(state: AppUiState, onLogin: (String, String) -> Unit, onFo
             Icon(Icons.Default.Person, contentDescription = null, tint = EduCoreColors.Navy700)
         },
     )
-    Spacer(Modifier.height(EduCoreSpacing.Sm))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Xs else EduCoreSpacing.Sm))
     EduCoreTextField(
         value = password,
         onValueChange = { password = it },
@@ -335,7 +367,7 @@ private fun LoginForm(state: AppUiState, onLogin: (String, String) -> Unit, onFo
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         EduCoreTextButton("Forgot password?", onForgotPassword, enabled = !state.isBusy)
     }
-    Spacer(Modifier.height(EduCoreSpacing.Xs))
+    if (!compact) Spacer(Modifier.height(EduCoreSpacing.Xs))
     EduCorePrimaryButton(
         text = "Sign in securely",
         onClick = { onLogin(loginId, password) },
@@ -347,7 +379,7 @@ private fun LoginForm(state: AppUiState, onLogin: (String, String) -> Unit, onFo
             Spacer(Modifier.width(EduCoreSpacing.Sm))
         },
     )
-    Spacer(Modifier.height(EduCoreSpacing.Lg))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Sm else EduCoreSpacing.Lg))
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -385,6 +417,7 @@ private fun ForgotPasswordForm(
     state: AppUiState,
     onRequestReset: (String) -> Unit,
     onBackToLogin: () -> Unit,
+    compact: Boolean = false,
 ) {
     var email by remember { mutableStateOf("") }
 
@@ -398,7 +431,7 @@ private fun ForgotPasswordForm(
     }
     Spacer(Modifier.height(EduCoreSpacing.Sm))
     EduCoreInfoBanner("Enter the email address registered with your EduCore account.")
-    Spacer(Modifier.height(EduCoreSpacing.Xl))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Md else EduCoreSpacing.Xl))
     EduCoreTextField(
         value = email,
         onValueChange = { email = it },
@@ -412,7 +445,7 @@ private fun ForgotPasswordForm(
             Icon(Icons.Default.Email, contentDescription = null, tint = EduCoreColors.Navy700)
         },
     )
-    Spacer(Modifier.height(EduCoreSpacing.Xl))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Md else EduCoreSpacing.Xl))
     EduCorePrimaryButton(
         text = "Send reset link",
         onClick = { onRequestReset(email) },
@@ -425,6 +458,17 @@ private fun ForgotPasswordForm(
         onClick = onBackToLogin,
         modifier = Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
+    )
+}
+
+@Composable
+private fun AppVersionLabel(modifier: Modifier = Modifier) {
+    Text(
+        text = "Version ${BuildConfig.VERSION_NAME} · Code ${BuildConfig.VERSION_CODE}",
+        modifier = modifier.padding(horizontal = EduCoreSpacing.Md),
+        style = MaterialTheme.typography.labelSmall,
+        color = EduCoreColors.Muted500,
+        textAlign = TextAlign.Center,
     )
 }
 
