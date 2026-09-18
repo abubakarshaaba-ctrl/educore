@@ -61,7 +61,7 @@ fun eduCoreRichTextPlainText(markdown: String): String {
                 .replace(Regex("^\\s*\\d+[.)]\\s+"), "")
                 .replace(Regex("\\*\\*([^*\\n]+)\\*\\*"), "$1")
                 .replace(Regex("(?<!\\*)\\*([^*\\n]+)\\*(?!\\*)"), "$1")
-                .replace(Regex("\\[([^]\\n]+)]\\(([^\\s)]+)\\)"), "$1")
+                .replace(Regex("""\\[([^\\r\\n\\]]+)\\]\\(([^)\\s]+)\\)"""), "$1")
         }
         .joinToString("\n")
 }
