@@ -314,4 +314,57 @@ class DtoMappersTest {
         assertEquals("parallel_curriculum_entry", sheet.students.single().scores.getValue(3).source)
     }
 
+    @Test
+    fun `published result mapping keeps standalone parallel curriculum identity`() {
+        val dto = online.educoreng.educore.core.network.dto.PublishedResultsResponseDto(
+            student = online.educoreng.educore.core.network.dto.ResultStudentDto(
+                id = 21,
+                name = "Amina Bello",
+                admissionNumber = "STU021",
+            ),
+            parallelResults = listOf(
+                online.educoreng.educore.core.network.dto.PublishedResultDto(
+                    id = 4,
+                    term = "First Term",
+                    session = "2026/2027",
+                    average = 82.5,
+                    totalScore = 247.5,
+                    position = 2,
+                    classSize = 30,
+                    subjectsOffered = 3,
+                    subjectsFailed = 0,
+                    resultType = "parallel_curriculum",
+                    curriculumName = "Islamiyyah",
+                    resultClassName = "Mutawassitah 1",
+                    maximumTotal = 300.0,
+                    publicationStatus = "published",
+                    subjects = listOf(
+                        online.educoreng.educore.core.network.dto.ResultSubjectDto(
+                            name = "Qur'an",
+                            assessments = listOf(
+                                online.educoreng.educore.core.network.dto.ResultAssessmentDto(
+                                    name = "CA",
+                                    score = 35.0,
+                                    maximum = 40.0,
+                                ),
+                            ),
+                            total = 87.5,
+                            grade = "A",
+                            remark = "Excellent",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val results = dto.toDomain()
+        val parallel = results.parallelResults.single()
+
+        assertEquals("parallel_curriculum", parallel.resultType)
+        assertEquals("Islamiyyah", parallel.curriculumName)
+        assertEquals("Mutawassitah 1", parallel.resultClassName)
+        assertEquals(300.0, parallel.maximumTotal)
+        assertEquals("Qur'an", parallel.subjects.single().name)
+    }
+
 }
