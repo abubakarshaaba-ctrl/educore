@@ -436,6 +436,12 @@ class ParallelCurriculumLifecycleService
                     ->where('session_id', $targetSession->id)
                     ->first();
 
+                $this->assertArmCapacity(
+                    $destinationArm,
+                    $targetSession->id,
+                    $existing?->id
+                );
+
                 ParallelCurriculumEnrolment::withoutTenantScope()->updateOrCreate(
                     [
                         'tenant_id' => $curriculum->tenant_id,
