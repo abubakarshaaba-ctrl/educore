@@ -220,7 +220,7 @@ class ParallelCurriculumService
             );
     }
 
-    public function reconcileIntegration(ParallelCurriculumIntegration $integration): array
+    public function reconcileIntegration(ParallelCurriculumIntegration $integration, bool $configurationChanged = false): array
     {
         $tenantId = (int) $integration->tenant_id;
         $summary = [
@@ -261,7 +261,18 @@ class ParallelCurriculumService
                 continue;
             }
 
-            $refreshed = $this->syncStudent($enrolment, $term, true);
+            if ($configurationChanged && ! $integration->auto_sync) {
+                // A configuration change invalidates any unpublished derived
+                // rows produced under the previous mapping. Manual-sync mode
+                // must not leave those stale values on the conventional sheet.
+                $this->clearDerivedScoresIfSafe($composite);
+            }
+
+            $refreshed = $this->syncStudent(
+                $enrolment,
+                $term,
+                $integration->auto_sync
+            );
             $status = $refreshed?->sync_status;
 
             if ($status && array_key_exists($status, $summary)) {
