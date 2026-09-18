@@ -126,11 +126,11 @@ internal fun AuthenticationScreen(
             ) {
                 val shortScreen = maxHeight < 720.dp
                 val brandHeight = when {
-                    maxHeight < 640.dp -> 138.dp
-                    shortScreen -> 164.dp
-                    else -> 196.dp
+                    maxHeight < 640.dp -> 128.dp
+                    shortScreen -> 148.dp
+                    else -> 164.dp
                 }
-                val overlap = if (shortScreen) 18.dp else 24.dp
+                val overlap = if (shortScreen) 12.dp else 16.dp
                 val compactHorizontalPadding = if (maxWidth < 380.dp) 14.dp else 18.dp
 
                 Column(
@@ -154,11 +154,8 @@ internal fun AuthenticationScreen(
                             .widthIn(max = 480.dp),
                     )
                     AppVersionLabel(
-                        modifier = Modifier.offset(y = -(overlap - 4.dp)),
+                        modifier = Modifier.offset(y = -(overlap - 2.dp)),
                     )
-                    if (!shortScreen) {
-                        SecureAccessFooter(Modifier.offset(y = -(overlap - 2.dp)))
-                    }
                 }
             }
         }
@@ -181,8 +178,8 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    horizontal = if (expanded) 56.dp else 24.dp,
-                    vertical = if (expanded) 64.dp else 30.dp,
+                    horizontal = if (expanded) 56.dp else 20.dp,
+                    vertical = if (expanded) 64.dp else 16.dp,
                 ),
             horizontalAlignment = if (expanded) Alignment.Start else Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -190,13 +187,13 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.ic_educore_mark),
                 contentDescription = "EduCore",
-                modifier = Modifier.size(if (expanded) 86.dp else 66.dp),
+                modifier = Modifier.size(if (expanded) 86.dp else 52.dp),
             )
-            Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Md))
+            Spacer(Modifier.height(if (expanded) EduCoreSpacing.Xl else EduCoreSpacing.Sm))
             Row(verticalAlignment = Alignment.Bottom) {
                 val wordmarkStyle = MaterialTheme.typography.displaySmall.copy(
-                    fontSize = if (expanded) 34.sp else 30.sp,
-                    lineHeight = if (expanded) 40.sp else 36.sp,
+                    fontSize = if (expanded) 34.sp else 24.sp,
+                    lineHeight = if (expanded) 40.sp else 28.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text("Edu", color = Color.White, style = wordmarkStyle)
@@ -209,11 +206,11 @@ private fun BrandPanel(modifier: Modifier, expanded: Boolean) {
                     modifier = Modifier.padding(bottom = 5.dp),
                 )
             }
-            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Spacer(Modifier.height(if (expanded) EduCoreSpacing.Sm else EduCoreSpacing.Xs))
             Text(
                 text = if (expanded) "One platform for every school day." else "Your school. Connected.",
                 color = Color.White.copy(alpha = 0.82f),
-                style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodySmall,
                 textAlign = if (expanded) TextAlign.Start else TextAlign.Center,
             )
             if (expanded) {
@@ -284,14 +281,14 @@ private fun AuthCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(if (compact) 18.dp else 24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(0.75.dp, EduCoreColors.Line200),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
         BoxWithConstraints {
             val contentPadding = if (compact) {
-                if (maxWidth < 380.dp) 16.dp else 20.dp
+                if (maxWidth < 380.dp) 12.dp else 14.dp
             } else {
                 if (maxWidth < 380.dp) EduCoreSpacing.Xl else EduCoreSpacing.Xxl
             }
@@ -321,33 +318,43 @@ private fun LoginForm(
     var passwordVisible by remember { mutableStateOf(false) }
 
     AuthEyebrow("SECURE SIGN IN")
-    Spacer(Modifier.height(EduCoreSpacing.Sm))
-    Text("Welcome back", style = MaterialTheme.typography.headlineSmall)
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Xs else EduCoreSpacing.Sm))
+    Text(
+        "Welcome back",
+        style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+    )
     Text(
         "Use the account provided by your school.",
-        style = MaterialTheme.typography.bodyMedium,
+        style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
         color = EduCoreColors.Slate600,
     )
-    Spacer(Modifier.height(if (compact) EduCoreSpacing.Md else EduCoreSpacing.Xxl))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Sm else EduCoreSpacing.Xxl))
     EduCoreTextField(
         value = loginId,
         onValueChange = { loginId = it },
         label = "Login ID",
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
-        supportingText = "Email, staff ID or admission number",
         error = state.fieldErrors["login_id"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
         leadingIcon = {
             Icon(Icons.Default.Person, contentDescription = null, tint = EduCoreColors.Navy700)
         },
     )
+    if (compact && state.fieldErrors["login_id"] == null) {
+        Text(
+            "Email, staff ID or admission number",
+            style = MaterialTheme.typography.labelSmall,
+            color = EduCoreColors.Muted500,
+            modifier = Modifier.padding(start = EduCoreSpacing.Sm, top = EduCoreSpacing.Xs),
+        )
+    }
     Spacer(Modifier.height(if (compact) EduCoreSpacing.Xs else EduCoreSpacing.Sm))
     EduCoreTextField(
         value = password,
         onValueChange = { password = it },
         label = "Password",
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["password"],
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -380,7 +387,7 @@ private fun LoginForm(
             Spacer(Modifier.width(EduCoreSpacing.Sm))
         },
     )
-    Spacer(Modifier.height(if (compact) EduCoreSpacing.Sm else EduCoreSpacing.Lg))
+    Spacer(Modifier.height(if (compact) EduCoreSpacing.Xs else EduCoreSpacing.Lg))
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -390,7 +397,7 @@ private fun LoginForm(
             Icons.Default.Lock,
             contentDescription = null,
             tint = EduCoreColors.Success600,
-            modifier = Modifier.size(15.dp),
+            modifier = Modifier.size(if (compact) 13.dp else 15.dp),
         )
         Spacer(Modifier.width(EduCoreSpacing.Sm))
         Text(
@@ -437,7 +444,7 @@ private fun ForgotPasswordForm(
         value = email,
         onValueChange = { email = it },
         label = "Email address",
-        modifier = Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["email"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
@@ -466,7 +473,7 @@ private fun ForgotPasswordForm(
 private fun AppVersionLabel(modifier: Modifier = Modifier) {
     Text(
         text = "Version ${BuildConfig.VERSION_NAME} · Code ${BuildConfig.VERSION_CODE}",
-        modifier = modifier.padding(horizontal = EduCoreSpacing.Md),
+        modifier = modifier.padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Xs),
         style = MaterialTheme.typography.labelSmall,
         color = EduCoreColors.Muted500,
         textAlign = TextAlign.Center,
