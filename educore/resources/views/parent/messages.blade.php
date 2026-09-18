@@ -64,7 +64,7 @@
                 @foreach($thread->replies->take(2) as $reply)
                     <div class="reply">
                         <strong>{{ optional($reply->sender)->name ?? 'School' }}:</strong>
-                        {{ $reply->body }}
+                        <x-rich-text :text="$reply->body" />
                     </div>
                 @endforeach
             </div>
