@@ -10,6 +10,7 @@ use App\Models\StaffWorkHistory;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Auth\AuthAuditLogger;
+use App\Services\StaffIdGenerator;
 use App\Services\TenantHostResolver;
 use App\Services\TenantOnboardingService;
 use App\Services\TenantUrlGenerator;
@@ -93,7 +94,7 @@ class SuperAdminController extends Controller
         return view('super.tenant-create');
     }
 
-    public function storeTenant(Request $request, TenantOnboardingService $onboarding, AuthAuditLogger $audit)
+    public function storeTenant(Request $request, TenantOnboardingService $onboarding, AuthAuditLogger $audit, StaffIdGenerator $staffIdGenerator)
     {
         $this->guard();
         $request->merge([
@@ -115,7 +116,7 @@ class SuperAdminController extends Controller
         ]);
 
         try {
-            $tenant = DB::transaction(function () use ($validated, $onboarding, $audit) {
+            $tenant = DB::transaction(function () use ($validated, $onboarding, $audit, $staffIdGenerator) {
                 $tenant = Tenant::create([
                     'name'                    => $validated['name'],
                     'slug'                    => $validated['slug'],
@@ -147,6 +148,7 @@ class SuperAdminController extends Controller
                     'is_active'  => true,
                     'employment_status' => User::STAFF_STATUS_ACTIVE,
                     'employment_started_at' => $validated['admin_employment_started_at'],
+                    'staff_id' => $staffIdGenerator->generate(),
                     'status_changed_at' => now(),
                 ]);
                 $admin->assignRole('admin');
