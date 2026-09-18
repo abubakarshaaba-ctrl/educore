@@ -11,6 +11,7 @@ use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumIntegration;
+use App\Models\ParallelCurriculumReportPublication;
 use App\Models\ParallelCurriculumScore;
 use App\Models\ReportCardPublication;
 use App\Models\SchoolSetting;
@@ -57,6 +58,17 @@ class ParallelCurriculumService
     {
         if ((int) $term->session_id !== (int) $enrolment->session_id) {
             return false;
+        }
+
+        $parallelPublished = ParallelCurriculumReportPublication::withoutTenantScope()
+            ->where('tenant_id', $enrolment->tenant_id)
+            ->where('parallel_curriculum_class_id', $enrolment->parallel_curriculum_class_id)
+            ->where('term_id', $term->id)
+            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+            ->exists();
+
+        if ($parallelPublished) {
+            return true;
         }
 
         $enrolment->loadMissing('student.currentClassArm');
