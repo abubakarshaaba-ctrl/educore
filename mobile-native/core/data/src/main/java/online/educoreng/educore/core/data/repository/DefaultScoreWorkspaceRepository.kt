@@ -238,9 +238,10 @@ class DefaultScoreWorkspaceRepository(
         val scope = scope() ?: return@withContext false
         var retry = false
 
-        listOf(SCORE_KIND, PARALLEL_SCORE_KIND).forEach { kind ->
-            database.syncOperationDao().actionable(scope.tenantKey, scope.userId, kind).forEach { operation ->
-                val request = saveRequestAdapter.fromJson(operation.payloadJson) ?: return@forEach
+        for (kind in listOf(SCORE_KIND, PARALLEL_SCORE_KIND)) {
+            val operations = database.syncOperationDao().actionable(scope.tenantKey, scope.userId, kind)
+            for (operation in operations) {
+                val request = saveRequestAdapter.fromJson(operation.payloadJson) ?: continue
                 val workspace = workspaceForKind(operation.kind)
                 val result = safeApiCall(moshi) {
                     if (workspace == SCORE_WORKSPACE_PARALLEL) api.saveParallelScores(request) else api.saveScores(request)
