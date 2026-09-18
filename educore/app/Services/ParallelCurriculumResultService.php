@@ -164,6 +164,11 @@ class ParallelCurriculumResultService
             'students_count' => $results->count(),
             'subjects_count' => $subjectAssignments->count(),
             'complete_students_count' => $results->where('complete', true)->count(),
+            'ungraded_subject_results_count' => $results->sum(
+                fn (array $row) => $row['subjects']->filter(
+                    fn (array $subject) => $subject['percentage'] !== null && $subject['grade'] === null
+                )->count()
+            ),
         ];
     }
 
@@ -189,7 +194,11 @@ class ParallelCurriculumResultService
             return false;
         }
 
-        if ($report['components']->isEmpty() || (float) $report['component_weight'] <= 0) {
+        if ($report['components']->isEmpty() || abs((float) $report['component_weight'] - 100.0) > 0.001) {
+            return false;
+        }
+
+        if ($report['grades']->isEmpty() || $report['ungraded_subject_results_count'] > 0) {
             return false;
         }
 
