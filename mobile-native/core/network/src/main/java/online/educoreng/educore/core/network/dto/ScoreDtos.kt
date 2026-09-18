@@ -11,6 +11,7 @@ import online.educoreng.educore.core.model.ScoreAssignments
 import online.educoreng.educore.core.model.ScoreCell
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.ScoreStudent
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 
 data class ScoreTermDto(val id: Long, val name: String, val session: String? = null)
 data class ScoreClassDto(val id: Long, val name: String)
@@ -21,6 +22,7 @@ data class ScoreAssignmentDto(
     @param:Json(name = "class_name") val className: String,
     @param:Json(name = "subject_id") val subjectId: Long,
     @param:Json(name = "subject_name") val subjectName: String,
+    @param:Json(name = "workspace_type") val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ScoreAssignmentsResponseDto(
@@ -60,6 +62,7 @@ data class ScoreStudentDto(
 data class ScoreSheetResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int,
     @param:Json(name = "generated_at") val generatedAt: String,
+    @param:Json(name = "workspace_type") val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
     val version: String,
     val locked: Boolean,
     @param:Json(name = "lock_reason") val lockReason: String? = null,
@@ -126,7 +129,7 @@ data class PublishedResultsResponseDto(
 
 fun ScoreAssignmentsResponseDto.toDomain(fromCache: Boolean = false) = ScoreAssignments(
     termId = term?.id, termName = term?.name, sessionName = term?.session,
-    assignments = assignments.map { ScoreAssignment(it.classId, it.className, it.subjectId, it.subjectName) },
+    assignments = assignments.map { ScoreAssignment(it.classId, it.className, it.subjectId, it.subjectName, it.workspaceType) },
     generatedAt = generatedAt, isFromCache = fromCache,
 )
 
@@ -145,6 +148,7 @@ fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = empt
         }.toMap())
     },
     generatedAt = generatedAt, hasLocalDraft = drafts.isNotEmpty(), isDraftStale = stale,
+    workspaceType = workspaceType,
 )
 
 fun PublishedResultsResponseDto.toDomain() = PublishedResults(
