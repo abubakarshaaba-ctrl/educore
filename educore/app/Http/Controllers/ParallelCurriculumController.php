@@ -68,19 +68,32 @@ class ParallelCurriculumController extends Controller
             ->findOrFail($id);
     }
 
-    private function assertCanEnter(ParallelCurriculumClass $class, int $subjectId): void
-    {
+    private function assertCanEnter(
+        ParallelCurriculumClass $class,
+        int $subjectId,
+        ?ParallelCurriculumClassArm $arm = null
+    ): void {
         if ($this->canManage()) {
             return;
         }
 
-        $allowed = ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
+        $assignment = ParallelCurriculumClassSubject::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
             ->where('parallel_curriculum_subject_id', $subjectId)
-            ->where('teacher_id', auth()->id())
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        abort_unless($allowed, 403, 'You are not assigned to this parallel-curriculum class and subject.');
+        $allowed = $assignment
+            && (int) $this->service->effectiveTeacherId($assignment, $arm)
+                === (int) auth()->id();
+
+        abort_unless(
+            $allowed,
+            403,
+            'You are not assigned to this parallel-curriculum class arm and subject.'
+        );
     }
 
     public function index()
@@ -114,13 +127,31 @@ class ParallelCurriculumController extends Controller
                     return $arms->flatMap(function ($arm) use ($class, $curriculum, $canManage) {
                         return $class->subjectAssignments
                             ->where('is_active', true)
-                            ->filter(fn ($assignment) => $canManage || (int) $assignment->teacher_id === (int) auth()->id())
-                            ->map(fn ($assignment) => [
-                                'curriculum' => $curriculum,
-                                'class' => $class,
-                                'arm' => $arm,
-                                'assignment' => $assignment,
-                            ]);
+                            ->map(function ($assignment) use ($arm, $class, $curriculum, $canManage) {
+                                $effectiveTeacherId = $this->service->effectiveTeacherId(
+                                    $assignment,
+                                    $arm
+                                );
+
+                                if (
+                                    ! $canManage
+                                    && (int) $effectiveTeacherId !== (int) auth()->id()
+                                ) {
+                                    return null;
+                                }
+
+                                return [
+                                    'curriculum' => $curriculum,
+                                    'class' => $class,
+                                    'arm' => $arm,
+                                    'assignment' => $assignment,
+                                    'effective_teacher_id' => $effectiveTeacherId,
+                                    'effective_teacher_name' => $effectiveTeacherId
+                                        ? User::whereKey($effectiveTeacherId)->value('name')
+                                        : null,
+                                ];
+                            })
+                            ->filter();
                     });
                 });
         })->values();
@@ -1408,8 +1439,6 @@ class ParallelCurriculumController extends Controller
             422,
             'Score entry is unavailable because this parallel curriculum class or programme is inactive.'
         );
-        $this->assertCanEnter($class, (int) $data['subject_id']);
-
         $term = Term::with('session')->findOrFail($data['term_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
         $arm = ! empty($data['arm_id'])
@@ -1417,6 +1446,8 @@ class ParallelCurriculumController extends Controller
                 ->where('is_active', true)
                 ->findOrFail($data['arm_id'])
             : null;
+
+        $this->assertCanEnter($class, (int) $data['subject_id'], $arm);
 
         abort_unless(
             (int) $subject->parallel_curriculum_id === (int) $class->parallel_curriculum_id
@@ -1475,7 +1506,6 @@ class ParallelCurriculumController extends Controller
             422,
             'Score entry is unavailable because this parallel curriculum class or programme is inactive.'
         );
-        $this->assertCanEnter($class, (int) $data['subject_id']);
         $parallelSubject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
         abort_unless(
             (int) $parallelSubject->parallel_curriculum_id === (int) $class->parallel_curriculum_id
@@ -1492,6 +1522,9 @@ class ParallelCurriculumController extends Controller
                 ->where('is_active', true)
                 ->findOrFail($data['arm_id'])
             : null;
+
+        $this->assertCanEnter($class, (int) $data['subject_id'], $arm);
+
         $components = $this->service->componentsForClass($class)->keyBy('id');
 
         abort_if($components->isEmpty(), 422, 'Assign an assessment template to this parallel curriculum class first.');
