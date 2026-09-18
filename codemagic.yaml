@@ -128,9 +128,13 @@ workflows:
             lintRelease assembleRelease
 
           APK="app/build/outputs/apk/release/app-release.apk"
+          RELEASE_DIR="app/build/outputs/apk/release"
           test -s "$APK"
-          cp "$APK" app/build/outputs/apk/release/EduCore.apk
-          sha256sum app/build/outputs/apk/release/EduCore.apk > app/build/outputs/apk/release/EduCore.apk.sha256
+          cp "$APK" "$RELEASE_DIR/EduCore.apk"
+          (
+            cd "$RELEASE_DIR"
+            sha256sum EduCore.apk > EduCore.apk.sha256
+          )
       - name: Verify release APK signing certificate
         script: |
           set -euo pipefail
