@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Services\MobileReportCardService;
+use App\Services\ParallelCurriculumResultService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -90,15 +91,20 @@ class ParentController extends Controller
         return response()->json(['invoices' => $invoices]);
     }
 
-    public function results(Request $request, MobileReportCardService $reports)
-    {
+    public function results(
+        Request $request,
+        MobileReportCardService $reports,
+        ParallelCurriculumResultService $parallelResults
+    ) {
         [, $students, $student] = $this->context($request);
         $results = $student ? $reports->forStudent($student) : collect();
+        $otherCurriculumResults = $student ? $parallelResults->publishedForStudent($student) : collect();
 
         return response()->json([
             'student' => $student ? $this->studentPayload($student) : null,
             'children' => $students->map(fn (Student $child) => $this->studentPayload($child))->values(),
             'results' => $results,
+            'parallel_results' => $otherCurriculumResults,
         ]);
     }
 
