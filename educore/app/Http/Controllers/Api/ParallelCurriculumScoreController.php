@@ -48,14 +48,13 @@ class ParallelCurriculumScoreController extends Controller
                 'subject',
             ])
             ->where('is_active', true)
-            ->when(! $this->canEnterAll($user), fn ($query) => $query->where('teacher_id', $user->id))
             ->get()
             ->filter(fn (ParallelCurriculumClassSubject $assignment) =>
                 $assignment->curriculumClass?->is_active
                 && $assignment->curriculumClass?->curriculum?->is_active
                 && $assignment->subject?->is_active
             )
-            ->flatMap(function (ParallelCurriculumClassSubject $assignment) {
+            ->flatMap(function (ParallelCurriculumClassSubject $assignment) use ($user) {
                 $arms = $assignment->curriculumClass->arms
                     ->where('is_active', true)
                     ->values();
@@ -63,6 +62,18 @@ class ParallelCurriculumScoreController extends Controller
                 // Before the lifecycle migration runs, keep a legacy all-arms
                 // workspace rather than disappearing from older deployments.
                 if ($arms->isEmpty()) {
+                    $effectiveTeacherId = $this->parallel->effectiveTeacherId(
+                        $assignment,
+                        null
+                    );
+
+                    if (
+                        ! $this->canEnterAll($user)
+                        && (int) $effectiveTeacherId !== (int) $user->id
+                    ) {
+                        return [];
+                    }
+
                     return [[
                         'workspace_type' => 'parallel_curriculum',
                         'class_arm_id' => $assignment->parallel_curriculum_class_id,
@@ -75,19 +86,32 @@ class ParallelCurriculumScoreController extends Controller
                     ]];
                 }
 
-                return $arms->map(fn (ParallelCurriculumClassArm $arm) => [
-                    'workspace_type' => 'parallel_curriculum',
-                    // Parallel arm IDs live in their own API namespace so old
-                    // cached class-level IDs cannot collide with real arm IDs.
-                    'class_arm_id' => self::PARALLEL_ARM_API_OFFSET + (int) $arm->id,
-                    'class_name' => trim(
-                        $assignment->curriculumClass->curriculum->name.
-                        ' · '.$assignment->curriculumClass->name.
-                        ' '.$arm->name
-                    ),
-                    'subject_id' => $assignment->parallel_curriculum_subject_id,
-                    'subject_name' => $assignment->subject->name,
-                ])->all();
+                return $arms
+                    ->filter(function (ParallelCurriculumClassArm $arm) use ($assignment, $user): bool {
+                        if ($this->canEnterAll($user)) {
+                            return true;
+                        }
+
+                        return (int) $this->parallel->effectiveTeacherId(
+                            $assignment,
+                            $arm
+                        ) === (int) $user->id;
+                    })
+                    ->map(fn (ParallelCurriculumClassArm $arm) => [
+                        'workspace_type' => 'parallel_curriculum',
+                        // Parallel arm IDs live in their own API namespace so old
+                        // cached class-level IDs cannot collide with real arm IDs.
+                        'class_arm_id' => self::PARALLEL_ARM_API_OFFSET + (int) $arm->id,
+                        'class_name' => trim(
+                            $assignment->curriculumClass->curriculum->name.
+                            ' · '.$assignment->curriculumClass->name.
+                            ' '.$arm->name
+                        ),
+                        'subject_id' => $assignment->parallel_curriculum_subject_id,
+                        'subject_name' => $assignment->subject->name,
+                    ])
+                    ->values()
+                    ->all();
             })
             ->values();
 
@@ -113,7 +137,7 @@ class ParallelCurriculumScoreController extends Controller
         $this->assertEnabled($user);
         [$class, $arm] = $this->resolveParallelWorkspace((int) $data['class_arm_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
-        $this->assertAssignment($user, $class, $subject);
+        $this->assertAssignment($user, $class, $subject, $arm);
 
         $term = $this->resolveTerm($data['term_id'] ?? null);
         $components = $this->parallel->componentsForClass($class);
@@ -337,8 +361,12 @@ class ParallelCurriculumScoreController extends Controller
         );
     }
 
-    private function assertAssignment($user, ParallelCurriculumClass $class, ParallelCurriculumSubject $subject): void
-    {
+    private function assertAssignment(
+        $user,
+        ParallelCurriculumClass $class,
+        ParallelCurriculumSubject $subject,
+        ?ParallelCurriculumClassArm $arm = null
+    ): void {
         abort_unless(
             (int) $subject->parallel_curriculum_id === (int) $class->parallel_curriculum_id,
             422,
@@ -349,13 +377,23 @@ class ParallelCurriculumScoreController extends Controller
             return;
         }
 
-        $allowed = ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
+        $assignment = ParallelCurriculumClassSubject::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
             ->where('parallel_curriculum_subject_id', $subject->id)
-            ->where('teacher_id', $user->id)
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        abort_unless($allowed, 403, 'You are not assigned to this parallel curriculum class and subject.');
+        $allowed = $assignment
+            && (int) $this->parallel->effectiveTeacherId($assignment, $arm)
+                === (int) $user->id;
+
+        abort_unless(
+            $allowed,
+            403,
+            'You are not assigned to this parallel curriculum class arm and subject.'
+        );
     }
 
     private function canEnterAll($user): bool
