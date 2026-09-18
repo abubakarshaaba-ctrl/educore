@@ -93,12 +93,12 @@ internal fun ProfileScreen(
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
         item {
             Column(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 820.dp),
-                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
             ) {
                 EduCorePageHeader(
                     title = "My Profile",
@@ -120,7 +120,7 @@ internal fun ProfileScreen(
             ProfileCard("Passport photograph", Icons.Default.CameraAlt) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PassportPreview(
@@ -156,46 +156,57 @@ internal fun ProfileScreen(
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::setName,
-                    label = { Text("Full name") },
+                    label = { Text("Full name", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 OutlinedTextField(
                     value = state.email,
                     onValueChange = viewModel::setEmail,
-                    label = { Text("Email") },
+                    label = { Text("Email", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 OutlinedTextField(
                     value = state.phone,
                     onValueChange = viewModel::setPhone,
-                    label = { Text("Phone") },
+                    label = { Text("Phone", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 OutlinedTextField(
                     value = state.dateOfBirth,
                     onValueChange = viewModel::setDateOfBirth,
-                    label = { Text("Date of birth") },
-                    supportingText = { Text("YYYY-MM-DD") },
+                    label = { Text("Date of birth", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                )
+                Text(
+                    "YYYY-MM-DD",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = EduCoreColors.Muted500,
+                    modifier = Modifier.padding(start = EduCoreSpacing.Sm),
                 )
                 OutlinedTextField(
                     value = state.gender,
                     onValueChange = viewModel::setGender,
-                    label = { Text("Gender") },
+                    label = { Text("Gender", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 OutlinedTextField(
                     value = state.address,
                     onValueChange = viewModel::setAddress,
-                    label = { Text("Address") },
+                    label = { Text("Address", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     minLines = 2,
-                    maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth().height(72.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isSaving) "Saving…" else "Save profile changes",
@@ -218,27 +229,35 @@ internal fun ProfileScreen(
                 OutlinedTextField(
                     value = state.currentPassword,
                     onValueChange = viewModel::setCurrentPassword,
-                    label = { Text("Current password") },
+                    label = { Text("Current password", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 OutlinedTextField(
                     value = state.newPassword,
                     onValueChange = viewModel::setNewPassword,
-                    label = { Text("New password") },
-                    supportingText = { Text("Minimum 8 characters") },
+                    label = { Text("New password", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                )
+                Text(
+                    "Minimum 8 characters",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = EduCoreColors.Muted500,
+                    modifier = Modifier.padding(start = EduCoreSpacing.Sm),
                 )
                 OutlinedTextField(
                     value = state.confirmPassword,
                     onValueChange = viewModel::setConfirmPassword,
-                    label = { Text("Confirm new password") },
+                    label = { Text("Confirm new password", style = MaterialTheme.typography.labelMedium) },
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
                 )
                 EduCorePrimaryButton(
                     text = if (state.isChangingPassword) "Changing password…" else "Change password",
@@ -301,8 +320,8 @@ private fun ProfileCard(
         border = BorderStroke(1.dp, EduCoreColors.Line200),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
-            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
@@ -320,7 +339,7 @@ private fun ProfileCard(
 @Composable
 private fun PassportPreview(photoUrl: String?, name: String) {
     Box(
-        modifier = Modifier.size(92.dp).clip(RoundedCornerShape(14.dp)).background(EduCoreColors.SurfaceBlue50),
+        modifier = Modifier.size(72.dp).clip(RoundedCornerShape(12.dp)).background(EduCoreColors.SurfaceBlue50),
         contentAlignment = Alignment.Center,
     ) {
         if (!photoUrl.isNullOrBlank()) {
@@ -368,7 +387,7 @@ private fun StaffIdCardPreview(card: StaffIdCardDto) {
         shape = RoundedCornerShape(18.dp),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+            modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
         ) {
@@ -394,7 +413,7 @@ private fun StaffIdCardPreview(card: StaffIdCardDto) {
                 Image(
                     bitmap = it.asImageBitmap(),
                     contentDescription = "Staff ID QR code",
-                    modifier = Modifier.size(132.dp).clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.size(112.dp).clip(RoundedCornerShape(10.dp)),
                 )
                 Text("Personal staff QR", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600)
             }
