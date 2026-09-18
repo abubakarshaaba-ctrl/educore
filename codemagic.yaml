@@ -14,13 +14,6 @@ workflows:
       cache_paths:
         - $HOME/.gradle/caches
         - $HOME/.gradle/wrapper
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: 'mobile-build'
-          include: true
-          source: true
     scripts:
       - name: Resolve Android workspace
         script: |
