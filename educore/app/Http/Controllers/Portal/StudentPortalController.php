@@ -170,18 +170,17 @@ class StudentPortalController extends Controller
     public function results(Request $request)
     {
         $student = $this->getStudent();
-        $terms   = Term::with('session')->latest()->get();
-        $termId  = $request->get('term_id', optional($terms->firstWhere('is_current', true))->id);
+        $terms = Term::with('session')->latest()->get();
 
-        $summary = $termId
-            ? TermlySummary::where('student_id', $student->id)
-                ->where('term_id', $termId)
-                ->first()
-            : null;
+        $allParallelResults = app(ParallelCurriculumResultService::class)
+            ->publishedForStudent($student);
 
-        // Avoid dependency on possibly misspelled Term relationship names.
+        // The result selector should contain only academic terms that actually
+        // have a conventional summary or a published parallel result.
         $availableTermIds = TermlySummary::where('student_id', $student->id)
             ->pluck('term_id')
+            ->merge($allParallelResults->pluck('term_id'))
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -190,9 +189,21 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
+        $defaultTermId = optional($availableTerms->firstWhere('is_current', true))->id
+            ?? optional($availableTerms->first())->id
+            ?? optional($terms->firstWhere('is_current', true))->id
+            ?? optional($terms->first())->id;
+
+        $termId = $request->get('term_id', $defaultTermId);
+
+        $summary = $termId
+            ? TermlySummary::where('student_id', $student->id)
+                ->where('term_id', $termId)
+                ->first()
+            : null;
+
         $parallelResults = $termId
-            ? app(ParallelCurriculumResultService::class)
-                ->publishedForStudent($student)
+            ? $allParallelResults
                 ->where('term_id', (int) $termId)
                 ->values()
                 ->map(fn (array $result) => $result + [
