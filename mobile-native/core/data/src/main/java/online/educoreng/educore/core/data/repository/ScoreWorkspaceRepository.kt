@@ -7,7 +7,7 @@ import online.educoreng.educore.core.model.ScoreSheet
 
 interface ScoreWorkspaceRepository {
     suspend fun loadAssignments(): AppResult<ScoreAssignments>
-    suspend fun loadSheet(classId: Long, subjectId: Long, termId: Long?): AppResult<ScoreSheet>
+    suspend fun loadSheet(workspaceType: String, classId: Long, subjectId: Long, termId: Long?): AppResult<ScoreSheet>
     suspend fun saveDraft(sheet: ScoreSheet, studentId: Long, assessmentId: Long, value: Double?): AppResult<ScoreSheet>
     suspend fun discardDraft(sheet: ScoreSheet): AppResult<Unit>
     suspend fun submit(sheet: ScoreSheet): AppResult<ScoreSheet>
