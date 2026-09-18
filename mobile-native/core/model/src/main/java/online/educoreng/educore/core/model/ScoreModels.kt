@@ -2,11 +2,15 @@ package online.educoreng.educore.core.model
 
 enum class SyncState { NONE, QUEUED, SYNCING, FAILED, CONFLICT }
 
+const val SCORE_WORKSPACE_CONVENTIONAL = "conventional"
+const val SCORE_WORKSPACE_PARALLEL = "parallel_curriculum"
+
 data class ScoreAssignment(
     val classId: Long,
     val className: String,
     val subjectId: Long,
     val subjectName: String,
+    val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ScoreAssignments(
@@ -64,6 +68,7 @@ data class ScoreSheet(
     val isDraftStale: Boolean = false,
     val syncState: SyncState = SyncState.NONE,
     val syncMessage: String? = null,
+    val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ResultAssessment(
