@@ -40,6 +40,23 @@ class MobileReleaseController extends Controller
             ]);
         }
 
+        // Never advertise release metadata unless it matches the APK that the
+        // public download endpoint actually serves. This prevents a successful
+        // release webhook from putting installed apps into an update loop while
+        // /download/app is still pinned to the previous verified APK.
+        $expectedSha256 = strtolower(trim((string) ($release['sha256'] ?? '')));
+        $deployedApk = public_path('downloads/EduCore.apk');
+        if (
+            ! preg_match('/\A[a-f0-9]{64}\z/', $expectedSha256)
+            || ! is_file($deployedApk)
+            || ! hash_equals($expectedSha256, strtolower((string) hash_file('sha256', $deployedApk)))
+        ) {
+            return response()->json([
+                'available' => false,
+                'release' => null,
+            ]);
+        }
+
         return response()->json([
             'available' => true,
             'release' => $release,
