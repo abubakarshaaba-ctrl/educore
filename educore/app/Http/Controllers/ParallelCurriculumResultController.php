@@ -155,7 +155,8 @@ class ParallelCurriculumResultController extends Controller
                 $report['components']->isEmpty() => 'The class has no usable Assessment Template.',
                 abs((float) $report['component_weight'] - 100.0) > 0.001 => 'The parallel Assessment Template must total exactly 100% before publication.',
                 $report['grades']->isEmpty() => 'Configure the programme grading scale before publishing results.',
-                $report['ungraded_subject_results_count'] > 0 => 'The programme grading scale has gaps. Every score from 0 to 100 must resolve to a grade.',
+                ! $report['grading_scale_complete'] => 'The programme grading scale must cover every score from 0 to 100 without gaps.',
+                $report['ungraded_subject_results_count'] > 0 => 'One or more completed subject scores do not resolve to a configured grade.',
                 default => 'Complete all subject scores for every active student before publishing this parallel result.',
             };
 
