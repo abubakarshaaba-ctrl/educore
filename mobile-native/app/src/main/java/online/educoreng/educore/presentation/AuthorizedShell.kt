@@ -87,6 +87,8 @@ internal fun AuthorizedShell(
     val classesState by classesViewModel.uiState.collectAsStateWithLifecycle()
     val scoresViewModel: ScoresViewModel = hiltViewModel()
     val scoresState by scoresViewModel.uiState.collectAsStateWithLifecycle()
+    val parallelLifecycleViewModel: ParallelCurriculumLifecycleViewModel = hiltViewModel()
+    val parallelLifecycleState by parallelLifecycleViewModel.uiState.collectAsStateWithLifecycle()
     val scheduleViewModel: ScheduleViewModel = hiltViewModel()
     val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
     val academicContentViewModel: AcademicContentViewModel = hiltViewModel()
@@ -109,6 +111,7 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
         currentRoute == NativeRoute.RESULTS -> "Published Results"
+        currentRoute == NativeRoute.PARALLEL_LIFECYCLE -> "Parallel Curriculum"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
@@ -132,6 +135,12 @@ internal fun AuthorizedShell(
         scoresState.message?.let { message ->
             snackbarHostState.showSnackbar(message)
             scoresViewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(parallelLifecycleState.message) {
+        parallelLifecycleState.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            parallelLifecycleViewModel.consumeMessage()
         }
     }
     LaunchedEffect(academicContentState.message) {
@@ -304,6 +313,10 @@ internal fun AuthorizedShell(
                                                         onOpenWebModule(module.path)
                                                     }
                                                 }
+                                                "parallel-curriculum" -> {
+                                                    parallelLifecycleViewModel.load()
+                                                    navController.navigate(NativeRoute.PARALLEL_LIFECYCLE) { launchSingleTop = true }
+                                                }
                                                 "student.results", "parent.results" -> {
                                                     scoresViewModel.loadResults()
                                                     navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
@@ -475,6 +488,29 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onRetry = { scoresViewModel.loadResults() },
                                 onChild = scoresViewModel::loadResults,
+                            )
+                        }
+                        composable(NativeRoute.PARALLEL_LIFECYCLE) {
+                            ParallelCurriculumLifecycleScreen(
+                                state = parallelLifecycleState,
+                                onRefresh = {
+                                    parallelLifecycleViewModel.load(
+                                        parallelLifecycleState.selectedCurriculumId,
+                                        parallelLifecycleState.selectedSessionId,
+                                    )
+                                },
+                                onSelectCurriculum = parallelLifecycleViewModel::selectCurriculum,
+                                onSelectSession = parallelLifecycleViewModel::selectSession,
+                                onSelectPromotionSessions = parallelLifecycleViewModel::selectPromotionSessions,
+                                onPreviewPromotion = parallelLifecycleViewModel::previewPromotion,
+                                onExecutePromotion = parallelLifecycleViewModel::executePromotion,
+                                onCreateArm = parallelLifecycleViewModel::createArm,
+                                onUpdateArm = parallelLifecycleViewModel::updateArm,
+                                onArchiveArm = parallelLifecycleViewModel::archiveArm,
+                                onSaveGrade = parallelLifecycleViewModel::saveGrade,
+                                onDeleteGrade = parallelLifecycleViewModel::deleteGrade,
+                                onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
+                                onTransfer = parallelLifecycleViewModel::transfer,
                             )
                         }
                         composable(
@@ -653,6 +689,7 @@ private object NativeRoute {
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{workspaceType}/{classId}/{subjectId}/{termId}"
     const val RESULTS = "native/results"
+    const val PARALLEL_LIFECYCLE = "native/parallel-curriculum"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
