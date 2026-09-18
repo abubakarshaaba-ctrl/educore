@@ -126,11 +126,11 @@ internal fun AuthenticationScreen(
             ) {
                 val shortScreen = maxHeight < 720.dp
                 val brandHeight = when {
-                    maxHeight < 640.dp -> 128.dp
-                    shortScreen -> 148.dp
-                    else -> 164.dp
+                    maxHeight < 640.dp -> 142.dp
+                    shortScreen -> 164.dp
+                    else -> 188.dp
                 }
-                val overlap = if (shortScreen) 12.dp else 16.dp
+                val overlap = if (shortScreen) 14.dp else 18.dp
                 val compactHorizontalPadding = if (maxWidth < 380.dp) 14.dp else 18.dp
 
                 Column(
@@ -333,7 +333,7 @@ private fun LoginForm(
         value = loginId,
         onValueChange = { loginId = it },
         label = "Login ID",
-        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["login_id"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
@@ -354,7 +354,7 @@ private fun LoginForm(
         value = password,
         onValueChange = { password = it },
         label = "Password",
-        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["password"],
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -444,7 +444,7 @@ private fun ForgotPasswordForm(
         value = email,
         onValueChange = { email = it },
         label = "Email address",
-        modifier = if (compact) Modifier.fillMaxWidth().height(50.dp) else Modifier.fillMaxWidth(),
+        modifier = if (compact) Modifier.fillMaxWidth().height(56.dp) else Modifier.fillMaxWidth(),
         enabled = !state.isBusy,
         error = state.fieldErrors["email"],
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
