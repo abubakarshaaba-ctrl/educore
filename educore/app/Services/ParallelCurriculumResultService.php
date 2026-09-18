@@ -283,6 +283,53 @@ class ParallelCurriculumResultService
             ->values();
     }
 
+    public function publishedReportForStudent(Student $student, int $publicationId): ?array
+    {
+        $publication = ParallelCurriculumReportPublication::withoutTenantScope()
+            ->with(['curriculumClass.curriculum', 'term.session'])
+            ->where('tenant_id', $student->tenant_id)
+            ->where('id', $publicationId)
+            ->where('status', ParallelCurriculumReportPublication::STATUS_PUBLISHED)
+            ->first();
+
+        if (! $publication || ! $publication->curriculumClass || ! $publication->term) {
+            return null;
+        }
+
+        $enrolled = ParallelCurriculumEnrolment::withoutTenantScope()
+            ->where('tenant_id', $student->tenant_id)
+            ->where('parallel_curriculum_class_id', $publication->parallel_curriculum_class_id)
+            ->where('student_id', $student->id)
+            ->where('session_id', $publication->term->session_id)
+            ->where('is_active', true)
+            ->exists();
+
+        if (! $enrolled) {
+            return null;
+        }
+
+        $class = ParallelCurriculumClass::withoutTenantScope()
+            ->with(['curriculum.grades', 'curriculum.defaultAssessmentTemplate', 'assessmentTemplate', 'subjectAssignments.subject'])
+            ->where('tenant_id', $student->tenant_id)
+            ->find($publication->parallel_curriculum_class_id);
+
+        $term = Term::withoutTenantScope()
+            ->with('session')
+            ->where('tenant_id', $student->tenant_id)
+            ->find($publication->term_id);
+
+        if (! $class || ! $term) {
+            return null;
+        }
+
+        $report = $this->studentReport($class, $term, (int) $student->id);
+        if (! $report || ! $report['is_published']) {
+            return null;
+        }
+
+        return $report;
+    }
+
     public function canPublish(array $report): bool
     {
         if ($report['students_count'] < 1 || $report['subjects_count'] < 1) {
