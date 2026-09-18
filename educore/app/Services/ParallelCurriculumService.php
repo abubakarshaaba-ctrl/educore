@@ -220,6 +220,60 @@ class ParallelCurriculumService
             );
     }
 
+    public function reconcileIntegration(ParallelCurriculumIntegration $integration): array
+    {
+        $tenantId = (int) $integration->tenant_id;
+        $summary = [
+            'synced' => 0,
+            'pending' => 0,
+            'conflict' => 0,
+            'locked' => 0,
+            'unmapped' => 0,
+            'skipped' => 0,
+        ];
+
+        $composites = ParallelCurriculumComposite::withoutTenantScope()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_integration_id', $integration->id)
+            ->get();
+
+        foreach ($composites as $composite) {
+            if ($this->compositeConventionalResultPublished($composite)) {
+                $summary['locked']++;
+                continue;
+            }
+
+            $term = Term::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->find($composite->term_id);
+
+            $enrolment = ParallelCurriculumEnrolment::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_id', $composite->parallel_curriculum_id)
+                ->where('student_id', $composite->student_id)
+                ->where('session_id', $composite->session_id)
+                ->orderByDesc('is_active')
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $term || ! $enrolment) {
+                $summary['skipped']++;
+                continue;
+            }
+
+            $refreshed = $this->syncStudent($enrolment, $term, true);
+            $status = $refreshed?->sync_status;
+
+            if ($status && array_key_exists($status, $summary)) {
+                $summary[$status]++;
+            } else {
+                $summary['skipped']++;
+            }
+        }
+
+        return $summary;
+    }
+
     public function deactivateIntegration(ParallelCurriculumIntegration $integration): array
     {
         $tenantId = (int) $integration->tenant_id;
