@@ -16,7 +16,7 @@
       @foreach($platformNotices as $broadcast)
       <div class="ann-item platform-notice">
         <div class="ann-title"><span class="pri platform-badge">Platform</span>{{ $broadcast->title }}</div>
-        <div class="ann-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($broadcast->body) !!}</div>
+        <x-rich-text :text="$broadcast->body" class="ann-body" />
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($broadcast->created_at)->format('d M Y, H:i') }}
           @if($broadcast->expires_at) · Expires: {{ \Carbon\Carbon::parse($broadcast->expires_at)->format('d M Y, H:i') }}@endif
@@ -37,7 +37,7 @@
           @if($ann->priority!=='normal')<span class="pri pri-{{ $ann->priority }}">{{ ucfirst($ann->priority) }}</span>@endif
           {{ $ann->title }}
         </div>
-        <div class="ann-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($ann->body) !!}</div>
+        <x-rich-text :text="$ann->body" class="ann-body" />
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($ann->publish_date)->format('d M Y') }}
           · For: {{ ucfirst($ann->audience) }}
