@@ -9,13 +9,13 @@
 .pc-panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}.pc-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:800;color:var(--midnight)}.pc-body{padding:14px}
 .filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;align-items:end}.fg{display:flex;flex-direction:column;gap:5px;min-width:0}.fl{font-size:10px;font-weight:800;color:var(--slate)}.fc{width:100%;min-height:39px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:8px 10px;font:500 11.5px inherit;outline:none}.fc:focus{border-color:var(--indigo)}.search{grid-column:span 2}.actions{display:flex;gap:7px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border-radius:8px;padding:8px 13px;border:0;font:700 11px inherit;cursor:pointer;text-decoration:none}.btn-p{background:var(--indigo);color:#fff}.btn-s{background:#fff;color:var(--midnight);border:1px solid var(--border)}.btn-d{background:#FEF2F2;color:#B42318;border:1px solid #FECDCA}.hint{font-size:10.5px;color:var(--slate-light);line-height:1.45}
 .alert-s,.alert-e{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.alert-s{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.alert-e{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}
-.assign-bar{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:10px;align-items:end;padding:12px;border:1px solid #DCE5F2;background:#F8FAFF;border-radius:10px;margin-bottom:12px}.assign-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:7px}.metric{display:inline-flex;padding:4px 8px;border-radius:999px;background:#EEF2FF;color:#3730A3;font-size:9.5px;font-weight:800}.metric.green{background:#ECFDF3;color:#067647}
+.assign-bar{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:10px;align-items:end;padding:12px;border:1px solid #DCE5F2;background:#F8FAFF;border-radius:10px;margin-bottom:12px}.destination-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.assign-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:7px}.metric{display:inline-flex;padding:4px 8px;border-radius:999px;background:#EEF2FF;color:#3730A3;font-size:9.5px;font-weight:800}.metric.green{background:#ECFDF3;color:#067647}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:10px}.students{width:100%;min-width:780px;border-collapse:collapse}.students th{padding:9px 10px;background:var(--midnight);color:#fff;font-size:9.5px;text-align:left}.students td{padding:9px 10px;border-bottom:1px solid #EEF2F7;font-size:10.5px;color:var(--slate);vertical-align:middle}.students tr:last-child td{border-bottom:0}.students tr:hover td{background:#FAFCFF}.students .name{font-weight:800;color:var(--midnight);font-size:11px}.badge{display:inline-flex;padding:3px 7px;border-radius:999px;background:#F2F4F7;color:#475467;font-size:9px;font-weight:800}.badge.assigned{background:#ECFDF3;color:#067647}.select-cell{width:44px;text-align:center!important}.student-check{width:17px;height:17px}.empty{padding:28px;text-align:center;color:var(--slate-light);font-size:11.5px}
 .selection-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}.selection-tools button{border:0;background:none;color:var(--indigo);padding:0;font:800 10.5px inherit;cursor:pointer}.selection-count{margin-left:auto;font-size:10px;color:var(--slate)}
 .mobile-list{display:none}.student-card{border:1px solid var(--border);border-radius:10px;padding:11px;margin-bottom:8px}.student-card-top{display:flex;align-items:flex-start;gap:9px}.student-card-main{min-width:0;flex:1}.student-card .name{font-size:12px;font-weight:800;color:var(--midnight)}.student-card .meta{font-size:10px;color:var(--slate-light);margin-top:3px;line-height:1.45}.student-card .assignment{margin-top:8px;padding-top:8px;border-top:1px solid #EEF2F7;display:flex;justify-content:space-between;gap:8px;align-items:center}
 .pagination-wrap{margin-top:12px}
 @media(max-width:1050px){.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.search{grid-column:span 2}}
-@media(max-width:720px){.filters{grid-template-columns:1fr 1fr}.search{grid-column:1/-1}.assign-bar{grid-template-columns:1fr}.assign-bar .btn{width:100%}.pc-body{padding:12px}.desktop-table{display:none}.mobile-list{display:block}.selection-count{margin-left:0;width:100%}.pc-hero{padding:15px}.actions .btn{flex:1}}
+@media(max-width:720px){.filters{grid-template-columns:1fr 1fr}.search{grid-column:1/-1}.assign-bar{grid-template-columns:1fr}.destination-grid{grid-template-columns:1fr}.assign-bar .btn{width:100%}.pc-body{padding:12px}.desktop-table{display:none}.mobile-list{display:block}.selection-count{margin-left:0;width:100%}.pc-hero{padding:15px}.actions .btn{flex:1}}
 @media(max-width:460px){.filters{grid-template-columns:1fr}.search{grid-column:auto}.actions{display:grid;grid-template-columns:1fr 1fr}.actions .btn{width:100%}}
 </style>
 @endpush
@@ -73,6 +73,17 @@
                         </select>
                     </div>
                     <div class="fg">
+                        <label class="fl">Source parallel class</label>
+                        <select class="fc" name="parallel_class_id">
+                            <option value="">All parallel classes</option>
+                            @if($selectedCurriculum)
+                                @foreach($selectedCurriculum->classes as $parallelClass)
+                                    <option value="{{ $parallelClass->id }}" @selected((int)$parallelClassId === (int)$parallelClass->id)>{{ $parallelClass->name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
+                    <div class="fg">
                         <label class="fl">Assignment status</label>
                         <select class="fc" name="assignment_status">
                             <option value="all" @selected($assignmentStatus === 'all')>All students</option>
@@ -116,21 +127,32 @@
             @else
                 <form method="POST" action="{{ route('parallel-curriculum.enrolments.store') }}" id="bulk-assignment-form">
                     @csrf
-                    <input type="hidden" name="session_id" value="{{ $session->id }}">
 
                     <div class="assign-bar">
-                        <div class="fg" style="margin:0">
-                            <label class="fl">Destination parallel class</label>
-                            <select class="fc" name="parallel_curriculum_class_id" required>
-                                <option value="">Choose destination class</option>
-                                @foreach($selectedCurriculum->classes as $parallelClass)
-                                    <option value="{{ $parallelClass->id }}">{{ $selectedCurriculum->name }} · {{ $parallelClass->name }}</option>
-                                @endforeach
-                            </select>
+                        <div>
+                            <div class="destination-grid">
+                                <div class="fg" style="margin:0">
+                                    <label class="fl">Destination session</label>
+                                    <select class="fc" name="session_id" required>
+                                        @foreach($sessions as $item)
+                                            <option value="{{ $item->id }}" @selected((int)$item->id === (int)$session->id)>{{ $item->name }}{{ $item->is_current ? ' · Current' : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="fg" style="margin:0">
+                                    <label class="fl">Destination parallel class</label>
+                                    <select class="fc" name="parallel_curriculum_class_id" required>
+                                        <option value="">Choose destination class</option>
+                                        @foreach($selectedCurriculum->classes as $parallelClass)
+                                            <option value="{{ $parallelClass->id }}">{{ $selectedCurriculum->name }} · {{ $parallelClass->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
                             <div class="assign-meta">
                                 <span class="metric">{{ $students->total() }} found</span>
                                 <span class="metric green"><span id="selected-count">0</span>&nbsp;selected</span>
-                                <span class="hint">Selecting an already assigned learner moves that learner to the chosen class within this programme and session.</span>
+                                <span class="hint">Same-session assignment moves an existing learner. Choosing another session creates that learner's placement for the destination session while preserving the source-session record.</span>
                             </div>
                         </div>
                         <button class="btn btn-p" type="submit" id="assign-button" disabled>Assign Selected Students</button>
@@ -214,7 +236,7 @@
         <div class="pc-head">How this placement works</div>
         <div class="pc-body">
             <div class="hint">
-                A learner can have one active class per parallel programme per academic session. Assigning the same learner again within the same programme and session updates the existing placement instead of creating a duplicate. Conventional class placement is not changed.
+                A learner can have one active class per parallel programme per academic session. Assigning the same learner again within the same programme and session updates the existing placement instead of creating a duplicate. To roll students into a new academic session, filter the source class/session, select the learners, choose the new destination session and destination class, then assign. Conventional class placement is never changed.
             </div>
         </div>
     </section>
