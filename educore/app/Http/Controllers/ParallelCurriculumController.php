@@ -434,6 +434,176 @@ class ParallelCurriculumController extends Controller
         return back()->with('success', 'Subject removed from parallel curriculum class.');
     }
 
+    public function downloadStudentAssignmentTemplate()
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        return response()->streamDownload(function (): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['admission_number', 'parallel_class']);
+            fputcsv($handle, ['STU001', 'Mutawassitah 1']);
+            fputcsv($handle, ['STU002', 'Mutawassitah 2']);
+            fclose($handle);
+        }, 'parallel_curriculum_student_assignment_template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function importStudentAssignments(Request $request)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId),
+            ],
+            'session_id' => [
+                'required',
+                Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
+            ],
+            'assignment_file' => ['required', 'file', 'mimes:csv,txt,xls,xlsx', 'max:5120'],
+        ]);
+
+        $curriculum = ParallelCurriculum::with([
+            'classes' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name'),
+        ])->findOrFail($data['parallel_curriculum_id']);
+
+        abort_if($curriculum->classes->isEmpty(), 422, 'Create an active parallel class before importing student assignments.');
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($request->file('assignment_file')->getRealPath());
+            $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'assignment_file' => 'EduCore could not read the uploaded file. Use the assignment template or a valid CSV/XLS/XLSX file.',
+            ]);
+        }
+
+        if (count($rows) < 2) {
+            throw ValidationException::withMessages([
+                'assignment_file' => 'The assignment file must contain a header row and at least one student row.',
+            ]);
+        }
+
+        $header = array_map(
+            fn ($value) => str((string) $value)->trim()->lower()->replace([' ', '-'], '_')->toString(),
+            array_shift($rows)
+        );
+
+        $admissionIndex = array_search('admission_number', $header, true);
+        $classIndex = array_search('parallel_class', $header, true);
+        if ($classIndex === false) {
+            $classIndex = array_search('parallel_class_code', $header, true);
+        }
+
+        if ($admissionIndex === false || $classIndex === false) {
+            throw ValidationException::withMessages([
+                'assignment_file' => 'Required columns are admission_number and parallel_class (or parallel_class_code).',
+            ]);
+        }
+
+        $entries = [];
+        $seenAdmissions = [];
+        $errors = [];
+
+        foreach ($rows as $offset => $row) {
+            $rowNumber = $offset + 2;
+            $admissionNumber = trim((string) ($row[$admissionIndex] ?? ''));
+            $parallelClass = trim((string) ($row[$classIndex] ?? ''));
+
+            if ($admissionNumber === '' && $parallelClass === '') {
+                continue;
+            }
+
+            if ($admissionNumber === '' || $parallelClass === '') {
+                $errors[] = "Row {$rowNumber}: both admission_number and parallel_class are required.";
+                continue;
+            }
+
+            $admissionKey = mb_strtolower($admissionNumber);
+            if (isset($seenAdmissions[$admissionKey])) {
+                $errors[] = "Row {$rowNumber}: admission number {$admissionNumber} appears more than once.";
+                continue;
+            }
+
+            $seenAdmissions[$admissionKey] = true;
+            $entries[] = [
+                'row' => $rowNumber,
+                'admission_number' => $admissionNumber,
+                'admission_key' => $admissionKey,
+                'parallel_class' => $parallelClass,
+                'class_key' => mb_strtolower($parallelClass),
+            ];
+        }
+
+        if ($entries === []) {
+            throw ValidationException::withMessages([
+                'assignment_file' => $errors ?: ['No usable student assignment rows were found in the uploaded file.'],
+            ]);
+        }
+
+        $students = Student::active()
+            ->whereIn('admission_number', collect($entries)->pluck('admission_number')->all())
+            ->get()
+            ->keyBy(fn (Student $student) => mb_strtolower(trim((string) $student->admission_number)));
+
+        $classesByName = $curriculum->classes
+            ->keyBy(fn (ParallelCurriculumClass $class) => mb_strtolower(trim($class->name)));
+        $classesByCode = $curriculum->classes
+            ->filter(fn (ParallelCurriculumClass $class) => filled($class->code))
+            ->keyBy(fn (ParallelCurriculumClass $class) => mb_strtolower(trim((string) $class->code)));
+
+        $assignments = [];
+
+        foreach ($entries as $entry) {
+            $student = $students->get($entry['admission_key']);
+            if (! $student) {
+                $errors[] = "Row {$entry['row']}: active student {$entry['admission_number']} was not found.";
+                continue;
+            }
+
+            $class = $classesByName->get($entry['class_key']) ?: $classesByCode->get($entry['class_key']);
+            if (! $class) {
+                $errors[] = "Row {$entry['row']}: parallel class {$entry['parallel_class']} was not found in {$curriculum->name}.";
+                continue;
+            }
+
+            $assignments[] = [$student, $class];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages([
+                'assignment_file' => array_slice($errors, 0, 20),
+            ]);
+        }
+
+        DB::transaction(function () use ($assignments, $tenantId, $data): void {
+            foreach ($assignments as [$student, $class]) {
+                ParallelCurriculumEnrolment::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_id' => $class->parallel_curriculum_id,
+                        'student_id' => $student->id,
+                        'session_id' => $data['session_id'],
+                    ],
+                    [
+                        'parallel_curriculum_class_id' => $class->id,
+                        'is_active' => true,
+                    ]
+                );
+            }
+        });
+
+        return back()->with(
+            'success',
+            count($assignments).' student assignment(s) imported successfully for '.$curriculum->name.'.'
+        );
+    }
+
     public function assignStudents(Request $request)
     {
         $this->assertEnabled();
