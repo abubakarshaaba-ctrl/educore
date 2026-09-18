@@ -17,7 +17,7 @@ select.fc{cursor:pointer}
 .bcast{padding:16px 18px;border-bottom:1px solid var(--border)}
 .bcast:last-child{border-bottom:none}
 .b-title{font-size:14px;font-weight:700;color:var(--midnight);margin-bottom:4px}
-.b-body{font-size:13px;color:var(--slate);white-space:pre-line;margin-bottom:8px}
+.b-body{font-size:13px;color:var(--slate);margin-bottom:8px}
 .b-meta{font-size:11px;color:#94A3B8;display:flex;align-items:center;gap:12px}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#EFF6FF;color:#3B82F6}
 </style>
@@ -48,7 +48,8 @@ select.fc{cursor:pointer}
             </div>
             <div class="fg">
                 <label>Message Body</label>
-                <textarea name="body" class="fc" rows="4" placeholder="Write your broadcast message here..." required>{{ old('body') }}</textarea>
+                <x-rich-text-toolbar target="broadcastBody" />
+                <textarea id="broadcastBody" name="body" class="fc edu-rich-target" rows="6" placeholder="Write your broadcast message here..." required>{{ old('body') }}</textarea>
                 @error('body')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
             <div class="fg" style="max-width:220px">
@@ -73,7 +74,7 @@ select.fc{cursor:pointer}
                         <span style="font-size:11px;color:#DC2626;font-weight:600">Expired</span>
                     @endif
                 </div>
-                <div class="b-body">{{ $bc->body }}</div>
+                <div class="b-body edu-rich-text">{!! \App\Support\EduCoreRichText::render($bc->body) !!}</div>
                 <div class="b-meta">
                     <span>By {{ $bc->creator_name ?? 'Admin' }}</span>
                     <span>· {{ \Carbon\Carbon::parse($bc->created_at)->format('d M Y, H:i') }}</span>
