@@ -25,6 +25,23 @@ return new class extends Migration
             });
         }
 
+        if (! Schema::hasTable('parallel_curriculum_subjects')) {
+            Schema::create('parallel_curriculum_subjects', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('tenant_id');
+                $table->unsignedBigInteger('parallel_curriculum_id');
+                $table->string('name', 120);
+                $table->string('code', 40)->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+
+                $table->foreign('tenant_id', 'fk_pc_subj_tenant')->references('id')->on('tenants')->cascadeOnDelete();
+                $table->foreign('parallel_curriculum_id', 'fk_pc_subj_curr')->references('id')->on('parallel_curricula')->cascadeOnDelete();
+                $table->unique(['parallel_curriculum_id', 'name'], 'uq_pc_subj_name');
+                $table->index(['tenant_id', 'parallel_curriculum_id', 'is_active'], 'idx_pc_subj_active');
+            });
+        }
+
         if (! Schema::hasTable('parallel_curriculum_classes')) {
             Schema::create('parallel_curriculum_classes', function (Blueprint $table) {
                 $table->id();
@@ -50,16 +67,16 @@ return new class extends Migration
                 $table->id();
                 $table->unsignedBigInteger('tenant_id');
                 $table->unsignedBigInteger('parallel_curriculum_class_id');
-                $table->unsignedBigInteger('subject_id');
+                $table->unsignedBigInteger('parallel_curriculum_subject_id');
                 $table->unsignedBigInteger('teacher_id')->nullable();
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
 
                 $table->foreign('tenant_id', 'fk_pc_cs_tenant')->references('id')->on('tenants')->cascadeOnDelete();
                 $table->foreign('parallel_curriculum_class_id', 'fk_pc_cs_class')->references('id')->on('parallel_curriculum_classes')->cascadeOnDelete();
-                $table->foreign('subject_id', 'fk_pc_cs_subject')->references('id')->on('subjects')->cascadeOnDelete();
+                $table->foreign('parallel_curriculum_subject_id', 'fk_pc_cs_subject')->references('id')->on('parallel_curriculum_subjects')->cascadeOnDelete();
                 $table->foreign('teacher_id', 'fk_pc_cs_teacher')->references('id')->on('users')->nullOnDelete();
-                $table->unique(['parallel_curriculum_class_id', 'subject_id'], 'uq_pc_class_subject');
+                $table->unique(['parallel_curriculum_class_id', 'parallel_curriculum_subject_id'], 'uq_pc_class_subject');
                 $table->index(['tenant_id', 'teacher_id', 'is_active'], 'idx_pc_cs_teacher');
             });
         }
@@ -92,7 +109,7 @@ return new class extends Migration
                 $table->unsignedBigInteger('parallel_curriculum_id');
                 $table->unsignedBigInteger('parallel_curriculum_class_id');
                 $table->unsignedBigInteger('student_id');
-                $table->unsignedBigInteger('subject_id');
+                $table->unsignedBigInteger('parallel_curriculum_subject_id');
                 $table->unsignedBigInteger('assessment_template_component_id');
                 $table->unsignedBigInteger('term_id');
                 $table->unsignedBigInteger('session_id');
@@ -105,14 +122,14 @@ return new class extends Migration
                 $table->foreign('parallel_curriculum_id', 'fk_pc_score_curr')->references('id')->on('parallel_curricula')->cascadeOnDelete();
                 $table->foreign('parallel_curriculum_class_id', 'fk_pc_score_class')->references('id')->on('parallel_curriculum_classes')->cascadeOnDelete();
                 $table->foreign('student_id', 'fk_pc_score_student')->references('id')->on('students')->cascadeOnDelete();
-                $table->foreign('subject_id', 'fk_pc_score_subject')->references('id')->on('subjects')->cascadeOnDelete();
+                $table->foreign('parallel_curriculum_subject_id', 'fk_pc_score_subject')->references('id')->on('parallel_curriculum_subjects')->cascadeOnDelete();
                 $table->foreign('assessment_template_component_id', 'fk_pc_score_component')->references('id')->on('assessment_template_components')->cascadeOnDelete();
                 $table->foreign('term_id', 'fk_pc_score_term')->references('id')->on('terms')->cascadeOnDelete();
                 $table->foreign('session_id', 'fk_pc_score_session')->references('id')->on('academic_sessions')->cascadeOnDelete();
                 $table->foreign('entered_by', 'fk_pc_score_user')->references('id')->on('users')->nullOnDelete();
 
                 $table->unique(
-                    ['parallel_curriculum_id', 'student_id', 'subject_id', 'assessment_template_component_id', 'term_id'],
+                    ['parallel_curriculum_id', 'student_id', 'parallel_curriculum_subject_id', 'assessment_template_component_id', 'term_id'],
                     'uq_pc_score_cell'
                 );
                 $table->index(['tenant_id', 'parallel_curriculum_class_id', 'term_id'], 'idx_pc_score_class_term');
@@ -188,6 +205,7 @@ return new class extends Migration
         Schema::dropIfExists('parallel_curriculum_enrolments');
         Schema::dropIfExists('parallel_curriculum_class_subjects');
         Schema::dropIfExists('parallel_curriculum_classes');
+        Schema::dropIfExists('parallel_curriculum_subjects');
         Schema::dropIfExists('parallel_curricula');
     }
 };
