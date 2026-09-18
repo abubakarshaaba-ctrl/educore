@@ -6,6 +6,7 @@ use App\Models\AcademicSession;
 use App\Models\AssessmentTemplate;
 use App\Models\ClassArm;
 use App\Models\ClassLevel;
+use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumClassSubject;
@@ -872,7 +873,66 @@ class ParallelCurriculumController extends Controller
             'auto_sync' => ['nullable', 'boolean'],
         ]);
 
-        foreach (collect($data['destination_class_level_ids'])->map(fn ($id) => (int) $id)->unique() as $classLevelId) {
+        $classLevelIds = collect($data['destination_class_level_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $levels = ClassLevel::with('classArms')
+            ->whereIn('id', $classLevelIds)
+            ->get()
+            ->keyBy('id');
+
+        $mappingErrors = [];
+        foreach ($classLevelIds as $classLevelId) {
+            $level = $levels->get($classLevelId);
+            if (! $level) {
+                continue;
+            }
+
+            $hasCurriculumRules = ClassLevelSubject::where('class_level_id', $level->id)
+                ->where('is_active', true)
+                ->exists();
+
+            if (! $hasCurriculumRules) {
+                continue;
+            }
+
+            if ($level->classArms->isEmpty()) {
+                $subjectOffered = ClassLevelSubject::where('class_level_id', $level->id)
+                    ->where('subject_id', $data['destination_subject_id'])
+                    ->where('is_active', true)
+                    ->where('subject_status', '!=', 'not_offered')
+                    ->exists();
+
+                if (! $subjectOffered) {
+                    $mappingErrors[] = "{$level->name}: the selected destination subject is not offered.";
+                }
+
+                continue;
+            }
+
+            $invalidArms = $level->classArms->filter(
+                fn (ClassArm $arm) => ! $this->service->conventionalSubjectAvailableForArm(
+                    $tenantId,
+                    (int) $data['destination_subject_id'],
+                    $arm
+                )
+            );
+
+            if ($invalidArms->isNotEmpty()) {
+                $mappingErrors[] = "{$level->name}: the selected destination subject is unavailable in ".
+                    $invalidArms->map(fn (ClassArm $arm) => $arm->full_name)->join(', ').'.';
+            }
+        }
+
+        if ($mappingErrors !== []) {
+            throw ValidationException::withMessages([
+                'destination_subject_id' => $mappingErrors,
+            ]);
+        }
+
+        foreach ($classLevelIds as $classLevelId) {
             ParallelCurriculumIntegration::updateOrCreate(
                 [
                     'tenant_id' => $tenantId,
