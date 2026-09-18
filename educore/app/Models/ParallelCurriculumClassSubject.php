@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ParallelCurriculumClassSubject extends BaseTenantModel
 {
@@ -28,5 +29,17 @@ class ParallelCurriculumClassSubject extends BaseTenantModel
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    public function armTeacherAssignments(): HasMany
+    {
+        return $this->hasMany(
+            ParallelCurriculumArmSubjectTeacher::class,
+            'parallel_curriculum_subject_id',
+            'parallel_curriculum_subject_id'
+        )->whereColumn(
+            'parallel_curriculum_arm_subject_teachers.parallel_curriculum_class_id',
+            'parallel_curriculum_class_subjects.parallel_curriculum_class_id'
+        );
     }
 }
