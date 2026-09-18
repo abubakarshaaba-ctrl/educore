@@ -12,6 +12,7 @@ use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumIntegration;
 use App\Models\ParallelCurriculumScore;
+use App\Models\ParallelCurriculumSubject;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
@@ -64,7 +65,7 @@ class ParallelCurriculumController extends Controller
         }
 
         $allowed = ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
-            ->where('subject_id', $subjectId)
+            ->where('parallel_curriculum_subject_id', $subjectId)
             ->where('teacher_id', auth()->id())
             ->where('is_active', true)
             ->exists();
@@ -83,6 +84,7 @@ class ParallelCurriculumController extends Controller
 
         $curricula = ParallelCurriculum::with([
             'defaultAssessmentTemplate',
+            'subjects',
             'classes.assessmentTemplate',
             'classes.subjectAssignments.subject',
             'classes.subjectAssignments.teacher',
@@ -107,7 +109,7 @@ class ParallelCurriculumController extends Controller
             ? AssessmentTemplate::with('components')->where('status', AssessmentTemplate::STATUS_ACTIVE)->orderBy('name')->get()
             : collect();
 
-        $subjects = $canManage ? Subject::where('is_active', true)->orderBy('name')->get() : collect();
+        $conventionalSubjects = $canManage ? Subject::where('is_active', true)->orderBy('name')->get() : collect();
         $classLevels = $canManage ? ClassLevel::orderBy('order_index')->orderBy('name')->get() : collect();
         $students = $canManage ? Student::active()->orderBy('last_name')->orderBy('first_name')->get() : collect();
         $staff = $canManage
@@ -137,7 +139,7 @@ class ParallelCurriculumController extends Controller
 
         return view('parallel-curriculum.index', compact(
             'canManage', 'currentSession', 'currentTerm', 'curricula', 'workspaces',
-            'templates', 'subjects', 'classLevels', 'students', 'staff',
+            'templates', 'conventionalSubjects', 'classLevels', 'students', 'staff',
             'integrations', 'enrolments', 'recentComposites'
         ));
     }
@@ -166,6 +168,33 @@ class ParallelCurriculumController extends Controller
         ]);
 
         return back()->with('success', 'Parallel curriculum created.');
+    }
+
+    public function storeSubject(Request $request)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'parallel_curriculum_id' => ['required', Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId)],
+            'name' => ['required', 'string', 'max:120'],
+            'code' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        ParallelCurriculumSubject::updateOrCreate(
+            [
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $data['parallel_curriculum_id'],
+                'name' => trim($data['name']),
+            ],
+            [
+                'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+                'is_active' => true,
+            ]
+        );
+
+        return back()->with('success', 'Parallel curriculum subject saved.');
     }
 
     public function storeClass(Request $request)
@@ -201,15 +230,23 @@ class ParallelCurriculumController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate([
             'parallel_curriculum_class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
-            'subject_id' => ['required', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
+            'parallel_curriculum_subject_id' => ['required', Rule::exists('parallel_curriculum_subjects', 'id')->where('tenant_id', $tenantId)],
             'teacher_id' => ['nullable', Rule::exists('users', 'id')->where('tenant_id', $tenantId)],
         ]);
+
+        $class = $this->classForTenant((int) $data['parallel_curriculum_class_id']);
+        $parallelSubject = ParallelCurriculumSubject::findOrFail($data['parallel_curriculum_subject_id']);
+        abort_unless(
+            (int) $parallelSubject->parallel_curriculum_id === (int) $class->parallel_curriculum_id,
+            422,
+            'The selected subject belongs to a different parallel curriculum.'
+        );
 
         ParallelCurriculumClassSubject::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
-                'parallel_curriculum_class_id' => $data['parallel_curriculum_class_id'],
-                'subject_id' => $data['subject_id'],
+                'parallel_curriculum_class_id' => $class->id,
+                'parallel_curriculum_subject_id' => $parallelSubject->id,
             ],
             [
                 'teacher_id' => $data['teacher_id'] ?? null,
@@ -227,7 +264,7 @@ class ParallelCurriculumController extends Controller
         abort_unless((int) $assignment->tenant_id === $this->tenantId(), 403);
 
         $hasScores = ParallelCurriculumScore::where('parallel_curriculum_class_id', $assignment->parallel_curriculum_class_id)
-            ->where('subject_id', $assignment->subject_id)
+            ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
             ->exists();
 
         if ($hasScores) {
@@ -340,7 +377,7 @@ class ParallelCurriculumController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate([
             'class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
-            'subject_id' => ['required', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
+            'subject_id' => ['required', Rule::exists('parallel_curriculum_subjects', 'id')->where('tenant_id', $tenantId)],
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $tenantId)],
         ]);
 
@@ -348,11 +385,12 @@ class ParallelCurriculumController extends Controller
         $this->assertCanEnter($class, (int) $data['subject_id']);
 
         $term = Term::with('session')->findOrFail($data['term_id']);
-        $subject = Subject::findOrFail($data['subject_id']);
+        $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
 
         abort_unless(
-            ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
-                ->where('subject_id', $subject->id)
+            (int) $subject->parallel_curriculum_id === (int) $class->parallel_curriculum_id
+                && ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
+                ->where('parallel_curriculum_subject_id', $subject->id)
                 ->where('is_active', true)
                 ->exists(),
             422,
@@ -371,7 +409,7 @@ class ParallelCurriculumController extends Controller
             ->values();
 
         $scores = ParallelCurriculumScore::where('parallel_curriculum_class_id', $class->id)
-            ->where('subject_id', $subject->id)
+            ->where('parallel_curriculum_subject_id', $subject->id)
             ->where('term_id', $term->id)
             ->whereIn('student_id', $enrolments->pluck('student_id'))
             ->get()
@@ -389,13 +427,23 @@ class ParallelCurriculumController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate([
             'class_id' => ['required', Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId)],
-            'subject_id' => ['required', Rule::exists('subjects', 'id')->where('tenant_id', $tenantId)],
+            'subject_id' => ['required', Rule::exists('parallel_curriculum_subjects', 'id')->where('tenant_id', $tenantId)],
             'term_id' => ['required', Rule::exists('terms', 'id')->where('tenant_id', $tenantId)],
             'scores' => ['required', 'array'],
         ]);
 
         $class = $this->classForTenant((int) $data['class_id']);
         $this->assertCanEnter($class, (int) $data['subject_id']);
+        $parallelSubject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
+        abort_unless(
+            (int) $parallelSubject->parallel_curriculum_id === (int) $class->parallel_curriculum_id
+                && ParallelCurriculumClassSubject::where('parallel_curriculum_class_id', $class->id)
+                    ->where('parallel_curriculum_subject_id', $parallelSubject->id)
+                    ->where('is_active', true)
+                    ->exists(),
+            422,
+            'This subject is not active in the selected parallel curriculum class.'
+        );
         $term = Term::findOrFail($data['term_id']);
         $components = $this->service->componentsForClass($class)->keyBy('id');
 
@@ -444,7 +492,7 @@ class ParallelCurriculumController extends Controller
                         'tenant_id' => $tenantId,
                         'parallel_curriculum_id' => $class->parallel_curriculum_id,
                         'student_id' => (int) $studentId,
-                        'subject_id' => (int) $data['subject_id'],
+                        'parallel_curriculum_subject_id' => (int) $data['subject_id'],
                         'assessment_template_component_id' => $component->id,
                         'term_id' => $term->id,
                     ];
