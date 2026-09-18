@@ -42,6 +42,14 @@ class ParallelCurriculumClassArm extends BaseTenantModel
         );
     }
 
+    public function subjectTeachers(): HasMany
+    {
+        return $this->hasMany(
+            ParallelCurriculumArmSubjectTeacher::class,
+            'parallel_curriculum_class_arm_id'
+        );
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim(($this->curriculumClass?->name ?? '').' '.$this->name);
