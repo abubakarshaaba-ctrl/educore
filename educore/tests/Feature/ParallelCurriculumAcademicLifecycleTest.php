@@ -110,6 +110,51 @@ class ParallelCurriculumAcademicLifecycleTest extends TestCase
         );
     }
 
+    public function test_inter_class_transfer_before_score_entry_moves_learner_and_records_history(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumScore::withoutTenantScope()
+            ->where('tenant_id', $f['tenant']->id)
+            ->where('student_id', $f['student']->id)
+            ->where('session_id', $f['sourceSession']->id)
+            ->delete();
+
+        $transfer = app(ParallelCurriculumLifecycleService::class)->transfer(
+            $f['enrolment']->fresh(),
+            $f['destinationClass'],
+            $f['destinationArmA'],
+            'Move learner to the next parallel level before score entry.',
+            now()->toDateString(),
+            null
+        );
+
+        $this->assertSame(
+            ParallelCurriculumTransfer::TYPE_INTER_CLASS,
+            $transfer->movement_type
+        );
+
+        $enrolment = $f['enrolment']->fresh();
+        $this->assertSame(
+            $f['destinationClass']->id,
+            $enrolment->parallel_curriculum_class_id
+        );
+        $this->assertSame(
+            $f['destinationArmA']->id,
+            $enrolment->parallel_curriculum_class_arm_id
+        );
+
+        $this->assertDatabaseHas('parallel_curriculum_transfers', [
+            'student_id' => $f['student']->id,
+            'from_class_id' => $f['sourceClass']->id,
+            'from_arm_id' => $f['sourceArmA']->id,
+            'to_class_id' => $f['destinationClass']->id,
+            'to_arm_id' => $f['destinationArmA']->id,
+            'movement_type' => ParallelCurriculumTransfer::TYPE_INTER_CLASS,
+            'status' => 'completed',
+        ]);
+    }
+
     public function test_class_specific_grade_system_overrides_programme_default(): void
     {
         $f = $this->fixture();
