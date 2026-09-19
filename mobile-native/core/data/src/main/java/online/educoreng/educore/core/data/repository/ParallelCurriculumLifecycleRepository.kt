@@ -3,6 +3,8 @@ package online.educoreng.educore.core.data.repository
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
+import online.educoreng.educore.core.model.ParallelOperationsWorkspace
+import online.educoreng.educore.core.model.ParallelAttendanceDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
@@ -18,6 +20,36 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long? = null,
         termId: Long? = null,
     ): AppResult<ParallelResultWorkspace>
+
+    suspend fun loadOperations(
+        curriculumId: Long? = null,
+        sessionId: Long? = null,
+        termId: Long? = null,
+        classId: Long? = null,
+        armId: Long? = null,
+        date: String? = null,
+    ): AppResult<ParallelOperationsWorkspace>
+
+    suspend fun createTimetablePeriod(
+        classId: Long,
+        armId: Long,
+        subjectId: Long,
+        sessionId: Long,
+        dayOfWeek: String,
+        startTime: String,
+        endTime: String,
+        venue: String? = null,
+    ): AppResult<String>
+
+    suspend fun deleteTimetablePeriod(periodId: Long): AppResult<String>
+
+    suspend fun saveParallelAttendance(
+        armId: Long,
+        termId: Long,
+        date: String,
+        version: String?,
+        records: List<ParallelAttendanceDraft>,
+    ): AppResult<String>
 
     suspend fun loadStudentResult(
         classId: Long,
