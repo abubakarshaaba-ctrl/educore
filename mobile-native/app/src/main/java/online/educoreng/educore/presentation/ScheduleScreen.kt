@@ -52,6 +52,7 @@ internal fun ScheduleScreen(
     onBack: () -> Unit,
     onSection: (Int) -> Unit,
     onDay: (String) -> Unit,
+    onChild: (Long) -> Unit,
     onRetry: () -> Unit,
 ) {
     if (state.isLoading && state.workspace == null) return EduCoreLoadingState(Modifier.fillMaxSize(), "Loading schedule")
@@ -75,15 +76,41 @@ internal fun ScheduleScreen(
         }
         if (workspace.isFromCache) item { EduCoreWarningBanner("Showing the latest schedule saved on this device.") }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
+
+        if (workspace.children.size > 1) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    workspace.children.forEach { child ->
+                        EduCoreFilterChip(
+                            child.name.substringBefore(" "),
+                            child.id == workspace.selectedChildId,
+                            { onChild(child.id) },
+                        )
+                    }
+                }
+            }
+        }
+
+        val hasParallel = workspace.parallelProgrammes.isNotEmpty()
+        val examSection = if (hasParallel) 2 else 1
+        val dutySection = if (hasParallel) 3 else 2
         item {
             EduCoreSegmentedControl(
-                options = listOf("Timetable", "Exams (${workspace.exams.size})", "Duties (${workspace.duties.size})"),
-                selectedIndex = state.selectedSection,
+                options = buildList {
+                    add("Timetable")
+                    if (hasParallel) add("Parallel (${workspace.parallelProgrammes.size})")
+                    add("Exams (${workspace.exams.size})")
+                    add("Duties (${workspace.duties.size})")
+                },
+                selectedIndex = state.selectedSection.coerceAtMost(dutySection),
                 onSelected = onSection,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        when (state.selectedSection) {
+        when (state.selectedSection.coerceAtMost(dutySection)) {
             0 -> {
                 item {
                     Row(
@@ -99,7 +126,35 @@ internal fun ScheduleScreen(
                 if (periods.isEmpty()) item { EduCoreEmptyState("No periods", "There are no timetable periods for ${state.selectedDay}.") }
                 items(periods, key = SchedulePeriod::id) { PeriodCard(it) }
             }
-            1 -> {
+            1 -> if (hasParallel) {
+                workspace.parallelProgrammes.forEach { programme ->
+                    item(key = "parallel-header-${programme.curriculumId}") {
+                        Surface(color = EduCoreColors.Info100, shape = MaterialTheme.shapes.medium) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md)) {
+                                Text(programme.curriculumName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    listOfNotNull(programme.className, programme.armName).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = EduCoreColors.Slate600,
+                                )
+                            }
+                        }
+                    }
+                    val periods = programme.week.firstOrNull { it.day == state.selectedDay }?.periods.orEmpty()
+                    if (periods.isEmpty()) {
+                        item(key = "parallel-empty-${programme.curriculumId}") {
+                            EduCoreEmptyState("No parallel periods", "There are no ${programme.curriculumName} periods for ${state.selectedDay}.")
+                        }
+                    } else {
+                        items(periods, key = { "parallel-${programme.curriculumId}-${it.id}" }) { PeriodCard(it) }
+                    }
+                }
+            } else {
+                item { DateRangeBanner(workspace.from, workspace.to) }
+                if (workspace.exams.isEmpty()) item { EduCoreEmptyState("No published examinations", "No published examination falls within this schedule range.") }
+                items(workspace.exams, key = ScheduledExam::id) { ExamCard(it) }
+            }
+            examSection -> {
                 item { DateRangeBanner(workspace.from, workspace.to) }
                 if (workspace.exams.isEmpty()) item { EduCoreEmptyState("No published examinations", "No published examination falls within this schedule range.") }
                 items(workspace.exams, key = ScheduledExam::id) { ExamCard(it) }
