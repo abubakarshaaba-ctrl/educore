@@ -199,6 +199,22 @@ interface EduCoreApi {
         @Query("term_id") termId: Long,
     ): ParallelStudentResultDetailDto
 
+    @Streaming
+    @GET("parallel-curriculum/results/export")
+    suspend fun downloadParallelResultExport(
+        @Query("class_id") classId: Long,
+        @Query("term_id") termId: Long,
+        @Query("format") format: String,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/pdf")
+    suspend fun downloadParallelStudentResultPdf(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("term_id") termId: Long,
+    ): ResponseBody
+
     @POST("parallel-curriculum/results/publish")
     suspend fun publishParallelResult(
         @Body request: ParallelResultPublicationRequestDto,
@@ -279,6 +295,14 @@ interface EduCoreApi {
         @Query("per_page") perPage: Int = 50,
         @Query("page") page: Int = 1,
     ): ParallelLifecycleStudentPageDto
+
+    @Multipart
+    @POST("parallel-curriculum/lifecycle/assignments/import")
+    suspend fun importParallelStudentAssignments(
+        @Part("parallel_curriculum_id") curriculumId: RequestBody,
+        @Part("session_id") sessionId: RequestBody,
+        @Part assignmentFile: MultipartBody.Part,
+    ): MessageDto
 
     @POST("parallel-curriculum/lifecycle/assignments")
     suspend fun assignParallelStudents(
