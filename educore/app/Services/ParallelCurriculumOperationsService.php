@@ -167,6 +167,17 @@ class ParallelCurriculumOperationsService
             ]);
         }
 
+        $curriculumId = (int) $arm->curriculumClass->parallel_curriculum_id;
+        $attendanceDay = strtolower($attendanceDate->format('l'));
+        $schedule = $this->workingDay($tenantId, $curriculumId, $attendanceDay);
+
+        if (! $schedule->is_working) {
+            throw ValidationException::withMessages([
+                'attendance_date' =>
+                    ucfirst($attendanceDay).' is not enabled as a working day for this parallel curriculum.',
+            ]);
+        }
+
         abort_unless($this->canMarkAttendance($user, $arm), 403, 'You are not assigned to manage attendance for this parallel class arm.');
 
         $enrolments = ParallelCurriculumEnrolment::query()
