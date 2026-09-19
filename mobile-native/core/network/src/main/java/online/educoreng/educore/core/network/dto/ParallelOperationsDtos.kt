@@ -110,8 +110,8 @@ data class ParallelOperationsPeriodDto(
 data class ParallelOperationsAttendanceDto(
     val date: String,
     val version: String,
-    @param:Json(name = "is_working_day") val isWorkingDay: Boolean = true,
     val students: List<ParallelOperationsAttendanceStudentDto> = emptyList(),
+    @param:Json(name = "is_working_day") val isWorkingDay: Boolean = true,
 )
 
 data class ParallelOperationsAttendanceStudentDto(
@@ -139,8 +139,8 @@ data class ParallelStaffAttendanceDto(
     @param:Json(name = "closing_time") val closingTime: String? = null,
     @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
     @param:Json(name = "can_clock_self") val canClockSelf: Boolean = false,
-    @param:Json(name = "self_record") val selfRecord: ParallelStaffAttendanceSelfRecordDto? = null,
     val staff: List<ParallelStaffAttendancePersonDto> = emptyList(),
+    @param:Json(name = "self_record") val selfRecord: ParallelStaffAttendanceSelfRecordDto? = null,
 )
 
 data class ParallelStaffAttendanceSelfRecordDto(
