@@ -12,6 +12,9 @@ import online.educoreng.educore.core.network.dto.ParallelOperationsSelectionDto
 import online.educoreng.educore.core.network.dto.ParallelOperationsSessionDto
 import online.educoreng.educore.core.network.dto.ParallelOperationsSubjectDto
 import online.educoreng.educore.core.network.dto.ParallelOperationsTermDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDayDto
+import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceDto
+import online.educoreng.educore.core.network.dto.ParallelStaffAttendancePersonDto
 import online.educoreng.educore.core.network.dto.toDomain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -33,6 +36,8 @@ class ParallelOperationsDtoMapperTest {
                 manageTimetable = true,
                 saveAttendance = true,
                 exportAttendance = true,
+                manageWorkingDays = true,
+                clockParallelStaff = true,
             ),
             curricula = listOf(ParallelOperationsOptionDto(10, "Islamiyyah", "ISL")),
             sessions = listOf(ParallelOperationsSessionDto(20, "2026/2027", true)),
@@ -63,6 +68,10 @@ class ParallelOperationsDtoMapperTest {
                     ),
                 ),
             ),
+            workingDays = listOf(
+                ParallelWorkingDayDto("monday", true, "15:30", "18:00", 10),
+                ParallelWorkingDayDto("saturday", true, "08:00", "13:00", 20),
+            ),
             periods = listOf(
                 ParallelOperationsPeriodDto(
                     id = 70,
@@ -76,6 +85,25 @@ class ParallelOperationsDtoMapperTest {
                     startTime = "09:00",
                     endTime = "09:40",
                     venue = "Room 2",
+                ),
+            ),
+            staffAttendance = ParallelStaffAttendanceDto(
+                date = "2026-09-19",
+                dayOfWeek = "saturday",
+                isWorkingDay = true,
+                resumptionTime = "08:00",
+                closingTime = "13:00",
+                graceMinutes = 20,
+                canClockSelf = true,
+                staff = listOf(
+                    ParallelStaffAttendancePersonDto(
+                        userId = 60,
+                        name = "Teacher One",
+                        status = "present",
+                        departureStatus = null,
+                        clockInTime = "07:58",
+                        clockOutTime = null,
+                    ),
                 ),
             ),
             attendance = ParallelOperationsAttendanceDto(
@@ -98,6 +126,12 @@ class ParallelOperationsDtoMapperTest {
         assertTrue(workspace.capabilities.manageTimetable)
         assertTrue(workspace.capabilities.saveAttendance)
         assertTrue(workspace.capabilities.exportAttendance)
+        assertTrue(workspace.capabilities.manageWorkingDays)
+        assertTrue(workspace.capabilities.clockParallelStaff)
+        assertEquals("15:30", workspace.workingDays.first().resumptionTime)
+        assertEquals("13:00", workspace.workingDays.last().closingTime)
+        assertTrue(workspace.staffAttendance?.canClockSelf == true)
+        assertEquals("Teacher One", workspace.staffAttendance?.staff?.single()?.name)
         assertEquals("Qur'an", workspace.classes.single().subjects.single().name)
         assertEquals("Teacher One", workspace.periods.single().teacher)
         assertEquals("09:00", workspace.periods.single().startTime)
