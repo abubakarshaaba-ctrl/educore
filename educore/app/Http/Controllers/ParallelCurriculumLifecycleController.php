@@ -492,6 +492,13 @@ class ParallelCurriculumLifecycleController extends Controller
         $arm = ParallelCurriculumClassArm::with('curriculumClass')
             ->findOrFail($data['parallel_curriculum_class_arm_id']);
         $class = $arm->curriculumClass;
+
+        abort_if(
+            $arm->usesClassTeacherModel(),
+            422,
+            'Switch this class arm to subject-based teaching before assigning subject teachers.'
+        );
+
         $subject = ParallelCurriculumSubject::findOrFail(
             $data['parallel_curriculum_subject_id']
         );
