@@ -501,6 +501,10 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('lifecycle/arm-teachers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArmTeacher'])->name('lifecycle.arm-teachers.store');
         Route::post('lifecycle/promotions/execute', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'executePromotion'])->name('lifecycle.promotions.execute');
         Route::post('lifecycle/transfers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'transfer'])->name('lifecycle.transfers.store');
+        Route::get('operations', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'index'])->name('operations.index');
+        Route::post('operations/periods', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'storePeriod'])->name('operations.periods.store');
+        Route::delete('operations/periods/{period}', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'destroyPeriod'])->name('operations.periods.destroy');
+        Route::post('operations/attendance', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'saveAttendance'])->name('operations.attendance.save');
         Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
         Route::post('student-assignments/import', [\App\Http\Controllers\ParallelCurriculumController::class, 'importStudentAssignments'])->name('student-assignments.import');
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
