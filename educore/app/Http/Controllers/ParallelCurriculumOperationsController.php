@@ -126,7 +126,9 @@ class ParallelCurriculumOperationsController extends Controller
                     WHEN 'wednesday' THEN 3
                     WHEN 'thursday' THEN 4
                     WHEN 'friday' THEN 5
-                    ELSE 6 END")
+                    WHEN 'saturday' THEN 6
+                    WHEN 'sunday' THEN 7
+                    ELSE 8 END")
                 ->orderBy('start_time')
                 ->get();
         }
