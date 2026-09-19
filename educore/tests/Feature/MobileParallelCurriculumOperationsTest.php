@@ -563,8 +563,9 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 '&arm_id='.$context['arm']->id.
                 '&date=2026-09-23'
             )
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('attendance_date');
+            ->assertOk()
+            ->assertJsonPath('capabilities.save_attendance', false)
+            ->assertJsonPath('attendance.is_working_day', false);
     }
 
     public function test_class_teacher_mode_drives_timetable_and_parallel_staff_attendance(): void
