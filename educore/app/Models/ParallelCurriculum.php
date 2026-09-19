@@ -62,4 +62,26 @@ class ParallelCurriculum extends BaseTenantModel
     {
         return $this->hasMany(ParallelCurriculumReportPublication::class);
     }
+
+    public function workingDays(): HasMany
+    {
+        return $this->hasMany(ParallelCurriculumWorkingDay::class)
+            ->orderByRaw("CASE day_of_week
+                WHEN 'monday' THEN 1
+                WHEN 'tuesday' THEN 2
+                WHEN 'wednesday' THEN 3
+                WHEN 'thursday' THEN 4
+                WHEN 'friday' THEN 5
+                WHEN 'saturday' THEN 6
+                WHEN 'sunday' THEN 7
+                ELSE 8 END");
+    }
+
+    public function staffAttendanceRecords(): HasMany
+    {
+        return $this->hasMany(
+            ParallelCurriculumStaffAttendanceRecord::class,
+            'parallel_curriculum_id'
+        );
+    }
 }
