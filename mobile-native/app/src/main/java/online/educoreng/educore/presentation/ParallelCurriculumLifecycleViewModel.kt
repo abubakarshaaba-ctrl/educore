@@ -785,6 +785,27 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         mutate { repository.saveArmTeacher(armId, subjectId, teacherId) }
     }
 
+    fun saveArmTeachingMode(
+        armId: Long,
+        mode: String,
+        classTeacherId: Long?,
+    ) {
+        if (mode !in setOf("class_teacher", "subject_based")) {
+            return failLocal("Choose a valid teaching assignment mode.")
+        }
+        if (mode == "class_teacher" && classTeacherId == null) {
+            return failLocal("Select the teacher who will take all subjects in this class arm.")
+        }
+
+        mutate {
+            repository.saveArmTeachingMode(
+                armId = armId,
+                mode = mode,
+                classTeacherId = if (mode == "class_teacher") classTeacherId else null,
+            )
+        }
+    }
+
     fun saveGrade(
         classIds: List<Long>,
         gradeLetter: String,
