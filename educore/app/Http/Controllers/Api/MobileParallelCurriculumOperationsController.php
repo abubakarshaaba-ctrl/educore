@@ -130,7 +130,7 @@ class MobileParallelCurriculumOperationsController extends Controller
                 ->where('session_id', $sessionId)
                 ->get()
                 ->sortBy(fn (ParallelCurriculumTimetablePeriod $period) =>
-                    array_search($period->day_of_week, ['monday','tuesday','wednesday','thursday','friday'], true)
+                    array_search($period->day_of_week, ParallelCurriculumOperationsService::DAYS, true)
                     .'-'.substr((string) $period->start_time, 0, 5)
                 )
                 ->values()
