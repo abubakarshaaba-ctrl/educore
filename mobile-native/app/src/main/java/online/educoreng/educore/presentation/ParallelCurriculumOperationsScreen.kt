@@ -31,15 +31,20 @@ import online.educoreng.educore.core.model.ParallelAttendanceDraft
 fun ParallelCurriculumOperationsScreen(
     state: ParallelLifecycleUiState,
     onLoadContext: (Long?, Long?, Long?, Long?, Long?, String?) -> Unit,
-    onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
 ) {
     LaunchedEffect(Unit) {
-        if (state.operationsWorkspace == null) {
-            onLoadContext(null, null, null, null, null, null)
-        }
+        val selected = state.operationsWorkspace?.selected
+        onLoadContext(
+            selected?.curriculumId,
+            selected?.sessionId,
+            selected?.classId,
+            selected?.armId,
+            selected?.termId,
+            selected?.date,
+        )
     }
 
     LazyColumn(
@@ -127,7 +132,17 @@ fun ParallelCurriculumOperationsScreen(
         item {
             ParallelOperationsPanel(
                 state = state,
-                onLoadOperations = onLoadOperations,
+                onLoadOperations = { classId, armId, termId, date ->
+                    val selected = state.operationsWorkspace?.selected
+                    onLoadContext(
+                        selected?.curriculumId,
+                        selected?.sessionId,
+                        classId,
+                        armId,
+                        termId,
+                        date,
+                    )
+                },
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
                 onSaveParallelAttendance = onSaveParallelAttendance,
