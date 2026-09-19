@@ -13,6 +13,8 @@ class ParallelCurriculumClassArm extends BaseTenantModel
         'name',
         'code',
         'capacity',
+        'teaching_assignment_mode',
+        'class_teacher_id',
         'sort_order',
         'is_active',
     ];
@@ -21,6 +23,7 @@ class ParallelCurriculumClassArm extends BaseTenantModel
     {
         return [
             'capacity' => 'integer',
+            'class_teacher_id' => 'integer',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -48,6 +51,16 @@ class ParallelCurriculumClassArm extends BaseTenantModel
             ParallelCurriculumArmSubjectTeacher::class,
             'parallel_curriculum_class_arm_id'
         );
+    }
+
+    public function classTeacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'class_teacher_id');
+    }
+
+    public function usesClassTeacherModel(): bool
+    {
+        return ($this->teaching_assignment_mode ?: 'subject_based') === 'class_teacher';
     }
 
     public function getFullNameAttribute(): string
