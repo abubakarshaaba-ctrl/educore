@@ -49,7 +49,7 @@ class ParallelCurriculumController extends Controller
     {
         $user = auth()->user();
 
-        return $user->isSuperAdmin() || $user->canAccessExactModule('scores');
+        return $user && $this->service->canManageLifecycle($user);
     }
 
     private function assertEnabled(): void
