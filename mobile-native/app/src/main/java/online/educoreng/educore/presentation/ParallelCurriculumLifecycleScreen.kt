@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -48,6 +49,7 @@ import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
+    STRUCTURE("Structure"),
     ARMS("Class Arms"),
     STUDENTS("Students"),
     TEACHERS("Teachers"),
@@ -66,6 +68,16 @@ fun ParallelCurriculumLifecycleScreen(
     onSelectPromotionSessions: (Long?, Long?) -> Unit,
     onPreviewPromotion: () -> Unit,
     onExecutePromotion: () -> Unit,
+    onCreateProgramme: (String, String?, Long?) -> Unit,
+    onUpdateProgramme: (Long, String, String?, Long?) -> Unit,
+    onCreateClass: (Long, String, String?, Long?) -> Unit,
+    onUpdateClass: (Long, String, String?, Long?) -> Unit,
+    onCreateSubject: (Long, String, String?) -> Unit,
+    onUpdateSubject: (Long, String, String?) -> Unit,
+    onSaveClassSubject: (Long, Long, Long?) -> Unit,
+    onRemoveClassSubject: (Long) -> Unit,
+    onSaveProgrammeGrade: (String, Double?, Double?, String?, Boolean) -> Unit,
+    onDeleteProgrammeGrade: (Long) -> Unit,
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
@@ -94,13 +106,24 @@ fun ParallelCurriculumLifecycleScreen(
         state.errorMessage?.let { item { EduCoreErrorBanner(message = it, title = "Parallel Curriculum") } }
         state.message?.let { item { EduCoreInfoBanner(message = it, title = "Parallel Curriculum") } }
 
-        if (workspace == null || workspace.curricula.isEmpty()) {
+        if (workspace == null) {
             item {
                 EduCoreEmptyState(
-                    title = "No parallel curriculum",
-                    message = "Enable and configure a parallel curriculum programme first.",
+                    title = "Parallel curriculum unavailable",
+                    message = "Reload the academic lifecycle workspace.",
                     actionLabel = "Retry",
                     onAction = onRefresh,
+                )
+            }
+            return@LazyColumn
+        }
+
+        if (workspace.curricula.isEmpty()) {
+            item {
+                ProgrammeBootstrapCard(
+                    workspace = workspace,
+                    busy = state.isMutating,
+                    onCreateProgramme = onCreateProgramme,
                 )
             }
             return@LazyColumn
@@ -147,6 +170,19 @@ fun ParallelCurriculumLifecycleScreen(
 
         when (tab) {
             ParallelLifecycleTab.OVERVIEW -> lifecycleOverview(workspace)
+            ParallelLifecycleTab.STRUCTURE -> lifecycleStructure(
+                state = state,
+                onCreateProgramme = onCreateProgramme,
+                onUpdateProgramme = onUpdateProgramme,
+                onCreateClass = onCreateClass,
+                onUpdateClass = onUpdateClass,
+                onCreateSubject = onCreateSubject,
+                onUpdateSubject = onUpdateSubject,
+                onSaveClassSubject = onSaveClassSubject,
+                onRemoveClassSubject = onRemoveClassSubject,
+                onSaveProgrammeGrade = onSaveProgrammeGrade,
+                onDeleteProgrammeGrade = onDeleteProgrammeGrade,
+            )
             ParallelLifecycleTab.ARMS -> lifecycleArms(state, onCreateArm, onUpdateArm, onArchiveArm)
             ParallelLifecycleTab.STUDENTS -> lifecycleStudents(
                 state,
@@ -165,6 +201,569 @@ fun ParallelCurriculumLifecycleScreen(
             )
             ParallelLifecycleTab.TRANSFERS -> lifecycleTransfers(state, onTransfer)
             ParallelLifecycleTab.HISTORY -> lifecycleHistory(workspace)
+        }
+    }
+}
+
+@Composable
+private fun ProgrammeBootstrapCard(
+    workspace: ParallelLifecycleWorkspace,
+    busy: Boolean,
+    onCreateProgramme: (String, String?, Long?) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var templateId by remember { mutableStateOf<Long?>(workspace.assessmentTemplates.firstOrNull()?.id) }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(
+            "Create your first parallel programme",
+            style = MaterialTheme.typography.titleLarge,
+            color = EduCoreColors.Navy900,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Xs))
+        Text(
+            "A programme has its own class levels, subjects, assessment structure, teachers, learner placements and results.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCoreTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = "Programme name",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(
+            value = code,
+            onValueChange = { code = it },
+            label = "Programme code (optional)",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        LifecycleMenu(
+            label = "Default assessment template",
+            current = workspace.assessmentTemplates.firstOrNull { it.id == templateId }?.name
+                ?: "Select assessment template",
+            options = workspace.assessmentTemplates.map { it.id to it.name },
+            enabled = !busy,
+            onSelect = { templateId = it },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCorePrimaryButton(
+            text = "Create Programme",
+            onClick = { onCreateProgramme(name, code, templateId) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && name.isNotBlank() && templateId != null,
+            loading = busy,
+        )
+        if (workspace.assessmentTemplates.isEmpty()) {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreInfoBanner(
+                title = "Assessment template required",
+                message = "Create an active assessment template on the web platform before creating a parallel programme.",
+            )
+        }
+    }
+}
+
+private fun LazyListScope.lifecycleStructure(
+    state: ParallelLifecycleUiState,
+    onCreateProgramme: (String, String?, Long?) -> Unit,
+    onUpdateProgramme: (Long, String, String?, Long?) -> Unit,
+    onCreateClass: (Long, String, String?, Long?) -> Unit,
+    onUpdateClass: (Long, String, String?, Long?) -> Unit,
+    onCreateSubject: (Long, String, String?) -> Unit,
+    onUpdateSubject: (Long, String, String?) -> Unit,
+    onSaveClassSubject: (Long, Long, Long?) -> Unit,
+    onRemoveClassSubject: (Long) -> Unit,
+    onSaveProgrammeGrade: (String, Double?, Double?, String?, Boolean) -> Unit,
+    onDeleteProgrammeGrade: (Long) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val curriculum = workspace.selectedCurriculum ?: return
+
+    item {
+        ProgrammeDetailsEditor(
+            workspace = workspace,
+            curriculum = curriculum,
+            busy = state.isMutating,
+            onCreateProgramme = onCreateProgramme,
+            onUpdateProgramme = onUpdateProgramme,
+        )
+    }
+    item {
+        ParallelClassEditor(
+            workspace = workspace,
+            curriculum = curriculum,
+            busy = state.isMutating,
+            onCreateClass = onCreateClass,
+            onUpdateClass = onUpdateClass,
+        )
+    }
+    item {
+        ParallelSubjectEditor(
+            curriculum = curriculum,
+            busy = state.isMutating,
+            onCreateSubject = onCreateSubject,
+            onUpdateSubject = onUpdateSubject,
+        )
+    }
+    item {
+        ClassSubjectAssignmentEditor(
+            workspace = workspace,
+            curriculum = curriculum,
+            busy = state.isMutating,
+            onSave = onSaveClassSubject,
+            onRemove = onRemoveClassSubject,
+        )
+    }
+    item {
+        ProgrammeGradeEditor(
+            curriculum = curriculum,
+            busy = state.isMutating,
+            onSave = onSaveProgrammeGrade,
+            onDelete = onDeleteProgrammeGrade,
+        )
+    }
+}
+
+@Composable
+private fun ProgrammeDetailsEditor(
+    workspace: ParallelLifecycleWorkspace,
+    curriculum: online.educoreng.educore.core.model.ParallelLifecycleCurriculum,
+    busy: Boolean,
+    onCreateProgramme: (String, String?, Long?) -> Unit,
+    onUpdateProgramme: (Long, String, String?, Long?) -> Unit,
+) {
+    var name by remember(curriculum.id, curriculum.name) { mutableStateOf(curriculum.name) }
+    var code by remember(curriculum.id, curriculum.code) { mutableStateOf(curriculum.code.orEmpty()) }
+    var templateId by remember(curriculum.id, curriculum.defaultAssessmentTemplateId) {
+        mutableStateOf(curriculum.defaultAssessmentTemplateId)
+    }
+    var newName by remember { mutableStateOf("") }
+    var newCode by remember { mutableStateOf("") }
+    var newTemplateId by remember(workspace.assessmentTemplates) {
+        mutableStateOf<Long?>(workspace.assessmentTemplates.firstOrNull()?.id)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
+        SectionHeading(
+            "Programme structure",
+            "Manage the parallel programme itself, class levels, subjects and default result rules.",
+        )
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Programme details", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreTextField(name, { name = it }, "Programme name", Modifier.fillMaxWidth(), enabled = !busy)
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(code, { code = it }, "Programme code", Modifier.fillMaxWidth(), enabled = !busy)
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Default assessment template",
+                current = workspace.assessmentTemplates.firstOrNull { it.id == templateId }?.name
+                    ?: curriculum.defaultAssessmentTemplateName
+                    ?: "Select template",
+                options = workspace.assessmentTemplates.map { it.id to it.name },
+                enabled = !busy,
+                onSelect = { templateId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCorePrimaryButton(
+                text = "Save Programme Details",
+                onClick = { onUpdateProgramme(curriculum.id, name, code, templateId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && name.isNotBlank() && templateId != null,
+                loading = busy,
+            )
+        }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Create another programme", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreTextField(newName, { newName = it }, "Programme name", Modifier.fillMaxWidth(), enabled = !busy)
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(newCode, { newCode = it }, "Programme code", Modifier.fillMaxWidth(), enabled = !busy)
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Default assessment template",
+                current = workspace.assessmentTemplates.firstOrNull { it.id == newTemplateId }?.name
+                    ?: "Select template",
+                options = workspace.assessmentTemplates.map { it.id to it.name },
+                enabled = !busy,
+                onSelect = { newTemplateId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreSecondaryButton(
+                text = "Create Programme",
+                onClick = {
+                    onCreateProgramme(newName, newCode, newTemplateId)
+                    if (newName.isNotBlank()) {
+                        newName = ""
+                        newCode = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && newName.isNotBlank() && newTemplateId != null,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParallelClassEditor(
+    workspace: ParallelLifecycleWorkspace,
+    curriculum: online.educoreng.educore.core.model.ParallelLifecycleCurriculum,
+    busy: Boolean,
+    onCreateClass: (Long, String, String?, Long?) -> Unit,
+    onUpdateClass: (Long, String, String?, Long?) -> Unit,
+) {
+    var editingId by remember(curriculum.id) { mutableStateOf<Long?>(null) }
+    val editing = curriculum.classes.firstOrNull { it.id == editingId }
+    var name by remember(curriculum.id, editingId) { mutableStateOf(editing?.name.orEmpty()) }
+    var code by remember(curriculum.id, editingId) { mutableStateOf(editing?.code.orEmpty()) }
+    var templateId by remember(curriculum.id, editingId) { mutableStateOf(editing?.assessmentTemplateId) }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Class levels", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Each new level starts with Arm A automatically.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCoreTextField(
+            name,
+            { name = it },
+            if (editing == null) "New class level name" else "Class level name",
+            Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(code, { code = it }, "Class code", Modifier.fillMaxWidth(), enabled = !busy)
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        NullableLifecycleMenu(
+            label = "Assessment template",
+            current = templateId?.let { id ->
+                workspace.assessmentTemplates.firstOrNull { it.id == id }?.name
+            } ?: "Use programme default · " + (curriculum.defaultAssessmentTemplateName ?: "Default"),
+            options = listOf<Long?>(null).map {
+                it to ("Use programme default · " + (curriculum.defaultAssessmentTemplateName ?: "Default"))
+            } + workspace.assessmentTemplates.map { (it.id as Long?) to it.name },
+            enabled = !busy,
+            onSelect = { templateId = it },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCorePrimaryButton(
+            text = if (editing == null) "Create Class Level" else "Save Class Level",
+            onClick = {
+                if (editing == null) {
+                    onCreateClass(curriculum.id, name, code, templateId)
+                } else {
+                    onUpdateClass(editing.id, name, code, templateId)
+                }
+                if (name.isNotBlank()) {
+                    editingId = null
+                    name = ""
+                    code = ""
+                    templateId = null
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && name.isNotBlank(),
+            loading = busy,
+        )
+        if (editing != null) {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Cancel Editing",
+                onClick = {
+                    editingId = null
+                    name = ""
+                    code = ""
+                    templateId = null
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+
+        curriculum.classes.forEach { level ->
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(level.name, style = MaterialTheme.typography.titleSmall)
+            Text(
+                listOfNotNull(
+                    level.code,
+                    level.assessmentTemplateName ?: curriculum.defaultAssessmentTemplateName,
+                    level.arms.count { it.isActive }.toString() + " active arm(s)",
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Edit " + level.name,
+                onClick = {
+                    editingId = level.id
+                    name = level.name
+                    code = level.code.orEmpty()
+                    templateId = level.assessmentTemplateId
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParallelSubjectEditor(
+    curriculum: online.educoreng.educore.core.model.ParallelLifecycleCurriculum,
+    busy: Boolean,
+    onCreateSubject: (Long, String, String?) -> Unit,
+    onUpdateSubject: (Long, String, String?) -> Unit,
+) {
+    var editingId by remember(curriculum.id) { mutableStateOf<Long?>(null) }
+    val editing = curriculum.subjects.firstOrNull { it.id == editingId }
+    var name by remember(curriculum.id, editingId) { mutableStateOf(editing?.name.orEmpty()) }
+    var code by remember(curriculum.id, editingId) { mutableStateOf(editing?.code.orEmpty()) }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Programme subjects", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCoreTextField(
+            name,
+            { name = it },
+            if (editing == null) "New subject name" else "Subject name",
+            Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(code, { code = it }, "Subject code", Modifier.fillMaxWidth(), enabled = !busy)
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCorePrimaryButton(
+            text = if (editing == null) "Create Subject" else "Save Subject",
+            onClick = {
+                if (editing == null) onCreateSubject(curriculum.id, name, code)
+                else onUpdateSubject(editing.id, name, code)
+                if (name.isNotBlank()) {
+                    editingId = null
+                    name = ""
+                    code = ""
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && name.isNotBlank(),
+            loading = busy,
+        )
+        if (editing != null) {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                "Cancel Editing",
+                {
+                    editingId = null
+                    name = ""
+                    code = ""
+                },
+                Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+
+        curriculum.subjects.filter { it.isActive }.forEach { subject ->
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(
+                subject.name + (subject.code?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Edit " + subject.name,
+                onClick = {
+                    editingId = subject.id
+                    name = subject.name
+                    code = subject.code.orEmpty()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ClassSubjectAssignmentEditor(
+    workspace: ParallelLifecycleWorkspace,
+    curriculum: online.educoreng.educore.core.model.ParallelLifecycleCurriculum,
+    busy: Boolean,
+    onSave: (Long, Long, Long?) -> Unit,
+    onRemove: (Long) -> Unit,
+) {
+    var classId by remember(curriculum.id) { mutableStateOf(curriculum.classes.firstOrNull()?.id) }
+    val level = curriculum.classes.firstOrNull { it.id == classId }
+    var subjectId by remember(curriculum.id, classId) {
+        mutableStateOf(curriculum.subjects.firstOrNull { it.isActive }?.id)
+    }
+    var teacherId by remember(curriculum.id, classId, subjectId) { mutableStateOf<Long?>(null) }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Class subjects & default teachers", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        LifecycleMenu(
+            label = "Class level",
+            current = level?.name ?: "Select class level",
+            options = curriculum.classes.filter { it.isActive }.map { it.id to it.name },
+            enabled = !busy,
+            onSelect = {
+                classId = it
+                teacherId = null
+            },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        LifecycleMenu(
+            label = "Programme subject",
+            current = curriculum.subjects.firstOrNull { it.id == subjectId }?.name
+                ?: "Select programme subject",
+            options = curriculum.subjects.filter { it.isActive }.map { it.id to it.name },
+            enabled = !busy,
+            onSelect = {
+                subjectId = it
+                val existing = level?.subjects?.firstOrNull { assignment -> assignment.subjectId == it }
+                teacherId = existing?.defaultTeacherId
+            },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        NullableLifecycleMenu(
+            label = "Class-level default teacher",
+            current = teacherId?.let { id -> workspace.staff.firstOrNull { it.id == id }?.name }
+                ?: "Admin / unassigned",
+            options = listOf(null to "Admin / unassigned") +
+                workspace.staff.map { (it.id as Long?) to it.name },
+            enabled = !busy,
+            onSelect = { teacherId = it },
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCorePrimaryButton(
+            text = "Assign / Update Subject",
+            onClick = {
+                val selectedClass = classId
+                val selectedSubject = subjectId
+                if (selectedClass != null && selectedSubject != null) {
+                    onSave(selectedClass, selectedSubject, teacherId)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && classId != null && subjectId != null,
+            loading = busy,
+        )
+
+        level?.subjects.orEmpty().forEach { assignment ->
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(assignment.subjectName ?: "Subject", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Default teacher: " + (assignment.defaultTeacherName ?: "Admin / unassigned"),
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Edit Teacher",
+                onClick = {
+                    subjectId = assignment.subjectId
+                    teacherId = assignment.defaultTeacherId
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreDangerButton(
+                text = "Remove Subject from " + (level?.name ?: "Class"),
+                onClick = { onRemove(assignment.assignmentId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgrammeGradeEditor(
+    curriculum: online.educoreng.educore.core.model.ParallelLifecycleCurriculum,
+    busy: Boolean,
+    onSave: (String, Double?, Double?, String?, Boolean) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    var letter by remember(curriculum.id) { mutableStateOf("") }
+    var minScore by remember(curriculum.id) { mutableStateOf("") }
+    var maxScore by remember(curriculum.id) { mutableStateOf("") }
+    var remark by remember(curriculum.id) { mutableStateOf("") }
+    var pass by remember(curriculum.id) { mutableStateOf(true) }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Programme grading scale", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "This is the default scale. Class-specific grade bands in the Grade System tab override it.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCoreTextField(letter, { letter = it }, "Grade letter", Modifier.fillMaxWidth(), enabled = !busy)
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(minScore, { minScore = it }, "Minimum %", Modifier.fillMaxWidth(), enabled = !busy)
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(maxScore, { maxScore = it }, "Maximum %", Modifier.fillMaxWidth(), enabled = !busy)
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCoreTextField(remark, { remark = it }, "Remark", Modifier.fillMaxWidth(), enabled = !busy)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(pass, { pass = it }, enabled = !busy)
+            Text("Pass grade", style = MaterialTheme.typography.bodyMedium)
+        }
+        EduCorePrimaryButton(
+            text = "Save Programme Grade",
+            onClick = {
+                onSave(
+                    letter,
+                    minScore.toDoubleOrNull(),
+                    maxScore.toDoubleOrNull(),
+                    remark,
+                    pass,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && letter.isNotBlank(),
+            loading = busy,
+        )
+
+        curriculum.grades.forEach { grade ->
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(
+                grade.gradeLetter + " · " + grade.minScore + "–" + grade.maxScore,
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                (grade.remark ?: "No remark") + " · " + if (grade.isPassGrade) "Pass" else "Fail",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreDangerButton(
+                text = "Remove " + grade.gradeLetter,
+                onClick = { onDelete(grade.id) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
         }
     }
 }
