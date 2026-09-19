@@ -1,6 +1,7 @@
 package online.educoreng.educore.core.data.repository
 
 import online.educoreng.educore.core.common.AppResult
+import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
@@ -33,6 +34,18 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long,
         termId: Long,
     ): AppResult<String>
+
+    suspend fun downloadResultExport(
+        classId: Long,
+        termId: Long,
+        format: String,
+    ): AppResult<DownloadedDocument>
+
+    suspend fun downloadStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        termId: Long,
+    ): AppResult<DownloadedDocument>
 
     suspend fun createProgramme(
         name: String,
@@ -101,6 +114,14 @@ interface ParallelCurriculumLifecycleRepository {
         search: String? = null,
         page: Int = 1,
     ): AppResult<ParallelLifecycleStudentPage>
+
+    suspend fun importStudentAssignments(
+        curriculumId: Long,
+        sessionId: Long,
+        filename: String,
+        mimeType: String,
+        bytes: ByteArray,
+    ): AppResult<String>
 
     suspend fun assignStudents(
         classId: Long,
