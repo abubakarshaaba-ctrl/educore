@@ -20,7 +20,11 @@
 @section('content')
 <div class="ftc">
     <div class="ftc-toolbar">
-        <a class="ftc-link" href="{{ route('attendance.index') }}">← Attendance</a>
+        @if(auth()->user()->canAccessRoute('attendance.index'))
+            <a class="ftc-link" href="{{ route('attendance.index') }}">← Attendance</a>
+        @else
+            <a class="ftc-link" href="{{ route('scores.index') }}">← Score Entry</a>
+        @endif
         <a class="ftc-link" href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
     </div>
 
