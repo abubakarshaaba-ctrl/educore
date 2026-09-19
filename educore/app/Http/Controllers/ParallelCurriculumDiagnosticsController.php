@@ -208,23 +208,39 @@ class ParallelCurriculumDiagnosticsController extends Controller
             ];
         });
 
-        $failed = collect($checks)
-            ->filter(fn (array $check) => ! ($check['ok'] ?? false))
-            ->keys()
-            ->values()
-            ->all();
+        $failedDetails = collect($checks)
+            ->filter(fn (array $check) => ! ($check['ok'] ?? false));
 
-        return response()->json([
+        $failed = $failedDetails->keys()->values()->all();
+        $primaryFailure = $failedDetails->get('workspace_render')
+            ?? $failedDetails->first();
+
+        $summary = [
             'ok' => $failed === [],
             'diagnostic' => 'parallel-curriculum',
+            'primary_failure' => $primaryFailure,
+            'failed_checks' => $failed,
+            'failures' => $failedDetails->all(),
             'generated_at' => now()->toIso8601String(),
             'laravel' => app()->version(),
             'php' => PHP_VERSION,
             'tenant_id' => $tenantId,
             'user_id' => $user->id,
+        ];
+
+        if ($request->boolean('compact')) {
+            return response()->json(
+                $summary,
+                $failed === [] ? 200 : 500,
+                [],
+                JSON_PRETTY_PRINT
+            );
+        }
+
+        return response()->json([
+            ...$summary,
             'schema' => $schema,
             'checks' => $checks,
-            'failed_checks' => $failed,
         ], $failed === [] ? 200 : 500, [], JSON_PRETTY_PRINT);
     }
 }
