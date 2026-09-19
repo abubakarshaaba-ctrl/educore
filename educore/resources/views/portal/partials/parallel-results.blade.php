@@ -40,6 +40,10 @@
 .parallel-mobile-meta span{display:block;font-size:10.5px;color:var(--muted,#64748B);margin-bottom:2px}
 .parallel-mobile-meta strong{display:block;font-size:12px;color:var(--midnight,#071E45);overflow-wrap:anywhere}
 .parallel-mobile-assessments{margin-top:9px;display:flex;gap:5px;flex-wrap:wrap}
+.parallel-form-comment{margin-top:14px;padding:12px 13px;border:1px solid var(--border,#E2E8F0);border-radius:10px;background:#F8FAFC}
+.parallel-form-comment strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--midnight,#071E45);margin-bottom:5px}
+.parallel-form-comment p{margin:0;font-size:12.5px;line-height:1.55;color:#475569}
+.parallel-form-comment small{display:block;margin-top:6px;font-size:10.5px;color:var(--muted,#64748B)}
 @media(max-width:760px){
     .parallel-result-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     .parallel-result-head,.parallel-result-body{padding:13px}
@@ -140,6 +144,16 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if(!empty($parallelResult['form_teacher_comment']))
+                    <div class="parallel-form-comment">
+                        <strong>Form Teacher Comment</strong>
+                        <p>{{ $parallelResult['form_teacher_comment'] }}</p>
+                        @if(!empty($parallelResult['form_teacher_name']))
+                            <small>{{ $parallelResult['form_teacher_name'] }}</small>
+                        @endif
+                    </div>
+                @endif
 
                 <div class="parallel-result-mobile">
                     @forelse(($parallelResult['subjects'] ?? []) as $subject)
