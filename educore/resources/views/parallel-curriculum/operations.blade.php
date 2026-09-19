@@ -1,0 +1,148 @@
+@extends('layouts.app')
+@section('title','Parallel Timetable & Attendance')
+@section('page-title','Parallel Timetable & Attendance')
+
+@push('styles')
+<style>
+.pco{max-width:1280px;margin:0 auto}.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}.tab{flex:0 0 auto;padding:8px 13px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--slate);font-size:11.5px;font-weight:700;text-decoration:none}.tab.active,.tab:hover{background:var(--midnight);color:#fff;border-color:var(--midnight)}
+.hero{padding:17px 19px;margin-bottom:14px;border-radius:14px;background:linear-gradient(135deg,#071E45,#0B2D63);color:#fff}.hero h2{margin:0 0 5px;font-size:18px}.hero p{margin:0;max-width:900px;color:#DCE5F2;font-size:11.5px;line-height:1.5}
+.panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}.head{padding:11px 14px;background:#F8FAFC;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.head strong{font-size:12px;color:var(--midnight)}.head span{font-size:10px;color:var(--slate-light)}.body{padding:14px}
+.filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;align-items:end}.fg{display:flex;flex-direction:column;gap:5px;min-width:0}.fl{font-size:10px;font-weight:800;color:var(--slate)}.fc{width:100%;min-height:39px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:8px 10px;font:500 11.5px inherit}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;border-radius:8px;padding:8px 13px;border:0;font:700 11px inherit;cursor:pointer;text-decoration:none}.p{background:var(--indigo);color:#fff}.s{background:#fff;color:var(--midnight);border:1px solid var(--border)}.d{background:#FEF2F2;color:#B42318;border:1px solid #FECDCA}.hint{font-size:10px;color:var(--slate-light);line-height:1.45}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.row.three{grid-template-columns:repeat(3,minmax(0,1fr))}.alert{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.ok{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.err{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}
+.day{margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden}.day:last-child{margin-bottom:0}.day-title{padding:8px 10px;background:#F8FAFC;color:var(--midnight);font-size:10.5px;font-weight:800}.period{display:grid;grid-template-columns:105px minmax(0,1fr) minmax(130px,.7fr) auto;gap:9px;align-items:center;padding:9px 10px;border-top:1px solid #EEF2F7}.period:first-of-type{border-top:0}.period strong{display:block;font-size:11px;color:var(--midnight)}.period span{display:block;font-size:9.5px;color:var(--slate-light);margin-top:2px}.empty{padding:20px;text-align:center;color:var(--slate-light);font-size:11px}
+.att-summary{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.chip{padding:4px 8px;border-radius:999px;background:#F2F4F7;color:#475467;font-size:9.5px;font-weight:800}.att-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}.att{width:100%;min-width:690px;border-collapse:collapse}.att th{padding:8px 9px;background:var(--midnight);color:#fff;text-align:left;font-size:9.5px}.att td{padding:8px 9px;border-bottom:1px solid #EEF2F7;font-size:10.5px;color:var(--slate)}.att tr:last-child td{border-bottom:0}.name{font-size:11px;font-weight:800;color:var(--midnight)}
+@media(max-width:1050px){.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
+@media(max-width:700px){.filters,.row,.row.three{grid-template-columns:1fr 1fr}.period{grid-template-columns:90px minmax(0,1fr) auto}.period .teacher{grid-column:2/3}.hero,.body{padding:13px}}
+@media(max-width:500px){.filters,.row,.row.three{grid-template-columns:1fr}.btn{width:100%}.period{grid-template-columns:1fr auto}.period .time{grid-column:1/-1}.period .teacher{grid-column:1/2}}
+</style>
+@include('parallel-curriculum.partials.global-ui')
+@endpush
+
+@section('content')
+<div class="pco">
+@if(session('success'))<div class="alert ok">{{ session('success') }}</div>@endif
+@if($errors->any())<div class="alert err"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
+
+<div class="tabs">
+    <a class="tab" href="{{ route('scores.index') }}">Conventional Scores</a>
+    <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
+    <a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
+    <a class="tab" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
+    <a class="tab active" href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
+    <a class="tab" href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
+</div>
+
+<div class="hero">
+    <h2>Parallel Timetable & Attendance</h2>
+    <p>Run the parallel programme on its own class-arm schedule while respecting the school's configured hours and preventing teacher clashes with both conventional and parallel timetables. Attendance is stored against the learner's parallel enrolment and does not overwrite conventional attendance.</p>
+</div>
+
+<section class="panel">
+    <div class="head"><strong>Working context</strong><span>Programme · session · term · level · arm · date</span></div>
+    <div class="body">
+        <form method="GET" action="{{ route('parallel-curriculum.operations.index') }}" class="filters">
+            <div class="fg"><label class="fl">Parallel programme</label><select class="fc" name="parallel_curriculum_id">@foreach($curricula as $item)<option value="{{ $item->id }}" @selected((int)$curriculumId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Session</label><select class="fc" name="session_id">@foreach($sessions as $item)<option value="{{ $item->id }}" @selected((int)$sessionId===(int)$item->id)>{{ $item->name }}{{ $item->is_current?' · Current':'' }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Term</label><select class="fc" name="term_id">@foreach($terms as $item)<option value="{{ $item->id }}" @selected((int)$termId===(int)$item->id)>{{ $item->session?->name }} · {{ $item->name }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Parallel level</label><select class="fc" name="class_id">@foreach(($selectedCurriculum?->classes ?? collect()) as $item)<option value="{{ $item->id }}" @selected((int)$classId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Arm</label><select class="fc" name="arm_id">@foreach(($selectedClass?->arms ?? collect()) as $item)<option value="{{ $item->id }}" @selected((int)$armId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
+            <div class="fg"><label class="fl">Attendance date</label><input class="fc" type="date" name="date" value="{{ $date }}" max="{{ now()->toDateString() }}"></div>
+            <button class="btn p" type="submit" style="grid-column:1/-1">Load Parallel Operations</button>
+        </form>
+    </div>
+</section>
+
+@if(!$selectedCurriculum || !$selectedClass || !$selectedArm)
+<section class="panel"><div class="empty">Create a parallel programme, class level and active arm before configuring timetable or attendance.</div></section>
+@else
+<div class="grid">
+    <section class="panel">
+        <div class="head"><div><strong>Weekly parallel timetable</strong><br><span>{{ $selectedCurriculum->name }} · {{ $selectedClass->name }} {{ $selectedArm->name }}</span></div><span>{{ $periods->count() }} period(s)</span></div>
+        <div class="body">
+            @if($canManageTimetable)
+            <form method="POST" action="{{ route('parallel-curriculum.operations.periods.store') }}" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #EEF2F7">
+                @csrf
+                <input type="hidden" name="parallel_curriculum_class_id" value="{{ $selectedClass->id }}">
+                <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
+                <input type="hidden" name="session_id" value="{{ $sessionId }}">
+                <div class="row">
+                    <div class="fg"><label class="fl">Subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select subject</option>@foreach($selectedClass->subjectAssignments as $assignment)<option value="{{ $assignment->parallel_curriculum_subject_id }}">{{ $assignment->subject?->name }}</option>@endforeach</select></div>
+                    <div class="fg"><label class="fl">Day</label><select class="fc" name="day_of_week" required>@foreach(['monday','tuesday','wednesday','thursday','friday'] as $day)<option value="{{ $day }}">{{ ucfirst($day) }}</option>@endforeach</select></div>
+                </div>
+                <div class="row three">
+                    <div class="fg"><label class="fl">Start</label><input class="fc" type="time" name="start_time" required></div>
+                    <div class="fg"><label class="fl">End</label><input class="fc" type="time" name="end_time" required></div>
+                    <div class="fg"><label class="fl">Venue</label><input class="fc" name="venue" maxlength="100" placeholder="Optional"></div>
+                </div>
+                <div class="hint" style="margin-bottom:9px">Teacher is resolved automatically from the arm-specific override or the class-level default assignment. Teacher clashes are checked against both timetable systems.</div>
+                <button class="btn p" type="submit">Add Period</button>
+            </form>
+            @endif
+
+            @php($days=['monday'=>'Monday','tuesday'=>'Tuesday','wednesday'=>'Wednesday','thursday'=>'Thursday','friday'=>'Friday'])
+            @foreach($days as $key=>$label)
+                @php($dayPeriods=$periods->where('day_of_week',$key))
+                <div class="day">
+                    <div class="day-title">{{ $label }}</div>
+                    @forelse($dayPeriods as $period)
+                        <div class="period">
+                            <div class="time"><strong>{{ substr((string)$period->start_time,0,5) }}–{{ substr((string)$period->end_time,0,5) }}</strong><span>{{ $period->venue ?: 'No venue' }}</span></div>
+                            <div><strong>{{ $period->subject?->name ?: 'Subject' }}</strong><span>{{ $selectedClass->name }} {{ $selectedArm->name }}</span></div>
+                            <div class="teacher"><strong>{{ $period->teacher?->name ?: 'Teacher unassigned' }}</strong><span>Effective teacher</span></div>
+                            @if($canManageTimetable)<form method="POST" action="{{ route('parallel-curriculum.operations.periods.destroy',$period) }}">@csrf @method('DELETE')<button class="btn d" type="submit">Remove</button></form>@endif
+                        </div>
+                    @empty
+                        <div class="empty">No period scheduled.</div>
+                    @endforelse
+                </div>
+            @endforeach
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="head"><div><strong>Daily parallel attendance</strong><br><span>{{ $selectedClass->name }} {{ $selectedArm->name }} · {{ $date }}</span></div><span>{{ $canMarkAttendance?'Editable':'View restricted' }}</span></div>
+        <div class="body">
+            @if(!$canMarkAttendance)
+                <div class="alert err" style="margin:0">Attendance can be marked by authorized administrators or a teacher effectively assigned to this parallel arm.</div>
+            @elseif(!$attendance)
+                <div class="empty">Select a valid term and date to load attendance.</div>
+            @else
+                @php($existing=$attendance['records'])
+                <div class="att-summary">
+                    <span class="chip">{{ $attendance['enrolments']->count() }} learners</span>
+                    <span class="chip">{{ $existing->where('status','present')->count() }} present</span>
+                    <span class="chip">{{ $existing->where('status','absent')->count() }} absent</span>
+                    <span class="chip">{{ $existing->where('status','late')->count() }} late</span>
+                </div>
+                <form method="POST" action="{{ route('parallel-curriculum.operations.attendance.save') }}">
+                    @csrf
+                    <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
+                    <input type="hidden" name="term_id" value="{{ $termId }}">
+                    <input type="hidden" name="attendance_date" value="{{ $date }}">
+                    <input type="hidden" name="version" value="{{ $attendance['version'] }}">
+                    <div class="att-table-wrap">
+                        <table class="att">
+                            <thead><tr><th>Learner</th><th>Status</th><th>Remark</th></tr></thead>
+                            <tbody>
+                            @forelse($attendance['enrolments'] as $index=>$enrolment)
+                                @php($record=$existing->get($enrolment->id))
+                                <tr>
+                                    <td><span class="name">{{ $enrolment->student?->full_name }}</span><br><span class="hint">{{ $enrolment->student?->admission_number }}</span><input type="hidden" name="records[{{ $index }}][enrolment_id]" value="{{ $enrolment->id }}"></td>
+                                    <td><select class="fc" name="records[{{ $index }}][status]" required>@foreach(['present'=>'Present','absent'=>'Absent','late'=>'Late','excused'=>'Excused'] as $value=>$label)<option value="{{ $value }}" @selected(($record?->status ?? 'present')===$value)>{{ $label }}</option>@endforeach</select></td>
+                                    <td><input class="fc" name="records[{{ $index }}][remark]" maxlength="200" value="{{ $record?->remark }}" placeholder="Optional"></td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="3"><div class="empty">No active learner is assigned to this arm for the selected term's session.</div></td></tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($attendance['enrolments']->isNotEmpty())<button class="btn p" type="submit" style="margin-top:10px">Save Parallel Attendance</button>@endif
+                </form>
+            @endif
+        </div>
+    </section>
+</div>
+@endif
+</div>
+@endsection
