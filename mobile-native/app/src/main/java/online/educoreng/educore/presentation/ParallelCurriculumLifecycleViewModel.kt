@@ -13,6 +13,8 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.repository.ParallelCurriculumLifecycleRepository
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
+import online.educoreng.educore.core.model.ParallelResultWorkspace
+import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 
 data class ParallelLifecycleUiState(
@@ -28,7 +30,10 @@ data class ParallelLifecycleUiState(
     val studentGender: String? = null,
     val studentSearch: String = "",
     val studentPageNumber: Int = 1,
+    val resultWorkspace: ParallelResultWorkspace? = null,
+    val studentResultDetail: ParallelStudentResultDetail? = null,
     val isLoading: Boolean = false,
+    val isResultLoading: Boolean = false,
     val isStudentLoading: Boolean = false,
     val isMutating: Boolean = false,
     val errorMessage: String? = null,
@@ -89,6 +94,94 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
             )
         }
         load(curriculumId, id)
+    }
+
+    fun loadResults(
+        classId: Long? = _uiState.value.resultWorkspace?.selectedClassId,
+        termId: Long? = _uiState.value.resultWorkspace?.selectedTermId,
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isResultLoading = true,
+                    errorMessage = null,
+                    studentResultDetail = null,
+                )
+            }
+
+            when (val result = repository.loadResults(classId, termId)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        resultWorkspace = result.value,
+                        isResultLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isResultLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadStudentResult(
+        classId: Long,
+        studentId: Long,
+        termId: Long,
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isResultLoading = true,
+                    errorMessage = null,
+                    studentResultDetail = null,
+                )
+            }
+            when (val result = repository.loadStudentResult(classId, studentId, termId)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        studentResultDetail = result.value,
+                        isResultLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isResultLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun closeStudentResult() {
+        _uiState.update { it.copy(studentResultDetail = null) }
+    }
+
+    fun publishResult() {
+        val report = _uiState.value.resultWorkspace?.report
+            ?: return failLocal("Open a parallel result register first.")
+        if (!report.canPublish) {
+            return failLocal(
+                report.blockers.firstOrNull()
+                    ?: "Complete the result before publication."
+            )
+        }
+
+        mutateResult {
+            repository.publishResult(report.classId, report.termId)
+        }
+    }
+
+    fun unpublishResult() {
+        val report = _uiState.value.resultWorkspace?.report
+            ?: return failLocal("Open a parallel result register first.")
+
+        mutateResult {
+            repository.unpublishResult(report.classId, report.termId)
+        }
     }
 
     fun createProgramme(
@@ -509,6 +602,32 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
     fun consumeError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    private fun mutateResult(
+        action: suspend () -> AppResult<String>,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (val result = action()) {
+                is AppResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            message = result.value,
+                            studentResultDetail = null,
+                        )
+                    }
+                    loadResults(
+                        _uiState.value.resultWorkspace?.selectedClassId,
+                        _uiState.value.resultWorkspace?.selectedTermId,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
     }
 
     private fun mutate(
