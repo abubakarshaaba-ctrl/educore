@@ -38,6 +38,29 @@ class StaffNavigationPermissionTest extends TestCase
         $this->assertStringNotContainsString('Skill Ratings', $html);
     }
 
+    public function test_form_subject_teacher_sidebar_contains_only_role_granted_workspaces(): void
+    {
+        [, , $teacher] = $this->staffFixture('form_subject_teacher');
+
+        $html = $this->actingAs($teacher)
+            ->view('layouts.partials.full-nav')
+            ->render();
+
+        $this->assertStringContainsString('Lesson Planner', $html);
+        $this->assertStringContainsString('Skill Ratings', $html);
+        $this->assertStringContainsString('Staff Attendance', $html);
+        $this->assertStringContainsString('data-tip="Scores"', $html);
+        $this->assertStringContainsString('CBT Exams', $html);
+        $this->assertStringContainsString('Messages', $html);
+        $this->assertStringContainsString('My Profile', $html);
+
+        $this->assertStringNotContainsString('Staff Leave', $html);
+        $this->assertStringNotContainsString('Visitor Log', $html);
+        $this->assertStringNotContainsString('Platform Notices', $html);
+        $this->assertStringNotContainsString('Platform Support', $html);
+        $this->assertStringNotContainsString('Academic Repository', $html);
+    }
+
     public function test_explicit_grant_makes_module_visible_and_route_accessible(): void
     {
         [$tenant, $admin, $teacher] = $this->staffFixture('subject_teacher');
