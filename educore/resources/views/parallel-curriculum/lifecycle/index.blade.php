@@ -129,23 +129,108 @@
 @endif
 </div></section>
 
-<section class="card"><div class="head"><div><strong>4. Promotion rules</strong><br><span>Define pass criteria and the next parallel level.</span></div></div><div class="body">
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}">@csrf<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
-<div class="row"><div class="fg"><label class="fl">Source level</label><select class="fc" name="source_class_id" required><option value="">Select</option>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Next level</label><select class="fc" name="destination_class_id"><option value="">None / terminal</option>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
-<div class="row"><div class="fg"><label class="fl">Minimum average</label><input class="fc" type="number" step=".01" min="0" max="100" name="minimum_average" value="50" required></div><div class="fg"><label class="fl">Max failed subjects</label><input class="fc" type="number" min="0" name="max_failed_subjects" value="2" required></div></div>
-<div class="row"><div class="fg"><label class="fl">Failure action</label><select class="fc" name="failure_action"><option value="repeat">Repeat</option><option value="retain">Retain</option></select></div><div class="fg"><label class="fl">Arm strategy</label><select class="fc" name="arm_strategy"><option value="same_name">Keep same arm name</option><option value="first_available">First available arm</option></select></div></div>
-<label class="check"><input type="hidden" name="require_complete_result" value="0"><input type="checkbox" name="require_complete_result" value="1" checked> Require complete published final result</label><label class="check" style="margin-top:6px"><input type="hidden" name="is_terminal" value="0"><input type="checkbox" name="is_terminal" value="1"> Terminal level: passing students graduate from this parallel programme</label><div style="margin-top:10px"><button class="btn p" type="submit">Save Rule</button></div></form>
-<div style="margin-top:14px">@foreach($selectedCurriculum->classes as $class)@php($rule=$class->promotionRule)<div class="rule"><strong>{{ $class->name }}</strong>@if($rule)<span>{{ $rule->is_terminal?'Terminal → Graduate':'Next: '.($rule->destinationClass?->name?:'Not configured') }} · Avg ≥ {{ number_format($rule->minimum_average,1) }}% · Failed ≤ {{ $rule->max_failed_subjects }} · {{ ucfirst($rule->failure_action) }} if unsuccessful</span>@else<span>No rule configured.</span>@endif</div>@endforeach</div>
+<section class="card"><div class="head"><div><strong>4. Promotion rules</strong><br><span>Apply one progression policy to one or several parallel class levels.</span></div></div><div class="body">
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}" id="promotion-rule-form">
+@csrf
+<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+<div class="fg">
+    <label class="fl">Source class levels</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px">
+        @foreach($selectedCurriculum->classes->where('is_active',true) as $class)
+            <label class="check" style="margin:0">
+                <input type="checkbox" name="source_class_ids[]" value="{{ $class->id }}">
+                {{ $class->name }}
+            </label>
+        @endforeach
+    </div>
+    <div class="hint" style="margin-top:6px">Select one class or several classes. The same pass criteria will be applied to every selected level.</div>
+</div>
+<div class="row">
+    <div class="fg">
+        <label class="fl">Destination routing</label>
+        <select class="fc" name="destination_mode" id="promotion-destination-mode">
+            <option value="next_by_order">Automatic next level by class order</option>
+            <option value="explicit">Specific next level · one source only</option>
+            <option value="terminal">Terminal · successful learners graduate</option>
+        </select>
+    </div>
+    <div class="fg" id="promotion-explicit-destination-wrap" hidden>
+        <label class="fl">Specific next level</label>
+        <select class="fc" name="destination_class_id" id="promotion-explicit-destination" disabled>
+            <option value="">Select destination</option>
+            @foreach($selectedCurriculum->classes->where('is_active',true) as $class)
+                <option value="{{ $class->id }}">{{ $class->name }}</option>
+            @endforeach
+        </select>
+    </div>
+</div>
+<div class="row">
+    <div class="fg"><label class="fl">Minimum average</label><input class="fc" type="number" step=".01" min="0" max="100" name="minimum_average" value="50" required></div>
+    <div class="fg"><label class="fl">Max failed subjects</label><input class="fc" type="number" min="0" name="max_failed_subjects" value="2" required></div>
+</div>
+<div class="row">
+    <div class="fg"><label class="fl">Failure action</label><select class="fc" name="failure_action"><option value="repeat">Repeat</option><option value="retain">Retain</option></select></div>
+    <div class="fg"><label class="fl">Arm strategy</label><select class="fc" name="arm_strategy"><option value="same_name">Keep same arm name</option><option value="first_available">First available arm</option></select></div>
+</div>
+<label class="check"><input type="hidden" name="require_complete_result" value="0"><input type="checkbox" name="require_complete_result" value="1" checked> Require complete published final result</label>
+<div class="hint" style="margin-top:7px">Automatic routing sends each selected level to the next active level by configured order; the final level becomes terminal automatically.</div>
+<div style="margin-top:10px"><button class="btn p" type="submit">Save Promotion Rule(s)</button></div>
+</form>
+<div style="margin-top:14px">
+@foreach($selectedCurriculum->classes as $class)
+    @php($rule=$class->promotionRule)
+    <div class="rule"><strong>{{ $class->name }}</strong>
+        @if($rule)
+            <span>{{ $rule->is_terminal?'Terminal → Graduate':'Next: '.($rule->destinationClass?->name?:'Not configured') }} · Avg ≥ {{ number_format($rule->minimum_average,1) }}% · Failed ≤ {{ $rule->max_failed_subjects }} · {{ ucfirst($rule->failure_action) }} if unsuccessful</span>
+        @else
+            <span>No rule configured.</span>
+        @endif
+    </div>
+@endforeach
+</div>
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>5. Promotion engine</strong><br><span>Preview before execution. Source-session placement remains unchanged.</span></div></div><div class="body">
-<form method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}"><input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}"><input type="hidden" name="session_id" value="{{ $sessionId }}"><input type="hidden" name="preview_promotion" value="1">
-<div class="row"><div class="fg"><label class="fl">Source session</label><select class="fc" name="source_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$sourceSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination session</label><select class="fc" name="target_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$targetSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div></div><button class="btn s" type="submit">Preview Promotion</button></form>
+<section class="card full"><div class="head"><div><strong>5. Promotion engine</strong><br><span>Select the class levels to process. Unselected levels remain untouched.</span></div></div><div class="body">
+<form method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}">
+<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+<input type="hidden" name="session_id" value="{{ $sessionId }}">
+<input type="hidden" name="preview_promotion" value="1">
+<div class="row">
+    <div class="fg"><label class="fl">Source session</label><select class="fc" name="source_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$sourceSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div>
+    <div class="fg"><label class="fl">Destination session</label><select class="fc" name="target_session_id" required><option value="">Select</option>@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$targetSessionId===(int)$session->id)>{{ $session->name }}</option>@endforeach</select></div>
+</div>
+<div class="fg">
+    <label class="fl">Class levels to promote</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px">
+        @foreach($selectedCurriculum->classes->where('is_active',true) as $class)
+            <label class="check" style="margin:0">
+                <input type="checkbox" name="source_class_ids[]" value="{{ $class->id }}" @checked($promotionSourceClassIds->isEmpty() || $promotionSourceClassIds->contains((int)$class->id))>
+                {{ $class->name }}
+            </label>
+        @endforeach
+    </div>
+</div>
+<button class="btn s" type="submit">Preview Selected Promotion</button>
+</form>
 @if($preview)
 <div class="kpis">@foreach(['total'=>'Students','promoted'=>'Promote','repeat'=>'Repeat','retain'=>'Retain','graduated'=>'Graduate','blocked'=>'Blocked'] as $key=>$label)<div class="kpi"><strong>{{ $preview['counts'][$key] }}</strong><span>{{ $label }}</span></div>@endforeach</div>
+<div class="hint" style="margin:8px 0">Selected class levels: {{ $preview['source_class_ids']->count() ?: $selectedCurriculum->classes->where('is_active',true)->count() }}</div>
 <div class="wrap desktop"><table class="tbl"><thead><tr><th>Student</th><th>Source</th><th>Average</th><th>Failed</th><th>Decision</th><th>Destination</th><th>Reason</th></tr></thead><tbody>@foreach($preview['rows'] as $row)<tr><td><strong>{{ $row['student']?->full_name }}</strong><br>{{ $row['student']?->admission_number }}</td><td>{{ $row['enrolment']->curriculumClass?->name }} {{ $row['enrolment']->curriculumClassArm?->name }}</td><td>{{ $row['average']===null?'—':number_format($row['average'],1).'%' }}</td><td>{{ $row['failed_subjects'] }}</td><td><span class="badge {{ $row['decision'] }}">{{ ucfirst($row['decision']) }}</span></td><td>{{ $row['destination_class']?->name ?: '—' }} {{ $row['destination_arm']?->name ?: '' }}</td><td>{{ $row['reason'] }}</td></tr>@endforeach</tbody></table></div>
 <div class="mobile">@foreach($preview['rows'] as $row)<div class="mrow"><strong>{{ $row['student']?->full_name }} · {{ ucfirst($row['decision']) }}</strong><span>{{ $row['enrolment']->curriculumClass?->name }} {{ $row['enrolment']->curriculumClassArm?->name }} → {{ $row['destination_class']?->name ?: 'Programme complete' }} {{ $row['destination_arm']?->name }} · Avg {{ $row['average']===null?'—':number_format($row['average'],1).'%' }} · {{ $row['reason'] }}</span></div>@endforeach</div>
-@if($preview['counts']['blocked']===0)<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotions.execute') }}" style="margin-top:12px">@csrf<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}"><input type="hidden" name="source_session_id" value="{{ $preview['source_session']->id }}"><input type="hidden" name="target_session_id" value="{{ $preview['target_session']->id }}"><button class="btn p" type="submit">Execute Promotion</button></form>@else<div class="err" style="margin-top:12px">Resolve all blocked learners before execution.</div>@endif
+@if($preview['counts']['blocked']===0 && $preview['counts']['total']>0)
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotions.execute') }}" style="margin-top:12px">
+@csrf
+<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+<input type="hidden" name="source_session_id" value="{{ $preview['source_session']->id }}">
+<input type="hidden" name="target_session_id" value="{{ $preview['target_session']->id }}">
+@foreach($preview['source_class_ids'] as $sourceClassId)<input type="hidden" name="source_class_ids[]" value="{{ $sourceClassId }}">@endforeach
+<button class="btn p" type="submit">Execute Selected Promotion</button>
+</form>
+@elseif($preview['counts']['total']===0)
+<div class="err" style="margin-top:12px">No learners were found in the selected source class levels for this session.</div>
+@else
+<div class="err" style="margin-top:12px">Resolve all blocked learners before execution.</div>
+@endif
 @endif
 </div></section>
 
@@ -171,6 +256,20 @@
 (function(){
     const classSelect = document.getElementById('life-destination-class');
     const armSelect = document.getElementById('life-destination-arm');
+    const promotionDestinationMode = document.getElementById('promotion-destination-mode');
+    const promotionExplicitWrap = document.getElementById('promotion-explicit-destination-wrap');
+    const promotionExplicitDestination = document.getElementById('promotion-explicit-destination');
+
+    function refreshPromotionDestination(){
+        if(!promotionDestinationMode || !promotionExplicitWrap || !promotionExplicitDestination) return;
+        const explicit = promotionDestinationMode.value === 'explicit';
+        promotionExplicitWrap.hidden = !explicit;
+        promotionExplicitDestination.disabled = !explicit;
+        if(!explicit) promotionExplicitDestination.value = '';
+    }
+
+    promotionDestinationMode?.addEventListener('change', refreshPromotionDestination);
+    refreshPromotionDestination();
 
     function refreshTransferArms(){
         if(!classSelect || !armSelect) return;
