@@ -71,6 +71,7 @@ Route::prefix('v1')->group(function () {
         Route::get('bootstrap', MobileBootstrapController::class);
         Route::get('dashboard', MobileDashboardController::class);
         Route::get('schedule', MobileScheduleController::class);
+        Route::get('portal-attendance', \App\Http\Controllers\Api\MobilePortalAttendanceController::class);
         Route::get('operations/{module}', [MobileOperationsController::class, 'show'])
             ->where('module', '[A-Za-z0-9.-]+');
         Route::prefix('academic-repository')->group(function () {
