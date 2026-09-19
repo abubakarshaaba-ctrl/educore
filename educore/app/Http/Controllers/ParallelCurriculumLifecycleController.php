@@ -42,7 +42,7 @@ class ParallelCurriculumLifecycleController extends Controller
         $user = auth()->user();
 
         abort_unless(
-            $user && ($user->isSuperAdmin() || $user->canAccessExactModule('scores')),
+            $user && $this->parallel->canManageLifecycle($user),
             403,
             'Only academic administrators can manage the parallel curriculum lifecycle.'
         );
