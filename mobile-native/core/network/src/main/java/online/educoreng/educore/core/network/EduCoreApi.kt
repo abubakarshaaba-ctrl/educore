@@ -23,6 +23,8 @@ import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRe
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
+import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
@@ -181,6 +183,23 @@ interface EduCoreApi {
         @Query("parallel_curriculum_id") curriculumId: Long? = null,
         @Query("session_id") sessionId: Long? = null,
     ): ParallelLifecycleResponseDto
+
+    @GET("parallel-curriculum/lifecycle/students")
+    suspend fun parallelLifecycleStudents(
+        @Query("parallel_curriculum_id") curriculumId: Long,
+        @Query("session_id") sessionId: Long,
+        @Query("conventional_class_arm_id") conventionalClassArmId: Long? = null,
+        @Query("assignment_status") assignmentStatus: String = "all",
+        @Query("gender") gender: String? = null,
+        @Query("q") search: String? = null,
+        @Query("per_page") perPage: Int = 50,
+        @Query("page") page: Int = 1,
+    ): ParallelLifecycleStudentPageDto
+
+    @POST("parallel-curriculum/lifecycle/assignments")
+    suspend fun assignParallelStudents(
+        @Body request: ParallelStudentAssignmentRequestDto,
+    ): MessageDto
 
     @GET("parallel-curriculum/lifecycle/promotion-preview")
     suspend fun parallelPromotionPreview(
