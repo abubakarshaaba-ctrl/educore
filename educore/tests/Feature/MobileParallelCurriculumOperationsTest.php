@@ -875,6 +875,14 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ])
             ->assertOk();
 
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teachers', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'teacher_id' => $context['admin']->id,
+            ])
+            ->assertUnprocessable();
+
         $this->assertDatabaseHas('parallel_curriculum_class_arms', [
             'id' => $context['arm']->id,
             'teaching_assignment_mode' => 'class_teacher',
