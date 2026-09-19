@@ -193,6 +193,8 @@ data class ParallelLifecycleStudentDto(
     val name: String,
     @param:Json(name = "admission_number") val admissionNumber: String,
     val gender: String? = null,
+    val status: String = "active",
+    @param:Json(name = "is_active") val isActive: Boolean = true,
     @param:Json(name = "conventional_class_arm_id") val conventionalClassArmId: Long? = null,
     @param:Json(name = "conventional_class_name") val conventionalClassName: String? = null,
     val assignment: ParallelLifecycleStudentAssignmentDto? = null,
@@ -491,6 +493,8 @@ fun ParallelLifecycleStudentPageDto.toDomain(): ParallelLifecycleStudentPage =
                 name = student.name,
                 admissionNumber = student.admissionNumber,
                 gender = student.gender,
+                status = student.status,
+                isActive = student.isActive,
                 conventionalClassArmId = student.conventionalClassArmId,
                 conventionalClassName = student.conventionalClassName,
                 assignment = student.assignment?.let { assignment ->
