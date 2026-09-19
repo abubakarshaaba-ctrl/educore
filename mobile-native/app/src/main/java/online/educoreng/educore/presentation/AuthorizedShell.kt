@@ -325,12 +325,8 @@ internal fun AuthorizedShell(
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.STUDENT_ATTENDANCE_CLASSES) { launchSingleTop = true }
                                                 }
-                                                "parent.attendance" -> {
-                                                    portalAttendanceViewModel.load("parent")
-                                                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
-                                                }
-                                                "student.attendance" -> {
-                                                    portalAttendanceViewModel.load("student")
+                                                "parent.attendance", "student.attendance" -> {
+                                                    portalAttendanceViewModel.load()
                                                     navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
                                                 }
                                                 "staff-attendance.self" -> {
@@ -344,7 +340,7 @@ internal fun AuthorizedShell(
                                                     scoresViewModel.loadAssignments()
                                                     navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
                                                 }
-                                                "timetable" -> {
+                                                "timetable", "student.timetable", "parent.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
                                                 }
@@ -475,7 +471,7 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onChild = portalAttendanceViewModel::selectChild,
                                 onTerm = portalAttendanceViewModel::selectTerm,
-                                onRetry = portalAttendanceViewModel::retry,
+                                onRetry = { portalAttendanceViewModel.load() },
                             )
                         }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
@@ -547,7 +543,13 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
-                                onRetry = { scheduleViewModel.load(classId = classId) },
+                                onChild = scheduleViewModel::selectChild,
+                                onRetry = {
+                                    scheduleViewModel.load(
+                                        classId = classId,
+                                        childId = scheduleState.workspace?.selectedChildId,
+                                    )
+                                },
                             )
                         }
                         composable(NativeRoute.REPORTS) {
