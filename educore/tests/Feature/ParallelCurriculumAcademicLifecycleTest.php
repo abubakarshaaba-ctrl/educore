@@ -423,6 +423,162 @@ class ParallelCurriculumAcademicLifecycleTest extends TestCase
         ]);
     }
 
+    public function test_failed_promotion_repeats_learner_in_same_parallel_class_next_session(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumClassGrade::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'grade_letter' => 'P',
+            'min_score' => 0,
+            'max_score' => 100,
+            'remark' => 'Pass',
+            'is_pass_grade' => true,
+        ]);
+
+        ParallelCurriculumReportPublication::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'term_id' => $f['term']->id,
+            'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        ParallelCurriculumPromotionRule::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'source_class_id' => $f['sourceClass']->id,
+            'destination_class_id' => $f['destinationClass']->id,
+            'minimum_average' => 90,
+            'max_failed_subjects' => 0,
+            'require_complete_result' => true,
+            'failure_action' => ParallelCurriculumPromotionRule::FAILURE_REPEAT,
+            'arm_strategy' => 'same_name',
+            'is_terminal' => false,
+            'is_active' => true,
+        ]);
+
+        $service = app(ParallelCurriculumLifecycleService::class);
+        $preview = $service->promotionPreview(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession']
+        );
+
+        $this->assertSame(1, $preview['counts']['repeat']);
+        $this->assertSame(
+            ParallelCurriculumPromotion::DECISION_REPEAT,
+            $preview['rows']->first()['decision']
+        );
+        $this->assertSame(
+            $f['sourceClass']->id,
+            $preview['rows']->first()['destination_class']->id
+        );
+        $this->assertSame(
+            $f['sourceArmA']->id,
+            $preview['rows']->first()['destination_arm']->id
+        );
+
+        $result = $service->executePromotion(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession'],
+            null
+        );
+
+        $this->assertSame(1, $result['created']);
+        $this->assertDatabaseHas('parallel_curriculum_enrolments', [
+            'student_id' => $f['student']->id,
+            'session_id' => $f['targetSession']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'parallel_curriculum_class_arm_id' => $f['sourceArmA']->id,
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('parallel_curriculum_promotions', [
+            'student_id' => $f['student']->id,
+            'source_enrolment_id' => $f['enrolment']->id,
+            'target_session_id' => $f['targetSession']->id,
+            'decision' => ParallelCurriculumPromotion::DECISION_REPEAT,
+        ]);
+    }
+
+    public function test_terminal_parallel_class_graduates_without_creating_target_placement(): void
+    {
+        $f = $this->fixture();
+
+        ParallelCurriculumClassGrade::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'grade_letter' => 'P',
+            'min_score' => 0,
+            'max_score' => 100,
+            'remark' => 'Pass',
+            'is_pass_grade' => true,
+        ]);
+
+        ParallelCurriculumReportPublication::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'parallel_curriculum_class_id' => $f['sourceClass']->id,
+            'term_id' => $f['term']->id,
+            'status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        ParallelCurriculumPromotionRule::create([
+            'tenant_id' => $f['tenant']->id,
+            'parallel_curriculum_id' => $f['curriculum']->id,
+            'source_class_id' => $f['sourceClass']->id,
+            'destination_class_id' => null,
+            'minimum_average' => 50,
+            'max_failed_subjects' => 0,
+            'require_complete_result' => true,
+            'failure_action' => ParallelCurriculumPromotionRule::FAILURE_REPEAT,
+            'arm_strategy' => 'same_name',
+            'is_terminal' => true,
+            'is_active' => true,
+        ]);
+
+        $service = app(ParallelCurriculumLifecycleService::class);
+        $preview = $service->promotionPreview(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession']
+        );
+
+        $this->assertSame(1, $preview['counts']['graduated']);
+        $this->assertSame(
+            ParallelCurriculumPromotion::DECISION_GRADUATED,
+            $preview['rows']->first()['decision']
+        );
+        $this->assertNull($preview['rows']->first()['destination_class']);
+        $this->assertNull($preview['rows']->first()['destination_arm']);
+
+        $result = $service->executePromotion(
+            $f['curriculum'],
+            $f['sourceSession'],
+            $f['targetSession'],
+            null
+        );
+
+        $this->assertSame(0, $result['created']);
+        $this->assertSame(1, $result['graduated']);
+        $this->assertDatabaseMissing('parallel_curriculum_enrolments', [
+            'student_id' => $f['student']->id,
+            'session_id' => $f['targetSession']->id,
+        ]);
+        $this->assertDatabaseHas('parallel_curriculum_promotions', [
+            'student_id' => $f['student']->id,
+            'source_enrolment_id' => $f['enrolment']->id,
+            'target_session_id' => $f['targetSession']->id,
+            'decision' => ParallelCurriculumPromotion::DECISION_GRADUATED,
+        ]);
+    }
+
     private function fixture(): array
     {
         $tenant = Tenant::create([
