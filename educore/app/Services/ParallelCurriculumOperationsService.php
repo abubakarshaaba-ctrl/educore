@@ -413,6 +413,12 @@ class ParallelCurriculumOperationsService
             return false;
         }
 
+        // One teacher for all subjects is also the form teacher of this
+        // parallel arm. Attendance authority must not depend on subject rows.
+        if ($arm->usesClassTeacherModel()) {
+            return (int) ($arm->class_teacher_id ?? 0) === (int) $user->id;
+        }
+
         $assignments = ParallelCurriculumClassSubject::query()
             ->where('tenant_id', $arm->tenant_id)
             ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
