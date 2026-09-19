@@ -182,108 +182,11 @@ class ParallelCurriculumController extends Controller
             );
         }
 
-        $workspaces = $curricula->flatMap(
-            function (ParallelCurriculum $curriculum) use (
-                $canManage,
-                $armLifecycleReady,
-                $currentTerm
-            ) {
-                return $curriculum->classes
-                    ->where('is_active', true)
-                    ->flatMap(
-                        function (ParallelCurriculumClass $class) use (
-                            $curriculum,
-                            $canManage,
-                            $armLifecycleReady,
-                            $currentTerm
-                        ) {
-                            $arms = $armLifecycleReady
-                                ? $class->arms->where('is_active', true)->values()
-                                : collect();
-
-                            if ($arms->isEmpty()) {
-                                $arms = collect([null]);
-                            }
-
-                            return $arms->flatMap(
-                                function ($arm) use (
-                                    $class,
-                                    $curriculum,
-                                    $canManage,
-                                    $currentTerm
-                                ) {
-                                    return $class->subjectAssignments
-                                        ->where('is_active', true)
-                                        ->map(
-                                            function ($assignment) use (
-                                                $arm,
-                                                $class,
-                                                $curriculum,
-                                                $canManage,
-                                                $currentTerm
-                                            ) {
-                                                $effectiveTeacherId =
-                                                    $this->service->effectiveTeacherId(
-                                                        $assignment,
-                                                        $arm
-                                                    );
-
-                                                if (
-                                                    ! $canManage
-                                                    && (int) $effectiveTeacherId
-                                                        !== (int) auth()->id()
-                                                ) {
-                                                    return null;
-                                                }
-
-                                                $scoreSheetUrl = '#';
-                                                if ($currentTerm) {
-                                                    $routeParameters = [
-                                                        'class_id' => $class->id,
-                                                        'subject_id' => $assignment->parallel_curriculum_subject_id,
-                                                        'term_id' => $currentTerm->id,
-                                                    ];
-
-                                                    if ($arm) {
-                                                        $routeParameters['arm_id'] = $arm->id;
-                                                    }
-
-                                                    $scoreSheetUrl = route(
-                                                        'parallel-curriculum.score-sheet',
-                                                        $routeParameters
-                                                    );
-                                                }
-
-                                                return [
-                                                    'curriculum' => $curriculum,
-                                                    'class' => $class,
-                                                    'arm' => $arm,
-                                                    'assignment' => $assignment,
-                                                    'score_sheet_url' => $scoreSheetUrl,
-                                                    'subject_name' => $assignment->subject
-                                                        ? $assignment->subject->name
-                                                        : 'Subject',
-                                                    'class_label' => $class->name
-                                                        . ($arm ? ' '.$arm->name : ''),
-                                                    'curriculum_name' => $curriculum->name,
-                                                    'effective_teacher_id' =>
-                                                        $effectiveTeacherId,
-                                                    'effective_teacher_name' =>
-                                                        $effectiveTeacherId
-                                                            ? User::whereKey(
-                                                                $effectiveTeacherId
-                                                            )->value('name')
-                                                            : null,
-                                                ];
-                                            }
-                                        )
-                                        ->filter();
-                                }
-                            );
-                        }
-                    );
-            }
-        )->values();
+        $workspaces = $this->service->scoreWorkspacesForUser(
+            auth()->user(),
+            $currentTerm,
+            $canManage
+        );
 
         $templates = $canManage
             ? AssessmentTemplate::with('components')
