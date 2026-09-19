@@ -325,7 +325,7 @@ internal fun AuthorizedShell(
                                                     scoresViewModel.loadResults()
                                                     navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
                                                 }
-                                                "timetable", "student.timetable" -> {
+                                                "timetable", "student.timetable", "parent.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
                                                 }
@@ -565,6 +565,7 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
+                                onChild = scheduleViewModel::selectChild,
                                 onRetry = { scheduleViewModel.load(classId = classId) },
                             )
                         }
