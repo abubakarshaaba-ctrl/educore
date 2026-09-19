@@ -61,6 +61,23 @@ class MobilePortalAttendanceTest extends TestCase
             'is_current' => false,
         ]);
 
+        $otherTenant = Tenant::create([
+            'name' => 'Other Attendance School',
+            'slug' => 'other-attendance-'.uniqid(),
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $otherSession = AcademicSession::create([
+            'tenant_id' => $otherTenant->id,
+            'name' => '2026/2027',
+            'is_current' => true,
+        ]);
+        $otherTerm = Term::create([
+            'tenant_id' => $otherTenant->id,
+            'session_id' => $otherSession->id,
+            'name' => 'First Term',
+            'is_current' => true,
+        ]);
+
         $level = ClassLevel::create([
             'tenant_id' => $tenant->id,
             'name' => 'JSS 1',
@@ -274,6 +291,11 @@ class MobilePortalAttendanceTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v1/portal-attendance?child_id=999999&term_id='.$firstTerm->id)
             ->assertForbidden();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/portal-attendance?child_id='.$childB->id.'&term_id='.$otherTerm->id)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['term_id']);
     }
 
     public function test_student_sees_only_own_attendance_even_when_child_id_is_supplied(): void
