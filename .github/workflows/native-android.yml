@@ -11,6 +11,15 @@ on:
       - 'educore/app/Http/Controllers/Api/AuthController.php'
       - 'educore/app/Services/Auth/LoginUserResolver.php'
       - 'educore/tests/Feature/MobileBootstrapTest.php'
+      - 'educore/tests/Feature/MobilePortalAttendanceTest.php'
+      - 'educore/app/Http/Controllers/Api/MobilePortalAttendanceController.php'
+      - 'educore/app/Http/Controllers/Api/MobileParallelCurriculumLifecycleController.php'
+      - 'educore/app/Http/Controllers/Api/MobileParallelCurriculumOperationsController.php'
+      - 'educore/app/Http/Controllers/Api/MobileParallelCurriculumResultController.php'
+      - 'educore/app/Services/ParallelCurriculumPortalService.php'
+      - 'educore/app/Services/ParallelCurriculumService.php'
+      - 'educore/app/Services/Mobile/MobileModuleService.php'
+      - 'educore/routes/api.php'
       - '.github/workflows/native-android.yml'
 
 concurrency:
@@ -40,7 +49,9 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           cp .env.example .env
           php artisan key:generate
-          DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test tests/Feature/MobileBootstrapTest.php
+          DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test \
+            tests/Feature/MobileBootstrapTest.php \
+            tests/Feature/MobilePortalAttendanceTest.php
 
       - name: Build and test debug app
         working-directory: mobile-native
