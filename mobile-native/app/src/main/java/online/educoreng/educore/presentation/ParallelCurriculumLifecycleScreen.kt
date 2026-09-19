@@ -40,12 +40,15 @@ import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ParallelLifecycleArm
 import online.educoreng.educore.core.model.ParallelLifecycleClass
+import online.educoreng.educore.core.model.ParallelLifecycleStaff
+import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
     ARMS("Class Arms"),
+    TEACHERS("Teachers"),
     GRADES("Grade System"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
@@ -64,6 +67,7 @@ fun ParallelCurriculumLifecycleScreen(
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
+    onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
     onSavePromotionRule: (Long, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
@@ -139,6 +143,7 @@ fun ParallelCurriculumLifecycleScreen(
         when (tab) {
             ParallelLifecycleTab.OVERVIEW -> lifecycleOverview(workspace)
             ParallelLifecycleTab.ARMS -> lifecycleArms(state, onCreateArm, onUpdateArm, onArchiveArm)
+            ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
                 state,
@@ -279,6 +284,194 @@ private fun ArmEditor(
                 EduCoreSecondaryButton("Edit", { loadArm(arm) }, Modifier.fillMaxWidth(), enabled = !busy)
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 EduCoreDangerButton("Archive", { onArchiveArm(arm.id) }, Modifier.fillMaxWidth(), enabled = !busy)
+            }
+        }
+    }
+}
+
+private fun LazyListScope.lifecycleTeachers(
+    state: ParallelLifecycleUiState,
+    onSaveArmTeacher: (Long, Long, Long?) -> Unit,
+) {
+    val workspace = state.workspace ?: return
+    val levels = workspace.selectedCurriculum?.classes.orEmpty()
+
+    item {
+        SectionHeading(
+            "Arm-specific subject teachers",
+            "Override the class-level default teacher only where an individual arm needs a different teacher.",
+        )
+    }
+
+    if (!workspace.armTeacherOverridesReady) {
+        item {
+            EduCoreInfoBanner(
+                title = "Teacher overrides unavailable",
+                message = "Deploy the latest database migration before assigning teachers by class arm.",
+            )
+        }
+        return
+    }
+
+    if (levels.isEmpty()) {
+        item { EduCoreEmptyState("No class levels", "Create a parallel class level first.") }
+        return
+    }
+
+    levels.forEach { level ->
+        val activeArms = level.arms.filter { it.isActive }
+
+        if (level.subjects.isEmpty() || activeArms.isEmpty()) {
+            item(key = "teacher-empty-" + level.id) {
+                EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+                    Text(level.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (level.subjects.isEmpty()) {
+                            "Assign at least one active subject to this class level before configuring arm teachers."
+                        } else {
+                            "Create at least one active class arm before configuring arm teachers."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                }
+            }
+        } else {
+            activeArms.forEach { arm ->
+                item(key = "teacher-" + level.id + "-" + arm.id) {
+                    ArmTeacherCard(
+                        level = level,
+                        arm = arm,
+                        staff = workspace.staff,
+                        busy = state.isMutating,
+                        onSave = onSaveArmTeacher,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArmTeacherCard(
+    level: ParallelLifecycleClass,
+    arm: ParallelLifecycleArm,
+    staff: List<ParallelLifecycleStaff>,
+    busy: Boolean,
+    onSave: (Long, Long, Long?) -> Unit,
+) {
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(level.name + " " + arm.name, style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Choose an override for each subject, or retain the class-level default.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        level.subjects.forEach { subject ->
+            val override = arm.subjectTeachers.firstOrNull { it.subjectId == subject.subjectId }
+            var selectedTeacherId by remember(
+                arm.id,
+                subject.subjectId,
+                override?.teacherId,
+            ) {
+                mutableStateOf<Long?>(override?.teacherId)
+            }
+
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(
+                subject.subjectName ?: "Subject",
+                style = MaterialTheme.typography.titleSmall,
+                color = EduCoreColors.Navy900,
+            )
+            Text(
+                "Class default: " + (subject.defaultTeacherName ?: "Admin / unassigned"),
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            TeacherMenu(
+                subject = subject,
+                selectedTeacherId = selectedTeacherId,
+                staff = staff,
+                enabled = !busy,
+                onSelect = { selectedTeacherId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            val effectiveName = selectedTeacherId
+                ?.let { id -> staff.firstOrNull { it.id == id }?.name }
+                ?: subject.defaultTeacherName
+                ?: "Admin / unassigned"
+            Text(
+                "Effective teacher: $effectiveName",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Save Teacher",
+                onClick = { onSave(arm.id, subject.subjectId, selectedTeacherId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TeacherMenu(
+    subject: ParallelLifecycleSubjectAssignment,
+    selectedTeacherId: Long?,
+    staff: List<ParallelLifecycleStaff>,
+    enabled: Boolean,
+    onSelect: (Long?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = selectedTeacherId
+        ?.let { id -> staff.firstOrNull { it.id == id }?.name }
+        ?: "Use class default" + (subject.defaultTeacherName?.let { " · $it" } ?: "")
+
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            "Teacher for this arm",
+            style = MaterialTheme.typography.labelLarge,
+            color = EduCoreColors.Slate700,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Xs))
+        Box(Modifier.fillMaxWidth()) {
+            EduCoreSecondaryButton(
+                text = selectedName,
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "Use class default" +
+                                (subject.defaultTeacherName?.let { " · $it" } ?: "")
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(null)
+                    },
+                )
+                staff.forEach { teacher ->
+                    DropdownMenuItem(
+                        text = { Text(teacher.name) },
+                        onClick = {
+                            expanded = false
+                            onSelect(teacher.id)
+                        },
+                    )
+                }
             }
         }
     }
