@@ -19,6 +19,7 @@ import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 
 data class ParallelLifecycleUiState(
     val workspace: ParallelLifecycleWorkspace? = null,
@@ -201,6 +202,57 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
     fun deleteTimetablePeriod(periodId: Long) {
         mutateOperations { repository.deleteTimetablePeriod(periodId) }
+    }
+
+    fun saveWorkingDays(days: List<ParallelWorkingDayDraft>) {
+        val operations = _uiState.value.operationsWorkspace
+            ?: return failLocal("Load the parallel operations workspace first.")
+        if (!operations.capabilities.manageWorkingDays) {
+            return failLocal("You do not have permission to manage parallel working days.")
+        }
+        val curriculumId = operations.selected.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        if (days.size != 7) return failLocal("Configure all seven days of the week.")
+        val timePattern = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
+        val invalid = days.firstOrNull { day ->
+            day.isWorking && (
+                day.resumptionTime.isNullOrBlank() ||
+                    day.closingTime.isNullOrBlank() ||
+                    !timePattern.matches(day.resumptionTime) ||
+                    !timePattern.matches(day.closingTime) ||
+                    day.closingTime <= day.resumptionTime ||
+                    day.graceMinutes < 0
+            )
+        }
+        if (invalid != null) {
+            return failLocal("Enter valid resumption, closing and grace values for " + invalid.dayOfWeek + ".")
+        }
+        mutateOperations { repository.saveWorkingDays(curriculumId, days) }
+    }
+
+    fun clockInParallelStaff() {
+        val operations = _uiState.value.operationsWorkspace
+            ?: return failLocal("Load the parallel operations workspace first.")
+        if (!operations.capabilities.clockParallelStaff) {
+            return failLocal("You are not eligible to clock in for this parallel curriculum.")
+        }
+        val curriculumId = operations.selected.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        mutateOperations { repository.clockInParallelStaff(curriculumId) }
+    }
+
+    fun clockOutParallelStaff() {
+        val operations = _uiState.value.operationsWorkspace
+            ?: return failLocal("Load the parallel operations workspace first.")
+        if (!operations.capabilities.clockParallelStaff) {
+            return failLocal("You are not eligible to clock out for this parallel curriculum.")
+        }
+        val curriculumId = operations.selected.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        mutateOperations { repository.clockOutParallelStaff(curriculumId) }
     }
 
     fun downloadAttendanceExport(format: String) {
