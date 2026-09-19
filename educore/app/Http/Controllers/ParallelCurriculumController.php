@@ -1462,8 +1462,11 @@ class ParallelCurriculumController extends Controller
             (int) $enrolment->student_id => $this->service->scoreEntryLocked($enrolment, $term),
         ]);
 
+        $canManage = $this->canManage();
+
         return view('parallel-curriculum.score-sheet', compact(
-            'class', 'arm', 'subject', 'term', 'template', 'components', 'enrolments', 'scores', 'lockedStudents'
+            'class', 'arm', 'subject', 'term', 'template', 'components', 'enrolments', 'scores', 'lockedStudents',
+            'canManage'
         ));
     }
 
