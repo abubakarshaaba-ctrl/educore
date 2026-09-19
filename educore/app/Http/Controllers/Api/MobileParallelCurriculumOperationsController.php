@@ -160,6 +160,7 @@ class MobileParallelCurriculumOperationsController extends Controller
             'capabilities' => [
                 'manage_timetable' => $this->operations->canManageTimetable($user),
                 'save_attendance' => $canSaveAttendance,
+                'export_attendance' => $this->operations->canExportAttendance($user),
             ],
             'curricula' => $curricula->map(fn ($item) => [
                 'id' => $item->id,
