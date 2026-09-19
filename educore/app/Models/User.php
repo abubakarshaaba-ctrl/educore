@@ -218,14 +218,19 @@ class User extends Authenticatable
             'scores.index', 'scores.entry', 'scores.save', 'scores.import',
             'parallel-curriculum.index', 'parallel-curriculum.score-sheet',
             'parallel-curriculum.scores.save', 'parallel-curriculum.breakdown',
-        ], // enter+save assigned conventional/parallel scores only
+            'parallel-curriculum.operations.index',
+            'parallel-curriculum.operations.attendance.save',
+        ], // enter+save assigned conventional/parallel scores and assigned parallel attendance
         'scores.view' => [
             'scores.index', 'scores.broadsheet', 'parallel-curriculum.breakdown',
         ],   // read-only score access and derived-score provenance
 
         // ── Timetable (view vs manage) ────────────────────────────────
         'timetable' => ['timetable'],       // full timetable access
-        'timetable.view' => ['timetable.index', 'timetable.view', 'timetable.teacher'], // view only
+        'timetable.view' => [
+            'timetable.index', 'timetable.view', 'timetable.teacher',
+            'parallel-curriculum.operations.index',
+        ], // view conventional and parallel schedules only
 
         // ── Reports (view vs manage) ──────────────────────────────────
         'reports' => ['reports'],         // full reports (compute, publish, etc.)
