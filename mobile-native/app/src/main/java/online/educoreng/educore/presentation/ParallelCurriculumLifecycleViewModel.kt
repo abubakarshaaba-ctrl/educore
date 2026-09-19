@@ -117,6 +117,24 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         val sessionId = state.selectedSessionId
             ?: return failLocal("Select an academic session first.")
 
+        loadOperationsContext(
+            curriculumId = curriculumId,
+            sessionId = sessionId,
+            classId = classId,
+            armId = armId,
+            termId = termId,
+            date = date,
+        )
+    }
+
+    fun loadOperationsContext(
+        curriculumId: Long? = null,
+        sessionId: Long? = null,
+        classId: Long? = null,
+        armId: Long? = null,
+        termId: Long? = null,
+        date: String? = null,
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isOperationsLoading = true, errorMessage = null) }
             when (
@@ -129,11 +147,16 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     date = date,
                 )
             ) {
-                is AppResult.Success -> _uiState.update {
-                    it.copy(
-                        operationsWorkspace = result.value,
-                        isOperationsLoading = false,
-                    )
+                is AppResult.Success -> {
+                    val workspace = result.value
+                    _uiState.update {
+                        it.copy(
+                            operationsWorkspace = workspace,
+                            selectedCurriculumId = workspace.selected.curriculumId,
+                            selectedSessionId = workspace.selected.sessionId,
+                            isOperationsLoading = false,
+                        )
+                    }
                 }
                 is AppResult.Failure -> _uiState.update {
                     it.copy(
