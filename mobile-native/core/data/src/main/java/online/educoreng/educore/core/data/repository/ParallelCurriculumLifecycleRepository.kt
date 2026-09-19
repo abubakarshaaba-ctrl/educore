@@ -115,12 +115,14 @@ interface ParallelCurriculumLifecycleRepository {
         curriculumId: Long,
         sourceSessionId: Long,
         targetSessionId: Long,
+        sourceClassIds: List<Long>,
     ): AppResult<ParallelPromotionPreview>
 
     suspend fun executePromotion(
         curriculumId: Long,
         sourceSessionId: Long,
         targetSessionId: Long,
+        sourceClassIds: List<Long>,
     ): AppResult<String>
 
     suspend fun transfer(
@@ -168,7 +170,8 @@ interface ParallelCurriculumLifecycleRepository {
 
     suspend fun savePromotionRule(
         curriculumId: Long,
-        sourceClassId: Long,
+        sourceClassIds: List<Long>,
+        destinationMode: String,
         destinationClassId: Long?,
         minimumAverage: Double,
         maxFailedSubjects: Int,
