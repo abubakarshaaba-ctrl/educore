@@ -444,7 +444,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 '&date='.now()->toDateString()
             )
             ->assertOk()
-            ->assertJsonPath('contract_version', 1)
+            ->assertJsonPath('contract_version', 2)
             ->assertJsonPath('capabilities.save_attendance', true)
             ->assertJsonPath('attendance.students.0.enrolment_id', $enrolment->id)
             ->assertJsonPath('attendance.students.0.name', 'Amina Bello');
@@ -481,6 +481,55 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'attendance_date' => now()->toDateString(),
             'status' => 'present',
         ]);
+    }
+
+    public function test_parallel_working_days_support_day_specific_hours(): void
+    {
+        $context = $this->context();
+        $token = ApiToken::issue($context['admin'], 'parallel-working-days');
+
+        $days = [
+            ['day_of_week' => 'monday', 'is_working' => true, 'resumption_time' => '15:30', 'closing_time' => '18:00', 'grace_minutes' => 10],
+            ['day_of_week' => 'tuesday', 'is_working' => true, 'resumption_time' => '16:00', 'closing_time' => '18:30', 'grace_minutes' => 15],
+            ['day_of_week' => 'wednesday', 'is_working' => false, 'resumption_time' => null, 'closing_time' => null, 'grace_minutes' => 0],
+            ['day_of_week' => 'thursday', 'is_working' => true, 'resumption_time' => '15:00', 'closing_time' => '17:30', 'grace_minutes' => 5],
+            ['day_of_week' => 'friday', 'is_working' => false, 'resumption_time' => null, 'closing_time' => null, 'grace_minutes' => 0],
+            ['day_of_week' => 'saturday', 'is_working' => true, 'resumption_time' => '08:00', 'closing_time' => '13:00', 'grace_minutes' => 20],
+            ['day_of_week' => 'sunday', 'is_working' => false, 'resumption_time' => null, 'closing_time' => null, 'grace_minutes' => 0],
+        ];
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/working-days', [
+                'parallel_curriculum_id' => $context['curriculum']->id,
+                'days' => $days,
+            ])
+            ->assertOk()
+            ->assertJsonPath('working_days.0.day_of_week', 'monday')
+            ->assertJsonPath('working_days.0.resumption_time', '15:30')
+            ->assertJsonPath('working_days.5.day_of_week', 'saturday')
+            ->assertJsonPath('working_days.5.closing_time', '13:00');
+
+        $this->assertDatabaseHas('parallel_curriculum_working_days', [
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'day_of_week' => 'tuesday',
+            'is_working' => 1,
+            'resumption_time' => '16:00:00',
+            'closing_time' => '18:30:00',
+            'grace_minutes' => 15,
+        ]);
+
+        $this->withToken($token)
+            ->getJson(
+                '/api/v1/parallel-curriculum/operations?'.
+                'parallel_curriculum_id='.$context['curriculum']->id.
+                '&session_id='.$context['session']->id
+            )
+            ->assertOk()
+            ->assertJsonPath('contract_version', 2)
+            ->assertJsonPath('working_days.1.day_of_week', 'tuesday')
+            ->assertJsonPath('working_days.1.resumption_time', '16:00')
+            ->assertJsonPath('working_days.5.day_of_week', 'saturday');
     }
 
     private function context(): array
