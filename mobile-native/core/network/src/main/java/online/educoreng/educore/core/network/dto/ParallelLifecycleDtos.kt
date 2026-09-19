@@ -26,7 +26,7 @@ import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelTransferHistory
 
 data class ParallelLifecycleResponseDto(
-    @param:Json(name = "contract_version") val contractVersion: Int = 3,
+    @param:Json(name = "contract_version") val contractVersion: Int = 4,
     @param:Json(name = "selected_curriculum_id") val selectedCurriculumId: Long? = null,
     @param:Json(name = "selected_session_id") val selectedSessionId: Long? = null,
     @param:Json(name = "assessment_templates") val assessmentTemplates: List<ParallelLifecycleAssessmentTemplateDto> = emptyList(),
@@ -34,6 +34,7 @@ data class ParallelLifecycleResponseDto(
     val sessions: List<ParallelLifecycleSessionDto> = emptyList(),
     val staff: List<ParallelLifecycleStaffDto> = emptyList(),
     @param:Json(name = "arm_teacher_overrides_ready") val armTeacherOverridesReady: Boolean = false,
+    @param:Json(name = "arm_teaching_modes_ready") val armTeachingModesReady: Boolean = false,
     val enrolments: List<ParallelLifecycleEnrolmentDto> = emptyList(),
     val transfers: List<ParallelTransferHistoryDto> = emptyList(),
     val promotions: List<ParallelPromotionHistoryDto> = emptyList(),
@@ -108,6 +109,9 @@ data class ParallelLifecycleArmDto(
     val code: String? = null,
     val capacity: Int? = null,
     @param:Json(name = "is_active") val isActive: Boolean = true,
+    @param:Json(name = "teaching_assignment_mode") val teachingAssignmentMode: String = "subject_based",
+    @param:Json(name = "class_teacher_id") val classTeacherId: Long? = null,
+    @param:Json(name = "class_teacher_name") val classTeacherName: String? = null,
     @param:Json(name = "subject_teachers") val subjectTeachers: List<ParallelLifecycleArmSubjectTeacherDto> = emptyList(),
 )
 
@@ -316,6 +320,12 @@ data class ParallelArmTeacherMutationRequestDto(
     @param:Json(name = "teacher_id") val teacherId: Long? = null,
 )
 
+data class ParallelArmTeachingModeMutationRequestDto(
+    @param:Json(name = "parallel_curriculum_class_arm_id") val parallelCurriculumClassArmId: Long,
+    @param:Json(name = "teaching_assignment_mode") val teachingAssignmentMode: String,
+    @param:Json(name = "class_teacher_id") val classTeacherId: Long? = null,
+)
+
 data class ParallelGradeMutationRequestDto(
     @param:Json(name = "parallel_curriculum_id") val parallelCurriculumId: Long,
     @param:Json(name = "class_ids") val classIds: List<Long>,
@@ -351,6 +361,7 @@ fun ParallelLifecycleResponseDto.toDomain(): ParallelLifecycleWorkspace =
         sessions = sessions.map { it.toDomain() },
         staff = staff.map { it.toDomain() },
         armTeacherOverridesReady = armTeacherOverridesReady,
+        armTeachingModesReady = armTeachingModesReady,
         enrolments = enrolments.map { it.toDomain() },
         transfers = transfers.map { it.toDomain() },
         promotions = promotions.map { it.toDomain() },
@@ -411,12 +422,15 @@ private fun ParallelLifecycleArmSubjectTeacherDto.toDomain() =
 
 private fun ParallelLifecycleArmDto.toDomain() =
     ParallelLifecycleArm(
-        id,
-        name,
-        code,
-        capacity,
-        isActive,
-        subjectTeachers.map { it.toDomain() },
+        id = id,
+        name = name,
+        code = code,
+        capacity = capacity,
+        isActive = isActive,
+        teachingAssignmentMode = teachingAssignmentMode,
+        classTeacherId = classTeacherId,
+        classTeacherName = classTeacherName,
+        subjectTeachers = subjectTeachers.map { it.toDomain() },
     )
 
 private fun ParallelLifecycleGradeDto.toDomain() =
