@@ -17,6 +17,8 @@ import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
 import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.model.ParallelPromotionPreview
+import online.educoreng.educore.core.model.ParallelOperationsWorkspace
+import online.educoreng.educore.core.model.ParallelAttendanceDraft
 
 data class ParallelLifecycleUiState(
     val workspace: ParallelLifecycleWorkspace? = null,
@@ -34,7 +36,9 @@ data class ParallelLifecycleUiState(
     val studentPageNumber: Int = 1,
     val resultWorkspace: ParallelResultWorkspace? = null,
     val studentResultDetail: ParallelStudentResultDetail? = null,
+    val operationsWorkspace: ParallelOperationsWorkspace? = null,
     val isLoading: Boolean = false,
+    val isOperationsLoading: Boolean = false,
     val isResultLoading: Boolean = false,
     val isStudentLoading: Boolean = false,
     val isMutating: Boolean = false,
@@ -81,6 +85,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                 promotionPreview = null,
                 studentPage = null,
                 studentPageNumber = 1,
+                operationsWorkspace = null,
             )
         }
         load(id, sessionId)
@@ -94,9 +99,112 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                 promotionPreview = null,
                 studentPage = null,
                 studentPageNumber = 1,
+                operationsWorkspace = null,
             )
         }
         load(curriculumId, id)
+    }
+
+    fun loadOperations(
+        classId: Long? = _uiState.value.operationsWorkspace?.selected?.classId,
+        armId: Long? = _uiState.value.operationsWorkspace?.selected?.armId,
+        termId: Long? = _uiState.value.operationsWorkspace?.selected?.termId,
+        date: String? = _uiState.value.operationsWorkspace?.selected?.date,
+    ) {
+        val state = _uiState.value
+        val curriculumId = state.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        val sessionId = state.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isOperationsLoading = true, errorMessage = null) }
+            when (
+                val result = repository.loadOperations(
+                    curriculumId = curriculumId,
+                    sessionId = sessionId,
+                    termId = termId,
+                    classId = classId,
+                    armId = armId,
+                    date = date,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        operationsWorkspace = result.value,
+                        isOperationsLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isOperationsLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun createTimetablePeriod(
+        classId: Long,
+        armId: Long,
+        subjectId: Long,
+        dayOfWeek: String,
+        startTime: String,
+        endTime: String,
+        venue: String?,
+    ) {
+        val sessionId = _uiState.value.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+        val timePattern = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
+        if (!timePattern.matches(startTime) || !timePattern.matches(endTime)) {
+            return failLocal("Enter timetable times in HH:mm format.")
+        }
+        if (endTime <= startTime) return failLocal("End time must be later than start time.")
+
+        mutateOperations {
+            repository.createTimetablePeriod(
+                classId = classId,
+                armId = armId,
+                subjectId = subjectId,
+                sessionId = sessionId,
+                dayOfWeek = dayOfWeek.lowercase(),
+                startTime = startTime,
+                endTime = endTime,
+                venue = venue?.trim()?.takeIf(String::isNotBlank),
+            )
+        }
+    }
+
+    fun deleteTimetablePeriod(periodId: Long) {
+        mutateOperations { repository.deleteTimetablePeriod(periodId) }
+    }
+
+    fun saveParallelAttendance(
+        records: List<ParallelAttendanceDraft>,
+    ) {
+        val operations = _uiState.value.operationsWorkspace
+            ?: return failLocal("Load the parallel attendance sheet first.")
+        val armId = operations.selected.armId
+            ?: return failLocal("Select a parallel class arm.")
+        val termId = operations.selected.termId
+            ?: return failLocal("Select an academic term.")
+        val sheet = operations.attendance
+            ?: return failLocal("Load the parallel attendance sheet first.")
+        if (records.isEmpty()) return failLocal("There are no learner attendance rows to save.")
+        if (records.any { it.status !in setOf("present", "absent", "late", "excused") }) {
+            return failLocal("Every learner must have a valid attendance status.")
+        }
+
+        mutateOperations {
+            repository.saveParallelAttendance(
+                armId = armId,
+                termId = termId,
+                date = sheet.date,
+                version = sheet.version,
+                records = records,
+            )
+        }
     }
 
     fun loadResults(
@@ -728,6 +836,29 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                         isMutating = false,
                         downloadedDocument = result.value,
                         message = "Document downloaded.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
+    }
+
+    private fun mutateOperations(
+        action: suspend () -> AppResult<String>,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (val result = action()) {
+                is AppResult.Success -> {
+                    val selected = _uiState.value.operationsWorkspace?.selected
+                    _uiState.update { it.copy(isMutating = false, message = result.value) }
+                    loadOperations(
+                        classId = selected?.classId,
+                        armId = selected?.armId,
+                        termId = selected?.termId,
+                        date = selected?.date,
                     )
                 }
                 is AppResult.Failure -> _uiState.update {
