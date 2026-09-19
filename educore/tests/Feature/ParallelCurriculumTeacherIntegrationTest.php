@@ -47,9 +47,20 @@ class ParallelCurriculumTeacherIntegrationTest extends TestCase
             $workspaces->first()['assignment']->parallel_curriculum_subject_id
         );
         $this->assertTrue($workspaces->first()['is_form_teacher']);
+        $this->assertTrue(
+            $context['teacher']->canAccessRoute('parallel-curriculum.form-teacher-comments.save')
+        );
         $this->assertStringContainsString(
             '/parallel-curriculum/score-sheet',
             $workspaces->first()['score_sheet_url']
+        );
+        $this->assertStringContainsString(
+            '/parallel-curriculum/operations',
+            $workspaces->first()['attendance_url']
+        );
+        $this->assertStringContainsString(
+            '/parallel-curriculum/form-teacher-comments',
+            $workspaces->first()['form_teacher_comments_url']
         );
     }
 
