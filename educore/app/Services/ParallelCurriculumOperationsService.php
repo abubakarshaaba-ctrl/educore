@@ -309,10 +309,7 @@ class ParallelCurriculumOperationsService
             ->findOrFail($termId);
 
         abort_unless(
-            $user->isSuperAdmin()
-                || $user->canManage('students')
-                || $user->canAccessExactModule('attendance')
-                || $user->canAccessExactModule('scores'),
+            $this->canExportAttendance($user),
             403,
             'You do not have permission to export parallel attendance.'
         );
@@ -424,6 +421,14 @@ class ParallelCurriculumOperationsService
             || $user->canAccessExactModule('scores.entry')
             || $user->canAccessExactModule('timetable.view')
             || $user->canAccessExactModule('attendance');
+    }
+
+    public function canExportAttendance(User $user): bool
+    {
+        return $user->isSuperAdmin()
+            || $user->canManage('students')
+            || $user->canAccessExactModule('attendance')
+            || $user->canAccessExactModule('scores');
     }
 
     public function canManageTimetable(User $user): bool
