@@ -86,6 +86,44 @@ data class ParallelLifecycleEnrolment(
     val armName: String?,
 )
 
+data class ParallelLifecycleConventionalClassArm(
+    val id: Long,
+    val name: String,
+)
+
+data class ParallelLifecycleStudentAssignment(
+    val enrolmentId: Long,
+    val classId: Long,
+    val className: String?,
+    val armId: Long?,
+    val armName: String?,
+)
+
+data class ParallelLifecycleStudent(
+    val id: Long,
+    val name: String,
+    val admissionNumber: String,
+    val gender: String?,
+    val conventionalClassArmId: Long?,
+    val conventionalClassName: String?,
+    val assignment: ParallelLifecycleStudentAssignment?,
+)
+
+data class ParallelLifecyclePagination(
+    val currentPage: Int,
+    val lastPage: Int,
+    val perPage: Int,
+    val total: Int,
+)
+
+data class ParallelLifecycleStudentPage(
+    val curriculumId: Long,
+    val sessionId: Long,
+    val conventionalClassArms: List<ParallelLifecycleConventionalClassArm>,
+    val students: List<ParallelLifecycleStudent>,
+    val pagination: ParallelLifecyclePagination,
+)
+
 data class ParallelTransferHistory(
     val id: Long,
     val studentName: String?,
