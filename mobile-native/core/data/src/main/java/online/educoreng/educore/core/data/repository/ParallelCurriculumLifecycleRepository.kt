@@ -46,6 +46,12 @@ interface ParallelCurriculumLifecycleRepository {
 
     suspend fun archiveArm(armId: Long): AppResult<String>
 
+    suspend fun saveArmTeacher(
+        armId: Long,
+        subjectId: Long,
+        teacherId: Long?,
+    ): AppResult<String>
+
     suspend fun saveGrade(
         curriculumId: Long,
         classIds: List<Long>,
