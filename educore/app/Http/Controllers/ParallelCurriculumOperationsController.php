@@ -69,14 +69,12 @@ class ParallelCurriculumOperationsController extends Controller
         $armId = $request->integer('arm_id') ?: (int) optional($arms->first())->id;
         $selectedArm = $arms->firstWhere('id', $armId);
 
-        $termId = $request->integer('term_id');
-        if (! $termId) {
-            $termId = (int) optional(
-                $terms->firstWhere('is_current', true)
-                ?? $terms->firstWhere('session_id', $sessionId)
-                ?? $terms->first()
-            )->id;
-        }
+        $terms = $terms->where('session_id', $sessionId)->values();
+
+        $requestedTermId = $request->integer('term_id');
+        $termId = $terms->contains('id', $requestedTermId)
+            ? $requestedTermId
+            : (int) optional($terms->firstWhere('is_current', true) ?? $terms->first())->id;
 
         $date = $request->input('date', now()->toDateString());
 
