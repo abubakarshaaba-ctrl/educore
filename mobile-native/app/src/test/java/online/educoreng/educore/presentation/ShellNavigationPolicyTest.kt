@@ -269,6 +269,36 @@ class ShellNavigationPolicyTest {
         assertTrue("profile" in keys)
     }
 
+
+    @Test
+    fun learner_attendance_modules_remain_native_and_parent_exposes_attendance_in_children_tab() {
+        val studentAttendance = ModuleDescriptor(
+            "student.attendance",
+            "Attendance",
+            "/student/attendance",
+            "attendance",
+        )
+        val parentAttendance = ModuleDescriptor(
+            "parent.attendance",
+            "Attendance",
+            "/parent/attendance",
+            "attendance",
+        )
+
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(studentAttendance.key))
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(parentAttendance.key))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(studentAttendance))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(parentAttendance))
+
+        val parentSession = session(portal = "parent", role = "parent", extraModules = listOf(parentAttendance))
+        assertEquals(
+            listOf("parent.attendance"),
+            ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, parentSession)
+                .filter { it.key == "parent.attendance" }
+                .map { it.key },
+        )
+    }
+
     private fun session(
         portal: String,
         role: String,
