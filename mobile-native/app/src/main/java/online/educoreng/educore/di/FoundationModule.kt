@@ -93,6 +93,7 @@ object FoundationModule {
                 DATABASE_MIGRATION_5_6,
                 DATABASE_MIGRATION_6_7,
                 DATABASE_MIGRATION_7_8,
+                DATABASE_MIGRATION_8_9,
             )
             .build()
 
@@ -187,7 +188,10 @@ object FoundationModule {
     fun providePortalAttendanceRepository(
         api: EduCoreApi,
         moshi: Moshi,
-    ): PortalAttendanceRepository = DefaultPortalAttendanceRepository(api, moshi)
+        database: EduCoreDatabase,
+        tenantContextStore: TenantContextStore,
+    ): PortalAttendanceRepository =
+        DefaultPortalAttendanceRepository(api, moshi, database, tenantContextStore)
 
     @Provides
     @Singleton
@@ -369,6 +373,23 @@ object FoundationModule {
                 """
                 CREATE INDEX IF NOT EXISTS `index_pending_sync_scope_kind_state_created`
                 ON `pending_sync_operations` (`tenant_key`, `user_id`, `kind`, `state`, `created_at_epoch_ms`)
+                """.trimIndent(),
+            ).use { it.step() }
+        }
+    }
+
+    private val DATABASE_MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.prepare(
+                """
+                CREATE TABLE IF NOT EXISTS `cached_portal_attendance` (
+                    `tenant_key` TEXT NOT NULL,
+                    `user_id` INTEGER NOT NULL,
+                    `cache_key` TEXT NOT NULL,
+                    `payload_json` TEXT NOT NULL,
+                    `cached_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`tenant_key`, `user_id`, `cache_key`)
+                )
                 """.trimIndent(),
             ).use { it.step() }
         }
