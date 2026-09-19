@@ -38,6 +38,7 @@ data class ParallelOperationsSelectionDto(
 data class ParallelOperationsCapabilitiesDto(
     @param:Json(name = "manage_timetable") val manageTimetable: Boolean = false,
     @param:Json(name = "save_attendance") val saveAttendance: Boolean = false,
+    @param:Json(name = "export_attendance") val exportAttendance: Boolean = false,
 )
 
 data class ParallelOperationsOptionDto(
@@ -163,6 +164,7 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
         capabilities = ParallelOperationsCapabilities(
             manageTimetable = capabilities.manageTimetable,
             saveAttendance = capabilities.saveAttendance,
+            exportAttendance = capabilities.exportAttendance,
         ),
         curricula = curricula.map { ParallelOperationsOption(it.id, it.name, it.code) },
         sessions = sessions.map { ParallelOperationsSession(it.id, it.name, it.isCurrent) },
