@@ -67,7 +67,7 @@ data class PortalAttendanceProgrammeDto(
     val records: List<PortalAttendanceRecordDto> = emptyList(),
 )
 
-fun PortalAttendanceResponseDto.toDomain(): PortalAttendanceWorkspace =
+fun PortalAttendanceResponseDto.toDomain(fromCache: Boolean = false): PortalAttendanceWorkspace =
     PortalAttendanceWorkspace(
         student = PortalAttendanceStudent(
             id = student.id,
@@ -98,6 +98,7 @@ fun PortalAttendanceResponseDto.toDomain(): PortalAttendanceWorkspace =
                 records = programme.records.map { it.toDomain() },
             )
         },
+        isFromCache = fromCache,
     )
 
 private fun PortalAttendanceSummaryDto.toDomain() =
