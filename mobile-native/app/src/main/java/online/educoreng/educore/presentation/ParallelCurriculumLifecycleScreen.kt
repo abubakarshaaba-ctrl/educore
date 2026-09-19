@@ -107,6 +107,7 @@ fun ParallelCurriculumLifecycleScreen(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -244,6 +245,7 @@ fun ParallelCurriculumLifecycleScreen(
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
                 onSaveParallelAttendance = onSaveParallelAttendance,
+                onDownloadAttendanceExport = onDownloadAttendanceExport,
             )
             ParallelLifecycleTab.RESULTS -> lifecycleResults(
                 state = state,
@@ -2667,6 +2669,7 @@ private fun LazyListScope.lifecycleOperations(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
 ) {
     item {
         ParallelOperationsPanel(
@@ -2675,6 +2678,7 @@ private fun LazyListScope.lifecycleOperations(
             onCreateTimetablePeriod = onCreateTimetablePeriod,
             onDeleteTimetablePeriod = onDeleteTimetablePeriod,
             onSaveParallelAttendance = onSaveParallelAttendance,
+            onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
     }
 }
@@ -2792,6 +2796,7 @@ internal fun ParallelOperationsPanel(
         ParallelAttendanceCard(
             state = state,
             onSaveParallelAttendance = onSaveParallelAttendance,
+            onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
     }
 }
@@ -2958,6 +2963,7 @@ private fun ParallelTimetableCard(
 private fun ParallelAttendanceCard(
     state: ParallelLifecycleUiState,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
 ) {
     val operations = state.operationsWorkspace ?: return
     val attendance = operations.attendance
@@ -2970,6 +2976,27 @@ private fun ParallelAttendanceCard(
             color = EduCoreColors.Slate600,
         )
         Spacer(Modifier.height(EduCoreSpacing.Md))
+
+        if (operations.capabilities.exportAttendance) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreSecondaryButton(
+                    text = "Export PDF",
+                    onClick = { onDownloadAttendanceExport("pdf") },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                )
+                EduCoreSecondaryButton(
+                    text = "Export CSV",
+                    onClick = { onDownloadAttendanceExport("csv") },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                )
+            }
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+        }
 
         if (!operations.capabilities.saveAttendance) {
             EduCoreInfoBanner(
