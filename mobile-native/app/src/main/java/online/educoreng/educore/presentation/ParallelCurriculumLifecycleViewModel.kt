@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.repository.ParallelCurriculumLifecycleRepository
+import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
@@ -39,6 +40,7 @@ data class ParallelLifecycleUiState(
     val isMutating: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
+    val downloadedDocument: DownloadedDocument? = null,
 )
 
 @HiltViewModel
@@ -182,6 +184,26 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
         mutateResult {
             repository.unpublishResult(report.classId, report.termId)
+        }
+    }
+
+    fun downloadResultExport(format: String) {
+        val report = _uiState.value.resultWorkspace?.report
+            ?: return failLocal("Open a parallel result register first.")
+        download {
+            repository.downloadResultExport(report.classId, report.termId, format)
+        }
+    }
+
+    fun downloadStudentResultPdf() {
+        val detail = _uiState.value.studentResultDetail
+            ?: return failLocal("Open a learner result first.")
+        download {
+            repository.downloadStudentResultPdf(
+                detail.classId,
+                detail.studentId,
+                detail.termId,
+            )
         }
     }
 
@@ -377,6 +399,50 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                         isStudentLoading = false,
                         errorMessage = result.error.userMessage,
                     )
+                }
+            }
+        }
+    }
+
+    fun importStudentAssignments(
+        filename: String,
+        mimeType: String,
+        bytes: ByteArray,
+    ) {
+        val state = _uiState.value
+        val curriculumId = state.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        val sessionId = state.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+        if (bytes.isEmpty()) return failLocal("The selected assignment file is empty.")
+        if (bytes.size > 5 * 1024 * 1024) {
+            return failLocal("The assignment file must not exceed 5 MB.")
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.importStudentAssignments(
+                    curriculumId,
+                    sessionId,
+                    filename,
+                    mimeType.ifBlank { "application/octet-stream" },
+                    bytes,
+                )
+            ) {
+                is AppResult.Success -> {
+                    _uiState.update { it.copy(isMutating = false, message = result.value) }
+                    load(curriculumId, sessionId)
+                    loadStudents(
+                        conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
+                        assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        gender = _uiState.value.studentGender,
+                        search = _uiState.value.studentSearch,
+                        page = 1,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
                 }
             }
         }
@@ -638,8 +704,33 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         _uiState.update { it.copy(message = null) }
     }
 
+    fun consumeDocument() {
+        _uiState.update { it.copy(downloadedDocument = null) }
+    }
+
     fun consumeError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    private fun download(
+        action: suspend () -> AppResult<DownloadedDocument>,
+    ) {
+        if (_uiState.value.isMutating) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (val result = action()) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        downloadedDocument = result.value,
+                        message = "Result export downloaded.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
     }
 
     private fun mutateResult(
