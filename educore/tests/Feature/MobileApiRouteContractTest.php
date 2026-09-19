@@ -34,6 +34,7 @@ class MobileApiRouteContractTest extends TestCase
             'GET api/v1/parallel-curriculum/lifecycle',
             'GET api/v1/parallel-curriculum/lifecycle/students',
             'POST api/v1/parallel-curriculum/lifecycle/assignments',
+            'DELETE api/v1/parallel-curriculum/lifecycle/assignments/{enrolment}',
             'GET api/v1/parallel-curriculum/lifecycle/promotion-preview',
             'POST api/v1/parallel-curriculum/lifecycle/promotions/execute',
             'POST api/v1/parallel-curriculum/lifecycle/transfers',
