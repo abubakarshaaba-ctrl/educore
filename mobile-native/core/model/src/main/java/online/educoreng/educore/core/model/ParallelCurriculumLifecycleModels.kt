@@ -30,6 +30,9 @@ data class ParallelLifecycleArm(
     val code: String?,
     val capacity: Int?,
     val isActive: Boolean,
+    val teachingAssignmentMode: String = "subject_based",
+    val classTeacherId: Long? = null,
+    val classTeacherName: String? = null,
     val subjectTeachers: List<ParallelLifecycleArmSubjectTeacher> = emptyList(),
 )
 
@@ -183,6 +186,7 @@ data class ParallelLifecycleWorkspace(
     val sessions: List<ParallelLifecycleSession>,
     val staff: List<ParallelLifecycleStaff>,
     val armTeacherOverridesReady: Boolean,
+    val armTeachingModesReady: Boolean = false,
     val enrolments: List<ParallelLifecycleEnrolment>,
     val transfers: List<ParallelTransferHistory>,
     val promotions: List<ParallelPromotionHistory>,
