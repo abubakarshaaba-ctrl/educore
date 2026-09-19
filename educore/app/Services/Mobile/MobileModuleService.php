@@ -140,13 +140,14 @@ class MobileModuleService
         }
 
         $roleKey = strtolower((string) $user->roleKey());
-        $isAccountant = $user->isAccountant() || in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
-        $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, self::STAFF_ATTENDANCE_MANAGEMENT_ROLES, true);
-        $isParallelManager = $this->parallel->canManageLifecycle($user);
-        $isAcademicStaff = $this->isAcademicStaff($user);
+        $isAccountant = $user->isAccountant() || in_array(
+            $roleKey,
+            ['accountant', 'bursar', 'finance_officer'],
+            true
+        );
 
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isParallelManager, $isAcademicStaff, $roleKey): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $roleKey): bool {
                 if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
                     return false;
                 }
@@ -156,36 +157,15 @@ class MobileModuleService
                 }
 
                 if ($key === 'parallel-curriculum') {
-                    return $isParallelManager
-                        && $this->parallel->enabledForTenant((int) $user->tenant_id);
+                    return (bool) $user->tenant_id
+                        && $this->parallel->enabledForTenant((int) $user->tenant_id)
+                        && $user->canAccessRoute('parallel-curriculum.index');
                 }
 
                 if ($key === 'parallel-timetable') {
                     return (bool) $user->tenant_id
                         && $this->parallel->enabledForTenant((int) $user->tenant_id)
-                        && (
-                            $isSchoolAdmin
-                            || $user->canAccessExactModule('scores')
-                            || $user->canAccessExactModule('scores.entry')
-                            || $user->canAccessExactModule('timetable')
-                            || $user->canAccessExactModule('timetable.view')
-                            || $user->canAccessExactModule('attendance')
-                            || $this->hasExplicitAcademicGrant($user, $key)
-                        );
-                }
-
-
-                if (
-                    $user->roleKey() === 'admission_officer'
-                    && in_array($key, self::ADMISSION_OFFICER_BLOCKED_MODULES, true)
-                    && ! $user->hasGrantedPermission($key)
-                ) {
-                    return false;
-                }
-
-                if (! $isAcademicStaff && in_array($key, self::ACADEMIC_MODULES, true)
-                    && ! $this->hasExplicitAcademicGrant($user, $key)) {
-                    return false;
+                        && $user->canAccessRoute('parallel-curriculum.operations.index');
                 }
 
                 if ($key === 'staff-attendance.admin') {
@@ -193,22 +173,18 @@ class MobileModuleService
                 }
 
                 if ($key === 'staff-attendance.self') {
-                    return $user->isTenantStaff() && $user->canAccessModule('staff-attendance.self');
-                }
-
-                // School leadership must always receive the core native academic
-                // workspaces. Endpoint authorization remains tenant scoped.
-                if ($isSchoolAdmin && in_array($key, ['staff', 'students', 'scores', 'reports'], true)) {
-                    return true;
-                }
-
-                if ($key === 'academic-repository') {
-                    return $user->isAdmin() || $user->isTeacher() || $this->hasExplicitAcademicGrant($user, $key);
+                    return $user->isTenantStaff()
+                        && $user->canAccessExactModule('staff-attendance.self');
                 }
 
                 if ($key === 'skills') {
-                    if (! $user->canAccessModule('skills')) return false;
-                    if ($user->canAccessExactModule('students')) return true;
+                    if (! $user->canAccessModule('skills')) {
+                        return false;
+                    }
+
+                    if ($user->canAccessExactModule('students')) {
+                        return true;
+                    }
 
                     return ClassArm::where('tenant_id', $user->tenant_id)
                         ->where('form_tutor_id', $user->id)
@@ -216,25 +192,15 @@ class MobileModuleService
                 }
 
                 if ($key === 'scores') {
-                    // Score Entry is a core academic workspace. Academic staff
-                    // (including subject teachers) must be able to open it even when
-                    // their role permissions do not redundantly include a scores alias.
-                    // The score endpoints themselves still scope teachers to their
-                    // assigned classes/subjects, so module visibility does not broaden
-                    // the records a teacher may edit.
-                    if ($isAcademicStaff) return true;
-
-                    return $user->canAccessExactModule('scores')
-                        || $user->canAccessExactModule('scores.entry')
-                        || $user->canAccessExactModule('scores.view')
-                        || $this->hasExplicitAcademicGrant($user, $key);
+                    return $user->canAccessModule('scores');
                 }
 
                 if ($key === 'reports') {
-                    return $user->canAccessModule('reports')
-                        || $user->canAccessExactModule('report-cards')
-                        || $user->canAccessExactModule('results')
-                        || $this->hasExplicitAcademicGrant($user, $key);
+                    return $user->canAccessModule('reports');
+                }
+
+                if ($key === 'academic-repository') {
+                    return $user->canAccessModule('academic-repository');
                 }
 
                 return $user->canAccessModule($key);
