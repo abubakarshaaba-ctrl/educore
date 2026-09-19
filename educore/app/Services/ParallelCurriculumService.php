@@ -22,6 +22,7 @@ use App\Models\SchoolSetting;
 use App\Models\Score;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -30,6 +31,28 @@ class ParallelCurriculumService
 {
     public const SCORE_SOURCE = 'parallel_curriculum';
     public const SOURCE_REFERENCE_TYPE = 'parallel_curriculum_composite';
+
+    public const MANAGEMENT_ROLE_KEYS = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'school_head',
+        'vice_principal',
+        'vice_principal_academics',
+        'vice_principal_administration',
+        'assistant_principal',
+        'assistant_head',
+        'academic_head',
+        'academic_administrator',
+    ];
+
+    public function canManageLifecycle(User $user): bool
+    {
+        return (bool) $user->tenant_id
+            && in_array((string) $user->roleKey(), self::MANAGEMENT_ROLE_KEYS, true);
+    }
 
     public function enabledForTenant(int $tenantId): bool
     {
