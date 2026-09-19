@@ -36,6 +36,17 @@
         .btn{width:100%;justify-content:center}
         .info-box{font-size:12px;padding:11px 12px}
     }
+
+.parallel-score-panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.parallel-score-head{padding:12px 16px;background:#F8FAFC;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.parallel-score-head strong{font-size:13px;color:var(--midnight)}.parallel-score-head span{font-size:11px;color:var(--slate-light)}
+.parallel-score-grid{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.parallel-score-card{min-width:0;border:1px solid var(--border);border-radius:10px;padding:13px;background:#fff}
+.parallel-score-card .psc-title{font-size:12.5px;font-weight:800;color:var(--midnight);overflow-wrap:anywhere}.parallel-score-card .psc-meta{font-size:10.5px;color:var(--slate);line-height:1.45;margin-top:4px}
+.parallel-score-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.parallel-score-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 10px;border-radius:8px;text-decoration:none;font-size:10.5px;font-weight:800}
+.parallel-score-open{background:var(--indigo);color:#fff}.parallel-score-comment{background:#fff;color:var(--midnight);border:1px solid var(--border)}
+.parallel-form-badge{display:inline-flex;margin-top:7px;padding:3px 7px;border-radius:999px;background:#ECFDF3;color:#067647;font-size:9px;font-weight:800}
+@media(max-width:640px){.parallel-score-grid{grid-template-columns:1fr;padding:12px}.parallel-score-actions a{flex:1 1 140px}}
 </style>
 @endpush
 
@@ -80,22 +91,54 @@
     @endif
 </div>
 
+@if(($parallelScoreWorkspaces ?? collect())->isNotEmpty())
+<section class="parallel-score-panel" aria-labelledby="parallel-score-title">
+    <div class="parallel-score-head">
+        <strong id="parallel-score-title">Parallel Curriculum Score Sheets</strong>
+        <span>Your arm/subject assignments are resolved automatically.</span>
+    </div>
+    <div class="parallel-score-grid">
+        @foreach($parallelScoreWorkspaces as $workspace)
+            <article class="parallel-score-card">
+                <div class="psc-title">{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</div>
+                <div class="psc-meta">
+                    {{ $workspace['curriculum_name'] }}
+                    @if(!empty($workspace['effective_teacher_name'])) · {{ $workspace['effective_teacher_name'] }} @endif
+                </div>
+                @if(!empty($workspace['is_form_teacher']))
+                    <span class="parallel-form-badge">Form Teacher · All Subjects</span>
+                @endif
+                <div class="parallel-score-actions">
+                    <a class="parallel-score-open" href="{{ $workspace['score_sheet_url'] }}">Open Score Sheet</a>
+                    @if(!empty($workspace['form_teacher_comments_url']))
+                        <a class="parallel-score-comment" href="{{ $workspace['form_teacher_comments_url'] }}">Form Teacher Comments</a>
+                    @endif
+                </div>
+            </article>
+        @endforeach
+    </div>
+</section>
+@endif
+
 <div class="pg-split">
 <div class="selector-card">
-    <div class="selector-title">Open Score Entry Sheet</div>
-    <div class="selector-sub">Select a class, subject and term — the assigned assessment-template components load automatically.</div>
+    <div class="selector-title">Open Conventional Score Entry Sheet</div>
+    <div class="selector-sub">Select a conventional class, subject and term. Parallel assignments are available in the score-sheet cards above.</div>
 
-    @if($classArms->isEmpty() && !auth()->user()->isAdmin() && !auth()->user()->isSuperAdmin())
+    @if($classArms->isEmpty() && ($parallelScoreWorkspaces ?? collect())->isEmpty() && !auth()->user()->isAdmin() && !auth()->user()->isSuperAdmin())
     <div style="background:#FFFBEB;border:1px solid #FCD34D;color:#92400E;padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:13px">
-        ⚠️ You haven't been assigned to teach any subject in any class yet, so there's nothing to select here.
-        Ask your administrator to assign you to a class and subject under Classes → Assign Subject.
+        ⚠️ You haven't been assigned a conventional or parallel score-entry workspace yet. Ask your administrator to review your class/subject assignment.
+    </div>
+    @elseif($classArms->isEmpty() && ($parallelScoreWorkspaces ?? collect())->isNotEmpty())
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:13px">
+        Your current score-entry assignment is in the parallel curriculum. Use the score-sheet cards above.
     </div>
     @endif
 
     <form method="GET" action="{{ route('scores.entry') }}">
         <div class="form-grid">
             <div class="form-group">
-                <label class="form-label">Class <span>*</span></label>
+                <label class="form-label">Conventional Class <span>*</span></label>
                 <select name="class_arm_id" class="form-control" required>
                     <option value="">Select class</option>
                     @foreach($classArms as $arm)
@@ -104,7 +147,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Subject <span>*</span></label>
+                <label class="form-label">Conventional Subject <span>*</span></label>
                 <select name="subject_id" class="form-control" required>
                     <option value="">Select subject</option>
                     @foreach($subjects as $subject)
