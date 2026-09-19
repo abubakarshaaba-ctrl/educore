@@ -871,6 +871,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 Rule::exists('class_arms', 'id')->where('tenant_id', $tenantId),
             ],
             'assignment_status' => ['nullable', Rule::in(['all', 'assigned', 'unassigned'])],
+            'learner_status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
@@ -881,6 +882,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
             ->findOrFail($data['parallel_curriculum_id']);
         $session = AcademicSession::findOrFail($data['session_id']);
         $assignmentStatus = (string) ($data['assignment_status'] ?? 'all');
+        $learnerStatus = (string) ($data['learner_status'] ?? 'active');
         $gender = trim((string) ($data['gender'] ?? ''));
         $search = trim((string) ($data['q'] ?? ''));
         $conventionalClassArmId = isset($data['conventional_class_arm_id'])
@@ -897,8 +899,31 @@ class MobileParallelCurriculumLifecycleController extends Controller
 
         $assignedStudentIds = (clone $programmeEnrolments)->pluck('student_id');
 
-        $studentsQuery = Student::active()
+        $nonActiveLearnerStatuses = [
+            Student::STATUS_SUSPENDED,
+            Student::STATUS_LEFT,
+            Student::STATUS_WITHDRAWN,
+            Student::STATUS_TRANSFERRED_OUT,
+            Student::STATUS_GRADUATED,
+        ];
+
+        $studentsQuery = Student::query()
             ->with('currentClassArm.classLevel')
+            ->when(
+                $learnerStatus === 'active',
+                fn ($query) => $query->where('status', Student::STATUS_ACTIVE)
+            )
+            ->when(
+                $learnerStatus === 'inactive',
+                fn ($query) => $query->whereIn('status', $nonActiveLearnerStatuses)
+            )
+            ->when(
+                $learnerStatus === 'all',
+                fn ($query) => $query->whereIn(
+                    'status',
+                    array_merge([Student::STATUS_ACTIVE], $nonActiveLearnerStatuses)
+                )
+            )
             ->when(
                 $conventionalClassArmId,
                 function ($query) use ($conventionalClassArmId, $session): void {
@@ -958,6 +983,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
             'filters' => [
                 'conventional_class_arm_id' => $conventionalClassArmId,
                 'assignment_status' => $assignmentStatus,
+                'learner_status' => $learnerStatus,
                 'gender' => $gender !== '' ? $gender : null,
                 'q' => $search,
             ],
@@ -973,6 +999,8 @@ class MobileParallelCurriculumLifecycleController extends Controller
                     'name' => (string) $student->full_name,
                     'admission_number' => (string) $student->admission_number,
                     'gender' => $student->gender,
+                    'status' => (string) $student->status,
+                    'is_active' => $student->status === Student::STATUS_ACTIVE,
                     'conventional_class_arm_id' => $student->current_class_arm_id
                         ? (int) $student->current_class_arm_id
                         : null,
