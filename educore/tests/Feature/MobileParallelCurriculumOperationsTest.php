@@ -568,6 +568,93 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertJsonPath('attendance.is_working_day', false);
     }
 
+    public function test_switching_to_subject_based_mode_rejects_existing_teacher_clash(): void
+    {
+        $context = $this->context();
+        $classTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Class Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $subjectTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $context['classSubject']->update(['teacher_id' => $subjectTeacher->id]);
+
+        $level = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'JSS 2',
+            'section' => 'junior_secondary',
+            'order_index' => 2,
+        ]);
+        $conventionalArm = ClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $level->id,
+            'name' => 'A',
+        ]);
+        $subject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Mathematics',
+            'code' => 'MTH',
+            'is_active' => true,
+        ]);
+
+        TimetablePeriod::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_arm_id' => $conventionalArm->id,
+            'subject_id' => $subject->id,
+            'teacher_id' => $subjectTeacher->id,
+            'session_id' => $context['session']->id,
+            'day_of_week' => 'monday',
+            'start_time' => '09:00',
+            'end_time' => '09:40',
+            'venue' => 'Conventional Room',
+        ]);
+
+        $token = ApiToken::issue($context['admin'], 'parallel-mode-switch-clash');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teaching-mode', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'teaching_assignment_mode' => 'class_teacher',
+                'class_teacher_id' => $classTeacher->id,
+            ])
+            ->assertOk();
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '09:00',
+                'end_time' => '09:40',
+                'venue' => 'Parallel Room',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $classTeacher->id);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teaching-mode', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'teaching_assignment_mode' => 'subject_based',
+                'class_teacher_id' => null,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('teacher_id');
+
+        $context['arm']->refresh();
+        $this->assertSame('class_teacher', $context['arm']->teaching_assignment_mode);
+        $this->assertSame($classTeacher->id, (int) $context['arm']->class_teacher_id);
+    }
+
     public function test_subject_teacher_can_teach_same_subject_across_multiple_parallel_classes(): void
     {
         $context = $this->context();
