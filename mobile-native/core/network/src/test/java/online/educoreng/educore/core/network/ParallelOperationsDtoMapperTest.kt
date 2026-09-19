@@ -114,6 +114,7 @@ class ParallelOperationsDtoMapperTest {
             attendance = ParallelOperationsAttendanceDto(
                 date = "2026-09-19",
                 version = "version-1",
+                isWorkingDay = true,
                 students = listOf(
                     ParallelOperationsAttendanceStudentDto(
                         enrolmentId = 80,
@@ -144,5 +145,6 @@ class ParallelOperationsDtoMapperTest {
         assertEquals("Amina Bello", workspace.attendance?.students?.single()?.name)
         assertEquals("late", workspace.attendance?.students?.single()?.status)
         assertEquals("version-1", workspace.attendance?.version)
+        assertTrue(workspace.attendance?.isWorkingDay == true)
     }
 }
