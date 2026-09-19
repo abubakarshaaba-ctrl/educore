@@ -94,7 +94,7 @@ fun ParallelCurriculumLifecycleScreen(
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
-    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -965,7 +965,7 @@ private fun ArmEditor(
 
 private fun LazyListScope.lifecycleStudents(
     state: ParallelLifecycleUiState,
-    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -986,7 +986,7 @@ private fun LazyListScope.lifecycleStudents(
 @Composable
 private fun StudentPlacementPanel(
     state: ParallelLifecycleUiState,
-    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -1059,6 +1059,9 @@ private fun StudentPlacementPanel(
     var assignmentStatus by remember(curriculum?.id, session?.id) {
         mutableStateOf(state.studentAssignmentStatus)
     }
+    var learnerStatus by remember(curriculum?.id, session?.id) {
+        mutableStateOf(state.studentLearnerStatus)
+    }
     var gender by remember(curriculum?.id, session?.id) {
         mutableStateOf(state.studentGender)
     }
@@ -1079,6 +1082,7 @@ private fun StudentPlacementPanel(
             onLoadStudents(
                 conventionalArmId,
                 assignmentStatus,
+                learnerStatus,
                 gender,
                 search,
                 1,
@@ -1179,6 +1183,23 @@ private fun StudentPlacementPanel(
 
             Spacer(Modifier.height(EduCoreSpacing.Sm))
             StringLifecycleMenu(
+                label = "Learner status",
+                current = when (learnerStatus) {
+                    "inactive" -> "Not active"
+                    "all" -> "All learner statuses"
+                    else -> "Active"
+                },
+                options = listOf(
+                    "active" to "Active",
+                    "inactive" to "Not active",
+                    "all" to "All learner statuses",
+                ),
+                enabled = !state.isStudentLoading && !state.isMutating,
+                onSelect = { learnerStatus = it },
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            StringLifecycleMenu(
                 label = "Gender",
                 current = when (gender) {
                     "male" -> "Male"
@@ -1211,6 +1232,7 @@ private fun StudentPlacementPanel(
                     onLoadStudents(
                         conventionalArmId,
                         assignmentStatus,
+                        learnerStatus,
                         gender,
                         search,
                         1,
@@ -1316,7 +1338,7 @@ private fun StudentPlacementPanel(
         ) {
             EduCoreSecondaryButton(
                 text = "Select visible",
-                onClick = { selectedStudentIds = page.students.map { it.id }.toSet() },
+                onClick = { selectedStudentIds = page.students.filter { it.isActive }.map { it.id }.toSet() },
                 modifier = Modifier.weight(1f),
                 enabled = !state.isMutating,
             )
@@ -1349,7 +1371,7 @@ private fun StudentPlacementPanel(
                                 selectedStudentIds - student.id
                             }
                         },
-                        enabled = !state.isMutating,
+                        enabled = !state.isMutating && student.isActive,
                     )
                     Column(Modifier.weight(1f)) {
                         Text(student.name, style = MaterialTheme.typography.titleSmall)
@@ -1358,10 +1380,21 @@ private fun StudentPlacementPanel(
                                 student.admissionNumber,
                                 student.conventionalClassName ?: "No conventional class",
                                 student.gender?.replaceFirstChar { it.uppercase() },
+                                "Status: " + student.status
+                                    .replace('_', ' ')
+                                    .replaceFirstChar { it.uppercase() },
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
+                        if (!student.isActive) {
+                            Spacer(Modifier.height(EduCoreSpacing.Xs))
+                            Text(
+                                "This learner is not active and cannot be newly assigned. Existing parallel placement can still be removed.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
+                        }
                         Spacer(Modifier.height(EduCoreSpacing.Xs))
                         Text(
                             student.assignment?.let { assignment ->
@@ -1420,6 +1453,7 @@ private fun StudentPlacementPanel(
                         onLoadStudents(
                             conventionalArmId,
                             assignmentStatus,
+                            learnerStatus,
                             gender,
                             search,
                             (page.pagination.currentPage - 1).coerceAtLeast(1),
@@ -1435,6 +1469,7 @@ private fun StudentPlacementPanel(
                         onLoadStudents(
                             conventionalArmId,
                             assignmentStatus,
+                            learnerStatus,
                             gender,
                             search,
                             (page.pagination.currentPage + 1)
