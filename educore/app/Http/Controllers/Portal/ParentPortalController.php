@@ -13,9 +13,12 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\TermlySummary;
 use App\Models\AttendanceRecord;
+use App\Models\AcademicSession;
+use App\Models\TimetablePeriod;
 use App\Models\Invoice;
 use App\Models\Announcement;
 use App\Services\ParallelCurriculumResultService;
+use App\Services\ParallelCurriculumPortalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -223,6 +226,45 @@ class ParentPortalController extends Controller
         ));
     }
 
+    // ── Timetable ─────────────────────────────────────────────────────
+    public function timetable(Request $request)
+    {
+        $guardian = $this->getGuardian();
+        $students = $guardian->students()->with(['currentClassArm.classLevel'])->get();
+        $student = $this->resolveStudent($request, $guardian);
+        $currentSession = AcademicSession::where('is_current', true)->first();
+
+        $timetable = collect();
+        $arm = $student?->currentClassArm;
+        if ($student && $student->status === Student::STATUS_ACTIVE && $arm) {
+            $timetable = TimetablePeriod::query()
+                ->where('tenant_id', $guardian->tenant_id)
+                ->where('class_arm_id', $arm->id)
+                ->when($currentSession, fn ($query) => $query->where('session_id', $currentSession->id))
+                ->with(['subject', 'teacher'])
+                ->get()
+                ->groupBy(fn ($period) => ucfirst((string) $period->day_of_week))
+                ->map(fn ($periods) => $periods->sortBy('start_time')->values());
+        }
+
+        $parallelTimetables = $student
+            ? app(ParallelCurriculumPortalService::class)
+                ->timetableForStudent($student, $currentSession?->id)
+            : collect();
+
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+        return view('portal.parent.timetable', compact(
+            'guardian',
+            'students',
+            'student',
+            'arm',
+            'timetable',
+            'parallelTimetables',
+            'days'
+        ));
+    }
+
     // ── Attendance ────────────────────────────────────────────────────
     public function attendance(Request $request)
     {
@@ -248,8 +290,20 @@ class ParentPortalController extends Controller
         $stats['rate'] = $stats['total'] > 0
             ? round(($stats['present'] / $stats['total']) * 100, 1) : 0;
 
+        $parallelAttendance = $student
+            ? app(ParallelCurriculumPortalService::class)
+                ->attendanceForStudent($student, $termId ? (int) $termId : null)
+            : collect();
+
         return view('portal.parent.attendance', compact(
-            'guardian', 'students', 'student', 'records', 'stats', 'terms', 'termId'
+            'guardian',
+            'students',
+            'student',
+            'records',
+            'stats',
+            'terms',
+            'termId',
+            'parallelAttendance'
         ));
     }
 
