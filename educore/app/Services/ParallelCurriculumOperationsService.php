@@ -15,6 +15,7 @@ use App\Models\TimetableConfig;
 use App\Models\TimetablePeriod;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -153,6 +154,16 @@ class ParallelCurriculumOperationsService
             ->with('session')
             ->where('tenant_id', $tenantId)
             ->findOrFail($termId);
+
+        $attendanceDate = Carbon::parse($date)->startOfDay();
+        if (
+            ($term->start_date && $attendanceDate->lt($term->start_date->startOfDay())) ||
+            ($term->end_date && $attendanceDate->gt($term->end_date->startOfDay()))
+        ) {
+            throw ValidationException::withMessages([
+                'attendance_date' => 'The attendance date must fall within the selected academic term.',
+            ]);
+        }
 
         abort_unless($this->canMarkAttendance($user, $arm), 403, 'You are not assigned to manage attendance for this parallel class arm.');
 
