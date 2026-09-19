@@ -569,7 +569,12 @@ internal fun AuthorizedShell(
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
                                 onChild = scheduleViewModel::selectChild,
-                                onRetry = { scheduleViewModel.load(classId = classId) },
+                                onRetry = {
+                                    scheduleViewModel.load(
+                                        classId = classId,
+                                        childId = scheduleState.workspace?.selectedChildId,
+                                    )
+                                },
                             )
                         }
                         composable(NativeRoute.REPOSITORY) {
