@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\StaffPermission;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Mobile\MobileModuleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -84,6 +85,10 @@ class StaffNavigationPermissionTest extends TestCase
                     $permission === 'scores' || str_starts_with($permission, 'scores.')
                 )
         );
+
+        $nativeModules = collect(app(MobileModuleService::class)->forUser($teacher))
+            ->pluck('key');
+        $this->assertFalse($nativeModules->contains('scores'));
 
         $html = $this->actingAs($teacher)
             ->view('layouts.partials.full-nav')
