@@ -16,6 +16,7 @@ use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
 use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
+use App\Services\ParallelCurriculumOperationsService;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -27,6 +28,7 @@ class ParallelCurriculumLifecycleController extends Controller
     public function __construct(
         private readonly ParallelCurriculumService $parallel,
         private readonly ParallelCurriculumLifecycleService $lifecycle,
+        private readonly ParallelCurriculumOperationsService $operations,
     ) {}
 
     private function tenantId(): int
@@ -501,6 +503,15 @@ class ParallelCurriculumLifecycleController extends Controller
             ? (int) $data['teacher_id']
             : null;
 
+        $effectiveTeacherId = $teacherId ?: ($classSubject->teacher_id ? (int) $classSubject->teacher_id : null);
+        $this->operations->validateTeacherChange(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
+            (int) $arm->id,
+            $effectiveTeacherId,
+        );
+
         if ($teacherId) {
             $teacher = User::findOrFail($teacherId);
             abort_if(
@@ -524,6 +535,13 @@ class ParallelCurriculumLifecycleController extends Controller
                 ]
             );
 
+            $this->operations->syncTimetableTeachers(
+                $tenantId,
+                (int) $class->id,
+                (int) $subject->id,
+                (int) $arm->id,
+            );
+
             return back()->with(
                 'success',
                 "{$subject->name} in {$class->name} {$arm->name} is now assigned to {$teacher->name}."
@@ -536,6 +554,13 @@ class ParallelCurriculumLifecycleController extends Controller
             )
             ->where('parallel_curriculum_subject_id', $subject->id)
             ->delete();
+
+        $this->operations->syncTimetableTeachers(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
+            (int) $arm->id,
+        );
 
         return back()->with(
             'success',
