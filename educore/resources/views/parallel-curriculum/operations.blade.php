@@ -282,6 +282,9 @@
                     </form>
                 </div>
                 @endif
+                @if(!($attendance['can_save'] ?? true))
+                    <div class="alert err" style="margin-bottom:0">This date is not enabled as a working day for the selected parallel curriculum. Learner attendance cannot be saved for this date.</div>
+                @else
                 <form method="POST" action="{{ route('parallel-curriculum.operations.attendance.save') }}">
                     @csrf
                     <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
@@ -307,6 +310,7 @@
                     </div>
                     @if($attendance['enrolments']->isNotEmpty())<button class="btn p" type="submit" style="margin-top:10px">Save Parallel Attendance</button>@endif
                 </form>
+                @endif
             @endif
         </div>
     </section>
