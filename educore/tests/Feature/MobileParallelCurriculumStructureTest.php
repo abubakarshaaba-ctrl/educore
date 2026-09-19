@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\AcademicSession;
 use App\Models\ApiToken;
 use App\Models\AssessmentTemplate;
+use App\Models\ParallelCurriculum;
+use App\Models\Student;
 use App\Models\StaffPermission;
 use App\Models\Tenant;
 use App\Models\User;
@@ -279,4 +281,81 @@ class MobileParallelCurriculumStructureTest extends TestCase
             ->assertJsonPath('curricula.0.classes.1.promotion_rule.is_terminal', true)
             ->assertJsonPath('curricula.0.classes.0.subjects.0.subject_name', 'Qur\'an');
     }
+
+    public function test_parallel_student_finder_can_filter_active_and_inactive_learners(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Parallel Learner Filter School',
+            'slug' => 'parallel-learner-filter-'.uniqid(),
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $tenant->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $session = AcademicSession::create([
+            'tenant_id' => $tenant->id,
+            'name' => '2026/2027',
+            'is_current' => true,
+        ]);
+
+        $admin = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Academic Admin',
+            'role' => 'admin',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $curriculum = ParallelCurriculum::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Islamiyyah',
+            'code' => 'ISL',
+            'is_active' => true,
+        ]);
+
+        Student::create([
+            'tenant_id' => $tenant->id,
+            'admission_number' => 'ACTIVE-001',
+            'first_name' => 'Active',
+            'last_name' => 'Learner',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+
+        Student::create([
+            'tenant_id' => $tenant->id,
+            'admission_number' => 'LEFT-001',
+            'first_name' => 'Former',
+            'last_name' => 'Learner',
+            'status' => Student::STATUS_LEFT,
+        ]);
+
+        $token = ApiToken::issue($admin, 'parallel-learner-filter-test');
+        $base = '/api/v1/parallel-curriculum/lifecycle/students?parallel_curriculum_id='.
+            $curriculum->id.'&session_id='.$session->id;
+
+        $this->withToken($token)
+            ->getJson($base.'&learner_status=active')
+            ->assertOk()
+            ->assertJsonPath('filters.learner_status', 'active')
+            ->assertJsonCount(1, 'students')
+            ->assertJsonPath('students.0.admission_number', 'ACTIVE-001')
+            ->assertJsonPath('students.0.is_active', true);
+
+        $this->withToken($token)
+            ->getJson($base.'&learner_status=inactive')
+            ->assertOk()
+            ->assertJsonPath('filters.learner_status', 'inactive')
+            ->assertJsonCount(1, 'students')
+            ->assertJsonPath('students.0.admission_number', 'LEFT-001')
+            ->assertJsonPath('students.0.status', Student::STATUS_LEFT)
+            ->assertJsonPath('students.0.is_active', false);
+    }
+
 }
