@@ -14,6 +14,7 @@ use App\Models\ParallelCurriculumPromotion;
 use App\Models\ParallelCurriculumPromotionRule;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
+use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
 use App\Services\ParallelCurriculumOperationsService;
@@ -310,6 +311,12 @@ class ParallelCurriculumLifecycleController extends Controller
         if ($this->lifecycle->armHasOperationalPlacements($arm)) {
             throw ValidationException::withMessages([
                 'arm' => 'Move all current/future-session learners out of this arm before archiving it.',
+            ]);
+        }
+
+        if (ParallelCurriculumTimetablePeriod::where('parallel_curriculum_class_arm_id', $arm->id)->exists()) {
+            throw ValidationException::withMessages([
+                'arm' => 'Remove this arm\'s timetable periods before archiving it.',
             ]);
         }
 
