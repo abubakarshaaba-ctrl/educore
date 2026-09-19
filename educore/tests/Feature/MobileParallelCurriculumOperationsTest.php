@@ -106,7 +106,6 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'parallel_curriculum_class_arm_id' => $context['arm']->id,
             'teacher_id' => $teacher->id,
             'day_of_week' => 'monday',
-            'start_time' => '10:00',
         ]);
     }
 
