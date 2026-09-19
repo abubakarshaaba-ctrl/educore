@@ -16,6 +16,7 @@ import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelWorkingDay
 import online.educoreng.educore.core.model.ParallelStaffAttendance
 import online.educoreng.educore.core.model.ParallelStaffAttendancePerson
+import online.educoreng.educore.core.model.ParallelStaffAttendanceSelfRecord
 
 data class ParallelOperationsResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int = 2,
@@ -137,7 +138,15 @@ data class ParallelStaffAttendanceDto(
     @param:Json(name = "closing_time") val closingTime: String? = null,
     @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
     @param:Json(name = "can_clock_self") val canClockSelf: Boolean = false,
+    @param:Json(name = "self_record") val selfRecord: ParallelStaffAttendanceSelfRecordDto? = null,
     val staff: List<ParallelStaffAttendancePersonDto> = emptyList(),
+)
+
+data class ParallelStaffAttendanceSelfRecordDto(
+    val status: String? = null,
+    @param:Json(name = "departure_status") val departureStatus: String? = null,
+    @param:Json(name = "clock_in_time") val clockInTime: String? = null,
+    @param:Json(name = "clock_out_time") val clockOutTime: String? = null,
 )
 
 data class ParallelStaffAttendancePersonDto(
@@ -291,6 +300,14 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
                 closingTime = sheet.closingTime,
                 graceMinutes = sheet.graceMinutes,
                 canClockSelf = sheet.canClockSelf,
+                selfRecord = sheet.selfRecord?.let {
+                    ParallelStaffAttendanceSelfRecord(
+                        status = it.status,
+                        departureStatus = it.departureStatus,
+                        clockInTime = it.clockInTime,
+                        clockOutTime = it.clockOutTime,
+                    )
+                },
                 staff = sheet.staff.map {
                     ParallelStaffAttendancePerson(
                         userId = it.userId,
