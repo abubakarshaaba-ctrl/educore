@@ -4,14 +4,16 @@ namespace App\Services;
 
 use App\Models\AcademicSession;
 use App\Models\ParallelCurriculumArmSubjectTeacher;
+use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumAttendanceRecord;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumEnrolment;
+use App\Models\ParallelCurriculumStaffAttendanceRecord;
 use App\Models\ParallelCurriculumTimetablePeriod;
+use App\Models\ParallelCurriculumWorkingDay;
 use App\Models\Term;
-use App\Models\TimetableConfig;
 use App\Models\TimetablePeriod;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -21,7 +23,7 @@ use Illuminate\Validation\ValidationException;
 
 class ParallelCurriculumOperationsService
 {
-    private const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    public const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     public function createPeriod(User $user, array $data): ParallelCurriculumTimetablePeriod
     {
@@ -60,9 +62,9 @@ class ParallelCurriculumOperationsService
             throw ValidationException::withMessages(['day_of_week' => 'Select a valid school day.']);
         }
 
-        $this->assertInsideSchoolHours(
+        $this->assertInsideParallelWorkingHours(
             $tenantId,
-            $session->id,
+            (int) $class->parallel_curriculum_id,
             $day,
             (string) $data['start_time'],
             (string) $data['end_time']
@@ -552,6 +554,15 @@ class ParallelCurriculumOperationsService
         int $armId,
         int $subjectId
     ): ?int {
+        $arm = ParallelCurriculumClassArm::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $classId)
+            ->find($armId);
+
+        if ($arm && $arm->usesClassTeacherModel()) {
+            return $arm->class_teacher_id ? (int) $arm->class_teacher_id : null;
+        }
+
         $override = ParallelCurriculumArmSubjectTeacher::query()
             ->where('tenant_id', $tenantId)
             ->where('parallel_curriculum_class_id', $classId)
@@ -590,28 +601,352 @@ class ParallelCurriculumOperationsService
         )->implode('|'));
     }
 
-    private function assertInsideSchoolHours(
+    public function workingDays(int $tenantId, int $curriculumId): Collection
+    {
+        $existing = ParallelCurriculumWorkingDay::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->get()
+            ->keyBy('day_of_week');
+
+        return collect(self::DAYS)->map(function (string $day) use (
+            $existing,
+            $tenantId,
+            $curriculumId
+        ) {
+            return $existing->get($day) ?: new ParallelCurriculumWorkingDay([
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $curriculumId,
+                'day_of_week' => $day,
+                'is_working' => ! in_array($day, ['saturday', 'sunday'], true),
+                'resumption_time' => '08:00:00',
+                'closing_time' => '15:00:00',
+                'grace_minutes' => 15,
+            ]);
+        });
+    }
+
+    public function saveWorkingDays(User $user, int $curriculumId, array $days): Collection
+    {
+        abort_unless(
+            $this->canManageTimetable($user),
+            403,
+            'Only authorized administrators can configure parallel working days.'
+        );
+
+        $tenantId = (int) $user->tenant_id;
+        ParallelCurriculum::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($curriculumId);
+
+        DB::transaction(function () use ($tenantId, $curriculumId, $days): void {
+            foreach (self::DAYS as $day) {
+                $row = $days[$day] ?? [];
+                $isWorking = (bool) ($row['is_working'] ?? false);
+                $resumption = $row['resumption_time'] ?? null;
+                $closing = $row['closing_time'] ?? null;
+                $graceMinutes = (int) ($row['grace_minutes'] ?? 0);
+
+                if (
+                    $isWorking
+                    && (
+                        ! $resumption
+                        || ! $closing
+                        || $resumption >= $closing
+                    )
+                ) {
+                    throw ValidationException::withMessages([
+                        "days.$day.closing_time" =>
+                            ucfirst($day).' requires a valid resumption time earlier than closing time.',
+                    ]);
+                }
+
+                ParallelCurriculumWorkingDay::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_id' => $curriculumId,
+                        'day_of_week' => $day,
+                    ],
+                    [
+                        'is_working' => $isWorking,
+                        'resumption_time' => $isWorking ? $resumption : null,
+                        'closing_time' => $isWorking ? $closing : null,
+                        'grace_minutes' => $graceMinutes,
+                    ]
+                );
+            }
+        });
+
+        return $this->workingDays($tenantId, $curriculumId);
+    }
+
+    public function canClockParallelStaff(User $user, int $curriculumId): bool
+    {
+        return $this->assignedStaffIds(
+            (int) $user->tenant_id,
+            $curriculumId
+        )->contains((int) $user->id);
+    }
+
+    public function staffAttendanceSheet(
+        User $user,
+        int $curriculumId,
+        string $date
+    ): array {
+        $tenantId = (int) $user->tenant_id;
+
+        ParallelCurriculum::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($curriculumId);
+
+        $assignedIds = $this->assignedStaffIds($tenantId, $curriculumId);
+
+        $visibleIds = $this->canManageTimetable($user)
+            ? $assignedIds
+            : $assignedIds
+                ->filter(fn ($id) => (int) $id === (int) $user->id)
+                ->values();
+
+        $staff = User::query()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $visibleIds)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $records = ParallelCurriculumStaffAttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->whereDate('attendance_date', $date)
+            ->whereIn('user_id', $visibleIds)
+            ->get()
+            ->keyBy('user_id');
+
+        $day = strtolower(Carbon::parse($date)->format('l'));
+        $schedule = $this->workingDay($tenantId, $curriculumId, $day);
+
+        return [
+            'date' => $date,
+            'day_of_week' => $day,
+            'schedule' => $schedule,
+            'staff' => $staff,
+            'records' => $records,
+            'can_clock_self' => $this->canClockParallelStaff($user, $curriculumId)
+                && (bool) $schedule->is_working,
+        ];
+    }
+
+    public function clockInParallelStaff(
+        User $user,
+        int $curriculumId,
+        string $method = 'parallel_mobile'
+    ): ParallelCurriculumStaffAttendanceRecord {
+        $tenantId = (int) $user->tenant_id;
+
+        abort_unless(
+            $this->canClockParallelStaff($user, $curriculumId),
+            403,
+            'You are not assigned to teach in this parallel curriculum.'
+        );
+
+        $now = now();
+        $date = $now->toDateString();
+        $day = strtolower($now->format('l'));
+        $schedule = $this->workingDay($tenantId, $curriculumId, $day);
+
+        if (! $schedule->is_working) {
+            throw ValidationException::withMessages([
+                'attendance' =>
+                    ucfirst($day).' is not configured as a parallel-curriculum working day.',
+            ]);
+        }
+
+        $existing = ParallelCurriculumStaffAttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('user_id', $user->id)
+            ->whereDate('attendance_date', $date)
+            ->first();
+
+        if ($existing?->clock_in_time) {
+            throw ValidationException::withMessages([
+                'attendance' =>
+                    'You have already clocked in for this parallel curriculum today.',
+            ]);
+        }
+
+        $clockIn = $now->format('H:i:s');
+        $resumption = substr((string) $schedule->resumption_time, 0, 8);
+        $closing = substr((string) $schedule->closing_time, 0, 8);
+        $grace = (int) $schedule->grace_minutes;
+
+        $status = $this->classifyParallelArrival(
+            $date,
+            $clockIn,
+            $resumption,
+            $grace
+        );
+
+        return ParallelCurriculumStaffAttendanceRecord::updateOrCreate(
+            [
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $curriculumId,
+                'user_id' => $user->id,
+                'attendance_date' => $date,
+            ],
+            [
+                'status' => $status,
+                'clock_in_time' => $clockIn,
+                'expected_resumption_time' => $resumption,
+                'expected_closing_time' => $closing,
+                'grace_minutes' => $grace,
+                'clock_in_method' => $method,
+                'recorded_by' => $user->id,
+            ]
+        );
+    }
+
+    public function clockOutParallelStaff(
+        User $user,
+        int $curriculumId
+    ): ParallelCurriculumStaffAttendanceRecord {
+        $tenantId = (int) $user->tenant_id;
+
+        $record = ParallelCurriculumStaffAttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('user_id', $user->id)
+            ->whereDate('attendance_date', today())
+            ->firstOrFail();
+
+        if (! $record->clock_in_time) {
+            throw ValidationException::withMessages([
+                'attendance' => 'Clock in before clocking out.',
+            ]);
+        }
+
+        if ($record->clock_out_time) {
+            throw ValidationException::withMessages([
+                'attendance' => 'You have already clocked out today.',
+            ]);
+        }
+
+        $time = now()->format('H:i:s');
+        $closing = substr((string) $record->expected_closing_time, 0, 8);
+
+        $record->update([
+            'clock_out_time' => $time,
+            'departure_status' => $closing && $time < $closing
+                ? 'early'
+                : 'on_time',
+        ]);
+
+        return $record->fresh();
+    }
+
+    private function assignedStaffIds(
         int $tenantId,
-        int $sessionId,
+        int $curriculumId
+    ): Collection {
+        $classes = ParallelCurriculumClass::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('is_active', true)
+            ->with([
+                'arms' => fn ($query) => $query->where('is_active', true),
+                'subjectAssignments' => fn ($query) =>
+                    $query->where('is_active', true),
+            ])
+            ->get();
+
+        $ids = collect();
+
+        foreach ($classes as $class) {
+            foreach ($class->arms as $arm) {
+                foreach ($class->subjectAssignments as $assignment) {
+                    $teacherId = $this->effectiveTeacherId(
+                        $tenantId,
+                        (int) $class->id,
+                        (int) $arm->id,
+                        (int) $assignment->parallel_curriculum_subject_id
+                    );
+
+                    if ($teacherId) {
+                        $ids->push($teacherId);
+                    }
+                }
+            }
+        }
+
+        return $ids
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function workingDay(
+        int $tenantId,
+        int $curriculumId,
+        string $day
+    ): ParallelCurriculumWorkingDay {
+        return ParallelCurriculumWorkingDay::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('day_of_week', $day)
+            ->first()
+            ?: new ParallelCurriculumWorkingDay([
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $curriculumId,
+                'day_of_week' => $day,
+                'is_working' => ! in_array($day, ['saturday', 'sunday'], true),
+                'resumption_time' => '08:00:00',
+                'closing_time' => '15:00:00',
+                'grace_minutes' => 15,
+            ]);
+    }
+
+    private function classifyParallelArrival(
+        string $date,
+        string $clockIn,
+        string $resumption,
+        int $graceMinutes
+    ): string {
+        $actual = Carbon::parse($date.' '.$clockIn);
+        $start = Carbon::parse($date.' '.$resumption);
+        $graceEnd = (clone $start)->addMinutes($graceMinutes);
+
+        if ($actual->lt($start)) {
+            return 'early';
+        }
+
+        return $actual->lte($graceEnd)
+            ? 'present'
+            : 'late';
+    }
+
+    private function assertInsideParallelWorkingHours(
+        int $tenantId,
+        int $curriculumId,
         string $day,
         string $start,
         string $end
     ): void {
-        $config = TimetableConfig::query()
-            ->where('tenant_id', $tenantId)
-            ->where('session_id', $sessionId)
-            ->first();
+        $schedule = $this->workingDay($tenantId, $curriculumId, $day);
 
-        if (! $config) {
-            return;
+        if (! $schedule->is_working) {
+            throw ValidationException::withMessages([
+                'day_of_week' =>
+                    ucfirst($day).' is not enabled for this parallel curriculum.',
+            ]);
         }
 
-        $schoolStart = substr((string) $config->school_start, 0, 5);
-        $closingTime = $config->closingTimeFor($day);
+        $dayStart = substr((string) $schedule->resumption_time, 0, 5);
+        $dayEnd = substr((string) $schedule->closing_time, 0, 5);
 
-        if ($start < $schoolStart || $end > $closingTime) {
+        if ($start < $dayStart || $end > $dayEnd) {
             throw ValidationException::withMessages([
-                'end_time' => ucfirst($day)." school hours are {$schoolStart}–{$closingTime}. The parallel period must fit inside the configured school day.",
+                'end_time' =>
+                    ucfirst($day)." parallel working hours are {$dayStart}–{$dayEnd}.",
             ]);
         }
     }
