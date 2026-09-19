@@ -34,7 +34,7 @@
 
 <div class="hero">
     <h2>Parallel Timetable & Attendance</h2>
-    <p>Run the parallel programme on its own class-arm schedule while respecting the school's configured hours and preventing teacher clashes with both conventional and parallel timetables. Attendance is stored against the learner's parallel enrolment and does not overwrite conventional attendance.</p>
+    <p>Run the parallel programme on its own working week, day-specific resumption and closing times, timetable and staff attendance rules. Parallel learner and staff attendance remain separate from the conventional curriculum while teacher timetable clashes are still prevented across both systems.</p>
 </div>
 
 <section class="panel">
@@ -52,6 +52,149 @@
     </div>
 </section>
 
+@if($selectedCurriculum)
+<section class="panel">
+    <div class="head">
+        <div>
+            <strong>Parallel working days & staff attendance hours</strong><br>
+            <span>Independent from the conventional curriculum · each day can have different resumption and closing times</span>
+        </div>
+        <span>{{ $workingDays->where('is_working',true)->count() }} active day(s)</span>
+    </div>
+    <div class="body">
+        @if($canManageTimetable)
+        <form method="POST" action="{{ route('parallel-curriculum.operations.working-days.save') }}">
+            @csrf
+            <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px">
+                @foreach($workingDays as $dayConfig)
+                    @php($dayKey=(string)$dayConfig->day_of_week)
+                    <div style="border:1px solid #E4E7EC;border-radius:10px;padding:10px;background:#FCFCFD">
+                        <input type="hidden" name="days[{{ $dayKey }}][is_working]" value="0">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--midnight);margin-bottom:9px">
+                            <input type="checkbox" name="days[{{ $dayKey }}][is_working]" value="1" @checked($dayConfig->is_working)>
+                            {{ ucfirst($dayKey) }} is a working day
+                        </label>
+                        <div class="row">
+                            <div class="fg" style="margin:0">
+                                <label class="fl">Resumption</label>
+                                <input class="fc" type="time" name="days[{{ $dayKey }}][resumption_time]" value="{{ $dayConfig->resumption_time ? substr((string)$dayConfig->resumption_time,0,5) : '' }}">
+                            </div>
+                            <div class="fg" style="margin:0">
+                                <label class="fl">Closing</label>
+                                <input class="fc" type="time" name="days[{{ $dayKey }}][closing_time]" value="{{ $dayConfig->closing_time ? substr((string)$dayConfig->closing_time,0,5) : '' }}">
+                            </div>
+                        </div>
+                        <div class="fg" style="margin:9px 0 0">
+                            <label class="fl">Late grace period · minutes</label>
+                            <input class="fc" type="number" min="0" max="180" name="days[{{ $dayKey }}][grace_minutes]" value="{{ (int)$dayConfig->grace_minutes }}">
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <div class="hint" style="margin:10px 0">
+                Timetable periods can only be created inside the enabled day's resumption–closing window. Staff arrival status uses that day's resumption plus grace period; early departure uses that day's closing time.
+            </div>
+            <button class="btn p" type="submit">Save Parallel Working Week</button>
+        </form>
+        @else
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+                @foreach($workingDays->where('is_working',true) as $dayConfig)
+                    <span class="chip">
+                        {{ ucfirst($dayConfig->day_of_week) }} ·
+                        {{ substr((string)$dayConfig->resumption_time,0,5) }}–{{ substr((string)$dayConfig->closing_time,0,5) }}
+                    </span>
+                @endforeach
+            </div>
+        @endif
+    </div>
+</section>
+
+<section class="panel">
+    @php($parallelStaffSchedule=$staffAttendance['schedule'] ?? null)
+    @php($selfParallelRecord=$staffAttendance ? $staffAttendance['records']->get(auth()->id()) : null)
+    <div class="head">
+        <div>
+            <strong>Parallel staff attendance</strong><br>
+            <span>{{ $date }} · separate from conventional staff attendance</span>
+        </div>
+        <span>
+            @if($parallelStaffSchedule && $parallelStaffSchedule->is_working)
+                {{ ucfirst($staffAttendance['day_of_week']) }} ·
+                {{ substr((string)$parallelStaffSchedule->resumption_time,0,5) }}–{{ substr((string)$parallelStaffSchedule->closing_time,0,5) }}
+            @else
+                Non-working day
+            @endif
+        </span>
+    </div>
+    <div class="body">
+        @if($parallelStaffSchedule && $parallelStaffSchedule->is_working)
+            <div class="att-summary">
+                <span class="chip">Resumption {{ substr((string)$parallelStaffSchedule->resumption_time,0,5) }}</span>
+                <span class="chip">Closing {{ substr((string)$parallelStaffSchedule->closing_time,0,5) }}</span>
+                <span class="chip">Grace {{ (int)$parallelStaffSchedule->grace_minutes }} min</span>
+            </div>
+        @endif
+
+        @if($canClockParallelStaff && $date===now()->toDateString() && $parallelStaffSchedule?->is_working)
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                @if(!$selfParallelRecord?->clock_in_time)
+                    <form method="POST" action="{{ route('parallel-curriculum.operations.staff-attendance.clock-in') }}">
+                        @csrf
+                        <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+                        <button class="btn p" type="submit">Clock In · Parallel Curriculum</button>
+                    </form>
+                @elseif(!$selfParallelRecord?->clock_out_time)
+                    <span class="chip">Clocked in {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }} · {{ ucfirst($selfParallelRecord->status) }}</span>
+                    <form method="POST" action="{{ route('parallel-curriculum.operations.staff-attendance.clock-out') }}">
+                        @csrf
+                        <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+                        <button class="btn s" type="submit">Clock Out · Parallel Curriculum</button>
+                    </form>
+                @else
+                    <span class="chip">
+                        Completed · {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }}–{{ substr((string)$selfParallelRecord->clock_out_time,0,5) }}
+                        · {{ ucfirst(str_replace('_',' ',$selfParallelRecord->departure_status ?? '')) }}
+                    </span>
+                @endif
+            </div>
+        @elseif($canClockParallelStaff && $date===now()->toDateString() && !$parallelStaffSchedule?->is_working)
+            <div class="hint" style="margin-bottom:10px">Today is not enabled as a parallel-curriculum working day.</div>
+        @endif
+
+        @if($staffAttendance && $staffAttendance['staff']->isNotEmpty())
+            <div class="att-table-wrap">
+                <table class="att">
+                    <thead>
+                        <tr>
+                            <th>Staff</th>
+                            <th>Arrival</th>
+                            <th>Status</th>
+                            <th>Departure</th>
+                            <th>Departure status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($staffAttendance['staff'] as $person)
+                        @php($staffRecord=$staffAttendance['records']->get($person->id))
+                        <tr>
+                            <td><span class="name">{{ $person->name }}</span></td>
+                            <td>{{ $staffRecord?->clock_in_time ? substr((string)$staffRecord->clock_in_time,0,5) : '—' }}</td>
+                            <td>{{ $staffRecord?->status ? ucfirst($staffRecord->status) : 'Not recorded' }}</td>
+                            <td>{{ $staffRecord?->clock_out_time ? substr((string)$staffRecord->clock_out_time,0,5) : '—' }}</td>
+                            <td>{{ $staffRecord?->departure_status ? ucfirst(str_replace('_',' ',$staffRecord->departure_status)) : '—' }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="hint">No active staff member is currently resolved as a teacher in this parallel curriculum.</div>
+        @endif
+    </div>
+</section>
+@endif
+
 @if(!$selectedCurriculum || !$selectedClass || !$selectedArm)
 <section class="panel"><div class="empty">Create a parallel programme, class level and active arm before configuring timetable or attendance.</div></section>
 @else
@@ -67,7 +210,7 @@
                 <input type="hidden" name="session_id" value="{{ $sessionId }}">
                 <div class="row">
                     <div class="fg"><label class="fl">Subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select subject</option>@foreach($selectedClass->subjectAssignments as $assignment)<option value="{{ $assignment->parallel_curriculum_subject_id }}">{{ $assignment->subject?->name }}</option>@endforeach</select></div>
-                    <div class="fg"><label class="fl">Day</label><select class="fc" name="day_of_week" required>@foreach(['monday','tuesday','wednesday','thursday','friday'] as $day)<option value="{{ $day }}">{{ ucfirst($day) }}</option>@endforeach</select></div>
+                    <div class="fg"><label class="fl">Day</label><select class="fc" name="day_of_week" required>@forelse($workingDays->where('is_working',true) as $dayConfig)<option value="{{ $dayConfig->day_of_week }}">{{ ucfirst($dayConfig->day_of_week) }} · {{ substr((string)$dayConfig->resumption_time,0,5) }}–{{ substr((string)$dayConfig->closing_time,0,5) }}</option>@empty<option value="" disabled>No parallel working day enabled</option>@endforelse</select></div>
                 </div>
                 <div class="row three">
                     <div class="fg"><label class="fl">Start</label><input class="fc" type="time" name="start_time" required></div>
@@ -79,7 +222,7 @@
             </form>
             @endif
 
-            @php($days=['monday'=>'Monday','tuesday'=>'Tuesday','wednesday'=>'Wednesday','thursday'=>'Thursday','friday'=>'Friday'])
+            @php($days=['monday'=>'Monday','tuesday'=>'Tuesday','wednesday'=>'Wednesday','thursday'=>'Thursday','friday'=>'Friday','saturday'=>'Saturday','sunday'=>'Sunday'])
             @foreach($days as $key=>$label)
                 @php($dayPeriods=$periods->where('day_of_week',$key))
                 <div class="day">
