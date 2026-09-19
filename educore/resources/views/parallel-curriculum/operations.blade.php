@@ -218,15 +218,26 @@
                     <div class="fg"><label class="fl">Venue</label><input class="fc" name="venue" maxlength="100" placeholder="Optional"></div>
                 </div>
                 <div class="hint" style="margin-bottom:9px">Teacher is resolved automatically from the arm-specific override or the class-level default assignment. Teacher clashes are checked against both timetable systems.</div>
-                <button class="btn p" type="submit">Add Period</button>
+                @if($workingDays->where('is_working',true)->isEmpty())
+                    <div class="alert err">Enable at least one parallel working day before adding timetable periods.</div>
+                @else
+                    <button class="btn p" type="submit">Add Period</button>
+                @endif
             </form>
             @endif
 
-            @php($days=['monday'=>'Monday','tuesday'=>'Tuesday','wednesday'=>'Wednesday','thursday'=>'Thursday','friday'=>'Friday','saturday'=>'Saturday','sunday'=>'Sunday'])
-            @foreach($days as $key=>$label)
+            @foreach($workingDays as $dayConfig)
+                @php($key=(string)$dayConfig->day_of_week)
                 @php($dayPeriods=$periods->where('day_of_week',$key))
                 <div class="day">
-                    <div class="day-title">{{ $label }}</div>
+                    <div class="day-title">
+                        {{ ucfirst($key) }} ·
+                        @if($dayConfig->is_working)
+                            {{ substr((string)$dayConfig->resumption_time,0,5) }}–{{ substr((string)$dayConfig->closing_time,0,5) }}
+                        @else
+                            Not a working day
+                        @endif
+                    </div>
                     @forelse($dayPeriods as $period)
                         <div class="period">
                             <div class="time"><strong>{{ substr((string)$period->start_time,0,5) }}–{{ substr((string)$period->end_time,0,5) }}</strong><span>{{ $period->venue ?: 'No venue' }}</span></div>
