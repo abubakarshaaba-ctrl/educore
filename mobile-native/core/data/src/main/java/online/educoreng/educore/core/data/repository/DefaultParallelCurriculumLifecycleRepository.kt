@@ -15,6 +15,7 @@ import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
@@ -24,6 +25,9 @@ import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceRecordRequestDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDayRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
@@ -110,6 +114,34 @@ class DefaultParallelCurriculumLifecycleRepository(
 
     override suspend fun deleteTimetablePeriod(periodId: Long): AppResult<String> = mutation {
         api.deleteParallelTimetablePeriod(periodId).message
+    }
+
+    override suspend fun saveWorkingDays(
+        curriculumId: Long,
+        days: List<ParallelWorkingDayDraft>,
+    ): AppResult<String> = mutation {
+        api.saveParallelWorkingDays(
+            ParallelWorkingDaysMutationRequestDto(
+                curriculumId = curriculumId,
+                days = days.map {
+                    ParallelWorkingDayRequestDto(
+                        dayOfWeek = it.dayOfWeek,
+                        isWorking = it.isWorking,
+                        resumptionTime = it.resumptionTime,
+                        closingTime = it.closingTime,
+                        graceMinutes = it.graceMinutes,
+                    )
+                },
+            )
+        ).message
+    }
+
+    override suspend fun clockInParallelStaff(curriculumId: Long): AppResult<String> = mutation {
+        api.clockInParallelStaff(ParallelStaffAttendanceRequestDto(curriculumId)).message
+    }
+
+    override suspend fun clockOutParallelStaff(curriculumId: Long): AppResult<String> = mutation {
+        api.clockOutParallelStaff(ParallelStaffAttendanceRequestDto(curriculumId)).message
     }
 
     override suspend fun saveParallelAttendance(
