@@ -590,7 +590,7 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onChild = portalAttendanceViewModel::selectChild,
                                 onTerm = portalAttendanceViewModel::selectTerm,
-                                onRetry = portalAttendanceViewModel::load,
+                                onRetry = { portalAttendanceViewModel.load() },
                             )
                         }
                         composable(NativeRoute.REPOSITORY) {
