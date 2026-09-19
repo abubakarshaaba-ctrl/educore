@@ -149,6 +149,8 @@ class ParallelLifecycleDtoMapperTest {
                     name = "Amina Bello",
                     admissionNumber = "STU001",
                     gender = "female",
+                    status = "left",
+                    isActive = false,
                     conventionalClassArmId = 5,
                     conventionalClassName = "JSS 1 A",
                     assignment = ParallelLifecycleStudentAssignmentDto(
@@ -171,6 +173,8 @@ class ParallelLifecycleDtoMapperTest {
         assertEquals(10, page.curriculumId)
         assertEquals("JSS 1 A", page.conventionalClassArms.single().name)
         assertEquals("Amina Bello", page.students.single().name)
+        assertEquals("left", page.students.single().status)
+        assertTrue(!page.students.single().isActive)
         assertEquals("Mutawassitah 1", page.students.single().assignment?.className)
         assertEquals("A", page.students.single().assignment?.armName)
         assertEquals(1, page.pagination.total)
