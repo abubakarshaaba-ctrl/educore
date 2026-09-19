@@ -115,12 +115,23 @@ fun ParallelCurriculumLifecycleScreen(
     val workspace = state.workspace
     var tab by remember { mutableStateOf(ParallelLifecycleTab.OVERVIEW) }
 
-    LaunchedEffect(tab, state.selectedCurriculumId, state.selectedSessionId) {
+    LaunchedEffect(
+        tab,
+        state.selectedCurriculumId,
+        state.selectedSessionId,
+        state.operationsWorkspace?.selected?.curriculumId,
+        state.operationsWorkspace?.selected?.sessionId,
+    ) {
+        val operationsSelection = state.operationsWorkspace?.selected
         if (
             tab == ParallelLifecycleTab.OPERATIONS &&
-            state.operationsWorkspace == null &&
             state.selectedCurriculumId != null &&
-            state.selectedSessionId != null
+            state.selectedSessionId != null &&
+            (
+                operationsSelection == null ||
+                    operationsSelection.curriculumId != state.selectedCurriculumId ||
+                    operationsSelection.sessionId != state.selectedSessionId
+                )
         ) {
             onLoadOperations(null, null, null, null)
         }
