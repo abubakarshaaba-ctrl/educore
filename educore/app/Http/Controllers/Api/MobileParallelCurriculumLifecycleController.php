@@ -50,6 +50,13 @@ class MobileParallelCurriculumLifecycleController extends Controller
         $armTeacherOverridesReady = Schema::hasTable(
             'parallel_curriculum_arm_subject_teachers'
         );
+        $armTeachingModesReady = Schema::hasColumn(
+            'parallel_curriculum_class_arms',
+            'teaching_assignment_mode'
+        ) && Schema::hasColumn(
+            'parallel_curriculum_class_arms',
+            'class_teacher_id'
+        );
 
         $classRelations = [
             'assessmentTemplate',
@@ -62,6 +69,10 @@ class MobileParallelCurriculumLifecycleController extends Controller
         $classRelations[] = $armTeacherOverridesReady
             ? 'arms.subjectTeachers.teacher'
             : 'arms';
+
+        if ($armTeachingModesReady) {
+            $classRelations[] = 'arms.classTeacher';
+        }
 
         $curricula = ParallelCurriculum::with([
                 'defaultAssessmentTemplate',
@@ -161,7 +172,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
             : collect();
 
         return response()->json([
-            'contract_version' => 3,
+            'contract_version' => 4,
             'selected_curriculum_id' => $selected?->id,
             'selected_session_id' => $sessionId ?: null,
             'assessment_templates' => $assessmentTemplates->map(fn (AssessmentTemplate $template) => [
@@ -218,6 +229,21 @@ class MobileParallelCurriculumLifecycleController extends Controller
                         'code' => $arm->code,
                         'capacity' => $arm->capacity ? (int) $arm->capacity : null,
                         'is_active' => (bool) $arm->is_active,
+                        'teaching_assignment_mode' =>
+                            $armTeachingModesReady
+                                ? (string) (
+                                    $arm->teaching_assignment_mode
+                                    ?: 'subject_based'
+                                )
+                                : 'subject_based',
+                        'class_teacher_id' =>
+                            $armTeachingModesReady && $arm->class_teacher_id
+                                ? (int) $arm->class_teacher_id
+                                : null,
+                        'class_teacher_name' =>
+                            $armTeachingModesReady
+                                ? $arm->classTeacher?->name
+                                : null,
                         'subject_teachers' => $armTeacherOverridesReady
                             ? $arm->subjectTeachers
                                 ->where('is_active', true)
@@ -254,6 +280,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 ])->values(),
             ])->values(),
             'arm_teacher_overrides_ready' => $armTeacherOverridesReady,
+            'arm_teaching_modes_ready' => $armTeachingModesReady,
             'staff' => $staff->map(fn (User $person) => [
                 'id' => (int) $person->id,
                 'name' => (string) $person->name,
@@ -1763,6 +1790,112 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 ? (int) $classSubject->teacher_id
                 : null,
             'effective_teacher_name' => $classSubject->teacher?->name,
+        ]);
+    }
+
+    public function storeArmTeachingMode(Request $request): JsonResponse
+    {
+        $tenantId = $this->assertManage($request);
+
+        abort_unless(
+            Schema::hasColumn(
+                'parallel_curriculum_class_arms',
+                'teaching_assignment_mode'
+            ) && Schema::hasColumn(
+                'parallel_curriculum_class_arms',
+                'class_teacher_id'
+            ),
+            503,
+            'Teaching assignment modes are not available until the latest database migration has been applied.'
+        );
+
+        $data = $request->validate([
+            'parallel_curriculum_class_arm_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_class_arms', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'teaching_assignment_mode' => [
+                'required',
+                Rule::in(['class_teacher', 'subject_based']),
+            ],
+            'class_teacher_id' => [
+                'nullable',
+                Rule::exists('users', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true),
+            ],
+        ]);
+
+        $arm = ParallelCurriculumClassArm::with('curriculumClass')
+            ->findOrFail($data['parallel_curriculum_class_arm_id']);
+        $class = $arm->curriculumClass;
+
+        abort_unless($class, 422, 'The selected class arm is invalid.');
+
+        $teacherId = $data['teaching_assignment_mode'] === 'class_teacher'
+            ? (int) ($data['class_teacher_id'] ?? 0)
+            : null;
+
+        if ($data['teaching_assignment_mode'] === 'class_teacher' && ! $teacherId) {
+            throw ValidationException::withMessages([
+                'class_teacher_id' =>
+                    'Select the teacher who will take all subjects in this class arm.',
+            ]);
+        }
+
+        if ($teacherId) {
+            $teacher = User::findOrFail($teacherId);
+
+            abort_if(
+                $teacher->isAccountant()
+                    || (
+                        ! $teacher->canAccessExactModule('scores')
+                        && ! $teacher->canAccessExactModule('scores.entry')
+                    ),
+                422,
+                'The selected staff member does not have academic score-entry access.'
+            );
+
+            foreach (
+                $class->subjectAssignments()
+                    ->where('is_active', true)
+                    ->get() as $assignment
+            ) {
+                $this->operations->validateTeacherChange(
+                    $tenantId,
+                    (int) $class->id,
+                    (int) $assignment->parallel_curriculum_subject_id,
+                    (int) $arm->id,
+                    $teacherId
+                );
+            }
+        }
+
+        $arm->update([
+            'teaching_assignment_mode' =>
+                $data['teaching_assignment_mode'],
+            'class_teacher_id' => $teacherId ?: null,
+        ]);
+
+        foreach (
+            $class->subjectAssignments()
+                ->where('is_active', true)
+                ->get() as $assignment
+        ) {
+            $this->operations->syncTimetableTeachers(
+                $tenantId,
+                (int) $class->id,
+                (int) $assignment->parallel_curriculum_subject_id,
+                (int) $arm->id
+            );
+        }
+
+        return response()->json([
+            'message' =>
+                $data['teaching_assignment_mode'] === 'class_teacher'
+                    ? "{$class->name} {$arm->name} now uses one class teacher for all subjects."
+                    : "{$class->name} {$arm->name} now uses subject-based teacher assignments.",
         ]);
     }
 
