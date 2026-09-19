@@ -6,12 +6,19 @@ data class ParallelLifecycleSession(
     val isCurrent: Boolean,
 )
 
+data class ParallelLifecycleArmSubjectTeacher(
+    val subjectId: Long,
+    val teacherId: Long,
+    val teacherName: String?,
+)
+
 data class ParallelLifecycleArm(
     val id: Long,
     val name: String,
     val code: String?,
     val capacity: Int?,
     val isActive: Boolean,
+    val subjectTeachers: List<ParallelLifecycleArmSubjectTeacher> = emptyList(),
 )
 
 data class ParallelLifecycleGrade(
@@ -22,6 +29,19 @@ data class ParallelLifecycleGrade(
     val remark: String?,
     val isPassGrade: Boolean,
     val gradePoint: Double?,
+)
+
+data class ParallelLifecycleSubjectAssignment(
+    val assignmentId: Long,
+    val subjectId: Long,
+    val subjectName: String?,
+    val defaultTeacherId: Long?,
+    val defaultTeacherName: String?,
+)
+
+data class ParallelLifecycleStaff(
+    val id: Long,
+    val name: String,
 )
 
 data class ParallelLifecyclePromotionRule(
@@ -42,6 +62,7 @@ data class ParallelLifecycleClass(
     val name: String,
     val code: String?,
     val isActive: Boolean,
+    val subjects: List<ParallelLifecycleSubjectAssignment>,
     val arms: List<ParallelLifecycleArm>,
     val classGrades: List<ParallelLifecycleGrade>,
     val promotionRule: ParallelLifecyclePromotionRule?,
@@ -100,6 +121,8 @@ data class ParallelLifecycleWorkspace(
     val selectedSessionId: Long?,
     val curricula: List<ParallelLifecycleCurriculum>,
     val sessions: List<ParallelLifecycleSession>,
+    val staff: List<ParallelLifecycleStaff>,
+    val armTeacherOverridesReady: Boolean,
     val enrolments: List<ParallelLifecycleEnrolment>,
     val transfers: List<ParallelTransferHistory>,
     val promotions: List<ParallelPromotionHistory>,
