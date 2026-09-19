@@ -135,6 +135,7 @@ data class ParallelStaffAttendancePerson(
 data class ParallelOperationsAttendance(
     val date: String,
     val version: String,
+    val isWorkingDay: Boolean = true,
     val students: List<ParallelOperationsAttendanceStudent>,
 )
 
