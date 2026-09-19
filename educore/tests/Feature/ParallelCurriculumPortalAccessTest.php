@@ -9,17 +9,22 @@ use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumEnrolment;
+use App\Models\ParallelCurriculumAttendanceRecord;
 use App\Models\ParallelCurriculumGrade;
 use App\Models\ParallelCurriculumReportPublication;
 use App\Models\ParallelCurriculumScore;
 use App\Models\ParallelCurriculumSubject;
+use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\Student;
 use App\Models\Tenant;
 use App\Models\Term;
 use App\Services\ParallelCurriculumResultService;
+use App\Services\ParallelCurriculumPortalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ParallelCurriculumPortalAccessTest extends TestCase
@@ -66,6 +71,66 @@ class ParallelCurriculumPortalAccessTest extends TestCase
                     $fixture['student'],
                     $fixture['publication']->id
                 )
+        );
+    }
+
+    public function test_learner_portal_service_returns_only_the_students_parallel_schedule_and_attendance(): void
+    {
+        $fixture = $this->publishedFixture();
+
+        ParallelCurriculumTimetablePeriod::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'parallel_curriculum_id' => $fixture['curriculum']->id,
+            'parallel_curriculum_class_id' => $fixture['parallelClass']->id,
+            'parallel_curriculum_class_arm_id' => $fixture['parallelArm']->id,
+            'parallel_curriculum_subject_id' => $fixture['subject']->id,
+            'teacher_id' => null,
+            'session_id' => $fixture['session']->id,
+            'day_of_week' => 'monday',
+            'start_time' => '08:00',
+            'end_time' => '08:40',
+            'venue' => 'Islamiyyah Hall',
+        ]);
+
+        ParallelCurriculumAttendanceRecord::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'parallel_curriculum_id' => $fixture['curriculum']->id,
+            'parallel_curriculum_class_id' => $fixture['parallelClass']->id,
+            'parallel_curriculum_class_arm_id' => $fixture['parallelArm']->id,
+            'parallel_curriculum_enrolment_id' => $fixture['parallelEnrolment']->id,
+            'student_id' => $fixture['student']->id,
+            'term_id' => $fixture['term']->id,
+            'marked_by' => null,
+            'attendance_date' => now()->toDateString(),
+            'status' => 'present',
+            'remark' => 'On time',
+        ]);
+
+        $service = app(ParallelCurriculumPortalService::class);
+        $timetables = $service->timetableForStudent(
+            $fixture['student'],
+            $fixture['session']->id,
+        );
+        $attendance = $service->attendanceForStudent(
+            $fixture['student'],
+            $fixture['term']->id,
+        );
+
+        $this->assertCount(1, $timetables);
+        $this->assertSame('Islamiyyah', $timetables->first()['curriculum_name']);
+        $this->assertSame('Mutawassitah 1', $timetables->first()['class_name']);
+        $this->assertSame('A', $timetables->first()['arm_name']);
+        $this->assertSame('Qur\'an', $timetables->first()['periods']->first()->subject->name);
+
+        $this->assertCount(1, $attendance);
+        $this->assertSame(1, $attendance->first()['stats']['present']);
+        $this->assertSame(100.0, (float) $attendance->first()['stats']['rate']);
+
+        $this->assertTrue(
+            $service->timetableForStudent($fixture['otherStudent'], $fixture['session']->id)->isEmpty()
+        );
+        $this->assertTrue(
+            $service->attendanceForStudent($fixture['otherStudent'], $fixture['term']->id)->isEmpty()
         );
     }
 
@@ -121,6 +186,15 @@ class ParallelCurriculumPortalAccessTest extends TestCase
             'tenant_id' => $tenant->id,
             'name' => '2026/2027',
             'is_current' => true,
+        ]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $tenant->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $term = Term::create([
@@ -211,6 +285,15 @@ class ParallelCurriculumPortalAccessTest extends TestCase
             'is_active' => true,
         ]);
 
+        $parallelArm = ParallelCurriculumClassArm::create([
+            'tenant_id' => $tenant->id,
+            'parallel_curriculum_class_id' => $parallelClass->id,
+            'name' => 'A',
+            'code' => 'A',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
         ParallelCurriculumClassSubject::create([
             'tenant_id' => $tenant->id,
             'parallel_curriculum_class_id' => $parallelClass->id,
@@ -218,10 +301,11 @@ class ParallelCurriculumPortalAccessTest extends TestCase
             'is_active' => true,
         ]);
 
-        ParallelCurriculumEnrolment::create([
+        $parallelEnrolment = ParallelCurriculumEnrolment::create([
             'tenant_id' => $tenant->id,
             'parallel_curriculum_id' => $curriculum->id,
             'parallel_curriculum_class_id' => $parallelClass->id,
+            'parallel_curriculum_class_arm_id' => $parallelArm->id,
             'student_id' => $student->id,
             'session_id' => $session->id,
             'is_active' => true,
@@ -287,6 +371,8 @@ class ParallelCurriculumPortalAccessTest extends TestCase
             'curriculum',
             'subject',
             'parallelClass',
+            'parallelArm',
+            'parallelEnrolment',
             'publication'
         );
     }
