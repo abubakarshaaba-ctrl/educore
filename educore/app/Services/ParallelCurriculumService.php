@@ -75,6 +75,22 @@ class ParallelCurriculumService
         ParallelCurriculumClassSubject $assignment,
         ?ParallelCurriculumClassArm $arm = null
     ): ?int {
+        if (
+            $arm
+            && Schema::hasColumn(
+                'parallel_curriculum_class_arms',
+                'teaching_assignment_mode'
+            )
+            && Schema::hasColumn(
+                'parallel_curriculum_class_arms',
+                'class_teacher_id'
+            )
+            && $arm->teaching_assignment_mode === 'class_teacher'
+            && $arm->class_teacher_id
+        ) {
+            return (int) $arm->class_teacher_id;
+        }
+
         if ($arm && Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
             $override = ParallelCurriculumArmSubjectTeacher::withoutTenantScope()
                 ->where('tenant_id', $assignment->tenant_id)
