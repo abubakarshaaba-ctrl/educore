@@ -42,6 +42,48 @@ class AttendanceController extends Controller
         }
         $terms     = Term::with('session')->latest()->get();
 
+        $parallelFormClasses = collect();
+        $parallelService = app(\App\Services\ParallelCurriculumService::class);
+        if ($parallelService->enabledForTenant($this->tenantId())) {
+            $currentTerm = $terms->firstWhere('is_current', true);
+
+            $parallelFormClasses = $parallelService
+                ->formTeacherArmsForUser($user)
+                ->map(function ($arm) use ($currentTerm): array {
+                    $class = $arm->curriculumClass;
+                    $curriculum = $class?->curriculum;
+                    $operationsParameters = array_filter([
+                        'parallel_curriculum_id' => $curriculum?->id,
+                        'session_id' => $currentTerm?->session_id,
+                        'term_id' => $currentTerm?->id,
+                        'class_id' => $class?->id,
+                        'arm_id' => $arm->id,
+                        'date' => now()->toDateString(),
+                    ]);
+
+                    return [
+                        'arm' => $arm,
+                        'label' => trim(
+                            ($curriculum?->name ?? 'Parallel Curriculum')
+                            .' · '.($class?->name ?? 'Class')
+                            .' '.$arm->name
+                        ),
+                        'attendance_url' => route(
+                            'parallel-curriculum.operations.index',
+                            $operationsParameters
+                        ).'#learner-attendance',
+                        'comments_url' => route(
+                            'parallel-curriculum.form-teacher-comments.index',
+                            array_filter([
+                                'arm_id' => $arm->id,
+                                'term_id' => $currentTerm?->id,
+                            ])
+                        ),
+                    ];
+                })
+                ->values();
+        }
+
         // Today's summary across all classes
         $todaySummary = AttendanceRecord::whereDate('attendance_date', today())
             ->selectRaw('status, COUNT(*) as count')
@@ -76,7 +118,14 @@ class AttendanceController extends Controller
                 'total' => $r->total,
             ])->sortByDesc('rate');
 
-        return view('attendance.index', compact('weeklyTrend', 'classBreakdown', 'classArms', 'terms', 'todaySummary'));
+        return view('attendance.index', compact(
+            'weeklyTrend',
+            'classBreakdown',
+            'classArms',
+            'terms',
+            'todaySummary',
+            'parallelFormClasses'
+        ));
     }
 
     // ---------------------------------------------------------------
