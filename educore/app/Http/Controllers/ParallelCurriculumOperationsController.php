@@ -147,6 +147,10 @@ class ParallelCurriculumOperationsController extends Controller
             'attendance' => $attendance,
             'canManageTimetable' => $this->operations->canManageTimetable($user),
             'canMarkAttendance' => $canMarkAttendance,
+            'canExportAttendance' => $user->isSuperAdmin()
+                || $user->canManage('students')
+                || $user->canAccessExactModule('attendance')
+                || $user->canAccessExactModule('scores'),
         ]);
     }
 
