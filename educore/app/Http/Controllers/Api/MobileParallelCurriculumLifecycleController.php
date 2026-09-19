@@ -1485,6 +1485,12 @@ class MobileParallelCurriculumLifecycleController extends Controller
             ]);
         }
 
+        if (ParallelCurriculumTimetablePeriod::where('parallel_curriculum_class_arm_id', $arm->id)->exists()) {
+            throw ValidationException::withMessages([
+                'arm' => 'Remove this arm\'s timetable periods before archiving it.',
+            ]);
+        }
+
         $arm->update(['is_active' => false]);
 
         return response()->json(['message' => 'Parallel class arm archived.']);
