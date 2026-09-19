@@ -509,6 +509,7 @@ internal fun AuthorizedShell(
                                 onArchiveArm = parallelLifecycleViewModel::archiveArm,
                                 onLoadStudents = parallelLifecycleViewModel::loadStudents,
                                 onAssignStudents = parallelLifecycleViewModel::assignStudents,
+                                onRemoveStudent = parallelLifecycleViewModel::removeStudent,
                                 onSaveArmTeacher = parallelLifecycleViewModel::saveArmTeacher,
                                 onSaveGrade = parallelLifecycleViewModel::saveGrade,
                                 onDeleteGrade = parallelLifecycleViewModel::deleteGrade,
