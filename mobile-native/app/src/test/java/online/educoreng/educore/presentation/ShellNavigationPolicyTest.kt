@@ -50,6 +50,34 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun learner_attendance_modules_remain_native_and_parent_exposes_attendance_in_children_tab() {
+        val studentAttendance = ModuleDescriptor(
+            "student.attendance",
+            "Attendance",
+            "/student/attendance",
+            "attendance",
+        )
+        val parentAttendance = ModuleDescriptor(
+            "parent.attendance",
+            "Attendance",
+            "/parent/attendance",
+            "attendance",
+        )
+
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(studentAttendance.key))
+        assertTrue(!ShellNavigationPolicy.isRemovedFromMobile(parentAttendance.key))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(studentAttendance))
+        assertEquals(ModuleGroup.ACADEMICS, ShellNavigationPolicy.groupFor(parentAttendance))
+
+        val parentSession = session(portal = "parent", role = "parent")
+            .copy(modules = listOf(parentAttendance))
+        assertEquals(
+            listOf("parent.attendance"),
+            ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, parentSession).map { it.key },
+        )
+    }
+
+    @Test
     fun parallel_curriculum_module_is_native_academic_module() {
         val module = ModuleDescriptor(
             "parallel-curriculum",
