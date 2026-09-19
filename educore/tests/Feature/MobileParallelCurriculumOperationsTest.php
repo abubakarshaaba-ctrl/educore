@@ -109,6 +109,106 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         ]);
     }
 
+    public function test_teacher_reassignment_cannot_create_timetable_clash_and_syncs_when_safe(): void
+    {
+        $context = $this->context();
+        $teacherA = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Teacher A',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $teacherB = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Teacher B',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $teacherC = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Teacher C',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $context['classSubject']->update(['teacher_id' => $teacherA->id]);
+
+        $level = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'JSS 2',
+            'section' => 'junior_secondary',
+            'order_index' => 2,
+        ]);
+        $conventionalArm = ClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $level->id,
+            'name' => 'A',
+        ]);
+        $subject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Mathematics',
+            'code' => 'MTH',
+            'is_active' => true,
+        ]);
+
+        TimetablePeriod::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_arm_id' => $conventionalArm->id,
+            'subject_id' => $subject->id,
+            'teacher_id' => $teacherB->id,
+            'session_id' => $context['session']->id,
+            'day_of_week' => 'tuesday',
+            'start_time' => '10:00',
+            'end_time' => '10:40',
+            'venue' => 'Main Block',
+        ]);
+
+        $token = ApiToken::issue($context['admin'], 'parallel-teacher-change');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'tuesday',
+                'start_time' => '10:00',
+                'end_time' => '10:40',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $teacherA->id);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/class-subjects', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'teacher_id' => $teacherB->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('teacher_id');
+
+        $this->assertDatabaseHas('parallel_curriculum_timetable_periods', [
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'teacher_id' => $teacherA->id,
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/class-subjects', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'teacher_id' => $teacherC->id,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('parallel_curriculum_timetable_periods', [
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'teacher_id' => $teacherC->id,
+        ]);
+    }
+
     public function test_parallel_attendance_is_saved_separately_from_conventional_attendance(): void
     {
         $context = $this->context();
