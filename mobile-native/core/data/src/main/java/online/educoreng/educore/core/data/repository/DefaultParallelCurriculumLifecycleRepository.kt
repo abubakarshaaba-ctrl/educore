@@ -135,6 +135,25 @@ class DefaultParallelCurriculumLifecycleRepository(
         ).message
     }
 
+    override suspend fun downloadAttendanceExport(
+        armId: Long,
+        termId: Long,
+        format: String,
+        from: String?,
+        to: String?,
+    ): AppResult<DownloadedDocument> {
+        val safeFormat = format.lowercase().takeIf { it == "pdf" || it == "csv" }
+            ?: return AppResult.Failure(AppError.Unexpected("Unsupported attendance export format."))
+        val mimeType = if (safeFormat == "pdf") "application/pdf" else "text/csv"
+
+        return download(
+            filename = "parallel-attendance-$armId-$termId.$safeFormat",
+            mimeType = mimeType,
+        ) {
+            api.downloadParallelAttendanceExport(armId, termId, safeFormat, from, to)
+        }
+    }
+
     override suspend fun loadStudentResult(
         classId: Long,
         studentId: Long,
