@@ -100,5 +100,18 @@
             </div>
         </div>
     </section>
+    <section class="card">
+        <div class="head">Form Teacher Comment</div>
+        <div class="body">
+            <div style="font-size:11.5px;line-height:1.65;color:var(--slate)">
+                {{ $row['form_teacher_comment'] ?: 'No form-teacher comment has been entered for this term.' }}
+            </div>
+            @if(!empty($row['form_teacher']))
+                <div style="margin-top:8px;font-size:9.5px;color:var(--slate-light)">
+                    Form Teacher: {{ $row['form_teacher']->name }}
+                </div>
+            @endif
+        </div>
+    </section>
 </div>
 @endsection
