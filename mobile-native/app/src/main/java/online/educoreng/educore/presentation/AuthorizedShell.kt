@@ -548,6 +548,7 @@ internal fun AuthorizedShell(
                         composable(NativeRoute.PARALLEL_OPERATIONS) {
                             ParallelCurriculumOperationsScreen(
                                 state = parallelLifecycleState,
+                                onBack = navController::popBackStack,
                                 onLoadContext = parallelLifecycleViewModel::loadOperationsContext,
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
