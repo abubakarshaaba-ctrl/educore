@@ -50,6 +50,7 @@ import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
@@ -106,6 +107,9 @@ fun ParallelCurriculumLifecycleScreen(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
@@ -248,6 +252,9 @@ fun ParallelCurriculumLifecycleScreen(
                 onLoadOperations = onLoadOperations,
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+                onSaveWorkingDays = onSaveWorkingDays,
+                onClockInParallelStaff = onClockInParallelStaff,
+                onClockOutParallelStaff = onClockOutParallelStaff,
                 onSaveParallelAttendance = onSaveParallelAttendance,
                 onDownloadAttendanceExport = onDownloadAttendanceExport,
             )
@@ -2884,6 +2891,9 @@ private fun LazyListScope.lifecycleOperations(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
 ) {
@@ -2893,6 +2903,9 @@ private fun LazyListScope.lifecycleOperations(
             onLoadOperations = onLoadOperations,
             onCreateTimetablePeriod = onCreateTimetablePeriod,
             onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+            onSaveWorkingDays = onSaveWorkingDays,
+            onClockInParallelStaff = onClockInParallelStaff,
+            onClockOutParallelStaff = onClockOutParallelStaff,
             onSaveParallelAttendance = onSaveParallelAttendance,
             onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
@@ -2905,6 +2918,9 @@ internal fun ParallelOperationsPanel(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
 ) {
@@ -3002,6 +3018,17 @@ internal fun ParallelOperationsPanel(
             EduCoreLoadingState(message = "Refreshing parallel operations")
         }
 
+        ParallelWorkingDaysCard(
+            state = state,
+            onSaveWorkingDays = onSaveWorkingDays,
+        )
+
+        ParallelStaffAttendanceCard(
+            state = state,
+            onClockIn = onClockInParallelStaff,
+            onClockOut = onClockOutParallelStaff,
+        )
+
         ParallelTimetableCard(
             state = state,
             selectedClass = selectedClass,
@@ -3019,6 +3046,186 @@ internal fun ParallelOperationsPanel(
 }
 
 @Composable
+private fun ParallelWorkingDaysCard(
+    state: ParallelLifecycleUiState,
+    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    var drafts by remember(operations.workingDays) {
+        mutableStateOf(
+            operations.workingDays.map {
+                ParallelWorkingDayDraft(
+                    dayOfWeek = it.dayOfWeek,
+                    isWorking = it.isWorking,
+                    resumptionTime = it.resumptionTime,
+                    closingTime = it.closingTime,
+                    graceMinutes = it.graceMinutes,
+                )
+            }
+        )
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Parallel working days & staff hours", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "These days and hours are independent from the conventional curriculum. Each day can have a different resumption and closing time.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        drafts.forEachIndexed { index, item ->
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    item.dayOfWeek.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Switch(
+                    checked = item.isWorking,
+                    onCheckedChange = { checked ->
+                        drafts = drafts.toMutableList().also {
+                            it[index] = item.copy(isWorking = checked)
+                        }
+                    },
+                    enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                )
+            }
+            if (item.isWorking) {
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    EduCoreTextField(
+                        value = item.resumptionTime.orEmpty(),
+                        onValueChange = { value ->
+                            drafts = drafts.toMutableList().also {
+                                it[index] = item.copy(resumptionTime = value)
+                            }
+                        },
+                        label = "Resumption HH:mm",
+                        modifier = Modifier.weight(1f),
+                        enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                    )
+                    EduCoreTextField(
+                        value = item.closingTime.orEmpty(),
+                        onValueChange = { value ->
+                            drafts = drafts.toMutableList().also {
+                                it[index] = item.copy(closingTime = value)
+                            }
+                        },
+                        label = "Closing HH:mm",
+                        modifier = Modifier.weight(1f),
+                        enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                    )
+                }
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCoreTextField(
+                    value = item.graceMinutes.toString(),
+                    onValueChange = { value ->
+                        val minutes = value.toIntOrNull()?.coerceIn(0, 180) ?: 0
+                        drafts = drafts.toMutableList().also {
+                            it[index] = item.copy(graceMinutes = minutes)
+                        }
+                    },
+                    label = "Late grace period (minutes)",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                )
+            }
+        }
+        if (operations.capabilities.manageWorkingDays) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            EduCorePrimaryButton(
+                text = "Save Parallel Working Days",
+                onClick = { onSaveWorkingDays(drafts) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating && drafts.size == 7,
+                loading = state.isMutating,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParallelStaffAttendanceCard(
+    state: ParallelLifecycleUiState,
+    onClockIn: () -> Unit,
+    onClockOut: () -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    val sheet = operations.staffAttendance ?: return
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Parallel staff attendance", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Attendance is evaluated against the selected parallel curriculum's day-specific working hours, not the conventional school schedule.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        KeyValueRow("Date", sheet.date)
+        KeyValueRow("Day", sheet.dayOfWeek.replaceFirstChar { it.uppercase() })
+        KeyValueRow("Working day", if (sheet.isWorkingDay) "Yes" else "No")
+        KeyValueRow("Resumption", sheet.resumptionTime ?: "—")
+        KeyValueRow("Closing", sheet.closingTime ?: "—")
+        KeyValueRow("Late grace", sheet.graceMinutes.toString() + " min")
+
+        if (sheet.canClockSelf && operations.capabilities.clockParallelStaff && sheet.isWorkingDay) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCorePrimaryButton(
+                    text = "Clock In",
+                    onClick = onClockIn,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                    loading = state.isMutating,
+                )
+                EduCoreSecondaryButton(
+                    text = "Clock Out",
+                    onClick = onClockOut,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        if (sheet.staff.isEmpty()) {
+            EduCoreEmptyState(
+                "No assigned parallel staff",
+                "Assign a class teacher or subject teacher to populate this attendance register.",
+            )
+        } else {
+            sheet.staff.forEach { person ->
+                HorizontalDivider()
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                Text(person.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    listOf(
+                        "Arrival: " + (person.clockInTime ?: "—"),
+                        "Status: " + (person.status?.replace('_', ' ') ?: "Not recorded"),
+                        "Departure: " + (person.clockOutTime ?: "—"),
+                        "Departure status: " + (person.departureStatus?.replace('_', ' ') ?: "—"),
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+            }
+        }
+    }
+}
+
+@Composable
 private fun ParallelTimetableCard(
     state: ParallelLifecycleUiState,
     selectedClass: online.educoreng.educore.core.model.ParallelOperationsClass?,
@@ -3030,7 +3237,10 @@ private fun ParallelTimetableCard(
     var subjectId by remember(selectedClass?.id, selectedClass?.subjects) {
         mutableStateOf(selectedClass?.subjects?.firstOrNull()?.id)
     }
-    var day by remember { mutableStateOf("monday") }
+    val enabledDays = operations.workingDays.filter { it.isWorking }
+    var day by remember(enabledDays.map { it.dayOfWeek }) {
+        mutableStateOf(enabledDays.firstOrNull()?.dayOfWeek ?: "monday")
+    }
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
     var venue by remember { mutableStateOf("") }
@@ -3057,13 +3267,12 @@ private fun ParallelTimetableCard(
             StringLifecycleMenu(
                 label = "Day",
                 current = day.replaceFirstChar { it.uppercase() },
-                options = listOf(
-                    "monday" to "Monday",
-                    "tuesday" to "Tuesday",
-                    "wednesday" to "Wednesday",
-                    "thursday" to "Thursday",
-                    "friday" to "Friday",
-                ),
+                options = enabledDays.map {
+                    it.dayOfWeek to (
+                        it.dayOfWeek.replaceFirstChar { ch -> ch.uppercase() } +
+                            " · " + (it.resumptionTime ?: "—") + "–" + (it.closingTime ?: "—")
+                        )
+                },
                 enabled = !state.isMutating,
                 onSelect = { day = it },
             )
@@ -3128,7 +3337,7 @@ private fun ParallelTimetableCard(
                 "No parallel lesson has been scheduled for this class arm in the selected session.",
             )
         } else {
-            val dayOrder = listOf("monday", "tuesday", "wednesday", "thursday", "friday")
+            val dayOrder = operations.workingDays.map { it.dayOfWeek }
             dayOrder.forEach { dayName ->
                 val periods = operations.periods
                     .filter { it.dayOfWeek == dayName }
