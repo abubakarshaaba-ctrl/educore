@@ -8,10 +8,12 @@ use App\Models\ParallelCurriculumClassGrade;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumGrade;
 use App\Models\ParallelCurriculumReportPublication;
+use App\Models\ParallelCurriculumResultComment;
 use App\Models\ParallelCurriculumScore;
 use App\Models\Student;
 use App\Models\Term;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class ParallelCurriculumResultService
 {
@@ -63,6 +65,18 @@ class ParallelCurriculumResultService
                 );
         }
 
+        $formTeacherComments = collect();
+        if (
+            Schema::hasTable('parallel_curriculum_result_comments')
+            && $enrolments->isNotEmpty()
+        ) {
+            $formTeacherComments = ParallelCurriculumResultComment::with('formTeacher')
+                ->where('term_id', $term->id)
+                ->whereIn('parallel_curriculum_enrolment_id', $enrolments->pluck('id'))
+                ->get()
+                ->keyBy('parallel_curriculum_enrolment_id');
+        }
+
         $gradingSource = $class->classGrades->isNotEmpty()
             ? 'class'
             : 'programme';
@@ -76,7 +90,8 @@ class ParallelCurriculumResultService
             $components,
             $componentWeight,
             $scores,
-            $grades
+            $grades,
+            $formTeacherComments
         ): array {
             $student = $enrolment->student;
             $completedPercentages = [];
@@ -139,6 +154,7 @@ class ParallelCurriculumResultService
                 ? round(array_sum($completedPercentages) / $completedCount, 2)
                 : null;
             $grandTotal = round(array_sum($completedPercentages), 2);
+            $formTeacherComment = $formTeacherComments->get($enrolment->id);
 
             return [
                 'student' => $student,
@@ -152,6 +168,8 @@ class ParallelCurriculumResultService
                 'average' => $average,
                 'failed_subjects' => $failedSubjects,
                 'position' => null,
+                'form_teacher_comment' => $formTeacherComment?->form_teacher_comment,
+                'form_teacher' => $formTeacherComment?->formTeacher,
             ];
         })->values();
 
