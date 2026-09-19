@@ -36,6 +36,7 @@
         @if($canManage)
             <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
             <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
+            <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
             <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
         @endif
         @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
