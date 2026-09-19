@@ -568,6 +568,99 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertJsonPath('attendance.is_working_day', false);
     }
 
+    public function test_subject_teacher_can_teach_same_subject_across_multiple_parallel_classes(): void
+    {
+        $context = $this->context();
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Shared Parallel Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $secondClass = ParallelCurriculumClass::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Mutawassitah 2',
+            'code' => 'M2',
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+
+        $secondArm = ParallelCurriculumClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'name' => 'A',
+            'code' => 'A',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumClassSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'parallel_curriculum_subject_id' => $context['subject']->id,
+            'teacher_id' => null,
+            'is_active' => true,
+        ]);
+
+        $token = ApiToken::issue($context['admin'], 'parallel-shared-subject-teacher');
+
+        foreach ([$context['arm']->id, $secondArm->id] as $armId) {
+            $this->withToken($token)
+                ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teachers', [
+                    'parallel_curriculum_class_arm_id' => $armId,
+                    'parallel_curriculum_subject_id' => $context['subject']->id,
+                    'teacher_id' => $teacher->id,
+                ])
+                ->assertOk()
+                ->assertJsonPath('effective_teacher_id', $teacher->id);
+        }
+
+        $this->assertDatabaseCount('parallel_curriculum_arm_subject_teachers', 2);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '10:00',
+                'end_time' => '10:40',
+                'venue' => 'Room A',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $teacher->id);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $secondClass->id,
+                'parallel_curriculum_class_arm_id' => $secondArm->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '10:40',
+                'end_time' => '11:20',
+                'venue' => 'Room B',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $teacher->id);
+
+        $this->assertDatabaseHas('parallel_curriculum_timetable_periods', [
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'teacher_id' => $teacher->id,
+        ]);
+
+        $this->assertDatabaseHas('parallel_curriculum_timetable_periods', [
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'parallel_curriculum_class_arm_id' => $secondArm->id,
+            'teacher_id' => $teacher->id,
+        ]);
+    }
+
     public function test_class_teacher_mode_drives_timetable_and_parallel_staff_attendance(): void
     {
         $context = $this->context();
