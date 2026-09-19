@@ -8,6 +8,7 @@ import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
@@ -107,6 +108,20 @@ class DefaultParallelCurriculumLifecycleRepository(
 
     override suspend fun archiveArm(armId: Long): AppResult<String> = mutation {
         api.archiveParallelArm(armId).message
+    }
+
+    override suspend fun saveArmTeacher(
+        armId: Long,
+        subjectId: Long,
+        teacherId: Long?,
+    ): AppResult<String> = mutation {
+        api.saveParallelArmTeacher(
+            ParallelArmTeacherMutationRequestDto(
+                parallelCurriculumClassArmId = armId,
+                parallelCurriculumSubjectId = subjectId,
+                teacherId = teacherId,
+            )
+        ).message
     }
 
     override suspend fun saveGrade(
