@@ -3180,7 +3180,7 @@ private fun ParallelStaffAttendanceCard(
             val selfRecord = sheet.selfRecord
             Spacer(Modifier.height(EduCoreSpacing.Md))
             when {
-                selfRecord == null || selfRecord.clockInTime == null -> {
+                selfRecord?.clockInTime == null -> {
                     EduCorePrimaryButton(
                         text = "Clock In",
                         onClick = onClockIn,
@@ -3189,11 +3189,12 @@ private fun ParallelStaffAttendanceCard(
                         loading = state.isMutating,
                     )
                 }
-                selfRecord != null && selfRecord.clockOutTime == null -> {
+                selfRecord.clockOutTime == null -> {
+                    val clockedInRecord = selfRecord
                     EduCoreInfoBanner(
                         title = "Clocked in",
-                        message = selfRecord!!.clockInTime + " · " +
-                            (selfRecord.status?.replace('_', ' ') ?: "recorded"),
+                        message = clockedInRecord.clockInTime + " · " +
+                            (clockedInRecord.status?.replace('_', ' ') ?: "recorded"),
                     )
                     Spacer(Modifier.height(EduCoreSpacing.Sm))
                     EduCorePrimaryButton(
@@ -3205,10 +3206,11 @@ private fun ParallelStaffAttendanceCard(
                     )
                 }
                 else -> {
+                    val completedRecord = selfRecord
                     EduCoreInfoBanner(
                         title = "Attendance complete",
-                        message = selfRecord!!.clockInTime + "–" + selfRecord.clockOutTime +
-                            " · " + (selfRecord.departureStatus?.replace('_', ' ') ?: "completed"),
+                        message = completedRecord.clockInTime + "–" + completedRecord.clockOutTime +
+                            " · " + (completedRecord.departureStatus?.replace('_', ' ') ?: "completed"),
                     )
                 }
             }
@@ -3447,6 +3449,14 @@ private fun ParallelAttendanceCard(
                 )
             }
             Spacer(Modifier.height(EduCoreSpacing.Md))
+        }
+
+        if (attendance != null && !attendance.isWorkingDay) {
+            EduCoreInfoBanner(
+                title = "Non-working day",
+                message = "The selected date is not enabled as a working day for this parallel curriculum. Learner attendance cannot be saved for this date.",
+            )
+            return@EduCoreDashboardCard
         }
 
         if (!operations.capabilities.saveAttendance) {
