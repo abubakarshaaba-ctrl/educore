@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import online.educoreng.educore.core.designsystem.component.EduCoreDangerButton
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
+import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
@@ -70,6 +71,7 @@ fun ParallelCurriculumLifecycleScreen(
     onArchiveArm: (Long) -> Unit,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onRemoveStudent: (Long) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
@@ -146,7 +148,12 @@ fun ParallelCurriculumLifecycleScreen(
         when (tab) {
             ParallelLifecycleTab.OVERVIEW -> lifecycleOverview(workspace)
             ParallelLifecycleTab.ARMS -> lifecycleArms(state, onCreateArm, onUpdateArm, onArchiveArm)
-            ParallelLifecycleTab.STUDENTS -> lifecycleStudents(state, onLoadStudents, onAssignStudents)
+            ParallelLifecycleTab.STUDENTS -> lifecycleStudents(
+                state,
+                onLoadStudents,
+                onAssignStudents,
+                onRemoveStudent,
+            )
             ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
@@ -297,12 +304,14 @@ private fun LazyListScope.lifecycleStudents(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onRemoveStudent: (Long) -> Unit,
 ) {
     item {
         StudentPlacementPanel(
             state = state,
             onLoadStudents = onLoadStudents,
             onAssignStudents = onAssignStudents,
+            onRemoveStudent = onRemoveStudent,
         )
     }
 }
@@ -312,6 +321,7 @@ private fun StudentPlacementPanel(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onRemoveStudent: (Long) -> Unit,
 ) {
     val workspace = state.workspace
     val curriculum = workspace?.selectedCurriculum
@@ -332,6 +342,12 @@ private fun StudentPlacementPanel(
     var destinationArmId by remember(curriculum?.id, session?.id) { mutableStateOf<Long?>(null) }
     var selectedStudentIds by remember(curriculum?.id, session?.id) {
         mutableStateOf<Set<Long>>(emptySet())
+    }
+    var pendingRemovalEnrolmentId by remember(curriculum?.id, session?.id) {
+        mutableStateOf<Long?>(null)
+    }
+    var pendingRemovalStudentName by remember(curriculum?.id, session?.id) {
+        mutableStateOf<String?>(null)
     }
 
     LaunchedEffect(curriculum?.id, session?.id) {
@@ -595,10 +611,40 @@ private fun StudentPlacementPanel(
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
+                        if (student.assignment != null) {
+                            Spacer(Modifier.height(EduCoreSpacing.Sm))
+                            EduCoreDangerButton(
+                                text = "Remove Parallel Placement",
+                                onClick = {
+                                    pendingRemovalEnrolmentId = student.assignment.enrolmentId
+                                    pendingRemovalStudentName = student.name
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.isMutating,
+                            )
+                        }
                     }
                 }
             }
         }
+
+        EduCoreConfirmationDialog(
+            visible = pendingRemovalEnrolmentId != null,
+            title = "Remove parallel placement?",
+            message = (pendingRemovalStudentName ?: "This learner") +
+                " will be removed from the selected parallel programme for this session. Existing result records are preserved by archiving the placement when necessary.",
+            confirmLabel = "Remove Placement",
+            destructive = true,
+            onConfirm = {
+                pendingRemovalEnrolmentId?.let(onRemoveStudent)
+                pendingRemovalEnrolmentId = null
+                pendingRemovalStudentName = null
+            },
+            onDismiss = {
+                pendingRemovalEnrolmentId = null
+                pendingRemovalStudentName = null
+            },
+        )
 
         if (page.pagination.lastPage > 1) {
             Row(
