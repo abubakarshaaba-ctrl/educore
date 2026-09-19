@@ -45,4 +45,5 @@ class ScheduleViewModel @Inject constructor(
 
     fun selectSection(index: Int) = _uiState.update { it.copy(selectedSection = index) }
     fun selectDay(day: String) = _uiState.update { it.copy(selectedDay = day) }
+    fun selectChild(childId: Long) = load(childId = childId)
 }
