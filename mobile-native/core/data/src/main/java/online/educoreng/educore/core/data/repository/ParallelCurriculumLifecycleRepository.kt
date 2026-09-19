@@ -150,6 +150,7 @@ interface ParallelCurriculumLifecycleRepository {
         sessionId: Long,
         conventionalClassArmId: Long? = null,
         assignmentStatus: String = "all",
+        learnerStatus: String = "active",
         gender: String? = null,
         search: String? = null,
         page: Int = 1,
