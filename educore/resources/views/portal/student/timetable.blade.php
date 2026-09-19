@@ -57,4 +57,46 @@
 @endif
 @endforeach
 @endif
+
+@if($parallelTimetables->isNotEmpty())
+<h2 class="timetable-title" style="margin-top:24px">📘 Parallel Timetable</h2>
+@foreach($parallelTimetables as $programme)
+<div class="card" style="margin-bottom:16px">
+    <div class="ch">
+        {{ $programme['curriculum_name'] }}
+        @if($programme['class_name'])
+            <span style="font-weight:500;color:var(--muted)"> — {{ $programme['class_name'] }}{{ $programme['arm_name'] ? ' '.$programme['arm_name'] : '' }}</span>
+        @endif
+    </div>
+    @foreach($days as $day)
+        @php
+            $periods = $programme['periods']->filter(
+                fn($period) => strcasecmp((string)$period->day_of_week, $day) === 0
+            )->sortBy('start_time')->values();
+        @endphp
+        @if($periods->isNotEmpty())
+        <div style="padding:12px 14px 4px;font-weight:800;font-size:12px">{{ $day }}</div>
+        <div class="timetable-table">
+            <table>
+                <thead><tr><th>Time</th><th>Subject</th><th>Teacher</th><th>Venue</th></tr></thead>
+                <tbody>
+                @foreach($periods as $p)
+                <tr>
+                    <td style="font-size:12px;color:var(--muted)">
+                        {{ substr((string)$p->start_time,0,5) }}
+                        @if($p->end_time) – {{ substr((string)$p->end_time,0,5) }} @endif
+                    </td>
+                    <td style="font-weight:600">{{ $p->subject?->name ?? '—' }}</td>
+                    <td>{{ $p->teacher?->name ?? '—' }}</td>
+                    <td style="font-size:12px;color:var(--muted)">{{ $p->venue ?? '—' }}</td>
+                </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+    @endforeach
+</div>
+@endforeach
+@endif
 @endsection
