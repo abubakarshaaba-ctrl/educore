@@ -3177,24 +3177,40 @@ private fun ParallelStaffAttendanceCard(
         KeyValueRow("Late grace", sheet.graceMinutes.toString() + " min")
 
         if (sheet.canClockSelf && operations.capabilities.clockParallelStaff && sheet.isWorkingDay) {
+            val selfRecord = sheet.selfRecord
             Spacer(Modifier.height(EduCoreSpacing.Md))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                EduCorePrimaryButton(
-                    text = "Clock In",
-                    onClick = onClockIn,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isMutating,
-                    loading = state.isMutating,
-                )
-                EduCoreSecondaryButton(
-                    text = "Clock Out",
-                    onClick = onClockOut,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isMutating,
-                )
+            when {
+                selfRecord?.clockInTime == null -> {
+                    EduCorePrimaryButton(
+                        text = "Clock In",
+                        onClick = onClockIn,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating,
+                        loading = state.isMutating,
+                    )
+                }
+                selfRecord.clockOutTime == null -> {
+                    EduCoreInfoBanner(
+                        title = "Clocked in",
+                        message = selfRecord.clockInTime + " · " +
+                            (selfRecord.status?.replace('_', ' ') ?: "recorded"),
+                    )
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    EduCorePrimaryButton(
+                        text = "Clock Out",
+                        onClick = onClockOut,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating,
+                        loading = state.isMutating,
+                    )
+                }
+                else -> {
+                    EduCoreInfoBanner(
+                        title = "Attendance complete",
+                        message = selfRecord.clockInTime + "–" + selfRecord.clockOutTime +
+                            " · " + (selfRecord.departureStatus?.replace('_', ' ') ?: "completed"),
+                    )
+                }
             }
         }
 
@@ -3252,6 +3268,14 @@ private fun ParallelTimetableCard(
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
+
+        if (enabledDays.isEmpty()) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreInfoBanner(
+                title = "No working day enabled",
+                message = "Enable at least one parallel working day before adding timetable periods.",
+            )
+        }
 
         if (operations.capabilities.manageTimetable && selectedClass != null && selectedArmId != null) {
             Spacer(Modifier.height(EduCoreSpacing.Md))
@@ -3323,6 +3347,7 @@ private fun ParallelTimetableCard(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isMutating &&
+                    enabledDays.isNotEmpty() &&
                     subjectId != null &&
                     start.isNotBlank() &&
                     end.isNotBlank(),
