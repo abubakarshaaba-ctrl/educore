@@ -13,6 +13,9 @@ import online.educoreng.educore.core.model.ParallelOperationsSession
 import online.educoreng.educore.core.model.ParallelOperationsSubject
 import online.educoreng.educore.core.model.ParallelOperationsTerm
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
+import online.educoreng.educore.core.model.ParallelWorkingDay
+import online.educoreng.educore.core.model.ParallelStaffAttendance
+import online.educoreng.educore.core.model.ParallelStaffAttendancePerson
 
 data class ParallelOperationsResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int = 1,
@@ -22,8 +25,10 @@ data class ParallelOperationsResponseDto(
     val sessions: List<ParallelOperationsSessionDto> = emptyList(),
     val terms: List<ParallelOperationsTermDto> = emptyList(),
     val classes: List<ParallelOperationsClassDto> = emptyList(),
+    @param:Json(name = "working_days") val workingDays: List<ParallelWorkingDayDto> = emptyList(),
     val periods: List<ParallelOperationsPeriodDto> = emptyList(),
     val attendance: ParallelOperationsAttendanceDto? = null,
+    @param:Json(name = "staff_attendance") val staffAttendance: ParallelStaffAttendanceDto? = null,
 )
 
 data class ParallelOperationsSelectionDto(
@@ -39,6 +44,8 @@ data class ParallelOperationsCapabilitiesDto(
     @param:Json(name = "manage_timetable") val manageTimetable: Boolean = false,
     @param:Json(name = "save_attendance") val saveAttendance: Boolean = false,
     @param:Json(name = "export_attendance") val exportAttendance: Boolean = false,
+    @param:Json(name = "manage_working_days") val manageWorkingDays: Boolean = false,
+    @param:Json(name = "clock_parallel_staff") val clockParallelStaff: Boolean = false,
 )
 
 data class ParallelOperationsOptionDto(
@@ -114,6 +121,64 @@ data class ParallelOperationsAttendanceStudentDto(
     val remark: String? = null,
 )
 
+data class ParallelWorkingDayDto(
+    @param:Json(name = "day_of_week") val dayOfWeek: String,
+    @param:Json(name = "is_working") val isWorking: Boolean,
+    @param:Json(name = "resumption_time") val resumptionTime: String? = null,
+    @param:Json(name = "closing_time") val closingTime: String? = null,
+    @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
+)
+
+data class ParallelStaffAttendanceDto(
+    val date: String,
+    @param:Json(name = "day_of_week") val dayOfWeek: String,
+    @param:Json(name = "is_working_day") val isWorkingDay: Boolean,
+    @param:Json(name = "resumption_time") val resumptionTime: String? = null,
+    @param:Json(name = "closing_time") val closingTime: String? = null,
+    @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
+    @param:Json(name = "can_clock_self") val canClockSelf: Boolean = false,
+    val staff: List<ParallelStaffAttendancePersonDto> = emptyList(),
+)
+
+data class ParallelStaffAttendancePersonDto(
+    @param:Json(name = "user_id") val userId: Long,
+    val name: String,
+    val status: String? = null,
+    @param:Json(name = "departure_status") val departureStatus: String? = null,
+    @param:Json(name = "clock_in_time") val clockInTime: String? = null,
+    @param:Json(name = "clock_out_time") val clockOutTime: String? = null,
+)
+
+data class ParallelWorkingDaysMutationRequestDto(
+    @param:Json(name = "parallel_curriculum_id") val curriculumId: Long,
+    val days: List<ParallelWorkingDayRequestDto>,
+)
+
+data class ParallelWorkingDayRequestDto(
+    @param:Json(name = "day_of_week") val dayOfWeek: String,
+    @param:Json(name = "is_working") val isWorking: Boolean,
+    @param:Json(name = "resumption_time") val resumptionTime: String? = null,
+    @param:Json(name = "closing_time") val closingTime: String? = null,
+    @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
+)
+
+data class ParallelWorkingDaysMutationResponseDto(
+    val message: String,
+    @param:Json(name = "working_days") val workingDays: List<ParallelWorkingDayDto> = emptyList(),
+)
+
+data class ParallelStaffAttendanceRequestDto(
+    @param:Json(name = "parallel_curriculum_id") val curriculumId: Long,
+)
+
+data class ParallelStaffClockResponseDto(
+    val message: String,
+    val status: String? = null,
+    @param:Json(name = "departure_status") val departureStatus: String? = null,
+    @param:Json(name = "clock_in_time") val clockInTime: String? = null,
+    @param:Json(name = "clock_out_time") val clockOutTime: String? = null,
+)
+
 data class ParallelPeriodMutationRequestDto(
     @param:Json(name = "parallel_curriculum_class_id") val classId: Long,
     @param:Json(name = "parallel_curriculum_class_arm_id") val armId: Long,
@@ -165,6 +230,8 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
             manageTimetable = capabilities.manageTimetable,
             saveAttendance = capabilities.saveAttendance,
             exportAttendance = capabilities.exportAttendance,
+            manageWorkingDays = capabilities.manageWorkingDays,
+            clockParallelStaff = capabilities.clockParallelStaff,
         ),
         curricula = curricula.map { ParallelOperationsOption(it.id, it.name, it.code) },
         sessions = sessions.map { ParallelOperationsSession(it.id, it.name, it.isCurrent) },
@@ -190,6 +257,15 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
             )
         },
         periods = periods.map { it.toDomain() },
+        workingDays = workingDays.map {
+            ParallelWorkingDay(
+                dayOfWeek = it.dayOfWeek,
+                isWorking = it.isWorking,
+                resumptionTime = it.resumptionTime,
+                closingTime = it.closingTime,
+                graceMinutes = it.graceMinutes,
+            )
+        },
         attendance = attendance?.let { sheet ->
             ParallelOperationsAttendance(
                 date = sheet.date,
@@ -202,6 +278,27 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
                         admissionNumber = it.admissionNumber,
                         status = it.status,
                         remark = it.remark,
+                    )
+                },
+            )
+        },
+        staffAttendance = staffAttendance?.let { sheet ->
+            ParallelStaffAttendance(
+                date = sheet.date,
+                dayOfWeek = sheet.dayOfWeek,
+                isWorkingDay = sheet.isWorkingDay,
+                resumptionTime = sheet.resumptionTime,
+                closingTime = sheet.closingTime,
+                graceMinutes = sheet.graceMinutes,
+                canClockSelf = sheet.canClockSelf,
+                staff = sheet.staff.map {
+                    ParallelStaffAttendancePerson(
+                        userId = it.userId,
+                        name = it.name,
+                        status = it.status,
+                        departureStatus = it.departureStatus,
+                        clockInTime = it.clockInTime,
+                        clockOutTime = it.clockOutTime,
                     )
                 },
             )
