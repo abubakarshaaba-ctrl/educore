@@ -1780,6 +1780,8 @@ private fun ParallelResultControls(
     var termId by remember(workspace?.selectedTermId) {
         mutableStateOf(workspace?.selectedTermId)
     }
+    var confirmPublish by remember { mutableStateOf(false) }
+    var confirmUnpublish by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (workspace == null) {
@@ -1877,20 +1879,45 @@ private fun ParallelResultControls(
                 if (report.isPublished) {
                     EduCoreDangerButton(
                         text = "Unpublish Result",
-                        onClick = onUnpublishResult,
+                        onClick = { confirmUnpublish = true },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !state.isMutating,
                     )
                 } else {
                     EduCorePrimaryButton(
                         text = "Publish Result",
-                        onClick = onPublishResult,
+                        onClick = { confirmPublish = true },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !state.isMutating && report.canPublish,
                         loading = state.isMutating,
                     )
                 }
             }
+
+            EduCoreConfirmationDialog(
+                visible = confirmPublish,
+                title = "Publish parallel result?",
+                message = "Publishing locks the source parallel scores and makes this result available through the authorised result channels.",
+                confirmLabel = "Publish Result",
+                onConfirm = {
+                    confirmPublish = false
+                    onPublishResult()
+                },
+                onDismiss = { confirmPublish = false },
+            )
+
+            EduCoreConfirmationDialog(
+                visible = confirmUnpublish,
+                title = "Unpublish parallel result?",
+                message = "This reopens score entry unless another publication lock applies. Existing result records are retained.",
+                confirmLabel = "Unpublish Result",
+                destructive = true,
+                onConfirm = {
+                    confirmUnpublish = false
+                    onUnpublishResult()
+                },
+                onDismiss = { confirmUnpublish = false },
+            )
         }
     }
 }
