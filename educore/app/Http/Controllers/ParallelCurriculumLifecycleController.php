@@ -639,6 +639,10 @@ class ParallelCurriculumLifecycleController extends Controller
             ]);
         }
 
+        $assignments = $class->subjectAssignments()
+            ->where('is_active', true)
+            ->get();
+
         if ($teacherId) {
             $teacher = User::findOrFail($teacherId);
 
@@ -652,17 +656,37 @@ class ParallelCurriculumLifecycleController extends Controller
                 'The selected staff member does not have academic score-entry access.'
             );
 
-            foreach (
-                $class->subjectAssignments()
-                    ->where('is_active', true)
-                    ->get() as $assignment
-            ) {
+            foreach ($assignments as $assignment) {
                 $this->operations->validateTeacherChange(
                     $tenantId,
                     (int) $class->id,
                     (int) $assignment->parallel_curriculum_subject_id,
                     (int) $arm->id,
                     $teacherId
+                );
+            }
+        } else {
+            foreach ($assignments as $assignment) {
+                $overrideTeacherId = ParallelCurriculumArmSubjectTeacher::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('parallel_curriculum_class_id', $class->id)
+                    ->where('parallel_curriculum_class_arm_id', $arm->id)
+                    ->where(
+                        'parallel_curriculum_subject_id',
+                        $assignment->parallel_curriculum_subject_id
+                    )
+                    ->where('is_active', true)
+                    ->value('teacher_id');
+
+                $subjectTeacherId = $overrideTeacherId
+                    ?: $assignment->teacher_id;
+
+                $this->operations->validateTeacherChange(
+                    $tenantId,
+                    (int) $class->id,
+                    (int) $assignment->parallel_curriculum_subject_id,
+                    (int) $arm->id,
+                    $subjectTeacherId ? (int) $subjectTeacherId : null
                 );
             }
         }
@@ -673,11 +697,7 @@ class ParallelCurriculumLifecycleController extends Controller
             'class_teacher_id' => $teacherId ?: null,
         ]);
 
-        foreach (
-            $class->subjectAssignments()
-                ->where('is_active', true)
-                ->get() as $assignment
-        ) {
+        foreach ($assignments as $assignment) {
             $this->operations->syncTimetableTeachers(
                 $tenantId,
                 (int) $class->id,
