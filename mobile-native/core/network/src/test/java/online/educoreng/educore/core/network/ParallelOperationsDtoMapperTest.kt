@@ -32,6 +32,7 @@ class ParallelOperationsDtoMapperTest {
             capabilities = ParallelOperationsCapabilitiesDto(
                 manageTimetable = true,
                 saveAttendance = true,
+                exportAttendance = true,
             ),
             curricula = listOf(ParallelOperationsOptionDto(10, "Islamiyyah", "ISL")),
             sessions = listOf(ParallelOperationsSessionDto(20, "2026/2027", true)),
@@ -96,6 +97,7 @@ class ParallelOperationsDtoMapperTest {
         assertEquals(40L, workspace.selected.armId)
         assertTrue(workspace.capabilities.manageTimetable)
         assertTrue(workspace.capabilities.saveAttendance)
+        assertTrue(workspace.capabilities.exportAttendance)
         assertEquals("Qur'an", workspace.classes.single().subjects.single().name)
         assertEquals("Teacher One", workspace.periods.single().teacher)
         assertEquals("09:00", workspace.periods.single().startTime)
