@@ -972,6 +972,22 @@ class MobileParallelCurriculumLifecycleController extends Controller
         ]);
     }
 
+    public function downloadStudentAssignmentTemplate(Request $request)
+    {
+        $this->assertManage($request);
+
+        return response()->streamDownload(function (): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['admission_number', 'parallel_class', 'parallel_arm']);
+            fputcsv($handle, ['STU001', 'Mutawassitah 1', 'A']);
+            fputcsv($handle, ['STU002', 'M2', 'B']);
+            fclose($handle);
+        }, 'parallel_curriculum_student_assignment_template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
     public function importStudentAssignments(Request $request): JsonResponse
     {
         $tenantId = $this->assertManage($request);
