@@ -1,5 +1,8 @@
 package online.educoreng.educore.presentation
 
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import online.educoreng.educore.core.designsystem.component.EduCoreDangerButton
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreConfirmationDialog
@@ -84,18 +88,23 @@ fun ParallelCurriculumLifecycleScreen(
     onCloseStudentResult: () -> Unit,
     onPublishResult: () -> Unit,
     onUnpublishResult: () -> Unit,
+    onDownloadResultExport: (String) -> Unit,
+    onDownloadStudentResultPdf: () -> Unit,
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
+    onDocumentOpened: () -> Unit,
 ) {
+    OpenDocumentEffect(state.downloadedDocument, onDocumentOpened)
     val workspace = state.workspace
     var tab by remember { mutableStateOf(ParallelLifecycleTab.OVERVIEW) }
 
@@ -194,6 +203,7 @@ fun ParallelCurriculumLifecycleScreen(
                 state,
                 onLoadStudents,
                 onAssignStudents,
+                onImportAssignments,
                 onRemoveStudent,
             )
             ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
@@ -205,6 +215,8 @@ fun ParallelCurriculumLifecycleScreen(
                 onCloseStudentResult = onCloseStudentResult,
                 onPublishResult = onPublishResult,
                 onUnpublishResult = onUnpublishResult,
+                onDownloadResultExport = onDownloadResultExport,
+                onDownloadStudentResultPdf = onDownloadStudentResultPdf,
             )
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
                 state,
@@ -917,6 +929,7 @@ private fun LazyListScope.lifecycleStudents(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
 ) {
     item {
@@ -924,6 +937,7 @@ private fun LazyListScope.lifecycleStudents(
             state = state,
             onLoadStudents = onLoadStudents,
             onAssignStudents = onAssignStudents,
+            onImportAssignments = onImportAssignments,
             onRemoveStudent = onRemoveStudent,
         )
     }
@@ -934,12 +948,68 @@ private fun StudentPlacementPanel(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
 ) {
     val workspace = state.workspace
     val curriculum = workspace?.selectedCurriculum
     val session = workspace?.selectedSession
     val page = state.studentPage
+    val context = LocalContext.current
+    var importError by remember(curriculum?.id, session?.id) { mutableStateOf<String?>(null) }
+    val assignmentFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val metadata = context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (!cursor.moveToFirst()) {
+                        null
+                    } else {
+                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        val name = if (nameIndex >= 0) cursor.getString(nameIndex) else null
+                        val size = if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) cursor.getLong(sizeIndex) else null
+                        name to size
+                    }
+                }
+
+                val filename = metadata?.first?.takeIf(String::isNotBlank)
+                    ?: "parallel_student_assignments.csv"
+                val extension = filename.substringAfterLast('.', "").lowercase()
+                require(extension in setOf("csv", "txt", "xls", "xlsx")) {
+                    "Choose a CSV, XLS or XLSX assignment file."
+                }
+                val declaredSize = metadata?.second
+                require(declaredSize == null || declaredSize <= 5L * 1024L * 1024L) {
+                    "The assignment file must not exceed 5 MB."
+                }
+                val bytes = requireNotNull(context.contentResolver.openInputStream(uri)) {
+                    "The selected file could not be opened."
+                }.use { it.readBytes() }
+                require(bytes.size <= 5 * 1024 * 1024) {
+                    "The assignment file must not exceed 5 MB."
+                }
+
+                Triple(
+                    filename,
+                    context.contentResolver.getType(uri) ?: "application/octet-stream",
+                    bytes,
+                )
+            }.onSuccess { (filename, mimeType, bytes) ->
+                importError = null
+                onImportAssignments(filename, mimeType, bytes)
+            }.onFailure {
+                importError = it.message ?: "The selected assignment file could not be read."
+            }
+        }
+    }
 
     var search by remember(curriculum?.id, session?.id) { mutableStateOf(state.studentSearch) }
     var conventionalArmId by remember(curriculum?.id, session?.id) {
@@ -994,6 +1064,36 @@ private fun StudentPlacementPanel(
                 "Select a parallel programme and working session first.",
             )
             return@Column
+        }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Bulk CSV / Excel assignment", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            Text(
+                "Upload up to 5 MB. Required columns: admission_number, parallel_class, parallel_arm. Class and arm codes are also accepted.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreSecondaryButton(
+                text = "Choose CSV / Excel File",
+                onClick = {
+                    assignmentFilePicker.launch(
+                        arrayOf(
+                            "text/csv",
+                            "text/plain",
+                            "application/vnd.ms-excel",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating,
+            )
+            importError?.let {
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCoreErrorBanner(message = it, title = "Assignment import")
+            }
         }
 
         EduCoreDashboardCard(Modifier.fillMaxWidth()) {
@@ -1674,6 +1774,8 @@ private fun LazyListScope.lifecycleResults(
     onCloseStudentResult: () -> Unit,
     onPublishResult: () -> Unit,
     onUnpublishResult: () -> Unit,
+    onDownloadResultExport: (String) -> Unit,
+    onDownloadStudentResultPdf: () -> Unit,
 ) {
     item {
         ParallelResultControls(
@@ -1681,6 +1783,7 @@ private fun LazyListScope.lifecycleResults(
             onLoadResults = onLoadResults,
             onPublishResult = onPublishResult,
             onUnpublishResult = onUnpublishResult,
+            onDownloadResultExport = onDownloadResultExport,
         )
     }
 
@@ -1760,6 +1863,7 @@ private fun LazyListScope.lifecycleResults(
         item {
             ParallelStudentResultDetailCard(
                 detail = detail,
+                onDownloadPdf = onDownloadStudentResultPdf,
                 onClose = onCloseStudentResult,
             )
         }
@@ -1772,6 +1876,7 @@ private fun ParallelResultControls(
     onLoadResults: (Long?, Long?) -> Unit,
     onPublishResult: () -> Unit,
     onUnpublishResult: () -> Unit,
+    onDownloadResultExport: (String) -> Unit,
 ) {
     val workspace = state.resultWorkspace
     var classId by remember(workspace?.selectedClassId) {
@@ -1876,6 +1981,20 @@ private fun ParallelResultControls(
                 )
 
                 Spacer(Modifier.height(EduCoreSpacing.Md))
+                EduCoreSecondaryButton(
+                    text = "Export Result Register PDF",
+                    onClick = { onDownloadResultExport("pdf") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCoreSecondaryButton(
+                    text = "Export Result Register CSV",
+                    onClick = { onDownloadResultExport("csv") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Md))
                 if (report.isPublished) {
                     EduCoreDangerButton(
                         text = "Unpublish Result",
@@ -1925,6 +2044,7 @@ private fun ParallelResultControls(
 @Composable
 private fun ParallelStudentResultDetailCard(
     detail: online.educoreng.educore.core.model.ParallelStudentResultDetail,
+    onDownloadPdf: () -> Unit,
     onClose: () -> Unit,
 ) {
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
@@ -1976,6 +2096,12 @@ private fun ParallelStudentResultDetailCard(
         }
 
         Spacer(Modifier.height(EduCoreSpacing.Lg))
+        EduCoreSecondaryButton(
+            text = "Download Student Result PDF",
+            onClick = onDownloadPdf,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
         EduCoreSecondaryButton(
             text = "Close Result Details",
             onClick = onClose,
