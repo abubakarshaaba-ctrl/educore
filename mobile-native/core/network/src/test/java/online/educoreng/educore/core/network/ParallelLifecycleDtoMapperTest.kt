@@ -119,7 +119,7 @@ class ParallelLifecycleDtoMapperTest {
         assertEquals("Parallel 40/60", domain.assessmentTemplates.single().name)
         assertEquals("Qur'an", domain.selectedCurriculum?.subjects?.single()?.name)
         assertEquals("A", domain.selectedCurriculum?.grades?.single()?.gradeLetter)
-        assertEquals(100, domain.selectedCurriculum?.defaultAssessmentTemplateId)
+        assertEquals(100L, domain.selectedCurriculum?.defaultAssessmentTemplateId)
         val level = domain.selectedCurriculum?.classes?.single()
         assertEquals(1, level?.sortOrder)
         assertEquals("Parallel 40/60", level?.assessmentTemplateName)
