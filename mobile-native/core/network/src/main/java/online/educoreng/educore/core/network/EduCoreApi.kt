@@ -354,6 +354,7 @@ interface EduCoreApi : AcademicKnowledgeApi {
         @Query("session_id") sessionId: Long,
         @Query("conventional_class_arm_id") conventionalClassArmId: Long? = null,
         @Query("assignment_status") assignmentStatus: String = "all",
+        @Query("learner_status") learnerStatus: String = "active",
         @Query("gender") gender: String? = null,
         @Query("q") search: String? = null,
         @Query("per_page") perPage: Int = 50,
