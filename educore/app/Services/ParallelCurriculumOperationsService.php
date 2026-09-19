@@ -291,6 +291,105 @@ class ParallelCurriculumOperationsService
         });
     }
 
+    public function attendanceReport(
+        User $user,
+        int $armId,
+        int $termId,
+        ?string $from = null,
+        ?string $to = null
+    ): array {
+        $tenantId = (int) $user->tenant_id;
+        $arm = ParallelCurriculumClassArm::query()
+            ->with('curriculumClass.curriculum')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($armId);
+        $term = Term::query()
+            ->with('session')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($termId);
+
+        abort_unless(
+            $user->isSuperAdmin()
+                || $user->canManage('students')
+                || $user->canAccessExactModule('attendance')
+                || $user->canAccessExactModule('scores'),
+            403,
+            'You do not have permission to export parallel attendance.'
+        );
+
+        $fromDate = Carbon::parse($from ?: $term->start_date?->toDateString() ?: now()->toDateString())->startOfDay();
+        $toDate = Carbon::parse($to ?: $term->end_date?->toDateString() ?: now()->toDateString())->startOfDay();
+
+        if ($term->start_date && $fromDate->lt($term->start_date->startOfDay())) {
+            $fromDate = $term->start_date->copy()->startOfDay();
+        }
+        if ($term->end_date && $toDate->gt($term->end_date->startOfDay())) {
+            $toDate = $term->end_date->copy()->startOfDay();
+        }
+        if ($toDate->lt($fromDate)) {
+            throw ValidationException::withMessages([
+                'to' => 'The attendance report end date must be on or after the start date.',
+            ]);
+        }
+
+        $enrolments = ParallelCurriculumEnrolment::query()
+            ->with('student')
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
+            ->where('session_id', $term->session_id)
+            ->where('is_active', true)
+            ->whereHas('student', fn ($query) => $query->where('status', 'active'))
+            ->get()
+            ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) => strtolower((string) $enrolment->student?->full_name))
+            ->values();
+
+        $records = ParallelCurriculumAttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('term_id', $term->id)
+            ->whereBetween('attendance_date', [$fromDate->toDateString(), $toDate->toDateString()])
+            ->get()
+            ->groupBy('parallel_curriculum_enrolment_id');
+
+        $rows = $enrolments->map(function (ParallelCurriculumEnrolment $enrolment) use ($records): array {
+            $studentRecords = $records->get($enrolment->id, collect());
+            $total = $studentRecords->count();
+            $present = $studentRecords->where('status', 'present')->count();
+
+            return [
+                'enrolment_id' => $enrolment->id,
+                'student_id' => $enrolment->student_id,
+                'admission_number' => $enrolment->student?->admission_number,
+                'student_name' => $enrolment->student?->full_name ?? 'Student',
+                'present' => $present,
+                'absent' => $studentRecords->where('status', 'absent')->count(),
+                'late' => $studentRecords->where('status', 'late')->count(),
+                'excused' => $studentRecords->where('status', 'excused')->count(),
+                'total' => $total,
+                'rate' => $total > 0 ? round(($present / $total) * 100, 1) : 0.0,
+            ];
+        })->values();
+
+        $allRecords = $records->flatten(1);
+
+        return [
+            'arm' => $arm,
+            'term' => $term,
+            'from' => $fromDate->toDateString(),
+            'to' => $toDate->toDateString(),
+            'rows' => $rows,
+            'summary' => [
+                'students' => $rows->count(),
+                'records' => $allRecords->count(),
+                'present' => $allRecords->where('status', 'present')->count(),
+                'absent' => $allRecords->where('status', 'absent')->count(),
+                'late' => $allRecords->where('status', 'late')->count(),
+                'excused' => $allRecords->where('status', 'excused')->count(),
+            ],
+        ];
+    }
+
     public function canMarkAttendance(User $user, ParallelCurriculumClassArm $arm): bool
     {
         if ($this->canManageTimetable($user) || $user->canManage('students')) {
