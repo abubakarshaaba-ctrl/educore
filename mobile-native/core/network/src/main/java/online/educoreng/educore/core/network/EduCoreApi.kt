@@ -255,6 +255,16 @@ interface EduCoreApi {
         @Body request: ParallelAttendanceMutationRequestDto,
     ): ParallelAttendanceMutationResponseDto
 
+    @Streaming
+    @GET("parallel-curriculum/operations/attendance/export")
+    suspend fun downloadParallelAttendanceExport(
+        @Query("arm_id") armId: Long,
+        @Query("term_id") termId: Long,
+        @Query("format") format: String,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): ResponseBody
+
     @GET("parallel-curriculum/lifecycle")
     suspend fun parallelLifecycle(
         @Query("parallel_curriculum_id") curriculumId: Long? = null,
