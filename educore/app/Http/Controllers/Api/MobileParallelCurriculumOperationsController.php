@@ -268,6 +268,16 @@ class MobileParallelCurriculumOperationsController extends Controller
                     (int) $staffAttendance['schedule']->grace_minutes,
                 'can_clock_self' =>
                     (bool) $staffAttendance['can_clock_self'],
+                'self_record' => ($selfRecord = $staffAttendance['records']->get($request->user()->id)) ? [
+                    'status' => $selfRecord->status,
+                    'departure_status' => $selfRecord->departure_status,
+                    'clock_in_time' => $selfRecord->clock_in_time
+                        ? substr((string) $selfRecord->clock_in_time, 0, 5)
+                        : null,
+                    'clock_out_time' => $selfRecord->clock_out_time
+                        ? substr((string) $selfRecord->clock_out_time, 0, 5)
+                        : null,
+                ] : null,
                 'staff' => $staffAttendance['staff']
                     ->map(function ($person) use ($staffAttendance): array {
                         $record = $staffAttendance['records']->get($person->id);
