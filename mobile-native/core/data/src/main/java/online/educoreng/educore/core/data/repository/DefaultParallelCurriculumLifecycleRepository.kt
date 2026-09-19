@@ -1,9 +1,17 @@
 package online.educoreng.educore.core.data.repository
 
+import android.content.Context
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
+import online.educoreng.educore.core.common.AppError
 import online.educoreng.educore.core.common.AppResult
+import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
@@ -27,6 +35,7 @@ import online.educoreng.educore.core.network.dto.toDomain
 import online.educoreng.educore.core.network.safeApiCall
 
 class DefaultParallelCurriculumLifecycleRepository(
+    private val context: Context,
     private val api: EduCoreApi,
     private val moshi: Moshi,
 ) : ParallelCurriculumLifecycleRepository {
@@ -82,6 +91,34 @@ class DefaultParallelCurriculumLifecycleRepository(
         api.unpublishParallelResult(
             ParallelResultPublicationRequestDto(classId, termId)
         ).message
+    }
+
+    override suspend fun downloadResultExport(
+        classId: Long,
+        termId: Long,
+        format: String,
+    ): AppResult<DownloadedDocument> {
+        val safeFormat = format.lowercase().takeIf { it == "pdf" || it == "csv" }
+            ?: return AppResult.Failure(AppError.Unexpected("Unsupported result export format."))
+        val mimeType = if (safeFormat == "pdf") "application/pdf" else "text/csv"
+
+        return download(
+            filename = "parallel-result-$classId-$termId.$safeFormat",
+            mimeType = mimeType,
+        ) {
+            api.downloadParallelResultExport(classId, termId, safeFormat)
+        }
+    }
+
+    override suspend fun downloadStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        termId: Long,
+    ): AppResult<DownloadedDocument> = download(
+        filename = "parallel-student-result-$studentId-$termId.pdf",
+        mimeType = "application/pdf",
+    ) {
+        api.downloadParallelStudentResultPdf(classId, studentId, termId)
     }
 
     override suspend fun createProgramme(
@@ -245,6 +282,26 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun importStudentAssignments(
+        curriculumId: Long,
+        sessionId: Long,
+        filename: String,
+        mimeType: String,
+        bytes: ByteArray,
+    ): AppResult<String> = mutation {
+        val mediaType = mimeType.toMediaTypeOrNull() ?: "application/octet-stream".toMediaType()
+        val filePart = MultipartBody.Part.createFormData(
+            "assignment_file",
+            filename,
+            bytes.toRequestBody(mediaType),
+        )
+        api.importParallelStudentAssignments(
+            curriculumId.toString().toRequestBody("text/plain".toMediaType()),
+            sessionId.toString().toRequestBody("text/plain".toMediaType()),
+            filePart,
+        ).message
     }
 
     override suspend fun assignStudents(
@@ -426,6 +483,26 @@ class DefaultParallelCurriculumLifecycleRepository(
                 isTerminal = isTerminal,
             )
         ).message
+    }
+
+    private suspend fun download(
+        filename: String,
+        mimeType: String,
+        remote: suspend () -> ResponseBody,
+    ): AppResult<DownloadedDocument> = withContext(Dispatchers.IO) {
+        when (val result = safeApiCall(moshi, remote)) {
+            is AppResult.Success -> runCatching {
+                saveDownloadedDocument(context, result.value, filename, mimeType)
+            }.fold(
+                onSuccess = { AppResult.Success(it) },
+                onFailure = {
+                    AppResult.Failure(
+                        AppError.Unexpected("The result export could not be saved.", it)
+                    )
+                },
+            )
+            is AppResult.Failure -> result
+        }
     }
 
     private suspend fun mutation(block: suspend () -> String): AppResult<String> =
