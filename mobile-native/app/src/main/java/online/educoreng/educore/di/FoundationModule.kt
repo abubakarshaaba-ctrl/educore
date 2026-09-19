@@ -26,6 +26,7 @@ import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.data.repository.DefaultScoreWorkspaceRepository
 import online.educoreng.educore.core.data.repository.ScoreWorkspaceRepository
 import online.educoreng.educore.core.data.repository.DefaultScheduleRepository
+import online.educoreng.educore.core.data.repository.DefaultPortalAttendanceRepository
 import online.educoreng.educore.core.data.repository.ScheduleRepository
 import online.educoreng.educore.core.data.repository.AcademicContentRepository
 import online.educoreng.educore.core.data.repository.DefaultAcademicContentRepository
@@ -87,6 +88,7 @@ object FoundationModule {
                 DATABASE_MIGRATION_5_6,
                 DATABASE_MIGRATION_6_7,
                 DATABASE_MIGRATION_7_8,
+                DATABASE_MIGRATION_8_9,
             )
             .build()
 
@@ -166,6 +168,16 @@ object FoundationModule {
         database: EduCoreDatabase,
         tenantContextStore: TenantContextStore,
     ): ScheduleRepository = DefaultScheduleRepository(api, moshi, database, tenantContextStore)
+
+    @Provides
+    @Singleton
+    fun providePortalAttendanceRepository(
+        api: EduCoreApi,
+        moshi: Moshi,
+        database: EduCoreDatabase,
+        tenantContextStore: TenantContextStore,
+    ): PortalAttendanceRepository =
+        DefaultPortalAttendanceRepository(api, moshi, database, tenantContextStore)
 
     @Provides
     @Singleton
@@ -347,4 +359,21 @@ object FoundationModule {
             ).use { it.step() }
         }
     }
+    private val DATABASE_MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(connection: SQLiteConnection) {
+            connection.prepare(
+                """
+                CREATE TABLE IF NOT EXISTS `cached_portal_attendance` (
+                    `tenant_key` TEXT NOT NULL,
+                    `user_id` INTEGER NOT NULL,
+                    `cache_key` TEXT NOT NULL,
+                    `payload_json` TEXT NOT NULL,
+                    `cached_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`tenant_key`, `user_id`, `cache_key`)
+                )
+                """.trimIndent(),
+            ).use { it.step() }
+        }
+    }
+
 }
