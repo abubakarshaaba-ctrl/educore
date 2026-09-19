@@ -274,6 +274,7 @@ class User extends Authenticatable
         'recruitment' => ['recruitment'],
         'staff-discipline' => ['staff-discipline'],
         'leave' => ['leave'],
+        'leave.self' => ['leave.index', 'leave.store', 'leave.cancel'],
         'visitors' => ['visitors'],
         'notices' => ['platform.notices'],
         'support' => ['support'],
