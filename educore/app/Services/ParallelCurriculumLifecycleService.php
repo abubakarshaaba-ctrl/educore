@@ -174,9 +174,32 @@ class ParallelCurriculumLifecycleService
     public function promotionPreview(
         ParallelCurriculum $curriculum,
         AcademicSession $sourceSession,
-        AcademicSession $targetSession
+        AcademicSession $targetSession,
+        ?array $sourceClassIds = null
     ): array {
         $tenantId = (int) $curriculum->tenant_id;
+
+        $selectedSourceClassIds = collect($sourceClassIds ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($selectedSourceClassIds->isNotEmpty()) {
+            $validClassIds = ParallelCurriculumClass::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_id', $curriculum->id)
+                ->whereIn('id', $selectedSourceClassIds)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id);
+
+            if ($validClassIds->count() !== $selectedSourceClassIds->count()) {
+                throw ValidationException::withMessages([
+                    'source_class_ids' =>
+                        'Every selected promotion class must belong to this parallel curriculum.',
+                ]);
+            }
+        }
 
         if (
             (int) $sourceSession->tenant_id !== $tenantId
@@ -199,6 +222,13 @@ class ParallelCurriculumLifecycleService
             ->where('tenant_id', $tenantId)
             ->where('parallel_curriculum_id', $curriculum->id)
             ->where('is_active', true)
+            ->when(
+                $selectedSourceClassIds->isNotEmpty(),
+                fn ($query) => $query->whereIn(
+                    'source_class_id',
+                    $selectedSourceClassIds
+                )
+            )
             ->with(['destinationClass.arms', 'sourceClass.arms'])
             ->get()
             ->keyBy('source_class_id');
@@ -208,6 +238,13 @@ class ParallelCurriculumLifecycleService
             ->where('parallel_curriculum_id', $curriculum->id)
             ->where('session_id', $sourceSession->id)
             ->where('is_active', true)
+            ->when(
+                $selectedSourceClassIds->isNotEmpty(),
+                fn ($query) => $query->whereIn(
+                    'parallel_curriculum_class_id',
+                    $selectedSourceClassIds
+                )
+            )
             ->with(['student', 'curriculumClass.arms', 'curriculumClassArm'])
             ->orderBy('parallel_curriculum_class_id')
             ->orderBy('student_id')
@@ -412,6 +449,7 @@ class ParallelCurriculumLifecycleService
         return [
             'source_session' => $sourceSession,
             'target_session' => $targetSession,
+            'source_class_ids' => $selectedSourceClassIds,
             'final_term' => $finalTerm,
             'rows' => $rows,
             'counts' => [
@@ -429,9 +467,15 @@ class ParallelCurriculumLifecycleService
         ParallelCurriculum $curriculum,
         AcademicSession $sourceSession,
         AcademicSession $targetSession,
-        ?int $actorId
+        ?int $actorId,
+        ?array $sourceClassIds = null
     ): array {
-        $preview = $this->promotionPreview($curriculum, $sourceSession, $targetSession);
+        $preview = $this->promotionPreview(
+            $curriculum,
+            $sourceSession,
+            $targetSession,
+            $sourceClassIds
+        );
 
         if ($preview['counts']['blocked'] > 0) {
             throw ValidationException::withMessages([
