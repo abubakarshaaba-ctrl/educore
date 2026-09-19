@@ -25,6 +25,7 @@ import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDt
 import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceRecordRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
@@ -528,6 +529,20 @@ class DefaultParallelCurriculumLifecycleRepository(
                 parallelCurriculumClassArmId = armId,
                 parallelCurriculumSubjectId = subjectId,
                 teacherId = teacherId,
+            )
+        ).message
+    }
+
+    override suspend fun saveArmTeachingMode(
+        armId: Long,
+        mode: String,
+        classTeacherId: Long?,
+    ): AppResult<String> = mutation {
+        api.saveParallelArmTeachingMode(
+            ParallelArmTeachingModeMutationRequestDto(
+                parallelCurriculumClassArmId = armId,
+                teachingAssignmentMode = mode,
+                classTeacherId = classTeacherId,
             )
         ).message
     }
