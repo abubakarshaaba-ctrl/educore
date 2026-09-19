@@ -31,6 +31,7 @@ data class ParallelLifecycleUiState(
     val studentPage: ParallelLifecycleStudentPage? = null,
     val studentConventionalClassArmId: Long? = null,
     val studentAssignmentStatus: String = "all",
+    val studentLearnerStatus: String = "active",
     val studentGender: String? = null,
     val studentSearch: String = "",
     val studentPageNumber: Int = 1,
@@ -504,6 +505,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
     fun loadStudents(
         conventionalClassArmId: Long? = _uiState.value.studentConventionalClassArmId,
         assignmentStatus: String = _uiState.value.studentAssignmentStatus,
+        learnerStatus: String = _uiState.value.studentLearnerStatus,
         gender: String? = _uiState.value.studentGender,
         search: String = _uiState.value.studentSearch,
         page: Int = 1,
@@ -518,6 +520,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                 it.copy(
                     studentConventionalClassArmId = conventionalClassArmId,
                     studentAssignmentStatus = assignmentStatus,
+                    studentLearnerStatus = learnerStatus,
                     studentGender = gender,
                     studentSearch = search,
                     studentPageNumber = page,
@@ -532,6 +535,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     sessionId = sessionId,
                     conventionalClassArmId = conventionalClassArmId,
                     assignmentStatus = assignmentStatus,
+                    learnerStatus = learnerStatus,
                     gender = gender,
                     search = search.trim().takeIf(String::isNotBlank),
                     page = page,
@@ -590,6 +594,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = 1,
@@ -621,6 +626,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = _uiState.value.studentPageNumber,
@@ -647,6 +653,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = _uiState.value.studentPageNumber,
