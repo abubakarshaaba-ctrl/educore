@@ -91,6 +91,8 @@ internal fun AuthorizedShell(
     val parallelLifecycleState by parallelLifecycleViewModel.uiState.collectAsStateWithLifecycle()
     val scheduleViewModel: ScheduleViewModel = hiltViewModel()
     val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
+    val portalAttendanceViewModel: PortalAttendanceViewModel = hiltViewModel()
+    val portalAttendanceState by portalAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val academicContentViewModel: AcademicContentViewModel = hiltViewModel()
     val academicContentState by academicContentViewModel.uiState.collectAsStateWithLifecycle()
     val operationsViewModel: OperationsViewModel = hiltViewModel()
@@ -114,6 +116,7 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.PARALLEL_LIFECYCLE -> "Parallel Curriculum"
         currentRoute == NativeRoute.PARALLEL_OPERATIONS -> "Parallel Timetable & Attendance"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
+        currentRoute == NativeRoute.PORTAL_ATTENDANCE -> "Attendance"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
         currentRoute == NativeRoute.LESSON_PLANS -> "Lesson Planner"
@@ -301,6 +304,10 @@ internal fun AuthorizedShell(
                                                 "classes", "students", "attendance" -> {
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
+                                                }
+                                                "student.attendance", "parent.attendance" -> {
+                                                    portalAttendanceViewModel.load()
+                                                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
                                                 }
                                                 "staff-attendance", "staff-attendance.self" -> {
                                                     classesViewModel.loadStaffAttendance()
@@ -577,6 +584,15 @@ internal fun AuthorizedShell(
                                 },
                             )
                         }
+                        composable(NativeRoute.PORTAL_ATTENDANCE) {
+                            PortalAttendanceScreen(
+                                state = portalAttendanceState,
+                                onBack = navController::popBackStack,
+                                onChild = portalAttendanceViewModel::selectChild,
+                                onTerm = portalAttendanceViewModel::selectTerm,
+                                onRetry = portalAttendanceViewModel::load,
+                            )
+                        }
                         composable(NativeRoute.REPOSITORY) {
                             AcademicRepositoryScreen(
                                 state = academicContentState,
@@ -743,6 +759,7 @@ private object NativeRoute {
     const val PARALLEL_LIFECYCLE = "native/parallel-curriculum"
     const val PARALLEL_OPERATIONS = "native/parallel-timetable"
     const val SCHEDULE = "native/schedule/{classId}"
+    const val PORTAL_ATTENDANCE = "native/portal-attendance"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
     const val LESSON_PLANS = "native/lesson-plans"
