@@ -145,6 +145,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [MobileParallelCurriculumLifecycleController::class, 'index']);
             Route::get('students', [MobileParallelCurriculumLifecycleController::class, 'students']);
             Route::post('assignments', [MobileParallelCurriculumLifecycleController::class, 'assignStudents']);
+            Route::delete('assignments/{enrolment}', [MobileParallelCurriculumLifecycleController::class, 'removeStudent']);
             Route::get('promotion-preview', [MobileParallelCurriculumLifecycleController::class, 'previewPromotion']);
             Route::post('promotions/execute', [MobileParallelCurriculumLifecycleController::class, 'executePromotion']);
             Route::post('transfers', [MobileParallelCurriculumLifecycleController::class, 'transfer']);
