@@ -6,11 +6,13 @@ import kotlinx.coroutines.withContext
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
+import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelTransferRequestDto
 import online.educoreng.educore.core.network.dto.toDomain
@@ -29,6 +31,49 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun loadStudents(
+        curriculumId: Long,
+        sessionId: Long,
+        conventionalClassArmId: Long?,
+        assignmentStatus: String,
+        gender: String?,
+        search: String?,
+        page: Int,
+    ): AppResult<ParallelLifecycleStudentPage> = withContext(Dispatchers.IO) {
+        when (
+            val result = safeApiCall(moshi) {
+                api.parallelLifecycleStudents(
+                    curriculumId = curriculumId,
+                    sessionId = sessionId,
+                    conventionalClassArmId = conventionalClassArmId,
+                    assignmentStatus = assignmentStatus,
+                    gender = gender,
+                    search = search,
+                    page = page,
+                )
+            }
+        ) {
+            is AppResult.Success -> AppResult.Success(result.value.toDomain())
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun assignStudents(
+        classId: Long,
+        armId: Long,
+        sessionId: Long,
+        studentIds: List<Long>,
+    ): AppResult<String> = mutation {
+        api.assignParallelStudents(
+            ParallelStudentAssignmentRequestDto(
+                parallelCurriculumClassId = classId,
+                parallelCurriculumClassArmId = armId,
+                sessionId = sessionId,
+                studentIds = studentIds,
+            )
+        ).message
     }
 
     override suspend fun previewPromotion(
