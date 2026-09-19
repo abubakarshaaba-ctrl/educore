@@ -211,6 +211,11 @@ class User extends Authenticatable
         'subjects' => ['subjects'],
         // curriculum
         'curriculum' => ['curriculum'],
+        'academic-repository' => ['academic-repository'],
+        'lesson-planner' => ['lesson-planner'],
+        'attendance' => ['attendance'],
+        'transcript' => ['students.transcript'],
+        'exam-timetable' => ['exams'],
 
         // ── Scores (write vs read-only) ───────────────────────────────
         'scores' => ['scores', 'parallel-curriculum'],          // full score access, including parallel-curriculum management
@@ -254,12 +259,24 @@ class User extends Authenticatable
         'fees' => ['fees'],
         'expenses' => ['expenses'],
         'payroll' => ['payroll'],
+        'procurement' => ['procurement'],
+        'inventory' => ['inventory'],
+        'scholarships' => ['scholarships'],
 
-        // ── Operations ───────────────────────────────────────────────
+        // ── Operations / staff services ───────────────────────────────
         'health' => ['health'],
         'library' => ['library'],
         'transport' => ['transport'],
         'hostels' => ['hostels'],
+        'discipline' => ['discipline'],
+        'alumni' => ['alumni'],
+        'coverage' => ['coverage'],
+        'recruitment' => ['recruitment'],
+        'staff-discipline' => ['staff-discipline'],
+        'leave' => ['leave'],
+        'visitors' => ['visitors'],
+        'notices' => ['platform.notices'],
+        'support' => ['support'],
 
         // ── Annual School Census ──────────────────────────────────────
         'asc' => ['asc'],
@@ -365,6 +382,19 @@ class User extends Authenticatable
         'export_data' => ['exports'],
         'admissions' => ['admissions'],
         'push_notifications' => ['push'],
+    ];
+
+    /**
+     * Legacy admission-officer roles carried broad academic modules in the
+     * original matrix. They remain denied by default unless an administrator
+     * intentionally grants the module to the individual staff account.
+     */
+    public const ADMISSION_OFFICER_DEFAULT_DENIES = [
+        'students', 'transfers', 'classes', 'subjects', 'curriculum',
+        'academic-cycle', 'scores', 'scores.entry', 'scores.view',
+        'reports', 'reports.view', 'reports.remarks', 'attendance',
+        'timetable', 'timetable.view', 'skills', 'cbt', 'gradebook',
+        'academic-repository', 'lesson-planner',
     ];
 
     // ── Role → allowed modules ─────────────────────────────────────────
@@ -1290,7 +1320,9 @@ class User extends Authenticatable
         }
 
         return StaffPermission::where('user_id', $this->id)
-            ->where('module', $module)->where('type', 'grant')->exists();
+            ->where('module', $module)
+            ->where('type', 'grant')
+            ->exists();
     }
 
     public function hasDeniedPermission(string $module): bool
@@ -1300,39 +1332,59 @@ class User extends Authenticatable
         }
 
         return StaffPermission::where('user_id', $this->id)
-            ->where('module', $module)->where('type', 'deny')->exists();
+            ->where('module', $module)
+            ->where('type', 'deny')
+            ->exists();
     }
 
-    public function canAccessModule(string $module): bool
+    /**
+     * A deny on a parent module also denies its sub-modules. For example,
+     * denying "scores" must hide/deny "scores.entry" and "scores.view".
+     */
+    public function hasEffectiveDeniedPermission(string $module): bool
     {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-        if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
+        if (! Schema::hasTable('staff_permissions')) {
             return false;
         }
-        // Custom per-staff deny overrides everything
-        if ($this->hasDeniedPermission($module)) {
+
+        $module = trim($module);
+        if ($module === '') {
             return false;
         }
-        // Custom per-staff grant allows even without role access
-        if ($this->hasGrantedPermission($module)) {
-            return true;
-        }
+
+        return StaffPermission::where('user_id', $this->id)
+            ->where('type', 'deny')
+            ->get(['module'])
+            ->contains(function (StaffPermission $permission) use ($module): bool {
+                $denied = trim((string) $permission->module);
+
+                return $denied !== ''
+                    && ($module === $denied || str_starts_with($module, $denied.'.'));
+            });
+    }
+
+    /**
+     * Explicit grant can intentionally restore a module that is not part of
+     * the user's default role. Exact grants are used rather than implicitly
+     * granting every child permission of a broad parent.
+     */
+    public function hasEffectiveGrantedPermission(string $module): bool
+    {
+        return $this->hasGrantedPermission($module);
+    }
+
+    private function roleAllowsModule(string $module): bool
+    {
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
-        if (in_array('*', $allowed)) {
+
+        if (in_array('*', $allowed, true) || in_array($module, $allowed, true)) {
             return true;
         }
 
-        // Direct match
-        if (in_array($module, $allowed)) {
-            return true;
-        }
-
-        // If asking for a parent module, check if any sub-module is allowed
-        // e.g. 'timetable' check passes if 'timetable.view' is in allowed
-        foreach ($allowed as $a) {
-            if (str_starts_with($a, $module.'.')) {
+        // Parent module visibility is allowed when the role owns at least one
+        // sub-module (e.g. scores.entry makes the Scores workspace visible).
+        foreach ($allowed as $permission) {
+            if (str_starts_with((string) $permission, $module.'.')) {
                 return true;
             }
         }
@@ -1340,19 +1392,78 @@ class User extends Authenticatable
         return false;
     }
 
+    private function admissionOfficerDefaultDeniesModule(string $module): bool
+    {
+        if ($this->roleKey() !== 'admission_officer') {
+            return false;
+        }
+
+        foreach (self::ADMISSION_OFFICER_DEFAULT_DENIES as $denied) {
+            if ($module === $denied || str_starts_with($module, $denied.'.')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canAccessModule(string $module): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $module = trim($module);
+        if ($module === '') {
+            return false;
+        }
+
+        if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
+            return false;
+        }
+
+        // Deny is authoritative for the exact module and all its descendants.
+        if ($this->hasEffectiveDeniedPermission($module)) {
+            return false;
+        }
+
+        // An explicit account-level grant overrides the role default.
+        if ($this->hasEffectiveGrantedPermission($module)) {
+            return true;
+        }
+
+        if ($this->admissionOfficerDefaultDeniesModule($module)) {
+            return false;
+        }
+
+        return $this->roleAllowsModule($module);
+    }
+
     public function canAccessExactModule(string $module): bool
     {
         if ($this->isSuperAdmin()) {
             return true;
         }
+
+        $module = trim($module);
+        if ($module === '') {
+            return false;
+        }
+
         if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
             return false;
         }
-        if ($this->hasDeniedPermission($module)) {
+
+        if ($this->hasEffectiveDeniedPermission($module)) {
             return false;
         }
-        if ($this->hasGrantedPermission($module)) {
+
+        if ($this->hasEffectiveGrantedPermission($module)) {
             return true;
+        }
+
+        if ($this->admissionOfficerDefaultDeniesModule($module)) {
+            return false;
         }
 
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
@@ -1362,8 +1473,8 @@ class User extends Authenticatable
 
     /**
      * The effective permission contract consumed by native clients.
-     * It combines the legacy role matrix with per-staff grants/denies so the
-     * client never has to infer authority from a role label.
+     * Parent denies remove descendant permissions as well, so a stale mobile
+     * session cannot keep a child module that the staff member was denied.
      */
     public function effectivePermissionKeys(): array
     {
@@ -1371,47 +1482,116 @@ class User extends Authenticatable
             return ['*'];
         }
 
-        $permissions = collect(self::ROLE_ACCESS[$this->roleKey()] ?? []);
+        $permissions = collect(self::ROLE_ACCESS[$this->roleKey()] ?? [])
+            ->filter(fn ($permission) => is_string($permission) && $permission !== '');
+
+        $overrides = collect();
         if (Schema::hasTable('staff_permissions')) {
             $overrides = StaffPermission::where('user_id', $this->id)->get();
-            $permissions = $permissions
-                ->reject(fn (string $permission) => $overrides->contains(
-                    fn (StaffPermission $override) => $override->type === 'deny' && $override->module === $permission
-                ))
-                ->merge($overrides->where('type', 'grant')->pluck('module'));
         }
+
+        $denied = $overrides->where('type', 'deny')->pluck('module')
+            ->filter()
+            ->map(fn ($module) => trim((string) $module))
+            ->values();
+
+        $permissions = $permissions->reject(function (string $permission) use ($denied): bool {
+            return $denied->contains(
+                fn (string $module) =>
+                    $permission === $module || str_starts_with($permission, $module.'.')
+            );
+        });
+
+        if ($this->roleKey() === 'admission_officer') {
+            $explicitGrants = $overrides->where('type', 'grant')->pluck('module')->filter();
+
+            $permissions = $permissions->reject(function (string $permission) use ($explicitGrants): bool {
+                foreach (self::ADMISSION_OFFICER_DEFAULT_DENIES as $deniedModule) {
+                    if (
+                        ($permission === $deniedModule || str_starts_with($permission, $deniedModule.'.'))
+                        && ! $explicitGrants->contains($permission)
+                    ) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+        }
+
+        $permissions = $permissions->merge(
+            $overrides->where('type', 'grant')->pluck('module')
+        );
 
         return $permissions->filter()->unique()->sort()->values()->all();
     }
 
+    private function routeMatchesModule(string $routeName, string $module): bool
+    {
+        $prefixes = self::MODULE_ROUTES[$module] ?? [$module];
+
+        foreach ($prefixes as $prefix) {
+            if ($routeName === $prefix || str_starts_with($routeName, $prefix.'.')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
-     * Check if user can access the current named route.
-     * Used in CheckModuleAccess middleware.
+     * Check if user can access a named route. This is the canonical web
+     * permission check used by middleware and navigation.
      */
     public function canAccessRoute(string $routeName): bool
     {
         if ($this->isSuperAdmin()) {
             return true;
         }
+
+        $routeName = trim($routeName);
+        if ($routeName === '') {
+            return false;
+        }
+
         if (($feature = $this->featureForRoute($routeName)) && ! $this->canUseFeature($feature)) {
             return false;
         }
-        $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
-        if (in_array('*', $allowed)) {
-            return true;
-        }
 
-        // Profile is always allowed for authenticated staff
+        // Profile is the only universal staff workspace.
         if (str_starts_with($routeName, 'profile')) {
             return true;
         }
 
-        foreach ($allowed as $module) {
-            $prefixes = self::MODULE_ROUTES[$module] ?? [$module];
-            foreach ($prefixes as $prefix) {
-                if ($routeName === $prefix || str_starts_with($routeName, $prefix.'.')) {
-                    return true;
+        $overrides = Schema::hasTable('staff_permissions')
+            ? StaffPermission::where('user_id', $this->id)->get()
+            : collect();
+
+        foreach ($overrides->where('type', 'deny') as $permission) {
+            $module = trim((string) $permission->module);
+            if ($module !== '' && $this->routeMatchesModule($routeName, $module)) {
+                return false;
+            }
+        }
+
+        foreach ($overrides->where('type', 'grant') as $permission) {
+            $module = trim((string) $permission->module);
+            if ($module !== '' && $this->routeMatchesModule($routeName, $module)) {
+                return true;
+            }
+        }
+
+        if ($this->roleKey() === 'admission_officer') {
+            foreach (self::ADMISSION_OFFICER_DEFAULT_DENIES as $module) {
+                if ($this->routeMatchesModule($routeName, $module)) {
+                    return false;
                 }
+            }
+        }
+
+        foreach (self::ROLE_ACCESS[$this->roleKey()] ?? [] as $module) {
+            if ($module === '*' || $this->routeMatchesModule($routeName, (string) $module)) {
+                return true;
             }
         }
 
@@ -1420,22 +1600,34 @@ class User extends Authenticatable
 
     /**
      * Shorthand for Blade: can user perform write actions on a feature?
-     * Used to show/hide Add/Edit/Delete buttons in views.
      */
     public function canManage(string $module): bool
     {
         if ($this->isSuperAdmin()) {
             return true;
         }
+
+        $module = trim($module);
+        if ($module === '') {
+            return false;
+        }
+
         if (($feature = $this->featureForModule($module)) && ! $this->canUseFeature($feature)) {
             return false;
         }
-        if ($this->hasDeniedPermission($module)) {
+
+        if ($this->hasEffectiveDeniedPermission($module)) {
             return false;
         }
-        if ($this->hasGrantedPermission($module)) {
+
+        if ($this->hasEffectiveGrantedPermission($module)) {
             return true;
         }
+
+        if ($this->admissionOfficerDefaultDeniesModule($module)) {
+            return false;
+        }
+
         $allowed = self::ROLE_ACCESS[$this->roleKey()] ?? [];
 
         return in_array('*', $allowed, true) || in_array($module, $allowed, true);
