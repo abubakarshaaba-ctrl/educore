@@ -215,6 +215,33 @@ class MobileParallelCurriculumResultsAdminTest extends TestCase
             ->assertJsonPath('student.subjects.0.grade', 'A')
             ->assertJsonPath('student.subjects.0.components.0.name', 'CA');
 
+        $csv = $this->withToken($token)
+            ->get(
+                '/api/v1/parallel-curriculum/results/export?class_id='.
+                $class->id.'&term_id='.$term->id.'&format=csv'
+            );
+
+        $csv->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('PC-001', $csv->streamedContent());
+        $this->assertStringContainsString('Amina Bello', $csv->streamedContent());
+
+        $this->withToken($token)
+            ->get(
+                '/api/v1/parallel-curriculum/results/export?class_id='.
+                $class->id.'&term_id='.$term->id.'&format=pdf'
+            )
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->withToken($token)
+            ->get(
+                '/api/v1/parallel-curriculum/results/classes/'.
+                $class->id.'/students/'.$student->id.'/pdf?term_id='.$term->id
+            )
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
         $this->withToken($token)
             ->postJson('/api/v1/parallel-curriculum/results/publish', [
                 'class_id' => $class->id,
