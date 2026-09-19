@@ -121,9 +121,6 @@ Route::get('/blog/{slug}', [\App\Http\Controllers\BlogController::class, 'show']
 Route::get('/deploy/pull', [\App\Http\Controllers\SelfDeployController::class, 'pull'])
     ->middleware('throttle:5,10')
     ->name('deploy.pull');
-Route::get('/deploy/parallel-diagnostics', [\App\Http\Controllers\SelfDeployController::class, 'parallelDiagnostics'])
-    ->middleware('throttle:5,10')
-    ->name('deploy.parallel-diagnostics');
 
 // Unified mobile app download — serves the signed production APK.
 Route::get('/download/app', function () {
@@ -492,8 +489,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
 
     // ── Parallel Curriculum Integration ───────────────────────────────
     Route::prefix('parallel-curriculum')->name('parallel-curriculum.')->group(function () {
-        Route::get('/', \App\Http\Controllers\ParallelCurriculumWorkspaceController::class)->name('index');
-        Route::get('diagnostics', \App\Http\Controllers\ParallelCurriculumDiagnosticsController::class)->name('diagnostics');
+        Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
         Route::get('student-assignments', [\App\Http\Controllers\ParallelCurriculumController::class, 'studentAssignments'])->name('student-assignments');
         Route::get('lifecycle', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'index'])->name('lifecycle.index');
         Route::post('lifecycle/arms', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArm'])->name('lifecycle.arms.store');
