@@ -112,8 +112,8 @@ data class ParallelStaffAttendance(
     val closingTime: String? = null,
     val graceMinutes: Int = 0,
     val canClockSelf: Boolean = false,
-    val selfRecord: ParallelStaffAttendanceSelfRecord? = null,
     val staff: List<ParallelStaffAttendancePerson> = emptyList(),
+    val selfRecord: ParallelStaffAttendanceSelfRecord? = null,
 )
 
 data class ParallelStaffAttendanceSelfRecord(
@@ -135,8 +135,8 @@ data class ParallelStaffAttendancePerson(
 data class ParallelOperationsAttendance(
     val date: String,
     val version: String,
-    val isWorkingDay: Boolean = true,
     val students: List<ParallelOperationsAttendanceStudent>,
+    val isWorkingDay: Boolean = true,
 )
 
 data class ParallelOperationsAttendanceStudent(
