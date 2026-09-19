@@ -142,10 +142,11 @@ class MobileModuleService
         $roleKey = strtolower((string) $user->roleKey());
         $isAccountant = $user->isAccountant() || in_array($roleKey, ['accountant', 'bursar', 'finance_officer'], true);
         $isSchoolAdmin = $user->isAdmin() || in_array($roleKey, self::STAFF_ATTENDANCE_MANAGEMENT_ROLES, true);
+        $isParallelManager = $this->parallel->canManageLifecycle($user);
         $isAcademicStaff = $this->isAcademicStaff($user);
 
         return collect(self::STAFF_MODULES)
-            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isAcademicStaff, $roleKey): bool {
+            ->filter(function (array $definition, string $key) use ($user, $isAccountant, $isSchoolAdmin, $isParallelManager, $isAcademicStaff, $roleKey): bool {
                 if ($isAccountant && ! in_array($key, self::ACCOUNTANT_MODULES, true)) {
                     return false;
                 }
@@ -155,8 +156,7 @@ class MobileModuleService
                 }
 
                 if ($key === 'parallel-curriculum') {
-                    return $isSchoolAdmin
-                        && (bool) $user->tenant_id
+                    return $isParallelManager
                         && $this->parallel->enabledForTenant((int) $user->tenant_id);
                 }
 
