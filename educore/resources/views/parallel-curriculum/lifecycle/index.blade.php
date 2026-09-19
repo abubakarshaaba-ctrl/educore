@@ -80,47 +80,107 @@
 </div>
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>3. Arm-specific subject teachers</strong><br><span>Each class-level subject keeps its default teacher unless an arm override is selected here.</span></div></div><div class="body">
-@if(!$armTeacherOverridesReady)
+<section class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm: one class teacher for every subject, or subject-based teachers that can work across multiple classes.</span></div></div><div class="body">
+@if(!$armTeachingModesReady)
     <div class="alert-e" style="margin:0">
-        Arm-specific teacher overrides are waiting for the latest database migration. The rest of Parallel Curriculum remains available.
+        Teaching assignment modes are waiting for the latest database migration. Existing subject-teacher assignments remain available.
     </div>
 @else
 @foreach($selectedCurriculum->classes as $class)
 <div class="level">
-    <div class="rule"><strong>{{ $class->name }}</strong><span>{{ $class->arms->where('is_active',true)->count() }} active arm(s) · {{ $class->subjectAssignments->where('is_active',true)->count() }} active subject(s)</span></div>
+    <div class="rule">
+        <strong>{{ $class->name }}</strong>
+        <span>{{ $class->arms->where('is_active',true)->count() }} active arm(s) · {{ $class->subjectAssignments->where('is_active',true)->count() }} active subject(s)</span>
+    </div>
+
     @forelse($class->arms->where('is_active',true) as $arm)
-        <div class="arm" style="margin-top:8px">
+        @php($teachingMode=$arm->teaching_assignment_mode ?: 'subject_based')
+        <div class="arm" style="margin-top:10px;padding:12px;border:1px solid #E4E7EC;border-radius:10px">
             <strong>{{ $class->name }} {{ $arm->name }}</strong>
-            @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
-                @php($override=$arm->subjectTeachers->where('is_active',true)->firstWhere('parallel_curriculum_subject_id',$assignment->parallel_curriculum_subject_id))
-                <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teachers.store') }}" style="margin-top:9px;padding-top:9px;border-top:1px solid #EEF2F7">
-                    @csrf
-                    <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
-                    <input type="hidden" name="parallel_curriculum_subject_id" value="{{ $assignment->parallel_curriculum_subject_id }}">
-                    <div class="row">
-                        <div class="fg" style="margin:0">
-                            <label class="fl">{{ $assignment->subject?->name }}</label>
-                            <div class="hint">Class default: {{ $assignment->teacher?->name ?: 'Admin / unassigned' }}</div>
-                        </div>
-                        <div class="fg" style="margin:0">
-                            <label class="fl">Teacher for this arm</label>
-                            <select class="fc" name="teacher_id">
-                                <option value="">Use class default{{ $assignment->teacher ? ' · '.$assignment->teacher->name : '' }}</option>
-                                @foreach($staff as $teacher)
-                                    <option value="{{ $teacher->id }}" @selected((int)($override?->teacher_id ?? 0)===(int)$teacher->id)>{{ $teacher->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+            <div class="hint" style="margin-top:3px">
+                Current model:
+                {{ $teachingMode === 'class_teacher' ? 'One class teacher · all subjects' : 'Subject-based teachers' }}
+            </div>
+
+            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teaching-mode.store') }}" style="margin-top:10px">
+                @csrf
+                <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
+                <div class="row">
+                    <div class="fg" style="margin:0">
+                        <label class="fl">Teaching assignment mode</label>
+                        <select class="fc" name="teaching_assignment_mode" required>
+                            <option value="class_teacher" @selected($teachingMode==='class_teacher')>One class teacher · all subjects</option>
+                            <option value="subject_based" @selected($teachingMode==='subject_based')>Subject-based teachers</option>
+                        </select>
+                        <div class="hint">Subject-based mode allows the same teacher to teach the same or different subjects in several classes/arms.</div>
                     </div>
-                    <div style="margin-top:7px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-                        <span class="hint">Effective teacher: {{ $override?->teacher?->name ?: ($assignment->teacher?->name ?: 'Admin / unassigned') }}</span>
-                        <button class="btn s" type="submit">Save Teacher</button>
+                    <div class="fg" style="margin:0">
+                        <label class="fl">Class teacher · required for all-subject mode</label>
+                        <select class="fc" name="class_teacher_id">
+                            <option value="">Select teacher</option>
+                            @foreach($staff as $teacher)
+                                <option value="{{ $teacher->id }}" @selected((int)($arm->class_teacher_id ?? 0)===(int)$teacher->id)>{{ $teacher->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="hint">Ignored when Subject-based teachers is selected.</div>
                     </div>
-                </form>
-            @empty
-                <span>No active subjects assigned to this class.</span>
-            @endforelse
+                </div>
+                <div style="margin-top:9px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                    <span class="hint">
+                        @if($teachingMode==='class_teacher')
+                            Effective teacher for every subject: {{ $arm->classTeacher?->name ?: 'Not assigned' }}
+                        @else
+                            Teachers resolve per subject for this arm.
+                        @endif
+                    </span>
+                    <button class="btn p" type="submit">Save Assignment Model</button>
+                </div>
+            </form>
+
+            @if($teachingMode==='subject_based')
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid #EEF2F7">
+                    <strong style="font-size:11px">Subject teacher assignments</strong>
+                    <div class="hint">Each subject may use its class-level default teacher or a different teacher for this arm.</div>
+
+                    @if(!$armTeacherOverridesReady)
+                        <div class="alert-e" style="margin-top:9px">Arm-specific subject overrides require the latest database migration.</div>
+                    @else
+                        @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
+                            @php($override=$arm->subjectTeachers->where('is_active',true)->firstWhere('parallel_curriculum_subject_id',$assignment->parallel_curriculum_subject_id))
+                            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teachers.store') }}" style="margin-top:9px;padding-top:9px;border-top:1px solid #EEF2F7">
+                                @csrf
+                                <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
+                                <input type="hidden" name="parallel_curriculum_subject_id" value="{{ $assignment->parallel_curriculum_subject_id }}">
+                                <div class="row">
+                                    <div class="fg" style="margin:0">
+                                        <label class="fl">{{ $assignment->subject?->name }}</label>
+                                        <div class="hint">Class default: {{ $assignment->teacher?->name ?: 'Admin / unassigned' }}</div>
+                                    </div>
+                                    <div class="fg" style="margin:0">
+                                        <label class="fl">Teacher for this arm</label>
+                                        <select class="fc" name="teacher_id">
+                                            <option value="">Use class default{{ $assignment->teacher ? ' · '.$assignment->teacher->name : '' }}</option>
+                                            @foreach($staff as $teacher)
+                                                <option value="{{ $teacher->id }}" @selected((int)($override?->teacher_id ?? 0)===(int)$teacher->id)>{{ $teacher->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="margin-top:7px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                                    <span class="hint">Effective teacher: {{ $override?->teacher?->name ?: ($assignment->teacher?->name ?: 'Admin / unassigned') }}</span>
+                                    <button class="btn s" type="submit">Save Subject Teacher</button>
+                                </div>
+                            </form>
+                        @empty
+                            <div class="hint" style="margin-top:8px">No active subjects assigned to this class.</div>
+                        @endforelse
+                    @endif
+                </div>
+            @else
+                <div class="hint" style="margin-top:12px;padding-top:10px;border-top:1px solid #EEF2F7">
+                    This class teacher is automatically the effective teacher for all active subjects in this arm. Subject overrides are preserved but ignored until Subject-based teachers is selected again.
+                </div>
+            @endif
         </div>
     @empty
         <div class="hint">Create at least one active arm for this class level.</div>
