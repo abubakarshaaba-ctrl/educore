@@ -128,7 +128,7 @@
                 <div style="margin-top:9px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
                     <span class="hint">
                         @if($teachingMode==='class_teacher')
-                            Effective teacher for every subject: {{ $arm->classTeacher?->name ?: 'Not assigned' }}
+                            Effective teacher for every subject: {{ $arm->classTeacher?->name ?: 'Not assigned' }} · also the form teacher for learner attendance and term comments
                         @else
                             Teachers resolve per subject for this arm.
                         @endif
@@ -178,7 +178,7 @@
                 </div>
             @else
                 <div class="hint" style="margin-top:12px;padding-top:10px;border-top:1px solid #EEF2F7">
-                    This class teacher is automatically the effective teacher for all active subjects in this arm. Subject overrides are preserved but ignored until Subject-based teachers is selected again.
+                    This class teacher is automatically the effective teacher for all active subjects and the form teacher for this arm, including learner attendance and term-specific form-teacher comments. Subject overrides are preserved but ignored until Subject-based teachers is selected again.
                 </div>
             @endif
         </div>
