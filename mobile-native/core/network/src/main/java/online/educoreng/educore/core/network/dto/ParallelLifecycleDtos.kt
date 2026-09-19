@@ -5,10 +5,15 @@ import online.educoreng.educore.core.model.ParallelLifecycleArm
 import online.educoreng.educore.core.model.ParallelLifecycleArmSubjectTeacher
 import online.educoreng.educore.core.model.ParallelLifecycleClass
 import online.educoreng.educore.core.model.ParallelLifecycleCurriculum
+import online.educoreng.educore.core.model.ParallelLifecycleConventionalClassArm
 import online.educoreng.educore.core.model.ParallelLifecycleEnrolment
 import online.educoreng.educore.core.model.ParallelLifecycleGrade
 import online.educoreng.educore.core.model.ParallelLifecyclePromotionRule
 import online.educoreng.educore.core.model.ParallelLifecycleSession
+import online.educoreng.educore.core.model.ParallelLifecycleStudent
+import online.educoreng.educore.core.model.ParallelLifecycleStudentAssignment
+import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
+import online.educoreng.educore.core.model.ParallelLifecyclePagination
 import online.educoreng.educore.core.model.ParallelLifecycleStaff
 import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
@@ -148,6 +153,44 @@ data class ParallelPromotionHistoryDto(
     @param:Json(name = "processed_at") val processedAt: String? = null,
 )
 
+data class ParallelLifecycleStudentPageDto(
+    @param:Json(name = "parallel_curriculum_id") val parallelCurriculumId: Long,
+    @param:Json(name = "session_id") val sessionId: Long,
+    @param:Json(name = "conventional_class_arms") val conventionalClassArms: List<ParallelLifecycleConventionalClassArmDto> = emptyList(),
+    val students: List<ParallelLifecycleStudentDto> = emptyList(),
+    val pagination: ParallelLifecyclePaginationDto,
+)
+
+data class ParallelLifecycleConventionalClassArmDto(
+    val id: Long,
+    val name: String,
+)
+
+data class ParallelLifecycleStudentDto(
+    val id: Long,
+    val name: String,
+    @param:Json(name = "admission_number") val admissionNumber: String,
+    val gender: String? = null,
+    @param:Json(name = "conventional_class_arm_id") val conventionalClassArmId: Long? = null,
+    @param:Json(name = "conventional_class_name") val conventionalClassName: String? = null,
+    val assignment: ParallelLifecycleStudentAssignmentDto? = null,
+)
+
+data class ParallelLifecycleStudentAssignmentDto(
+    @param:Json(name = "enrolment_id") val enrolmentId: Long,
+    @param:Json(name = "class_id") val classId: Long,
+    @param:Json(name = "class_name") val className: String? = null,
+    @param:Json(name = "arm_id") val armId: Long? = null,
+    @param:Json(name = "arm_name") val armName: String? = null,
+)
+
+data class ParallelLifecyclePaginationDto(
+    @param:Json(name = "current_page") val currentPage: Int,
+    @param:Json(name = "last_page") val lastPage: Int,
+    @param:Json(name = "per_page") val perPage: Int,
+    val total: Int,
+)
+
 data class ParallelPromotionPreviewResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int = 1,
     @param:Json(name = "source_session") val sourceSession: ParallelLifecycleSessionDto,
@@ -191,6 +234,13 @@ data class ParallelTransferRequestDto(
     @param:Json(name = "destination_arm_id") val destinationArmId: Long,
     val reason: String,
     @param:Json(name = "effective_date") val effectiveDate: String? = null,
+)
+
+data class ParallelStudentAssignmentRequestDto(
+    @param:Json(name = "parallel_curriculum_class_id") val parallelCurriculumClassId: Long,
+    @param:Json(name = "parallel_curriculum_class_arm_id") val parallelCurriculumClassArmId: Long,
+    @param:Json(name = "session_id") val sessionId: Long,
+    @param:Json(name = "student_ids") val studentIds: List<Long>,
 )
 
 data class ParallelArmMutationRequestDto(
@@ -345,6 +395,40 @@ private fun ParallelPromotionHistoryDto.toDomain() =
         failedSubjects,
         reason,
         processedAt,
+    )
+
+fun ParallelLifecycleStudentPageDto.toDomain(): ParallelLifecycleStudentPage =
+    ParallelLifecycleStudentPage(
+        curriculumId = parallelCurriculumId,
+        sessionId = sessionId,
+        conventionalClassArms = conventionalClassArms.map {
+            ParallelLifecycleConventionalClassArm(it.id, it.name)
+        },
+        students = students.map { student ->
+            ParallelLifecycleStudent(
+                id = student.id,
+                name = student.name,
+                admissionNumber = student.admissionNumber,
+                gender = student.gender,
+                conventionalClassArmId = student.conventionalClassArmId,
+                conventionalClassName = student.conventionalClassName,
+                assignment = student.assignment?.let { assignment ->
+                    ParallelLifecycleStudentAssignment(
+                        enrolmentId = assignment.enrolmentId,
+                        classId = assignment.classId,
+                        className = assignment.className,
+                        armId = assignment.armId,
+                        armName = assignment.armName,
+                    )
+                },
+            )
+        },
+        pagination = ParallelLifecyclePagination(
+            currentPage = pagination.currentPage,
+            lastPage = pagination.lastPage,
+            perPage = pagination.perPage,
+            total = pagination.total,
+        ),
     )
 
 fun ParallelPromotionPreviewResponseDto.toDomain(): ParallelPromotionPreview =
