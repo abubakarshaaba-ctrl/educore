@@ -2976,7 +2976,12 @@ private fun ParallelAttendanceCard(
             return@EduCoreDashboardCard
         }
 
-        var drafts by remember(attendance.version) {
+        var drafts by remember(
+            attendance.version,
+            attendance.date,
+            operations.selected.armId,
+            attendance.students.map { it.enrolmentId },
+        ) {
             mutableStateOf(
                 attendance.students.map {
                     ParallelAttendanceDraft(
