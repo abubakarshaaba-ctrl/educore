@@ -29,6 +29,7 @@ import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 
 @Composable
 fun ParallelCurriculumOperationsScreen(
@@ -37,6 +38,9 @@ fun ParallelCurriculumOperationsScreen(
     onLoadContext: (Long?, Long?, Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -164,6 +168,9 @@ fun ParallelCurriculumOperationsScreen(
                 },
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+                onSaveWorkingDays = onSaveWorkingDays,
+                onClockInParallelStaff = onClockInParallelStaff,
+                onClockOutParallelStaff = onClockOutParallelStaff,
                 onSaveParallelAttendance = onSaveParallelAttendance,
                 onDownloadAttendanceExport = onDownloadAttendanceExport,
             )
