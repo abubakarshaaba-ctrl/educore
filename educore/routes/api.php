@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function () {
             Route::post('periods', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'storePeriod']);
             Route::delete('periods/{period}', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'destroyPeriod']);
             Route::post('attendance', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'saveAttendance']);
+            Route::get('attendance/export', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'exportAttendance']);
         });
 
         Route::prefix('parallel-curriculum/results')->group(function () {
