@@ -25,6 +25,11 @@ import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewRespons
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
@@ -183,6 +188,59 @@ interface EduCoreApi {
         @Query("parallel_curriculum_id") curriculumId: Long? = null,
         @Query("session_id") sessionId: Long? = null,
     ): ParallelLifecycleResponseDto
+
+    @POST("parallel-curriculum/lifecycle/programmes")
+    suspend fun createParallelProgramme(
+        @Body request: ParallelProgrammeMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/programmes/{curriculum}")
+    suspend fun updateParallelProgramme(
+        @Path("curriculum") curriculumId: Long,
+        @Body request: ParallelProgrammeMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/classes")
+    suspend fun createParallelClass(
+        @Body request: ParallelClassMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/classes/{class}")
+    suspend fun updateParallelClass(
+        @Path("class") classId: Long,
+        @Body request: ParallelClassMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/subjects")
+    suspend fun createParallelSubject(
+        @Body request: ParallelSubjectMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/subjects/{subject}")
+    suspend fun updateParallelSubject(
+        @Path("subject") subjectId: Long,
+        @Body request: ParallelSubjectMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/class-subjects")
+    suspend fun saveParallelClassSubject(
+        @Body request: ParallelClassSubjectMutationRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/class-subjects/{assignment}")
+    suspend fun removeParallelClassSubject(
+        @Path("assignment") assignmentId: Long,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/programme-grades")
+    suspend fun saveParallelProgrammeGrade(
+        @Body request: ParallelProgrammeGradeMutationRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/programme-grades/{grade}")
+    suspend fun deleteParallelProgrammeGrade(
+        @Path("grade") gradeId: Long,
+    ): MessageDto
 
     @GET("parallel-curriculum/lifecycle/students")
     suspend fun parallelLifecycleStudents(
