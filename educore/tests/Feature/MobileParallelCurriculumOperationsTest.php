@@ -9,6 +9,7 @@ use App\Models\ClassArm;
 use App\Models\ClassLevel;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumAttendanceRecord;
 use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumEnrolment;
@@ -272,6 +273,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('capabilities.manage_timetable', false)
             ->assertJsonPath('capabilities.save_attendance', true)
+            ->assertJsonPath('capabilities.export_attendance', false)
             ->assertJsonPath('attendance.students.0.enrolment_id', $enrolment->id);
 
         $version = $response->json('attendance.version');
@@ -302,6 +304,78 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 'end_time' => '11:40',
             ])
             ->assertForbidden();
+    }
+
+    public function test_parallel_attendance_exports_csv_and_pdf_for_authorized_admin(): void
+    {
+        $context = $this->context();
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => now()->subMonth()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+            'is_current' => true,
+        ]);
+
+        $student = Student::create([
+            'tenant_id' => $context['tenant']->id,
+            'admission_number' => 'PC-EXP-001',
+            'first_name' => 'Zainab',
+            'last_name' => 'Sani',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+
+        $enrolment = ParallelCurriculumEnrolment::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'student_id' => $student->id,
+            'session_id' => $context['session']->id,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumAttendanceRecord::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'parallel_curriculum_enrolment_id' => $enrolment->id,
+            'student_id' => $student->id,
+            'term_id' => $term->id,
+            'marked_by' => $context['admin']->id,
+            'attendance_date' => now()->toDateString(),
+            'status' => 'present',
+        ]);
+
+        $token = ApiToken::issue($context['admin'], 'parallel-attendance-export');
+
+        $csv = $this->withToken($token)->get(
+            '/api/v1/parallel-curriculum/operations/attendance/export?'.
+            http_build_query([
+                'arm_id' => $context['arm']->id,
+                'term_id' => $term->id,
+                'format' => 'csv',
+            ])
+        );
+
+        $csv->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $csv->headers->get('content-type'));
+        $this->assertStringContainsString('PC-EXP-001', $csv->streamedContent());
+        $this->assertStringContainsString('Zainab Sani', $csv->streamedContent());
+
+        $pdf = $this->withToken($token)->get(
+            '/api/v1/parallel-curriculum/operations/attendance/export?'.
+            http_build_query([
+                'arm_id' => $context['arm']->id,
+                'term_id' => $term->id,
+                'format' => 'pdf',
+            ])
+        );
+
+        $pdf->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $pdf->headers->get('content-type'));
     }
 
     public function test_parallel_attendance_is_saved_separately_from_conventional_attendance(): void
