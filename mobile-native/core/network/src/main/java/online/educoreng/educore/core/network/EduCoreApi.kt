@@ -24,6 +24,11 @@ import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
+import online.educoreng.educore.core.network.dto.ParallelOperationsResponseDto
+import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelPeriodMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationResponseDto
 import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
 import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
 import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
@@ -224,6 +229,31 @@ interface EduCoreApi {
     suspend fun unpublishParallelResult(
         @Body request: ParallelResultPublicationRequestDto,
     ): MessageDto
+
+    @GET("parallel-curriculum/operations")
+    suspend fun parallelOperations(
+        @Query("parallel_curriculum_id") curriculumId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("class_id") classId: Long? = null,
+        @Query("arm_id") armId: Long? = null,
+        @Query("date") date: String? = null,
+    ): ParallelOperationsResponseDto
+
+    @POST("parallel-curriculum/operations/periods")
+    suspend fun createParallelTimetablePeriod(
+        @Body request: ParallelPeriodMutationRequestDto,
+    ): ParallelPeriodMutationResponseDto
+
+    @DELETE("parallel-curriculum/operations/periods/{period}")
+    suspend fun deleteParallelTimetablePeriod(
+        @Path("period") periodId: Long,
+    ): MessageDto
+
+    @POST("parallel-curriculum/operations/attendance")
+    suspend fun saveParallelAttendance(
+        @Body request: ParallelAttendanceMutationRequestDto,
+    ): ParallelAttendanceMutationResponseDto
 
     @GET("parallel-curriculum/lifecycle")
     suspend fun parallelLifecycle(
