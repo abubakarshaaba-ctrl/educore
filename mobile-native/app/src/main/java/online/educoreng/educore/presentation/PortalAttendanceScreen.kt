@@ -24,6 +24,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
+import online.educoreng.educore.core.designsystem.component.EduCoreWarningBanner
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -64,6 +65,14 @@ fun PortalAttendanceScreen(
                 ).joinToString(" · "),
                 onBack = onBack,
             )
+        }
+
+        if (workspace.isFromCache) {
+            item {
+                EduCoreWarningBanner(
+                    "Showing the latest attendance saved on this device. Connect to the internet to refresh."
+                )
+            }
         }
 
         if (workspace.children.size > 1) {
