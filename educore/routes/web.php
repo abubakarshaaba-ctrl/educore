@@ -526,6 +526,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::delete('enrolments/{enrolment}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyEnrolment'])->name('enrolments.destroy');
         Route::post('integrations', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeIntegration'])->name('integrations.store');
         Route::delete('integrations/{integration}', [\App\Http\Controllers\ParallelCurriculumController::class, 'destroyIntegration'])->name('integrations.destroy');
+        Route::get('form-teacher-comments', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'formTeacherComments'])->name('form-teacher-comments.index');
+        Route::post('form-teacher-comments', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'saveFormTeacherComments'])->name('form-teacher-comments.save');
         Route::get('results', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'index'])->name('results.index');
         Route::get('results/class/{class}/student/{student}', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'student'])->name('results.student');
         Route::get('results/class/{class}/student/{student}/pdf', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'pdf'])->name('results.student.pdf');
