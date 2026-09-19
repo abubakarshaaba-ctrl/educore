@@ -165,10 +165,11 @@ object FoundationModule {
     @Provides
     @Singleton
     fun provideParallelCurriculumLifecycleRepository(
+        @ApplicationContext context: Context,
         api: EduCoreApi,
         moshi: Moshi,
     ): ParallelCurriculumLifecycleRepository =
-        DefaultParallelCurriculumLifecycleRepository(api, moshi)
+        DefaultParallelCurriculumLifecycleRepository(context, api, moshi)
 
     @Provides
     @Singleton
