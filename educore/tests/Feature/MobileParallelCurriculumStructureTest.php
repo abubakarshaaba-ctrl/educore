@@ -8,6 +8,7 @@ use App\Models\AssessmentTemplate;
 use App\Models\StaffPermission;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Mobile\MobileModuleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -50,6 +51,12 @@ class MobileParallelCurriculumStructureTest extends TestCase
         ]);
 
         $this->assertTrue($teacher->fresh()->canAccessExactModule('scores'));
+        $this->assertNotContains(
+            'parallel-curriculum',
+            collect(app(MobileModuleService::class)->forUser($teacher->fresh()))
+                ->pluck('key')
+                ->all()
+        );
 
         $token = ApiToken::issue($teacher, 'parallel-rbac-test');
 
@@ -92,6 +99,13 @@ class MobileParallelCurriculumStructureTest extends TestCase
             'is_active' => true,
             'employment_status' => User::STAFF_STATUS_ACTIVE,
         ]);
+
+        $this->assertContains(
+            'parallel-curriculum',
+            collect(app(MobileModuleService::class)->forUser($director->fresh()))
+                ->pluck('key')
+                ->all()
+        );
 
         $token = ApiToken::issue($director, 'parallel-leadership-test');
 
