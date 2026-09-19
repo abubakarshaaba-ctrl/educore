@@ -61,7 +61,11 @@ class ParallelCurriculumPortalService
             ->sortBy(fn (ParallelCurriculumTimetablePeriod $period) =>
                 sprintf(
                     '%02d-%s',
-                    array_search($period->day_of_week, ['monday','tuesday','wednesday','thursday','friday'], true) ?: 0,
+                    array_search(
+                        $period->day_of_week,
+                        ParallelCurriculumOperationsService::DAYS,
+                        true
+                    ) ?: 0,
                     substr((string) $period->start_time, 0, 5)
                 )
             )
