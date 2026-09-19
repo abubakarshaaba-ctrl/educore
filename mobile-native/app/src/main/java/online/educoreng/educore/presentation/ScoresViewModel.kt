@@ -38,6 +38,7 @@ class ScoresViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScoresUiState())
     val uiState: StateFlow<ScoresUiState> = _uiState.asStateFlow()
     private var draftJob: Job? = null
+    private var activeWorkspaceType: String = "conventional"
 
     fun loadAssignments() = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, sheet = null) }
@@ -47,13 +48,22 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
-    fun openSheet(classId: Long, subjectId: Long, termId: Long?) = viewModelScope.launch {
+    fun openSheet(
+        classId: Long,
+        subjectId: Long,
+        termId: Long?,
+        workspaceType: String = "conventional",
+    ) = viewModelScope.launch {
+        activeWorkspaceType = workspaceType
         _uiState.update { it.copy(isLoading = true, errorMessage = null, sheet = null) }
-        when (val result = repository.loadSheet(classId, subjectId, termId)) {
+        when (val result = repository.loadSheet(workspaceType, classId, subjectId, termId)) {
             is AppResult.Success -> _uiState.update { it.copy(sheet = result.value, isLoading = false) }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
     }
+
+    fun retrySheet(classId: Long, subjectId: Long, termId: Long?) =
+        openSheet(classId, subjectId, termId, activeWorkspaceType)
 
     fun setSearch(value: String) = _uiState.update { it.copy(search = value) }
 
@@ -97,7 +107,7 @@ class ScoresViewModel @Inject constructor(
         val sheet = _uiState.value.sheet ?: return
         viewModelScope.launch {
             repository.discardDraft(sheet)
-            openSheet(sheet.classId, sheet.subjectId, sheet.termId)
+            openSheet(sheet.classId, sheet.subjectId, sheet.termId, sheet.workspaceType)
         }
     }
 
