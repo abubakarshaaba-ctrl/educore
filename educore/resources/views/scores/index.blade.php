@@ -110,6 +110,9 @@
                 @endif
                 <div class="parallel-score-actions">
                     <a class="parallel-score-open" href="{{ $workspace['score_sheet_url'] }}">Open Score Sheet</a>
+                    @if(!empty($workspace['attendance_url']))
+                        <a class="parallel-score-comment" href="{{ $workspace['attendance_url'] }}">Mark Attendance</a>
+                    @endif
                     @if(!empty($workspace['form_teacher_comments_url']))
                         <a class="parallel-score-comment" href="{{ $workspace['form_teacher_comments_url'] }}">Form Teacher Comments</a>
                     @endif
