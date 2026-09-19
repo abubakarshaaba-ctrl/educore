@@ -38,7 +38,10 @@ fun ParallelCurriculumOperationsScreen(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
+    onDocumentOpened: () -> Unit,
 ) {
+    OpenDocumentEffect(state.downloadedDocument, onDocumentOpened)
     LaunchedEffect(Unit) {
         val selected = state.operationsWorkspace?.selected
         onLoadContext(
@@ -162,6 +165,7 @@ fun ParallelCurriculumOperationsScreen(
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
                 onSaveParallelAttendance = onSaveParallelAttendance,
+                onDownloadAttendanceExport = onDownloadAttendanceExport,
             )
         }
     }
