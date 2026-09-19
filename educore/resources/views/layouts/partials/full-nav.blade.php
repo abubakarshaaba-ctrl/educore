@@ -43,7 +43,12 @@
     @endif
 
     {{-- ACADEMICS --}}
-    @php $u = auth()->user(); @endphp
+    @php
+        $u = auth()->user();
+        $parallelCurriculumEnabled = $u?->tenant_id
+            ? app(\App\Services\ParallelCurriculumService::class)->enabledForTenant((int) $u->tenant_id)
+            : false;
+    @endphp
     @if($u->isAdmin() || $u->isTeacher() || $u->canAccessModule('students') || $u->canAccessModule('staff') || $u->canAccessModule('classes') || $u->canAccessModule('academic-cycle') || $u->canAccessModule('subjects') || $u->canAccessModule('curriculum') || $u->canAccessModule('attendance') || $u->canAccessModule('timetable') || $u->canAccessModule('skills'))
     <div class="nav-section">
         <div class="nav-section-label">Academics</div>
@@ -190,6 +195,12 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
             <span class="nav-label">Scores</span>
         </a>
+        @if($parallelCurriculumEnabled)
+        <a href="{{ route('parallel-curriculum.index') }}" class="nav-item {{ request()->routeIs('parallel-curriculum.*') ? 'active' : '' }}" data-tip="Parallel Curriculum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 8l10 5 8-4v6h2V8L12 3zm-6 9.1V16l6 3 6-3v-3.9l-6 3-6-3z"/></svg>
+            <span class="nav-label">Parallel Curriculum</span>
+        </a>
+        @endif
         @endif
         @if($u->canManage('reports'))
         <a href="{{ route('reports.index') }}" class="nav-item {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tip="Report Cards">
