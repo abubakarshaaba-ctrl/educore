@@ -143,9 +143,11 @@ class MobileParallelCurriculumOperationsController extends Controller
         $attendance = null;
         if ($arm && $termId && $canSaveAttendance) {
             $sheet = $this->operations->attendanceSheet($user, $arm->id, $termId, $date);
+            $canSaveAttendance = (bool) $sheet['can_save'];
             $attendance = [
                 'date' => $sheet['date'],
                 'version' => $sheet['version'],
+                'is_working_day' => (bool) $sheet['is_working_day'],
                 'students' => $sheet['enrolments']->map(function ($enrolment) use ($sheet): array {
                     $record = $sheet['records']->get($enrolment->id);
 
