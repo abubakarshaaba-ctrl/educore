@@ -5,17 +5,22 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
 use App\Models\ParallelCurriculum;
+use App\Models\ParallelCurriculumArmSubjectTeacher;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassGrade;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumPromotion;
 use App\Models\ParallelCurriculumPromotionRule;
+use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
+use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -30,15 +35,24 @@ class MobileParallelCurriculumLifecycleController extends Controller
     {
         $tenantId = $this->assertManage($request);
 
+        $armTeacherOverridesReady = Schema::hasTable(
+            'parallel_curriculum_arm_subject_teachers'
+        );
+
+        $classRelations = [
+            'classGrades',
+            'promotionRule.destinationClass',
+            'subjectAssignments.subject',
+            'subjectAssignments.teacher',
+        ];
+
+        $classRelations[] = $armTeacherOverridesReady
+            ? 'arms.subjectTeachers.teacher'
+            : 'arms';
+
         $curricula = ParallelCurriculum::with([
                 'classes' => fn ($query) => $query
-                    ->with([
-                        'arms' => fn ($armQuery) => $armQuery
-                            ->orderBy('sort_order')
-                            ->orderBy('name'),
-                        'classGrades',
-                        'promotionRule.destinationClass',
-                    ])
+                    ->with($classRelations)
                     ->orderBy('sort_order')
                     ->orderBy('name'),
                 'grades',
@@ -46,6 +60,20 @@ class MobileParallelCurriculumLifecycleController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+
+        $staff = User::where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->whereIn('role', User::staffRoleNames())
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $person) =>
+                ! $person->isAccountant()
+                && (
+                    $person->canAccessExactModule('scores')
+                    || $person->canAccessExactModule('scores.entry')
+                )
+            )
+            ->values();
 
         $sessions = AcademicSession::orderByDesc('is_current')
             ->orderByDesc('id')
@@ -111,7 +139,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
             : collect();
 
         return response()->json([
-            'contract_version' => 1,
+            'contract_version' => 2,
             'selected_curriculum_id' => $selected?->id,
             'selected_session_id' => $sessionId ?: null,
             'curricula' => $curricula->map(fn (ParallelCurriculum $curriculum) => [
@@ -123,12 +151,32 @@ class MobileParallelCurriculumLifecycleController extends Controller
                     'name' => (string) $class->name,
                     'code' => $class->code,
                     'is_active' => (bool) $class->is_active,
+                    'subjects' => $class->subjectAssignments
+                        ->where('is_active', true)
+                        ->map(fn (ParallelCurriculumClassSubject $assignment) => [
+                            'assignment_id' => (int) $assignment->id,
+                            'subject_id' => (int) $assignment->parallel_curriculum_subject_id,
+                            'subject_name' => $assignment->subject?->name,
+                            'default_teacher_id' => $assignment->teacher_id
+                                ? (int) $assignment->teacher_id
+                                : null,
+                            'default_teacher_name' => $assignment->teacher?->name,
+                        ])->values(),
                     'arms' => $class->arms->map(fn (ParallelCurriculumClassArm $arm) => [
                         'id' => (int) $arm->id,
                         'name' => (string) $arm->name,
                         'code' => $arm->code,
                         'capacity' => $arm->capacity ? (int) $arm->capacity : null,
                         'is_active' => (bool) $arm->is_active,
+                        'subject_teachers' => $armTeacherOverridesReady
+                            ? $arm->subjectTeachers
+                                ->where('is_active', true)
+                                ->map(fn (ParallelCurriculumArmSubjectTeacher $override) => [
+                                    'subject_id' => (int) $override->parallel_curriculum_subject_id,
+                                    'teacher_id' => (int) $override->teacher_id,
+                                    'teacher_name' => $override->teacher?->name,
+                                ])->values()
+                            : collect(),
                     ])->values(),
                     'class_grades' => $class->classGrades->map(fn (ParallelCurriculumClassGrade $grade) => [
                         'id' => (int) $grade->id,
@@ -154,6 +202,11 @@ class MobileParallelCurriculumLifecycleController extends Controller
                         'is_active' => (bool) $class->promotionRule->is_active,
                     ] : null,
                 ])->values(),
+            ])->values(),
+            'arm_teacher_overrides_ready' => $armTeacherOverridesReady,
+            'staff' => $staff->map(fn (User $person) => [
+                'id' => (int) $person->id,
+                'name' => (string) $person->name,
             ])->values(),
             'sessions' => $sessions->map(fn (AcademicSession $session) => [
                 'id' => (int) $session->id,
@@ -536,6 +589,123 @@ class MobileParallelCurriculumLifecycleController extends Controller
         $grade->delete();
 
         return response()->json(['message' => 'Class-specific parallel grade removed.']);
+    }
+
+    public function storeArmTeacher(Request $request): JsonResponse
+    {
+        $tenantId = $this->assertManage($request);
+
+        abort_unless(
+            Schema::hasTable('parallel_curriculum_arm_subject_teachers'),
+            503,
+            'Arm-specific teacher assignments are not available until the latest database migration has been applied.'
+        );
+
+        $data = $request->validate([
+            'parallel_curriculum_class_arm_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_class_arms', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'parallel_curriculum_subject_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_subjects', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'teacher_id' => [
+                'nullable',
+                Rule::exists('users', 'id')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true),
+            ],
+        ]);
+
+        $arm = ParallelCurriculumClassArm::with('curriculumClass')
+            ->findOrFail($data['parallel_curriculum_class_arm_id']);
+        $class = $arm->curriculumClass;
+        $subject = ParallelCurriculumSubject::findOrFail(
+            $data['parallel_curriculum_subject_id']
+        );
+
+        abort_unless(
+            $class
+                && (int) $subject->parallel_curriculum_id
+                    === (int) $class->parallel_curriculum_id,
+            422,
+            'The selected subject and class arm must belong to the same parallel curriculum.'
+        );
+
+        $classSubject = ParallelCurriculumClassSubject::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
+            ->where(
+                'parallel_curriculum_subject_id',
+                $subject->id
+            )
+            ->where('is_active', true)
+            ->first();
+
+        abort_unless(
+            $classSubject,
+            422,
+            'Assign this subject to the parallel class before setting an arm-specific teacher.'
+        );
+
+        $teacherId = ! empty($data['teacher_id'])
+            ? (int) $data['teacher_id']
+            : null;
+
+        if ($teacherId) {
+            $teacher = User::findOrFail($teacherId);
+
+            abort_if(
+                $teacher->isAccountant()
+                    || (
+                        ! $teacher->canAccessExactModule('scores')
+                        && ! $teacher->canAccessExactModule('scores.entry')
+                    ),
+                422,
+                'The selected staff member does not have academic score-entry access.'
+            );
+
+            ParallelCurriculumArmSubjectTeacher::updateOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'parallel_curriculum_class_id' => $class->id,
+                    'parallel_curriculum_class_arm_id' => $arm->id,
+                    'parallel_curriculum_subject_id' => $subject->id,
+                ],
+                [
+                    'teacher_id' => $teacherId,
+                    'is_active' => true,
+                ]
+            );
+
+            return response()->json([
+                'message' => "{$subject->name} in {$class->name} {$arm->name} is now assigned to {$teacher->name}.",
+                'effective_teacher_id' => $teacherId,
+                'effective_teacher_name' => $teacher->name,
+            ]);
+        }
+
+        ParallelCurriculumArmSubjectTeacher::where(
+                'parallel_curriculum_class_arm_id',
+                $arm->id
+            )
+            ->where(
+                'parallel_curriculum_subject_id',
+                $subject->id
+            )
+            ->delete();
+
+        return response()->json([
+            'message' => "{$subject->name} in {$class->name} {$arm->name} now uses the class-level default teacher.",
+            'effective_teacher_id' => $classSubject->teacher_id
+                ? (int) $classSubject->teacher_id
+                : null,
+            'effective_teacher_name' => $classSubject->teacher?->name,
+        ]);
     }
 
     public function storePromotionRule(Request $request): JsonResponse
