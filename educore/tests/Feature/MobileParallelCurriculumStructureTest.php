@@ -88,6 +88,47 @@ class MobileParallelCurriculumStructureTest extends TestCase
         ]);
 
         $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/classes', [
+                'parallel_curriculum_id' => $curriculumId,
+                'name' => 'Mutawassitah 2',
+                'code' => 'M2',
+            ])
+            ->assertCreated();
+
+        $secondClassId = (int) DB::table('parallel_curriculum_classes')
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('name', 'Mutawassitah 2')
+            ->value('id');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/promotion-rules', [
+                'parallel_curriculum_id' => $curriculumId,
+                'source_class_ids' => [$classId, $secondClassId],
+                'destination_mode' => 'next_by_order',
+                'minimum_average' => 50,
+                'max_failed_subjects' => 2,
+                'require_complete_result' => true,
+                'failure_action' => 'repeat',
+                'arm_strategy' => 'same_name',
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', '2 parallel promotion rule(s) saved.');
+
+        $this->assertDatabaseHas('parallel_curriculum_promotion_rules', [
+            'parallel_curriculum_id' => $curriculumId,
+            'source_class_id' => $classId,
+            'destination_class_id' => $secondClassId,
+            'is_terminal' => false,
+        ]);
+
+        $this->assertDatabaseHas('parallel_curriculum_promotion_rules', [
+            'parallel_curriculum_id' => $curriculumId,
+            'source_class_id' => $secondClassId,
+            'destination_class_id' => null,
+            'is_terminal' => true,
+        ]);
+
+        $this->withToken($token)
             ->postJson('/api/v1/parallel-curriculum/lifecycle/subjects', [
                 'parallel_curriculum_id' => $curriculumId,
                 'name' => 'Qur\'an',
@@ -130,6 +171,9 @@ class MobileParallelCurriculumStructureTest extends TestCase
             ->assertJsonPath('curricula.0.grades.0.grade_letter', 'A')
             ->assertJsonPath('curricula.0.classes.0.name', 'Mutawassitah 1')
             ->assertJsonPath('curricula.0.classes.0.arms.0.name', 'A')
+            ->assertJsonPath('curricula.0.classes.0.promotion_rule.destination_class_id', $secondClassId)
+            ->assertJsonPath('curricula.0.classes.1.name', 'Mutawassitah 2')
+            ->assertJsonPath('curricula.0.classes.1.promotion_rule.is_terminal', true)
             ->assertJsonPath('curricula.0.classes.0.subjects.0.subject_name', 'Qur\'an');
     }
 }
