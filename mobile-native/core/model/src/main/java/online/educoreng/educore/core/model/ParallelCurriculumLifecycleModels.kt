@@ -123,6 +123,8 @@ data class ParallelLifecycleStudent(
     val name: String,
     val admissionNumber: String,
     val gender: String?,
+    val status: String,
+    val isActive: Boolean,
     val conventionalClassArmId: Long?,
     val conventionalClassName: String?,
     val assignment: ParallelLifecycleStudentAssignment?,
