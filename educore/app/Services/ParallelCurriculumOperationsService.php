@@ -322,6 +322,116 @@ class ParallelCurriculumOperationsService
         return $user->isSuperAdmin() || $user->canManage('timetable');
     }
 
+    public function validateTeacherChange(
+        int $tenantId,
+        int $classId,
+        int $subjectId,
+        ?int $armId,
+        ?int $teacherId
+    ): void {
+        if (! $teacherId) {
+            return;
+        }
+
+        $periodQuery = ParallelCurriculumTimetablePeriod::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $classId)
+            ->where('parallel_curriculum_subject_id', $subjectId);
+
+        if ($armId) {
+            $periodQuery->where('parallel_curriculum_class_arm_id', $armId);
+        } else {
+            $overriddenArmIds = ParallelCurriculumArmSubjectTeacher::query()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_class_id', $classId)
+                ->where('parallel_curriculum_subject_id', $subjectId)
+                ->where('is_active', true)
+                ->pluck('parallel_curriculum_class_arm_id');
+
+            if ($overriddenArmIds->isNotEmpty()) {
+                $periodQuery->whereNotIn('parallel_curriculum_class_arm_id', $overriddenArmIds);
+            }
+        }
+
+        $periods = $periodQuery->get();
+        if ($periods->isEmpty()) {
+            return;
+        }
+
+        foreach ($periods as $index => $period) {
+            foreach ($periods->slice($index + 1) as $other) {
+                if (
+                    (int) $period->session_id === (int) $other->session_id
+                    && $period->day_of_week === $other->day_of_week
+                    && $period->start_time < $other->end_time
+                    && $period->end_time > $other->start_time
+                ) {
+                    throw ValidationException::withMessages([
+                        'teacher_id' => 'This teacher change would create an overlap between existing parallel timetable periods.',
+                    ]);
+                }
+            }
+
+            $parallelConflict = ParallelCurriculumTimetablePeriod::query()
+                ->where('tenant_id', $tenantId)
+                ->where('teacher_id', $teacherId)
+                ->whereNotIn('id', $periods->pluck('id'))
+                ->where('session_id', $period->session_id)
+                ->where('day_of_week', $period->day_of_week)
+                ->where('start_time', '<', $period->end_time)
+                ->where('end_time', '>', $period->start_time)
+                ->exists();
+
+            $conventionalConflict = TimetablePeriod::query()
+                ->where('tenant_id', $tenantId)
+                ->where('teacher_id', $teacherId)
+                ->where('session_id', $period->session_id)
+                ->where('day_of_week', $period->day_of_week)
+                ->where('start_time', '<', $period->end_time)
+                ->where('end_time', '>', $period->start_time)
+                ->exists();
+
+            if ($parallelConflict || $conventionalConflict) {
+                throw ValidationException::withMessages([
+                    'teacher_id' => 'This teacher change conflicts with an existing timetable period.',
+                ]);
+            }
+        }
+    }
+
+    public function syncTimetableTeachers(
+        int $tenantId,
+        int $classId,
+        int $subjectId,
+        ?int $armId = null
+    ): void {
+        $query = ParallelCurriculumTimetablePeriod::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $classId)
+            ->where('parallel_curriculum_subject_id', $subjectId);
+
+        if ($armId) {
+            $query->where('parallel_curriculum_class_arm_id', $armId);
+        }
+
+        $query->get()->each(function (ParallelCurriculumTimetablePeriod $period) use (
+            $tenantId,
+            $classId,
+            $subjectId
+        ): void {
+            $teacherId = $this->effectiveTeacherId(
+                $tenantId,
+                $classId,
+                (int) $period->parallel_curriculum_class_arm_id,
+                $subjectId
+            );
+
+            if ((int) ($period->teacher_id ?? 0) !== (int) ($teacherId ?? 0)) {
+                $period->update(['teacher_id' => $teacherId]);
+            }
+        });
+    }
+
     public function effectiveTeacherId(
         int $tenantId,
         int $classId,
