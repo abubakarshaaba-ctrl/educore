@@ -1300,6 +1300,7 @@ Route::middleware(['auth', 'active.account', \App\Http\Middleware\IdentifyTenant
     Route::get('results/pdf',           [\App\Http\Controllers\Portal\ParentPortalController::class, 'reportCardPdf'])->name('results.pdf');
     Route::get('fees',                  [\App\Http\Controllers\Portal\ParentPortalController::class, 'fees'])->name('fees');
     Route::get('fees/pay/{invoice}',    [\App\Http\Controllers\Portal\ParentPortalController::class, 'payFee'])->name('fees.pay');
+    Route::get('timetable',             [\App\Http\Controllers\Portal\ParentPortalController::class, 'timetable'])->name('timetable');
     Route::get('attendance',            [\App\Http\Controllers\Portal\ParentPortalController::class, 'attendance'])->name('attendance');
     Route::get('notifications',         [\App\Http\Controllers\Portal\ParentPortalController::class, 'notifications'])->name('notifications');
     Route::get('calendar',              [\App\Http\Controllers\Portal\ParentPortalController::class, 'calendar'])->name('calendar');
