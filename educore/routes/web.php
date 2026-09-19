@@ -499,10 +499,14 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::delete('lifecycle/class-grades/{grade}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'destroyClassGrade'])->name('lifecycle.grades.destroy');
         Route::post('lifecycle/promotion-rules', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storePromotionRule'])->name('lifecycle.promotion-rules.store');
         Route::post('lifecycle/arm-teachers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArmTeacher'])->name('lifecycle.arm-teachers.store');
+        Route::post('lifecycle/arm-teaching-mode', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArmTeachingMode'])->name('lifecycle.arm-teaching-mode.store');
         Route::post('lifecycle/promotions/execute', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'executePromotion'])->name('lifecycle.promotions.execute');
         Route::post('lifecycle/transfers', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'transfer'])->name('lifecycle.transfers.store');
         Route::get('operations', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'index'])->name('operations.index');
         Route::post('operations/periods', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'storePeriod'])->name('operations.periods.store');
+        Route::post('operations/working-days', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'saveWorkingDays'])->name('operations.working-days.save');
+        Route::post('operations/staff-attendance/clock-in', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'clockInStaff'])->name('operations.staff-attendance.clock-in');
+        Route::post('operations/staff-attendance/clock-out', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'clockOutStaff'])->name('operations.staff-attendance.clock-out');
         Route::delete('operations/periods/{period}', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'destroyPeriod'])->name('operations.periods.destroy');
         Route::post('operations/attendance', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'saveAttendance'])->name('operations.attendance.save');
         Route::get('operations/attendance/export', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'exportAttendance'])->name('operations.attendance.export');
