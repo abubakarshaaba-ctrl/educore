@@ -202,6 +202,26 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         mutateOperations { repository.deleteTimetablePeriod(periodId) }
     }
 
+    fun downloadAttendanceExport(format: String) {
+        val operations = _uiState.value.operationsWorkspace
+            ?: return failLocal("Load the parallel attendance workspace first.")
+        if (!operations.capabilities.exportAttendance) {
+            return failLocal("You do not have permission to export parallel attendance.")
+        }
+        val armId = operations.selected.armId
+            ?: return failLocal("Select a parallel class arm.")
+        val termId = operations.selected.termId
+            ?: return failLocal("Select an academic term.")
+
+        download {
+            repository.downloadAttendanceExport(
+                armId = armId,
+                termId = termId,
+                format = format,
+            )
+        }
+    }
+
     fun saveParallelAttendance(
         records: List<ParallelAttendanceDraft>,
     ) {
