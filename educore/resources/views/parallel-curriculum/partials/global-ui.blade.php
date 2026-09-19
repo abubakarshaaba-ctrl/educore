@@ -58,8 +58,10 @@
 .pc-shell .pc-hero h2,
 .pc-assign .pc-hero h2,
 .pc-results .hero h2 {
+    color: #fff;
     font-size: 20px;
     line-height: 1.25;
+    font-weight: 800;
     letter-spacing: -.015em;
 }
 .pc-shell .pc-hero p,
