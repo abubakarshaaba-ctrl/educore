@@ -10,6 +10,7 @@ use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\Term;
 use App\Services\ParallelCurriculumOperationsService;
 use App\Services\ParallelCurriculumService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -200,6 +201,74 @@ class ParallelCurriculumOperationsController extends Controller
 
         return redirect()->route('parallel-curriculum.operations.index', $context)
             ->with('success', 'Parallel timetable period removed.');
+    }
+
+    public function exportAttendance(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+        $data = $request->validate([
+            'arm_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'term_id' => [
+                'required',
+                Rule::exists('terms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'format' => ['required', Rule::in(['csv', 'pdf'])],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        $report = $this->operations->attendanceReport(
+            $request->user(),
+            (int) $data['arm_id'],
+            (int) $data['term_id'],
+            $data['from'] ?? null,
+            $data['to'] ?? null,
+        );
+
+        $filenameBase = str(
+            ($report['arm']->curriculumClass?->curriculum?->name ?? 'parallel')
+            .'-'.($report['arm']->curriculumClass?->name ?? 'class')
+            .'-'.$report['arm']->name
+            .'-attendance'
+        )->slug('_')->toString();
+
+        if ($data['format'] === 'csv') {
+            return response()->streamDownload(function () use ($report): void {
+                $handle = fopen('php://output', 'w');
+                fputcsv($handle, [
+                    'admission_number',
+                    'student_name',
+                    'present',
+                    'absent',
+                    'late',
+                    'excused',
+                    'recorded_days',
+                    'attendance_rate_percent',
+                ]);
+                foreach ($report['rows'] as $row) {
+                    fputcsv($handle, [
+                        $row['admission_number'],
+                        $row['student_name'],
+                        $row['present'],
+                        $row['absent'],
+                        $row['late'],
+                        $row['excused'],
+                        $row['total'],
+                        $row['rate'],
+                    ]);
+                }
+                fclose($handle);
+            }, $filenameBase.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        return Pdf::loadView('parallel-curriculum.attendance-report-pdf', [
+            'report' => $report,
+            'schoolName' => $request->user()?->tenant?->name ?? config('app.name'),
+        ])->setPaper('a4', 'landscape')->download($filenameBase.'.pdf');
     }
 
     public function saveAttendance(Request $request)
