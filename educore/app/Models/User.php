@@ -313,7 +313,7 @@ class User extends Authenticatable
             'notifications.triggers.test'],
 
         // ── Messages ──────────────────────────────────────────────────
-        'messages' => ['messages'],
+        'messages' => ['messages', 'staff.portal.messages'],
 
         // ── Announcements ─────────────────────────────────────────────
         'announcements' => ['announcements'],
