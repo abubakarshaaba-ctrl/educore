@@ -4,12 +4,35 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
+import online.educoreng.educore.core.model.ParallelResultWorkspace
+import online.educoreng.educore.core.model.ParallelStudentResultDetail
 
 interface ParallelCurriculumLifecycleRepository {
     suspend fun load(
         curriculumId: Long? = null,
         sessionId: Long? = null,
     ): AppResult<ParallelLifecycleWorkspace>
+
+    suspend fun loadResults(
+        classId: Long? = null,
+        termId: Long? = null,
+    ): AppResult<ParallelResultWorkspace>
+
+    suspend fun loadStudentResult(
+        classId: Long,
+        studentId: Long,
+        termId: Long,
+    ): AppResult<ParallelStudentResultDetail>
+
+    suspend fun publishResult(
+        classId: Long,
+        termId: Long,
+    ): AppResult<String>
+
+    suspend fun unpublishResult(
+        classId: Long,
+        termId: Long,
+    ): AppResult<String>
 
     suspend fun createProgramme(
         name: String,
