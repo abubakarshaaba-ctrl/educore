@@ -67,7 +67,7 @@ fun ParallelCurriculumLifecycleScreen(
     onSelectCurriculum: (Long) -> Unit,
     onSelectSession: (Long) -> Unit,
     onSelectPromotionSessions: (Long?, Long?) -> Unit,
-    onPreviewPromotion: () -> Unit,
+    onPreviewPromotion: (List<Long>) -> Unit,
     onExecutePromotion: () -> Unit,
     onCreateProgramme: (String, String?, Long?) -> Unit,
     onUpdateProgramme: (Long, String, String?, Long?) -> Unit,
@@ -93,7 +93,7 @@ fun ParallelCurriculumLifecycleScreen(
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
-    onSavePromotionRule: (Long, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
+    onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
 ) {
     val workspace = state.workspace
@@ -1960,9 +1960,9 @@ private fun ParallelStudentResultDetailCard(
 private fun LazyListScope.lifecyclePromotion(
     state: ParallelLifecycleUiState,
     onSelectPromotionSessions: (Long?, Long?) -> Unit,
-    onPreviewPromotion: () -> Unit,
+    onPreviewPromotion: (List<Long>) -> Unit,
     onExecutePromotion: () -> Unit,
-    onSavePromotionRule: (Long, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
+    onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
 ) {
     val levels = state.workspace?.selectedCurriculum?.classes.orEmpty()
     item { PromotionRuleEditor(levels, state.isMutating, onSavePromotionRule) }
@@ -1976,58 +1976,156 @@ private fun LazyListScope.lifecyclePromotion(
 private fun PromotionRuleEditor(
     levels: List<ParallelLifecycleClass>,
     busy: Boolean,
-    onSave: (Long, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
+    onSave: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
 ) {
-    var sourceId by remember(levels.map { it.id }) { mutableStateOf(levels.firstOrNull()?.id) }
-    var destinationId by remember(levels.map { it.id }) { mutableStateOf<Long?>(null) }
+    val activeLevels = levels.filter { it.isActive }
+    var selectedIds by remember(activeLevels.map { it.id }) {
+        mutableStateOf<Set<Long>>(emptySet())
+    }
+    var destinationMode by remember { mutableStateOf("next_by_order") }
+    var destinationId by remember(activeLevels.map { it.id }) { mutableStateOf<Long?>(null) }
     var minimumAverage by remember { mutableStateOf("50") }
     var maxFailed by remember { mutableStateOf("2") }
     var complete by remember { mutableStateOf(true) }
-    var terminal by remember { mutableStateOf(false) }
     var failureAction by remember { mutableStateOf("repeat") }
     var armStrategy by remember { mutableStateOf("same_name") }
 
-    LaunchedEffect(sourceId, levels) {
-        val rule = levels.firstOrNull { it.id == sourceId }?.promotionRule
-        if (rule != null) {
-            destinationId = rule.destinationClassId
-            minimumAverage = rule.minimumAverage.toString()
-            maxFailed = rule.maxFailedSubjects.toString()
-            complete = rule.requireCompleteResult
-            terminal = rule.isTerminal
-            failureAction = rule.failureAction
-            armStrategy = rule.armStrategy
+    LaunchedEffect(selectedIds, activeLevels) {
+        if (selectedIds.size == 1) {
+            val rule = activeLevels.firstOrNull { it.id == selectedIds.first() }?.promotionRule
+            if (rule != null) {
+                destinationId = rule.destinationClassId
+                minimumAverage = rule.minimumAverage.toString()
+                maxFailed = rule.maxFailedSubjects.toString()
+                complete = rule.requireCompleteResult
+                failureAction = rule.failureAction
+                armStrategy = rule.armStrategy
+                destinationMode = if (rule.isTerminal) "terminal" else "explicit"
+            }
+        } else if (selectedIds.size > 1 && destinationMode == "explicit") {
+            destinationMode = "next_by_order"
+            destinationId = null
         }
     }
 
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text("Promotion rules", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Apply one promotion policy to one or several class levels at once.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
         Spacer(Modifier.height(EduCoreSpacing.Md))
-        LifecycleMenu(
-            "Source level",
-            levels.firstOrNull { it.id == sourceId }?.name ?: "Select source",
-            levels.map { it.id to it.name },
-            !busy,
-        ) { sourceId = it }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            EduCoreSecondaryButton(
+                text = "Select all",
+                onClick = { selectedIds = activeLevels.map { it.id }.toSet() },
+                modifier = Modifier.weight(1f),
+                enabled = !busy && activeLevels.isNotEmpty(),
+            )
+            EduCoreSecondaryButton(
+                text = "Clear",
+                onClick = { selectedIds = emptySet() },
+                modifier = Modifier.weight(1f),
+                enabled = !busy && selectedIds.isNotEmpty(),
+            )
+        }
         Spacer(Modifier.height(EduCoreSpacing.Sm))
-        if (!terminal) {
-            LifecycleMenu(
-                "Next level",
-                levels.firstOrNull { it.id == destinationId }?.name ?: "Select destination",
-                levels.filter { it.id != sourceId }.map { it.id to it.name },
-                !busy,
-            ) { destinationId = it }
+
+        activeLevels.forEach { level ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = selectedIds.contains(level.id),
+                    onCheckedChange = { checked ->
+                        selectedIds = if (checked) {
+                            selectedIds + level.id
+                        } else {
+                            selectedIds - level.id
+                        }
+                    },
+                    enabled = !busy,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(level.name, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        level.promotionRule?.let { rule ->
+                            if (rule.isTerminal) {
+                                "Current: Terminal → Graduate"
+                            } else {
+                                "Current: Next → " +
+                                    (rule.destinationClassName ?: "Not configured")
+                            }
+                        } ?: "No promotion rule configured",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = EduCoreColors.Slate600,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        StringLifecycleMenu(
+            label = "Destination routing",
+            current = when (destinationMode) {
+                "terminal" -> "Terminal / graduate"
+                "explicit" -> "Specific next level"
+                else -> "Automatic next level by order"
+            },
+            options = buildList {
+                add("next_by_order" to "Automatic next level by order")
+                if (selectedIds.size <= 1) {
+                    add("explicit" to "Specific next level")
+                }
+                add("terminal" to "Terminal / graduate")
+            },
+            enabled = !busy,
+            onSelect = {
+                destinationMode = it
+                if (it != "explicit") destinationId = null
+            },
+        )
+
+        if (destinationMode == "explicit") {
             Spacer(Modifier.height(EduCoreSpacing.Sm))
+            val sourceId = selectedIds.firstOrNull()
+            LifecycleMenu(
+                "Specific next level",
+                activeLevels.firstOrNull { it.id == destinationId }?.name
+                    ?: "Select destination",
+                activeLevels.filter { it.id != sourceId }.map { it.id to it.name },
+                !busy && selectedIds.size == 1,
+            ) { destinationId = it }
         }
-        EduCoreTextField(minimumAverage, { minimumAverage = it }, "Minimum average %", Modifier.fillMaxWidth(), enabled = !busy)
+
         Spacer(Modifier.height(EduCoreSpacing.Sm))
-        EduCoreTextField(maxFailed, { maxFailed = it }, "Maximum failed subjects", Modifier.fillMaxWidth(), enabled = !busy)
+        EduCoreTextField(
+            minimumAverage,
+            { minimumAverage = it },
+            "Minimum average %",
+            Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
         Spacer(Modifier.height(EduCoreSpacing.Sm))
-        ToggleSetting("Require complete published result", complete, !busy) { complete = it }
-        ToggleSetting("Terminal level — successful learners graduate", terminal, !busy) {
-            terminal = it
-            if (it) destinationId = null
-        }
+        EduCoreTextField(
+            maxFailed,
+            { maxFailed = it },
+            "Maximum failed subjects",
+            Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        ToggleSetting(
+            "Require complete published result",
+            complete,
+            !busy,
+        ) { complete = it }
         Spacer(Modifier.height(EduCoreSpacing.Sm))
         LifecycleMenu(
             "Failure action",
@@ -2044,25 +2142,34 @@ private fun PromotionRuleEditor(
         ) { armStrategy = if (it == 2L) "first_available" else "same_name" }
         Spacer(Modifier.height(EduCoreSpacing.Md))
         EduCorePrimaryButton(
-            "Save Promotion Rule",
+            "Save Promotion Rule(s)",
             {
-                sourceId?.let {
-                    onSave(
-                        it,
-                        destinationId,
-                        minimumAverage.toDoubleOrNull(),
-                        maxFailed.toIntOrNull(),
-                        complete,
-                        failureAction,
-                        armStrategy,
-                        terminal,
-                    )
-                }
+                onSave(
+                    selectedIds.toList(),
+                    destinationMode,
+                    destinationId,
+                    minimumAverage.toDoubleOrNull(),
+                    maxFailed.toIntOrNull(),
+                    complete,
+                    failureAction,
+                    armStrategy,
+                    destinationMode == "terminal",
+                )
             },
             Modifier.fillMaxWidth(),
-            enabled = !busy && sourceId != null,
+            enabled = !busy &&
+                selectedIds.isNotEmpty() &&
+                (destinationMode != "explicit" || destinationId != null),
             loading = busy,
         )
+        if (destinationMode == "next_by_order") {
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            Text(
+                "Each selected level routes to the next active level by configured order; the final level becomes terminal automatically.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
     }
 }
 
@@ -2070,19 +2177,34 @@ private fun PromotionRuleEditor(
 private fun PromotionRunner(
     state: ParallelLifecycleUiState,
     onSelectPromotionSessions: (Long?, Long?) -> Unit,
-    onPreviewPromotion: () -> Unit,
+    onPreviewPromotion: (List<Long>) -> Unit,
     onExecutePromotion: () -> Unit,
 ) {
     val workspace = state.workspace ?: return
-    var sourceId by remember(state.sourceSessionId, workspace.sessions) { mutableStateOf(state.sourceSessionId) }
-    var targetId by remember(state.targetSessionId, workspace.sessions) { mutableStateOf(state.targetSessionId) }
+    val levels = workspace.selectedCurriculum?.classes.orEmpty().filter { it.isActive }
+    var sourceId by remember(state.sourceSessionId, workspace.sessions) {
+        mutableStateOf(state.sourceSessionId)
+    }
+    var targetId by remember(state.targetSessionId, workspace.sessions) {
+        mutableStateOf(state.targetSessionId)
+    }
+    var selectedClassIds by remember(levels.map { it.id }) {
+        mutableStateOf(
+            state.promotionSourceClassIds
+                .filter { id -> levels.any { it.id == id } }
+                .toSet()
+                .ifEmpty { levels.map { it.id }.toSet() }
+        )
+    }
 
-    LaunchedEffect(sourceId, targetId) { onSelectPromotionSessions(sourceId, targetId) }
+    LaunchedEffect(sourceId, targetId) {
+        onSelectPromotionSessions(sourceId, targetId)
+    }
 
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text("Promotion engine", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Preview is mandatory. Existing target-session placements, published target results and full arms are protected.",
+            "Choose one or several class levels. Preview is mandatory before execution; unselected levels are left untouched.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
@@ -2100,26 +2222,80 @@ private fun PromotionRunner(
             workspace.sessions.map { it.id to it.name },
             !state.isMutating,
         ) { targetId = it }
+
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        Text(
+            "Class levels to promote",
+            style = MaterialTheme.typography.labelLarge,
+            color = EduCoreColors.Slate700,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            EduCoreSecondaryButton(
+                text = "Select all",
+                onClick = { selectedClassIds = levels.map { it.id }.toSet() },
+                modifier = Modifier.weight(1f),
+                enabled = !state.isMutating && levels.isNotEmpty(),
+            )
+            EduCoreSecondaryButton(
+                text = "Clear",
+                onClick = { selectedClassIds = emptySet() },
+                modifier = Modifier.weight(1f),
+                enabled = !state.isMutating && selectedClassIds.isNotEmpty(),
+            )
+        }
+        levels.forEach { level ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(
+                    checked = selectedClassIds.contains(level.id),
+                    onCheckedChange = { checked ->
+                        selectedClassIds = if (checked) {
+                            selectedClassIds + level.id
+                        } else {
+                            selectedClassIds - level.id
+                        }
+                    },
+                    enabled = !state.isMutating,
+                )
+                Text(level.name, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
         Spacer(Modifier.height(EduCoreSpacing.Md))
         EduCoreSecondaryButton(
             "Preview Promotion",
-            onPreviewPromotion,
-            Modifier.fillMaxWidth(),
-            enabled = !state.isMutating && sourceId != null && targetId != null && sourceId != targetId,
+            onClick = { onPreviewPromotion(selectedClassIds.toList()) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isMutating &&
+                sourceId != null &&
+                targetId != null &&
+                sourceId != targetId &&
+                selectedClassIds.isNotEmpty(),
         )
         state.promotionPreview?.let { preview ->
             Spacer(Modifier.height(EduCoreSpacing.Lg))
+            KeyValueRow("Selected levels", preview.sourceClassIds.size.toString())
             KeyValueRow("Students", preview.counts.total.toString())
             KeyValueRow("Promote", preview.counts.promoted.toString())
-            KeyValueRow("Repeat / retain", (preview.counts.repeat + preview.counts.retain).toString())
+            KeyValueRow(
+                "Repeat / retain",
+                (preview.counts.repeat + preview.counts.retain).toString(),
+            )
             KeyValueRow("Graduate", preview.counts.graduated.toString())
             KeyValueRow("Blocked", preview.counts.blocked.toString())
             Spacer(Modifier.height(EduCoreSpacing.Md))
             EduCorePrimaryButton(
-                "Execute Promotion",
+                "Execute Selected Promotion",
                 onExecutePromotion,
                 Modifier.fillMaxWidth(),
-                enabled = !state.isMutating && preview.counts.blocked == 0 && preview.counts.total > 0,
+                enabled = !state.isMutating &&
+                    preview.counts.blocked == 0 &&
+                    preview.counts.total > 0,
                 loading = state.isMutating,
             )
         }
