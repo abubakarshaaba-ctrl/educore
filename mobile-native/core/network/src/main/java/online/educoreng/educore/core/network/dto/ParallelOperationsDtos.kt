@@ -110,6 +110,7 @@ data class ParallelOperationsPeriodDto(
 data class ParallelOperationsAttendanceDto(
     val date: String,
     val version: String,
+    @param:Json(name = "is_working_day") val isWorkingDay: Boolean = true,
     val students: List<ParallelOperationsAttendanceStudentDto> = emptyList(),
 )
 
@@ -279,6 +280,7 @@ fun ParallelOperationsResponseDto.toDomain(): ParallelOperationsWorkspace =
             ParallelOperationsAttendance(
                 date = sheet.date,
                 version = sheet.version,
+                isWorkingDay = sheet.isWorkingDay,
                 students = sheet.students.map {
                     ParallelOperationsAttendanceStudent(
                         enrolmentId = it.enrolmentId,
