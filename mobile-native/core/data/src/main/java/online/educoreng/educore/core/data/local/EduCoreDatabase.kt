@@ -16,11 +16,12 @@ import androidx.room.RoomDatabase
         CachedScoreContractEntity::class,
         ScoreDraftEntity::class,
         CachedScheduleEntity::class,
+        CachedPortalAttendanceEntity::class,
         CachedAcademicContentEntity::class,
         LessonPlanDraftEntity::class,
         SyncOperationEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class EduCoreDatabase : RoomDatabase() {
@@ -29,6 +30,7 @@ abstract class EduCoreDatabase : RoomDatabase() {
     abstract fun classWorkspaceDao(): ClassWorkspaceDao
     abstract fun scoreWorkspaceDao(): ScoreWorkspaceDao
     abstract fun scheduleDao(): ScheduleDao
+    abstract fun portalAttendanceDao(): PortalAttendanceDao
     abstract fun academicContentDao(): AcademicContentDao
     abstract fun syncOperationDao(): SyncOperationDao
 }
