@@ -19,6 +19,29 @@ import online.educoreng.educore.core.network.dto.StaffAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.StudentProfileResponseDto
 import online.educoreng.educore.core.network.dto.PublishedResultsResponseDto
 import online.educoreng.educore.core.network.dto.PortalAttendanceResponseDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeGradeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
+import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelPeriodMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelOperationsResponseDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
+import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
+import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
+import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelTransferRequestDto
 import online.educoreng.educore.core.network.dto.SaveScoresRequestDto
 import online.educoreng.educore.core.network.dto.SaveScoresResponseDto
 import online.educoreng.educore.core.network.dto.ScoreAssignmentsResponseDto
@@ -190,6 +213,213 @@ interface EduCoreApi : AcademicKnowledgeApi {
 
     @POST("parallel-scores/save")
     suspend fun saveParallelScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
+
+    @GET("parallel-curriculum/results")
+    suspend fun parallelResults(
+        @Query("class_id") classId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): ParallelResultWorkspaceDto
+
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}")
+    suspend fun parallelStudentResult(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("term_id") termId: Long,
+    ): ParallelStudentResultDetailDto
+
+    @Streaming
+    @GET("parallel-curriculum/results/export")
+    suspend fun downloadParallelResultExport(
+        @Query("class_id") classId: Long,
+        @Query("term_id") termId: Long,
+        @Query("format") format: String,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/pdf")
+    suspend fun downloadParallelStudentResultPdf(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("term_id") termId: Long,
+    ): ResponseBody
+
+    @POST("parallel-curriculum/results/publish")
+    suspend fun publishParallelResult(
+        @Body request: ParallelResultPublicationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/results/unpublish")
+    suspend fun unpublishParallelResult(
+        @Body request: ParallelResultPublicationRequestDto,
+    ): MessageDto
+
+    @GET("parallel-curriculum/operations")
+    suspend fun parallelOperations(
+        @Query("parallel_curriculum_id") curriculumId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("class_id") classId: Long? = null,
+        @Query("arm_id") armId: Long? = null,
+        @Query("date") date: String? = null,
+    ): ParallelOperationsResponseDto
+
+    @POST("parallel-curriculum/operations/periods")
+    suspend fun createParallelTimetablePeriod(
+        @Body request: ParallelPeriodMutationRequestDto,
+    ): ParallelPeriodMutationResponseDto
+
+    @DELETE("parallel-curriculum/operations/periods/{period}")
+    suspend fun deleteParallelTimetablePeriod(
+        @Path("period") periodId: Long,
+    ): MessageDto
+
+    @POST("parallel-curriculum/operations/attendance")
+    suspend fun saveParallelAttendance(
+        @Body request: ParallelAttendanceMutationRequestDto,
+    ): ParallelAttendanceMutationResponseDto
+
+    @Streaming
+    @GET("parallel-curriculum/operations/attendance/export")
+    suspend fun downloadParallelAttendanceExport(
+        @Query("arm_id") armId: Long,
+        @Query("term_id") termId: Long,
+        @Query("format") format: String,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): ResponseBody
+
+    @GET("parallel-curriculum/lifecycle")
+    suspend fun parallelLifecycle(
+        @Query("parallel_curriculum_id") curriculumId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ParallelLifecycleResponseDto
+
+    @POST("parallel-curriculum/lifecycle/programmes")
+    suspend fun createParallelProgramme(
+        @Body request: ParallelProgrammeMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/programmes/{curriculum}")
+    suspend fun updateParallelProgramme(
+        @Path("curriculum") curriculumId: Long,
+        @Body request: ParallelProgrammeMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/classes")
+    suspend fun createParallelClass(
+        @Body request: ParallelClassMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/classes/{class}")
+    suspend fun updateParallelClass(
+        @Path("class") classId: Long,
+        @Body request: ParallelClassMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/subjects")
+    suspend fun createParallelSubject(
+        @Body request: ParallelSubjectMutationRequestDto,
+    ): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/subjects/{subject}")
+    suspend fun updateParallelSubject(
+        @Path("subject") subjectId: Long,
+        @Body request: ParallelSubjectMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/class-subjects")
+    suspend fun saveParallelClassSubject(
+        @Body request: ParallelClassSubjectMutationRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/class-subjects/{assignment}")
+    suspend fun removeParallelClassSubject(
+        @Path("assignment") assignmentId: Long,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/programme-grades")
+    suspend fun saveParallelProgrammeGrade(
+        @Body request: ParallelProgrammeGradeMutationRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/programme-grades/{grade}")
+    suspend fun deleteParallelProgrammeGrade(
+        @Path("grade") gradeId: Long,
+    ): MessageDto
+
+    @GET("parallel-curriculum/lifecycle/students")
+    suspend fun parallelLifecycleStudents(
+        @Query("parallel_curriculum_id") curriculumId: Long,
+        @Query("session_id") sessionId: Long,
+        @Query("conventional_class_arm_id") conventionalClassArmId: Long? = null,
+        @Query("assignment_status") assignmentStatus: String = "all",
+        @Query("gender") gender: String? = null,
+        @Query("q") search: String? = null,
+        @Query("per_page") perPage: Int = 50,
+        @Query("page") page: Int = 1,
+    ): ParallelLifecycleStudentPageDto
+
+    @Streaming
+    @GET("parallel-curriculum/lifecycle/assignments/template")
+    suspend fun downloadParallelStudentAssignmentTemplate(): ResponseBody
+
+    @Multipart
+    @POST("parallel-curriculum/lifecycle/assignments/import")
+    suspend fun importParallelStudentAssignments(
+        @Part("parallel_curriculum_id") curriculumId: RequestBody,
+        @Part("session_id") sessionId: RequestBody,
+        @Part assignmentFile: MultipartBody.Part,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/assignments")
+    suspend fun assignParallelStudents(
+        @Body request: ParallelStudentAssignmentRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/assignments/{enrolment}")
+    suspend fun removeParallelStudent(
+        @Path("enrolment") enrolmentId: Long,
+    ): MessageDto
+
+    @GET("parallel-curriculum/lifecycle/promotion-preview")
+    suspend fun parallelPromotionPreview(
+        @Query("parallel_curriculum_id") curriculumId: Long,
+        @Query("source_session_id") sourceSessionId: Long,
+        @Query("target_session_id") targetSessionId: Long,
+        @Query("source_class_ids[]") sourceClassIds: List<Long> = emptyList(),
+    ): ParallelPromotionPreviewResponseDto
+
+    @POST("parallel-curriculum/lifecycle/promotions/execute")
+    suspend fun executeParallelPromotion(@Body request: ParallelPromotionRequestDto): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/transfers")
+    suspend fun parallelTransfer(@Body request: ParallelTransferRequestDto): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/arms")
+    suspend fun createParallelArm(@Body request: ParallelArmMutationRequestDto): MessageDto
+
+    @PUT("parallel-curriculum/lifecycle/arms/{arm}")
+    suspend fun updateParallelArm(
+        @Path("arm") armId: Long,
+        @Body request: ParallelArmMutationRequestDto,
+    ): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/arms/{arm}")
+    suspend fun archiveParallelArm(@Path("arm") armId: Long): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/arm-teachers")
+    suspend fun saveParallelArmTeacher(
+        @Body request: ParallelArmTeacherMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/grades")
+    suspend fun createParallelGrade(@Body request: ParallelGradeMutationRequestDto): MessageDto
+
+    @DELETE("parallel-curriculum/lifecycle/grades/{grade}")
+    suspend fun deleteParallelGrade(@Path("grade") gradeId: Long): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/promotion-rules")
+    suspend fun saveParallelPromotionRule(@Body request: ParallelPromotionRuleMutationRequestDto): MessageDto
 
     @GET("student/results")
     suspend fun studentResults(): PublishedResultsResponseDto
