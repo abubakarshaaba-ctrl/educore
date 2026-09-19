@@ -7,6 +7,8 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
+import online.educoreng.educore.core.model.ParallelResultWorkspace
+import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
@@ -18,6 +20,7 @@ import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelClassSubjectMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeGradeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelTransferRequestDto
 import online.educoreng.educore.core.network.dto.toDomain
@@ -36,6 +39,49 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun loadResults(
+        classId: Long?,
+        termId: Long?,
+    ): AppResult<ParallelResultWorkspace> = withContext(Dispatchers.IO) {
+        when (val result = safeApiCall(moshi) { api.parallelResults(classId, termId) }) {
+            is AppResult.Success -> AppResult.Success(result.value.toDomain())
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun loadStudentResult(
+        classId: Long,
+        studentId: Long,
+        termId: Long,
+    ): AppResult<ParallelStudentResultDetail> = withContext(Dispatchers.IO) {
+        when (
+            val result = safeApiCall(moshi) {
+                api.parallelStudentResult(classId, studentId, termId)
+            }
+        ) {
+            is AppResult.Success -> AppResult.Success(result.value.toDomain())
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun publishResult(
+        classId: Long,
+        termId: Long,
+    ): AppResult<String> = mutation {
+        api.publishParallelResult(
+            ParallelResultPublicationRequestDto(classId, termId)
+        ).message
+    }
+
+    override suspend fun unpublishResult(
+        classId: Long,
+        termId: Long,
+    ): AppResult<String> = mutation {
+        api.unpublishParallelResult(
+            ParallelResultPublicationRequestDto(classId, termId)
+        ).message
     }
 
     override suspend fun createProgramme(
