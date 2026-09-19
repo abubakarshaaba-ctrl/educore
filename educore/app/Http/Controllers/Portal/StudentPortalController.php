@@ -13,6 +13,7 @@ use App\Models\CbtStudentSession;
 use App\Models\Announcement;
 use App\Models\TimetablePeriod;
 use App\Services\ParallelCurriculumResultService;
+use App\Services\ParallelCurriculumPortalService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -272,8 +273,16 @@ class StudentPortalController extends Controller
         }
 
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        $parallelTimetables = app(ParallelCurriculumPortalService::class)
+            ->timetableForStudent($student, $currentSession?->id);
 
-        return view('portal.student.timetable', compact('student', 'arm', 'timetable', 'days'));
+        return view('portal.student.timetable', compact(
+            'student',
+            'arm',
+            'timetable',
+            'days',
+            'parallelTimetables'
+        ));
     }
 
     // ── Attendance ────────────────────────────────────────────────────
@@ -300,7 +309,17 @@ class StudentPortalController extends Controller
             ? round(($stats['present'] / $stats['total']) * 100, 1)
             : 0;
 
-        return view('portal.student.attendance', compact('student', 'records', 'stats', 'terms', 'termId'));
+        $parallelAttendance = app(ParallelCurriculumPortalService::class)
+            ->attendanceForStudent($student, $termId ? (int) $termId : null);
+
+        return view('portal.student.attendance', compact(
+            'student',
+            'records',
+            'stats',
+            'terms',
+            'termId',
+            'parallelAttendance'
+        ));
     }
 
     // ── CBT Exams ─────────────────────────────────────────────────────
