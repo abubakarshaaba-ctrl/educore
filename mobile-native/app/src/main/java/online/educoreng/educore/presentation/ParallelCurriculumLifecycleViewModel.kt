@@ -404,6 +404,10 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         }
     }
 
+    fun downloadStudentAssignmentTemplate() {
+        download { repository.downloadStudentAssignmentTemplate() }
+    }
+
     fun importStudentAssignments(
         filename: String,
         mimeType: String,
@@ -723,7 +727,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     it.copy(
                         isMutating = false,
                         downloadedDocument = result.value,
-                        message = "Result export downloaded.",
+                        message = "Document downloaded.",
                     )
                 }
                 is AppResult.Failure -> _uiState.update {
