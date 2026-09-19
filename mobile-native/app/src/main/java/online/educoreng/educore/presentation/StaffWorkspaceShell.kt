@@ -333,6 +333,7 @@ internal fun StaffWorkspaceShell(
                                 onBack = { navigateRoot(StaffTab.HOME) },
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
+                                onChild = scheduleViewModel::selectChild,
                                 onRetry = { scheduleViewModel.load() },
                             )
                         }
@@ -446,7 +447,7 @@ internal fun StaffWorkspaceShell(
                                 state = scoresState,
                                 onSearch = scoresViewModel::setSearch,
                                 onOpen = { assignment, termId ->
-                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId)
+                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId, assignment.workspaceType)
                                     navController.navigate("staff/scores/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}")
                                 },
                                 onRetry = scoresViewModel::loadAssignments,
@@ -470,7 +471,7 @@ internal fun StaffWorkspaceShell(
                                 onValue = scoresViewModel::updateScore,
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
-                                onRetry = { scoresViewModel.openSheet(classId, subjectId, termId) },
+                                onRetry = { scoresViewModel.retrySheet(classId, subjectId, termId) },
                             )
                         }
                         composable(
@@ -483,6 +484,7 @@ internal fun StaffWorkspaceShell(
                                 onBack = navController::popBackStack,
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
+                                onChild = scheduleViewModel::selectChild,
                                 onRetry = { scheduleViewModel.load(classId = classId) },
                             )
                         }
