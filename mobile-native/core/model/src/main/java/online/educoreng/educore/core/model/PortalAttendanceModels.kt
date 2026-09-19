@@ -7,6 +7,7 @@ data class PortalAttendanceWorkspace(
     val selectedTermId: Long?,
     val conventional: PortalAttendanceSection,
     val parallelProgrammes: List<PortalAttendanceProgramme>,
+    val isFromCache: Boolean = false,
 )
 
 data class PortalAttendanceStudent(
