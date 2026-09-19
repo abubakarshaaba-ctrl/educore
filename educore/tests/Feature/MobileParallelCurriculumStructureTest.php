@@ -5,14 +5,9 @@ namespace Tests\Feature;
 use App\Models\AcademicSession;
 use App\Models\ApiToken;
 use App\Models\AssessmentTemplate;
-use App\Models\Student;
-use App\Models\ParallelCurriculumClassArm;
-use App\Models\ParallelCurriculumClass;
-use App\Models\ParallelCurriculum;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
