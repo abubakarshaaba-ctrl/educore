@@ -21,6 +21,7 @@ use App\Models\TimetablePeriod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use App\Services\Mobile\MobileModuleService;
 use Tests\TestCase;
 
 class MobileParallelCurriculumOperationsTest extends TestCase
@@ -207,6 +208,100 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'parallel_curriculum_class_id' => $context['class']->id,
             'teacher_id' => $teacherC->id,
         ]);
+    }
+
+    public function test_assigned_subject_teacher_gets_attendance_workspace_without_timetable_management(): void
+    {
+        $context = $this->context();
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Assigned Parallel Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $context['classSubject']->update(['teacher_id' => $teacher->id]);
+
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => now()->subMonth()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+            'is_current' => true,
+        ]);
+
+        $student = Student::create([
+            'tenant_id' => $context['tenant']->id,
+            'admission_number' => 'PC-TEACH-001',
+            'first_name' => 'Musa',
+            'last_name' => 'Ibrahim',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+
+        $enrolment = ParallelCurriculumEnrolment::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'student_id' => $student->id,
+            'session_id' => $context['session']->id,
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue($teacher->canAccessRoute('parallel-curriculum.operations.index'));
+        $this->assertTrue($teacher->canAccessRoute('parallel-curriculum.operations.attendance.save'));
+        $this->assertFalse($teacher->canAccessRoute('parallel-curriculum.operations.periods.store'));
+
+        $mobileModules = app(MobileModuleService::class)->forUser($teacher);
+        $moduleKeys = collect($mobileModules)->pluck('key');
+        $this->assertTrue($moduleKeys->contains('parallel-timetable'));
+        $this->assertFalse($moduleKeys->contains('parallel-curriculum'));
+
+        $token = ApiToken::issue($teacher, 'parallel-teacher-attendance');
+        $response = $this->withToken($token)
+            ->getJson(
+                '/api/v1/parallel-curriculum/operations?'.
+                'parallel_curriculum_id='.$context['curriculum']->id.
+                '&session_id='.$context['session']->id.
+                '&term_id='.$term->id.
+                '&class_id='.$context['class']->id.
+                '&arm_id='.$context['arm']->id.
+                '&date='.now()->toDateString()
+            )
+            ->assertOk()
+            ->assertJsonPath('capabilities.manage_timetable', false)
+            ->assertJsonPath('capabilities.save_attendance', true)
+            ->assertJsonPath('attendance.students.0.enrolment_id', $enrolment->id);
+
+        $version = $response->json('attendance.version');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/attendance', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'term_id' => $term->id,
+                'attendance_date' => now()->toDateString(),
+                'version' => $version,
+                'records' => [[
+                    'enrolment_id' => $enrolment->id,
+                    'status' => 'present',
+                    'remark' => null,
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('saved', 1);
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '11:00',
+                'end_time' => '11:40',
+            ])
+            ->assertForbidden();
     }
 
     public function test_parallel_attendance_is_saved_separately_from_conventional_attendance(): void
