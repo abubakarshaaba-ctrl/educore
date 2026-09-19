@@ -21,6 +21,7 @@ use App\Models\Term;
 use App\Models\TimetablePeriod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Services\Mobile\MobileModuleService;
 use Tests\TestCase;
@@ -528,6 +529,110 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertJsonPath('working_days.1.day_of_week', 'tuesday')
             ->assertJsonPath('working_days.1.resumption_time', '16:00')
             ->assertJsonPath('working_days.5.day_of_week', 'saturday');
+    }
+
+    public function test_class_teacher_mode_drives_timetable_and_parallel_staff_attendance(): void
+    {
+        $context = $this->context();
+        $token = ApiToken::issue($context['admin'], 'parallel-class-teacher-attendance');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teaching-mode', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'teaching_assignment_mode' => 'class_teacher',
+                'class_teacher_id' => $context['admin']->id,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('parallel_curriculum_class_arms', [
+            'id' => $context['arm']->id,
+            'teaching_assignment_mode' => 'class_teacher',
+            'class_teacher_id' => $context['admin']->id,
+        ]);
+
+        $days = collect([
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+            'sunday',
+        ])->map(fn (string $day) => [
+            'day_of_week' => $day,
+            'is_working' => $day === 'monday',
+            'resumption_time' => $day === 'monday' ? '08:00' : null,
+            'closing_time' => $day === 'monday' ? '15:00' : null,
+            'grace_minutes' => $day === 'monday' ? 15 : 0,
+        ])->values()->all();
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/working-days', [
+                'parallel_curriculum_id' => $context['curriculum']->id,
+                'days' => $days,
+            ])
+            ->assertOk();
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '09:00',
+                'end_time' => '09:40',
+                'venue' => 'Parallel Room',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $context['admin']->id);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:10:00'));
+
+        try {
+            $this->withToken($token)
+                ->postJson('/api/v1/parallel-curriculum/operations/staff-attendance/clock-in', [
+                    'parallel_curriculum_id' => $context['curriculum']->id,
+                ])
+                ->assertOk()
+                ->assertJsonPath('status', 'present')
+                ->assertJsonPath('clock_in_time', '08:10');
+
+            $this->withToken($token)
+                ->getJson(
+                    '/api/v1/parallel-curriculum/operations?'.
+                    'parallel_curriculum_id='.$context['curriculum']->id.
+                    '&session_id='.$context['session']->id.
+                    '&class_id='.$context['class']->id.
+                    '&arm_id='.$context['arm']->id.
+                    '&date=2026-09-21'
+                )
+                ->assertOk()
+                ->assertJsonPath('capabilities.clock_parallel_staff', true)
+                ->assertJsonPath('staff_attendance.self_record.status', 'present')
+                ->assertJsonPath('staff_attendance.self_record.clock_in_time', '08:10');
+
+            Carbon::setTestNow(Carbon::parse('2026-09-21 14:30:00'));
+
+            $this->withToken($token)
+                ->postJson('/api/v1/parallel-curriculum/operations/staff-attendance/clock-out', [
+                    'parallel_curriculum_id' => $context['curriculum']->id,
+                ])
+                ->assertOk()
+                ->assertJsonPath('departure_status', 'early')
+                ->assertJsonPath('clock_out_time', '14:30');
+
+            $this->assertDatabaseHas('parallel_curriculum_staff_attendance_records', [
+                'tenant_id' => $context['tenant']->id,
+                'parallel_curriculum_id' => $context['curriculum']->id,
+                'user_id' => $context['admin']->id,
+                'attendance_date' => '2026-09-21',
+                'status' => 'present',
+                'departure_status' => 'early',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function context(): array
