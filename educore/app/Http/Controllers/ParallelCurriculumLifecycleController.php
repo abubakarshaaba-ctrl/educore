@@ -716,7 +716,7 @@ class ParallelCurriculumLifecycleController extends Controller
         return back()->with(
             'success',
             $data['teaching_assignment_mode'] === 'class_teacher'
-                ? "{$class->name} {$arm->name} now uses one class teacher for all subjects."
+                ? "{$class->name} {$arm->name} now uses one class teacher for all subjects, learner attendance and form-teacher comments."
                 : "{$class->name} {$arm->name} now uses subject-based teacher assignments."
         );
     }
