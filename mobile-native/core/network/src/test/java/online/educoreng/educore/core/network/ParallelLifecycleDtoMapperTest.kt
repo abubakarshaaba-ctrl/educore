@@ -2,11 +2,14 @@ package online.educoreng.educore.core.network
 
 import online.educoreng.educore.core.network.dto.ParallelLifecycleArmDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleArmSubjectTeacherDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleAssessmentTemplateDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleClassDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleCurriculumDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleEnrolmentDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleConventionalClassArmDto
 import online.educoreng.educore.core.network.dto.ParallelLifecyclePaginationDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleProgrammeSubjectDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleGradeDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentAssignmentDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
@@ -28,16 +31,40 @@ class ParallelLifecycleDtoMapperTest {
         val domain = ParallelLifecycleResponseDto(
             selectedCurriculumId = 10,
             selectedSessionId = 20,
+            assessmentTemplates = listOf(
+                ParallelLifecycleAssessmentTemplateDto(100, "Parallel 40/60"),
+            ),
             curricula = listOf(
                 ParallelLifecycleCurriculumDto(
                     id = 10,
                     name = "Islamiyyah",
                     code = "ISL",
+                    defaultAssessmentTemplateId = 100,
+                    defaultAssessmentTemplateName = "Parallel 40/60",
+                    subjects = listOf(
+                        ParallelLifecycleProgrammeSubjectDto(
+                            id = 80,
+                            name = "Qur'an",
+                            code = "QRN",
+                        ),
+                    ),
+                    grades = listOf(
+                        ParallelLifecycleGradeDto(
+                            id = 110,
+                            gradeLetter = "A",
+                            minScore = 70.0,
+                            maxScore = 100.0,
+                            remark = "Excellent",
+                        ),
+                    ),
                     classes = listOf(
                         ParallelLifecycleClassDto(
                             id = 30,
                             name = "Mutawassitah 1",
                             code = "M1",
+                            sortOrder = 1,
+                            assessmentTemplateId = 100,
+                            assessmentTemplateName = "Parallel 40/60",
                             subjects = listOf(
                                 ParallelLifecycleSubjectAssignmentDto(
                                     assignmentId = 70,
@@ -89,7 +116,13 @@ class ParallelLifecycleDtoMapperTest {
         ).toDomain()
 
         assertEquals("Islamiyyah", domain.selectedCurriculum?.name)
+        assertEquals("Parallel 40/60", domain.assessmentTemplates.single().name)
+        assertEquals("Qur'an", domain.selectedCurriculum?.subjects?.single()?.name)
+        assertEquals("A", domain.selectedCurriculum?.grades?.single()?.gradeLetter)
+        assertEquals(100, domain.selectedCurriculum?.defaultAssessmentTemplateId)
         val level = domain.selectedCurriculum?.classes?.single()
+        assertEquals(1, level?.sortOrder)
+        assertEquals("Parallel 40/60", level?.assessmentTemplateName)
         val arm = level?.arms?.single()
         assertEquals("A", arm?.name)
         assertEquals(35, arm?.capacity)
