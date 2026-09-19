@@ -34,7 +34,26 @@ class ParallelCurriculumWorkspaceController extends Controller
                 $user
                 && ($user->isSuperAdmin() || $user->canAccessExactModule('scores'))
             ) {
-                return $diagnostics($request, $service);
+                $request->query->set('compact', '1');
+                $diagnosticResponse = $diagnostics($request, $service);
+                $diagnosticPayload = json_decode(
+                    (string) $diagnosticResponse->getContent(),
+                    true
+                );
+
+                return response()->json([
+                    'ok' => false,
+                    'diagnostic' => 'parallel-curriculum-workspace',
+                    'workspace_exception' => [
+                        'exception' => get_class($e),
+                        'message' => mb_substr($e->getMessage(), 0, 2000),
+                        'file' => basename($e->getFile()),
+                        'line' => $e->getLine(),
+                    ],
+                    'failed_checks' => $diagnosticPayload['failed_checks'] ?? [],
+                    'primary_failure' => $diagnosticPayload['primary_failure'] ?? null,
+                    'failures' => $diagnosticPayload['failures'] ?? [],
+                ], 500, [], JSON_PRETTY_PRINT);
             }
 
             throw $e;
