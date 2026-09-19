@@ -24,6 +24,9 @@ import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
+import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
+import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
+import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
@@ -182,6 +185,29 @@ interface EduCoreApi {
 
     @POST("parallel-scores/save")
     suspend fun saveParallelScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
+
+    @GET("parallel-curriculum/results")
+    suspend fun parallelResults(
+        @Query("class_id") classId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): ParallelResultWorkspaceDto
+
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}")
+    suspend fun parallelStudentResult(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("term_id") termId: Long,
+    ): ParallelStudentResultDetailDto
+
+    @POST("parallel-curriculum/results/publish")
+    suspend fun publishParallelResult(
+        @Body request: ParallelResultPublicationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/results/unpublish")
+    suspend fun unpublishParallelResult(
+        @Body request: ParallelResultPublicationRequestDto,
+    ): MessageDto
 
     @GET("parallel-curriculum/lifecycle")
     suspend fun parallelLifecycle(
