@@ -87,7 +87,13 @@ class ParallelCurriculumOperationsController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_class_arm_id', $selectedArm->id)
                 ->where('session_id', $sessionId)
-                ->orderByRaw("FIELD(day_of_week,'monday','tuesday','wednesday','thursday','friday')")
+                ->orderByRaw("CASE day_of_week
+                    WHEN 'monday' THEN 1
+                    WHEN 'tuesday' THEN 2
+                    WHEN 'wednesday' THEN 3
+                    WHEN 'thursday' THEN 4
+                    WHEN 'friday' THEN 5
+                    ELSE 6 END")
                 ->orderBy('start_time')
                 ->get();
         }
