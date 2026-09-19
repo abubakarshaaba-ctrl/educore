@@ -5,6 +5,7 @@ import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
@@ -42,6 +43,15 @@ interface ParallelCurriculumLifecycleRepository {
     ): AppResult<String>
 
     suspend fun deleteTimetablePeriod(periodId: Long): AppResult<String>
+
+    suspend fun saveWorkingDays(
+        curriculumId: Long,
+        days: List<ParallelWorkingDayDraft>,
+    ): AppResult<String>
+
+    suspend fun clockInParallelStaff(curriculumId: Long): AppResult<String>
+
+    suspend fun clockOutParallelStaff(curriculumId: Long): AppResult<String>
 
     suspend fun saveParallelAttendance(
         armId: Long,
