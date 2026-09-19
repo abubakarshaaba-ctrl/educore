@@ -10,7 +10,7 @@
 <body>
 @php($row=$report['student_result'])
 <div class="header">
-    <div class="school">{{ auth()->user()->tenant?->name ?? config('app.name') }}</div>
+    <div class="school">{{ $schoolName ?? auth()->user()?->tenant?->name ?? config('app.name') }}</div>
     <div class="programme">{{ $report['curriculum']?->name }} — Student Result</div>
     <div class="period">{{ $report['term']->session?->name }} · {{ $report['term']->name }} · {{ $report['class']->name }}</div>
 </div>
