@@ -175,6 +175,32 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         }
     }
 
+    fun removeStudent(enrolmentId: Long) {
+        val state = _uiState.value
+        val sessionId = state.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (val result = repository.removeStudent(enrolmentId)) {
+                is AppResult.Success -> {
+                    _uiState.update { it.copy(isMutating = false, message = result.value) }
+                    load(_uiState.value.selectedCurriculumId, sessionId)
+                    loadStudents(
+                        conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
+                        assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        gender = _uiState.value.studentGender,
+                        search = _uiState.value.studentSearch,
+                        page = _uiState.value.studentPageNumber,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
+    }
+
     fun selectPromotionSessions(sourceId: Long?, targetId: Long?) {
         _uiState.update {
             it.copy(
