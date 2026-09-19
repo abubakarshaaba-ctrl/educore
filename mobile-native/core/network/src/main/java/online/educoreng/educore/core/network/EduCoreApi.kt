@@ -296,6 +296,10 @@ interface EduCoreApi {
         @Query("page") page: Int = 1,
     ): ParallelLifecycleStudentPageDto
 
+    @Streaming
+    @GET("parallel-curriculum/lifecycle/assignments/template")
+    suspend fun downloadParallelStudentAssignmentTemplate(): ResponseBody
+
     @Multipart
     @POST("parallel-curriculum/lifecycle/assignments/import")
     suspend fun importParallelStudentAssignments(
