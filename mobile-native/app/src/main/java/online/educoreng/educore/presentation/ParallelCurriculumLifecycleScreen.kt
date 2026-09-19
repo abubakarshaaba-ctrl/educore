@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -1373,12 +1372,13 @@ private fun StudentPlacementPanel(
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
-                        if (student.assignment != null) {
+                        val assignment = student.assignment
+                        if (assignment != null) {
                             Spacer(Modifier.height(EduCoreSpacing.Sm))
                             EduCoreDangerButton(
                                 text = "Remove Parallel Placement",
                                 onClick = {
-                                    pendingRemovalEnrolmentId = student.assignment.enrolmentId
+                                    pendingRemovalEnrolmentId = assignment.enrolmentId
                                     pendingRemovalStudentName = student.name
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -2690,6 +2690,7 @@ internal fun ParallelOperationsPanel(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
 ) {
     val operations = state.operationsWorkspace
 
