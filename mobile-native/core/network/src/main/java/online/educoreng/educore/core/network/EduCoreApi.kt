@@ -201,6 +201,11 @@ interface EduCoreApi {
         @Body request: ParallelStudentAssignmentRequestDto,
     ): MessageDto
 
+    @DELETE("parallel-curriculum/lifecycle/assignments/{enrolment}")
+    suspend fun removeParallelStudent(
+        @Path("enrolment") enrolmentId: Long,
+    ): MessageDto
+
     @GET("parallel-curriculum/lifecycle/promotion-preview")
     suspend fun parallelPromotionPreview(
         @Query("parallel_curriculum_id") curriculumId: Long,
