@@ -748,6 +748,102 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         ]);
     }
 
+    public function test_default_subject_teacher_update_ignores_class_teacher_arm_periods(): void
+    {
+        $context = $this->context();
+
+        $classTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Dedicated Class Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $newDefaultTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'New Default Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $level = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'JSS 3',
+            'section' => 'junior_secondary',
+            'order_index' => 3,
+        ]);
+        $conventionalArm = ClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $level->id,
+            'name' => 'A',
+        ]);
+        $subject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'English Language',
+            'code' => 'ENG',
+            'is_active' => true,
+        ]);
+
+        TimetablePeriod::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_arm_id' => $conventionalArm->id,
+            'subject_id' => $subject->id,
+            'teacher_id' => $newDefaultTeacher->id,
+            'session_id' => $context['session']->id,
+            'day_of_week' => 'monday',
+            'start_time' => '09:00',
+            'end_time' => '09:40',
+            'venue' => 'Conventional Room',
+        ]);
+
+        $token = ApiToken::issue($context['admin'], 'parallel-default-teacher-class-arm');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teaching-mode', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'teaching_assignment_mode' => 'class_teacher',
+                'class_teacher_id' => $classTeacher->id,
+            ])
+            ->assertOk();
+
+        $period = $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'monday',
+                'start_time' => '09:00',
+                'end_time' => '09:40',
+                'venue' => 'Parallel Room',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('period.teacher_id', $classTeacher->id);
+
+        $periodId = (int) $period->json('period.id');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/class-subjects', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'teacher_id' => $newDefaultTeacher->id,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('parallel_curriculum_class_subjects', [
+            'id' => $context['classSubject']->id,
+            'teacher_id' => $newDefaultTeacher->id,
+            'is_active' => 1,
+        ]);
+
+        $this->assertDatabaseHas('parallel_curriculum_timetable_periods', [
+            'id' => $periodId,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'teacher_id' => $classTeacher->id,
+        ]);
+    }
+
     public function test_class_teacher_mode_grants_arm_scoped_mobile_score_entry(): void
     {
         $context = $this->context();
