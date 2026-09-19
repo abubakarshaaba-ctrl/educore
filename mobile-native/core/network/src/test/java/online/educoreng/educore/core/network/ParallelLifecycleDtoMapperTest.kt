@@ -1,11 +1,14 @@
 package online.educoreng.educore.core.network
 
 import online.educoreng.educore.core.network.dto.ParallelLifecycleArmDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleArmSubjectTeacherDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleClassDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleCurriculumDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleEnrolmentDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleSessionDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStaffDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleSubjectAssignmentDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewCountsDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewRowDto
@@ -30,6 +33,15 @@ class ParallelLifecycleDtoMapperTest {
                             id = 30,
                             name = "Mutawassitah 1",
                             code = "M1",
+                            subjects = listOf(
+                                ParallelLifecycleSubjectAssignmentDto(
+                                    assignmentId = 70,
+                                    subjectId = 80,
+                                    subjectName = "Qur'an",
+                                    defaultTeacherId = 90,
+                                    defaultTeacherName = "Teacher Default",
+                                ),
+                            ),
                             arms = listOf(
                                 ParallelLifecycleArmDto(
                                     id = 40,
@@ -37,6 +49,13 @@ class ParallelLifecycleDtoMapperTest {
                                     code = "A",
                                     capacity = 35,
                                     isActive = true,
+                                    subjectTeachers = listOf(
+                                        ParallelLifecycleArmSubjectTeacherDto(
+                                            subjectId = 80,
+                                            teacherId = 91,
+                                            teacherName = "Teacher Override",
+                                        ),
+                                    ),
                                 ),
                             ),
                         ),
@@ -44,6 +63,11 @@ class ParallelLifecycleDtoMapperTest {
                 ),
             ),
             sessions = listOf(ParallelLifecycleSessionDto(20, "2026/2027", true)),
+            staff = listOf(
+                ParallelLifecycleStaffDto(90, "Teacher Default"),
+                ParallelLifecycleStaffDto(91, "Teacher Override"),
+            ),
+            armTeacherOverridesReady = true,
             enrolments = listOf(
                 ParallelLifecycleEnrolmentDto(
                     id = 50,
@@ -60,8 +84,15 @@ class ParallelLifecycleDtoMapperTest {
         ).toDomain()
 
         assertEquals("Islamiyyah", domain.selectedCurriculum?.name)
-        assertEquals("A", domain.selectedCurriculum?.classes?.single()?.arms?.single()?.name)
-        assertEquals(35, domain.selectedCurriculum?.classes?.single()?.arms?.single()?.capacity)
+        val level = domain.selectedCurriculum?.classes?.single()
+        val arm = level?.arms?.single()
+        assertEquals("A", arm?.name)
+        assertEquals(35, arm?.capacity)
+        assertEquals("Qur'an", level?.subjects?.single()?.subjectName)
+        assertEquals("Teacher Default", level?.subjects?.single()?.defaultTeacherName)
+        assertEquals("Teacher Override", arm?.subjectTeachers?.single()?.teacherName)
+        assertEquals(2, domain.staff.size)
+        assertTrue(domain.armTeacherOverridesReady)
         assertEquals("A", domain.enrolments.single().armName)
         assertTrue(domain.sessions.single().isCurrent)
     }
