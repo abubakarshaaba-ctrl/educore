@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
+use App\Models\ClassArm;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumArmSubjectTeacher;
 use App\Models\ParallelCurriculumClass;
@@ -15,11 +16,13 @@ use App\Models\ParallelCurriculumPromotion;
 use App\Models\ParallelCurriculumPromotionRule;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
+use App\Models\Student;
 use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -256,6 +259,297 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'processed_at' => optional($promotion->processed_at)->toIso8601String(),
             ])->values(),
             'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function students(Request $request): JsonResponse
+    {
+        $tenantId = $this->assertManage($request);
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId),
+            ],
+            'session_id' => [
+                'required',
+                Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
+            ],
+            'conventional_class_arm_id' => [
+                'nullable',
+                Rule::exists('class_arms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'assignment_status' => ['nullable', Rule::in(['all', 'assigned', 'unassigned'])],
+            'gender' => ['nullable', Rule::in(['male', 'female'])],
+            'q' => ['nullable', 'string', 'max:120'],
+            'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $curriculum = ParallelCurriculum::where('is_active', true)
+            ->findOrFail($data['parallel_curriculum_id']);
+        $session = AcademicSession::findOrFail($data['session_id']);
+        $assignmentStatus = (string) ($data['assignment_status'] ?? 'all');
+        $gender = trim((string) ($data['gender'] ?? ''));
+        $search = trim((string) ($data['q'] ?? ''));
+        $conventionalClassArmId = isset($data['conventional_class_arm_id'])
+            ? (int) $data['conventional_class_arm_id']
+            : null;
+        $perPage = (int) ($data['per_page'] ?? 50);
+
+        $programmeEnrolments = ParallelCurriculumEnrolment::where(
+                'parallel_curriculum_id',
+                $curriculum->id
+            )
+            ->where('session_id', $session->id)
+            ->where('is_active', true);
+
+        $assignedStudentIds = (clone $programmeEnrolments)->pluck('student_id');
+
+        $studentsQuery = Student::active()
+            ->with('currentClassArm.classLevel')
+            ->when(
+                $conventionalClassArmId,
+                function ($query) use ($conventionalClassArmId, $session): void {
+                    $query->where(function ($studentQuery) use ($conventionalClassArmId, $session): void {
+                        $studentQuery->where('current_class_arm_id', $conventionalClassArmId)
+                            ->orWhereHas(
+                                'enrollments',
+                                fn ($enrolmentQuery) => $enrolmentQuery
+                                    ->where('session_id', $session->id)
+                                    ->where('class_arm_id', $conventionalClassArmId)
+                            );
+                    });
+                }
+            )
+            ->when($gender !== '', fn ($query) => $query->where('gender', $gender))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($studentQuery) use ($search): void {
+                    $studentQuery
+                        ->where('admission_number', 'like', "%{$search}%")
+                        ->orWhere('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                $assignmentStatus === 'assigned',
+                fn ($query) => $query->whereIn('id', $assignedStudentIds)
+            )
+            ->when(
+                $assignmentStatus === 'unassigned',
+                fn ($query) => $query->whereNotIn('id', $assignedStudentIds)
+            )
+            ->orderBy('last_name')
+            ->orderBy('first_name');
+
+        $students = $studentsQuery->paginate($perPage);
+
+        $activeAssignments = $students->isNotEmpty()
+            ? ParallelCurriculumEnrolment::with(['curriculumClass', 'curriculumClassArm'])
+                ->where('parallel_curriculum_id', $curriculum->id)
+                ->where('session_id', $session->id)
+                ->where('is_active', true)
+                ->whereIn('student_id', $students->getCollection()->pluck('id'))
+                ->get()
+                ->keyBy('student_id')
+            : collect();
+
+        $classArms = ClassArm::with('classLevel')
+            ->orderBy('class_level_id')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'contract_version' => 1,
+            'parallel_curriculum_id' => (int) $curriculum->id,
+            'session_id' => (int) $session->id,
+            'filters' => [
+                'conventional_class_arm_id' => $conventionalClassArmId,
+                'assignment_status' => $assignmentStatus,
+                'gender' => $gender !== '' ? $gender : null,
+                'q' => $search,
+            ],
+            'conventional_class_arms' => $classArms->map(fn (ClassArm $arm) => [
+                'id' => (int) $arm->id,
+                'name' => (string) $arm->full_name,
+            ])->values(),
+            'students' => $students->getCollection()->map(function (Student $student) use ($activeAssignments) {
+                $assignment = $activeAssignments->get($student->id);
+
+                return [
+                    'id' => (int) $student->id,
+                    'name' => (string) $student->full_name,
+                    'admission_number' => (string) $student->admission_number,
+                    'gender' => $student->gender,
+                    'conventional_class_arm_id' => $student->current_class_arm_id
+                        ? (int) $student->current_class_arm_id
+                        : null,
+                    'conventional_class_name' => $student->currentClassArm?->full_name,
+                    'assignment' => $assignment ? [
+                        'enrolment_id' => (int) $assignment->id,
+                        'class_id' => (int) $assignment->parallel_curriculum_class_id,
+                        'class_name' => $assignment->curriculumClass?->name,
+                        'arm_id' => $assignment->parallel_curriculum_class_arm_id
+                            ? (int) $assignment->parallel_curriculum_class_arm_id
+                            : null,
+                        'arm_name' => $assignment->curriculumClassArm?->name,
+                    ] : null,
+                ];
+            })->values(),
+            'pagination' => [
+                'current_page' => (int) $students->currentPage(),
+                'last_page' => (int) $students->lastPage(),
+                'per_page' => (int) $students->perPage(),
+                'total' => (int) $students->total(),
+            ],
+        ]);
+    }
+
+    public function assignStudents(Request $request): JsonResponse
+    {
+        $tenantId = $this->assertManage($request);
+        $data = $request->validate([
+            'parallel_curriculum_class_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId),
+            ],
+            'parallel_curriculum_class_arm_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'session_id' => [
+                'required',
+                Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
+            ],
+            'student_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'student_ids.*' => [
+                'integer',
+                Rule::exists('students', 'id')->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $class = ParallelCurriculumClass::with('curriculum')
+            ->findOrFail($data['parallel_curriculum_class_id']);
+        $arm = ParallelCurriculumClassArm::where(
+                'parallel_curriculum_class_id',
+                $class->id
+            )
+            ->where('is_active', true)
+            ->findOrFail($data['parallel_curriculum_class_arm_id']);
+
+        abort_unless(
+            $class->is_active && $class->curriculum?->is_active,
+            422,
+            'Students can only be assigned to an active parallel curriculum class and programme.'
+        );
+
+        $studentIds = collect($data['student_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $students = Student::active()
+            ->whereIn('id', $studentIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($studentIds->diff($students->keys()->map(fn ($id) => (int) $id))->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'student_ids' => ['Only active students can be assigned to a parallel curriculum class.'],
+            ]);
+        }
+
+        $existingEnrolments = ParallelCurriculumEnrolment::where(
+                'parallel_curriculum_id',
+                $class->parallel_curriculum_id
+            )
+            ->where('session_id', $data['session_id'])
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->keyBy('student_id');
+
+        $destinationLocked = null;
+        $placementErrors = [];
+
+        foreach ($studentIds as $studentId) {
+            $existing = $existingEnrolments->get($studentId);
+            $changesPlacement = ! $existing
+                || (int) $existing->parallel_curriculum_class_id !== (int) $class->id
+                || (int) $existing->parallel_curriculum_class_arm_id !== (int) $arm->id;
+
+            if (! $changesPlacement) {
+                continue;
+            }
+
+            $student = $students->get($studentId);
+            $studentLabel = $student?->admission_number ?: 'Student #'.$studentId;
+
+            if ($existing && $this->parallel->enrolmentPlacementLocked($existing)) {
+                $placementErrors[] = "{$studentLabel} cannot be moved because the current parallel-class result is published.";
+                continue;
+            }
+
+            $destinationLocked ??= $this->parallel->classPlacementLocked(
+                $class,
+                (int) $data['session_id']
+            );
+
+            if ($destinationLocked) {
+                $placementErrors[] = "{$studentLabel} cannot be assigned to {$class->name} because that class already has a published result for this session.";
+            }
+        }
+
+        if ($placementErrors !== []) {
+            throw ValidationException::withMessages([
+                'student_ids' => array_slice($placementErrors, 0, 20),
+            ]);
+        }
+
+        if ($arm->capacity) {
+            $existingInArm = ParallelCurriculumEnrolment::where(
+                    'parallel_curriculum_class_arm_id',
+                    $arm->id
+                )
+                ->where('session_id', $data['session_id'])
+                ->where('is_active', true)
+                ->whereNotIn('student_id', $studentIds)
+                ->count();
+
+            if ($existingInArm + $studentIds->count() > (int) $arm->capacity) {
+                throw ValidationException::withMessages([
+                    'parallel_curriculum_class_arm_id' =>
+                        'The selected arm has capacity for '.
+                        max(0, (int) $arm->capacity - $existingInArm).
+                        ' additional learner(s).',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($studentIds, $tenantId, $class, $arm, $data): void {
+            foreach ($studentIds as $studentId) {
+                ParallelCurriculumEnrolment::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_id' => $class->parallel_curriculum_id,
+                        'student_id' => $studentId,
+                        'session_id' => $data['session_id'],
+                    ],
+                    [
+                        'parallel_curriculum_class_id' => $class->id,
+                        'parallel_curriculum_class_arm_id' => $arm->id,
+                        'is_active' => true,
+                    ]
+                );
+            }
+        });
+
+        return response()->json([
+            'message' => $studentIds->count().
+                ' student parallel placement(s) updated. Existing students in this programme were moved to the selected parallel class arm.',
+            'updated' => $studentIds->count(),
+            'parallel_curriculum_class_id' => (int) $class->id,
+            'parallel_curriculum_class_arm_id' => (int) $arm->id,
+            'session_id' => (int) $data['session_id'],
         ]);
     }
 
