@@ -9,6 +9,7 @@ use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\Term;
 use App\Services\ParallelCurriculumOperationsService;
+use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -16,10 +17,23 @@ class MobileParallelCurriculumOperationsController extends Controller
 {
     public function __construct(
         private readonly ParallelCurriculumOperationsService $operations,
+        private readonly ParallelCurriculumService $parallel,
     ) {}
+
+    private function assertAvailable(Request $request): void
+    {
+        $user = $request->user();
+        abort_unless($user && ($user->isTenantStaff() || $user->isSuperAdmin()), 403);
+        abort_unless(
+            $this->parallel->enabledForTenant((int) $user->tenant_id),
+            404,
+            'Parallel Curriculum Integration is not enabled for this school.'
+        );
+    }
 
     public function index(Request $request)
     {
+        $this->assertAvailable($request);
         $data = $request->validate([
             'parallel_curriculum_id' => ['nullable', 'integer'],
             'session_id' => ['nullable', 'integer'],
@@ -30,7 +44,6 @@ class MobileParallelCurriculumOperationsController extends Controller
         ]);
 
         $user = $request->user();
-        abort_unless($user->isTenantStaff() || $user->isSuperAdmin(), 403, 'Parallel operations are available to school staff only.');
         $tenantId = (int) $user->tenant_id;
 
         $curricula = ParallelCurriculum::query()
@@ -189,6 +202,7 @@ class MobileParallelCurriculumOperationsController extends Controller
 
     public function storePeriod(Request $request)
     {
+        $this->assertAvailable($request);
         $tenantId = (int) $request->user()->tenant_id;
         $data = $request->validate([
             'parallel_curriculum_class_id' => [
@@ -223,6 +237,7 @@ class MobileParallelCurriculumOperationsController extends Controller
 
     public function destroyPeriod(Request $request, ParallelCurriculumTimetablePeriod $period)
     {
+        $this->assertAvailable($request);
         $this->operations->deletePeriod($request->user(), $period);
 
         return response()->json(['message' => 'Parallel timetable period removed.']);
@@ -230,6 +245,7 @@ class MobileParallelCurriculumOperationsController extends Controller
 
     public function saveAttendance(Request $request)
     {
+        $this->assertAvailable($request);
         $tenantId = (int) $request->user()->tenant_id;
         $data = $request->validate([
             'parallel_curriculum_class_arm_id' => [
