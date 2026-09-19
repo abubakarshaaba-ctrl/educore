@@ -20,9 +20,11 @@ use App\Models\ParallelCurriculumReportPublication;
 use App\Models\ParallelCurriculumScore;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
+use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
+use App\Services\ParallelCurriculumOperationsService;
 use App\Services\ParallelCurriculumService;
 use App\Services\ParallelCurriculumStudentAssignmentImportService;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +40,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
         private readonly ParallelCurriculumService $parallel,
         private readonly ParallelCurriculumLifecycleService $lifecycle,
         private readonly ParallelCurriculumStudentAssignmentImportService $assignmentImport,
+        private readonly ParallelCurriculumOperationsService $operations,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -664,6 +667,14 @@ class MobileParallelCurriculumLifecycleController extends Controller
             );
         }
 
+        $this->operations->validateTeacherChange(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
+            null,
+            ! empty($data['teacher_id']) ? (int) $data['teacher_id'] : null,
+        );
+
         $assignment = ParallelCurriculumClassSubject::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
@@ -674,6 +685,12 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'teacher_id' => $data['teacher_id'] ?? null,
                 'is_active' => true,
             ]
+        );
+
+        $this->operations->syncTimetableTeachers(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
         );
 
         if ($structureChanged) {
@@ -697,6 +714,14 @@ class MobileParallelCurriculumLifecycleController extends Controller
 
         $class = ParallelCurriculumClass::findOrFail(
             $assignment->parallel_curriculum_class_id
+        );
+
+        abort_if(
+            ParallelCurriculumTimetablePeriod::where('parallel_curriculum_class_id', $class->id)
+                ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
+                ->exists(),
+            423,
+            'Remove this subject from the parallel timetable before removing it from the class.'
         );
 
         abort_if(
@@ -1632,6 +1657,15 @@ class MobileParallelCurriculumLifecycleController extends Controller
             ? (int) $data['teacher_id']
             : null;
 
+        $effectiveTeacherId = $teacherId ?: ($classSubject->teacher_id ? (int) $classSubject->teacher_id : null);
+        $this->operations->validateTeacherChange(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
+            (int) $arm->id,
+            $effectiveTeacherId,
+        );
+
         if ($teacherId) {
             $teacher = User::findOrFail($teacherId);
 
@@ -1658,6 +1692,13 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 ]
             );
 
+            $this->operations->syncTimetableTeachers(
+                $tenantId,
+                (int) $class->id,
+                (int) $subject->id,
+                (int) $arm->id,
+            );
+
             return response()->json([
                 'message' => "{$subject->name} in {$class->name} {$arm->name} is now assigned to {$teacher->name}.",
                 'effective_teacher_id' => $teacherId,
@@ -1674,6 +1715,13 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 $subject->id
             )
             ->delete();
+
+        $this->operations->syncTimetableTeachers(
+            $tenantId,
+            (int) $class->id,
+            (int) $subject->id,
+            (int) $arm->id,
+        );
 
         return response()->json([
             'message' => "{$subject->name} in {$class->name} {$arm->name} now uses the class-level default teacher.",
