@@ -295,6 +295,7 @@ interface EduCoreApi {
         @Query("parallel_curriculum_id") curriculumId: Long,
         @Query("source_session_id") sourceSessionId: Long,
         @Query("target_session_id") targetSessionId: Long,
+        @Query("source_class_ids[]") sourceClassIds: List<Long> = emptyList(),
     ): ParallelPromotionPreviewResponseDto
 
     @POST("parallel-curriculum/lifecycle/promotions/execute")
