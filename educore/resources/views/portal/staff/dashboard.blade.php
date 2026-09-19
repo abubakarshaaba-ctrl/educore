@@ -6,8 +6,9 @@
 <style>
 .sp-banner{background:linear-gradient(135deg,#071E45,#1E3A8A 60%,#D79A21);border-radius:16px;padding:24px 26px;color:white;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;overflow:hidden}
 .sp-banner::after{content:'';position:absolute;top:-40%;right:-5%;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.06)}
+.sp-banner-main{min-width:0;flex:1 1 300px;position:relative;z-index:1}
 .sp-banner-eyebrow{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;position:relative}
-.sp-banner-name{font-size:21px;font-weight:800;position:relative}
+.sp-banner-name{font-size:21px;font-weight:800;line-height:1.15;position:relative;overflow-wrap:anywhere}
 .sp-banner-sub{font-size:13px;opacity:.85;margin-top:4px;position:relative}
 .sp-banner-id{text-align:right;position:relative}
 .sp-banner-id .lbl{font-size:11px;opacity:.75}
@@ -43,7 +44,23 @@
 .sp-tt-table tr:last-child td{border-bottom:none}
 
 @media(max-width:1000px){.sp-stats{grid-template-columns:repeat(2,1fr)}.sp-grid{grid-template-columns:1fr}}
-@media(max-width:600px){.sp-stats,.sp-quick{grid-template-columns:1fr}}
+@media(max-width:600px){
+    .sp-stats,.sp-quick{grid-template-columns:1fr}
+    .sp-banner{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;padding:20px 18px;gap:16px}
+    .sp-banner::after{width:180px;height:180px;right:-18%;top:-18%}
+    .sp-banner-main{width:100%}
+    .sp-banner-name{font-size:clamp(20px,7vw,27px)}
+    .sp-banner-sub{line-height:1.45}
+    .sp-banner-id{width:100%;text-align:left;padding-top:13px;border-top:1px solid rgba(255,255,255,.2);display:grid;grid-template-columns:minmax(90px,auto) minmax(0,1fr);grid-template-areas:"lbl school" "val school";column-gap:14px;align-items:end;z-index:1}
+    .sp-banner-id .lbl{grid-area:lbl}
+    .sp-banner-id .val{grid-area:val}
+    .sp-banner-id .school{grid-area:school;margin-top:0;text-align:right;align-self:center;overflow-wrap:anywhere}
+}
+@media(max-width:380px){
+    .sp-banner{padding:18px 16px}
+    .sp-banner-id{grid-template-columns:1fr;grid-template-areas:"lbl" "val" "school";row-gap:2px}
+    .sp-banner-id .school{text-align:left;margin-top:6px}
+}
 </style>
 @endpush
 
@@ -51,7 +68,7 @@
 
 {{-- Welcome banner --}}
 <div class="sp-banner">
-    <div>
+    <div class="sp-banner-main">
         <div class="sp-banner-eyebrow">Welcome back</div>
         <div class="sp-banner-name">{{ $user->name }}</div>
         <div class="sp-banner-sub">
