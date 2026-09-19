@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePaymentController;
 use App\Http\Controllers\Api\MobileParallelCurriculumLifecycleController;
+use App\Http\Controllers\Api\MobileParallelCurriculumResultController;
 use App\Http\Controllers\Api\MobileReleaseController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
@@ -140,6 +141,13 @@ Route::prefix('v1')->group(function () {
         Route::get('parallel-scores/teaching', [ParallelCurriculumScoreController::class, 'teaching']);
         Route::get('parallel-scores/sheet', [ParallelCurriculumScoreController::class, 'sheet']);
         Route::post('parallel-scores/save', [ParallelCurriculumScoreController::class, 'save']);
+
+        Route::prefix('parallel-curriculum/results')->group(function () {
+            Route::get('/', [MobileParallelCurriculumResultController::class, 'index']);
+            Route::get('classes/{class}/students/{student}', [MobileParallelCurriculumResultController::class, 'student']);
+            Route::post('publish', [MobileParallelCurriculumResultController::class, 'publish']);
+            Route::post('unpublish', [MobileParallelCurriculumResultController::class, 'unpublish']);
+        });
 
         Route::prefix('parallel-curriculum/lifecycle')->group(function () {
             Route::get('/', [MobileParallelCurriculumLifecycleController::class, 'index']);
