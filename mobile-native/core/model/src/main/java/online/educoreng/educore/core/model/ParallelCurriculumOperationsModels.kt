@@ -8,9 +8,9 @@ data class ParallelOperationsWorkspace(
     val terms: List<ParallelOperationsTerm>,
     val classes: List<ParallelOperationsClass>,
     val periods: List<ParallelOperationsPeriod>,
-    val workingDays: List<ParallelWorkingDay>,
     val attendance: ParallelOperationsAttendance?,
-    val staffAttendance: ParallelStaffAttendance?,
+    val workingDays: List<ParallelWorkingDay> = emptyList(),
+    val staffAttendance: ParallelStaffAttendance? = null,
 )
 
 data class ParallelOperationsSelection(
