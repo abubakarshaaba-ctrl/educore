@@ -154,6 +154,15 @@
         .attendance-stat { padding:13px 10px; }
         .attendance-stat-value { font-size:23px; }
     }
+
+    .parallel-form-panel{background:#fff;border:1px solid var(--brand-border,var(--border));border-radius:12px;overflow:hidden;margin:0 0 18px}
+    .parallel-form-head{padding:12px 16px;background:#F8FAFC;border-bottom:1px solid var(--brand-border,var(--border));display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .parallel-form-head strong{font-size:13px;color:var(--brand-navy,var(--midnight))}.parallel-form-head span{font-size:11px;color:var(--brand-gray,var(--slate-light))}
+    .parallel-form-grid{padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+    .parallel-form-card{border:1px solid var(--brand-border,var(--border));border-radius:10px;padding:13px;min-width:0}.parallel-form-card strong{display:block;font-size:12.5px;color:var(--brand-navy,var(--midnight));overflow-wrap:anywhere}.parallel-form-card small{display:block;margin-top:4px;color:var(--brand-gray,var(--slate-light));font-size:10px;line-height:1.45}
+    .parallel-form-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.parallel-form-actions a{flex:1 1 120px;display:inline-flex;align-items:center;justify-content:center;min-height:35px;padding:7px 9px;border-radius:8px;text-decoration:none;font-size:10.5px;font-weight:800}
+    .parallel-attendance-link{background:var(--brand-gold,#D79A21);color:#071E45}.parallel-comment-link{background:#fff;color:var(--brand-navy,var(--midnight));border:1px solid var(--brand-border,var(--border))}
+    @media(max-width:640px){.parallel-form-grid{grid-template-columns:1fr;padding:12px}}
 </style>
 @endpush
 
@@ -216,6 +225,27 @@
     <a href="{{ route('attendance.index') }}" class="page-tab active" aria-current="page">Mark Attendance</a>
     <a href="{{ route('attendance.report') }}" class="page-tab">Reports</a>
 </nav>
+
+@if(($parallelFormClasses ?? collect())->isNotEmpty())
+<section class="parallel-form-panel" aria-labelledby="parallel-form-title">
+    <div class="parallel-form-head">
+        <strong id="parallel-form-title">My Parallel Form Classes</strong>
+        <span>All-subject class-teacher assignments include form-teacher responsibility.</span>
+    </div>
+    <div class="parallel-form-grid">
+        @foreach($parallelFormClasses as $parallelFormClass)
+            <article class="parallel-form-card">
+                <strong>{{ $parallelFormClass['label'] }}</strong>
+                <small>You can mark learner attendance and enter term-specific form-teacher comments for this arm.</small>
+                <div class="parallel-form-actions">
+                    <a class="parallel-attendance-link" href="{{ $parallelFormClass['attendance_url'] }}">Mark Attendance</a>
+                    <a class="parallel-comment-link" href="{{ $parallelFormClass['comments_url'] }}">Form Teacher Comments</a>
+                </div>
+            </article>
+        @endforeach
+    </div>
+</section>
+@endif
 
 <div class="attendance-stats" aria-label="Today's attendance summary">
     <div class="attendance-stat">
