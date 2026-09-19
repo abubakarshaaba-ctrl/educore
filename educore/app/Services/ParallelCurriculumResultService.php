@@ -298,6 +298,8 @@ class ParallelCurriculumResultService
                     'class_size' => $report['students_count'],
                     'subjects_offered' => $row['subject_count'],
                     'subjects_failed' => $row['failed_subjects'],
+                    'form_teacher_comment' => $row['form_teacher_comment'],
+                    'form_teacher_name' => $row['form_teacher']?->name,
                     'publication_status' => ParallelCurriculumReportPublication::STATUS_PUBLISHED,
                     'published_at' => $publication->published_at?->toIso8601String(),
                     'subjects' => $row['subjects']->map(fn (array $subject) => [
