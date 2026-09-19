@@ -11,12 +11,16 @@ use App\Models\Guardian;
 use App\Models\Student;
 use App\Models\Term;
 use App\Models\TimetablePeriod;
+use App\Services\ParallelCurriculumPortalService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 class MobileScheduleController extends Controller
 {
+    public function __construct(
+        private readonly ParallelCurriculumPortalService $parallelPortal,
+    ) {}
     private const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     public function __invoke(Request $request)
@@ -35,6 +39,9 @@ class MobileScheduleController extends Controller
 
         $context = $this->context($request, $data['class_arm_id'] ?? null, $data['child_id'] ?? null);
         $periods = $this->periods($user, $context['class'], $session?->id, $context['scope']);
+        $parallelProgrammes = $context['student']
+            ? $this->parallelPortal->timetableForStudent($context['student'], $session?->id)
+            : collect();
         $exams = $context['class']
             ? $this->examSchedule($context['class'], $term?->id, $from->toDateString(), $to->toDateString())
             : collect();
@@ -56,11 +63,42 @@ class MobileScheduleController extends Controller
                     'name' => $this->className($context['class']),
                 ] : null,
             ],
+            'children' => collect($context['children'])->map(fn (Student $child) => [
+                'id' => $child->id,
+                'name' => $child->full_name,
+            ])->values(),
+            'selected_child_id' => $context['student']?->id,
             'week' => collect(self::DAYS)->map(fn (string $day) => [
                 'day' => $day,
                 'periods' => $periods->filter(fn (TimetablePeriod $period) => strcasecmp((string) $period->day_of_week, $day) === 0)
                     ->sortBy('start_time')->map(fn (TimetablePeriod $period) => $this->periodPayload($period))->values(),
             ])->values(),
+            'parallel_programmes' => $parallelProgrammes->map(function (array $programme): array {
+                return [
+                    'curriculum_id' => $programme['curriculum_id'],
+                    'curriculum_name' => $programme['curriculum_name'],
+                    'class_name' => $programme['class_name'],
+                    'arm_name' => $programme['arm_name'],
+                    'week' => collect(self::DAYS)->map(function (string $day) use ($programme): array {
+                        return [
+                            'day' => $day,
+                            'periods' => $programme['periods']
+                                ->filter(fn ($period) => strcasecmp((string) $period->day_of_week, $day) === 0)
+                                ->sortBy('start_time')
+                                ->map(fn ($period) => [
+                                    'id' => $period->id,
+                                    'start_time' => $this->time($period->start_time),
+                                    'end_time' => $this->time($period->end_time),
+                                    'subject' => $period->subject?->name ?? 'Subject',
+                                    'class' => trim(($period->curriculumClass?->name ?? '').' '.($period->classArm?->name ?? '')),
+                                    'teacher' => $period->teacher?->name,
+                                    'venue' => $period->venue,
+                                ])
+                                ->values(),
+                        ];
+                    })->values(),
+                ];
+            })->values(),
             'exams' => $exams->values(),
             'duties' => $duties->values(),
         ]);
@@ -73,7 +111,13 @@ class MobileScheduleController extends Controller
             $student = Student::with('currentClassArm.classLevel')->where('user_id', $user->id)->first();
             abort_unless($student, 403, 'No student profile is linked to this account.');
 
-            return ['scope' => 'student', 'title' => $student->full_name, 'class' => $student->currentClassArm];
+            return [
+                'scope' => 'student',
+                'title' => $student->full_name,
+                'class' => $student->currentClassArm,
+                'student' => $student,
+                'children' => collect(),
+            ];
         }
 
         if ($user->isParent()) {
@@ -83,7 +127,13 @@ class MobileScheduleController extends Controller
             $student = $childId ? $children->firstWhere('id', $childId) : $children->first();
             abort_unless($student, 403, 'This child is not linked to your parent account.');
 
-            return ['scope' => 'parent_child', 'title' => $student->full_name, 'class' => $student->currentClassArm];
+            return [
+                'scope' => 'parent_child',
+                'title' => $student->full_name,
+                'class' => $student->currentClassArm,
+                'student' => $student,
+                'children' => $children,
+            ];
         }
 
         abort_unless($user->isTenantStaff() || $user->isSuperAdmin(), 403, 'Schedule access is unavailable for this account.');
@@ -93,10 +143,22 @@ class MobileScheduleController extends Controller
             $isFormTutor = (int) $class->form_tutor_id === (int) $user->id;
             abort_unless($hasFullAccess || $isFormTutor, 403, 'You can only open the timetable for your assigned form class.');
 
-            return ['scope' => 'class', 'title' => $this->className($class), 'class' => $class];
+            return [
+                'scope' => 'class',
+                'title' => $this->className($class),
+                'class' => $class,
+                'student' => null,
+                'children' => collect(),
+            ];
         }
 
-        return ['scope' => 'staff', 'title' => 'My schedule', 'class' => null];
+        return [
+            'scope' => 'staff',
+            'title' => 'My schedule',
+            'class' => null,
+            'student' => null,
+            'children' => collect(),
+        ];
     }
 
     private function periods($user, ?ClassArm $class, ?int $sessionId, string $scope): Collection
