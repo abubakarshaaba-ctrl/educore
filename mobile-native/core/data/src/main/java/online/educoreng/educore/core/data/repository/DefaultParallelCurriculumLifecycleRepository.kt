@@ -13,6 +13,11 @@ import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationReque
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelClassSubjectMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelProgrammeGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelTransferRequestDto
 import online.educoreng.educore.core.network.dto.toDomain
@@ -31,6 +36,142 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun createProgramme(
+        name: String,
+        code: String?,
+        defaultAssessmentTemplateId: Long,
+    ): AppResult<String> = mutation {
+        api.createParallelProgramme(
+            ParallelProgrammeMutationRequestDto(
+                name = name,
+                code = code,
+                defaultAssessmentTemplateId = defaultAssessmentTemplateId,
+            )
+        ).message
+    }
+
+    override suspend fun updateProgramme(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+        defaultAssessmentTemplateId: Long,
+    ): AppResult<String> = mutation {
+        api.updateParallelProgramme(
+            curriculumId,
+            ParallelProgrammeMutationRequestDto(
+                name = name,
+                code = code,
+                defaultAssessmentTemplateId = defaultAssessmentTemplateId,
+            )
+        ).message
+    }
+
+    override suspend fun createClass(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+        assessmentTemplateId: Long?,
+    ): AppResult<String> = mutation {
+        api.createParallelClass(
+            ParallelClassMutationRequestDto(
+                parallelCurriculumId = curriculumId,
+                name = name,
+                code = code,
+                assessmentTemplateId = assessmentTemplateId,
+            )
+        ).message
+    }
+
+    override suspend fun updateClass(
+        classId: Long,
+        name: String,
+        code: String?,
+        assessmentTemplateId: Long?,
+    ): AppResult<String> = mutation {
+        api.updateParallelClass(
+            classId,
+            ParallelClassMutationRequestDto(
+                name = name,
+                code = code,
+                assessmentTemplateId = assessmentTemplateId,
+            )
+        ).message
+    }
+
+    override suspend fun createSubject(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+    ): AppResult<String> = mutation {
+        api.createParallelSubject(
+            ParallelSubjectMutationRequestDto(
+                parallelCurriculumId = curriculumId,
+                name = name,
+                code = code,
+            )
+        ).message
+    }
+
+    override suspend fun updateSubject(
+        subjectId: Long,
+        name: String,
+        code: String?,
+    ): AppResult<String> = mutation {
+        api.updateParallelSubject(
+            subjectId,
+            ParallelSubjectMutationRequestDto(
+                name = name,
+                code = code,
+            )
+        ).message
+    }
+
+    override suspend fun saveClassSubject(
+        classId: Long,
+        subjectId: Long,
+        teacherId: Long?,
+    ): AppResult<String> = mutation {
+        api.saveParallelClassSubject(
+            ParallelClassSubjectMutationRequestDto(
+                parallelCurriculumClassId = classId,
+                parallelCurriculumSubjectId = subjectId,
+                teacherId = teacherId,
+            )
+        ).message
+    }
+
+    override suspend fun removeClassSubject(
+        assignmentId: Long,
+    ): AppResult<String> = mutation {
+        api.removeParallelClassSubject(assignmentId).message
+    }
+
+    override suspend fun saveProgrammeGrade(
+        curriculumId: Long,
+        gradeLetter: String,
+        minScore: Double,
+        maxScore: Double,
+        remark: String?,
+        isPassGrade: Boolean,
+    ): AppResult<String> = mutation {
+        api.saveParallelProgrammeGrade(
+            ParallelProgrammeGradeMutationRequestDto(
+                parallelCurriculumId = curriculumId,
+                gradeLetter = gradeLetter,
+                minScore = minScore,
+                maxScore = maxScore,
+                remark = remark,
+                isPassGrade = isPassGrade,
+            )
+        ).message
+    }
+
+    override suspend fun deleteProgrammeGrade(
+        gradeId: Long,
+    ): AppResult<String> = mutation {
+        api.deleteParallelProgrammeGrade(gradeId).message
     }
 
     override suspend fun loadStudents(
