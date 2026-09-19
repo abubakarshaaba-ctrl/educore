@@ -7,7 +7,9 @@
 .pc-results,
 .pc-result,
 .pc-score,
-.pc-breakdown {
+.pc-breakdown,
+.pcl,
+.pco {
     width: 100%;
     max-width: 1280px;
     margin-inline: auto;
@@ -19,7 +21,9 @@
 .pc-shell .pc-tabs,
 .pc-assign .pc-nav,
 .pc-results .pc-tabs,
-.pc-score .pc-tabs {
+.pc-score .pc-tabs,
+.pcl .tabs,
+.pco .tabs {
     gap: 8px;
     margin-bottom: 18px;
     padding-bottom: 2px;
@@ -28,7 +32,9 @@
 .pc-shell .pc-tab,
 .pc-assign .pc-nav a,
 .pc-results .pc-tab,
-.pc-score .pc-tab {
+.pc-score .pc-tab,
+.pcl .tab,
+.pco .tab {
     min-height: 40px;
     padding: 9px 14px;
     border-radius: var(--radius);
@@ -42,7 +48,9 @@
 .pc-shell .pc-tab:focus-visible,
 .pc-assign .pc-nav a:focus-visible,
 .pc-results .pc-tab:focus-visible,
-.pc-score .pc-tab:focus-visible {
+.pc-score .pc-tab:focus-visible,
+.pcl .tab:focus-visible,
+.pco .tab:focus-visible {
     outline: 3px solid rgba(215,154,33,.25);
     outline-offset: 2px;
 }
@@ -50,14 +58,18 @@
 /* Hero / context areas */
 .pc-shell .pc-hero,
 .pc-assign .pc-hero,
-.pc-results .hero {
+.pc-results .hero,
+.pcl .hero,
+.pco .hero {
     border-radius: 14px;
     padding: 20px 22px;
     box-shadow: var(--shadow);
 }
 .pc-shell .pc-hero h2,
 .pc-assign .pc-hero h2,
-.pc-results .hero h2 {
+.pc-results .hero h2,
+.pcl .hero h2,
+.pco .hero h2 {
     color: #fff;
     font-size: 20px;
     line-height: 1.25;
@@ -66,7 +78,9 @@
 }
 .pc-shell .pc-hero p,
 .pc-assign .pc-hero p,
-.pc-results .hero p {
+.pc-results .hero p,
+.pcl .hero p,
+.pco .hero p {
     font-size: 13px;
     line-height: 1.6;
 }
@@ -93,6 +107,8 @@
 .pc-shell .pc-card,
 .pc-assign .pc-panel,
 .pc-results .panel,
+.pcl .card,
+.pco .panel,
 .pc-result .card,
 .pc-breakdown .card {
     border-radius: 12px;
@@ -101,6 +117,8 @@
 .pc-shell .pc-head,
 .pc-assign .pc-head,
 .pc-results .head,
+.pcl .head,
+.pco .head,
 .pc-result .head,
 .pc-breakdown .head {
     padding: 13px 16px;
@@ -110,6 +128,8 @@
 .pc-shell .pc-body,
 .pc-assign .pc-body,
 .pc-results .body,
+.pcl .body,
+.pco .body,
 .pc-result .body,
 .pc-breakdown .body {
     padding: 16px;
@@ -118,14 +138,18 @@
 /* Forms */
 .pc-shell .fl,
 .pc-assign .fl,
-.pc-results .fl {
+.pc-results .fl,
+.pcl .fl,
+.pco .fl {
     font-size: 12px;
     line-height: 1.3;
     font-weight: 700;
 }
 .pc-shell .fc,
 .pc-assign .fc,
-.pc-results .fc {
+.pc-results .fc,
+.pcl .fc,
+.pco .fc {
     min-height: 42px;
     padding: 9px 11px;
     border-radius: 8px;
@@ -136,6 +160,8 @@
 .pc-shell .fc:focus,
 .pc-assign .fc:focus,
 .pc-results .fc:focus,
+.pcl .fc:focus,
+.pco .fc:focus,
 .pc-score .score:focus {
     outline: 3px solid rgba(215,154,33,.16);
     outline-offset: 1px;
@@ -146,6 +172,8 @@
 .pc-shell .btn,
 .pc-assign .btn,
 .pc-results .btn,
+.pcl .btn,
+.pco .btn,
 .pc-result .btn,
 .pc-score .btn,
 .pc-breakdown .btn {
@@ -161,6 +189,8 @@
 .pc-shell .btn-p:hover,
 .pc-assign .btn-p:hover,
 .pc-results .btn-p:hover,
+.pcl .p:hover,
+.pco .p:hover,
 .pc-result .btn-p:hover,
 .pc-score .btn-p:hover {
     background: var(--indigo-dark);
@@ -168,6 +198,8 @@
 .pc-shell .btn:focus-visible,
 .pc-assign .btn:focus-visible,
 .pc-results .btn:focus-visible,
+.pcl .btn:focus-visible,
+.pco .btn:focus-visible,
 .pc-result .btn:focus-visible,
 .pc-score .btn:focus-visible,
 .pc-breakdown .btn:focus-visible {
@@ -179,6 +211,8 @@
 .pc-shell .hint,
 .pc-assign .hint,
 .pc-results .hint,
+.pcl .hint,
+.pco .hint,
 .pc-score .hint {
     font-size: 12px;
     line-height: 1.5;
@@ -389,7 +423,9 @@
     }
     .pc-shell .pc-hero h2,
     .pc-assign .pc-hero h2,
-    .pc-results .hero h2 {
+    .pc-results .hero h2,
+    .pcl .hero h2,
+    .pco .hero h2 {
         font-size: 21px;
     }
     .pc-shell .fc,
@@ -398,6 +434,8 @@
     .pc-shell .btn,
     .pc-assign .btn,
     .pc-results .btn,
+    .pcl .btn,
+    .pco .btn,
     .pc-result .btn,
     .pc-score .btn,
     .pc-breakdown .btn {
@@ -415,7 +453,9 @@
 @media (max-width: 768px) {
     .pc-shell .pc-hero,
     .pc-assign .pc-hero,
-    .pc-results .hero {
+    .pc-results .hero,
+    .pcl .hero,
+    .pco .hero {
         padding: 16px;
     }
     .pc-shell .pc-hero h2,
@@ -425,12 +465,16 @@
     }
     .pc-shell .pc-hero p,
     .pc-assign .pc-hero p,
-    .pc-results .hero p {
+    .pc-results .hero p,
+    .pcl .hero p,
+    .pco .hero p {
         font-size: 12.5px;
     }
     .pc-shell .pc-body,
     .pc-assign .pc-body,
     .pc-results .body,
+    .pcl .body,
+    .pco .body,
     .pc-result .body,
     .pc-breakdown .body {
         padding: 13px;
@@ -439,6 +483,8 @@
     .pc-assign .pc-nav a,
     .pc-results .pc-tab,
     .pc-score .pc-tab,
+    .pcl .tab,
+    .pco .tab,
     .pc-shell .btn,
     .pc-assign .btn,
     .pc-results .btn,
@@ -447,7 +493,9 @@
     .pc-breakdown .btn,
     .pc-shell .fc,
     .pc-assign .fc,
-    .pc-results .fc {
+    .pc-results .fc,
+    .pcl .fc,
+    .pco .fc {
         min-height: 44px;
     }
     .pc-assign .student-check {
@@ -460,12 +508,40 @@
     }
 }
 
+@media (max-width: 768px) {
+    .pc-shell .pc-tabs,
+    .pc-assign .pc-nav,
+    .pc-results .pc-tabs,
+    .pc-score .pc-tabs,
+    .pcl .tabs,
+    .pco .tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+        overflow: visible;
+        gap: 8px;
+        margin-inline: 0;
+    }
+    .pc-shell .pc-tab,
+    .pc-assign .pc-nav a,
+    .pc-results .pc-tab,
+    .pc-score .pc-tab,
+    .pcl .tab,
+    .pco .tab {
+        width: 100%;
+        min-width: 0;
+        white-space: normal;
+        text-align: center;
+    }
+}
+
 @media (max-width: 480px) {
     .pc-shell .pc-tabs,
     .pc-assign .pc-nav,
     .pc-results .pc-tabs,
-    .pc-score .pc-tabs {
-        margin-inline: -2px;
+    .pc-score .pc-tabs,
+    .pcl .tabs,
+    .pco .tabs {
+        margin-inline: 0;
     }
     .pc-result .toolbar,
     .pc-score .context {

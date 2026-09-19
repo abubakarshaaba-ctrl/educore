@@ -9,9 +9,10 @@
 .pc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.pc-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}.pc-head{padding:12px 15px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:800;color:var(--midnight)}.pc-body{padding:15px}.pc-card.full{grid-column:1/-1}
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-width:0}.fl{font-size:10.5px;font-weight:800;color:var(--slate)}.fc{width:100%;min-height:39px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff;font:500 12px inherit;outline:none}.fc:focus{border-color:var(--indigo)}select[multiple].fc{min-height:155px}.form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:9px 14px;font:700 11.5px inherit;cursor:pointer;text-decoration:none}.btn-p{background:var(--indigo);color:#fff}.btn-s{background:#fff;color:var(--midnight);border:1px solid var(--border)}.btn-d{background:#FEF2F2;color:#B42318;border:1px solid #FECDCA}.hint{font-size:10.5px;color:var(--slate-light);line-height:1.45}
 .workspaces{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.workspace{display:block;padding:13px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:inherit;background:#fff}.workspace:hover{border-color:var(--indigo);background:#F8FAFF}.workspace strong{display:block;color:var(--midnight);font-size:12.5px}.workspace span{display:block;margin-top:4px;color:var(--slate);font-size:10.5px}.empty{padding:24px;text-align:center;color:var(--slate-light);font-size:12px}
+.pc-feature-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.pc-feature-link{display:flex;flex-direction:column;gap:5px;min-height:112px;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;color:inherit;text-decoration:none}.pc-feature-link:hover{border-color:var(--indigo);background:#F8FAFF;box-shadow:var(--shadow)}.pc-feature-link strong{font-size:12.5px;line-height:1.35;color:var(--midnight)}.pc-feature-link span{font-size:10.5px;line-height:1.5;color:var(--slate)}.pc-feature-link small{margin-top:auto;font-size:9.5px;font-weight:800;color:var(--indigo);text-transform:uppercase;letter-spacing:.03em}
 .item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #EEF2F7}.item:last-child{border-bottom:0}.item-main{min-width:0}.item-main strong{display:block;color:var(--midnight);font-size:11.5px;overflow-wrap:anywhere}.item-main span{display:block;color:var(--slate-light);font-size:10px;margin-top:2px}.badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9.5px;font-weight:800;background:#EFF6FF;color:#1D4ED8}.badge.synced{background:#ECFDF3;color:#067647}.badge.pending{background:#FFFAEB;color:#B54708}.badge.conflict,.badge.locked{background:#FEF3F2;color:#B42318}.badge.unmapped{background:#F2F4F7;color:#475467}
 .alert-s,.alert-e{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.alert-s{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.alert-e{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}.checkbox-row{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--slate)}.checkbox-row input{margin-top:2px}
-@media(max-width:840px){.pc-grid{grid-template-columns:1fr}.pc-card.full{grid-column:auto}}@media(max-width:560px){.form-row{grid-template-columns:1fr}.pc-hero{padding:15px}.pc-body{padding:13px}.btn{width:100%}.item{flex-direction:column}}
+@media(max-width:840px){.pc-grid{grid-template-columns:1fr}.pc-card.full{grid-column:auto}.pc-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.form-row{grid-template-columns:1fr}.pc-hero{padding:15px}.pc-body{padding:13px}.btn{width:100%}.item{flex-direction:column}.pc-feature-grid{grid-template-columns:1fr}.pc-feature-link{min-height:0}}
 </style>
 @endpush
 
@@ -48,6 +49,36 @@
         <h2>Parallel Curriculum Integration</h2>
         <p>Run a second curriculum independently from conventional classes, then calculate each learner's programme average and distribute it into a locked conventional destination subject according to that class level's Assessment Template.</p>
     </div>
+
+    @if($canManage)
+    <section class="pc-card full" style="margin-bottom:14px">
+        <div class="pc-head">Parallel curriculum operations</div>
+        <div class="pc-body">
+            <div class="pc-feature-grid">
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.lifecycle.index') }}#teaching-assignment-model">
+                    <strong>Subject & class-teacher assignment</strong>
+                    <span>Choose one class teacher for every subject in an arm, or assign teachers subject-by-subject. The same teacher may teach the same subject across several classes/arms when timetable times do not clash.</span>
+                    <small>Academic Lifecycle</small>
+                </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#working-week">
+                    <strong>Days of the week</strong>
+                    <span>Set an independent Monday–Sunday working week for the parallel curriculum. Each day can be enabled or disabled without changing the conventional curriculum.</span>
+                    <small>Timetable & Attendance</small>
+                </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#working-week">
+                    <strong>Daily work hours</strong>
+                    <span>Configure a different resumption time, closing time and late grace period for every enabled parallel-curriculum working day.</span>
+                    <small>Timetable & Attendance</small>
+                </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#staff-attendance">
+                    <strong>Parallel staff attendance</strong>
+                    <span>Clock parallel teachers in and out against the selected day's own hours, with arrival and departure status kept separate from conventional staff attendance.</span>
+                    <small>Timetable & Attendance</small>
+                </a>
+            </div>
+        </div>
+    </section>
+    @endif
 
     @if(!$currentSession || !$currentTerm)
         <div class="alert-e">Set a current academic session and term before entering or synchronizing parallel-curriculum results.</div>

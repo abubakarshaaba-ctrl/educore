@@ -53,7 +53,7 @@
 </section>
 
 @if($selectedCurriculum)
-<section class="panel">
+<section id="working-week" class="panel">
     <div class="head">
         <div>
             <strong>Parallel working days & staff attendance hours</strong><br>
@@ -110,7 +110,7 @@
     </div>
 </section>
 
-<section class="panel">
+<section id="staff-attendance" class="panel">
     @php($parallelStaffSchedule=$staffAttendance['schedule'] ?? null)
     @php($selfParallelRecord=$staffAttendance ? $staffAttendance['records']->get(auth()->id()) : null)
     <div class="head">
@@ -199,7 +199,7 @@
 <section class="panel"><div class="empty">Create a parallel programme, class level and active arm before configuring timetable or attendance.</div></section>
 @else
 <div class="grid">
-    <section class="panel">
+    <section id="parallel-timetable" class="panel">
         <div class="head"><div><strong>Weekly parallel timetable</strong><br><span>{{ $selectedCurriculum->name }} · {{ $selectedClass->name }} {{ $selectedArm->name }}</span></div><span>{{ $periods->count() }} period(s)</span></div>
         <div class="body">
             @if($canManageTimetable)
@@ -253,7 +253,7 @@
         </div>
     </section>
 
-    <section class="panel">
+    <section id="learner-attendance" class="panel">
         <div class="head"><div><strong>Daily parallel attendance</strong><br><span>{{ $selectedClass->name }} {{ $selectedArm->name }} · {{ $date }}</span></div><span>{{ $canMarkAttendance?'Editable':'View restricted' }}</span></div>
         <div class="body">
             @if(!$canMarkAttendance)

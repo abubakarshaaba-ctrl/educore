@@ -80,7 +80,7 @@
 </div>
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm: one class teacher for every subject, or subject-based teachers that can work across multiple classes.</span></div></div><div class="body">
+<section id="teaching-assignment-model" class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm: one class teacher for every subject, or subject-based teachers that can work across multiple classes.</span></div></div><div class="body">
 @if(!$armTeachingModesReady)
     <div class="alert-e" style="margin:0">
         Teaching assignment modes are waiting for the latest database migration. Existing subject-teacher assignments remain available.
