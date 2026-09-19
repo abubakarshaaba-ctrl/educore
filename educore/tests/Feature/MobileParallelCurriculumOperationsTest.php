@@ -844,6 +844,37 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         ]);
     }
 
+    public function test_class_teacher_mode_without_class_teacher_does_not_fall_back_to_subject_teacher(): void
+    {
+        $context = $this->context();
+        $subjectTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Fallback Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $context['classSubject']->update([
+            'teacher_id' => $subjectTeacher->id,
+        ]);
+        $context['arm']->update([
+            'teaching_assignment_mode' => 'class_teacher',
+            'class_teacher_id' => null,
+        ]);
+
+        $teacherId = app(\App\Services\ParallelCurriculumService::class)
+            ->effectiveTeacherId(
+                $context['classSubject']->fresh(),
+                $context['arm']->fresh(),
+            );
+
+        $this->assertNull(
+            $teacherId,
+            'Class-teacher mode must remain unassigned when its class teacher is missing.'
+        );
+    }
+
     public function test_class_teacher_mode_grants_arm_scoped_mobile_score_entry(): void
     {
         $context = $this->context();

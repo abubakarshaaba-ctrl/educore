@@ -86,9 +86,10 @@ class ParallelCurriculumService
                 'class_teacher_id'
             )
             && $arm->teaching_assignment_mode === 'class_teacher'
-            && $arm->class_teacher_id
         ) {
-            return (int) $arm->class_teacher_id;
+            return $arm->class_teacher_id
+                ? (int) $arm->class_teacher_id
+                : null;
         }
 
         if ($arm && Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
