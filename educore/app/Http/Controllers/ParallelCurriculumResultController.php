@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
+use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumReportPublication;
+use App\Models\ParallelCurriculumResultComment;
 use App\Models\Student;
 use App\Models\Term;
 use App\Services\GuardianNotifier;
@@ -11,6 +14,7 @@ use App\Services\ParallelCurriculumResultService;
 use App\Services\ParallelCurriculumService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -127,6 +131,217 @@ class ParallelCurriculumResultController extends Controller
         return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
             ->setPaper('a4', 'portrait')
             ->download($filename);
+    }
+
+    public function formTeacherComments(Request $request)
+    {
+        $user = auth()->user();
+        $tenantId = $this->tenantId();
+
+        abort_unless(
+            $user && $this->parallel->enabledForTenant($tenantId),
+            404,
+            'Parallel Curriculum Integration is not enabled for this school.'
+        );
+
+        abort_unless(
+            Schema::hasTable('parallel_curriculum_result_comments')
+                && Schema::hasColumn('parallel_curriculum_class_arms', 'teaching_assignment_mode')
+                && Schema::hasColumn('parallel_curriculum_class_arms', 'class_teacher_id'),
+            503,
+            'Parallel form-teacher comments are unavailable until the latest database migration has been applied.'
+        );
+
+        $canManage = $this->parallel->canManageLifecycle($user);
+
+        $arms = $canManage
+            ? ParallelCurriculumClassArm::with('curriculumClass.curriculum')
+                ->where('tenant_id', $tenantId)
+                ->where('is_active', true)
+                ->where('teaching_assignment_mode', 'class_teacher')
+                ->whereNotNull('class_teacher_id')
+                ->whereHas('curriculumClass', function ($query): void {
+                    $query->where('is_active', true)
+                        ->whereHas('curriculum', fn ($curriculum) => $curriculum->where('is_active', true));
+                })
+                ->orderBy('parallel_curriculum_class_id')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+            : $this->parallel->formTeacherArmsForUser($user);
+
+        abort_unless(
+            $canManage || $arms->isNotEmpty(),
+            403,
+            'You are not assigned as the form teacher of a parallel curriculum class arm.'
+        );
+
+        $terms = Term::with('session')->orderByDesc('id')->get();
+        $currentTerm = $terms->firstWhere('is_current', true);
+        $termId = (int) ($request->integer('term_id') ?: ($currentTerm?->id ?? $terms->first()?->id ?? 0));
+        $armId = (int) ($request->integer('arm_id') ?: ($arms->first()?->id ?? 0));
+
+        $term = $termId ? $terms->firstWhere('id', $termId) : null;
+        $arm = $armId ? $arms->firstWhere('id', $armId) : null;
+
+        abort_if($termId && ! $term, 404, 'The selected academic term is unavailable.');
+        abort_if($armId && ! $arm, 403, 'You cannot manage comments for the selected parallel class arm.');
+
+        $enrolments = collect();
+        $comments = collect();
+        $publication = null;
+
+        if ($arm && $term) {
+            $enrolments = ParallelCurriculumEnrolment::with('student')
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
+                ->where('parallel_curriculum_class_arm_id', $arm->id)
+                ->where('session_id', $term->session_id)
+                ->where('is_active', true)
+                ->whereHas('student', fn ($query) => $query->where('status', Student::STATUS_ACTIVE))
+                ->get()
+                ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) =>
+                    strtolower(($enrolment->student?->last_name ?? '').' '.($enrolment->student?->first_name ?? ''))
+                )
+                ->values();
+
+            $comments = ParallelCurriculumResultComment::with('formTeacher')
+                ->where('tenant_id', $tenantId)
+                ->where('term_id', $term->id)
+                ->whereIn('parallel_curriculum_enrolment_id', $enrolments->pluck('id'))
+                ->get()
+                ->keyBy('parallel_curriculum_enrolment_id');
+
+            $publication = ParallelCurriculumReportPublication::where(
+                    'parallel_curriculum_class_id',
+                    $arm->parallel_curriculum_class_id
+                )
+                ->where('term_id', $term->id)
+                ->first();
+        }
+
+        $isPublished = $publication?->isPublished() ?? false;
+
+        return view('parallel-curriculum.form-teacher-comments', compact(
+            'arms',
+            'terms',
+            'currentTerm',
+            'termId',
+            'armId',
+            'term',
+            'arm',
+            'enrolments',
+            'comments',
+            'isPublished',
+            'canManage'
+        ));
+    }
+
+    public function saveFormTeacherComments(Request $request)
+    {
+        $user = auth()->user();
+        $tenantId = $this->tenantId();
+
+        abort_unless(
+            $user && $this->parallel->enabledForTenant($tenantId),
+            404,
+            'Parallel Curriculum Integration is not enabled for this school.'
+        );
+
+        abort_unless(
+            Schema::hasTable('parallel_curriculum_result_comments'),
+            503,
+            'Parallel form-teacher comments are unavailable until the latest database migration has been applied.'
+        );
+
+        $data = $request->validate([
+            'arm_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_class_arms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'term_id' => [
+                'required',
+                Rule::exists('terms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'comments' => ['nullable', 'array'],
+            'comments.*' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $arm = ParallelCurriculumClassArm::with('curriculumClass.curriculum')
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->findOrFail($data['arm_id']);
+        $term = Term::with('session')->findOrFail($data['term_id']);
+
+        abort_unless(
+            $this->parallel->canManageLifecycle($user)
+                || $this->parallel->isFormTeacherForArm($user, $arm),
+            403,
+            'You are not the form teacher of the selected parallel curriculum class arm.'
+        );
+
+        $publication = ParallelCurriculumReportPublication::where(
+                'parallel_curriculum_class_id',
+                $arm->parallel_curriculum_class_id
+            )
+            ->where('term_id', $term->id)
+            ->first();
+
+        abort_if(
+            $publication?->isPublished(),
+            423,
+            'This parallel result is published. Unpublish it before changing form-teacher comments.'
+        );
+
+        $enrolments = ParallelCurriculumEnrolment::where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('session_id', $term->session_id)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $submitted = $data['comments'] ?? [];
+        foreach (array_keys($submitted) as $enrolmentId) {
+            abort_unless(
+                $enrolments->has((int) $enrolmentId),
+                422,
+                'One or more submitted students are not active in the selected parallel class arm.'
+            );
+        }
+
+        foreach ($submitted as $enrolmentId => $comment) {
+            $comment = trim((string) ($comment ?? ''));
+
+            if ($comment === '') {
+                ParallelCurriculumResultComment::where(
+                        'parallel_curriculum_enrolment_id',
+                        (int) $enrolmentId
+                    )
+                    ->where('term_id', $term->id)
+                    ->delete();
+                continue;
+            }
+
+            ParallelCurriculumResultComment::updateOrCreate(
+                [
+                    'parallel_curriculum_enrolment_id' => (int) $enrolmentId,
+                    'term_id' => $term->id,
+                ],
+                [
+                    'tenant_id' => $tenantId,
+                    'form_teacher_id' => $arm->class_teacher_id,
+                    'form_teacher_comment' => $comment,
+                ]
+            );
+        }
+
+        return redirect()
+            ->route('parallel-curriculum.form-teacher-comments.index', [
+                'arm_id' => $arm->id,
+                'term_id' => $term->id,
+            ])
+            ->with('success', 'Parallel form-teacher comments saved.');
     }
 
     public function publish(Request $request)
