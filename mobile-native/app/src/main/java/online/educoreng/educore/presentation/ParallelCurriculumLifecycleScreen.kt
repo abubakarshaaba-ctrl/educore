@@ -3180,7 +3180,7 @@ private fun ParallelStaffAttendanceCard(
             val selfRecord = sheet.selfRecord
             Spacer(Modifier.height(EduCoreSpacing.Md))
             when {
-                selfRecord?.clockInTime == null -> {
+                selfRecord == null || selfRecord.clockInTime == null -> {
                     EduCorePrimaryButton(
                         text = "Clock In",
                         onClick = onClockIn,
@@ -3189,10 +3189,10 @@ private fun ParallelStaffAttendanceCard(
                         loading = state.isMutating,
                     )
                 }
-                selfRecord.clockOutTime == null -> {
+                selfRecord != null && selfRecord.clockOutTime == null -> {
                     EduCoreInfoBanner(
                         title = "Clocked in",
-                        message = selfRecord.clockInTime + " · " +
+                        message = selfRecord!!.clockInTime + " · " +
                             (selfRecord.status?.replace('_', ' ') ?: "recorded"),
                     )
                     Spacer(Modifier.height(EduCoreSpacing.Sm))
@@ -3207,7 +3207,7 @@ private fun ParallelStaffAttendanceCard(
                 else -> {
                     EduCoreInfoBanner(
                         title = "Attendance complete",
-                        message = selfRecord.clockInTime + "–" + selfRecord.clockOutTime +
+                        message = selfRecord!!.clockInTime + "–" + selfRecord.clockOutTime +
                             " · " + (selfRecord.departureStatus?.replace('_', ' ') ?: "completed"),
                     )
                 }
