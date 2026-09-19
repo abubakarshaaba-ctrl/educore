@@ -24,6 +24,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\ParallelCurriculumLifecycleService;
 use App\Services\ParallelCurriculumService;
+use App\Services\ParallelCurriculumStudentAssignmentImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
     public function __construct(
         private readonly ParallelCurriculumService $parallel,
         private readonly ParallelCurriculumLifecycleService $lifecycle,
+        private readonly ParallelCurriculumStudentAssignmentImportService $assignmentImport,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -967,6 +969,43 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'per_page' => (int) $students->perPage(),
                 'total' => (int) $students->total(),
             ],
+        ]);
+    }
+
+    public function importStudentAssignments(Request $request): JsonResponse
+    {
+        $tenantId = $this->assertManage($request);
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId),
+            ],
+            'session_id' => [
+                'required',
+                Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
+            ],
+            'assignment_file' => ['required', 'file', 'mimes:csv,txt,xls,xlsx', 'max:5120'],
+            'dry_run' => ['nullable', 'boolean'],
+        ]);
+
+        $result = $this->assignmentImport->import(
+            $tenantId,
+            (int) $data['parallel_curriculum_id'],
+            (int) $data['session_id'],
+            $request->file('assignment_file'),
+            (bool) ($data['dry_run'] ?? false)
+        );
+
+        return response()->json([
+            'message' => $result['dry_run']
+                ? $result['count'].' student assignment row(s) validated successfully. No placements were changed.'
+                : $result['count'].' student assignment(s) imported successfully for '.
+                    $result['curriculum_name'].'.',
+            'imported' => $result['dry_run'] ? 0 : $result['count'],
+            'validated' => $result['count'],
+            'dry_run' => $result['dry_run'],
+            'parallel_curriculum_id' => $result['curriculum_id'],
+            'session_id' => $result['session_id'],
         ]);
     }
 
