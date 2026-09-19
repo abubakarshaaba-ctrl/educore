@@ -284,6 +284,13 @@ class DefaultParallelCurriculumLifecycleRepository(
         }
     }
 
+    override suspend fun downloadStudentAssignmentTemplate(): AppResult<DownloadedDocument> = download(
+        filename = "parallel_curriculum_student_assignment_template.csv",
+        mimeType = "text/csv",
+    ) {
+        api.downloadParallelStudentAssignmentTemplate()
+    }
+
     override suspend fun importStudentAssignments(
         curriculumId: Long,
         sessionId: Long,
