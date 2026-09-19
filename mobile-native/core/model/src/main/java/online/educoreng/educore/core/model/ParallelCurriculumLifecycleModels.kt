@@ -324,6 +324,7 @@ data class ParallelPromotionPreviewRow(
 data class ParallelPromotionPreview(
     val sourceSession: ParallelLifecycleSession,
     val targetSession: ParallelLifecycleSession,
+    val sourceClassIds: List<Long>,
     val counts: ParallelPromotionPreviewCounts,
     val rows: List<ParallelPromotionPreviewRow>,
 )
