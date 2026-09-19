@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 
 /**
@@ -12,6 +13,8 @@ use Illuminate\Http\Request;
  */
 class ApiRoleAccessPolicy
 {
+    public function __construct(private readonly ParallelCurriculumService $parallel) {}
+
     private const ADMISSION_OFFICER_DEFAULT_DENIES = [
         'students', 'transfers', 'classes', 'subjects', 'curriculum',
         'academic-cycle', 'scores', 'scores.entry', 'scores.view',
@@ -87,6 +90,32 @@ class ApiRoleAccessPolicy
         if (preg_match('#^operations/([^/]+)#', $path, $match)) {
             $module = $match[1] === 'finance' ? 'fees' : $match[1];
             return $this->allowsModule($user, $module);
+        }
+
+        // Parallel Curriculum uses dedicated native API route families rather
+        // than the conventional module prefixes below. Keep middleware
+        // authorization aligned with the module catalogue and let the
+        // controllers apply record-level / capability-level restrictions.
+        if (
+            str_starts_with($path, 'parallel-curriculum/lifecycle')
+            || str_starts_with($path, 'parallel-curriculum/results')
+        ) {
+            return $this->parallel->canManageLifecycle($user);
+        }
+
+        if (str_starts_with($path, 'parallel-curriculum/operations')) {
+            return $this->parallel->canManageLifecycle($user)
+                || $this->allowsAny($user, [
+                    'scores',
+                    'scores.entry',
+                    'timetable',
+                    'timetable.view',
+                    'attendance',
+                ]);
+        }
+
+        if (str_starts_with($path, 'parallel-scores')) {
+            return $this->allowsAny($user, ['scores', 'scores.entry']);
         }
 
         $rules = [
