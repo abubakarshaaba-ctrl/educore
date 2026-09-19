@@ -132,11 +132,24 @@ class ScoreController extends Controller
             }
         }
 
-        $parallelCurriculumEnabled = app(\App\Services\ParallelCurriculumService::class)
-            ->enabledForTenant($this->tenantId());
+        $parallelService = app(\App\Services\ParallelCurriculumService::class);
+        $parallelCurriculumEnabled = $parallelService->enabledForTenant($this->tenantId());
+        $parallelScoreWorkspaces = $parallelCurriculumEnabled
+            ? $parallelService->scoreWorkspacesForUser(
+                $user,
+                $currentTerm,
+                $this->hasFullScoreAccess($user)
+            )
+            : collect();
 
         return view('scores.index', compact(
-            'currentTerm', 'progress', 'classArms', 'terms', 'subjects', 'parallelCurriculumEnabled'
+            'currentTerm',
+            'progress',
+            'classArms',
+            'terms',
+            'subjects',
+            'parallelCurriculumEnabled',
+            'parallelScoreWorkspaces'
         ));
     }
 
