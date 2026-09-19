@@ -362,8 +362,9 @@ class MobileParallelCurriculumOperationsTest extends TestCase
 
         $csv->assertOk();
         $this->assertStringContainsString('text/csv', (string) $csv->headers->get('content-type'));
-        $this->assertStringContainsString('PC-EXP-001', $csv->streamedContent());
-        $this->assertStringContainsString('Zainab Sani', $csv->streamedContent());
+        $csvContent = $csv->streamedContent();
+        $this->assertStringContainsString('PC-EXP-001', $csvContent);
+        $this->assertStringContainsString('Zainab Sani', $csvContent);
 
         $pdf = $this->withToken($token)->get(
             '/api/v1/parallel-curriculum/operations/attendance/export?'.
