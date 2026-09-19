@@ -85,10 +85,15 @@ class MobilePortalAttendanceController extends Controller
         return response()->json([
             'contract_version' => 1,
             'generated_at' => now()->toIso8601String(),
+            'portal' => $user->isParent() ? 'parent' : 'student',
             'student' => [
                 'id' => $student->id,
                 'name' => $student->full_name,
                 'admission_number' => $student->admission_number,
+                'class' => $student->currentClassArm ? [
+                    'id' => $student->currentClassArm->id,
+                    'name' => $student->currentClassArm->full_name,
+                ] : null,
             ],
             'children' => $children->map(fn (Student $child) => [
                 'id' => $child->id,
@@ -119,6 +124,7 @@ class MobilePortalAttendanceController extends Controller
 
         if ($user->isStudent()) {
             $student = Student::query()
+                ->with('currentClassArm.classLevel')
                 ->where('tenant_id', $user->tenant_id)
                 ->where('user_id', $user->id)
                 ->firstOrFail();
@@ -132,6 +138,7 @@ class MobilePortalAttendanceController extends Controller
             ->firstOrFail();
 
         $children = $guardian->students()
+            ->with('currentClassArm.classLevel')
             ->where('students.status', Student::STATUS_ACTIVE)
             ->orderBy('students.first_name')
             ->orderBy('students.last_name')
