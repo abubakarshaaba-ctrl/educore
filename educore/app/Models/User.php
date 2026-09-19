@@ -1313,28 +1313,33 @@ class User extends Authenticatable
         return $this->hasMany(StaffPermission::class, 'user_id');
     }
 
-    public function hasGrantedPermission(string $module): bool
+    private function staffPermissionOverrides(): Collection
     {
-        if (! Schema::hasTable('staff_permissions')) {
-            return false;
+        if (! $this->exists || ! Schema::hasTable('staff_permissions')) {
+            return collect();
         }
 
-        return StaffPermission::where('user_id', $this->id)
-            ->where('module', $module)
-            ->where('type', 'grant')
-            ->exists();
+        if (! $this->relationLoaded('customPermissions')) {
+            $this->load('customPermissions');
+        }
+
+        return $this->getRelation('customPermissions');
+    }
+
+    public function hasGrantedPermission(string $module): bool
+    {
+        return $this->staffPermissionOverrides()->contains(
+            fn (StaffPermission $permission) =>
+                $permission->type === 'grant' && $permission->module === $module
+        );
     }
 
     public function hasDeniedPermission(string $module): bool
     {
-        if (! Schema::hasTable('staff_permissions')) {
-            return false;
-        }
-
-        return StaffPermission::where('user_id', $this->id)
-            ->where('module', $module)
-            ->where('type', 'deny')
-            ->exists();
+        return $this->staffPermissionOverrides()->contains(
+            fn (StaffPermission $permission) =>
+                $permission->type === 'deny' && $permission->module === $module
+        );
     }
 
     /**
@@ -1352,9 +1357,8 @@ class User extends Authenticatable
             return false;
         }
 
-        return StaffPermission::where('user_id', $this->id)
+        return $this->staffPermissionOverrides()
             ->where('type', 'deny')
-            ->get(['module'])
             ->contains(function (StaffPermission $permission) use ($module): bool {
                 $denied = trim((string) $permission->module);
 
@@ -1381,15 +1385,30 @@ class User extends Authenticatable
             return true;
         }
 
-        // Parent module visibility is allowed when the role owns at least one
-        // sub-module (e.g. scores.entry makes the Scores workspace visible).
+        // Parent module visibility is allowed only when at least one child is
+        // still effectively accessible after account-level denies.
         foreach ($allowed as $permission) {
-            if (str_starts_with((string) $permission, $module.'.')) {
+            $permission = (string) $permission;
+
+            if (
+                str_starts_with($permission, $module.'.')
+                && ! $this->hasEffectiveDeniedPermission($permission)
+                && ! $this->admissionOfficerDefaultDeniesModule($permission)
+            ) {
                 return true;
             }
         }
 
-        return false;
+        // A deliberately granted child permission should also expose its
+        // parent navigation group.
+        return $this->staffPermissionOverrides()
+            ->where('type', 'grant')
+            ->contains(function (StaffPermission $permission) use ($module): bool {
+                $granted = trim((string) $permission->module);
+
+                return str_starts_with($granted, $module.'.')
+                    && ! $this->hasEffectiveDeniedPermission($granted);
+            });
     }
 
     private function admissionOfficerDefaultDeniesModule(string $module): bool
@@ -1485,10 +1504,7 @@ class User extends Authenticatable
         $permissions = collect(self::ROLE_ACCESS[$this->roleKey()] ?? [])
             ->filter(fn ($permission) => is_string($permission) && $permission !== '');
 
-        $overrides = collect();
-        if (Schema::hasTable('staff_permissions')) {
-            $overrides = StaffPermission::where('user_id', $this->id)->get();
-        }
+        $overrides = $this->staffPermissionOverrides();
 
         $denied = $overrides->where('type', 'deny')->pluck('module')
             ->filter()
@@ -1563,9 +1579,7 @@ class User extends Authenticatable
             return true;
         }
 
-        $overrides = Schema::hasTable('staff_permissions')
-            ? StaffPermission::where('user_id', $this->id)->get()
-            : collect();
+        $overrides = $this->staffPermissionOverrides();
 
         foreach ($overrides->where('type', 'deny') as $permission) {
             $module = trim((string) $permission->module);
