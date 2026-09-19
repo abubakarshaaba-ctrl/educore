@@ -529,6 +529,42 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertJsonPath('working_days.1.day_of_week', 'tuesday')
             ->assertJsonPath('working_days.1.resumption_time', '16:00')
             ->assertJsonPath('working_days.5.day_of_week', 'saturday');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/parallel-curriculum/operations/periods', [
+                'parallel_curriculum_class_id' => $context['class']->id,
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'parallel_curriculum_subject_id' => $context['subject']->id,
+                'session_id' => $context['session']->id,
+                'day_of_week' => 'tuesday',
+                'start_time' => '15:30',
+                'end_time' => '16:30',
+                'venue' => 'Too Early',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('end_time');
+
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-12-31',
+            'is_current' => true,
+        ]);
+
+        $this->withToken($token)
+            ->getJson(
+                '/api/v1/parallel-curriculum/operations?'.
+                'parallel_curriculum_id='.$context['curriculum']->id.
+                '&session_id='.$context['session']->id.
+                '&term_id='.$term->id.
+                '&class_id='.$context['class']->id.
+                '&arm_id='.$context['arm']->id.
+                '&date=2026-09-23'
+            )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('attendance_date');
     }
 
     public function test_class_teacher_mode_drives_timetable_and_parallel_staff_attendance(): void
