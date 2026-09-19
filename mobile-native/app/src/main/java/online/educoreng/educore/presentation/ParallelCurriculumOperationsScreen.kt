@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,7 +23,9 @@ import androidx.compose.ui.Modifier
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
+import online.educoreng.educore.core.designsystem.component.EduCorePageHeader
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
+import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
@@ -30,6 +33,7 @@ import online.educoreng.educore.core.model.ParallelAttendanceDraft
 @Composable
 fun ParallelCurriculumOperationsScreen(
     state: ParallelLifecycleUiState,
+    onBack: () -> Unit,
     onLoadContext: (Long?, Long?, Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
@@ -48,15 +52,27 @@ fun ParallelCurriculumOperationsScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(EduCoreSpacing.Lg),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
     ) {
+        val operations = state.operationsWorkspace
+        item {
+            EduCorePageHeader(
+                title = "Parallel Timetable & Attendance",
+                subtitle = listOfNotNull(
+                    operations?.curricula?.firstOrNull { it.id == operations.selected.curriculumId }?.name,
+                    operations?.sessions?.firstOrNull { it.id == operations.selected.sessionId }?.name,
+                ).joinToString(" · "),
+                onBack = onBack,
+            )
+        }
+
         state.errorMessage?.let {
             item { EduCoreErrorBanner(title = "Parallel Timetable & Attendance", message = it) }
         }
 
-        val operations = state.operationsWorkspace
+
         if (state.isOperationsLoading && operations == null) {
             item { EduCoreLoadingState(message = "Loading parallel timetable and attendance") }
             return@LazyColumn
