@@ -109,6 +109,158 @@ class ParallelCurriculumService
         return $assignment->teacher_id ? (int) $assignment->teacher_id : null;
     }
 
+    /**
+     * In class-teacher mode, the teacher assigned to the arm is also the
+     * parallel form teacher for pastoral responsibilities.
+     */
+    public function isFormTeacherForArm(User $user, ParallelCurriculumClassArm $arm): bool
+    {
+        return (int) $arm->tenant_id === (int) $user->tenant_id
+            && $arm->usesClassTeacherModel()
+            && (int) ($arm->class_teacher_id ?? 0) === (int) $user->id;
+    }
+
+    public function formTeacherArmsForUser(User $user): Collection
+    {
+        if (
+            ! $user->tenant_id
+            || ! $this->enabledForTenant((int) $user->tenant_id)
+            || ! Schema::hasTable('parallel_curriculum_class_arms')
+            || ! Schema::hasColumn('parallel_curriculum_class_arms', 'teaching_assignment_mode')
+            || ! Schema::hasColumn('parallel_curriculum_class_arms', 'class_teacher_id')
+        ) {
+            return collect();
+        }
+
+        return ParallelCurriculumClassArm::with('curriculumClass.curriculum')
+            ->where('tenant_id', $user->tenant_id)
+            ->where('is_active', true)
+            ->where('teaching_assignment_mode', 'class_teacher')
+            ->where('class_teacher_id', $user->id)
+            ->whereHas('curriculumClass', function ($query): void {
+                $query->where('is_active', true)
+                    ->whereHas('curriculum', fn ($curriculum) => $curriculum->where('is_active', true));
+            })
+            ->orderBy('parallel_curriculum_class_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Resolve parallel score-entry workspaces from the effective teacher
+     * assignment. This keeps web and mobile teacher-subject semantics aligned.
+     */
+    public function scoreWorkspacesForUser(
+        User $user,
+        ?Term $term = null,
+        bool $includeAll = false
+    ): Collection {
+        if (
+            ! $user->tenant_id
+            || ! $this->enabledForTenant((int) $user->tenant_id)
+            || ! Schema::hasTable('parallel_curriculum_classes')
+            || ! Schema::hasTable('parallel_curriculum_class_subjects')
+            || ! Schema::hasTable('parallel_curriculum_subjects')
+        ) {
+            return collect();
+        }
+
+        $armLifecycleReady = Schema::hasTable('parallel_curriculum_class_arms');
+        $relations = ['curriculumClass.curriculum', 'subject'];
+        if ($armLifecycleReady) {
+            $relations[] = 'curriculumClass.arms';
+        }
+
+        $canEnterAll = $includeAll
+            || $user->isSuperAdmin()
+            || $user->canAccessExactModule('scores');
+
+        return ParallelCurriculumClassSubject::with($relations)
+            ->where('tenant_id', $user->tenant_id)
+            ->where('is_active', true)
+            ->get()
+            ->filter(fn (ParallelCurriculumClassSubject $assignment) =>
+                $assignment->curriculumClass?->is_active
+                && $assignment->curriculumClass?->curriculum?->is_active
+                && $assignment->subject?->is_active
+            )
+            ->flatMap(function (ParallelCurriculumClassSubject $assignment) use (
+                $armLifecycleReady,
+                $canEnterAll,
+                $term,
+                $user
+            ) {
+                $class = $assignment->curriculumClass;
+                $curriculum = $class->curriculum;
+                $arms = $armLifecycleReady
+                    ? $class->arms->where('is_active', true)->values()
+                    : collect();
+
+                if ($arms->isEmpty()) {
+                    $arms = collect([null]);
+                }
+
+                return $arms->map(function ($arm) use (
+                    $assignment,
+                    $canEnterAll,
+                    $class,
+                    $curriculum,
+                    $term,
+                    $user
+                ) {
+                    $effectiveTeacherId = $this->effectiveTeacherId($assignment, $arm);
+
+                    if (
+                        ! $canEnterAll
+                        && (int) $effectiveTeacherId !== (int) $user->id
+                    ) {
+                        return null;
+                    }
+
+                    $routeParameters = [
+                        'class_id' => $class->id,
+                        'subject_id' => $assignment->parallel_curriculum_subject_id,
+                    ];
+                    if ($term) {
+                        $routeParameters['term_id'] = $term->id;
+                    }
+                    if ($arm) {
+                        $routeParameters['arm_id'] = $arm->id;
+                    }
+
+                    $isFormTeacher = $arm
+                        ? $this->isFormTeacherForArm($user, $arm)
+                        : false;
+
+                    return [
+                        'curriculum' => $curriculum,
+                        'class' => $class,
+                        'arm' => $arm,
+                        'assignment' => $assignment,
+                        'score_sheet_url' => $term
+                            ? route('parallel-curriculum.score-sheet', $routeParameters)
+                            : '#',
+                        'subject_name' => $assignment->subject?->name ?: 'Subject',
+                        'class_label' => $class->name.($arm ? ' '.$arm->name : ''),
+                        'curriculum_name' => $curriculum?->name ?: 'Parallel Curriculum',
+                        'effective_teacher_id' => $effectiveTeacherId,
+                        'effective_teacher_name' => $effectiveTeacherId
+                            ? User::whereKey($effectiveTeacherId)->value('name')
+                            : null,
+                        'is_form_teacher' => $isFormTeacher,
+                        'form_teacher_comments_url' => ($isFormTeacher && $arm)
+                            ? route('parallel-curriculum.form-teacher-comments.index', array_filter([
+                                'arm_id' => $arm->id,
+                                'term_id' => $term?->id,
+                            ]))
+                            : null,
+                    ];
+                })->filter();
+            })
+            ->values();
+    }
+
     public function componentsForClass(ParallelCurriculumClass $class): Collection
     {
         $template = $this->templateForClass($class);
