@@ -51,6 +51,14 @@ interface ParallelCurriculumLifecycleRepository {
         records: List<ParallelAttendanceDraft>,
     ): AppResult<String>
 
+    suspend fun downloadAttendanceExport(
+        armId: Long,
+        termId: Long,
+        format: String,
+        from: String? = null,
+        to: String? = null,
+    ): AppResult<DownloadedDocument>
+
     suspend fun loadStudentResult(
         classId: Long,
         studentId: Long,
