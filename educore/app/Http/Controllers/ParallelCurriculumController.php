@@ -179,7 +179,8 @@ class ParallelCurriculumController extends Controller
         $workspaces = $curricula->flatMap(
             function (ParallelCurriculum $curriculum) use (
                 $canManage,
-                $armLifecycleReady
+                $armLifecycleReady,
+                $currentTerm
             ) {
                 return $curriculum->classes
                     ->where('is_active', true)
@@ -187,7 +188,8 @@ class ParallelCurriculumController extends Controller
                         function (ParallelCurriculumClass $class) use (
                             $curriculum,
                             $canManage,
-                            $armLifecycleReady
+                            $armLifecycleReady,
+                            $currentTerm
                         ) {
                             $arms = $armLifecycleReady
                                 ? $class->arms->where('is_active', true)->values()
@@ -201,7 +203,8 @@ class ParallelCurriculumController extends Controller
                                 function ($arm) use (
                                     $class,
                                     $curriculum,
-                                    $canManage
+                                    $canManage,
+                                    $currentTerm
                                 ) {
                                     return $class->subjectAssignments
                                         ->where('is_active', true)
@@ -210,7 +213,8 @@ class ParallelCurriculumController extends Controller
                                                 $arm,
                                                 $class,
                                                 $curriculum,
-                                                $canManage
+                                                $canManage,
+                                                $currentTerm
                                             ) {
                                                 $effectiveTeacherId =
                                                     $this->service->effectiveTeacherId(
@@ -226,11 +230,36 @@ class ParallelCurriculumController extends Controller
                                                     return null;
                                                 }
 
+                                                $scoreSheetUrl = '#';
+                                                if ($currentTerm) {
+                                                    $routeParameters = [
+                                                        'class_id' => $class->id,
+                                                        'subject_id' => $assignment->parallel_curriculum_subject_id,
+                                                        'term_id' => $currentTerm->id,
+                                                    ];
+
+                                                    if ($arm) {
+                                                        $routeParameters['arm_id'] = $arm->id;
+                                                    }
+
+                                                    $scoreSheetUrl = route(
+                                                        'parallel-curriculum.score-sheet',
+                                                        $routeParameters
+                                                    );
+                                                }
+
                                                 return [
                                                     'curriculum' => $curriculum,
                                                     'class' => $class,
                                                     'arm' => $arm,
                                                     'assignment' => $assignment,
+                                                    'score_sheet_url' => $scoreSheetUrl,
+                                                    'subject_name' => $assignment->subject
+                                                        ? $assignment->subject->name
+                                                        : 'Subject',
+                                                    'class_label' => $class->name
+                                                        . ($arm ? ' '.$arm->name : ''),
+                                                    'curriculum_name' => $curriculum->name,
                                                     'effective_teacher_id' =>
                                                         $effectiveTeacherId,
                                                     'effective_teacher_name' =>
