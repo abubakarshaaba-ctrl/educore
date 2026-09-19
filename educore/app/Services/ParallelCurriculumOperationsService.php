@@ -317,6 +317,16 @@ class ParallelCurriculumOperationsService
         });
     }
 
+    public function canViewOperations(User $user): bool
+    {
+        return $user->isSuperAdmin()
+            || $user->canManage('timetable')
+            || $user->canAccessExactModule('scores')
+            || $user->canAccessExactModule('scores.entry')
+            || $user->canAccessExactModule('timetable.view')
+            || $user->canAccessExactModule('attendance');
+    }
+
     public function canManageTimetable(User $user): bool
     {
         return $user->isSuperAdmin() || $user->canManage('timetable');
