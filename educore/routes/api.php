@@ -146,6 +146,9 @@ Route::prefix('v1')->group(function () {
         Route::prefix('parallel-curriculum/operations')->group(function () {
             Route::get('/', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'index']);
             Route::post('periods', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'storePeriod']);
+            Route::post('working-days', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'saveWorkingDays']);
+            Route::post('staff-attendance/clock-in', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'clockInStaff']);
+            Route::post('staff-attendance/clock-out', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'clockOutStaff']);
             Route::delete('periods/{period}', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'destroyPeriod']);
             Route::post('attendance', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'saveAttendance']);
             Route::get('attendance/export', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'exportAttendance']);
@@ -186,6 +189,7 @@ Route::prefix('v1')->group(function () {
             Route::post('grades', [MobileParallelCurriculumLifecycleController::class, 'storeClassGrade']);
             Route::delete('grades/{grade}', [MobileParallelCurriculumLifecycleController::class, 'destroyClassGrade']);
             Route::post('arm-teachers', [MobileParallelCurriculumLifecycleController::class, 'storeArmTeacher']);
+            Route::post('arm-teaching-mode', [MobileParallelCurriculumLifecycleController::class, 'storeArmTeachingMode']);
             Route::post('promotion-rules', [MobileParallelCurriculumLifecycleController::class, 'storePromotionRule']);
         });
 
