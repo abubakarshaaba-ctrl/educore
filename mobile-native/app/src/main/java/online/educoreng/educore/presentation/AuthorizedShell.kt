@@ -516,7 +516,7 @@ internal fun AuthorizedShell(
                                 state = scoresState,
                                 onSearch = scoresViewModel::setSearch,
                                 onOpen = { assignment, termId ->
-                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId)
+                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId, assignment.workspaceType)
                                     navController.navigate("native/scores/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}")
                                 },
                                 onRetry = scoresViewModel::loadAssignments,
@@ -540,7 +540,7 @@ internal fun AuthorizedShell(
                                 onValue = scoresViewModel::updateScore,
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
-                                onRetry = { scoresViewModel.openSheet(classId, subjectId, termId) },
+                                onRetry = { scoresViewModel.retrySheet(classId, subjectId, termId) },
                             )
                         }
                         composable(NativeRoute.PUBLISHED_RESULTS) {
