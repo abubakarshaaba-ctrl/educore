@@ -171,13 +171,6 @@ class ParallelCurriculumOperationsService
         $attendanceDay = strtolower($attendanceDate->format('l'));
         $schedule = $this->workingDay($tenantId, $curriculumId, $attendanceDay);
 
-        if (! $schedule->is_working) {
-            throw ValidationException::withMessages([
-                'attendance_date' =>
-                    ucfirst($attendanceDay).' is not enabled as a working day for this parallel curriculum.',
-            ]);
-        }
-
         abort_unless($this->canMarkAttendance($user, $arm), 403, 'You are not assigned to manage attendance for this parallel class arm.');
 
         $enrolments = ParallelCurriculumEnrolment::query()
@@ -207,7 +200,8 @@ class ParallelCurriculumOperationsService
             'enrolments' => $enrolments,
             'records' => $records,
             'version' => $this->attendanceVersion($records),
-            'can_save' => true,
+            'is_working_day' => (bool) $schedule->is_working,
+            'can_save' => (bool) $schedule->is_working,
         ];
     }
 
@@ -224,6 +218,14 @@ class ParallelCurriculumOperationsService
         $arm = $sheet['arm'];
         /** @var Term $term */
         $term = $sheet['term'];
+
+        if (! $sheet['can_save']) {
+            $attendanceDay = strtolower(Carbon::parse($date)->format('l'));
+            throw ValidationException::withMessages([
+                'attendance_date' =>
+                    ucfirst($attendanceDay).' is not enabled as a working day for this parallel curriculum.',
+            ]);
+        }
 
         $valid = $sheet['enrolments']->keyBy('id');
         $submittedIds = collect($records)->pluck('enrolment_id')->map(fn ($id) => (int) $id);
