@@ -95,6 +95,7 @@ fun ParallelCurriculumLifecycleScreen(
     onArchiveArm: (Long) -> Unit,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
@@ -203,6 +204,7 @@ fun ParallelCurriculumLifecycleScreen(
                 state,
                 onLoadStudents,
                 onAssignStudents,
+                onDownloadAssignmentTemplate,
                 onImportAssignments,
                 onRemoveStudent,
             )
@@ -929,6 +931,7 @@ private fun LazyListScope.lifecycleStudents(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
 ) {
@@ -937,6 +940,7 @@ private fun LazyListScope.lifecycleStudents(
             state = state,
             onLoadStudents = onLoadStudents,
             onAssignStudents = onAssignStudents,
+            onDownloadAssignmentTemplate = onDownloadAssignmentTemplate,
             onImportAssignments = onImportAssignments,
             onRemoveStudent = onRemoveStudent,
         )
@@ -948,6 +952,7 @@ private fun StudentPlacementPanel(
     state: ParallelLifecycleUiState,
     onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
+    onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
 ) {
@@ -1075,6 +1080,13 @@ private fun StudentPlacementPanel(
                 color = EduCoreColors.Slate600,
             )
             Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreSecondaryButton(
+                text = "Download CSV Template",
+                onClick = onDownloadAssignmentTemplate,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
             EduCoreSecondaryButton(
                 text = "Choose CSV / Excel File",
                 onClick = {
