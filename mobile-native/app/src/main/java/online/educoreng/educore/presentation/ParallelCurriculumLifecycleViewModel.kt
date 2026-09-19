@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.repository.ParallelCurriculumLifecycleRepository
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
+import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 
 data class ParallelLifecycleUiState(
@@ -21,7 +22,14 @@ data class ParallelLifecycleUiState(
     val selectedSessionId: Long? = null,
     val sourceSessionId: Long? = null,
     val targetSessionId: Long? = null,
+    val studentPage: ParallelLifecycleStudentPage? = null,
+    val studentConventionalClassArmId: Long? = null,
+    val studentAssignmentStatus: String = "all",
+    val studentGender: String? = null,
+    val studentSearch: String = "",
+    val studentPageNumber: Int = 1,
     val isLoading: Boolean = false,
+    val isStudentLoading: Boolean = false,
     val isMutating: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
@@ -59,14 +67,112 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
     fun selectCurriculum(id: Long) {
         val sessionId = _uiState.value.selectedSessionId
-        _uiState.update { it.copy(selectedCurriculumId = id, promotionPreview = null) }
+        _uiState.update {
+            it.copy(
+                selectedCurriculumId = id,
+                promotionPreview = null,
+                studentPage = null,
+                studentPageNumber = 1,
+            )
+        }
         load(id, sessionId)
     }
 
     fun selectSession(id: Long) {
         val curriculumId = _uiState.value.selectedCurriculumId
-        _uiState.update { it.copy(selectedSessionId = id, promotionPreview = null) }
+        _uiState.update {
+            it.copy(
+                selectedSessionId = id,
+                promotionPreview = null,
+                studentPage = null,
+                studentPageNumber = 1,
+            )
+        }
         load(curriculumId, id)
+    }
+
+    fun loadStudents(
+        conventionalClassArmId: Long? = _uiState.value.studentConventionalClassArmId,
+        assignmentStatus: String = _uiState.value.studentAssignmentStatus,
+        gender: String? = _uiState.value.studentGender,
+        search: String = _uiState.value.studentSearch,
+        page: Int = 1,
+    ) {
+        val curriculumId = _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        val sessionId = _uiState.value.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    studentConventionalClassArmId = conventionalClassArmId,
+                    studentAssignmentStatus = assignmentStatus,
+                    studentGender = gender,
+                    studentSearch = search,
+                    studentPageNumber = page,
+                    isStudentLoading = true,
+                    errorMessage = null,
+                )
+            }
+
+            when (
+                val result = repository.loadStudents(
+                    curriculumId = curriculumId,
+                    sessionId = sessionId,
+                    conventionalClassArmId = conventionalClassArmId,
+                    assignmentStatus = assignmentStatus,
+                    gender = gender,
+                    search = search.trim().takeIf(String::isNotBlank),
+                    page = page,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        studentPage = result.value,
+                        studentPageNumber = result.value.pagination.currentPage,
+                        isStudentLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isStudentLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun assignStudents(
+        classId: Long,
+        armId: Long,
+        studentIds: List<Long>,
+    ) {
+        val state = _uiState.value
+        val sessionId = state.selectedSessionId
+            ?: return failLocal("Select an academic session first.")
+        if (studentIds.isEmpty()) return failLocal("Select at least one learner.")
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (val result = repository.assignStudents(classId, armId, sessionId, studentIds.distinct())) {
+                is AppResult.Success -> {
+                    _uiState.update { it.copy(isMutating = false, message = result.value) }
+                    load(_uiState.value.selectedCurriculumId, sessionId)
+                    loadStudents(
+                        conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
+                        assignmentStatus = _uiState.value.studentAssignmentStatus,
+                        gender = _uiState.value.studentGender,
+                        search = _uiState.value.studentSearch,
+                        page = _uiState.value.studentPageNumber,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isMutating = false, errorMessage = result.error.userMessage)
+                }
+            }
+        }
     }
 
     fun selectPromotionSessions(sourceId: Long?, targetId: Long?) {
