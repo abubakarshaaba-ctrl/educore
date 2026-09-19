@@ -6,6 +6,18 @@ data class ParallelLifecycleSession(
     val isCurrent: Boolean,
 )
 
+data class ParallelLifecycleAssessmentTemplate(
+    val id: Long,
+    val name: String,
+)
+
+data class ParallelLifecycleProgrammeSubject(
+    val id: Long,
+    val name: String,
+    val code: String?,
+    val isActive: Boolean,
+)
+
 data class ParallelLifecycleArmSubjectTeacher(
     val subjectId: Long,
     val teacherId: Long,
@@ -61,6 +73,9 @@ data class ParallelLifecycleClass(
     val id: Long,
     val name: String,
     val code: String?,
+    val sortOrder: Int,
+    val assessmentTemplateId: Long?,
+    val assessmentTemplateName: String?,
     val isActive: Boolean,
     val subjects: List<ParallelLifecycleSubjectAssignment>,
     val arms: List<ParallelLifecycleArm>,
@@ -72,6 +87,10 @@ data class ParallelLifecycleCurriculum(
     val id: Long,
     val name: String,
     val code: String?,
+    val defaultAssessmentTemplateId: Long?,
+    val defaultAssessmentTemplateName: String?,
+    val subjects: List<ParallelLifecycleProgrammeSubject>,
+    val grades: List<ParallelLifecycleGrade>,
     val classes: List<ParallelLifecycleClass>,
 )
 
@@ -157,6 +176,7 @@ data class ParallelPromotionHistory(
 data class ParallelLifecycleWorkspace(
     val selectedCurriculumId: Long?,
     val selectedSessionId: Long?,
+    val assessmentTemplates: List<ParallelLifecycleAssessmentTemplate>,
     val curricula: List<ParallelLifecycleCurriculum>,
     val sessions: List<ParallelLifecycleSession>,
     val staff: List<ParallelLifecycleStaff>,
