@@ -28,6 +28,7 @@ import online.educoreng.educore.core.data.repository.ScoreWorkspaceRepository
 import online.educoreng.educore.core.data.repository.DefaultScheduleRepository
 import online.educoreng.educore.core.data.repository.DefaultPortalAttendanceRepository
 import online.educoreng.educore.core.data.repository.ScheduleRepository
+import online.educoreng.educore.core.data.repository.PortalAttendanceRepository
 import online.educoreng.educore.core.data.repository.AcademicContentRepository
 import online.educoreng.educore.core.data.repository.DefaultAcademicContentRepository
 import online.educoreng.educore.core.data.repository.DefaultOperationsRepository
