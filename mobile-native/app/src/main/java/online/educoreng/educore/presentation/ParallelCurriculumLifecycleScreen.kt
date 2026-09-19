@@ -48,6 +48,7 @@ import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
     ARMS("Class Arms"),
+    STUDENTS("Students"),
     TEACHERS("Teachers"),
     GRADES("Grade System"),
     PROMOTION("Promotion"),
@@ -67,6 +68,8 @@ fun ParallelCurriculumLifecycleScreen(
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
@@ -143,6 +146,7 @@ fun ParallelCurriculumLifecycleScreen(
         when (tab) {
             ParallelLifecycleTab.OVERVIEW -> lifecycleOverview(workspace)
             ParallelLifecycleTab.ARMS -> lifecycleArms(state, onCreateArm, onUpdateArm, onArchiveArm)
+            ParallelLifecycleTab.STUDENTS -> lifecycleStudents(state, onLoadStudents, onAssignStudents)
             ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
@@ -284,6 +288,432 @@ private fun ArmEditor(
                 EduCoreSecondaryButton("Edit", { loadArm(arm) }, Modifier.fillMaxWidth(), enabled = !busy)
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 EduCoreDangerButton("Archive", { onArchiveArm(arm.id) }, Modifier.fillMaxWidth(), enabled = !busy)
+            }
+        }
+    }
+}
+
+private fun LazyListScope.lifecycleStudents(
+    state: ParallelLifecycleUiState,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onAssignStudents: (Long, Long, List<Long>) -> Unit,
+) {
+    item {
+        StudentPlacementPanel(
+            state = state,
+            onLoadStudents = onLoadStudents,
+            onAssignStudents = onAssignStudents,
+        )
+    }
+}
+
+@Composable
+private fun StudentPlacementPanel(
+    state: ParallelLifecycleUiState,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
+    onAssignStudents: (Long, Long, List<Long>) -> Unit,
+) {
+    val workspace = state.workspace
+    val curriculum = workspace?.selectedCurriculum
+    val session = workspace?.selectedSession
+    val page = state.studentPage
+
+    var search by remember(curriculum?.id, session?.id) { mutableStateOf(state.studentSearch) }
+    var conventionalArmId by remember(curriculum?.id, session?.id) {
+        mutableStateOf(state.studentConventionalClassArmId)
+    }
+    var assignmentStatus by remember(curriculum?.id, session?.id) {
+        mutableStateOf(state.studentAssignmentStatus)
+    }
+    var gender by remember(curriculum?.id, session?.id) {
+        mutableStateOf(state.studentGender)
+    }
+    var destinationClassId by remember(curriculum?.id, session?.id) { mutableStateOf<Long?>(null) }
+    var destinationArmId by remember(curriculum?.id, session?.id) { mutableStateOf<Long?>(null) }
+    var selectedStudentIds by remember(curriculum?.id, session?.id) {
+        mutableStateOf<Set<Long>>(emptySet())
+    }
+
+    LaunchedEffect(curriculum?.id, session?.id) {
+        if (curriculum != null && session != null) {
+            onLoadStudents(
+                conventionalArmId,
+                assignmentStatus,
+                gender,
+                search,
+                1,
+            )
+        }
+    }
+
+    LaunchedEffect(page?.pagination?.currentPage) {
+        selectedStudentIds = emptySet()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        SectionHeading(
+            "Student placement",
+            "Filter conventional learners, select several at once, then place them into a parallel class and arm.",
+        )
+
+        if (curriculum == null || session == null) {
+            EduCoreEmptyState(
+                "Programme or session unavailable",
+                "Select a parallel programme and working session first.",
+            )
+            return@Column
+        }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Find learners", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+
+            NullableLifecycleMenu(
+                label = "Conventional class",
+                current = page?.conventionalClassArms
+                    ?.firstOrNull { it.id == conventionalArmId }
+                    ?.name
+                    ?: "All conventional classes",
+                options = listOf(null to "All conventional classes") +
+                    page.orEmptyClassArmOptions(),
+                enabled = !state.isStudentLoading && !state.isMutating,
+                onSelect = { conventionalArmId = it },
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            StringLifecycleMenu(
+                label = "Assignment status",
+                current = when (assignmentStatus) {
+                    "assigned" -> "Already assigned"
+                    "unassigned" -> "Not yet assigned"
+                    else -> "All students"
+                },
+                options = listOf(
+                    "all" to "All students",
+                    "unassigned" to "Not yet assigned",
+                    "assigned" to "Already assigned",
+                ),
+                enabled = !state.isStudentLoading && !state.isMutating,
+                onSelect = { assignmentStatus = it },
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            StringLifecycleMenu(
+                label = "Gender",
+                current = when (gender) {
+                    "male" -> "Male"
+                    "female" -> "Female"
+                    else -> "All"
+                },
+                options = listOf(
+                    "" to "All",
+                    "male" to "Male",
+                    "female" to "Female",
+                ),
+                enabled = !state.isStudentLoading && !state.isMutating,
+                onSelect = { gender = it.takeIf(String::isNotBlank) },
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(
+                value = search,
+                onValueChange = { search = it },
+                label = "Name or admission number",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isStudentLoading && !state.isMutating,
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCorePrimaryButton(
+                text = "Apply Filters",
+                onClick = {
+                    selectedStudentIds = emptySet()
+                    onLoadStudents(
+                        conventionalArmId,
+                        assignmentStatus,
+                        gender,
+                        search,
+                        1,
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isStudentLoading && !state.isMutating,
+                loading = state.isStudentLoading,
+            )
+        }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Destination", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+
+            LifecycleMenu(
+                label = "Parallel class",
+                current = curriculum.classes
+                    .firstOrNull { it.id == destinationClassId }
+                    ?.name
+                    ?: "Choose destination class",
+                options = curriculum.classes
+                    .filter { it.isActive }
+                    .map { it.id to it.name },
+                enabled = !state.isMutating,
+                onSelect = {
+                    destinationClassId = it
+                    destinationArmId = null
+                },
+            )
+
+            val destinationClass = curriculum.classes.firstOrNull { it.id == destinationClassId }
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Class arm",
+                current = destinationClass
+                    ?.arms
+                    ?.firstOrNull { it.id == destinationArmId }
+                    ?.name
+                    ?: "Choose destination arm",
+                options = destinationClass
+                    ?.arms
+                    ?.filter { it.isActive }
+                    ?.map { arm ->
+                        arm.id to (
+                            arm.name +
+                                (arm.capacity?.let { " · Capacity $it" } ?: "")
+                            )
+                    }
+                    .orEmpty(),
+                enabled = !state.isMutating && destinationClassId != null,
+                onSelect = { destinationArmId = it },
+            )
+
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(
+                selectedStudentIds.size.toString() + " learner(s) selected",
+                style = MaterialTheme.typography.bodyMedium,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCorePrimaryButton(
+                text = "Assign Selected Learners",
+                onClick = {
+                    val classId = destinationClassId
+                    val armId = destinationArmId
+                    if (classId != null && armId != null) {
+                        onAssignStudents(classId, armId, selectedStudentIds.toList())
+                        selectedStudentIds = emptySet()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating &&
+                    selectedStudentIds.isNotEmpty() &&
+                    destinationClassId != null &&
+                    destinationArmId != null,
+                loading = state.isMutating,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            Text(
+                "Same-session assignment moves an existing learner within this programme. Conventional class placement is unchanged.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+
+        if (state.isStudentLoading && page == null) {
+            EduCoreLoadingState(message = "Loading students")
+            return@Column
+        }
+
+        if (page == null || page.students.isEmpty()) {
+            EduCoreEmptyState(
+                "No matching learners",
+                "Change the filters or search term and try again.",
+            )
+            return@Column
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        ) {
+            EduCoreSecondaryButton(
+                text = "Select visible",
+                onClick = { selectedStudentIds = page.students.map { it.id }.toSet() },
+                modifier = Modifier.weight(1f),
+                enabled = !state.isMutating,
+            )
+            EduCoreSecondaryButton(
+                text = "Clear",
+                onClick = { selectedStudentIds = emptySet() },
+                modifier = Modifier.weight(1f),
+                enabled = !state.isMutating && selectedStudentIds.isNotEmpty(),
+            )
+        }
+
+        Text(
+            "Showing " + page.students.size + " of " + page.pagination.total + " matching learner(s).",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        page.students.forEach { student ->
+            EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Checkbox(
+                        checked = selectedStudentIds.contains(student.id),
+                        onCheckedChange = { checked ->
+                            selectedStudentIds = if (checked) {
+                                selectedStudentIds + student.id
+                            } else {
+                                selectedStudentIds - student.id
+                            }
+                        },
+                        enabled = !state.isMutating,
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(student.name, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            listOfNotNull(
+                                student.admissionNumber,
+                                student.conventionalClassName ?: "No conventional class",
+                                student.gender?.replaceFirstChar { it.uppercase() },
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                        Spacer(Modifier.height(EduCoreSpacing.Xs))
+                        Text(
+                            student.assignment?.let { assignment ->
+                                "Current parallel placement: " +
+                                    (assignment.className ?: "Assigned") +
+                                    (assignment.armName?.let { " · $it" } ?: "")
+                            } ?: "Current parallel placement: Not assigned",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
+            }
+        }
+
+        if (page.pagination.lastPage > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreSecondaryButton(
+                    text = "Previous",
+                    onClick = {
+                        selectedStudentIds = emptySet()
+                        onLoadStudents(
+                            conventionalArmId,
+                            assignmentStatus,
+                            gender,
+                            search,
+                            (page.pagination.currentPage - 1).coerceAtLeast(1),
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isStudentLoading && page.pagination.currentPage > 1,
+                )
+                EduCoreSecondaryButton(
+                    text = "Next",
+                    onClick = {
+                        selectedStudentIds = emptySet()
+                        onLoadStudents(
+                            conventionalArmId,
+                            assignmentStatus,
+                            gender,
+                            search,
+                            (page.pagination.currentPage + 1)
+                                .coerceAtMost(page.pagination.lastPage),
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isStudentLoading &&
+                        page.pagination.currentPage < page.pagination.lastPage,
+                )
+            }
+            Text(
+                "Page " + page.pagination.currentPage + " of " + page.pagination.lastPage,
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+    }
+}
+
+private fun online.educoreng.educore.core.model.ParallelLifecycleStudentPage?.orEmptyClassArmOptions():
+    List<Pair<Long?, String>> =
+    this?.conventionalClassArms?.map { (it.id as Long?) to it.name }.orEmpty()
+
+@Composable
+private fun NullableLifecycleMenu(
+    label: String,
+    current: String,
+    options: List<Pair<Long?, String>>,
+    enabled: Boolean,
+    onSelect: (Long?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Slate700)
+        Spacer(Modifier.height(EduCoreSpacing.Xs))
+        Box(Modifier.fillMaxWidth()) {
+            EduCoreSecondaryButton(
+                text = current,
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled && options.isNotEmpty(),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.second) },
+                        onClick = {
+                            expanded = false
+                            onSelect(option.first)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StringLifecycleMenu(
+    label: String,
+    current: String,
+    options: List<Pair<String, String>>,
+    enabled: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = EduCoreColors.Slate700)
+        Spacer(Modifier.height(EduCoreSpacing.Xs))
+        Box(Modifier.fillMaxWidth()) {
+            EduCoreSecondaryButton(
+                text = current,
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled && options.isNotEmpty(),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.second) },
+                        onClick = {
+                            expanded = false
+                            onSelect(option.first)
+                        },
+                    )
+                }
             }
         }
     }
