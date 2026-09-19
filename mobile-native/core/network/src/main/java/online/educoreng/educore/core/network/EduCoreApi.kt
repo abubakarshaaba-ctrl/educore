@@ -36,6 +36,10 @@ import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationReque
 import online.educoreng.educore.core.network.dto.ParallelPeriodMutationResponseDto
 import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelOperationsResponseDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStaffClockResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewResponseDto
@@ -273,6 +277,21 @@ interface EduCoreApi : AcademicKnowledgeApi {
     suspend fun deleteParallelTimetablePeriod(
         @Path("period") periodId: Long,
     ): MessageDto
+
+    @POST("parallel-curriculum/operations/working-days")
+    suspend fun saveParallelWorkingDays(
+        @Body request: ParallelWorkingDaysMutationRequestDto,
+    ): ParallelWorkingDaysMutationResponseDto
+
+    @POST("parallel-curriculum/operations/staff-attendance/clock-in")
+    suspend fun clockInParallelStaff(
+        @Body request: ParallelStaffAttendanceRequestDto,
+    ): ParallelStaffClockResponseDto
+
+    @POST("parallel-curriculum/operations/staff-attendance/clock-out")
+    suspend fun clockOutParallelStaff(
+        @Body request: ParallelStaffAttendanceRequestDto,
+    ): ParallelStaffClockResponseDto
 
     @POST("parallel-curriculum/operations/attendance")
     suspend fun saveParallelAttendance(
