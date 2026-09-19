@@ -10,6 +10,7 @@ use App\Models\Term;
 use App\Services\GuardianNotifier;
 use App\Services\ParallelCurriculumResultService;
 use App\Services\ParallelCurriculumService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -158,6 +159,124 @@ class MobileParallelCurriculumResultController extends Controller
                 ])->values(),
             ],
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $tenantId = $this->assertManage($request);
+        $data = $request->validate([
+            'class_id' => [
+                'required',
+                Rule::exists('parallel_curriculum_classes', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'term_id' => [
+                'required',
+                Rule::exists('terms', 'id')->where('tenant_id', $tenantId),
+            ],
+            'format' => ['required', Rule::in(['csv', 'pdf'])],
+        ]);
+
+        $class = ParallelCurriculumClass::with('curriculum')->findOrFail($data['class_id']);
+        $term = Term::with('session')->findOrFail($data['term_id']);
+        $report = $this->results->classReport($class, $term);
+        $baseName = str(
+            ($class->curriculum?->name ?: 'parallel_curriculum').'_'.
+            $class->name.'_'.($term->session?->name ?: 'session').'_'.$term->name
+        )->slug('_')->append('_result_register')->toString();
+
+        if ($data['format'] === 'csv') {
+            return response()->streamDownload(function () use ($report): void {
+                $handle = fopen('php://output', 'w');
+                fputcsv($handle, [
+                    'admission_number',
+                    'student_name',
+                    'parallel_arm',
+                    'completed_subjects',
+                    'subject_count',
+                    'grand_total',
+                    'maximum_total',
+                    'average_percent',
+                    'position',
+                    'failed_subjects',
+                    'status',
+                    'publication_status',
+                ]);
+
+                foreach ($report['results'] as $row) {
+                    fputcsv($handle, [
+                        $row['student']->admission_number,
+                        $row['student']->full_name,
+                        $row['enrolment']->curriculumClassArm?->name,
+                        $row['completed_subject_count'],
+                        $row['subject_count'],
+                        number_format((float) $row['grand_total'], 2, '.', ''),
+                        number_format((float) $row['maximum_total'], 2, '.', ''),
+                        $row['average'] === null
+                            ? null
+                            : number_format((float) $row['average'], 2, '.', ''),
+                        $row['position'],
+                        $row['failed_subjects'],
+                        $row['complete'] ? 'complete' : 'incomplete',
+                        $report['is_published'] ? 'published' : 'draft',
+                    ]);
+                }
+
+                fclose($handle);
+            }, $baseName.'.csv', [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Cache-Control' => 'private, no-store, max-age=0',
+            ]);
+        }
+
+        return Pdf::loadView('parallel-curriculum.results.class-register-pdf', [
+                'report' => $report,
+                'schoolName' => $request->user()?->tenant?->name,
+            ])
+            ->setPaper('a4', 'landscape')
+            ->download($baseName.'.pdf');
+    }
+
+    public function studentPdf(
+        Request $request,
+        ParallelCurriculumClass $class,
+        Student $student
+    ) {
+        $tenantId = $this->assertManage($request);
+        abort_unless(
+            (int) $class->tenant_id === $tenantId
+                && (int) $student->tenant_id === $tenantId,
+            403
+        );
+
+        $data = $request->validate([
+            'term_id' => [
+                'required',
+                Rule::exists('terms', 'id')->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $term = Term::with('session')->findOrFail($data['term_id']);
+        $report = $this->results->studentReport($class, $term, (int) $student->id);
+
+        abort_unless(
+            $report,
+            404,
+            'This student is not enrolled in the selected parallel class for this academic session.'
+        );
+
+        $filename = str($student->admission_number ?: $student->full_name)
+            ->slug('_')
+            ->append('_', str($report['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
+            ->append('_result.pdf')
+            ->toString();
+
+        return Pdf::loadView('parallel-curriculum.results.pdf', [
+                'report' => $report,
+                'schoolName' => $request->user()?->tenant?->name,
+            ])
+            ->setPaper('a4', 'portrait')
+            ->download($filename);
     }
 
     public function publish(Request $request): JsonResponse
