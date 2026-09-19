@@ -151,6 +151,14 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         mutate { repository.archiveArm(armId) }
     }
 
+    fun saveArmTeacher(
+        armId: Long,
+        subjectId: Long,
+        teacherId: Long?,
+    ) {
+        mutate { repository.saveArmTeacher(armId, subjectId, teacherId) }
+    }
+
     fun saveGrade(
         classIds: List<Long>,
         gradeLetter: String,
