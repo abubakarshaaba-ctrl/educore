@@ -3179,40 +3179,34 @@ private fun ParallelStaffAttendanceCard(
         if (sheet.canClockSelf && operations.capabilities.clockParallelStaff && sheet.isWorkingDay) {
             val selfRecord = sheet.selfRecord
             Spacer(Modifier.height(EduCoreSpacing.Md))
-            when {
-                selfRecord?.clockInTime == null -> {
-                    EduCorePrimaryButton(
-                        text = "Clock In",
-                        onClick = onClockIn,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !state.isMutating,
-                        loading = state.isMutating,
-                    )
-                }
-                selfRecord.clockOutTime == null -> {
-                    val clockedInRecord = selfRecord
-                    EduCoreInfoBanner(
-                        title = "Clocked in",
-                        message = clockedInRecord.clockInTime + " · " +
-                            (clockedInRecord.status?.replace('_', ' ') ?: "recorded"),
-                    )
-                    Spacer(Modifier.height(EduCoreSpacing.Sm))
-                    EduCorePrimaryButton(
-                        text = "Clock Out",
-                        onClick = onClockOut,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !state.isMutating,
-                        loading = state.isMutating,
-                    )
-                }
-                else -> {
-                    val completedRecord = selfRecord
-                    EduCoreInfoBanner(
-                        title = "Attendance complete",
-                        message = completedRecord.clockInTime + "–" + completedRecord.clockOutTime +
-                            " · " + (completedRecord.departureStatus?.replace('_', ' ') ?: "completed"),
-                    )
-                }
+            if (selfRecord == null || selfRecord.clockInTime == null) {
+                EduCorePrimaryButton(
+                    text = "Clock In",
+                    onClick = onClockIn,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                    loading = state.isMutating,
+                )
+            } else if (selfRecord.clockOutTime == null) {
+                EduCoreInfoBanner(
+                    title = "Clocked in",
+                    message = selfRecord.clockInTime + " · " +
+                        (selfRecord.status?.replace('_', ' ') ?: "recorded"),
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCorePrimaryButton(
+                    text = "Clock Out",
+                    onClick = onClockOut,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                    loading = state.isMutating,
+                )
+            } else {
+                EduCoreInfoBanner(
+                    title = "Attendance complete",
+                    message = selfRecord.clockInTime + "–" + selfRecord.clockOutTime +
+                        " · " + (selfRecord.departureStatus?.replace('_', ' ') ?: "completed"),
+                )
             }
         }
 
