@@ -514,8 +514,6 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'parallel_curriculum_id' => $context['curriculum']->id,
             'day_of_week' => 'tuesday',
             'is_working' => 1,
-            'resumption_time' => '16:00:00',
-            'closing_time' => '18:30:00',
             'grace_minutes' => 15,
         ]);
 
