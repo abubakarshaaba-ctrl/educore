@@ -78,6 +78,7 @@ import online.educoreng.educore.core.network.dto.UpdateProfileRequestDto
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import retrofit2.http.DELETE
 import retrofit2.http.PATCH
 import retrofit2.http.Streaming
 import retrofit2.http.Body
