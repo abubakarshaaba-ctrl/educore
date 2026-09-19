@@ -5,6 +5,11 @@ import online.educoreng.educore.core.network.dto.ParallelLifecycleArmSubjectTeac
 import online.educoreng.educore.core.network.dto.ParallelLifecycleClassDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleCurriculumDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleEnrolmentDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleConventionalClassArmDto
+import online.educoreng.educore.core.network.dto.ParallelLifecyclePaginationDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentAssignmentDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentDto
+import online.educoreng.educore.core.network.dto.ParallelLifecycleStudentPageDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleSessionDto
 import online.educoreng.educore.core.network.dto.ParallelLifecycleStaffDto
@@ -95,6 +100,47 @@ class ParallelLifecycleDtoMapperTest {
         assertTrue(domain.armTeacherOverridesReady)
         assertEquals("A", domain.enrolments.single().armName)
         assertTrue(domain.sessions.single().isCurrent)
+    }
+
+    @Test
+    fun `maps student assignment catalogue with current parallel placement`() {
+        val page = ParallelLifecycleStudentPageDto(
+            parallelCurriculumId = 10,
+            sessionId = 20,
+            conventionalClassArms = listOf(
+                ParallelLifecycleConventionalClassArmDto(5, "JSS 1 A"),
+            ),
+            students = listOf(
+                ParallelLifecycleStudentDto(
+                    id = 60,
+                    name = "Amina Bello",
+                    admissionNumber = "STU001",
+                    gender = "female",
+                    conventionalClassArmId = 5,
+                    conventionalClassName = "JSS 1 A",
+                    assignment = ParallelLifecycleStudentAssignmentDto(
+                        enrolmentId = 50,
+                        classId = 30,
+                        className = "Mutawassitah 1",
+                        armId = 40,
+                        armName = "A",
+                    ),
+                ),
+            ),
+            pagination = ParallelLifecyclePaginationDto(
+                currentPage = 1,
+                lastPage = 1,
+                perPage = 50,
+                total = 1,
+            ),
+        ).toDomain()
+
+        assertEquals(10, page.curriculumId)
+        assertEquals("JSS 1 A", page.conventionalClassArms.single().name)
+        assertEquals("Amina Bello", page.students.single().name)
+        assertEquals("Mutawassitah 1", page.students.single().assignment?.className)
+        assertEquals("A", page.students.single().assignment?.armName)
+        assertEquals(1, page.pagination.total)
     }
 
     @Test
