@@ -31,7 +31,7 @@ class ParallelCurriculumResultController extends Controller
         $user = auth()->user();
 
         abort_unless(
-            $user->isSuperAdmin() || $user->canAccessExactModule('scores'),
+            $user && $this->parallel->canManageLifecycle($user),
             403,
             'You do not have permission to manage parallel curriculum results.'
         );
