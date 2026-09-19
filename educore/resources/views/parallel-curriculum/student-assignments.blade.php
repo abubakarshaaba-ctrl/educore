@@ -34,6 +34,7 @@
         <a href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
         <a href="{{ route('parallel-curriculum.student-assignments', request()->query()) }}" class="active">Student Assignments</a>
         <a href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
+        <a href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
         <a href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
     </div>
 
