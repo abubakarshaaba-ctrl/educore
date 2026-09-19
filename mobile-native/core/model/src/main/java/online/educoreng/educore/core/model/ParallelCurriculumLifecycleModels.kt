@@ -193,6 +193,111 @@ data class ParallelLifecycleWorkspace(
         get() = sessions.firstOrNull { it.id == selectedSessionId }
 }
 
+data class ParallelResultClassOption(
+    val id: Long,
+    val name: String,
+    val curriculumId: Long,
+    val curriculumName: String?,
+    val label: String,
+)
+
+data class ParallelResultTermOption(
+    val id: Long,
+    val name: String,
+    val sessionId: Long,
+    val sessionName: String?,
+    val isCurrent: Boolean,
+    val label: String,
+)
+
+data class ParallelResultRegisterRow(
+    val studentId: Long,
+    val studentName: String,
+    val admissionNumber: String?,
+    val armName: String?,
+    val completedSubjectCount: Int,
+    val subjectCount: Int,
+    val grandTotal: Double,
+    val maximumTotal: Double,
+    val average: Double?,
+    val position: Int?,
+    val failedSubjects: Int,
+    val complete: Boolean,
+)
+
+data class ParallelResultRegister(
+    val curriculumId: Long,
+    val curriculumName: String?,
+    val classId: Long,
+    val className: String,
+    val termId: Long,
+    val term: String,
+    val session: String?,
+    val templateName: String?,
+    val componentWeight: Double,
+    val gradingSource: String,
+    val gradingScaleComplete: Boolean,
+    val isPublished: Boolean,
+    val canPublish: Boolean,
+    val blockers: List<String>,
+    val studentsCount: Int,
+    val subjectsCount: Int,
+    val completeStudentsCount: Int,
+    val ungradedSubjectResultsCount: Int,
+    val rows: List<ParallelResultRegisterRow>,
+)
+
+data class ParallelResultWorkspace(
+    val selectedClassId: Long?,
+    val selectedTermId: Long?,
+    val classes: List<ParallelResultClassOption>,
+    val terms: List<ParallelResultTermOption>,
+    val report: ParallelResultRegister?,
+)
+
+data class ParallelResultComponent(
+    val id: Long,
+    val name: String,
+    val maximum: Double,
+    val score: Double?,
+)
+
+data class ParallelResultSubject(
+    val subjectId: Long,
+    val subject: String,
+    val complete: Boolean,
+    val rawTotal: Double,
+    val percentage: Double?,
+    val grade: String?,
+    val remark: String?,
+    val isPass: Boolean?,
+    val components: List<ParallelResultComponent>,
+)
+
+data class ParallelStudentResultDetail(
+    val classId: Long,
+    val className: String,
+    val curriculumName: String?,
+    val termId: Long,
+    val term: String,
+    val session: String?,
+    val isPublished: Boolean,
+    val gradingSource: String,
+    val studentId: Long,
+    val studentName: String,
+    val admissionNumber: String?,
+    val armName: String?,
+    val subjectCount: Int,
+    val completedSubjectCount: Int,
+    val complete: Boolean,
+    val grandTotal: Double,
+    val maximumTotal: Double,
+    val average: Double?,
+    val failedSubjects: Int,
+    val position: Int?,
+    val subjects: List<ParallelResultSubject>,
+)
+
 data class ParallelPromotionPreviewCounts(
     val total: Int,
     val promoted: Int,
