@@ -23,7 +23,7 @@ data class ParallelOperationsSelection(
 data class ParallelOperationsCapabilities(
     val manageTimetable: Boolean,
     val saveAttendance: Boolean,
-    val exportAttendance: Boolean,
+    val exportAttendance: Boolean = false,
 )
 
 data class ParallelOperationsOption(
