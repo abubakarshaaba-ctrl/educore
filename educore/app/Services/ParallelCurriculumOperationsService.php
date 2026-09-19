@@ -745,7 +745,8 @@ class ParallelCurriculumOperationsService
             'staff' => $staff,
             'records' => $records,
             'can_clock_self' => $this->canClockParallelStaff($user, $curriculumId)
-                && (bool) $schedule->is_working,
+                && (bool) $schedule->is_working
+                && Carbon::parse($date)->isSameDay(today()),
         ];
     }
 
