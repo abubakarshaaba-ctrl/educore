@@ -181,7 +181,7 @@ class ParallelLifecycleDtoMapperTest {
         val preview = ParallelPromotionPreviewResponseDto(
             sourceSession = ParallelLifecycleSessionDto(1, "2026/2027", false),
             targetSession = ParallelLifecycleSessionDto(2, "2027/2028", true),
-            sourceClassIds = listOf(30, 31),
+            sourceClassIds = listOf(30L, 31L),
             counts = ParallelPromotionPreviewCountsDto(
                 total = 1,
                 promoted = 1,
