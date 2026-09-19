@@ -117,6 +117,28 @@ class StaffNavigationPermissionTest extends TestCase
         $this->assertFalse($teacher->canAccessRoute('scores.index'));
     }
 
+    public function test_leave_self_service_grant_does_not_grant_leave_approval(): void
+    {
+        [$tenant, $admin, $teacher] = $this->staffFixture('subject_teacher');
+
+        StaffPermission::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $teacher->id,
+            'module' => 'leave.self',
+            'type' => 'grant',
+            'granted_by' => $admin->id,
+        ]);
+
+        $teacher = $teacher->fresh();
+
+        $this->assertTrue($teacher->canAccessModule('leave'));
+        $this->assertTrue($teacher->canAccessRoute('leave.index'));
+        $this->assertTrue($teacher->canAccessRoute('leave.store'));
+        $this->assertTrue($teacher->canAccessRoute('leave.cancel'));
+        $this->assertFalse($teacher->canAccessRoute('leave.approve'));
+        $this->assertFalse($teacher->canAccessRoute('leave.reject'));
+    }
+
     public function test_admission_officer_legacy_academic_access_remains_hidden_until_explicitly_granted(): void
     {
         [$tenant, $admin, $officer] = $this->staffFixture('admission_officer');
