@@ -18,6 +18,7 @@ import online.educoreng.educore.core.network.dto.SaveAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.StaffAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.StudentProfileResponseDto
 import online.educoreng.educore.core.network.dto.PublishedResultsResponseDto
+import online.educoreng.educore.core.network.dto.PortalAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.ParallelTransferRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRuleMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
@@ -403,6 +404,12 @@ interface EduCoreApi {
 
     @GET("parent/results")
     suspend fun parentResults(@Query("child_id") childId: Long? = null): PublishedResultsResponseDto
+
+    @GET("portal-attendance")
+    suspend fun portalAttendance(
+        @Query("child_id") childId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): PortalAttendanceResponseDto
 
     @GET("schedule")
     suspend fun schedule(
