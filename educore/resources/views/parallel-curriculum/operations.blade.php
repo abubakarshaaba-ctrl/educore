@@ -116,7 +116,7 @@
     <div class="head">
         <div>
             <strong>Parallel staff attendance</strong><br>
-            <span>{{ $date }} · separate from conventional staff attendance</span>
+            <span>{{ $date }} · one shared staff QR, independently evaluated against this programme's schedule</span>
         </div>
         <span>
             @if($parallelStaffSchedule && $parallelStaffSchedule->is_working)
@@ -139,21 +139,20 @@
         @if($canClockParallelStaff && $date===now()->toDateString() && $parallelStaffSchedule?->is_working)
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
                 @if(!$selfParallelRecord?->clock_in_time)
-                    <form method="POST" action="{{ route('parallel-curriculum.operations.staff-attendance.clock-in') }}">
-                        @csrf
-                        <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
-                        <button class="btn p" type="submit">Clock In · Parallel Curriculum</button>
-                    </form>
+                    <div class="hint">
+                        Scan your normal staff attendance QR once. EduCore will use that same arrival time for conventional attendance and automatically evaluate this parallel curriculum against its own resumption time.
+                    </div>
                 @elseif(!$selfParallelRecord?->clock_out_time)
-                    <span class="chip">Clocked in {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }} · {{ ucfirst($selfParallelRecord->status) }}</span>
-                    <form method="POST" action="{{ route('parallel-curriculum.operations.staff-attendance.clock-out') }}">
-                        @csrf
-                        <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
-                        <button class="btn s" type="submit">Clock Out · Parallel Curriculum</button>
-                    </form>
+                    <span class="chip">
+                        Shared QR · {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }}
+                        · {{ ucfirst($selfParallelRecord->status) }}
+                    </span>
+                    <div class="hint">
+                        No second parallel scan is required. Use the normal staff attendance clock-out when you finally leave; EduCore will reconcile the departure here automatically.
+                    </div>
                 @else
                     <span class="chip">
-                        Completed · {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }}–{{ substr((string)$selfParallelRecord->clock_out_time,0,5) }}
+                        Shared QR completed · {{ substr((string)$selfParallelRecord->clock_in_time,0,5) }}–{{ substr((string)$selfParallelRecord->clock_out_time,0,5) }}
                         · {{ ucfirst(str_replace('_',' ',$selfParallelRecord->departure_status ?? '')) }}
                     </span>
                 @endif

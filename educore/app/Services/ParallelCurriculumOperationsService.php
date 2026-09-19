@@ -729,6 +729,160 @@ class ParallelCurriculumOperationsService
         )->contains((int) $user->id);
     }
 
+
+    /**
+     * Reconcile one physical staff clock-in across every parallel curriculum
+     * the staff member is assigned to teach on the supplied date.
+     *
+     * The conventional/general staff attendance scan remains the single source
+     * event. Each parallel curriculum independently evaluates that same
+     * timestamp against its own day-specific resumption time and grace period.
+     */
+    public function reconcileSharedStaffClockIn(
+        User $staff,
+        string $date,
+        string $time,
+        string $method = 'shared_qr',
+        ?int $recordedBy = null
+    ): Collection {
+        if (
+            ! Schema::hasTable('parallel_curricula')
+            || ! Schema::hasTable('parallel_curriculum_staff_attendance_records')
+            || ! Schema::hasTable('parallel_curriculum_working_days')
+        ) {
+            return collect();
+        }
+
+        $tenantId = (int) $staff->tenant_id;
+        $day = strtolower(Carbon::parse($date)->format('l'));
+
+        $curricula = ParallelCurriculum::query()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get();
+
+        $records = collect();
+
+        foreach ($curricula as $curriculum) {
+            $curriculumId = (int) $curriculum->id;
+
+            if (! $this->canClockParallelStaff($staff, $curriculumId)) {
+                continue;
+            }
+
+            $schedule = $this->workingDay(
+                $tenantId,
+                $curriculumId,
+                $day
+            );
+
+            if (
+                ! $schedule->is_working
+                || ! $schedule->resumption_time
+                || ! $schedule->closing_time
+            ) {
+                continue;
+            }
+
+            $existing = ParallelCurriculumStaffAttendanceRecord::query()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_id', $curriculumId)
+                ->where('user_id', $staff->id)
+                ->whereDate('attendance_date', $date)
+                ->first();
+
+            // Idempotency: a retry of the same QR event must not overwrite a
+            // previously recorded arrival for this curriculum.
+            if ($existing?->clock_in_time) {
+                $records->push($existing->loadMissing('curriculum'));
+                continue;
+            }
+
+            $resumption = substr(
+                (string) $schedule->resumption_time,
+                0,
+                8
+            );
+            $closing = substr(
+                (string) $schedule->closing_time,
+                0,
+                8
+            );
+            $grace = (int) $schedule->grace_minutes;
+
+            $record = ParallelCurriculumStaffAttendanceRecord::updateOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'parallel_curriculum_id' => $curriculumId,
+                    'user_id' => $staff->id,
+                    'attendance_date' => $date,
+                ],
+                [
+                    'status' => $this->classifyParallelArrival(
+                        $date,
+                        $time,
+                        $resumption,
+                        $grace
+                    ),
+                    'clock_in_time' => $time,
+                    'expected_resumption_time' => $resumption,
+                    'expected_closing_time' => $closing,
+                    'grace_minutes' => $grace,
+                    'clock_in_method' => $method,
+                    'recorded_by' => $recordedBy ?: $staff->id,
+                ]
+            );
+
+            $records->push($record->loadMissing('curriculum'));
+        }
+
+        return $records->values();
+    }
+
+    /**
+     * Apply one physical departure scan to every parallel attendance context
+     * created from the shared staff QR for that date.
+     */
+    public function reconcileSharedStaffClockOut(
+        User $staff,
+        string $date,
+        string $time
+    ): Collection {
+        if (! Schema::hasTable('parallel_curriculum_staff_attendance_records')) {
+            return collect();
+        }
+
+        $records = ParallelCurriculumStaffAttendanceRecord::query()
+            ->with('curriculum')
+            ->where('tenant_id', (int) $staff->tenant_id)
+            ->where('user_id', $staff->id)
+            ->whereDate('attendance_date', $date)
+            ->whereNotNull('clock_in_time')
+            ->get();
+
+        foreach ($records as $record) {
+            if ($record->clock_out_time) {
+                continue;
+            }
+
+            $closing = $record->expected_closing_time
+                ? substr((string) $record->expected_closing_time, 0, 8)
+                : null;
+
+            $record->update([
+                'clock_out_time' => $time,
+                'departure_status' => $closing && $time < $closing
+                    ? 'early'
+                    : 'on_time',
+            ]);
+        }
+
+        return $records
+            ->map(fn ($record) => $record->fresh()->loadMissing('curriculum'))
+            ->values();
+    }
+
     public function staffAttendanceSheet(
         User $user,
         int $curriculumId,

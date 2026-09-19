@@ -6,12 +6,15 @@ use App\Models\StaffAttendanceSetting;
 use App\Models\StaffOfflineClockIn;
 use App\Models\StaffProxyRequest;
 use App\Models\User;
+use App\Services\ParallelCurriculumOperationsService;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -548,12 +551,51 @@ class StaffAttendanceController extends Controller
     public function clockOut(Request $request)
     {
         $user = auth()->user();
+        $date = today()->toDateString();
+        $time = now()->format('H:i:s');
         $rec  = StaffAttendanceRecord::where('user_id', $user->id)
-                    ->whereDate('attendance_date', today())->first();
-        if (!$rec) return response()->json(['ok' => false, 'message' => 'No clock-in for today.'], 404);
-        if ($rec->clock_out_time) return response()->json(['ok' => false, 'message' => 'Already clocked out.'], 422);
-        $rec->update(['clock_out_time' => now()->format('H:i:s')]);
-        return response()->json(['ok' => true, 'message' => 'Clocked out at ' . now()->format('g:i A')]);
+                    ->whereDate('attendance_date', $date)->first();
+
+        if (!$rec) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'No clock-in for today.',
+            ], 404);
+        }
+
+        if ($rec->clock_out_time) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Already clocked out.',
+            ], 422);
+        }
+
+        $rec->update(['clock_out_time' => $time]);
+
+        $parallelRecords = collect();
+        try {
+            $parallelRecords = app(ParallelCurriculumOperationsService::class)
+                ->reconcileSharedStaffClockOut($user, $date, $time);
+        } catch (\Throwable $e) {
+            Log::warning('Parallel staff attendance clock-out reconciliation failed', [
+                'tenant_id' => $user->tenant_id,
+                'user_id' => $user->id,
+                'date' => $date,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $settings = $this->attendanceSettings();
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Clocked out at '.Carbon::parse($time)->format('g:i A').'.',
+            'attendance_contexts' => $this->clockOutAttendanceContexts(
+                $settings,
+                $time,
+                $parallelRecords
+            ),
+        ]);
     }
 
     // ── Offline Upload ────────────────────────────────────────────────
@@ -911,13 +953,163 @@ class StaffAttendanceController extends Controller
             ]
         );
 
+        // One physical QR event is the source of truth. Re-use the exact same
+        // timestamp for every applicable parallel curriculum and let each
+        // programme evaluate punctuality against its own daily schedule.
+        $parallelRecords = collect();
+        try {
+            $parallelRecords = app(ParallelCurriculumOperationsService::class)
+                ->reconcileSharedStaffClockIn(
+                    $target,
+                    $date,
+                    $time,
+                    $method,
+                    $clockedBy
+                );
+        } catch (\Throwable $e) {
+            // A parallel-curriculum configuration problem must never discard a
+            // valid main staff attendance scan.
+            Log::warning('Parallel staff attendance clock-in reconciliation failed', [
+                'tenant_id' => $tenantId,
+                'user_id' => $userId,
+                'date' => $date,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $label   = match($status) { 'early'=>'Early arrival','present'=>'Present','late'=>'Late', default=>'Marked' };
         $timeStr = Carbon::parse($time)->format('g:i A');
+        $contexts = $this->clockInAttendanceContexts(
+            $settings,
+            $time,
+            $status,
+            $parallelRecords
+        );
+
+        $parallelSummary = $parallelRecords
+            ->map(fn ($record) =>
+                ($record->curriculum?->name ?? 'Parallel curriculum')
+                .': '.ucfirst((string) $record->status)
+            )
+            ->implode('; ');
+
+        $message = "{$label} — clocked in at {$timeStr}.";
+        if ($parallelSummary !== '') {
+            $message .= " Parallel attendance — {$parallelSummary}.";
+        }
 
         if (request()->expectsJson()) {
-            return response()->json(['ok' => true, 'status' => $status, 'message' => "{$label} — clocked in at {$timeStr}."]);
+            return response()->json([
+                'ok' => true,
+                'status' => $status,
+                'message' => $message,
+                'attendance_contexts' => $contexts,
+            ]);
         }
-        return back()->with('success', "{$label} — clocked in at {$timeStr}.");
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Build the per-curriculum interpretation returned to web/mobile clients.
+     * A negative minutes_from_resumption value means early; a positive value
+     * means the scan occurred after the scheduled resumption.
+     */
+    private function clockInAttendanceContexts(
+        StaffAttendanceSetting $settings,
+        string $time,
+        string $status,
+        Collection $parallelRecords
+    ): array {
+        $contexts = [[
+            'type' => 'conventional',
+            'name' => 'Conventional curriculum',
+            'status' => $status,
+            'clock_in_time' => substr($time, 0, 5),
+            'expected_resumption_time' =>
+                substr((string) $settings->resumption_time, 0, 5),
+            'grace_minutes' => (int) $settings->grace_minutes,
+            'minutes_from_resumption' => $this->minutesFromExpected(
+                $time,
+                (string) $settings->resumption_time
+            ),
+        ]];
+
+        foreach ($parallelRecords as $record) {
+            $contexts[] = [
+                'type' => 'parallel',
+                'curriculum_id' => (int) $record->parallel_curriculum_id,
+                'name' => $record->curriculum?->name ?? 'Parallel curriculum',
+                'status' => $record->status,
+                'clock_in_time' => $record->clock_in_time
+                    ? substr((string) $record->clock_in_time, 0, 5)
+                    : null,
+                'expected_resumption_time' => $record->expected_resumption_time
+                    ? substr((string) $record->expected_resumption_time, 0, 5)
+                    : null,
+                'grace_minutes' => (int) $record->grace_minutes,
+                'minutes_from_resumption' =>
+                    $record->clock_in_time && $record->expected_resumption_time
+                        ? $this->minutesFromExpected(
+                            (string) $record->clock_in_time,
+                            (string) $record->expected_resumption_time
+                        )
+                        : null,
+            ];
+        }
+
+        return $contexts;
+    }
+
+    private function clockOutAttendanceContexts(
+        StaffAttendanceSetting $settings,
+        string $time,
+        Collection $parallelRecords
+    ): array {
+        $conventionalClosing = substr(
+            (string) $settings->closing_time,
+            0,
+            8
+        );
+
+        $contexts = [[
+            'type' => 'conventional',
+            'name' => 'Conventional curriculum',
+            'clock_out_time' => substr($time, 0, 5),
+            'expected_closing_time' => substr($conventionalClosing, 0, 5),
+            'departure_status' => $time < $conventionalClosing
+                ? 'early'
+                : 'on_time',
+        ]];
+
+        foreach ($parallelRecords as $record) {
+            $contexts[] = [
+                'type' => 'parallel',
+                'curriculum_id' => (int) $record->parallel_curriculum_id,
+                'name' => $record->curriculum?->name ?? 'Parallel curriculum',
+                'clock_out_time' => $record->clock_out_time
+                    ? substr((string) $record->clock_out_time, 0, 5)
+                    : null,
+                'expected_closing_time' => $record->expected_closing_time
+                    ? substr((string) $record->expected_closing_time, 0, 5)
+                    : null,
+                'departure_status' => $record->departure_status,
+            ];
+        }
+
+        return $contexts;
+    }
+
+    private function minutesFromExpected(
+        string $actualTime,
+        string $expectedTime
+    ): int {
+        $actual = Carbon::parse('2000-01-01 '.substr($actualTime, 0, 8));
+        $expected = Carbon::parse('2000-01-01 '.substr($expectedTime, 0, 8));
+
+        return (int) round(
+            ($actual->getTimestamp() - $expected->getTimestamp()) / 60
+        );
     }
 
     private function storeAttendancePhoto(
