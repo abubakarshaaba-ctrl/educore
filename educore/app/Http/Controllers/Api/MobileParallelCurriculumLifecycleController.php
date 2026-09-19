@@ -1173,16 +1173,28 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'different:source_session_id',
                 Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
             ],
+            'source_class_ids' => ['nullable', 'array', 'min:1'],
+            'source_class_ids.*' => [
+                'integer',
+                Rule::exists('parallel_curriculum_classes', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
         ]);
 
         $curriculum = ParallelCurriculum::findOrFail($data['parallel_curriculum_id']);
         $sourceSession = AcademicSession::findOrFail($data['source_session_id']);
         $targetSession = AcademicSession::findOrFail($data['target_session_id']);
 
+        $sourceClassIds = collect($data['source_class_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         $preview = $this->lifecycle->promotionPreview(
             $curriculum,
             $sourceSession,
-            $targetSession
+            $targetSession,
+            $sourceClassIds->all()
         );
 
         return response()->json([
@@ -1195,6 +1207,7 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'id' => (int) $targetSession->id,
                 'name' => (string) $targetSession->name,
             ],
+            'source_class_ids' => $sourceClassIds,
             'counts' => $preview['counts'],
             'rows' => $preview['rows']->map(fn (array $row) => [
                 'student_id' => (int) $row['student']->id,
@@ -1229,13 +1242,24 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'different:source_session_id',
                 Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
             ],
+            'source_class_ids' => ['nullable', 'array', 'min:1'],
+            'source_class_ids.*' => [
+                'integer',
+                Rule::exists('parallel_curriculum_classes', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
         ]);
 
         $result = $this->lifecycle->executePromotion(
             ParallelCurriculum::findOrFail($data['parallel_curriculum_id']),
             AcademicSession::findOrFail($data['source_session_id']),
             AcademicSession::findOrFail($data['target_session_id']),
-            $request->user()?->id
+            $request->user()?->id,
+            collect($data['source_class_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all()
         );
 
         return response()->json([
@@ -1613,9 +1637,18 @@ class MobileParallelCurriculumLifecycleController extends Controller
                 'required',
                 Rule::exists('parallel_curricula', 'id')->where('tenant_id', $tenantId),
             ],
-            'source_class_id' => [
-                'required',
+            'source_class_ids' => ['nullable', 'array', 'min:1'],
+            'source_class_ids.*' => [
+                'integer',
                 Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId),
+            ],
+            'source_class_id' => [
+                'nullable',
+                Rule::exists('parallel_curriculum_classes', 'id')->where('tenant_id', $tenantId),
+            ],
+            'destination_mode' => [
+                'nullable',
+                Rule::in(['next_by_order', 'explicit', 'terminal']),
             ],
             'destination_class_id' => [
                 'nullable',
@@ -1629,57 +1662,119 @@ class MobileParallelCurriculumLifecycleController extends Controller
             'is_terminal' => ['nullable', 'boolean'],
         ]);
 
-        $source = ParallelCurriculumClass::findOrFail($data['source_class_id']);
-        if ((int) $source->parallel_curriculum_id !== (int) $data['parallel_curriculum_id']) {
+        $sourceClassIds = collect($data['source_class_ids'] ?? [])
+            ->push($data['source_class_id'] ?? null)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($sourceClassIds->isEmpty()) {
             throw ValidationException::withMessages([
-                'source_class_id' => 'Source class belongs to a different parallel curriculum.',
+                'source_class_ids' => 'Select at least one source class level.',
             ]);
         }
 
-        $terminal = $request->boolean('is_terminal');
-        $destinationId = $terminal ? null : ($data['destination_class_id'] ?? null);
+        $classes = ParallelCurriculumClass::where(
+                'parallel_curriculum_id',
+                $data['parallel_curriculum_id']
+            )
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
-        if (! $terminal && ! $destinationId) {
+        $sources = $classes->whereIn('id', $sourceClassIds)->values();
+
+        if ($sources->count() !== $sourceClassIds->count()) {
             throw ValidationException::withMessages([
-                'destination_class_id' => 'Choose the next parallel class or mark the source class as terminal.',
+                'source_class_ids' =>
+                    'All selected source classes must belong to this parallel curriculum.',
             ]);
         }
 
-        if ($destinationId) {
-            $destination = ParallelCurriculumClass::findOrFail($destinationId);
-            if ((int) $destination->parallel_curriculum_id !== (int) $source->parallel_curriculum_id) {
+        $mode = $data['destination_mode']
+            ?? ($request->boolean('is_terminal')
+                ? 'terminal'
+                : (filled($data['destination_class_id'] ?? null)
+                    ? 'explicit'
+                    : 'next_by_order'));
+
+        if ($mode === 'explicit' && $sourceClassIds->count() !== 1) {
+            throw ValidationException::withMessages([
+                'destination_mode' =>
+                    'A specific destination can only be used with one source class. Use automatic next-level routing for multiple classes.',
+            ]);
+        }
+
+        $explicitDestination = null;
+        if ($mode === 'explicit') {
+            $explicitDestination = $classes->firstWhere(
+                'id',
+                (int) ($data['destination_class_id'] ?? 0)
+            );
+
+            if (! $explicitDestination) {
                 throw ValidationException::withMessages([
-                    'destination_class_id' => 'Destination class must belong to the same parallel curriculum.',
-                ]);
-            }
-            if ((int) $destination->id === (int) $source->id) {
-                throw ValidationException::withMessages([
-                    'destination_class_id' => 'Promotion destination must be a different parallel class.',
+                    'destination_class_id' =>
+                        'Choose a destination class from this parallel curriculum.',
                 ]);
             }
         }
 
-        $rule = ParallelCurriculumPromotionRule::updateOrCreate(
-            [
-                'tenant_id' => $tenantId,
-                'source_class_id' => $source->id,
-            ],
-            [
-                'parallel_curriculum_id' => $source->parallel_curriculum_id,
-                'destination_class_id' => $destinationId,
-                'minimum_average' => round((float) $data['minimum_average'], 2),
-                'max_failed_subjects' => (int) $data['max_failed_subjects'],
-                'require_complete_result' => $request->boolean('require_complete_result', true),
-                'failure_action' => $data['failure_action'],
-                'arm_strategy' => $data['arm_strategy'],
-                'is_terminal' => $terminal,
-                'is_active' => true,
-            ]
-        );
+        $savedRuleIds = [];
+
+        foreach ($sources as $source) {
+            $terminal = $mode === 'terminal';
+            $destination = null;
+
+            if ($mode === 'next_by_order') {
+                $sourceIndex = $classes->search(
+                    fn (ParallelCurriculumClass $class) =>
+                        (int) $class->id === (int) $source->id
+                );
+                $destination = $sourceIndex !== false
+                    ? $classes->get($sourceIndex + 1)
+                    : null;
+                $terminal = ! $destination;
+            } elseif ($mode === 'explicit') {
+                $destination = $explicitDestination;
+            }
+
+            if ($destination && (int) $destination->id === (int) $source->id) {
+                throw ValidationException::withMessages([
+                    'destination_class_id' =>
+                        'Promotion destination must be different from its source class.',
+                ]);
+            }
+
+            $rule = ParallelCurriculumPromotionRule::updateOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'source_class_id' => $source->id,
+                ],
+                [
+                    'parallel_curriculum_id' => $source->parallel_curriculum_id,
+                    'destination_class_id' => $terminal ? null : $destination?->id,
+                    'minimum_average' => round((float) $data['minimum_average'], 2),
+                    'max_failed_subjects' => (int) $data['max_failed_subjects'],
+                    'require_complete_result' => $request->boolean(
+                        'require_complete_result',
+                        true
+                    ),
+                    'failure_action' => $data['failure_action'],
+                    'arm_strategy' => $data['arm_strategy'],
+                    'is_terminal' => $terminal,
+                    'is_active' => true,
+                ]
+            );
+
+            $savedRuleIds[] = (int) $rule->id;
+        }
 
         return response()->json([
-            'message' => 'Parallel promotion rule saved.',
-            'rule_id' => (int) $rule->id,
+            'message' => count($savedRuleIds).' parallel promotion rule(s) saved.',
+            'rule_ids' => $savedRuleIds,
         ]);
     }
 
