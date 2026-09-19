@@ -112,7 +112,15 @@ data class ParallelStaffAttendance(
     val closingTime: String? = null,
     val graceMinutes: Int = 0,
     val canClockSelf: Boolean = false,
+    val selfRecord: ParallelStaffAttendanceSelfRecord? = null,
     val staff: List<ParallelStaffAttendancePerson> = emptyList(),
+)
+
+data class ParallelStaffAttendanceSelfRecord(
+    val status: String? = null,
+    val departureStatus: String? = null,
+    val clockInTime: String? = null,
+    val clockOutTime: String? = null,
 )
 
 data class ParallelStaffAttendancePerson(
