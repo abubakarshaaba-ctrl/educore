@@ -24,6 +24,7 @@ data class ParallelLifecycleUiState(
     val selectedSessionId: Long? = null,
     val sourceSessionId: Long? = null,
     val targetSessionId: Long? = null,
+    val promotionSourceClassIds: List<Long> = emptyList(),
     val studentPage: ParallelLifecycleStudentPage? = null,
     val studentConventionalClassArmId: Long? = null,
     val studentAssignmentStatus: String = "all",
@@ -448,18 +449,38 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         }
     }
 
-    fun previewPromotion() {
+    fun previewPromotion(sourceClassIds: List<Long>) {
         val state = _uiState.value
         val curriculumId = state.selectedCurriculumId ?: return failLocal("Select a parallel curriculum first.")
         val sourceId = state.sourceSessionId ?: return failLocal("Select the source academic session.")
         val targetId = state.targetSessionId ?: return failLocal("Select the target academic session.")
         if (sourceId == targetId) return failLocal("Source and target sessions must be different.")
+        if (sourceClassIds.isEmpty()) return failLocal("Select at least one class level for promotion.")
+
+        val selected = sourceClassIds.distinct()
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
-            when (val result = repository.previewPromotion(curriculumId, sourceId, targetId)) {
+            _uiState.update {
+                it.copy(
+                    isMutating = true,
+                    errorMessage = null,
+                    promotionSourceClassIds = selected,
+                )
+            }
+            when (
+                val result = repository.previewPromotion(
+                    curriculumId,
+                    sourceId,
+                    targetId,
+                    selected,
+                )
+            ) {
                 is AppResult.Success -> _uiState.update {
-                    it.copy(promotionPreview = result.value, isMutating = false)
+                    it.copy(
+                        promotionPreview = result.value,
+                        promotionSourceClassIds = result.value.sourceClassIds,
+                        isMutating = false,
+                    )
                 }
                 is AppResult.Failure -> _uiState.update {
                     it.copy(isMutating = false, errorMessage = result.error.userMessage)
@@ -475,9 +496,18 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         val targetId = state.targetSessionId ?: return failLocal("Select the target academic session.")
         val preview = state.promotionPreview ?: return failLocal("Preview promotion before execution.")
         if (preview.counts.blocked > 0) return failLocal("Resolve all blocked learners before promotion.")
+        val sourceClassIds = preview.sourceClassIds.ifEmpty { state.promotionSourceClassIds }
+        if (sourceClassIds.isEmpty()) return failLocal("Select at least one class level for promotion.")
 
         mutate(
-            action = { repository.executePromotion(curriculumId, sourceId, targetId) },
+            action = {
+                repository.executePromotion(
+                    curriculumId,
+                    sourceId,
+                    targetId,
+                    sourceClassIds,
+                )
+            },
             reload = true,
             clearPreview = true,
         )
@@ -563,7 +593,8 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
     }
 
     fun savePromotionRule(
-        sourceClassId: Long,
+        sourceClassIds: List<Long>,
+        destinationMode: String,
         destinationClassId: Long?,
         minimumAverage: Double?,
         maxFailedSubjects: Int?,
@@ -574,17 +605,24 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
     ) {
         val curriculumId = _uiState.value.selectedCurriculumId
             ?: return failLocal("Select a parallel curriculum first.")
+        if (sourceClassIds.isEmpty()) {
+            return failLocal("Select at least one source class level.")
+        }
         if (minimumAverage == null || maxFailedSubjects == null) {
             return failLocal("Enter the promotion average and failed-subject limit.")
         }
-        if (!isTerminal && destinationClassId == null) {
-            return failLocal("Select the next class or mark this as a terminal class.")
+        if (destinationMode == "explicit" && sourceClassIds.size != 1) {
+            return failLocal("A specific destination can only be used with one source class.")
+        }
+        if (destinationMode == "explicit" && destinationClassId == null) {
+            return failLocal("Select the specific destination class.")
         }
 
         mutate {
             repository.savePromotionRule(
                 curriculumId,
-                sourceClassId,
+                sourceClassIds.distinct(),
+                destinationMode,
                 destinationClassId,
                 minimumAverage,
                 maxFailedSubjects,
