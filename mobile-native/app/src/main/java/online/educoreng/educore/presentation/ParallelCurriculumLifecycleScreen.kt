@@ -50,6 +50,7 @@ import online.educoreng.educore.core.model.ParallelLifecycleStaff
 import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
+import online.educoreng.educore.core.model.ParallelAttendanceDraft
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
@@ -58,6 +59,7 @@ private enum class ParallelLifecycleTab(val label: String) {
     STUDENTS("Students"),
     TEACHERS("Teachers"),
     GRADES("Grade System"),
+    OPERATIONS("Timetable & Attendance"),
     RESULTS("Results"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
@@ -101,6 +103,10 @@ fun ParallelCurriculumLifecycleScreen(
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
+    onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
+    onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
+    onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -108,6 +114,17 @@ fun ParallelCurriculumLifecycleScreen(
     OpenDocumentEffect(state.downloadedDocument, onDocumentOpened)
     val workspace = state.workspace
     var tab by remember { mutableStateOf(ParallelLifecycleTab.OVERVIEW) }
+
+    LaunchedEffect(tab, state.selectedCurriculumId, state.selectedSessionId) {
+        if (
+            tab == ParallelLifecycleTab.OPERATIONS &&
+            state.operationsWorkspace == null &&
+            state.selectedCurriculumId != null &&
+            state.selectedSessionId != null
+        ) {
+            onLoadOperations(null, null, null, null)
+        }
+    }
 
     if (state.isLoading && workspace == null) {
         EduCoreLoadingState(message = "Loading parallel academic lifecycle")
@@ -210,6 +227,13 @@ fun ParallelCurriculumLifecycleScreen(
             )
             ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
+            ParallelLifecycleTab.OPERATIONS -> lifecycleOperations(
+                state = state,
+                onLoadOperations = onLoadOperations,
+                onCreateTimetablePeriod = onCreateTimetablePeriod,
+                onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+                onSaveParallelAttendance = onSaveParallelAttendance,
+            )
             ParallelLifecycleTab.RESULTS -> lifecycleResults(
                 state = state,
                 onLoadResults = onLoadResults,
@@ -2623,6 +2647,412 @@ private fun LazyListScope.lifecycleHistory(workspace: ParallelLifecycleWorkspace
                 )
             }
         }
+    }
+}
+
+private fun LazyListScope.lifecycleOperations(
+    state: ParallelLifecycleUiState,
+    onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
+    onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
+    onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+) {
+    item {
+        ParallelOperationsPanel(
+            state = state,
+            onLoadOperations = onLoadOperations,
+            onCreateTimetablePeriod = onCreateTimetablePeriod,
+            onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+            onSaveParallelAttendance = onSaveParallelAttendance,
+        )
+    }
+}
+
+@Composable
+private fun ParallelOperationsPanel(
+    state: ParallelLifecycleUiState,
+    onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
+    onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
+    onDeleteTimetablePeriod: (Long) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+) {
+    val operations = state.operationsWorkspace
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        SectionHeading(
+            "Parallel timetable & attendance",
+            "Schedule each parallel class arm independently and keep its daily attendance separate from conventional attendance.",
+        )
+
+        if (operations == null) {
+            if (state.isOperationsLoading) {
+                EduCoreLoadingState(message = "Loading parallel timetable and attendance")
+            } else {
+                EduCoreSecondaryButton(
+                    text = "Load Timetable & Attendance",
+                    onClick = { onLoadOperations(null, null, null, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+            }
+            return@Column
+        }
+
+        val selected = operations.selected
+        val selectedClass = operations.classes.firstOrNull { it.id == selected.classId }
+        val selectedArm = selectedClass?.arms?.firstOrNull { it.id == selected.armId }
+        var date by remember(selected.date) { mutableStateOf(selected.date) }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Working context", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            LifecycleMenu(
+                label = "Parallel class level",
+                current = selectedClass?.name ?: "Select class level",
+                options = operations.classes.map { it.id to it.name },
+                enabled = !state.isOperationsLoading && !state.isMutating,
+                onSelect = { classId ->
+                    onLoadOperations(classId, null, selected.termId, selected.date)
+                },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Class arm",
+                current = selectedArm?.name ?: "Select class arm",
+                options = selectedClass?.arms.orEmpty().map { it.id to it.name },
+                enabled = !state.isOperationsLoading && !state.isMutating && selectedClass != null,
+                onSelect = { armId ->
+                    onLoadOperations(selectedClass?.id, armId, selected.termId, selected.date)
+                },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Academic term",
+                current = operations.terms.firstOrNull { it.id == selected.termId }?.let {
+                    listOfNotNull(it.sessionName, it.name).joinToString(" · ")
+                } ?: "Select term",
+                options = operations.terms.map {
+                    it.id to listOfNotNull(it.sessionName, it.name).joinToString(" · ")
+                },
+                enabled = !state.isOperationsLoading && !state.isMutating,
+                onSelect = { termId ->
+                    onLoadOperations(selected.classId, selected.armId, termId, selected.date)
+                },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(
+                value = date,
+                onValueChange = { date = it },
+                label = "Attendance date (YYYY-MM-DD)",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isOperationsLoading && !state.isMutating,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Load Selected Date",
+                onClick = {
+                    onLoadOperations(
+                        selected.classId,
+                        selected.armId,
+                        selected.termId,
+                        date.trim().takeIf(String::isNotBlank),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isOperationsLoading && !state.isMutating && date.isNotBlank(),
+            )
+        }
+
+        if (state.isOperationsLoading) {
+            EduCoreLoadingState(message = "Refreshing parallel operations")
+        }
+
+        ParallelTimetableCard(
+            state = state,
+            selectedClass = selectedClass,
+            selectedArmId = selected.armId,
+            onCreateTimetablePeriod = onCreateTimetablePeriod,
+            onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+        )
+
+        ParallelAttendanceCard(
+            state = state,
+            onSaveParallelAttendance = onSaveParallelAttendance,
+        )
+    }
+}
+
+@Composable
+private fun ParallelTimetableCard(
+    state: ParallelLifecycleUiState,
+    selectedClass: online.educoreng.educore.core.model.ParallelOperationsClass?,
+    selectedArmId: Long?,
+    onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
+    onDeleteTimetablePeriod: (Long) -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    var subjectId by remember(selectedClass?.id, selectedClass?.subjects) {
+        mutableStateOf(selectedClass?.subjects?.firstOrNull()?.id)
+    }
+    var day by remember { mutableStateOf("monday") }
+    var start by remember { mutableStateOf("") }
+    var end by remember { mutableStateOf("") }
+    var venue by remember { mutableStateOf("") }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Weekly timetable", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Teacher assignments are resolved automatically. EduCore blocks class-arm overlaps and teacher clashes with both conventional and parallel schedules.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        if (operations.capabilities.manageTimetable && selectedClass != null && selectedArmId != null) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            LifecycleMenu(
+                label = "Subject",
+                current = selectedClass.subjects.firstOrNull { it.id == subjectId }?.name
+                    ?: "Select subject",
+                options = selectedClass.subjects.map { it.id to it.name },
+                enabled = !state.isMutating,
+                onSelect = { subjectId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            StringLifecycleMenu(
+                label = "Day",
+                current = day.replaceFirstChar { it.uppercase() },
+                options = listOf(
+                    "monday" to "Monday",
+                    "tuesday" to "Tuesday",
+                    "wednesday" to "Wednesday",
+                    "thursday" to "Thursday",
+                    "friday" to "Friday",
+                ),
+                enabled = !state.isMutating,
+                onSelect = { day = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCoreTextField(
+                    start,
+                    { start = it },
+                    "Start HH:mm",
+                    Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                )
+                EduCoreTextField(
+                    end,
+                    { end = it },
+                    "End HH:mm",
+                    Modifier.weight(1f),
+                    enabled = !state.isMutating,
+                )
+            }
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(
+                venue,
+                { venue = it },
+                "Venue (optional)",
+                Modifier.fillMaxWidth(),
+                enabled = !state.isMutating,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCorePrimaryButton(
+                text = "Add Timetable Period",
+                onClick = {
+                    val selectedSubject = subjectId
+                    if (selectedSubject != null) {
+                        onCreateTimetablePeriod(
+                            selectedClass.id,
+                            selectedArmId,
+                            selectedSubject,
+                            day,
+                            start.trim(),
+                            end.trim(),
+                            venue,
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating &&
+                    subjectId != null &&
+                    start.isNotBlank() &&
+                    end.isNotBlank(),
+                loading = state.isMutating,
+            )
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        if (operations.periods.isEmpty()) {
+            EduCoreEmptyState(
+                "No timetable periods",
+                "No parallel lesson has been scheduled for this class arm in the selected session.",
+            )
+        } else {
+            val dayOrder = listOf("monday", "tuesday", "wednesday", "thursday", "friday")
+            dayOrder.forEach { dayName ->
+                val periods = operations.periods
+                    .filter { it.dayOfWeek == dayName }
+                    .sortedBy { it.startTime }
+                if (periods.isNotEmpty()) {
+                    Text(
+                        dayName.replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = EduCoreColors.Navy900,
+                    )
+                    periods.forEach { period ->
+                        Spacer(Modifier.height(EduCoreSpacing.Sm))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    period.startTime + "–" + period.endTime + " · " + period.subject,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    listOfNotNull(
+                                        period.teacher ?: "Teacher unassigned",
+                                        period.venue,
+                                    ).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = EduCoreColors.Slate600,
+                                )
+                            }
+                            if (operations.capabilities.manageTimetable) {
+                                EduCoreDangerButton(
+                                    text = "Remove",
+                                    onClick = { onDeleteTimetablePeriod(period.id) },
+                                    enabled = !state.isMutating,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(EduCoreSpacing.Md))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParallelAttendanceCard(
+    state: ParallelLifecycleUiState,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    val attendance = operations.attendance
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Daily attendance", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Attendance is recorded against each learner's parallel enrolment and remains independent from conventional attendance.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+
+        if (!operations.capabilities.saveAttendance) {
+            EduCoreInfoBanner(
+                title = "Attendance restricted",
+                message = "Only authorized administrators or an effective teacher assigned to this parallel arm can mark attendance.",
+            )
+            return@EduCoreDashboardCard
+        }
+
+        if (attendance == null) {
+            EduCoreEmptyState(
+                "Attendance unavailable",
+                "Select a class arm, term and date to load the parallel attendance sheet.",
+            )
+            return@EduCoreDashboardCard
+        }
+
+        var drafts by remember(attendance.version) {
+            mutableStateOf(
+                attendance.students.map {
+                    ParallelAttendanceDraft(
+                        enrolmentId = it.enrolmentId,
+                        status = it.status ?: "present",
+                        remark = it.remark,
+                    )
+                }
+            )
+        }
+
+        KeyValueRow("Date", attendance.date)
+        KeyValueRow("Learners", attendance.students.size.toString())
+
+        if (attendance.students.isEmpty()) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreEmptyState(
+                "No learners",
+                "No active learner is assigned to this parallel arm for the selected session.",
+            )
+            return@EduCoreDashboardCard
+        }
+
+        attendance.students.forEach { student ->
+            val current = drafts.firstOrNull { it.enrolmentId == student.enrolmentId }
+                ?: ParallelAttendanceDraft(student.enrolmentId, "present")
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(student.name, style = MaterialTheme.typography.titleSmall)
+            Text(
+                student.admissionNumber ?: "No admission number",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            StringLifecycleMenu(
+                label = "Status",
+                current = current.status.replaceFirstChar { it.uppercase() },
+                options = listOf(
+                    "present" to "Present",
+                    "absent" to "Absent",
+                    "late" to "Late",
+                    "excused" to "Excused",
+                ),
+                enabled = !state.isMutating,
+                onSelect = { status ->
+                    drafts = drafts.map {
+                        if (it.enrolmentId == student.enrolmentId) it.copy(status = status) else it
+                    }
+                },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreTextField(
+                value = current.remark.orEmpty(),
+                onValueChange = { remark ->
+                    drafts = drafts.map {
+                        if (it.enrolmentId == student.enrolmentId) {
+                            it.copy(remark = remark.takeIf(String::isNotBlank))
+                        } else it
+                    }
+                },
+                label = "Remark (optional)",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating,
+            )
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        EduCorePrimaryButton(
+            text = "Save Parallel Attendance",
+            onClick = { onSaveParallelAttendance(drafts) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isMutating && drafts.isNotEmpty(),
+            loading = state.isMutating,
+        )
     }
 }
 
