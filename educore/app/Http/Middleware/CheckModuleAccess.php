@@ -17,14 +17,6 @@ use Illuminate\Support\Facades\Auth;
  */
 class CheckModuleAccess
 {
-    private const ADMISSION_OFFICER_DEFAULT_DENIES = [
-        'students', 'transfers', 'classes', 'subjects', 'curriculum',
-        'academic-cycle', 'scores', 'scores.entry', 'scores.view',
-        'reports', 'reports.view', 'reports.remarks', 'attendance',
-        'timetable', 'timetable.view', 'skills', 'cbt', 'gradebook',
-        'academic-repository', 'lesson-planner',
-    ];
-
     public function handle(Request $request, Closure $next): mixed
     {
         /** @var User|null $user */
@@ -82,7 +74,7 @@ class CheckModuleAccess
         // administrator can still make an intentional per-staff grant.
         if ($user->roleKey() === 'admission_officer') {
             foreach ($matchingModules as $module) {
-                if (in_array($module, self::ADMISSION_OFFICER_DEFAULT_DENIES, true)) {
+                if (in_array($module, User::ADMISSION_OFFICER_DEFAULT_DENIES, true)) {
                     return $this->deny($request, $user, $routeName);
                 }
             }
