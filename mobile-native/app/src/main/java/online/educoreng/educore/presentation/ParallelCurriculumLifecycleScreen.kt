@@ -100,6 +100,7 @@ fun ParallelCurriculumLifecycleScreen(
     onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
+    onSaveArmTeachingMode: (Long, String, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
@@ -236,7 +237,11 @@ fun ParallelCurriculumLifecycleScreen(
                 onImportAssignments,
                 onRemoveStudent,
             )
-            ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
+            ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(
+                state,
+                onSaveArmTeacher,
+                onSaveArmTeachingMode,
+            )
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
             ParallelLifecycleTab.OPERATIONS -> lifecycleOperations(
                 state = state,
@@ -1565,45 +1570,46 @@ private fun StringLifecycleMenu(
 private fun LazyListScope.lifecycleTeachers(
     state: ParallelLifecycleUiState,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
+    onSaveArmTeachingMode: (Long, String, Long?) -> Unit,
 ) {
     val workspace = state.workspace ?: return
     val levels = workspace.selectedCurriculum?.classes.orEmpty()
 
     item {
         SectionHeading(
-            "Arm-specific subject teachers",
-            "Override the class-level default teacher only where an individual arm needs a different teacher.",
+            "Teaching assignment model",
+            "Choose one teacher for every subject in an arm, or assign teachers by subject across any number of classes.",
         )
     }
 
-    if (!workspace.armTeacherOverridesReady) {
+    if (!workspace.armTeachingModesReady) {
         item {
             EduCoreInfoBanner(
-                title = "Teacher overrides unavailable",
-                message = "Deploy the latest database migration before assigning teachers by class arm.",
+                title = "Teaching modes unavailable",
+                message = "Deploy the latest database migration before selecting class-teacher or subject-based assignment modes.",
             )
         }
         return
     }
 
     if (levels.isEmpty()) {
-        item { EduCoreEmptyState("No class levels", "Create a parallel class level first.") }
+        item {
+            EduCoreEmptyState(
+                "No class levels",
+                "Create a parallel class level first.",
+            )
+        }
         return
     }
 
     levels.forEach { level ->
         val activeArms = level.arms.filter { it.isActive }
-
-        if (level.subjects.isEmpty() || activeArms.isEmpty()) {
+        if (activeArms.isEmpty()) {
             item(key = "teacher-empty-" + level.id) {
                 EduCoreDashboardCard(Modifier.fillMaxWidth()) {
                     Text(level.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (level.subjects.isEmpty()) {
-                            "Assign at least one active subject to this class level before configuring arm teachers."
-                        } else {
-                            "Create at least one active class arm before configuring arm teachers."
-                        },
+                        "Create at least one active class arm before configuring teachers.",
                         style = MaterialTheme.typography.bodySmall,
                         color = EduCoreColors.Slate600,
                     )
@@ -1616,8 +1622,10 @@ private fun LazyListScope.lifecycleTeachers(
                         level = level,
                         arm = arm,
                         staff = workspace.staff,
+                        armTeacherOverridesReady = workspace.armTeacherOverridesReady,
                         busy = state.isMutating,
-                        onSave = onSaveArmTeacher,
+                        onSaveSubjectTeacher = onSaveArmTeacher,
+                        onSaveTeachingMode = onSaveArmTeachingMode,
                     )
                 }
             }
@@ -1630,19 +1638,140 @@ private fun ArmTeacherCard(
     level: ParallelLifecycleClass,
     arm: ParallelLifecycleArm,
     staff: List<ParallelLifecycleStaff>,
+    armTeacherOverridesReady: Boolean,
     busy: Boolean,
-    onSave: (Long, Long, Long?) -> Unit,
+    onSaveSubjectTeacher: (Long, Long, Long?) -> Unit,
+    onSaveTeachingMode: (Long, String, Long?) -> Unit,
 ) {
+    var mode by remember(arm.id, arm.teachingAssignmentMode) {
+        mutableStateOf(arm.teachingAssignmentMode.ifBlank { "subject_based" })
+    }
+    var classTeacherId by remember(arm.id, arm.classTeacherId) {
+        mutableStateOf(arm.classTeacherId)
+    }
+
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text(level.name + " " + arm.name, style = MaterialTheme.typography.titleMedium)
         Text(
-            "Choose an override for each subject, or retain the class-level default.",
+            "Configure this arm independently from every other parallel class arm.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
 
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        StringLifecycleMenu(
+            label = "Teaching assignment mode",
+            current = if (mode == "class_teacher") {
+                "One class teacher · all subjects"
+            } else {
+                "Subject-based teachers"
+            },
+            options = listOf(
+                "class_teacher" to "One class teacher · all subjects",
+                "subject_based" to "Subject-based teachers",
+            ),
+            enabled = !busy,
+            onSelect = { mode = it },
+        )
+
+        if (mode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            ClassTeacherMenu(
+                selectedTeacherId = classTeacherId,
+                staff = staff,
+                enabled = !busy,
+                onSelect = { classTeacherId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            Text(
+                "This teacher becomes the effective teacher for every active subject in this class arm.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        } else {
+            Spacer(Modifier.height(EduCoreSpacing.Xs))
+            Text(
+                "Teachers can be assigned independently to each subject, including the same subject across several classes or arms.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        EduCorePrimaryButton(
+            text = "Save Assignment Model",
+            onClick = {
+                onSaveTeachingMode(
+                    arm.id,
+                    mode,
+                    if (mode == "class_teacher") classTeacherId else null,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && (mode != "class_teacher" || classTeacherId != null),
+            loading = busy,
+        )
+
+        if (mode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(
+                "All subjects use " +
+                    (staff.firstOrNull { it.id == classTeacherId }?.name
+                        ?: arm.classTeacherName
+                        ?: "the selected class teacher"),
+                style = MaterialTheme.typography.titleSmall,
+                color = EduCoreColors.Navy900,
+            )
+            if (level.subjects.isNotEmpty()) {
+                Text(
+                    level.subjects.joinToString(" · ") {
+                        it.subjectName ?: "Subject"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+            }
+            Text(
+                "Existing subject overrides are preserved but ignored until Subject-based teachers is selected again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            return@EduCoreDashboardCard
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        HorizontalDivider()
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        Text(
+            "Subject teacher assignments",
+            style = MaterialTheme.typography.titleSmall,
+            color = EduCoreColors.Navy900,
+        )
+
+        if (!armTeacherOverridesReady) {
+            Text(
+                "Deploy the arm-teacher migration before creating subject-specific overrides.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            return@EduCoreDashboardCard
+        }
+
+        if (level.subjects.isEmpty()) {
+            Text(
+                "Assign at least one active subject to this class level.",
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+            return@EduCoreDashboardCard
+        }
+
         level.subjects.forEach { subject ->
-            val override = arm.subjectTeachers.firstOrNull { it.subjectId == subject.subjectId }
+            val override = arm.subjectTeachers.firstOrNull {
+                it.subjectId == subject.subjectId
+            }
             var selectedTeacherId by remember(
                 arm.id,
                 subject.subjectId,
@@ -1660,7 +1789,8 @@ private fun ArmTeacherCard(
                 color = EduCoreColors.Navy900,
             )
             Text(
-                "Class default: " + (subject.defaultTeacherName ?: "Admin / unassigned"),
+                "Class default: " +
+                    (subject.defaultTeacherName ?: "Admin / unassigned"),
                 style = MaterialTheme.typography.bodySmall,
                 color = EduCoreColors.Slate600,
             )
@@ -1684,11 +1814,61 @@ private fun ArmTeacherCard(
             )
             Spacer(Modifier.height(EduCoreSpacing.Sm))
             EduCoreSecondaryButton(
-                text = "Save Teacher",
-                onClick = { onSave(arm.id, subject.subjectId, selectedTeacherId) },
+                text = "Save Subject Teacher",
+                onClick = {
+                    onSaveSubjectTeacher(
+                        arm.id,
+                        subject.subjectId,
+                        selectedTeacherId,
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
             )
+        }
+    }
+}
+
+@Composable
+private fun ClassTeacherMenu(
+    selectedTeacherId: Long?,
+    staff: List<ParallelLifecycleStaff>,
+    enabled: Boolean,
+    onSelect: (Long?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedName = selectedTeacherId
+        ?.let { id -> staff.firstOrNull { it.id == id }?.name }
+        ?: "Select class teacher"
+
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            "Class teacher for all subjects",
+            style = MaterialTheme.typography.labelLarge,
+            color = EduCoreColors.Slate700,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Xs))
+        Box(Modifier.fillMaxWidth()) {
+            EduCoreSecondaryButton(
+                text = selectedName,
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled && staff.isNotEmpty(),
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                staff.forEach { teacher ->
+                    DropdownMenuItem(
+                        text = { Text(teacher.name) },
+                        onClick = {
+                            expanded = false
+                            onSelect(teacher.id)
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -1704,7 +1884,8 @@ private fun TeacherMenu(
     var expanded by remember { mutableStateOf(false) }
     val selectedName = selectedTeacherId
         ?.let { id -> staff.firstOrNull { it.id == id }?.name }
-        ?: "Use class default" + (subject.defaultTeacherName?.let { " · $it" } ?: "")
+        ?: "Use class default" +
+            (subject.defaultTeacherName?.let { " · $it" } ?: "")
 
     Column(Modifier.fillMaxWidth()) {
         Text(
