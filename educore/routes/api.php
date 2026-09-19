@@ -164,6 +164,7 @@ Route::prefix('v1')->group(function () {
             Route::post('programme-grades', [MobileParallelCurriculumLifecycleController::class, 'storeProgrammeGrade']);
             Route::delete('programme-grades/{grade}', [MobileParallelCurriculumLifecycleController::class, 'destroyProgrammeGrade']);
             Route::get('students', [MobileParallelCurriculumLifecycleController::class, 'students']);
+            Route::get('assignments/template', [MobileParallelCurriculumLifecycleController::class, 'downloadStudentAssignmentTemplate']);
             Route::post('assignments/import', [MobileParallelCurriculumLifecycleController::class, 'importStudentAssignments']);
             Route::post('assignments', [MobileParallelCurriculumLifecycleController::class, 'assignStudents']);
             Route::delete('assignments/{enrolment}', [MobileParallelCurriculumLifecycleController::class, 'removeStudent']);
