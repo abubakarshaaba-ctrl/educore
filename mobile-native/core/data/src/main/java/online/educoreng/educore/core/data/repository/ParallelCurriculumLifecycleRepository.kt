@@ -3,12 +3,30 @@ package online.educoreng.educore.core.data.repository
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreview
+import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 
 interface ParallelCurriculumLifecycleRepository {
     suspend fun load(
         curriculumId: Long? = null,
         sessionId: Long? = null,
     ): AppResult<ParallelLifecycleWorkspace>
+
+    suspend fun loadStudents(
+        curriculumId: Long,
+        sessionId: Long,
+        conventionalClassArmId: Long? = null,
+        assignmentStatus: String = "all",
+        gender: String? = null,
+        search: String? = null,
+        page: Int = 1,
+    ): AppResult<ParallelLifecycleStudentPage>
+
+    suspend fun assignStudents(
+        classId: Long,
+        armId: Long,
+        sessionId: Long,
+        studentIds: List<Long>,
+    ): AppResult<String>
 
     suspend fun previewPromotion(
         curriculumId: Long,
