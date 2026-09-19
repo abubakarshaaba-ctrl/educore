@@ -112,6 +112,7 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
         currentRoute == NativeRoute.RESULTS -> "Published Results"
         currentRoute == NativeRoute.PARALLEL_LIFECYCLE -> "Parallel Curriculum"
+        currentRoute == NativeRoute.PARALLEL_OPERATIONS -> "Parallel Timetable & Attendance"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
@@ -316,6 +317,10 @@ internal fun AuthorizedShell(
                                                 "parallel-curriculum" -> {
                                                     parallelLifecycleViewModel.load()
                                                     navController.navigate(NativeRoute.PARALLEL_LIFECYCLE) { launchSingleTop = true }
+                                                }
+                                                "parallel-timetable" -> {
+                                                    parallelLifecycleViewModel.loadOperationsContext()
+                                                    navController.navigate(NativeRoute.PARALLEL_OPERATIONS) { launchSingleTop = true }
                                                 }
                                                 "student.results", "parent.results" -> {
                                                     scoresViewModel.loadResults()
@@ -541,6 +546,16 @@ internal fun AuthorizedShell(
                                 onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
                             )
                         }
+                        composable(NativeRoute.PARALLEL_OPERATIONS) {
+                            ParallelCurriculumOperationsScreen(
+                                state = parallelLifecycleState,
+                                onLoadContext = parallelLifecycleViewModel::loadOperationsContext,
+                                onLoadOperations = parallelLifecycleViewModel::loadOperations,
+                                onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
+                                onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
+                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
+                            )
+                        }
                         composable(
                             route = NativeRoute.SCHEDULE,
                             arguments = listOf(navArgument("classId") { type = NavType.LongType }),
@@ -718,6 +733,7 @@ private object NativeRoute {
     const val SCORE_SHEET = "native/scores/{workspaceType}/{classId}/{subjectId}/{termId}"
     const val RESULTS = "native/results"
     const val PARALLEL_LIFECYCLE = "native/parallel-curriculum"
+    const val PARALLEL_OPERATIONS = "native/parallel-timetable"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
