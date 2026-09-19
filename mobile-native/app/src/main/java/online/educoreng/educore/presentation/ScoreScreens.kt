@@ -431,18 +431,19 @@ internal fun ScoreSheetScreen(
                                         ),
                                     )
                                     if (cell?.locked == true && !sheet.locked) {
-                                        val sourceLabel = when (cell.source) {
+                                        val source = cell.source
+                                        val sourceLabel = when (source) {
                                             "parallel_curriculum" -> "🔒 Parallel-derived"
                                             "cbt" -> "🔒 CBT source"
                                             null, "" -> "🔒 Source-controlled"
-                                            else -> "🔒 " + cell.source
+                                            else -> "🔒 " + source
                                                 .replace('_', ' ')
                                                 .replaceFirstChar(Char::uppercase)
                                         }
                                         Text(
                                             sourceLabel,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (cell.source == "parallel_curriculum") {
+                                            color = if (source == "parallel_curriculum") {
                                                 EduCoreColors.Gold600
                                             } else {
                                                 EduCoreColors.Slate600
