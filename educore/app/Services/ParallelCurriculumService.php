@@ -249,6 +249,16 @@ class ParallelCurriculumService
                             ? User::whereKey($effectiveTeacherId)->value('name')
                             : null,
                         'is_form_teacher' => $isFormTeacher,
+                        'attendance_url' => ($isFormTeacher && $arm)
+                            ? route('parallel-curriculum.operations.index', array_filter([
+                                'parallel_curriculum_id' => $curriculum?->id,
+                                'session_id' => $term?->session_id,
+                                'term_id' => $term?->id,
+                                'class_id' => $class->id,
+                                'arm_id' => $arm->id,
+                                'date' => now()->toDateString(),
+                            ])).'#learner-attendance'
+                            : null,
                         'form_teacher_comments_url' => ($isFormTeacher && $arm)
                             ? route('parallel-curriculum.form-teacher-comments.index', array_filter([
                                 'arm_id' => $arm->id,
