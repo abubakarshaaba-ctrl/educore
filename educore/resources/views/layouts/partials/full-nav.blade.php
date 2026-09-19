@@ -74,12 +74,12 @@
             <span class="nav-label">Students</span>
         </a>
         @endif
-        @can('student.transfer.view')
+        @if($u->canAccessModule('transfers') && $u->can('student.transfer.view'))
         <a href="{{ route('students.class-transfers.index') }}" class="nav-item {{ request()->routeIs('students.class-transfers.*') ? 'active' : '' }}" data-tip="Student Transfers">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11l-3-3 1.41-1.41L21.83 8l-5.42 5.41L15 12l3-3H7V7zm10 10H6l3 3-1.41 1.41L2.17 16l5.42-5.41L9 12l-3 3h11v2z"/></svg>
             <span class="nav-label">Student Transfers</span>
         </a>
-        @endcan
+        @endif
         @if($u->canAccessModule('classes'))
         <a href="{{ route('classes.levels') }}" class="nav-item {{ request()->routeIs('classes.*') && !request()->routeIs('classes.promotion*') && !request()->routeIs('classes.bulk-promote*') && !request()->routeIs('classes.grading') ? 'active' : '' }}" data-tip="Classes">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>
