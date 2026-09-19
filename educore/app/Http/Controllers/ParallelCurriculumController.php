@@ -106,6 +106,7 @@ class ParallelCurriculumController extends Controller
 
         $tenantId = $this->tenantId();
         $canManage = $this->canManage();
+        $canViewOperations = $this->operations->canViewOperations(auth()->user());
         $currentSession = AcademicSession::current()->first();
         $currentTerm = Term::current()->with('session')->first();
 
@@ -360,6 +361,7 @@ class ParallelCurriculumController extends Controller
 
         return view('parallel-curriculum.index', compact(
             'canManage',
+            'canViewOperations',
             'currentSession',
             'currentTerm',
             'curricula',

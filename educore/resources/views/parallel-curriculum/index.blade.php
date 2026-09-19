@@ -37,7 +37,11 @@
         @if($canManage)
             <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
             <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
+        @endif
+        @if($canViewOperations)
             <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
+        @endif
+        @if($canManage)
             <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
         @endif
         @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
@@ -50,11 +54,12 @@
         <p>Run a second curriculum independently from conventional classes, then calculate each learner's programme average and distribute it into a locked conventional destination subject according to that class level's Assessment Template.</p>
     </div>
 
-    @if($canManage)
+    @if($canManage || $canViewOperations)
     <section class="pc-card full" style="margin-bottom:14px">
         <div class="pc-head">Parallel curriculum operations</div>
         <div class="pc-body">
             <div class="pc-feature-grid">
+                @if($canManage)
                 <a class="pc-feature-link" href="{{ route('parallel-curriculum.lifecycle.index') }}#teaching-assignment-model">
                     <strong>Subject & class-teacher assignment</strong>
                     <span>Choose one class teacher for every subject in an arm, or assign teachers subject-by-subject. The same teacher may teach the same subject across several classes/arms when timetable times do not clash.</span>
@@ -70,11 +75,19 @@
                     <span>Configure a different resumption time, closing time and late grace period for every enabled parallel-curriculum working day.</span>
                     <small>Timetable & Attendance</small>
                 </a>
-                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#staff-attendance">
-                    <strong>Parallel staff attendance</strong>
-                    <span>Clock parallel teachers in and out against the selected day's own hours, with arrival and departure status kept separate from conventional staff attendance.</span>
+                @endif
+                @if($canViewOperations)
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#parallel-timetable">
+                    <strong>Parallel timetable & learner attendance</strong>
+                    <span>View the arm timetable resolved from the effective teacher assignment and manage learner attendance independently on enabled parallel working days.</span>
                     <small>Timetable & Attendance</small>
                 </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#staff-attendance">
+                    <strong>Parallel staff attendance</strong>
+                    <span>Assigned parallel teachers can clock in and out against the selected day's own hours. Arrival and departure status remain separate from conventional staff attendance.</span>
+                    <small>Timetable & Attendance</small>
+                </a>
+                @endif
             </div>
         </div>
     </section>
