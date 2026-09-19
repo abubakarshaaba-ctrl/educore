@@ -12,9 +12,18 @@ use Illuminate\Support\Facades\Schema;
 
 class ParallelCurriculumPortalService
 {
+    public function __construct(
+        private readonly ParallelCurriculumService $parallel,
+    ) {}
+
+    private function enabled(Student $student): bool
+    {
+        return $this->parallel->enabledForTenant((int) $student->tenant_id);
+    }
+
     public function placementsForStudent(Student $student, ?int $sessionId = null): Collection
     {
-        if (! Schema::hasTable('parallel_curriculum_enrolments')) {
+        if (! $this->enabled($student) || ! Schema::hasTable('parallel_curriculum_enrolments')) {
             return collect();
         }
 
@@ -31,7 +40,8 @@ class ParallelCurriculumPortalService
     public function timetableForStudent(Student $student, ?int $sessionId = null): Collection
     {
         if (
-            ! Schema::hasTable('parallel_curriculum_enrolments')
+            ! $this->enabled($student)
+            || ! Schema::hasTable('parallel_curriculum_enrolments')
             || ! Schema::hasTable('parallel_curriculum_timetable_periods')
         ) {
             return collect();
@@ -79,7 +89,8 @@ class ParallelCurriculumPortalService
     public function attendanceForStudent(Student $student, ?int $termId = null): Collection
     {
         if (
-            ! Schema::hasTable('parallel_curriculum_enrolments')
+            ! $this->enabled($student)
+            || ! Schema::hasTable('parallel_curriculum_enrolments')
             || ! Schema::hasTable('parallel_curriculum_attendance_records')
         ) {
             return collect();
