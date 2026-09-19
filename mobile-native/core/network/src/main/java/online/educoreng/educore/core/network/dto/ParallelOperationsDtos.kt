@@ -18,7 +18,7 @@ import online.educoreng.educore.core.model.ParallelStaffAttendance
 import online.educoreng.educore.core.model.ParallelStaffAttendancePerson
 
 data class ParallelOperationsResponseDto(
-    @param:Json(name = "contract_version") val contractVersion: Int = 1,
+    @param:Json(name = "contract_version") val contractVersion: Int = 2,
     val selected: ParallelOperationsSelectionDto,
     val capabilities: ParallelOperationsCapabilitiesDto,
     val curricula: List<ParallelOperationsOptionDto> = emptyList(),
