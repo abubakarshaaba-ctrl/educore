@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcademicSession;
 use App\Models\ApiToken;
 use App\Models\AssessmentTemplate;
+use App\Models\StaffPermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,94 @@ use Tests\TestCase;
 class MobileParallelCurriculumStructureTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_full_score_permission_does_not_grant_parallel_lifecycle_administration(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Parallel RBAC School',
+            'slug' => 'parallel-rbac-'.uniqid(),
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $tenant->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $teacher = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        StaffPermission::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $teacher->id,
+            'module' => 'scores',
+            'type' => 'grant',
+            'granted_by' => null,
+        ]);
+
+        $this->assertTrue($teacher->fresh()->canAccessExactModule('scores'));
+
+        $token = ApiToken::issue($teacher, 'parallel-rbac-test');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/parallel-curriculum/lifecycle')
+            ->assertForbidden();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/parallel-curriculum/results')
+            ->assertForbidden();
+    }
+
+    public function test_director_of_studies_can_manage_parallel_lifecycle(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Parallel Academic Leadership School',
+            'slug' => 'parallel-leadership-'.uniqid(),
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $tenant->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        AcademicSession::create([
+            'tenant_id' => $tenant->id,
+            'name' => '2026/2027',
+            'is_current' => true,
+        ]);
+
+        $director = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Director of Studies',
+            'role' => 'director_of_studies',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $token = ApiToken::issue($director, 'parallel-leadership-test');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/parallel-curriculum/lifecycle')
+            ->assertOk();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/parallel-curriculum/results')
+            ->assertOk();
+    }
 
     public function test_admin_can_build_parallel_programme_structure_through_mobile_api(): void
     {
