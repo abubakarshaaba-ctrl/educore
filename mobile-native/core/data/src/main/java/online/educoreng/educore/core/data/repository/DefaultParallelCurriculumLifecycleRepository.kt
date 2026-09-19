@@ -13,12 +13,17 @@ import online.educoreng.educore.core.common.AppError
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
+import online.educoreng.educore.core.model.ParallelOperationsWorkspace
+import online.educoreng.educore.core.model.ParallelAttendanceDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
 import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelAttendanceRecordRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
@@ -58,6 +63,76 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun loadOperations(
+        curriculumId: Long?,
+        sessionId: Long?,
+        termId: Long?,
+        classId: Long?,
+        armId: Long?,
+        date: String?,
+    ): AppResult<ParallelOperationsWorkspace> = withContext(Dispatchers.IO) {
+        when (
+            val result = safeApiCall(moshi) {
+                api.parallelOperations(curriculumId, sessionId, termId, classId, armId, date)
+            }
+        ) {
+            is AppResult.Success -> AppResult.Success(result.value.toDomain())
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun createTimetablePeriod(
+        classId: Long,
+        armId: Long,
+        subjectId: Long,
+        sessionId: Long,
+        dayOfWeek: String,
+        startTime: String,
+        endTime: String,
+        venue: String?,
+    ): AppResult<String> = mutation {
+        api.createParallelTimetablePeriod(
+            ParallelPeriodMutationRequestDto(
+                classId = classId,
+                armId = armId,
+                subjectId = subjectId,
+                sessionId = sessionId,
+                dayOfWeek = dayOfWeek,
+                startTime = startTime,
+                endTime = endTime,
+                venue = venue,
+            )
+        ).message
+    }
+
+    override suspend fun deleteTimetablePeriod(periodId: Long): AppResult<String> = mutation {
+        api.deleteParallelTimetablePeriod(periodId).message
+    }
+
+    override suspend fun saveParallelAttendance(
+        armId: Long,
+        termId: Long,
+        date: String,
+        version: String?,
+        records: List<ParallelAttendanceDraft>,
+    ): AppResult<String> = mutation {
+        api.saveParallelAttendance(
+            ParallelAttendanceMutationRequestDto(
+                armId = armId,
+                termId = termId,
+                attendanceDate = date,
+                version = version,
+                records = records.map {
+                    ParallelAttendanceRecordRequestDto(
+                        enrolmentId = it.enrolmentId,
+                        status = it.status,
+                        remark = it.remark,
+                    )
+                },
+            )
+        ).message
     }
 
     override suspend fun loadStudentResult(
