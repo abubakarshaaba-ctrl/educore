@@ -1,0 +1,383 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AcademicSession;
+use App\Models\ParallelCurriculumArmSubjectTeacher;
+use App\Models\ParallelCurriculumAttendanceRecord;
+use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
+use App\Models\ParallelCurriculumClassSubject;
+use App\Models\ParallelCurriculumEnrolment;
+use App\Models\ParallelCurriculumTimetablePeriod;
+use App\Models\Term;
+use App\Models\TimetableConfig;
+use App\Models\TimetablePeriod;
+use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class ParallelCurriculumOperationsService
+{
+    private const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
+    public function createPeriod(User $user, array $data): ParallelCurriculumTimetablePeriod
+    {
+        abort_unless($this->canManageTimetable($user), 403, 'Only authorized administrators can manage the parallel timetable.');
+
+        $tenantId = (int) $user->tenant_id;
+        $class = ParallelCurriculumClass::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail((int) $data['parallel_curriculum_class_id']);
+
+        $arm = ParallelCurriculumClassArm::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->where('is_active', true)
+            ->findOrFail((int) $data['parallel_curriculum_class_arm_id']);
+
+        $assignment = ParallelCurriculumClassSubject::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $class->id)
+            ->where('parallel_curriculum_subject_id', (int) $data['parallel_curriculum_subject_id'])
+            ->where('is_active', true)
+            ->first();
+
+        if (! $assignment) {
+            throw ValidationException::withMessages([
+                'parallel_curriculum_subject_id' => 'The selected subject is not active for this parallel class.',
+            ]);
+        }
+
+        $session = AcademicSession::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail((int) $data['session_id']);
+
+        $day = strtolower((string) $data['day_of_week']);
+        if (! in_array($day, self::DAYS, true)) {
+            throw ValidationException::withMessages(['day_of_week' => 'Select a valid school day.']);
+        }
+
+        $this->assertInsideSchoolHours(
+            $tenantId,
+            $session->id,
+            $day,
+            (string) $data['start_time'],
+            (string) $data['end_time']
+        );
+
+        $armClash = ParallelCurriculumTimetablePeriod::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('session_id', $session->id)
+            ->where('day_of_week', $day)
+            ->where('start_time', '<', $data['end_time'])
+            ->where('end_time', '>', $data['start_time'])
+            ->exists();
+
+        if ($armClash) {
+            throw ValidationException::withMessages([
+                'start_time' => 'This parallel class arm already has another period during the selected time.',
+            ]);
+        }
+
+        $teacherId = $this->effectiveTeacherId(
+            $tenantId,
+            $class->id,
+            $arm->id,
+            (int) $data['parallel_curriculum_subject_id']
+        );
+
+        if ($teacherId) {
+            $parallelTeacherClash = ParallelCurriculumTimetablePeriod::query()
+                ->where('tenant_id', $tenantId)
+                ->where('teacher_id', $teacherId)
+                ->where('session_id', $session->id)
+                ->where('day_of_week', $day)
+                ->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time'])
+                ->exists();
+
+            $conventionalTeacherClash = TimetablePeriod::query()
+                ->where('tenant_id', $tenantId)
+                ->where('teacher_id', $teacherId)
+                ->where('session_id', $session->id)
+                ->where('day_of_week', $day)
+                ->where('start_time', '<', $data['end_time'])
+                ->where('end_time', '>', $data['start_time'])
+                ->exists();
+
+            if ($parallelTeacherClash || $conventionalTeacherClash) {
+                throw ValidationException::withMessages([
+                    'start_time' => 'The assigned teacher already has another class during this time.',
+                ]);
+            }
+        }
+
+        return ParallelCurriculumTimetablePeriod::create([
+            'tenant_id' => $tenantId,
+            'parallel_curriculum_id' => $class->parallel_curriculum_id,
+            'parallel_curriculum_class_id' => $class->id,
+            'parallel_curriculum_class_arm_id' => $arm->id,
+            'parallel_curriculum_subject_id' => (int) $data['parallel_curriculum_subject_id'],
+            'teacher_id' => $teacherId,
+            'session_id' => $session->id,
+            'day_of_week' => $day,
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'venue' => $data['venue'] ?? null,
+        ])->load(['subject', 'teacher', 'classArm.curriculumClass']);
+    }
+
+    public function deletePeriod(User $user, ParallelCurriculumTimetablePeriod $period): void
+    {
+        abort_unless($this->canManageTimetable($user), 403, 'Only authorized administrators can manage the parallel timetable.');
+        abort_unless((int) $period->tenant_id === (int) $user->tenant_id, 404);
+        $period->delete();
+    }
+
+    public function attendanceSheet(
+        User $user,
+        int $armId,
+        int $termId,
+        string $date
+    ): array {
+        $tenantId = (int) $user->tenant_id;
+        $arm = ParallelCurriculumClassArm::query()
+            ->with('curriculumClass.curriculum')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($armId);
+
+        $term = Term::query()
+            ->with('session')
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($termId);
+
+        abort_unless($this->canMarkAttendance($user, $arm), 403, 'You are not assigned to manage attendance for this parallel class arm.');
+
+        $enrolments = ParallelCurriculumEnrolment::query()
+            ->with('student')
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
+            ->where('session_id', $term->session_id)
+            ->where('is_active', true)
+            ->whereHas('student', fn ($query) => $query->where('status', 'active'))
+            ->get()
+            ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) => strtolower((string) $enrolment->student?->full_name))
+            ->values();
+
+        $records = ParallelCurriculumAttendanceRecord::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_arm_id', $arm->id)
+            ->where('term_id', $term->id)
+            ->whereDate('attendance_date', $date)
+            ->get()
+            ->keyBy('parallel_curriculum_enrolment_id');
+
+        return [
+            'arm' => $arm,
+            'term' => $term,
+            'date' => $date,
+            'enrolments' => $enrolments,
+            'records' => $records,
+            'version' => $this->attendanceVersion($records),
+            'can_save' => true,
+        ];
+    }
+
+    public function saveAttendance(
+        User $user,
+        int $armId,
+        int $termId,
+        string $date,
+        array $records,
+        ?string $version = null
+    ): array {
+        $sheet = $this->attendanceSheet($user, $armId, $termId, $date);
+        /** @var ParallelCurriculumClassArm $arm */
+        $arm = $sheet['arm'];
+        /** @var Term $term */
+        $term = $sheet['term'];
+
+        $valid = $sheet['enrolments']->keyBy('id');
+        $submittedIds = collect($records)->pluck('enrolment_id')->map(fn ($id) => (int) $id);
+        $invalid = $submittedIds->filter(fn (int $id) => ! $valid->has($id))->values();
+
+        if ($invalid->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'records' => 'Every attendance row must belong to an active learner in the selected parallel class arm.',
+            ]);
+        }
+
+        $tenantId = (int) $user->tenant_id;
+
+        return DB::transaction(function () use (
+            $tenantId,
+            $user,
+            $arm,
+            $term,
+            $date,
+            $records,
+            $version,
+            $valid
+        ): array {
+            $current = ParallelCurriculumAttendanceRecord::query()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_class_arm_id', $arm->id)
+                ->where('term_id', $term->id)
+                ->whereDate('attendance_date', $date)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('parallel_curriculum_enrolment_id');
+
+            if ($version && ! hash_equals($version, $this->attendanceVersion($current))) {
+                abort(409, 'Parallel attendance changed on the server. Reload the sheet before saving.');
+            }
+
+            foreach ($records as $record) {
+                /** @var ParallelCurriculumEnrolment $enrolment */
+                $enrolment = $valid->get((int) $record['enrolment_id']);
+
+                ParallelCurriculumAttendanceRecord::updateOrCreate(
+                    [
+                        'tenant_id' => $tenantId,
+                        'parallel_curriculum_enrolment_id' => $enrolment->id,
+                        'attendance_date' => $date,
+                    ],
+                    [
+                        'parallel_curriculum_id' => $enrolment->parallel_curriculum_id,
+                        'parallel_curriculum_class_id' => $enrolment->parallel_curriculum_class_id,
+                        'parallel_curriculum_class_arm_id' => $arm->id,
+                        'student_id' => $enrolment->student_id,
+                        'term_id' => $term->id,
+                        'marked_by' => $user->id,
+                        'status' => $record['status'],
+                        'remark' => $record['remark'] ?? null,
+                    ]
+                );
+            }
+
+            $saved = ParallelCurriculumAttendanceRecord::query()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_class_arm_id', $arm->id)
+                ->where('term_id', $term->id)
+                ->whereDate('attendance_date', $date)
+                ->get()
+                ->keyBy('parallel_curriculum_enrolment_id');
+
+            return [
+                'saved' => count($records),
+                'version' => $this->attendanceVersion($saved),
+                'summary' => [
+                    'present' => $saved->where('status', 'present')->count(),
+                    'absent' => $saved->where('status', 'absent')->count(),
+                    'late' => $saved->where('status', 'late')->count(),
+                    'excused' => $saved->where('status', 'excused')->count(),
+                ],
+            ];
+        });
+    }
+
+    public function canMarkAttendance(User $user, ParallelCurriculumClassArm $arm): bool
+    {
+        if ($this->canManageTimetable($user) || $user->canManage('students')) {
+            return true;
+        }
+
+        if ((int) $arm->tenant_id !== (int) $user->tenant_id) {
+            return false;
+        }
+
+        $assignments = ParallelCurriculumClassSubject::query()
+            ->where('tenant_id', $arm->tenant_id)
+            ->where('parallel_curriculum_class_id', $arm->parallel_curriculum_class_id)
+            ->where('is_active', true)
+            ->get();
+
+        return $assignments->contains(function (ParallelCurriculumClassSubject $assignment) use ($arm, $user): bool {
+            return (int) $this->effectiveTeacherId(
+                (int) $arm->tenant_id,
+                (int) $arm->parallel_curriculum_class_id,
+                (int) $arm->id,
+                (int) $assignment->parallel_curriculum_subject_id
+            ) === (int) $user->id;
+        });
+    }
+
+    public function canManageTimetable(User $user): bool
+    {
+        return $user->isSuperAdmin() || $user->canManage('timetable');
+    }
+
+    public function effectiveTeacherId(
+        int $tenantId,
+        int $classId,
+        int $armId,
+        int $subjectId
+    ): ?int {
+        $override = ParallelCurriculumArmSubjectTeacher::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $classId)
+            ->where('parallel_curriculum_class_arm_id', $armId)
+            ->where('parallel_curriculum_subject_id', $subjectId)
+            ->where('is_active', true)
+            ->value('teacher_id');
+
+        if ($override) {
+            return (int) $override;
+        }
+
+        $default = ParallelCurriculumClassSubject::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_class_id', $classId)
+            ->where('parallel_curriculum_subject_id', $subjectId)
+            ->where('is_active', true)
+            ->value('teacher_id');
+
+        return $default ? (int) $default : null;
+    }
+
+    public function attendanceVersion(Collection $records): string
+    {
+        if ($records->isEmpty()) {
+            return 'empty';
+        }
+
+        return hash('sha256', $records->sortKeys()->map(
+            fn (ParallelCurriculumAttendanceRecord $record): string => implode(':', [
+                $record->parallel_curriculum_enrolment_id,
+                $record->status,
+                $record->remark ?? '',
+                $record->updated_at?->format('Y-m-d H:i:s.u') ?? '',
+            ])
+        )->implode('|'));
+    }
+
+    private function assertInsideSchoolHours(
+        int $tenantId,
+        int $sessionId,
+        string $day,
+        string $start,
+        string $end
+    ): void {
+        $config = TimetableConfig::query()
+            ->where('tenant_id', $tenantId)
+            ->where('session_id', $sessionId)
+            ->first();
+
+        if (! $config) {
+            return;
+        }
+
+        $schoolStart = substr((string) $config->school_start, 0, 5);
+        $closingTime = $config->closingTimeFor($day);
+
+        if ($start < $schoolStart || $end > $closingTime) {
+            throw ValidationException::withMessages([
+                'end_time' => ucfirst($day)." school hours are {$schoolStart}–{$closingTime}. The parallel period must fit inside the configured school day.",
+            ]);
+        }
+    }
+}
