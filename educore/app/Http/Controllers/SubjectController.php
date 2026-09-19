@@ -59,22 +59,42 @@ class SubjectController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = $this->tenantId();
+
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
+            'code' => $request->filled('code')
+                ? strtoupper(trim((string) $request->input('code')))
+                : null,
+        ]);
+
         $validated = $request->validate([
-            'name'      => ['required', 'string', 'max:100'],
-            'code'      => ['nullable', 'string', 'max:10'],
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('subjects', 'name')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
+            'code' => [
+                'nullable',
+                'string',
+                'max:10',
+                Rule::unique('subjects', 'code')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
             'is_active' => ['boolean'],
+        ], [
+            'name.unique' => 'A subject with this name already exists.',
+            'code.unique' => 'A subject with this short code already exists.',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        // Check for duplicate name within tenant
-        $exists = Subject::where('name', $validated['name'])->exists();
-        if ($exists) {
-            return back()->withErrors(['name' => 'A subject with this name already exists.']);
-        }
-
         Subject::create($validated);
-        return redirect()->route('subjects.index')->with('success', 'Subject created successfully.');
+
+        return redirect()->route('subjects.index')
+            ->with('success', 'Subject created successfully.');
     }
 
     // ---------------------------------------------------------------
@@ -103,10 +123,36 @@ class SubjectController extends Controller
 
     public function update(Request $request, Subject $subject)
     {
+        $tenantId = $this->tenantId();
+
+        $request->merge([
+            'name' => trim((string) $request->input('name')),
+            'code' => $request->filled('code')
+                ? strtoupper(trim((string) $request->input('code')))
+                : null,
+        ]);
+
         $validated = $request->validate([
-            'name'      => ['required', 'string', 'max:100'],
-            'code'      => ['nullable', 'string', 'max:10'],
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('subjects', 'name')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
+                    ->ignore($subject->id),
+            ],
+            'code' => [
+                'nullable',
+                'string',
+                'max:10',
+                Rule::unique('subjects', 'code')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
+                    ->ignore($subject->id),
+            ],
             'is_active' => ['boolean'],
+        ], [
+            'name.unique' => 'A subject with this name already exists.',
+            'code.unique' => 'A subject with this short code already exists.',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
