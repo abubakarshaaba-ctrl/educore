@@ -219,7 +219,7 @@ class ParallelCurriculumScoreController extends Controller
         $this->assertEnabled($user);
         [$class, $arm] = $this->resolveParallelWorkspace((int) $data['class_arm_id']);
         $subject = ParallelCurriculumSubject::findOrFail($data['subject_id']);
-        $this->assertAssignment($user, $class, $subject);
+        $this->assertAssignment($user, $class, $subject, $arm);
         $term = $this->resolveTerm((int) $data['term_id']);
 
         $response = $this->idempotency->execute(
