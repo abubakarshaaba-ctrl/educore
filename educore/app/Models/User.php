@@ -220,7 +220,9 @@ class User extends Authenticatable
             'parallel-curriculum.scores.save', 'parallel-curriculum.breakdown',
             'parallel-curriculum.operations.index',
             'parallel-curriculum.operations.attendance.save',
-        ], // enter+save assigned conventional/parallel scores and assigned parallel attendance
+            'parallel-curriculum.form-teacher-comments.index',
+            'parallel-curriculum.form-teacher-comments.save',
+        ], // enter+save assigned conventional/parallel scores, assigned parallel attendance and form comments
         'scores.view' => [
             'scores.index', 'scores.broadsheet', 'parallel-curriculum.breakdown',
         ],   // read-only score access and derived-score provenance
