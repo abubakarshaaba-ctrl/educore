@@ -79,14 +79,12 @@ class MobileParallelCurriculumOperationsController extends Controller
         $armId = (int) ($data['arm_id'] ?? 0) ?: (int) optional($arms->first())->id;
         $arm = $arms->firstWhere('id', $armId);
 
-        $termId = (int) ($data['term_id'] ?? 0);
-        if (! $termId) {
-            $termId = (int) optional(
-                $terms->firstWhere('is_current', true)
-                ?? $terms->firstWhere('session_id', $sessionId)
-                ?? $terms->first()
-            )->id;
-        }
+        $terms = $terms->where('session_id', $sessionId)->values();
+
+        $requestedTermId = (int) ($data['term_id'] ?? 0);
+        $termId = $terms->contains('id', $requestedTermId)
+            ? $requestedTermId
+            : (int) optional($terms->firstWhere('is_current', true) ?? $terms->first())->id;
 
         $date = $data['date'] ?? now()->toDateString();
 
