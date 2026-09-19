@@ -428,7 +428,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'class_arm_id' => $conventionalArm->id,
             'term_id' => $term->id,
             'marked_by' => $context['admin']->id,
-            'attendance_date' => now()->toDateString(),
+            'attendance_date' => '2026-09-21',
             'status' => 'present',
         ]);
 
@@ -442,7 +442,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 '&term_id='.$term->id.
                 '&class_id='.$context['class']->id.
                 '&arm_id='.$context['arm']->id.
-                '&date='.now()->toDateString()
+                '&date='.'2026-09-21'
             )
             ->assertOk()
             ->assertJsonPath('contract_version', 2)
@@ -456,7 +456,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->postJson('/api/v1/parallel-curriculum/operations/attendance', [
                 'parallel_curriculum_class_arm_id' => $context['arm']->id,
                 'term_id' => $term->id,
-                'attendance_date' => now()->toDateString(),
+                'attendance_date' => '2026-09-21',
                 'version' => $version,
                 'records' => [[
                     'enrolment_id' => $enrolment->id,
@@ -472,14 +472,14 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             'tenant_id' => $context['tenant']->id,
             'parallel_curriculum_enrolment_id' => $enrolment->id,
             'student_id' => $student->id,
-            'attendance_date' => now()->toDateString(),
+            'attendance_date' => '2026-09-21',
             'status' => 'late',
         ]);
 
         $this->assertDatabaseHas('attendance_records', [
             'tenant_id' => $context['tenant']->id,
             'student_id' => $student->id,
-            'attendance_date' => now()->toDateString(),
+            'attendance_date' => '2026-09-21',
             'status' => 'present',
         ]);
     }
