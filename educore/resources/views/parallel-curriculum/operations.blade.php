@@ -114,6 +114,20 @@
                     <span class="chip">{{ $existing->where('status','absent')->count() }} absent</span>
                     <span class="chip">{{ $existing->where('status','late')->count() }} late</span>
                 </div>
+                @if($canExportAttendance)
+                @php($selectedTerm=$terms->firstWhere('id',(int)$termId))
+                <div style="padding:10px;border:1px solid #E4E7EC;border-radius:9px;background:#F8FAFC;margin-bottom:12px">
+                    <div class="hint" style="margin-bottom:7px">Export attendance register for the selected arm and term. Adjust the date range if required.</div>
+                    <form method="GET" action="{{ route('parallel-curriculum.operations.attendance.export') }}" class="row three">
+                        <input type="hidden" name="arm_id" value="{{ $selectedArm->id }}">
+                        <input type="hidden" name="term_id" value="{{ $termId }}">
+                        <div class="fg"><label class="fl">From</label><input class="fc" type="date" name="from" value="{{ $selectedTerm?->start_date?->toDateString() }}"></div>
+                        <div class="fg"><label class="fl">To</label><input class="fc" type="date" name="to" value="{{ $selectedTerm?->end_date?->toDateString() }}"></div>
+                        <div class="fg"><label class="fl">Format</label><select class="fc" name="format"><option value="pdf">PDF</option><option value="csv">CSV</option></select></div>
+                        <button class="btn s" type="submit" style="grid-column:1/-1">Export Attendance Report</button>
+                    </form>
+                </div>
+                @endif
                 <form method="POST" action="{{ route('parallel-curriculum.operations.attendance.save') }}">
                     @csrf
                     <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
