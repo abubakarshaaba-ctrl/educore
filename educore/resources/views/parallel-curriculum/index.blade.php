@@ -60,11 +60,19 @@
             @else
                 <div class="workspaces">
                     @foreach($workspaces as $workspace)
-                        @php($assignment=$workspace['assignment'])
-                        @php($arm=$workspace['arm'] ?? null)
-                        <a class="workspace" href="{{ $currentTerm ? route('parallel-curriculum.score-sheet',array_filter(['class_id'=>$workspace['class']->id,'arm_id'=>$arm?->id,'subject_id'=>$assignment->parallel_curriculum_subject_id,'term_id'=>$currentTerm->id])) : '#' }}">
-                            <strong>{{ $assignment->subject?->name }} · {{ $workspace['class']->name }}{{ $arm ? ' '.$arm->name : '' }}</strong>
-                            <span>{{ $workspace['curriculum']->name }} @if(!empty($workspace['effective_teacher_name'])) · {{ $workspace['effective_teacher_name'] }}@else · Admin / unassigned@endif @if($arm) · Arm-specific roster @endif</span>
+                        <a class="workspace" href="{{ $workspace['score_sheet_url'] }}">
+                            <strong>{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</strong>
+                            <span>
+                                {{ $workspace['curriculum_name'] }}
+                                @if(!empty($workspace['effective_teacher_name']))
+                                    · {{ $workspace['effective_teacher_name'] }}
+                                @else
+                                    · Admin / unassigned
+                                @endif
+                                @if(!empty($workspace['arm']))
+                                    · Arm-specific roster
+                                @endif
+                            </span>
                         </a>
                     @endforeach
                 </div>
