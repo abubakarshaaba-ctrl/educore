@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import online.educoreng.educore.core.designsystem.component.EduCoreDashboardCard
 import online.educoreng.educore.core.designsystem.component.EduCoreEmptyState
+import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreErrorState
 import online.educoreng.educore.core.designsystem.component.EduCoreFilterChip
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
@@ -73,6 +74,10 @@ fun PortalAttendanceScreen(
                     "Showing the latest attendance saved on this device. Connect to the internet to refresh."
                 )
             }
+        }
+
+        state.errorMessage?.let { message ->
+            item { EduCoreErrorBanner(message) }
         }
 
         if (workspace.children.size > 1) {
