@@ -748,6 +748,120 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         ]);
     }
 
+    public function test_class_teacher_mode_grants_arm_scoped_mobile_score_entry(): void
+    {
+        $context = $this->context();
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Parallel Class Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $adminToken = ApiToken::issue($context['admin'], 'parallel-class-teacher-score-setup');
+
+        $this->withToken($adminToken)
+            ->postJson('/api/v1/parallel-curriculum/lifecycle/arm-teaching-mode', [
+                'parallel_curriculum_class_arm_id' => $context['arm']->id,
+                'teaching_assignment_mode' => 'class_teacher',
+                'class_teacher_id' => $teacher->id,
+            ])
+            ->assertOk();
+
+        $templateId = DB::table('assessment_templates')->insertGetId([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Parallel Score Template',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $componentId = DB::table('assessment_template_components')->insertGetId([
+            'tenant_id' => $context['tenant']->id,
+            'assessment_template_id' => $templateId,
+            'name' => 'Continuous Assessment',
+            'weight_percentage' => 100,
+            'component_type' => 'continuous_assessment',
+            'entry_mode' => 'manual',
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $context['curriculum']->update([
+            'default_assessment_template_id' => $templateId,
+        ]);
+
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-12-31',
+            'is_current' => true,
+        ]);
+        $student = Student::create([
+            'tenant_id' => $context['tenant']->id,
+            'admission_number' => 'PC-SCORE-001',
+            'first_name' => 'Maryam',
+            'last_name' => 'Ibrahim',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+        ParallelCurriculumEnrolment::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'student_id' => $student->id,
+            'session_id' => $context['session']->id,
+            'is_active' => true,
+        ]);
+
+        $teacherToken = ApiToken::issue($teacher, 'parallel-class-teacher-score');
+        $workspaceId = 1000000000 + (int) $context['arm']->id;
+
+        $this->withToken($teacherToken)
+            ->getJson('/api/v1/parallel-scores/teaching')
+            ->assertOk()
+            ->assertJsonCount(1, 'assignments')
+            ->assertJsonPath('assignments.0.class_arm_id', $workspaceId)
+            ->assertJsonPath('assignments.0.subject_id', $context['subject']->id);
+
+        $sheet = $this->withToken($teacherToken)
+            ->getJson(
+                '/api/v1/parallel-scores/sheet?'.
+                'class_arm_id='.$workspaceId.
+                '&subject_id='.$context['subject']->id.
+                '&term_id='.$term->id
+            )
+            ->assertOk()
+            ->assertJsonPath('students.0.id', $student->id);
+
+        $this->withToken($teacherToken)
+            ->postJson('/api/v1/parallel-scores/save', [
+                'class_arm_id' => $workspaceId,
+                'subject_id' => $context['subject']->id,
+                'term_id' => $term->id,
+                'version' => $sheet->json('version'),
+                'request_id' => 'e8095080-cae4-4f84-a4de-62f422bd5f96',
+                'scores' => [
+                    $student->id => [
+                        $componentId => 78,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('saved', 1);
+
+        $this->assertDatabaseHas('parallel_curriculum_scores', [
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'student_id' => $student->id,
+            'parallel_curriculum_subject_id' => $context['subject']->id,
+            'assessment_template_component_id' => $componentId,
+            'term_id' => $term->id,
+            'entered_by' => $teacher->id,
+            'score' => 78,
+        ]);
+    }
+
     public function test_class_teacher_mode_drives_timetable_and_parallel_staff_attendance(): void
     {
         $context = $this->context();
