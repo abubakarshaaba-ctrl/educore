@@ -276,6 +276,95 @@ class MobilePortalAttendanceTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_student_sees_only_own_attendance_even_when_child_id_is_supplied(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Student Attendance School',
+            'slug' => 'student-attendance-'.uniqid(),
+            'status' => Tenant::STATUS_ACTIVE,
+        ]);
+
+        $session = AcademicSession::create([
+            'tenant_id' => $tenant->id,
+            'name' => '2026/2027',
+            'is_current' => true,
+        ]);
+        $term = Term::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => $session->id,
+            'name' => 'First Term',
+            'is_current' => true,
+        ]);
+        $level = ClassLevel::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'JSS 2',
+            'section' => 'junior_secondary',
+            'order_index' => 2,
+        ]);
+        $class = ClassArm::create([
+            'tenant_id' => $tenant->id,
+            'class_level_id' => $level->id,
+            'name' => 'A',
+        ]);
+
+        $studentUser = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Student User',
+            'role' => 'student',
+            'is_active' => true,
+        ]);
+        $student = Student::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $studentUser->id,
+            'current_class_arm_id' => $class->id,
+            'admission_number' => 'STD-SELF',
+            'first_name' => 'Self',
+            'last_name' => 'Student',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+        $otherStudent = Student::create([
+            'tenant_id' => $tenant->id,
+            'current_class_arm_id' => $class->id,
+            'admission_number' => 'STD-OTHER',
+            'first_name' => 'Other',
+            'last_name' => 'Student',
+            'status' => Student::STATUS_ACTIVE,
+        ]);
+
+        AttendanceRecord::create([
+            'tenant_id' => $tenant->id,
+            'student_id' => $student->id,
+            'class_arm_id' => $class->id,
+            'term_id' => $term->id,
+            'marked_by' => null,
+            'attendance_date' => '2026-09-16',
+            'status' => 'present',
+            'remark' => null,
+        ]);
+        AttendanceRecord::create([
+            'tenant_id' => $tenant->id,
+            'student_id' => $otherStudent->id,
+            'class_arm_id' => $class->id,
+            'term_id' => $term->id,
+            'marked_by' => null,
+            'attendance_date' => '2026-09-16',
+            'status' => 'absent',
+            'remark' => null,
+        ]);
+
+        $token = ApiToken::issue($studentUser, 'student-portal-attendance');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/portal-attendance?child_id='.$otherStudent->id.'&term_id='.$term->id)
+            ->assertOk()
+            ->assertJsonPath('student.id', $student->id)
+            ->assertJsonPath('student.admission_number', 'STD-SELF')
+            ->assertJsonCount(0, 'children')
+            ->assertJsonPath('conventional.stats.total', 1)
+            ->assertJsonPath('conventional.stats.present', 1)
+            ->assertJsonPath('conventional.stats.absent', 0);
+    }
+
     public function test_staff_cannot_access_portal_attendance_endpoint(): void
     {
         $tenant = Tenant::create([
