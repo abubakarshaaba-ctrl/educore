@@ -505,6 +505,7 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('operations/periods', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'storePeriod'])->name('operations.periods.store');
         Route::delete('operations/periods/{period}', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'destroyPeriod'])->name('operations.periods.destroy');
         Route::post('operations/attendance', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'saveAttendance'])->name('operations.attendance.save');
+        Route::get('operations/attendance/export', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'exportAttendance'])->name('operations.attendance.export');
         Route::get('student-assignments/template', [\App\Http\Controllers\ParallelCurriculumController::class, 'downloadStudentAssignmentTemplate'])->name('student-assignments.template');
         Route::post('student-assignments/import', [\App\Http\Controllers\ParallelCurriculumController::class, 'importStudentAssignments'])->name('student-assignments.import');
         Route::post('curricula', [\App\Http\Controllers\ParallelCurriculumController::class, 'storeCurriculum'])->name('curricula.store');
