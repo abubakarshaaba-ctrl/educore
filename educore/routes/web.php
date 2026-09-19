@@ -267,7 +267,7 @@ Route::redirect('academic-knowledge-base', '/academic-repository/knowledge')
 
 // Platform-owned academic resources are read-only inside each school.
 // Management and imports remain exclusively under the Super Admin routes below.
-Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class])
+Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])
     ->prefix('academic-repository')->name('academic-repository.')->group(function () {
         Route::get('/', [\App\Http\Controllers\AcademicRepositoryController::class, 'index'])->name('index');
 
@@ -1319,9 +1319,9 @@ Route::middleware(['auth', 'active.account', \App\Http\Middleware\IdentifyTenant
     Route::get('dashboard',                      [\App\Http\Controllers\Portal\StaffPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('payroll',                        [\App\Http\Controllers\Portal\StaffPortalController::class, 'payroll'])->name('payroll');
     Route::get('payroll/{period}/print',         [\App\Http\Controllers\Portal\StaffPortalController::class, 'payslipPrint'])->name('payslip.print');
-    Route::get('messages',                       [\App\Http\Controllers\Portal\StaffPortalController::class, 'messages'])->name('messages');
-    Route::get('messages/{thread}',              [\App\Http\Controllers\Portal\StaffPortalController::class, 'messageThread'])->name('messages.thread');
-    Route::post('messages/{thread}/reply',       [\App\Http\Controllers\Portal\StaffPortalController::class, 'messageReply'])->name('messages.reply');
+    Route::get('messages',                       [\App\Http\Controllers\Portal\StaffPortalController::class, 'messages'])->middleware(\App\Http\Middleware\CheckModuleAccess::class)->name('messages');
+    Route::get('messages/{thread}',              [\App\Http\Controllers\Portal\StaffPortalController::class, 'messageThread'])->middleware(\App\Http\Middleware\CheckModuleAccess::class)->name('messages.thread');
+    Route::post('messages/{thread}/reply',       [\App\Http\Controllers\Portal\StaffPortalController::class, 'messageReply'])->middleware(\App\Http\Middleware\CheckModuleAccess::class)->name('messages.reply');
 });
 
 // â”€â”€ Agent Portal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
