@@ -271,10 +271,16 @@ class DefaultParallelCurriculumLifecycleRepository(
         curriculumId: Long,
         sourceSessionId: Long,
         targetSessionId: Long,
+        sourceClassIds: List<Long>,
     ): AppResult<ParallelPromotionPreview> = withContext(Dispatchers.IO) {
         when (
             val result = safeApiCall(moshi) {
-                api.parallelPromotionPreview(curriculumId, sourceSessionId, targetSessionId)
+                api.parallelPromotionPreview(
+                    curriculumId,
+                    sourceSessionId,
+                    targetSessionId,
+                    sourceClassIds,
+                )
             }
         ) {
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
@@ -286,9 +292,15 @@ class DefaultParallelCurriculumLifecycleRepository(
         curriculumId: Long,
         sourceSessionId: Long,
         targetSessionId: Long,
+        sourceClassIds: List<Long>,
     ): AppResult<String> = mutation {
         api.executeParallelPromotion(
-            ParallelPromotionRequestDto(curriculumId, sourceSessionId, targetSessionId)
+            ParallelPromotionRequestDto(
+                curriculumId,
+                sourceSessionId,
+                targetSessionId,
+                sourceClassIds,
+            )
         ).message
     }
 
@@ -390,7 +402,8 @@ class DefaultParallelCurriculumLifecycleRepository(
 
     override suspend fun savePromotionRule(
         curriculumId: Long,
-        sourceClassId: Long,
+        sourceClassIds: List<Long>,
+        destinationMode: String,
         destinationClassId: Long?,
         minimumAverage: Double,
         maxFailedSubjects: Int,
@@ -402,7 +415,8 @@ class DefaultParallelCurriculumLifecycleRepository(
         api.saveParallelPromotionRule(
             ParallelPromotionRuleMutationRequestDto(
                 parallelCurriculumId = curriculumId,
-                sourceClassId = sourceClassId,
+                sourceClassIds = sourceClassIds,
+                destinationMode = destinationMode,
                 destinationClassId = destinationClassId,
                 minimumAverage = minimumAverage,
                 maxFailedSubjects = maxFailedSubjects,
