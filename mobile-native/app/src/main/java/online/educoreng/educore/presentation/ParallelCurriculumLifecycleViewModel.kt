@@ -221,7 +221,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     day.closingTime.isNullOrBlank() ||
                     !timePattern.matches(day.resumptionTime) ||
                     !timePattern.matches(day.closingTime) ||
-                    day.closingTime <= day.resumptionTime ||
+                    day.closingTime.orEmpty() <= day.resumptionTime.orEmpty() ||
                     day.graceMinutes < 0
             )
         }
