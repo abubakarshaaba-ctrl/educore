@@ -15,6 +15,7 @@ import online.educoreng.educore.core.network.dto.ParallelOperationsTermDto
 import online.educoreng.educore.core.network.dto.ParallelWorkingDayDto
 import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceDto
 import online.educoreng.educore.core.network.dto.ParallelStaffAttendancePersonDto
+import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceSelfRecordDto
 import online.educoreng.educore.core.network.dto.toDomain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -95,6 +96,10 @@ class ParallelOperationsDtoMapperTest {
                 closingTime = "13:00",
                 graceMinutes = 20,
                 canClockSelf = true,
+                selfRecord = ParallelStaffAttendanceSelfRecordDto(
+                    status = "present",
+                    clockInTime = "07:58",
+                ),
                 staff = listOf(
                     ParallelStaffAttendancePersonDto(
                         userId = 60,
@@ -131,6 +136,7 @@ class ParallelOperationsDtoMapperTest {
         assertEquals("15:30", workspace.workingDays.first().resumptionTime)
         assertEquals("13:00", workspace.workingDays.last().closingTime)
         assertTrue(workspace.staffAttendance?.canClockSelf == true)
+        assertEquals("07:58", workspace.staffAttendance?.selfRecord?.clockInTime)
         assertEquals("Teacher One", workspace.staffAttendance?.staff?.single()?.name)
         assertEquals("Qur'an", workspace.classes.single().subjects.single().name)
         assertEquals("Teacher One", workspace.periods.single().teacher)
