@@ -19,7 +19,7 @@ import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelTransferHistory
 
 data class ParallelLifecycleResponseDto(
-    @param:Json(name = "contract_version") val contractVersion: Int = 1,
+    @param:Json(name = "contract_version") val contractVersion: Int = 2,
     @param:Json(name = "selected_curriculum_id") val selectedCurriculumId: Long? = null,
     @param:Json(name = "selected_session_id") val selectedSessionId: Long? = null,
     val curricula: List<ParallelLifecycleCurriculumDto> = emptyList(),
