@@ -54,6 +54,7 @@ private enum class ParallelLifecycleTab(val label: String) {
     STUDENTS("Students"),
     TEACHERS("Teachers"),
     GRADES("Grade System"),
+    RESULTS("Results"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
     HISTORY("History"),
@@ -78,6 +79,11 @@ fun ParallelCurriculumLifecycleScreen(
     onRemoveClassSubject: (Long) -> Unit,
     onSaveProgrammeGrade: (String, Double?, Double?, String?, Boolean) -> Unit,
     onDeleteProgrammeGrade: (Long) -> Unit,
+    onLoadResults: (Long?, Long?) -> Unit,
+    onLoadStudentResult: (Long, Long, Long) -> Unit,
+    onCloseStudentResult: () -> Unit,
+    onPublishResult: () -> Unit,
+    onUnpublishResult: () -> Unit,
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
@@ -192,6 +198,14 @@ fun ParallelCurriculumLifecycleScreen(
             )
             ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
+            ParallelLifecycleTab.RESULTS -> lifecycleResults(
+                state = state,
+                onLoadResults = onLoadResults,
+                onLoadStudentResult = onLoadStudentResult,
+                onCloseStudentResult = onCloseStudentResult,
+                onPublishResult = onPublishResult,
+                onUnpublishResult = onUnpublishResult,
+            )
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
                 state,
                 onSelectPromotionSessions,
@@ -1649,6 +1663,296 @@ private fun GradeEditor(
             Modifier.fillMaxWidth(),
             enabled = !busy && selectedIds.isNotEmpty() && letter.isNotBlank(),
             loading = busy,
+        )
+    }
+}
+
+private fun LazyListScope.lifecycleResults(
+    state: ParallelLifecycleUiState,
+    onLoadResults: (Long?, Long?) -> Unit,
+    onLoadStudentResult: (Long, Long, Long) -> Unit,
+    onCloseStudentResult: () -> Unit,
+    onPublishResult: () -> Unit,
+    onUnpublishResult: () -> Unit,
+) {
+    item {
+        ParallelResultControls(
+            state = state,
+            onLoadResults = onLoadResults,
+            onPublishResult = onPublishResult,
+            onUnpublishResult = onUnpublishResult,
+        )
+    }
+
+    val report = state.resultWorkspace?.report
+    if (report != null) {
+        if (report.blockers.isNotEmpty()) {
+            items(report.blockers, key = { "result-blocker-" + it }) { blocker ->
+                EduCoreInfoBanner(
+                    title = "Publication requirement",
+                    message = blocker,
+                )
+            }
+        }
+
+        if (report.rows.isEmpty()) {
+            item {
+                EduCoreEmptyState(
+                    "No result rows",
+                    "No active learner is enrolled in this parallel class for the selected session.",
+                )
+            }
+        } else {
+            items(report.rows, key = { "result-row-" + it.studentId }) { row ->
+                EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(row.studentName, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                listOfNotNull(
+                                    row.admissionNumber,
+                                    row.armName?.let { "Arm $it" },
+                                ).joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
+                        }
+                        Text(
+                            if (row.complete) "Complete" else "Incomplete",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (row.complete) EduCoreColors.Success700 else EduCoreColors.Danger600,
+                        )
+                    }
+                    Spacer(Modifier.height(EduCoreSpacing.Md))
+                    KeyValueRow(
+                        "Subjects",
+                        row.completedSubjectCount.toString() + "/" + row.subjectCount,
+                    )
+                    KeyValueRow(
+                        "Average",
+                        row.average?.let { String.format("%.2f%%", it) } ?: "—",
+                    )
+                    KeyValueRow("Position", row.position?.toString() ?: "—")
+                    KeyValueRow("Failed subjects", row.failedSubjects.toString())
+                    Spacer(Modifier.height(EduCoreSpacing.Md))
+                    EduCoreSecondaryButton(
+                        text = "View Result Details",
+                        onClick = {
+                            onLoadStudentResult(
+                                report.classId,
+                                row.studentId,
+                                report.termId,
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isResultLoading,
+                    )
+                }
+            }
+        }
+    }
+
+    state.studentResultDetail?.let { detail ->
+        item {
+            ParallelStudentResultDetailCard(
+                detail = detail,
+                onClose = onCloseStudentResult,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParallelResultControls(
+    state: ParallelLifecycleUiState,
+    onLoadResults: (Long?, Long?) -> Unit,
+    onPublishResult: () -> Unit,
+    onUnpublishResult: () -> Unit,
+) {
+    val workspace = state.resultWorkspace
+    var classId by remember(workspace?.selectedClassId) {
+        mutableStateOf(workspace?.selectedClassId)
+    }
+    var termId by remember(workspace?.selectedTermId) {
+        mutableStateOf(workspace?.selectedTermId)
+    }
+
+    LaunchedEffect(Unit) {
+        if (workspace == null) {
+            onLoadResults(null, null)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        SectionHeading(
+            "Parallel results",
+            "Review completeness, inspect learner results and control publication independently from conventional report cards.",
+        )
+
+        if (workspace == null) {
+            if (state.isResultLoading) {
+                EduCoreLoadingState(message = "Loading parallel result register")
+            } else {
+                EduCoreSecondaryButton(
+                    text = "Load Results",
+                    onClick = { onLoadResults(null, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            return@Column
+        }
+
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            LifecycleMenu(
+                label = "Parallel class",
+                current = workspace.classes.firstOrNull { it.id == classId }?.label
+                    ?: "Select parallel class",
+                options = workspace.classes.map { it.id to it.label },
+                enabled = !state.isResultLoading && !state.isMutating,
+                onSelect = { classId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Academic term",
+                current = workspace.terms.firstOrNull { it.id == termId }?.label
+                    ?: "Select academic term",
+                options = workspace.terms.map { it.id to it.label },
+                enabled = !state.isResultLoading && !state.isMutating,
+                onSelect = { termId = it },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCorePrimaryButton(
+                text = "Open Result Register",
+                onClick = { onLoadResults(classId, termId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isResultLoading && classId != null && termId != null,
+                loading = state.isResultLoading,
+            )
+        }
+
+        workspace.report?.let { report ->
+            EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+                Text(
+                    (report.curriculumName ?: "Parallel Curriculum") + " · " + report.className,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = EduCoreColors.Navy900,
+                )
+                Text(
+                    listOfNotNull(
+                        report.session,
+                        report.term,
+                        report.templateName?.let { "Template: $it" },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+                Spacer(Modifier.height(EduCoreSpacing.Md))
+                KeyValueRow("Students", report.studentsCount.toString())
+                KeyValueRow("Subjects", report.subjectsCount.toString())
+                KeyValueRow(
+                    "Complete",
+                    report.completeStudentsCount.toString() + "/" + report.studentsCount,
+                )
+                KeyValueRow(
+                    "Assessment weight",
+                    String.format("%.2f%%", report.componentWeight),
+                )
+                KeyValueRow(
+                    "Grading",
+                    if (report.gradingSource == "class") "Class-specific" else "Programme default",
+                )
+                KeyValueRow(
+                    "Publication",
+                    if (report.isPublished) "Published" else "Draft",
+                )
+
+                Spacer(Modifier.height(EduCoreSpacing.Md))
+                if (report.isPublished) {
+                    EduCoreDangerButton(
+                        text = "Unpublish Result",
+                        onClick = onUnpublishResult,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating,
+                    )
+                } else {
+                    EduCorePrimaryButton(
+                        text = "Publish Result",
+                        onClick = onPublishResult,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating && report.canPublish,
+                        loading = state.isMutating,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParallelStudentResultDetailCard(
+    detail: online.educoreng.educore.core.model.ParallelStudentResultDetail,
+    onClose: () -> Unit,
+) {
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(
+            detail.studentName,
+            style = MaterialTheme.typography.titleLarge,
+            color = EduCoreColors.Navy900,
+        )
+        Text(
+            listOfNotNull(
+                detail.admissionNumber,
+                detail.armName?.let { "Arm $it" },
+                detail.session,
+                detail.term,
+            ).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        KeyValueRow(
+            "Average",
+            detail.average?.let { String.format("%.2f%%", it) } ?: "—",
+        )
+        KeyValueRow("Position", detail.position?.toString() ?: "—")
+        KeyValueRow("Failed subjects", detail.failedSubjects.toString())
+        KeyValueRow(
+            "Status",
+            if (detail.complete) "Complete" else "Incomplete",
+        )
+
+        detail.subjects.forEach { subject ->
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text(subject.subject, style = MaterialTheme.typography.titleSmall)
+            subject.components.forEach { component ->
+                KeyValueRow(
+                    component.name,
+                    (component.score?.let { String.format("%.2f", it) } ?: "—") +
+                        "/" + String.format("%.2f", component.maximum),
+                )
+            }
+            KeyValueRow(
+                "Total",
+                subject.percentage?.let { String.format("%.2f%%", it) } ?: "—",
+            )
+            KeyValueRow("Grade", subject.grade ?: "—")
+            KeyValueRow("Remark", subject.remark ?: "—")
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Lg))
+        EduCoreSecondaryButton(
+            text = "Close Result Details",
+            onClick = onClose,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
