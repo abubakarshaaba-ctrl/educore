@@ -143,6 +143,16 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('parallel-curriculum/lifecycle')->group(function () {
             Route::get('/', [MobileParallelCurriculumLifecycleController::class, 'index']);
+            Route::post('programmes', [MobileParallelCurriculumLifecycleController::class, 'storeProgramme']);
+            Route::put('programmes/{curriculum}', [MobileParallelCurriculumLifecycleController::class, 'updateProgramme']);
+            Route::post('classes', [MobileParallelCurriculumLifecycleController::class, 'storeClass']);
+            Route::put('classes/{class}', [MobileParallelCurriculumLifecycleController::class, 'updateClass']);
+            Route::post('subjects', [MobileParallelCurriculumLifecycleController::class, 'storeSubject']);
+            Route::put('subjects/{subject}', [MobileParallelCurriculumLifecycleController::class, 'updateSubject']);
+            Route::post('class-subjects', [MobileParallelCurriculumLifecycleController::class, 'storeClassSubject']);
+            Route::delete('class-subjects/{assignment}', [MobileParallelCurriculumLifecycleController::class, 'destroyClassSubject']);
+            Route::post('programme-grades', [MobileParallelCurriculumLifecycleController::class, 'storeProgrammeGrade']);
+            Route::delete('programme-grades/{grade}', [MobileParallelCurriculumLifecycleController::class, 'destroyProgrammeGrade']);
             Route::get('students', [MobileParallelCurriculumLifecycleController::class, 'students']);
             Route::post('assignments', [MobileParallelCurriculumLifecycleController::class, 'assignStudents']);
             Route::delete('assignments/{enrolment}', [MobileParallelCurriculumLifecycleController::class, 'removeStudent']);
