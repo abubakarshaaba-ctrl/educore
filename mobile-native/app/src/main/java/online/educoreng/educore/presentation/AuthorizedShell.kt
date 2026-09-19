@@ -89,6 +89,8 @@ internal fun AuthorizedShell(
     val classesState by classesViewModel.uiState.collectAsStateWithLifecycle()
     val scoresViewModel: ScoresViewModel = hiltViewModel()
     val scoresState by scoresViewModel.uiState.collectAsStateWithLifecycle()
+    val parallelLifecycleViewModel: ParallelCurriculumLifecycleViewModel = hiltViewModel()
+    val parallelLifecycleState by parallelLifecycleViewModel.uiState.collectAsStateWithLifecycle()
     val scheduleViewModel: ScheduleViewModel = hiltViewModel()
     val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
     val academicContentViewModel: AcademicContentViewModel = hiltViewModel()
@@ -120,6 +122,8 @@ internal fun AuthorizedShell(
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
         currentRoute == NativeRoute.PUBLISHED_RESULTS -> "Result History"
+        currentRoute == NativeRoute.PARALLEL_LIFECYCLE -> "Parallel Curriculum"
+        currentRoute == NativeRoute.PARALLEL_OPERATIONS -> "Parallel Timetable & Attendance"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
         currentRoute == NativeRoute.REPORTS -> "Report Cards"
         currentRoute == NativeRoute.SKILLS -> "Skills Rating"
@@ -145,6 +149,12 @@ internal fun AuthorizedShell(
         scoresState.message?.let { message ->
             snackbarHostState.showSnackbar(message)
             scoresViewModel.consumeMessage()
+        }
+    }
+    LaunchedEffect(parallelLifecycleState.message) {
+        parallelLifecycleState.message?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            parallelLifecycleViewModel.consumeMessage()
         }
     }
     LaunchedEffect(academicContentState.message) {
@@ -325,12 +335,8 @@ internal fun AuthorizedShell(
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.STUDENT_ATTENDANCE_CLASSES) { launchSingleTop = true }
                                                 }
-                                                "parent.attendance" -> {
-                                                    portalAttendanceViewModel.load("parent")
-                                                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
-                                                }
-                                                "student.attendance" -> {
-                                                    portalAttendanceViewModel.load("student")
+                                                "parent.attendance", "student.attendance" -> {
+                                                    portalAttendanceViewModel.load()
                                                     navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
                                                 }
                                                 "staff-attendance.self" -> {
@@ -344,7 +350,14 @@ internal fun AuthorizedShell(
                                                     scoresViewModel.loadAssignments()
                                                     navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
                                                 }
-                                                "timetable" -> {
+                                                "parallel-curriculum" -> {
+                                                    parallelLifecycleViewModel.load()
+                                                    navController.navigate(NativeRoute.PARALLEL_LIFECYCLE) { launchSingleTop = true }
+                                                }
+                                                "parallel-timetable" -> {
+                                                    navController.navigate(NativeRoute.PARALLEL_OPERATIONS) { launchSingleTop = true }
+                                                }
+                                                "timetable", "student.timetable", "parent.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
                                                 }
@@ -475,7 +488,7 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onChild = portalAttendanceViewModel::selectChild,
                                 onTerm = portalAttendanceViewModel::selectTerm,
-                                onRetry = portalAttendanceViewModel::retry,
+                                onRetry = { portalAttendanceViewModel.load() },
                             )
                         }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
@@ -537,6 +550,70 @@ internal fun AuthorizedShell(
                                 onRetry = { scoresViewModel.loadResults() },
                             )
                         }
+                        composable(NativeRoute.PARALLEL_LIFECYCLE) {
+                            ParallelCurriculumLifecycleScreen(
+                                state = parallelLifecycleState,
+                                onRefresh = {
+                                    parallelLifecycleViewModel.load(
+                                        parallelLifecycleState.selectedCurriculumId,
+                                        parallelLifecycleState.selectedSessionId,
+                                    )
+                                },
+                                onSelectCurriculum = parallelLifecycleViewModel::selectCurriculum,
+                                onSelectSession = parallelLifecycleViewModel::selectSession,
+                                onSelectPromotionSessions = parallelLifecycleViewModel::selectPromotionSessions,
+                                onPreviewPromotion = parallelLifecycleViewModel::previewPromotion,
+                                onExecutePromotion = parallelLifecycleViewModel::executePromotion,
+                                onCreateProgramme = parallelLifecycleViewModel::createProgramme,
+                                onUpdateProgramme = parallelLifecycleViewModel::updateProgramme,
+                                onCreateClass = parallelLifecycleViewModel::createClass,
+                                onUpdateClass = parallelLifecycleViewModel::updateClass,
+                                onCreateSubject = parallelLifecycleViewModel::createSubject,
+                                onUpdateSubject = parallelLifecycleViewModel::updateSubject,
+                                onSaveClassSubject = parallelLifecycleViewModel::saveClassSubject,
+                                onRemoveClassSubject = parallelLifecycleViewModel::removeClassSubject,
+                                onSaveProgrammeGrade = parallelLifecycleViewModel::saveProgrammeGrade,
+                                onDeleteProgrammeGrade = parallelLifecycleViewModel::deleteProgrammeGrade,
+                                onLoadResults = parallelLifecycleViewModel::loadResults,
+                                onLoadStudentResult = parallelLifecycleViewModel::loadStudentResult,
+                                onCloseStudentResult = parallelLifecycleViewModel::closeStudentResult,
+                                onPublishResult = parallelLifecycleViewModel::publishResult,
+                                onUnpublishResult = parallelLifecycleViewModel::unpublishResult,
+                                onDownloadResultExport = parallelLifecycleViewModel::downloadResultExport,
+                                onDownloadStudentResultPdf = parallelLifecycleViewModel::downloadStudentResultPdf,
+                                onCreateArm = parallelLifecycleViewModel::createArm,
+                                onUpdateArm = parallelLifecycleViewModel::updateArm,
+                                onArchiveArm = parallelLifecycleViewModel::archiveArm,
+                                onLoadStudents = parallelLifecycleViewModel::loadStudents,
+                                onAssignStudents = parallelLifecycleViewModel::assignStudents,
+                                onDownloadAssignmentTemplate = parallelLifecycleViewModel::downloadStudentAssignmentTemplate,
+                                onImportAssignments = parallelLifecycleViewModel::importStudentAssignments,
+                                onRemoveStudent = parallelLifecycleViewModel::removeStudent,
+                                onSaveArmTeacher = parallelLifecycleViewModel::saveArmTeacher,
+                                onSaveGrade = parallelLifecycleViewModel::saveGrade,
+                                onDeleteGrade = parallelLifecycleViewModel::deleteGrade,
+                                onLoadOperations = parallelLifecycleViewModel::loadOperations,
+                                onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
+                                onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
+                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
+                                onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
+                                onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
+                                onTransfer = parallelLifecycleViewModel::transfer,
+                                onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
+                            )
+                        }
+                        composable(NativeRoute.PARALLEL_OPERATIONS) {
+                            ParallelCurriculumOperationsScreen(
+                                state = parallelLifecycleState,
+                                onBack = navController::popBackStack,
+                                onLoadContext = parallelLifecycleViewModel::loadOperationsContext,
+                                onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
+                                onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
+                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
+                                onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
+                                onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
+                            )
+                        }
                         composable(
                             route = NativeRoute.SCHEDULE,
                             arguments = listOf(navArgument("classId") { type = NavType.LongType }),
@@ -547,7 +624,13 @@ internal fun AuthorizedShell(
                                 onBack = navController::popBackStack,
                                 onSection = scheduleViewModel::selectSection,
                                 onDay = scheduleViewModel::selectDay,
-                                onRetry = { scheduleViewModel.load(classId = classId) },
+                                onChild = scheduleViewModel::selectChild,
+                                onRetry = {
+                                    scheduleViewModel.load(
+                                        classId = classId,
+                                        childId = scheduleState.workspace?.selectedChildId,
+                                    )
+                                },
                             )
                         }
                         composable(NativeRoute.REPORTS) {
@@ -752,6 +835,8 @@ private object NativeRoute {
     const val SCORES = "native/scores"
     const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
     const val PUBLISHED_RESULTS = "native/published-results"
+    const val PARALLEL_LIFECYCLE = "native/parallel-curriculum"
+    const val PARALLEL_OPERATIONS = "native/parallel-timetable"
     const val SCHEDULE = "native/schedule/{classId}"
     const val REPORTS = "native/reports"
     const val SKILLS = "native/skills"

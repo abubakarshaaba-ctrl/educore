@@ -37,7 +37,15 @@ class ScheduleViewModel @Inject constructor(
             is AppResult.Success -> _uiState.update { state ->
                 val day = result.value.week.firstOrNull { it.day == state.selectedDay }?.day
                     ?: result.value.week.firstOrNull()?.day.orEmpty()
-                state.copy(workspace = result.value, selectedDay = day, isLoading = false)
+                state.copy(
+                    workspace = result.value,
+                    selectedDay = day,
+                    selectedSection = if (
+                        state.workspace?.selectedChildId != null &&
+                        state.workspace?.selectedChildId != result.value.selectedChildId
+                    ) 0 else state.selectedSection,
+                    isLoading = false,
+                )
             }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
@@ -45,4 +53,5 @@ class ScheduleViewModel @Inject constructor(
 
     fun selectSection(index: Int) = _uiState.update { it.copy(selectedSection = index) }
     fun selectDay(day: String) = _uiState.update { it.copy(selectedDay = day) }
+    fun selectChild(childId: Long) = load(childId = childId)
 }

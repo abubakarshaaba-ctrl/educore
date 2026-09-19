@@ -1,5 +1,18 @@
 package online.educoreng.educore.core.model
 
+data class ScheduleChild(
+    val id: Long,
+    val name: String,
+)
+
+data class ParallelScheduleProgramme(
+    val curriculumId: Long,
+    val curriculumName: String,
+    val className: String?,
+    val armName: String?,
+    val week: List<ScheduleDay>,
+)
+
 data class SchedulePeriod(
     val id: Long,
     val startTime: String?,
@@ -45,7 +58,10 @@ data class ScheduleWorkspace(
     val termName: String?,
     val from: String,
     val to: String,
+    val children: List<ScheduleChild> = emptyList(),
+    val selectedChildId: Long? = null,
     val week: List<ScheduleDay>,
+    val parallelProgrammes: List<ParallelScheduleProgramme> = emptyList(),
     val exams: List<ScheduledExam>,
     val duties: List<ExamDuty>,
     val generatedAt: String,

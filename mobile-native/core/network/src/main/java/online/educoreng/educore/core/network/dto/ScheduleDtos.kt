@@ -2,12 +2,22 @@ package online.educoreng.educore.core.network.dto
 
 import com.squareup.moshi.Json
 import online.educoreng.educore.core.model.ExamDuty
+import online.educoreng.educore.core.model.ParallelScheduleProgramme
+import online.educoreng.educore.core.model.ScheduleChild
 import online.educoreng.educore.core.model.ScheduleDay
 import online.educoreng.educore.core.model.SchedulePeriod
 import online.educoreng.educore.core.model.ScheduleWorkspace
 import online.educoreng.educore.core.model.ScheduledExam
 
 data class ScheduleRangeDto(val from: String, val to: String)
+data class ScheduleChildDto(val id: Long, val name: String)
+data class ParallelScheduleProgrammeDto(
+    @param:Json(name = "curriculum_id") val curriculumId: Long,
+    @param:Json(name = "curriculum_name") val curriculumName: String,
+    @param:Json(name = "class_name") val className: String? = null,
+    @param:Json(name = "arm_name") val armName: String? = null,
+    val week: List<ScheduleDayDto> = emptyList(),
+)
 data class ScheduleScopeDto(
     val type: String,
     val title: String,
@@ -52,7 +62,10 @@ data class ScheduleResponseDto(
     val session: ScoreTermDto? = null,
     val term: ScoreTermDto? = null,
     val scope: ScheduleScopeDto,
+    val children: List<ScheduleChildDto> = emptyList(),
+    @param:Json(name = "selected_child_id") val selectedChildId: Long? = null,
     val week: List<ScheduleDayDto> = emptyList(),
+    @param:Json(name = "parallel_programmes") val parallelProgrammes: List<ParallelScheduleProgrammeDto> = emptyList(),
     val exams: List<ScheduledExamDto> = emptyList(),
     val duties: List<ExamDutyDto> = emptyList(),
 )
@@ -66,10 +79,25 @@ fun ScheduleResponseDto.toDomain(fromCache: Boolean = false) = ScheduleWorkspace
     termName = term?.name,
     from = range.from,
     to = range.to,
+    children = children.map { ScheduleChild(it.id, it.name) },
+    selectedChildId = selectedChildId,
     week = week.map { day ->
         ScheduleDay(day.day, day.periods.map {
             SchedulePeriod(it.id, it.startTime, it.endTime, it.subject, it.className, it.teacher, it.venue)
         })
+    },
+    parallelProgrammes = parallelProgrammes.map { programme ->
+        ParallelScheduleProgramme(
+            curriculumId = programme.curriculumId,
+            curriculumName = programme.curriculumName,
+            className = programme.className,
+            armName = programme.armName,
+            week = programme.week.map { day ->
+                ScheduleDay(day.day, day.periods.map {
+                    SchedulePeriod(it.id, it.startTime, it.endTime, it.subject, it.className, it.teacher, it.venue)
+                })
+            },
+        )
     },
     exams = exams.map {
         ScheduledExam(it.id, it.title, it.date, it.session, it.startTime, it.endTime, it.subject, it.classLevel, it.venue)

@@ -59,6 +59,7 @@ internal fun ScheduleScreen(
     onBack: () -> Unit,
     onSection: (Int) -> Unit,
     onDay: (String) -> Unit,
+    onChild: (Long) -> Unit,
     onRetry: () -> Unit,
 ) {
     if (state.isLoading && state.workspace == null) {
@@ -73,6 +74,10 @@ internal fun ScheduleScreen(
     val totalPeriods = workspace.week.sumOf { it.periods.size }
     val dutyCount = workspace.duties.size
     val examCount = workspace.exams.size
+    val hasParallel = workspace.parallelProgrammes.isNotEmpty()
+    val parallelPeriodCount = workspace.parallelProgrammes.sumOf { programme -> programme.week.sumOf { it.periods.size } }
+    val dutiesSection = if (hasParallel) 2 else 1
+    val examsSection = if (hasParallel) 3 else 2
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
@@ -94,6 +99,26 @@ internal fun ScheduleScreen(
         if (workspace.isFromCache) item { EduCoreWarningBanner("Showing the latest schedule saved on this device.") }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
 
+        if (workspace.children.size > 1) {
+            item {
+                EduCoreSectionHeader("Learner", "Choose the child whose timetable you want to review")
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    workspace.children.forEach { child ->
+                        EduCoreFilterChip(
+                            label = child.name.substringBefore(" "),
+                            selected = child.id == workspace.selectedChildId,
+                            onClick = { onChild(child.id) },
+                        )
+                    }
+                }
+            }
+        }
+
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCoreShowcaseStat(label = "Periods", value = totalPeriods.toString(), icon = Icons.Default.Schedule, modifier = Modifier.weight(1f), tone = EduCoreTone.Brand)
@@ -108,8 +133,11 @@ internal fun ScheduleScreen(
                 horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
             ) {
                 ScheduleSectionTab("Timetable ($totalPeriods)", state.selectedSection == 0) { onSection(0) }
-                ScheduleSectionTab("Exam Duties ($dutyCount)", state.selectedSection == 1) { onSection(1) }
-                ScheduleSectionTab("Examinations ($examCount)", state.selectedSection == 2) { onSection(2) }
+                if (hasParallel) {
+                    ScheduleSectionTab("Parallel ($parallelPeriodCount)", state.selectedSection == 1) { onSection(1) }
+                }
+                ScheduleSectionTab("Exam Duties ($dutyCount)", state.selectedSection == dutiesSection) { onSection(dutiesSection) }
+                ScheduleSectionTab("Examinations ($examCount)", state.selectedSection == examsSection) { onSection(examsSection) }
             }
         }
 
@@ -135,7 +163,62 @@ internal fun ScheduleScreen(
                 }
                 items(selectedPeriods, key = SchedulePeriod::id) { PeriodCard(it) }
             }
-            1 -> {
+            1 -> if (hasParallel) {
+                item { EduCoreSectionHeader("Parallel curriculum", "Choose a day to review parallel programme periods") }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                    ) {
+                        val parallelDays = workspace.parallelProgrammes.flatMap { it.week }.map { it.day }.distinct()
+                        parallelDays.forEach { day ->
+                            val count = workspace.parallelProgrammes.sumOf { programme ->
+                                programme.week.firstOrNull { it.day == day }?.periods?.size ?: 0
+                            }
+                            EduCoreFilterChip(
+                                label = "${day.take(3)} ($count)",
+                                selected = day == state.selectedDay,
+                                onClick = { onDay(day) },
+                            )
+                        }
+                    }
+                }
+                workspace.parallelProgrammes.forEach { programme ->
+                    item(key = "parallel-header-${programme.curriculumId}") {
+                        Surface(
+                            color = EduCoreColors.Info100,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Column(Modifier.fillMaxWidth().padding(EduCoreSpacing.Md)) {
+                                Text(
+                                    programme.curriculumName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = EduCoreColors.Navy900,
+                                )
+                                val context = listOfNotNull(programme.className, programme.armName).joinToString(" · ")
+                                if (context.isNotBlank()) {
+                                    Text(context, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+                                }
+                            }
+                        }
+                    }
+                    val periods = programme.week.firstOrNull { it.day == state.selectedDay }?.periods.orEmpty()
+                    if (periods.isEmpty()) {
+                        item(key = "parallel-empty-${programme.curriculumId}") {
+                            EduCoreEmptyState("No parallel periods", "There are no ${programme.curriculumName} periods for ${state.selectedDay}.")
+                        }
+                    } else {
+                        items(periods, key = { "parallel-${programme.curriculumId}-${it.id}" }) { PeriodCard(it) }
+                    }
+                }
+            } else {
+                if (workspace.duties.isEmpty()) {
+                    item { EduCoreEmptyState("No supervision duties", "No examination duty is assigned within this schedule range.") }
+                }
+                items(workspace.duties, key = ExamDuty::id) { DutyListRow(it) }
+            }
+            dutiesSection -> {
                 if (workspace.duties.isEmpty()) {
                     item { EduCoreEmptyState("No supervision duties", "No examination duty is assigned within this schedule range.") }
                 }
