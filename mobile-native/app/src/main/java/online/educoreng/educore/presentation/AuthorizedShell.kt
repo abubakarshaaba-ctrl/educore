@@ -519,17 +519,21 @@ internal fun AuthorizedShell(
                                 onCloseStudentResult = parallelLifecycleViewModel::closeStudentResult,
                                 onPublishResult = parallelLifecycleViewModel::publishResult,
                                 onUnpublishResult = parallelLifecycleViewModel::unpublishResult,
+                                onDownloadResultExport = parallelLifecycleViewModel::downloadResultExport,
+                                onDownloadStudentResultPdf = parallelLifecycleViewModel::downloadStudentResultPdf,
                                 onCreateArm = parallelLifecycleViewModel::createArm,
                                 onUpdateArm = parallelLifecycleViewModel::updateArm,
                                 onArchiveArm = parallelLifecycleViewModel::archiveArm,
                                 onLoadStudents = parallelLifecycleViewModel::loadStudents,
                                 onAssignStudents = parallelLifecycleViewModel::assignStudents,
+                                onImportAssignments = parallelLifecycleViewModel::importStudentAssignments,
                                 onRemoveStudent = parallelLifecycleViewModel::removeStudent,
                                 onSaveArmTeacher = parallelLifecycleViewModel::saveArmTeacher,
                                 onSaveGrade = parallelLifecycleViewModel::saveGrade,
                                 onDeleteGrade = parallelLifecycleViewModel::deleteGrade,
                                 onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
                                 onTransfer = parallelLifecycleViewModel::transfer,
+                                onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
                             )
                         }
                         composable(
