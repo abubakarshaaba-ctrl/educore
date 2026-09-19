@@ -217,6 +217,7 @@ data class ParallelPromotionPreviewResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int = 1,
     @param:Json(name = "source_session") val sourceSession: ParallelLifecycleSessionDto,
     @param:Json(name = "target_session") val targetSession: ParallelLifecycleSessionDto,
+    @param:Json(name = "source_class_ids") val sourceClassIds: List<Long> = emptyList(),
     val counts: ParallelPromotionPreviewCountsDto,
     val rows: List<ParallelPromotionPreviewRowDto> = emptyList(),
 )
@@ -248,6 +249,7 @@ data class ParallelPromotionRequestDto(
     @param:Json(name = "parallel_curriculum_id") val parallelCurriculumId: Long,
     @param:Json(name = "source_session_id") val sourceSessionId: Long,
     @param:Json(name = "target_session_id") val targetSessionId: Long,
+    @param:Json(name = "source_class_ids") val sourceClassIds: List<Long> = emptyList(),
 )
 
 data class ParallelTransferRequestDto(
@@ -325,7 +327,8 @@ data class ParallelGradeMutationRequestDto(
 
 data class ParallelPromotionRuleMutationRequestDto(
     @param:Json(name = "parallel_curriculum_id") val parallelCurriculumId: Long,
-    @param:Json(name = "source_class_id") val sourceClassId: Long,
+    @param:Json(name = "source_class_ids") val sourceClassIds: List<Long>,
+    @param:Json(name = "destination_mode") val destinationMode: String = "next_by_order",
     @param:Json(name = "destination_class_id") val destinationClassId: Long? = null,
     @param:Json(name = "minimum_average") val minimumAverage: Double,
     @param:Json(name = "max_failed_subjects") val maxFailedSubjects: Int,
@@ -513,6 +516,7 @@ fun ParallelPromotionPreviewResponseDto.toDomain(): ParallelPromotionPreview =
     ParallelPromotionPreview(
         sourceSession = sourceSession.toDomain(),
         targetSession = targetSession.toDomain(),
+        sourceClassIds = sourceClassIds,
         counts = ParallelPromotionPreviewCounts(
             total = counts.total,
             promoted = counts.promoted,
