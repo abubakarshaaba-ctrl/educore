@@ -76,6 +76,10 @@ class DefaultParallelCurriculumLifecycleRepository(
         ).message
     }
 
+    override suspend fun removeStudent(enrolmentId: Long): AppResult<String> = mutation {
+        api.removeParallelStudent(enrolmentId).message
+    }
+
     override suspend fun previewPromotion(
         curriculumId: Long,
         sourceSessionId: Long,
