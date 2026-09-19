@@ -143,6 +143,8 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('parallel-curriculum/lifecycle')->group(function () {
             Route::get('/', [MobileParallelCurriculumLifecycleController::class, 'index']);
+            Route::get('students', [MobileParallelCurriculumLifecycleController::class, 'students']);
+            Route::post('assignments', [MobileParallelCurriculumLifecycleController::class, 'assignStudents']);
             Route::get('promotion-preview', [MobileParallelCurriculumLifecycleController::class, 'previewPromotion']);
             Route::post('promotions/execute', [MobileParallelCurriculumLifecycleController::class, 'executePromotion']);
             Route::post('transfers', [MobileParallelCurriculumLifecycleController::class, 'transfer']);
