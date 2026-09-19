@@ -115,6 +115,8 @@ interface ParallelCurriculumLifecycleRepository {
         page: Int = 1,
     ): AppResult<ParallelLifecycleStudentPage>
 
+    suspend fun downloadStudentAssignmentTemplate(): AppResult<DownloadedDocument>
+
     suspend fun importStudentAssignments(
         curriculumId: Long,
         sessionId: Long,
