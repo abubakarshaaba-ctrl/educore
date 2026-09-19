@@ -319,7 +319,6 @@ internal fun AuthorizedShell(
                                                     navController.navigate(NativeRoute.PARALLEL_LIFECYCLE) { launchSingleTop = true }
                                                 }
                                                 "parallel-timetable" -> {
-                                                    parallelLifecycleViewModel.loadOperationsContext()
                                                     navController.navigate(NativeRoute.PARALLEL_OPERATIONS) { launchSingleTop = true }
                                                 }
                                                 "student.results", "parent.results" -> {
@@ -550,7 +549,6 @@ internal fun AuthorizedShell(
                             ParallelCurriculumOperationsScreen(
                                 state = parallelLifecycleState,
                                 onLoadContext = parallelLifecycleViewModel::loadOperationsContext,
-                                onLoadOperations = parallelLifecycleViewModel::loadOperations,
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
                                 onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
