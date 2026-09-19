@@ -98,6 +98,21 @@ class ParallelCurriculumOperationsController extends Controller
 
         $date = $request->input('date', now()->toDateString());
 
+        $workingDays = $selectedCurriculum
+            ? $this->operations->workingDays(
+                $tenantId,
+                (int) $selectedCurriculum->id
+            )
+            : collect();
+
+        $staffAttendance = $selectedCurriculum
+            ? $this->operations->staffAttendanceSheet(
+                $user,
+                (int) $selectedCurriculum->id,
+                $date
+            )
+            : null;
+
         $periods = collect();
         if ($selectedArm && $sessionId) {
             $periods = ParallelCurriculumTimetablePeriod::query()
@@ -148,6 +163,14 @@ class ParallelCurriculumOperationsController extends Controller
             'canManageTimetable' => $this->operations->canManageTimetable($user),
             'canMarkAttendance' => $canMarkAttendance,
             'canExportAttendance' => $this->operations->canExportAttendance($user),
+            'workingDays' => $workingDays,
+            'staffAttendance' => $staffAttendance,
+            'canClockParallelStaff' => $selectedCurriculum
+                ? $this->operations->canClockParallelStaff(
+                    $user,
+                    (int) $selectedCurriculum->id
+                )
+                : false,
         ]);
     }
 
@@ -172,7 +195,7 @@ class ParallelCurriculumOperationsController extends Controller
                 'required',
                 Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
             ],
-            'day_of_week' => ['required', Rule::in(['monday','tuesday','wednesday','thursday','friday'])],
+            'day_of_week' => ['required', Rule::in(ParallelCurriculumOperationsService::DAYS)],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'venue' => ['nullable', 'string', 'max:100'],
@@ -186,6 +209,105 @@ class ParallelCurriculumOperationsController extends Controller
             'class_id' => $period->parallel_curriculum_class_id,
             'arm_id' => $period->parallel_curriculum_class_arm_id,
         ])->with('success', 'Parallel timetable period added.');
+    }
+
+    public function saveWorkingDays(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'days' => ['required', 'array'],
+            'days.*.is_working' => ['nullable', 'boolean'],
+            'days.*.resumption_time' => ['nullable', 'date_format:H:i'],
+            'days.*.closing_time' => ['nullable', 'date_format:H:i'],
+            'days.*.grace_minutes' => [
+                'nullable',
+                'integer',
+                'min:0',
+                'max:180',
+            ],
+        ]);
+
+        $days = [];
+
+        foreach (ParallelCurriculumOperationsService::DAYS as $day) {
+            $row = $request->input("days.$day", []);
+
+            $days[$day] = [
+                'is_working' => (bool) ($row['is_working'] ?? false),
+                'resumption_time' => $row['resumption_time'] ?? null,
+                'closing_time' => $row['closing_time'] ?? null,
+                'grace_minutes' => (int) ($row['grace_minutes'] ?? 0),
+            ];
+        }
+
+        $this->operations->saveWorkingDays(
+            $request->user(),
+            (int) $data['parallel_curriculum_id'],
+            $days
+        );
+
+        return back()->with(
+            'success',
+            'Parallel working days and daily attendance hours saved.'
+        );
+    }
+
+    public function clockInStaff(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $record = $this->operations->clockInParallelStaff(
+            $request->user(),
+            (int) $data['parallel_curriculum_id'],
+            'parallel_web'
+        );
+
+        return back()->with(
+            'success',
+            'Parallel attendance clock-in recorded at '.
+                substr((string) $record->clock_in_time, 0, 5).'.'
+        );
+    }
+
+    public function clockOutStaff(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $record = $this->operations->clockOutParallelStaff(
+            $request->user(),
+            (int) $data['parallel_curriculum_id']
+        );
+
+        return back()->with(
+            'success',
+            'Parallel attendance clock-out recorded at '.
+                substr((string) $record->clock_out_time, 0, 5).'.'
+        );
     }
 
     public function destroyPeriod(Request $request, ParallelCurriculumTimetablePeriod $period)
