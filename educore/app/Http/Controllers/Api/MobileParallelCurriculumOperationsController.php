@@ -107,6 +107,21 @@ class MobileParallelCurriculumOperationsController extends Controller
 
         $date = $data['date'] ?? now()->toDateString();
 
+        $workingDays = $curriculum
+            ? $this->operations->workingDays(
+                $tenantId,
+                (int) $curriculum->id
+            )
+            : collect();
+
+        $staffAttendance = $curriculum
+            ? $this->operations->staffAttendanceSheet(
+                $user,
+                (int) $curriculum->id,
+                $date
+            )
+            : null;
+
         $periods = $arm && $sessionId
             ? ParallelCurriculumTimetablePeriod::query()
                 ->with(['subject', 'teacher'])
@@ -147,7 +162,7 @@ class MobileParallelCurriculumOperationsController extends Controller
         }
 
         return response()->json([
-            'contract_version' => 1,
+            'contract_version' => 2,
             'generated_at' => now()->toIso8601String(),
             'selected' => [
                 'parallel_curriculum_id' => $curriculum?->id,
@@ -161,6 +176,14 @@ class MobileParallelCurriculumOperationsController extends Controller
                 'manage_timetable' => $this->operations->canManageTimetable($user),
                 'save_attendance' => $canSaveAttendance,
                 'export_attendance' => $this->operations->canExportAttendance($user),
+                'manage_working_days' =>
+                    $this->operations->canManageTimetable($user),
+                'clock_parallel_staff' => $curriculum
+                    ? $this->operations->canClockParallelStaff(
+                        $user,
+                        (int) $curriculum->id
+                    )
+                    : false,
             ],
             'curricula' => $curricula->map(fn ($item) => [
                 'id' => $item->id,
@@ -202,8 +225,77 @@ class MobileParallelCurriculumOperationsController extends Controller
                     })->values(),
                 ];
             })->values(),
-            'periods' => $periods->map(fn (ParallelCurriculumTimetablePeriod $period) => $this->periodPayload($period))->values(),
+            'working_days' => $workingDays->map(fn ($day) => [
+                'day_of_week' => (string) $day->day_of_week,
+                'is_working' => (bool) $day->is_working,
+                'resumption_time' => $day->resumption_time
+                    ? substr((string) $day->resumption_time, 0, 5)
+                    : null,
+                'closing_time' => $day->closing_time
+                    ? substr((string) $day->closing_time, 0, 5)
+                    : null,
+                'grace_minutes' => (int) $day->grace_minutes,
+            ])->values(),
+            'periods' => $periods
+                ->map(
+                    fn (ParallelCurriculumTimetablePeriod $period) =>
+                        $this->periodPayload($period)
+                )
+                ->values(),
             'attendance' => $attendance,
+            'staff_attendance' => $staffAttendance ? [
+                'date' => $staffAttendance['date'],
+                'day_of_week' => $staffAttendance['day_of_week'],
+                'is_working_day' =>
+                    (bool) $staffAttendance['schedule']->is_working,
+                'resumption_time' =>
+                    $staffAttendance['schedule']->resumption_time
+                        ? substr(
+                            (string) $staffAttendance['schedule']->resumption_time,
+                            0,
+                            5
+                        )
+                        : null,
+                'closing_time' =>
+                    $staffAttendance['schedule']->closing_time
+                        ? substr(
+                            (string) $staffAttendance['schedule']->closing_time,
+                            0,
+                            5
+                        )
+                        : null,
+                'grace_minutes' =>
+                    (int) $staffAttendance['schedule']->grace_minutes,
+                'can_clock_self' =>
+                    (bool) $staffAttendance['can_clock_self'],
+                'staff' => $staffAttendance['staff']
+                    ->map(function ($person) use ($staffAttendance): array {
+                        $record = $staffAttendance['records']->get($person->id);
+
+                        return [
+                            'user_id' => (int) $person->id,
+                            'name' => (string) $person->name,
+                            'status' => $record?->status,
+                            'departure_status' =>
+                                $record?->departure_status,
+                            'clock_in_time' => $record?->clock_in_time
+                                ? substr(
+                                    (string) $record->clock_in_time,
+                                    0,
+                                    5
+                                )
+                                : null,
+                            'clock_out_time' => $record?->clock_out_time
+                                ? substr(
+                                    (string) $record->clock_out_time,
+                                    0,
+                                    5
+                                )
+                                : null,
+                        ];
+                    })
+                    ->values(),
+            ] : null,
         ]);
     }
 
@@ -228,7 +320,7 @@ class MobileParallelCurriculumOperationsController extends Controller
                 'required',
                 Rule::exists('academic_sessions', 'id')->where('tenant_id', $tenantId),
             ],
-            'day_of_week' => ['required', Rule::in(['monday','tuesday','wednesday','thursday','friday'])],
+            'day_of_week' => ['required', Rule::in(ParallelCurriculumOperationsService::DAYS)],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'venue' => ['nullable', 'string', 'max:100'],
@@ -240,6 +332,121 @@ class MobileParallelCurriculumOperationsController extends Controller
             'message' => 'Parallel timetable period added.',
             'period' => $this->periodPayload($period),
         ], 201);
+    }
+
+    public function saveWorkingDays(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+            'days' => ['required', 'array'],
+            'days.*.day_of_week' => [
+                'required',
+                Rule::in(ParallelCurriculumOperationsService::DAYS),
+            ],
+            'days.*.is_working' => ['required', 'boolean'],
+            'days.*.resumption_time' => ['nullable', 'date_format:H:i'],
+            'days.*.closing_time' => ['nullable', 'date_format:H:i'],
+            'days.*.grace_minutes' => [
+                'nullable',
+                'integer',
+                'min:0',
+                'max:180',
+            ],
+        ]);
+
+        $days = collect($data['days'])
+            ->keyBy('day_of_week')
+            ->map(fn ($row) => [
+                'is_working' => (bool) $row['is_working'],
+                'resumption_time' =>
+                    $row['resumption_time'] ?? null,
+                'closing_time' =>
+                    $row['closing_time'] ?? null,
+                'grace_minutes' =>
+                    (int) ($row['grace_minutes'] ?? 0),
+            ])
+            ->all();
+
+        $saved = $this->operations->saveWorkingDays(
+            $request->user(),
+            (int) $data['parallel_curriculum_id'],
+            $days
+        );
+
+        return response()->json([
+            'message' =>
+                'Parallel working days and daily attendance hours saved.',
+            'working_days' => $saved->map(fn ($day) => [
+                'day_of_week' => (string) $day->day_of_week,
+                'is_working' => (bool) $day->is_working,
+                'resumption_time' => $day->resumption_time
+                    ? substr((string) $day->resumption_time, 0, 5)
+                    : null,
+                'closing_time' => $day->closing_time
+                    ? substr((string) $day->closing_time, 0, 5)
+                    : null,
+                'grace_minutes' => (int) $day->grace_minutes,
+            ])->values(),
+        ]);
+    }
+
+    public function clockInStaff(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $record = $this->operations->clockInParallelStaff(
+            $request->user(),
+            (int) $data['parallel_curriculum_id']
+        );
+
+        return response()->json([
+            'message' => 'Parallel attendance clock-in recorded.',
+            'status' => $record->status,
+            'clock_in_time' =>
+                substr((string) $record->clock_in_time, 0, 5),
+        ]);
+    }
+
+    public function clockOutStaff(Request $request)
+    {
+        $this->assertAvailable($request);
+        $tenantId = (int) $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'parallel_curriculum_id' => [
+                'required',
+                Rule::exists('parallel_curricula', 'id')
+                    ->where('tenant_id', $tenantId),
+            ],
+        ]);
+
+        $record = $this->operations->clockOutParallelStaff(
+            $request->user(),
+            (int) $data['parallel_curriculum_id']
+        );
+
+        return response()->json([
+            'message' => 'Parallel attendance clock-out recorded.',
+            'departure_status' => $record->departure_status,
+            'clock_out_time' =>
+                substr((string) $record->clock_out_time, 0, 5),
+        ]);
     }
 
     public function destroyPeriod(Request $request, ParallelCurriculumTimetablePeriod $period)
