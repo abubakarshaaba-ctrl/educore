@@ -18,6 +18,7 @@ class MobileModuleService
         'subjects' => ['Subjects', '/subjects', 'subjects'],
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
         'parallel-curriculum' => ['Parallel Curriculum', '/parallel-curriculum', 'curriculum'],
+        'parallel-timetable' => ['Parallel Timetable & Attendance', '/parallel-curriculum/operations', 'timetable'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
         'staff-attendance.admin' => ['Staff Attendance', '/staff-attendance', 'staff-attendance'],
@@ -55,7 +56,7 @@ class MobileModuleService
     ];
 
     private const ACADEMIC_MODULES = [
-        'classes', 'subjects', 'curriculum', 'parallel-curriculum', 'academic-cycle', 'attendance',
+        'classes', 'subjects', 'curriculum', 'parallel-curriculum', 'parallel-timetable', 'academic-cycle', 'attendance',
         'skills', 'scores', 'reports', 'timetable', 'lesson-planner', 'academic-repository',
     ];
 
@@ -72,6 +73,7 @@ class MobileModuleService
         'subjects' => ['subjects', 'subjects.view'],
         'curriculum' => ['curriculum', 'curriculum.view'],
         'parallel-curriculum' => ['scores'],
+        'parallel-timetable' => ['scores', 'scores.entry', 'timetable', 'timetable.view', 'attendance'],
         'academic-cycle' => ['academic-cycle', 'academic-session'],
         'attendance' => ['attendance', 'attendance.mark', 'student-attendance'],
         'skills' => ['skills', 'skills.rate'],
@@ -155,6 +157,20 @@ class MobileModuleService
                     return $isSchoolAdmin
                         && (bool) $user->tenant_id
                         && $this->parallel->enabledForTenant((int) $user->tenant_id);
+                }
+
+                if ($key === 'parallel-timetable') {
+                    return (bool) $user->tenant_id
+                        && $this->parallel->enabledForTenant((int) $user->tenant_id)
+                        && (
+                            $isSchoolAdmin
+                            || $user->canAccessExactModule('scores')
+                            || $user->canAccessExactModule('scores.entry')
+                            || $user->canAccessExactModule('timetable')
+                            || $user->canAccessExactModule('timetable.view')
+                            || $user->canAccessExactModule('attendance')
+                            || $this->hasExplicitAcademicGrant($user, $key)
+                        );
                 }
 
 
