@@ -414,6 +414,11 @@ interface EduCoreApi : AcademicKnowledgeApi {
         @Body request: ParallelArmTeacherMutationRequestDto,
     ): MessageDto
 
+    @POST("parallel-curriculum/lifecycle/arm-teaching-mode")
+    suspend fun saveParallelArmTeachingMode(
+        @Body request: ParallelArmTeachingModeMutationRequestDto,
+    ): MessageDto
+
     @POST("parallel-curriculum/lifecycle/grades")
     suspend fun createParallelGrade(@Body request: ParallelGradeMutationRequestDto): MessageDto
 
