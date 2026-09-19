@@ -8,7 +8,7 @@
 .pc-hero{padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#071E45,#0B2D63);color:#fff;margin-bottom:16px}.pc-hero h2{font-size:19px;margin:0 0 5px}.pc-hero p{font-size:11.5px;line-height:1.55;color:#DCE5F2;margin:0;max-width:820px}
 .pc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.pc-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-width:0}.pc-head{padding:12px 15px;background:#F8FAFC;border-bottom:1px solid var(--border);font-size:12px;font-weight:800;color:var(--midnight)}.pc-body{padding:15px}.pc-card.full{grid-column:1/-1}
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-width:0}.fl{font-size:10.5px;font-weight:800;color:var(--slate)}.fc{width:100%;min-height:39px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff;font:500 12px inherit;outline:none}.fc:focus{border-color:var(--indigo)}select[multiple].fc{min-height:155px}.form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:9px 14px;font:700 11.5px inherit;cursor:pointer;text-decoration:none}.btn-p{background:var(--indigo);color:#fff}.btn-s{background:#fff;color:var(--midnight);border:1px solid var(--border)}.btn-d{background:#FEF2F2;color:#B42318;border:1px solid #FECDCA}.hint{font-size:10.5px;color:var(--slate-light);line-height:1.45}
-.workspaces{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.workspace{display:block;padding:13px;border:1px solid var(--border);border-radius:10px;text-decoration:none;color:inherit;background:#fff}.workspace:hover{border-color:var(--indigo);background:#F8FAFF}.workspace strong{display:block;color:var(--midnight);font-size:12.5px}.workspace span{display:block;margin-top:4px;color:var(--slate);font-size:10.5px}.empty{padding:24px;text-align:center;color:var(--slate-light);font-size:12px}
+.workspaces{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}.workspace{display:block;padding:13px;border:1px solid var(--border);border-radius:10px;color:inherit;background:#fff;min-width:0}.workspace:hover{border-color:var(--indigo);background:#F8FAFF}.workspace strong{display:block;color:var(--midnight);font-size:12.5px;overflow-wrap:anywhere}.workspace span{display:block;margin-top:4px;color:var(--slate);font-size:10.5px;line-height:1.45}.workspace-badge{display:inline-flex!important;width:auto;margin-top:7px!important;padding:3px 7px;border-radius:999px;background:#ECFDF3;color:#067647!important;font-size:9px!important;font-weight:800}.workspace-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.workspace-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 9px;border-radius:7px;text-decoration:none;font-size:10px;font-weight:800}.workspace-open{background:var(--indigo);color:#fff}.workspace-secondary{background:#fff;color:var(--midnight);border:1px solid var(--border)}.empty{padding:24px;text-align:center;color:var(--slate-light);font-size:12px}
 .pc-feature-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.pc-feature-link{display:flex;flex-direction:column;gap:5px;min-height:112px;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;color:inherit;text-decoration:none}.pc-feature-link:hover{border-color:var(--indigo);background:#F8FAFF;box-shadow:var(--shadow)}.pc-feature-link strong{font-size:12.5px;line-height:1.35;color:var(--midnight)}.pc-feature-link span{font-size:10.5px;line-height:1.5;color:var(--slate)}.pc-feature-link small{margin-top:auto;font-size:9.5px;font-weight:800;color:var(--indigo);text-transform:uppercase;letter-spacing:.03em}
 .item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #EEF2F7}.item:last-child{border-bottom:0}.item-main{min-width:0}.item-main strong{display:block;color:var(--midnight);font-size:11.5px;overflow-wrap:anywhere}.item-main span{display:block;color:var(--slate-light);font-size:10px;margin-top:2px}.badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9.5px;font-weight:800;background:#EFF6FF;color:#1D4ED8}.badge.synced{background:#ECFDF3;color:#067647}.badge.pending{background:#FFFAEB;color:#B54708}.badge.conflict,.badge.locked{background:#FEF3F2;color:#B42318}.badge.unmapped{background:#F2F4F7;color:#475467}
 .alert-s,.alert-e{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.alert-s{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.alert-e{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}.checkbox-row{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--slate)}.checkbox-row input{margin-top:2px}
@@ -105,7 +105,7 @@
             @else
                 <div class="workspaces">
                     @foreach($workspaces as $workspace)
-                        <a class="workspace" href="{{ $workspace['score_sheet_url'] }}">
+                        <article class="workspace">
                             <strong>{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</strong>
                             <span>
                                 {{ $workspace['curriculum_name'] }}
@@ -118,7 +118,19 @@
                                     · Arm-specific roster
                                 @endif
                             </span>
-                        </a>
+                            @if(!empty($workspace['is_form_teacher']))
+                                <span class="workspace-badge">Form Teacher · All Subjects</span>
+                            @endif
+                            <div class="workspace-actions">
+                                <a class="workspace-open" href="{{ $workspace['score_sheet_url'] }}">Open Score Sheet</a>
+                                @if(!empty($workspace['attendance_url']))
+                                    <a class="workspace-secondary" href="{{ $workspace['attendance_url'] }}">Mark Attendance</a>
+                                @endif
+                                @if(!empty($workspace['form_teacher_comments_url']))
+                                    <a class="workspace-secondary" href="{{ $workspace['form_teacher_comments_url'] }}">Form Teacher Comments</a>
+                                @endif
+                            </div>
+                        </article>
                     @endforeach
                 </div>
             @endif
