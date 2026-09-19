@@ -2669,7 +2669,7 @@ private fun LazyListScope.lifecycleOperations(
 }
 
 @Composable
-private fun ParallelOperationsPanel(
+internal fun ParallelOperationsPanel(
     state: ParallelLifecycleUiState,
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
