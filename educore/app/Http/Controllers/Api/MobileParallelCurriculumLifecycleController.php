@@ -14,6 +14,7 @@ use App\Models\ParallelCurriculumClassGrade;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumPromotion;
 use App\Models\ParallelCurriculumPromotionRule;
+use App\Models\ParallelCurriculumScore;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumTransfer;
 use App\Models\Student;
@@ -550,6 +551,44 @@ class MobileParallelCurriculumLifecycleController extends Controller
             'parallel_curriculum_class_id' => (int) $class->id,
             'parallel_curriculum_class_arm_id' => (int) $arm->id,
             'session_id' => (int) $data['session_id'],
+        ]);
+    }
+
+    public function removeStudent(
+        Request $request,
+        ParallelCurriculumEnrolment $enrolment
+    ): JsonResponse {
+        $tenantId = $this->assertManage($request);
+        abort_unless((int) $enrolment->tenant_id === $tenantId, 403);
+
+        abort_if(
+            $this->parallel->enrolmentPlacementLocked($enrolment),
+            423,
+            'This student placement belongs to a published parallel result. Unpublish the class result before removing or moving the student.'
+        );
+
+        $hasScores = ParallelCurriculumScore::where(
+                'parallel_curriculum_id',
+                $enrolment->parallel_curriculum_id
+            )
+            ->where('student_id', $enrolment->student_id)
+            ->where('session_id', $enrolment->session_id)
+            ->exists();
+
+        if ($hasScores) {
+            $enrolment->update(['is_active' => false]);
+
+            return response()->json([
+                'message' => 'Student assignment archived because result records already exist.',
+                'archived' => true,
+            ]);
+        }
+
+        $enrolment->delete();
+
+        return response()->json([
+            'message' => 'Student removed from the parallel curriculum class.',
+            'archived' => false,
         ]);
     }
 
