@@ -23,6 +23,8 @@ use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\ParallelCurriculumService;
+use App\Services\ParallelCurriculumOperationsService;
+use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Services\ParallelCurriculumStudentAssignmentImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +37,7 @@ class ParallelCurriculumController extends Controller
     public function __construct(
         private readonly ParallelCurriculumService $service,
         private readonly ParallelCurriculumStudentAssignmentImportService $assignmentImport,
+        private readonly ParallelCurriculumOperationsService $operations,
     ) {}
 
     private function tenantId(): int
@@ -902,6 +905,14 @@ class ParallelCurriculumController extends Controller
             );
         }
 
+        $this->operations->validateTeacherChange(
+            $tenantId,
+            (int) $class->id,
+            (int) $parallelSubject->id,
+            null,
+            ! empty($data['teacher_id']) ? (int) $data['teacher_id'] : null,
+        );
+
         ParallelCurriculumClassSubject::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
@@ -912,6 +923,12 @@ class ParallelCurriculumController extends Controller
                 'teacher_id' => $data['teacher_id'] ?? null,
                 'is_active' => true,
             ]
+        );
+
+        $this->operations->syncTimetableTeachers(
+            $tenantId,
+            (int) $class->id,
+            (int) $parallelSubject->id,
         );
 
         if ($structureChanged) {
@@ -933,6 +950,13 @@ class ParallelCurriculumController extends Controller
         abort_unless((int) $assignment->tenant_id === $this->tenantId(), 403);
 
         $class = $this->classForTenant((int) $assignment->parallel_curriculum_class_id);
+        abort_if(
+            ParallelCurriculumTimetablePeriod::where('parallel_curriculum_class_id', $class->id)
+                ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
+                ->exists(),
+            423,
+            'Remove this subject from the parallel timetable before removing it from the class.'
+        );
         abort_if(
             $this->service->classStructureLocked($class),
             423,
