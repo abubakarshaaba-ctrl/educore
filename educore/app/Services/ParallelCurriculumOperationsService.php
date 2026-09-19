@@ -19,6 +19,7 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ParallelCurriculumOperationsService
@@ -470,15 +471,42 @@ class ParallelCurriculumOperationsService
         if ($armId) {
             $periodQuery->where('parallel_curriculum_class_arm_id', $armId);
         } else {
-            $overriddenArmIds = ParallelCurriculumArmSubjectTeacher::query()
+            $independentArmIds = ParallelCurriculumArmSubjectTeacher::query()
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_class_id', $classId)
                 ->where('parallel_curriculum_subject_id', $subjectId)
                 ->where('is_active', true)
                 ->pluck('parallel_curriculum_class_arm_id');
 
-            if ($overriddenArmIds->isNotEmpty()) {
-                $periodQuery->whereNotIn('parallel_curriculum_class_arm_id', $overriddenArmIds);
+            if (
+                Schema::hasColumn(
+                    'parallel_curriculum_class_arms',
+                    'teaching_assignment_mode'
+                )
+                && Schema::hasColumn(
+                    'parallel_curriculum_class_arms',
+                    'class_teacher_id'
+                )
+            ) {
+                $classTeacherArmIds = ParallelCurriculumClassArm::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('parallel_curriculum_class_id', $classId)
+                    ->where('is_active', true)
+                    ->where('teaching_assignment_mode', 'class_teacher')
+                    ->whereNotNull('class_teacher_id')
+                    ->pluck('id');
+
+                $independentArmIds = $independentArmIds
+                    ->merge($classTeacherArmIds)
+                    ->unique()
+                    ->values();
+            }
+
+            if ($independentArmIds->isNotEmpty()) {
+                $periodQuery->whereNotIn(
+                    'parallel_curriculum_class_arm_id',
+                    $independentArmIds
+                );
             }
         }
 
