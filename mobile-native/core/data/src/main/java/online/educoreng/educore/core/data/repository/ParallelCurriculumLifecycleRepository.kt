@@ -28,6 +28,8 @@ interface ParallelCurriculumLifecycleRepository {
         studentIds: List<Long>,
     ): AppResult<String>
 
+    suspend fun removeStudent(enrolmentId: Long): AppResult<String>
+
     suspend fun previewPromotion(
         curriculumId: Long,
         sourceSessionId: Long,
