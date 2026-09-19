@@ -25,6 +25,11 @@ class MobileParallelCurriculumOperationsController extends Controller
         $user = $request->user();
         abort_unless($user && ($user->isTenantStaff() || $user->isSuperAdmin()), 403);
         abort_unless(
+            $this->operations->canViewOperations($user),
+            403,
+            'You do not have access to parallel timetable and attendance.'
+        );
+        abort_unless(
             $this->parallel->enabledForTenant((int) $user->tenant_id),
             404,
             'Parallel Curriculum Integration is not enabled for this school.'
