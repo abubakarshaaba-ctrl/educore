@@ -152,8 +152,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             operationsWorkspace = workspace,
-                            selectedCurriculumId = workspace.selected.curriculumId,
-                            selectedSessionId = workspace.selected.sessionId,
                             isOperationsLoading = false,
                         )
                     }
@@ -177,7 +175,8 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         endTime: String,
         venue: String?,
     ) {
-        val sessionId = _uiState.value.selectedSessionId
+        val sessionId = _uiState.value.operationsWorkspace?.selected?.sessionId
+            ?: _uiState.value.selectedSessionId
             ?: return failLocal("Select an academic session first.")
         val timePattern = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
         if (!timePattern.matches(startTime) || !timePattern.matches(endTime)) {
