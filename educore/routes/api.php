@@ -151,6 +151,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('arms/{arm}', [MobileParallelCurriculumLifecycleController::class, 'archiveArm']);
             Route::post('grades', [MobileParallelCurriculumLifecycleController::class, 'storeClassGrade']);
             Route::delete('grades/{grade}', [MobileParallelCurriculumLifecycleController::class, 'destroyClassGrade']);
+            Route::post('arm-teachers', [MobileParallelCurriculumLifecycleController::class, 'storeArmTeacher']);
             Route::post('promotion-rules', [MobileParallelCurriculumLifecycleController::class, 'storePromotionRule']);
         });
 
