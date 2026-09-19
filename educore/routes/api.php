@@ -144,7 +144,9 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('parallel-curriculum/results')->group(function () {
             Route::get('/', [MobileParallelCurriculumResultController::class, 'index']);
+            Route::get('export', [MobileParallelCurriculumResultController::class, 'export']);
             Route::get('classes/{class}/students/{student}', [MobileParallelCurriculumResultController::class, 'student']);
+            Route::get('classes/{class}/students/{student}/pdf', [MobileParallelCurriculumResultController::class, 'studentPdf']);
             Route::post('publish', [MobileParallelCurriculumResultController::class, 'publish']);
             Route::post('unpublish', [MobileParallelCurriculumResultController::class, 'unpublish']);
         });
