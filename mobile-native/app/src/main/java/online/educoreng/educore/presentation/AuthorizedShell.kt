@@ -540,6 +540,7 @@ internal fun AuthorizedShell(
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
                                 onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
+                                onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
                                 onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
                                 onTransfer = parallelLifecycleViewModel::transfer,
                                 onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
@@ -553,6 +554,8 @@ internal fun AuthorizedShell(
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
                                 onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
+                                onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
+                                onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
                             )
                         }
                         composable(
