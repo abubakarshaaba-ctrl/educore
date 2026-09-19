@@ -91,6 +91,150 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         load(curriculumId, id)
     }
 
+    fun createProgramme(
+        name: String,
+        code: String?,
+        defaultAssessmentTemplateId: Long?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel programme name.")
+        val templateId = defaultAssessmentTemplateId
+            ?: return failLocal("Select the default assessment template.")
+
+        mutate {
+            repository.createProgramme(
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+                templateId,
+            )
+        }
+    }
+
+    fun updateProgramme(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+        defaultAssessmentTemplateId: Long?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel programme name.")
+        val templateId = defaultAssessmentTemplateId
+            ?: return failLocal("Select the default assessment template.")
+
+        mutate {
+            repository.updateProgramme(
+                curriculumId,
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+                templateId,
+            )
+        }
+    }
+
+    fun createClass(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+        assessmentTemplateId: Long?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel class level name.")
+        mutate {
+            repository.createClass(
+                curriculumId,
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+                assessmentTemplateId,
+            )
+        }
+    }
+
+    fun updateClass(
+        classId: Long,
+        name: String,
+        code: String?,
+        assessmentTemplateId: Long?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel class level name.")
+        mutate {
+            repository.updateClass(
+                classId,
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+                assessmentTemplateId,
+            )
+        }
+    }
+
+    fun createSubject(
+        curriculumId: Long,
+        name: String,
+        code: String?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel subject name.")
+        mutate {
+            repository.createSubject(
+                curriculumId,
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+            )
+        }
+    }
+
+    fun updateSubject(
+        subjectId: Long,
+        name: String,
+        code: String?,
+    ) {
+        if (name.isBlank()) return failLocal("Enter the parallel subject name.")
+        mutate {
+            repository.updateSubject(
+                subjectId,
+                name.trim(),
+                code?.trim()?.takeIf(String::isNotBlank),
+            )
+        }
+    }
+
+    fun saveClassSubject(
+        classId: Long,
+        subjectId: Long,
+        teacherId: Long?,
+    ) {
+        mutate { repository.saveClassSubject(classId, subjectId, teacherId) }
+    }
+
+    fun removeClassSubject(assignmentId: Long) {
+        mutate { repository.removeClassSubject(assignmentId) }
+    }
+
+    fun saveProgrammeGrade(
+        gradeLetter: String,
+        minScore: Double?,
+        maxScore: Double?,
+        remark: String?,
+        isPassGrade: Boolean,
+    ) {
+        val curriculumId = _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        if (gradeLetter.isBlank()) return failLocal("Enter a programme grade letter.")
+        if (minScore == null || maxScore == null || minScore > maxScore) {
+            return failLocal("Enter a valid minimum and maximum score.")
+        }
+
+        mutate {
+            repository.saveProgrammeGrade(
+                curriculumId,
+                gradeLetter.trim(),
+                minScore,
+                maxScore,
+                remark?.trim()?.takeIf(String::isNotBlank),
+                isPassGrade,
+            )
+        }
+    }
+
+    fun deleteProgrammeGrade(gradeId: Long) {
+        mutate { repository.deleteProgrammeGrade(gradeId) }
+    }
+
     fun loadStudents(
         conventionalClassArmId: Long? = _uiState.value.studentConventionalClassArmId,
         assignmentStatus: String = _uiState.value.studentAssignmentStatus,
