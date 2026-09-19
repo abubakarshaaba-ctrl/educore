@@ -25,6 +25,7 @@ import online.educoreng.educore.core.network.dto.ParallelPromotionPreviewRespons
 import online.educoreng.educore.core.network.dto.ParallelLifecycleResponseDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.SaveScoresRequestDto
 import online.educoreng.educore.core.network.dto.SaveScoresResponseDto
 import online.educoreng.educore.core.network.dto.ScoreAssignmentsResponseDto
@@ -205,6 +206,11 @@ interface EduCoreApi {
 
     @DELETE("parallel-curriculum/lifecycle/arms/{arm}")
     suspend fun archiveParallelArm(@Path("arm") armId: Long): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/arm-teachers")
+    suspend fun saveParallelArmTeacher(
+        @Body request: ParallelArmTeacherMutationRequestDto,
+    ): MessageDto
 
     @POST("parallel-curriculum/lifecycle/grades")
     suspend fun createParallelGrade(@Body request: ParallelGradeMutationRequestDto): MessageDto
