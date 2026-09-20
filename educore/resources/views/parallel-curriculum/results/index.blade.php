@@ -21,17 +21,7 @@
     @if(session('success'))<div class="note" style="background:#ECFDF3;color:#067647;border-color:#ABEFC6;margin-bottom:12px">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="note error" style="margin-bottom:12px">{{ $errors->first() }}</div>@endif
 
-    <div class="pc-tabs">
-        <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
-        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab">Parallel Workspace</a>
-        <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab">Programme Setup</a>
-        <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
-        <a href="{{ route('parallel-curriculum.class-list') }}" class="pc-tab">Class List</a>
-        <a href="{{ route('parallel-curriculum.teacher-list') }}" class="pc-tab">Teacher List</a>
-        <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
-        <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
-        <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab active">Parallel Results</a>
-    </div>
+    @include('parallel-curriculum.partials.module-navigation')
 
     <section class="panel">
         <div class="head">Select parallel class and term</div>
