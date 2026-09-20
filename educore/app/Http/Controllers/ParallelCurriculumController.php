@@ -109,6 +109,12 @@ class ParallelCurriculumController extends Controller
         $canViewOperations = $this->operations->canViewOperations(auth()->user());
         $currentSession = AcademicSession::current()->first();
         $currentTerm = Term::current()->with('session')->first();
+        $scoreTerms = $currentSession
+            ? Term::where('session_id', $currentSession->id)
+                ->orderByDesc('is_current')
+                ->orderBy('id')
+                ->get()
+            : collect();
 
         $armLifecycleReady = Schema::hasTable('parallel_curriculum_class_arms')
             && Schema::hasTable('parallel_curriculum_enrolments')
@@ -267,6 +273,7 @@ class ParallelCurriculumController extends Controller
             'canViewOperations',
             'currentSession',
             'currentTerm',
+            'scoreTerms',
             'curricula',
             'workspaces',
             'templates',
