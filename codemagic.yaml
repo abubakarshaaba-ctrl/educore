@@ -52,6 +52,26 @@ workflows:
             exit 1
           }
 
+          test -s "core/network/src/main/java/online/educoreng/educore/core/network/dto/ParallelSkillDtos.kt" || {
+            echo "Parallel curriculum skills contract is missing."
+            exit 1
+          }
+
+          test -s "core/network/src/main/java/online/educoreng/educore/core/network/AdvancedAdminApi.kt" || {
+            echo "Advanced Administration API contract is missing."
+            exit 1
+          }
+
+          grep -Fq "PlatformAuthorizedShell(" "app/src/main/java/online/educoreng/educore/presentation/EduCoreFoundationApp.kt" || {
+            echo "Native Platform shell routing is missing."
+            exit 1
+          }
+
+          if grep -Fq "else -> onOpenWebModule" "app/src/main/java/online/educoreng/educore/presentation/AuthorizedShell.kt"; then
+            echo "Generic browser fallback regression detected in AuthorizedShell."
+            exit 1
+          fi
+
           echo "Native source contract verified before Gradle."
       - name: Verify release environment
         script: |
