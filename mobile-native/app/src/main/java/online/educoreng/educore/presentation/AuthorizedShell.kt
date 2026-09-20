@@ -204,6 +204,13 @@ internal fun AuthorizedShell(
                     navController.navigate(ShellTabId.INBOX.route) { launchSingleTop = true }
                 }
             }
+            "attendance" -> moduleKeys.any { it in NativeRoute.PORTAL_ATTENDANCE_MODULES }.also { allowed ->
+                val studentId = target.id?.toLongOrNull()
+                if (allowed && studentId != null) {
+                    portalAttendanceViewModel.load(childId = studentId)
+                    navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
+                }
+            }
             else -> false
         }
         NotificationDeepLinkStore.consume()
@@ -869,6 +876,7 @@ private object NativeRoute {
     val MESSAGE_MODULES = setOf("messages", "parent.messages", "student.messages")
     val NOTIFICATION_MODULES = setOf("notifications.view", "parent.notifications", "student.notifications", "announcements")
     val CALENDAR_MODULES = setOf("calendar.view", "parent.calendar", "student.calendar")
+    val PORTAL_ATTENDANCE_MODULES = setOf("parent.attendance", "student.attendance")
     val OPERATIONS_MODULES = setOf(
         "staff", "finance", "subscription", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
         "health", "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
