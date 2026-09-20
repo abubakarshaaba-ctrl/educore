@@ -29,6 +29,9 @@ import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestD
 import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillWorkspaceDto
+import online.educoreng.educore.core.network.dto.ParallelSkillSaveRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillSaveResponseDto
 import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
 import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
@@ -207,6 +210,19 @@ interface EduCoreApi : AcademicKnowledgeApi {
     @POST("scores/save")
     suspend fun saveScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
 
+    @GET("scores/cumulative-broadsheet")
+    suspend fun cumulativeBroadsheet(
+        @Query("class_arm_id") classArmId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @Streaming
+    @GET("scores/cumulative-broadsheet/pdf")
+    suspend fun downloadCumulativeBroadsheetPdf(
+        @Query("class_arm_id") classArmId: Long,
+        @Query("session_id") sessionId: Long,
+    ): ResponseBody
+
     @GET("parallel-scores/teaching")
     suspend fun parallelScoreAssignments(): ScoreAssignmentsResponseDto
 
@@ -219,6 +235,17 @@ interface EduCoreApi : AcademicKnowledgeApi {
 
     @POST("parallel-scores/save")
     suspend fun saveParallelScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
+
+    @GET("parallel-curriculum/skills")
+    suspend fun parallelSkills(
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): ParallelSkillWorkspaceDto
+
+    @PUT("parallel-curriculum/skills")
+    suspend fun saveParallelSkills(
+        @Body request: ParallelSkillSaveRequestDto,
+    ): ParallelSkillSaveResponseDto
 
     @GET("parallel-curriculum/results")
     suspend fun parallelResults(
@@ -247,6 +274,40 @@ interface EduCoreApi : AcademicKnowledgeApi {
         @Path("class") classId: Long,
         @Path("student") studentId: Long,
         @Query("term_id") termId: Long,
+    ): ResponseBody
+
+    @GET("parallel-curriculum/results/broadsheet")
+    suspend fun parallelBroadsheet(
+        @Query("mode") mode: String = "termly",
+        @Query("class_id") classId: Long? = null,
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/broadsheet/pdf")
+    suspend fun downloadParallelBroadsheetPdf(
+        @Query("mode") mode: String = "termly",
+        @Query("class_id") classId: Long,
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/cumulative")
+    suspend fun parallelCumulativeStudentResult(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("session_id") sessionId: Long,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/cumulative/pdf")
+    suspend fun downloadParallelCumulativeStudentResultPdf(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("session_id") sessionId: Long,
     ): ResponseBody
 
     @POST("parallel-curriculum/results/publish")
