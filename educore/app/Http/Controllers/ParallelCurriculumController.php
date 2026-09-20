@@ -104,6 +104,10 @@ class ParallelCurriculumController extends Controller
     {
         $this->assertEnabled();
 
+        if (request()->routeIs('parallel-curriculum.setup')) {
+            $this->assertManage();
+        }
+
         $tenantId = $this->tenantId();
         $canManage = $this->canManage();
         $canViewOperations = $this->operations->canViewOperations(auth()->user());
@@ -309,7 +313,11 @@ class ParallelCurriculumController extends Controller
                 ->get()
             : collect();
 
-        return view('parallel-curriculum.index', compact(
+        $view = request()->routeIs('parallel-curriculum.setup')
+            ? 'parallel-curriculum.setup'
+            : 'parallel-curriculum.index';
+
+        return view($view, compact(
             'canManage',
             'canViewOperations',
             'currentSession',
