@@ -51,7 +51,11 @@
     <div class="toolbar">
         <a class="btn btn-s" href="{{ route('parallel-curriculum.results.index',['class_id'=>$report['class']->id,'term_id'=>$report['term']->id]) }}">← Back to Result Register</a>
         <div class="actions">
-            <a class="btn btn-p" href="{{ route('parallel-curriculum.results.student.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">Download PDF</a>
+            @if($isCumulative ?? false)
+                <a class="btn btn-p" href="{{ route('parallel-curriculum.results.student.cumulative.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'session_id'=>$report['term']->session_id]) }}">Download Cumulative PDF</a>
+            @else
+                <a class="btn btn-p" href="{{ route('parallel-curriculum.results.student.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">Download Term PDF</a>
+            @endif
         </div>
     </div>
 
