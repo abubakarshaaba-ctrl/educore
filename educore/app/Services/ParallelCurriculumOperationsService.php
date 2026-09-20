@@ -13,9 +13,11 @@ use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumStaffAttendanceRecord;
 use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\ParallelCurriculumWorkingDay;
+use App\Models\Student;
 use App\Models\Term;
 use App\Models\TimetablePeriod;
 use App\Models\User;
+use App\Services\Notifications\ActivityEmailService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -240,7 +242,7 @@ class ParallelCurriculumOperationsService
 
         $tenantId = (int) $user->tenant_id;
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $tenantId,
             $user,
             $arm,
@@ -263,9 +265,13 @@ class ParallelCurriculumOperationsService
                 abort(409, 'Parallel attendance changed on the server. Reload the sheet before saving.');
             }
 
+            $notificationCandidates = [];
+
             foreach ($records as $record) {
                 /** @var ParallelCurriculumEnrolment $enrolment */
                 $enrolment = $valid->get((int) $record['enrolment_id']);
+                $previousStatus = $current->get($enrolment->id)?->status;
+                $status = (string) $record['status'];
 
                 ParallelCurriculumAttendanceRecord::updateOrCreate(
                     [
@@ -280,10 +286,20 @@ class ParallelCurriculumOperationsService
                         'student_id' => $enrolment->student_id,
                         'term_id' => $term->id,
                         'marked_by' => $user->id,
-                        'status' => $record['status'],
+                        'status' => $status,
                         'remark' => $record['remark'] ?? null,
                     ]
                 );
+
+                if (
+                    in_array($status, ['absent', 'late'], true)
+                    && ! in_array($previousStatus, ['absent', 'late'], true)
+                ) {
+                    $notificationCandidates[] = [
+                        'student_id' => (int) $enrolment->student_id,
+                        'status' => $status,
+                    ];
+                }
             }
 
             $saved = ParallelCurriculumAttendanceRecord::query()
@@ -297,6 +313,7 @@ class ParallelCurriculumOperationsService
             return [
                 'saved' => count($records),
                 'version' => $this->attendanceVersion($saved),
+                'notification_candidates' => $notificationCandidates,
                 'summary' => [
                     'present' => $saved->where('status', 'present')->count(),
                     'absent' => $saved->where('status', 'absent')->count(),
@@ -305,6 +322,35 @@ class ParallelCurriculumOperationsService
                 ],
             ];
         });
+
+        $notificationCandidates = $result['notification_candidates'];
+        if ($notificationCandidates !== []) {
+            $students = Student::query()
+                ->with('guardians')
+                ->where('tenant_id', $tenantId)
+                ->whereIn(
+                    'id',
+                    collect($notificationCandidates)->pluck('student_id')->unique()
+                )
+                ->get()
+                ->keyBy('id');
+            $activityNotifications = app(ActivityEmailService::class);
+
+            foreach ($notificationCandidates as $candidate) {
+                $student = $students->get($candidate['student_id']);
+                if ($student) {
+                    $activityNotifications->notifyAttendanceStatus(
+                        $student,
+                        $candidate['status'],
+                        $date
+                    );
+                }
+            }
+        }
+
+        unset($result['notification_candidates']);
+
+        return $result;
     }
 
     public function attendanceReport(
