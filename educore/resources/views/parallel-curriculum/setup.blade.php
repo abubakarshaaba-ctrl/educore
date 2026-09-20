@@ -185,7 +185,7 @@
 
                     <div class="fg">
                         <label class="fl">Destination subject</label>
-                        <select class="fc" name="destination_subject_id" id="integration-destination-subject" required disabled>
+                        <select class="fc" name="destination_subject_id" id="integration-destination-subject" required>
                             <option value="">Select class level(s) first</option>
                             @foreach($conventionalSubjects as $subject)
                                 <option
@@ -543,6 +543,7 @@
         }
     }
 
+    levels?.addEventListener('input', refreshDestinationSubjects);
     levels?.addEventListener('change', refreshDestinationSubjects);
     subject?.addEventListener('change', refreshDestinationSubjects);
 
