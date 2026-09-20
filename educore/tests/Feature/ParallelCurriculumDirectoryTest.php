@@ -281,6 +281,30 @@ class ParallelCurriculumDirectoryTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_teacher_directory_uses_schema_safe_resolution_instead_of_score_workspace_service(): void
+    {
+        $controller = file_get_contents(
+            app_path('Http/Controllers/ParallelCurriculumDirectoryController.php')
+        );
+
+        $this->assertStringContainsString(
+            "DB::table('parallel_curriculum_class_subjects as pcs')",
+            $controller
+        );
+        $this->assertStringContainsString(
+            "Schema::hasColumn(\n                    'parallel_curriculum_class_arms',\n                    'teaching_assignment_mode'",
+            $controller
+        );
+        $this->assertStringContainsString(
+            "Schema::hasTable('parallel_curriculum_arm_subject_teachers')",
+            $controller
+        );
+        $this->assertStringNotContainsString(
+            'scoreWorkspacesForUser($user, null, true)',
+            $controller
+        );
+    }
+
     public function test_parallel_directory_views_are_responsive_and_print_ready(): void
     {
         $classView = file_get_contents(
