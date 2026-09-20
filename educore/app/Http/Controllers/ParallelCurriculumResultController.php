@@ -788,6 +788,8 @@ class ParallelCurriculumResultController extends Controller
         Collection $subjects,
         int $armId
     ): Collection {
+        $grades = collect($reports->first()['grades'] ?? []);
+
         $rowsByTerm = $reports->map(function (array $report) use ($armId) {
             $rows = collect($report['results'] ?? []);
 
@@ -813,7 +815,8 @@ class ParallelCurriculumResultController extends Controller
         $matrix = $studentIds->map(function ($studentId) use (
             $rowsByTerm,
             $periodTerms,
-            $subjects
+            $subjects,
+            $grades
         ): array {
             $firstRow = null;
             foreach ($periodTerms as $term) {
@@ -849,12 +852,22 @@ class ParallelCurriculumResultController extends Controller
                     ->filter(fn ($score) => $score !== null)
                     ->map(fn ($score) => (float) $score);
 
+                $cumulativeScore = $available->isNotEmpty()
+                    ? round((float) $available->avg(), 1)
+                    : null;
+                $grade = $cumulativeScore === null
+                    ? null
+                    : $grades->first(
+                        fn ($gradeRow) =>
+                            $cumulativeScore >= (float) $gradeRow->min_score
+                            && $cumulativeScore <= (float) $gradeRow->max_score
+                    );
+
                 $subjectRows[(int) $subject->id] = [
-                    'score' => $available->isNotEmpty()
-                        ? round((float) $available->avg(), 1)
-                        : null,
+                    'score' => $cumulativeScore,
                     'term_scores' => $termScores,
-                    'grade' => '—',
+                    'grade' => $grade?->grade_letter ?? '—',
+                    'is_pass' => (bool) ($grade?->is_pass_grade ?? false),
                     'complete' => $available->count() === $periodTerms->count(),
                 ];
             }
