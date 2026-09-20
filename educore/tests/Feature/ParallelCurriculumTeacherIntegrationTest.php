@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcademicSession;
 use App\Models\ParallelCurriculum;
+use App\Models\ParallelCurriculumArmSubjectTeacher;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
@@ -61,6 +62,51 @@ class ParallelCurriculumTeacherIntegrationTest extends TestCase
         $this->assertStringContainsString(
             '/parallel-curriculum/form-teacher-comments',
             $workspaces->first()['form_teacher_comments_url']
+        );
+    }
+
+    public function test_subject_based_parallel_teacher_gets_arm_specific_score_workspace(): void
+    {
+        $context = $this->context(true);
+
+        $context['arm']->update([
+            'teaching_assignment_mode' => 'subject_based',
+            'class_teacher_id' => null,
+        ]);
+
+        ParallelCurriculumArmSubjectTeacher::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'parallel_curriculum_subject_id' => $context['subject']->id,
+            'teacher_id' => $context['teacher']->id,
+            'is_active' => true,
+        ]);
+
+        $workspaces = app(ParallelCurriculumService::class)
+            ->scoreWorkspacesForUser($context['teacher'], $context['term']);
+
+        $this->assertCount(1, $workspaces);
+        $this->assertSame($context['class']->id, $workspaces->first()['class_id']);
+        $this->assertSame($context['arm']->id, $workspaces->first()['arm_id']);
+        $this->assertSame($context['subject']->id, $workspaces->first()['subject_id']);
+        $this->assertSame($context['teacher']->id, $workspaces->first()['effective_teacher_id']);
+        $this->assertFalse($workspaces->first()['is_form_teacher']);
+    }
+
+    public function test_parallel_workspace_view_contains_class_arm_subject_and_term_selectors(): void
+    {
+        $view = file_get_contents(
+            resource_path('views/parallel-curriculum/index.blade.php')
+        );
+
+        $this->assertStringContainsString('id="parallel-score-arm"', $view);
+        $this->assertStringContainsString('id="parallel-score-subject"', $view);
+        $this->assertStringContainsString('id="parallel-score-term"', $view);
+        $this->assertStringContainsString('Open Parallel Score Sheet', $view);
+        $this->assertStringContainsString(
+            'Conventional teaching assignments do not automatically assign parallel subjects',
+            $view
         );
     }
 
