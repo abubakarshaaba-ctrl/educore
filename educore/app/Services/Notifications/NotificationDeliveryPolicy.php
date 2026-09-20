@@ -16,7 +16,6 @@ final class NotificationDeliveryPolicy
         'student_absent',
         'student_late',
         'message_received',
-        'exam_scheduled',
         'exam_supervision_published',
         'platform_broadcast',
         'calendar_event',
@@ -42,6 +41,7 @@ final class NotificationDeliveryPolicy
     public const LEGACY_CONFIGURABLE_EVENTS = [
         'fee_payment_received',
         'report_card_published',
+        'exam_scheduled',
         'admission_status_changed',
         'fee_overdue',
         'invoice_generated',
