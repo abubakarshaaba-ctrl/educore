@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class ParallelCurriculumDirectoryController extends Controller
 {
@@ -89,7 +90,7 @@ class ParallelCurriculumDirectoryController extends Controller
         if (! $allArms && $selectedClass) {
             $requestedArmId = $request->integer('arm_id');
             $selectedArm = $requestedArmId
-                ? $arms->firstWhere('id', $requestedArmId)
+                ? ($arms->firstWhere('id', $requestedArmId) ?? $arms->first())
                 : $arms->first();
         }
 
@@ -188,18 +189,23 @@ class ParallelCurriculumDirectoryController extends Controller
 
         $classes = collect();
         if ($selectedCurriculum) {
-            $classes = ParallelCurriculumClass::with([
-                    'curriculum',
-                    'arms' => fn ($query) => $query
-                        ->where('is_active', true)
-                        ->orderBy('sort_order')
-                        ->orderBy('name'),
-                    'arms.subjectTeachers' => fn ($query) => $query
-                        ->where('is_active', true),
-                    'subjectAssignments' => fn ($query) => $query
-                        ->where('is_active', true),
-                    'subjectAssignments.subject',
-                ])
+            $relations = [
+                'curriculum',
+                'arms' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name'),
+                'subjectAssignments' => fn ($query) => $query
+                    ->where('is_active', true),
+                'subjectAssignments.subject',
+            ];
+
+            if (Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
+                $relations['arms.subjectTeachers'] = fn ($query) =>
+                    $query->where('is_active', true);
+            }
+
+            $classes = ParallelCurriculumClass::with($relations)
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_id', $selectedCurriculum->id)
                 ->where('is_active', true)
