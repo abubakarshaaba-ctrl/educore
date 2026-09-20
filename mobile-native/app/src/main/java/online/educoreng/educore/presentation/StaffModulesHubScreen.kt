@@ -82,6 +82,12 @@ internal fun StaffModulesHubScreen(
     var portalAccountsOpen by rememberSaveable { mutableStateOf(false) }
     var schoolSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var skillsOpen by rememberSaveable { mutableStateOf(false) }
+    var advancedAdminOpen by rememberSaveable { mutableStateOf(false) }
+
+    if (advancedAdminOpen) {
+        AdvancedAdministrationScreen(onBack = { advancedAdminOpen = false })
+        return
+    }
 
     if (profileOpen) {
         ProfileScreen(session = session, onBack = { profileOpen = false })
@@ -171,6 +177,9 @@ internal fun StaffModulesHubScreen(
             onConfirm = reportsViewModel::confirmManagementAction,
             onDismissConfirmation = reportsViewModel::dismissConfirmation,
             onDownload = reportsViewModel::downloadPdf,
+            onDownloadCumulative = {
+                reportsViewModel.downloadCumulativeBroadsheet(session.academicPeriod.sessionId)
+            },
             onDocumentOpened = reportsViewModel::consumeDocument,
             onRetry = reportsViewModel::load,
         )
@@ -389,6 +398,16 @@ internal fun StaffModulesHubScreen(
                         )
                     }
                 }
+            }
+        }
+        if (session.user.portal.equals("admin", ignoreCase = true)) {
+            item(key = "hub-admin-advanced-administration") {
+                EduCoreShowcaseTile(
+                    label = "Advanced Administration",
+                    icon = EduCoreIcons.Settings,
+                    onClick = { advancedAdminOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         item(key = "hub-signout", span = { GridItemSpan(maxLineSpan) }) {
