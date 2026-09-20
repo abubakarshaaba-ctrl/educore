@@ -38,7 +38,7 @@ body { font-family:'DejaVu Sans', 'Arial', sans-serif; font-size:8pt; color:#1E2
 /* ── TABLE ── */
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 thead th {
-    background:#071E45; color:#fff;
+    background:#071E45; color:#D79A21;
     padding:5pt 4pt; font-size:7pt; font-weight:700;
     text-align:center; border-right:0.5pt solid rgba(255,255,255,0.15);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
