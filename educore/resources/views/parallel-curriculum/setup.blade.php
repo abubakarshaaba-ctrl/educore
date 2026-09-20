@@ -148,7 +148,7 @@
                         <strong>Bulk student assignment workspace</strong>
                         <span>Filter learners by conventional class, gender, assignment status, name or admission number. Select many learners at once and place or move them into an independent parallel class.</span>
                     </div>
-                    <span class="badge">{{ $enrolments->count() }} active</span>
+                    <span class="badge">{{ $enrolmentTotal }} active</span>
                 </div>
                 <div class="hint" style="margin:10px 0 12px">Conventional classes are used only to find students. A learner's conventional placement is never changed by parallel-curriculum assignment.</div>
                 <a class="btn btn-p" href="{{ route('parallel-curriculum.student-assignments') }}">Open Student Assignment Workspace</a>
@@ -422,7 +422,7 @@
         <section id="setup-assignments" class="pc-card full" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">Current student parallel-class assignments @if($currentSession) · {{ $currentSession->name }}@endif</div>
             <div class="pc-body">
-                @forelse($enrolments->take(12) as $enrolment)
+                @forelse($enrolments as $enrolment)
                     <div class="item">
                         <div class="item-main"><strong>{{ $enrolment->student?->full_name }} · {{ $enrolment->curriculumClass?->name }}</strong><span>{{ $enrolment->curriculum?->name }} · Conventional: {{ $enrolment->student?->currentClassArm?->full_name ?: 'Not assigned' }}</span></div>
                         <form method="POST" action="{{ route('parallel-curriculum.enrolments.destroy',$enrolment) }}">@csrf <input type="hidden" name="_parallel_section" value="setup-assignments"> @method('DELETE')<button class="btn btn-d">Remove</button></form>
@@ -430,9 +430,9 @@
                 @empty
                     <div class="empty">No student has been assigned to a parallel class for the current session.</div>
                 @endforelse
-                @if($enrolments->count() > 12)
+                @if($enrolmentTotal > 12)
                     <div class="score-entry-help" style="margin-top:10px">
-                        Showing 12 of {{ $enrolments->count() }} active assignments here to keep the dashboard compact.
+                        Showing 12 of {{ $enrolmentTotal }} active assignments here to keep the dashboard compact.
                         <a href="{{ route('parallel-curriculum.student-assignments') }}">Open the Student Assignment Workspace</a> to view and manage the full list.
                     </div>
                 @endif
