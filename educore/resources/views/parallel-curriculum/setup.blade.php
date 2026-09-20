@@ -316,6 +316,7 @@
                                         <div class="pc-edit-panel">
                                             <form method="POST" action="{{ route('parallel-curriculum.subjects.update',$subject) }}">
                                                 @csrf
+                                                <input type="hidden" name="_parallel_section" value="setup-structure">
                                                 @method('PUT')
                                                 <div class="form-row">
                                                     <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" value="{{ $subject->name }}" required></div>
@@ -345,6 +346,7 @@
                                         <div class="pc-edit-panel">
                                             <form method="POST" action="{{ route('parallel-curriculum.classes.update',$class) }}">
                                                 @csrf
+                                                <input type="hidden" name="_parallel_section" value="setup-structure">
                                                 @method('PUT')
                                                 <div class="form-row">
                                                     <div class="fg"><label class="fl">Class name</label><input class="fc" name="name" value="{{ $class->name }}" required></div>
