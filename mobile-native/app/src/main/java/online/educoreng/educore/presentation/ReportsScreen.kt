@@ -63,6 +63,7 @@ internal fun ReportsScreen(
     onConfirm: () -> Unit,
     onDismissConfirmation: () -> Unit,
     onDownload: (ReportSummaryRowDto) -> Unit,
+    onDownloadCumulative: () -> Unit,
     onDocumentOpened: () -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -233,6 +234,12 @@ internal fun ReportsScreen(
                                     minLines = 2,
                                     maxLines = 4,
                                     supportingText = { Text("${state.publicationNote.length}/2000") },
+                                )
+                                EduCoreSecondaryButton(
+                                    text = "Download cumulative broadsheet PDF",
+                                    onClick = onDownloadCumulative,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !state.isDownloadingPdf && state.selectedClassId != null,
                                 )
                                 when {
                                     state.canPublish -> EduCorePrimaryButton(
