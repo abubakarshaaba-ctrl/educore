@@ -80,7 +80,7 @@
 </div>
 </div></section>
 
-<section id="teaching-assignment-model" class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm: one class teacher for every subject, or subject-based teachers that can work across multiple classes.</span></div></div><div class="body">
+<section id="teaching-assignment-model" class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm. In all-subject mode the class teacher sees only subjects already assigned to that class. In subject-based mode each teacher sees only the specific class/subject assignments that resolve to them.</span></div></div><div class="body">
 @if(!$armTeachingModesReady)
     <div class="alert-e" style="margin:0">
         Teaching assignment modes are waiting for the latest database migration. Existing subject-teacher assignments remain available.
@@ -92,6 +92,11 @@
         <strong>{{ $class->name }}</strong>
         <span>{{ $class->arms->where('is_active',true)->count() }} active arm(s) · {{ $class->subjectAssignments->where('is_active',true)->count() }} active subject(s)</span>
     </div>
+    @if($class->subjectAssignments->where('is_active',true)->isEmpty())
+        <div class="alert-e" style="margin-top:9px">
+            No active subject is assigned to {{ $class->name }}. A teacher may still be selected for the arm, but no parallel score-entry workspace will exist until subjects are explicitly assigned to this class under Parallel Curriculum → Assign subjects to class.
+        </div>
+    @endif
 
     @forelse($class->arms->where('is_active',true) as $arm)
         @php($teachingMode=$arm->teaching_assignment_mode ?: 'subject_based')
@@ -128,7 +133,7 @@
                 <div style="margin-top:9px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
                     <span class="hint">
                         @if($teachingMode==='class_teacher')
-                            Effective teacher for every subject: {{ $arm->classTeacher?->name ?: 'Not assigned' }} · also the form teacher for learner attendance and term comments
+                            Effective teacher for every subject assigned to this class: {{ $arm->classTeacher?->name ?: 'Not assigned' }} · also the form teacher for learner attendance and term comments
                         @else
                             Teachers resolve per subject for this arm.
                         @endif
@@ -140,7 +145,7 @@
             @if($teachingMode==='subject_based')
                 <div style="margin-top:12px;padding-top:12px;border-top:1px solid #EEF2F7">
                     <strong style="font-size:11px">Subject teacher assignments</strong>
-                    <div class="hint">Each subject may use its class-level default teacher or a different teacher for this arm.</div>
+                    <div class="hint">Only subjects explicitly assigned to this class are listed. A teacher sees a score workspace only for the subject/class-arm combinations effectively assigned to that teacher.</div>
 
                     @if(!$armTeacherOverridesReady)
                         <div class="alert-e" style="margin-top:9px">Arm-specific subject overrides require the latest database migration.</div>
@@ -178,7 +183,7 @@
                 </div>
             @else
                 <div class="hint" style="margin-top:12px;padding-top:10px;border-top:1px solid #EEF2F7">
-                    This class teacher is automatically the effective teacher for all active subjects and the form teacher for this arm, including learner attendance and term-specific form-teacher comments. Subject overrides are preserved but ignored until Subject-based teachers is selected again.
+                    This class teacher is automatically the effective teacher only for the active subjects explicitly assigned to this class, and is also the form teacher for this arm, including learner attendance and term-specific form-teacher comments. Subject overrides are preserved but ignored until Subject-based teachers is selected again.
                 </div>
             @endif
         </div>
