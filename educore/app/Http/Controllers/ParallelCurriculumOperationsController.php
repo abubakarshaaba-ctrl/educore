@@ -37,11 +37,17 @@ class ParallelCurriculumOperationsController extends Controller
         );
     }
 
+    public function attendance(Request $request)
+    {
+        return $this->index($request);
+    }
+
     public function index(Request $request)
     {
         $this->assertAvailable($request);
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
+        $attendanceOnly = $request->routeIs('parallel-curriculum.attendance.index');
         $canManageOperations = $this->operations->canManageOperations($user);
 
         $curricula = ParallelCurriculum::query()
@@ -263,6 +269,7 @@ class ParallelCurriculumOperationsController extends Controller
                     (int) $selectedCurriculum->id
                 )
                 : false,
+            'attendanceOnly' => $attendanceOnly,
         ]);
     }
 
