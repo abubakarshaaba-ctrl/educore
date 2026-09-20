@@ -2,125 +2,194 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\NotificationQueue;
+use App\Models\PlatformSetting;
+use App\Services\Notifications\NotificationDeliveryPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class NotificationTriggerController extends Controller
 {
-    // ── Trigger Settings Page ─────────────────────────────────────────
     public function index()
     {
         $triggers = DB::table('notification_triggers')
             ->where('tenant_id', auth()->user()->tenant_id)
-            ->get()->keyBy('event');
+            ->get()
+            ->keyBy('event');
 
         $logs = DB::table('notification_trigger_logs')
             ->where('tenant_id', auth()->user()->tenant_id)
             ->orderByDesc('created_at')
-            ->limit(50)->get();
+            ->limit(50)
+            ->get();
 
         return view('notifications.triggers', compact('triggers', 'logs'));
     }
 
     public function save(Request $request)
     {
-        $events = [
-            'fee_payment_received',
-            'report_card_published',
-            'student_absent',
-            'exam_scheduled',
-            'admission_status_changed',
-            'fee_overdue',
-            'invoice_generated',
-        ];
+        $tenantId = (int) auth()->user()->tenant_id;
 
-        $tid = auth()->user()->tenant_id;
-
-        foreach ($events as $event) {
-            $enabled = $request->boolean("enabled_{$event}");
-            $channel = $request->input("channel_{$event}", 'sms');
-            $template = $request->input("template_{$event}", '');
+        foreach (NotificationDeliveryPolicy::LEGACY_CONFIGURABLE_EVENTS as $event) {
+            $channel = $request->input("channel_{$event}", 'email');
+            abort_unless(in_array($channel, ['sms', 'email', 'both'], true), 422);
 
             DB::table('notification_triggers')->updateOrInsert(
-                ['tenant_id' => $tid, 'event' => $event],
+                ['tenant_id' => $tenantId, 'event' => $event],
                 [
-                    'is_enabled' => $enabled,
-                    'channel'    => $channel,
-                    'template'   => $template,
+                    'is_enabled' => $request->boolean("enabled_{$event}"),
+                    'channel' => $channel,
+                    'template' => trim((string) $request->input("template_{$event}", '')),
                     'updated_at' => now(),
                     'created_at' => now(),
                 ]
             );
         }
 
-        return back()->with('success', 'Notification triggers saved.');
+        // Historical routine rows must never bypass the canonical policy.
+        DB::table('notification_triggers')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('event', NotificationDeliveryPolicy::PUSH_IN_APP_ONLY)
+            ->update([
+                'is_enabled' => false,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with(
+            'success',
+            'Transactional notification preferences saved. Routine activity remains push + in-app.'
+        );
     }
 
-    // ── Fire a trigger (called from other controllers) ────────────────
-    public static function fire(string $event, array $data = [], ?int $tenantId = null): void
+    /**
+     * Compatibility hook for the old configurable trigger mechanism.
+     *
+     * Routine operational events are deliberately rejected here because their
+     * delivery is handled by PushNotificationService / in-app notification
+     * flows. Transactional reminder events may still use this explicit tenant
+     * configuration.
+     */
+    public static function fire(string $event, array $data = [], ?int $tenantId = null): int
     {
-        $tid = $tenantId ?? auth()->user()?->tenant_id;
-        if (!$tid) return;
+        if (! NotificationDeliveryPolicy::isLegacyConfigurable($event)) {
+            return 0;
+        }
+
+        $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        if (! $tenantId) {
+            return 0;
+        }
 
         $trigger = DB::table('notification_triggers')
-            ->where('tenant_id', $tid)
+            ->where('tenant_id', $tenantId)
             ->where('event', $event)
             ->where('is_enabled', true)
             ->first();
 
-        if (!$trigger) return;
+        if (! $trigger) {
+            return 0;
+        }
 
-        // Render template with placeholders
-        $message = self::renderTemplate($trigger->template, $data);
-        $phone   = $data['phone'] ?? null;
+        $message = self::renderTemplate((string) $trigger->template, $data);
+        if ($message === '') {
+            return 0;
+        }
 
-        if (!$phone || !$message) return;
+        $channels = $trigger->channel === 'both'
+            ? ['sms', 'email']
+            : [(string) $trigger->channel];
 
-        NotificationQueue::create([
-            'tenant_id' => $tid,
-            'channel' => $trigger->channel,
-            'recipient' => $phone,
-            'body' => $message,
-            'status' => 'pending',
-        ]);
+        $delivery = app(NotificationController::class);
+        $delivered = 0;
 
-        // Log it
-        DB::table('notification_trigger_logs')->insert([
-            'tenant_id' => $tid,
-            'event'     => $event,
-            'channel'   => $trigger->channel,
-            'recipient' => $phone,
-            'status'    => 'queued',
-            'created_at'=> now(),
-            'updated_at'=> now(),
-        ]);
+        foreach ($channels as $channel) {
+            $recipient = $channel === 'email'
+                ? trim((string) ($data['email'] ?? ''))
+                : trim((string) ($data['phone'] ?? ''));
+
+            if (
+                $recipient === ''
+                || ($channel === 'email' && ! filter_var($recipient, FILTER_VALIDATE_EMAIL))
+            ) {
+                continue;
+            }
+
+            $status = 'failed';
+
+            if ($channel === 'email') {
+                $subject = trim((string) ($data['subject'] ?? str($event)->replace('_', ' ')->headline()));
+                $status = $delivery->sendEmailNotification($recipient, $subject, $message)
+                    ? 'sent'
+                    : 'failed';
+            } else {
+                $gateway = PlatformSetting::valueFor('default_sms_gateway', 'termii');
+                $result = $gateway === 'africas_talking'
+                    ? $delivery->sendSmsViaAfricasTalking($recipient, $message)
+                    : $delivery->sendSmsViaTermii($recipient, $message, (string) $tenantId);
+                $status = ($result['status'] ?? null) === 'sent' ? 'sent' : 'failed';
+            }
+
+            DB::table('notification_trigger_logs')->insert([
+                'tenant_id' => $tenantId,
+                'event' => $event,
+                'channel' => $channel,
+                'recipient' => $recipient,
+                'status' => $status,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            if ($status === 'sent') {
+                $delivered++;
+            }
+        }
+
+        return $delivered;
     }
 
     private static function renderTemplate(string $template, array $data): string
     {
         foreach ($data as $key => $value) {
-            $template = str_replace('{' . $key . '}', $value, $template);
+            if (is_scalar($value) || $value === null) {
+                $template = str_replace('{'.$key.'}', (string) $value, $template);
+            }
         }
-        return $template;
+
+        return trim($template);
     }
 
-    // ── Test a trigger ─────────────────────────────────────────────────
     public function test(Request $request)
     {
         $data = $request->validate([
-            'event' => ['required', 'string'],
-            'phone' => ['required', 'string'],
+            'event' => ['required', Rule::in(NotificationDeliveryPolicy::LEGACY_CONFIGURABLE_EVENTS)],
+            'phone' => ['nullable', 'string', 'required_without:email'],
+            'email' => ['nullable', 'email', 'required_without:phone'],
         ]);
 
-        self::fire($data['event'], [
-            'phone'        => $data['phone'],
-            'student_name' => 'Test Student',
-            'amount'       => '5,000',
-            'school_name'  => auth()->user()->tenant?->name,
-            'date'         => now()->format('d M Y'),
-        ], auth()->user()->tenant_id);
+        $sent = self::fire(
+            $data['event'],
+            [
+                'phone' => $data['phone'] ?? null,
+                'email' => $data['email'] ?? null,
+                'student_name' => 'Test Student',
+                'amount' => '5,000',
+                'balance' => '2,500',
+                'term' => 'Current Term',
+                'position' => '1',
+                'average' => '80',
+                'status' => 'approved',
+                'due_date' => now()->addDays(7)->format('d M Y'),
+                'school_name' => auth()->user()->tenant?->name,
+                'date' => now()->format('d M Y'),
+            ],
+            (int) auth()->user()->tenant_id
+        );
 
-        return back()->with('success', "Test notification queued for {$data['phone']}.");
+        return back()->with(
+            $sent > 0 ? 'success' : 'error',
+            $sent > 0
+                ? "Test notification delivered through {$sent} configured channel(s)."
+                : 'No test notification was delivered. Enable the event and provide the recipient required by its configured channel.'
+        );
     }
 }
