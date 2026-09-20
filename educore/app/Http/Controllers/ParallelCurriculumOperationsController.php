@@ -42,12 +42,25 @@ class ParallelCurriculumOperationsController extends Controller
         $this->assertAvailable($request);
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
+        $canManageOperations = $this->operations->canManageOperations($user);
 
         $curricula = ParallelCurriculum::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+
+        if (! $canManageOperations) {
+            $curricula = $curricula
+                ->filter(
+                    fn (ParallelCurriculum $curriculum) =>
+                        $this->operations->canClockParallelStaff(
+                            $user,
+                            (int) $curriculum->id
+                        )
+                )
+                ->values();
+        }
 
         $sessions = AcademicSession::query()
             ->where('tenant_id', $tenantId)
@@ -61,7 +74,15 @@ class ParallelCurriculumOperationsController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $curriculumId = $request->integer('parallel_curriculum_id')
+        $requestedCurriculumId = $request->integer('parallel_curriculum_id');
+        if (
+            $requestedCurriculumId
+            && ! $curricula->contains('id', $requestedCurriculumId)
+        ) {
+            abort(403, 'You are not assigned to the selected parallel curriculum.');
+        }
+
+        $curriculumId = $requestedCurriculumId
             ?: (int) optional($curricula->first())->id;
         $sessionId = $request->integer('session_id')
             ?: (int) optional($sessions->firstWhere('is_current', true) ?? $sessions->first())->id;
@@ -81,12 +102,48 @@ class ParallelCurriculumOperationsController extends Controller
                 ->find($curriculumId)
             : null;
 
+        if ($selectedCurriculum && ! $canManageOperations) {
+            $selectedCurriculum->classes->each(function ($class) use ($user): void {
+                $class->setRelation(
+                    'arms',
+                    $class->arms
+                        ->filter(
+                            fn (ParallelCurriculumClassArm $arm) =>
+                                $this->operations->canMarkAttendance(
+                                    $user,
+                                    $arm
+                                )
+                        )
+                        ->values()
+                );
+            });
+
+            $selectedCurriculum->setRelation(
+                'classes',
+                $selectedCurriculum->classes
+                    ->filter(fn ($class) => $class->arms->isNotEmpty())
+                    ->values()
+            );
+        }
+
         $classes = $selectedCurriculum?->classes ?? collect();
-        $classId = $request->integer('class_id') ?: (int) optional($classes->first())->id;
+
+        $requestedClassId = $request->integer('class_id');
+        if ($requestedClassId && ! $classes->contains('id', $requestedClassId)) {
+            abort(403, 'You are not assigned to the selected parallel class.');
+        }
+
+        $classId = $requestedClassId ?: (int) optional($classes->first())->id;
         $selectedClass = $classes->firstWhere('id', $classId);
 
         $arms = $selectedClass?->arms ?? collect();
-        $armId = $request->integer('arm_id') ?: (int) optional($arms->first())->id;
+
+        $requestedArmId = $request->integer('arm_id');
+        if ($requestedArmId && ! $arms->contains('id', $requestedArmId)) {
+            abort(403, 'You are not assigned to the selected parallel class arm.');
+        }
+
+        $armId = $requestedArmId ?: (int) optional($arms->first())->id;
         $selectedArm = $arms->firstWhere('id', $armId);
 
         $terms = $terms->where('session_id', $sessionId)->values();
@@ -164,7 +221,16 @@ class ParallelCurriculumOperationsController extends Controller
             'attendance' => $attendance,
             'canManageTimetable' => $this->operations->canManageTimetable($user),
             'canMarkAttendance' => $canMarkAttendance,
-            'canExportAttendance' => $this->operations->canExportAttendance($user),
+            'canExportAttendance' => $selectedArm
+                ? $this->operations->canExportAttendance($user)
+                    && (
+                        $canManageOperations
+                        || $this->operations->canMarkAttendance(
+                            $user,
+                            $selectedArm
+                        )
+                    )
+                : false,
             'workingDays' => $workingDays,
             'staffAttendance' => $staffAttendance,
             'canClockParallelStaff' => $selectedCurriculum
