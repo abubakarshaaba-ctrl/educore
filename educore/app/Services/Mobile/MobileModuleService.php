@@ -4,11 +4,15 @@ namespace App\Services\Mobile;
 
 use App\Models\ClassArm;
 use App\Models\User;
+use App\Services\ParallelCurriculumOperationsService;
 use App\Services\ParallelCurriculumService;
 
 class MobileModuleService
 {
-    public function __construct(private readonly ParallelCurriculumService $parallel) {}
+    public function __construct(
+        private readonly ParallelCurriculumService $parallel,
+        private readonly ParallelCurriculumOperationsService $parallelOperations,
+    ) {}
 
     private const STAFF_MODULES = [
         'dashboard' => ['Dashboard', '/dashboard', 'dashboard'],
@@ -165,7 +169,7 @@ class MobileModuleService
                 if ($key === 'parallel-timetable') {
                     return (bool) $user->tenant_id
                         && $this->parallel->enabledForTenant((int) $user->tenant_id)
-                        && $user->canAccessRoute('parallel-curriculum.operations.index');
+                        && $this->parallelOperations->canViewOperations($user);
                 }
 
                 if ($key === 'staff-attendance.admin') {
