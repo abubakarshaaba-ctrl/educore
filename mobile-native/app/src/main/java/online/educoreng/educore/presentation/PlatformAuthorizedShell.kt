@@ -47,6 +47,7 @@ internal fun PlatformAuthorizedShell(
     var gatewayEditorOpen by remember { mutableStateOf(false) }
     var agentManagementOpen by remember { mutableStateOf(false) }
     var billingManagementOpen by remember { mutableStateOf(false) }
+    var advancedAdminOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (state.dashboard == null && !state.isLoading) viewModel.load(PlatformSection.OVERVIEW)
@@ -59,6 +60,10 @@ internal fun PlatformAuthorizedShell(
     LaunchedEffect(billingManagementOpen) { if (billingManagementOpen) billingViewModel.load() }
 
     when {
+        advancedAdminOpen -> AdvancedAdministrationScreen(
+            onBack = { advancedAdminOpen = false },
+        )
+
         provisioningOpen -> PlatformProvisioningScreen(
             state = provisioningState,
             onBack = {
@@ -278,6 +283,11 @@ internal fun PlatformAuthorizedShell(
                 }
             } else {
                 when {
+                    state.section == PlatformSection.OVERVIEW && !state.isLoading -> EduCorePrimaryButton(
+                        text = "Advanced administration",
+                        onClick = { advancedAdminOpen = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(EduCoreSpacing.Lg),
+                    )
                     state.section == PlatformSection.SCHOOLS && !state.isLoading && state.tenants != null -> EduCorePrimaryButton(
                         text = "Manage schools",
                         onClick = { schoolDirectoryOpen = true },
