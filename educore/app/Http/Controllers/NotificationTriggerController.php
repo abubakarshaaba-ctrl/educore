@@ -175,6 +175,8 @@ class NotificationTriggerController extends Controller
                 'amount' => '5,000',
                 'balance' => '2,500',
                 'term' => 'Current Term',
+                'exam_title' => 'Sample CBT Examination',
+                'subject' => 'Sample Subject',
                 'position' => '1',
                 'average' => '80',
                 'status' => 'approved',
