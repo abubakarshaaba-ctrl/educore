@@ -342,6 +342,48 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
     }
 
+    public function test_sync_uses_class_level_mapping_instead_of_rejecting_a_different_arm_track(): void
+    {
+        $fixture = $this->mappingFixture();
+
+        $trackId = DB::table('academic_tracks')->insertGetId([
+            'tenant_id' => $fixture['tenant']->id,
+            'name' => 'Science',
+            'slug' => 'science-sync-'.uniqid(),
+            'section' => 'senior',
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        ClassLevelSubject::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_level_id' => $fixture['classLevel']->id,
+            'academic_track_id' => $trackId,
+            'subject_id' => $fixture['subject']->id,
+            'subject_status' => 'compulsory',
+            'is_active' => true,
+        ]);
+
+        $enrolment = ParallelCurriculumEnrolment::where(
+                'parallel_curriculum_id',
+                $fixture['curriculum']->id
+            )
+            ->where('student_id', $fixture['student']->id)
+            ->firstOrFail();
+
+        $composite = app(ParallelCurriculumService::class)
+            ->syncStudent($enrolment, $fixture['term'], true);
+
+        $this->assertNotNull($composite);
+        $this->assertNotSame('unmapped', $composite->sync_status);
+        $this->assertStringNotContainsString(
+            'not offered for this student',
+            (string) $composite->sync_message
+        );
+    }
+
     public function test_parallel_setup_includes_year_12_subjects_still_recorded_in_class_arm_assignments(): void
     {
         $context = $this->managerContext();
