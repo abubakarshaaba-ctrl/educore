@@ -592,6 +592,107 @@ interface EduCoreApi {
     @GET("cbt/sessions/{session}/questions/{question}/image")
     suspend fun cbtQuestionImage(@Path("session") sessionId: Long, @Path("question") questionId: Long): ResponseBody
 
+    // Low-level transport coverage for mobile administration/operations modules.
+    // Typed repositories may wrap these endpoints incrementally, but keeping
+    // them in the native API contract prevents backend/mobile route drift.
+    @GET("academic-cycle")
+    suspend fun mobileAcademicCycle(): ResponseBody
+
+    @GET("subjects")
+    suspend fun mobileSubjects(): ResponseBody
+
+    @GET("curriculum")
+    suspend fun mobileCurriculum(): ResponseBody
+
+    @GET("skills")
+    suspend fun mobileSkills(): ResponseBody
+
+    @GET("skills/sheet")
+    suspend fun mobileSkillsSheet(
+        @Query("class_arm_id") classArmId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): ResponseBody
+
+    @PUT("skills/sheet")
+    suspend fun saveMobileSkillsSheet(@Body request: RequestBody): ResponseBody
+
+    @GET("gradebook")
+    suspend fun mobileGradebook(): ResponseBody
+
+    @GET("reports")
+    suspend fun mobileReports(): ResponseBody
+
+    @GET("portal-accounts")
+    suspend fun mobilePortalAccounts(): ResponseBody
+
+    @GET("school-settings")
+    suspend fun mobileSchoolSettings(): ResponseBody
+
+    @GET("risk")
+    suspend fun mobileRisk(): ResponseBody
+
+    @GET("library/options")
+    suspend fun mobileLibraryOptions(): ResponseBody
+
+    @GET("inventory")
+    suspend fun mobileInventory(): ResponseBody
+
+    @GET("hostels")
+    suspend fun mobileHostels(): ResponseBody
+
+    @GET("transfers")
+    suspend fun mobileTransfers(): ResponseBody
+
+    @GET("admin/staff-attendance")
+    suspend fun adminStaffAttendance(): ResponseBody
+
+    @GET("admin/staff-attendance/report")
+    suspend fun adminStaffAttendanceReport(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): ResponseBody
+
+    @POST("admin/staff-attendance/manual")
+    suspend fun adminStaffAttendanceManual(@Body request: RequestBody): ResponseBody
+
+    @GET("admin/staff-attendance/offline")
+    suspend fun adminOfflineAttendance(): ResponseBody
+
+    @POST("admin/staff-attendance/offline/{record}")
+    suspend fun processAdminOfflineAttendance(
+        @Path("record") recordId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admin/staff-attendance/proxy-reviews")
+    suspend fun adminProxyAttendanceReviews(): ResponseBody
+
+    @POST("admin/staff-attendance/proxy-reviews/{record}")
+    suspend fun decideAdminProxyAttendance(
+        @Path("record") recordId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admin/staff-attendance/qr")
+    suspend fun adminStaffAttendanceQr(): ResponseBody
+
+    @POST("admin/staff-attendance/reset-qr")
+    suspend fun resetAdminStaffAttendanceQr(): ResponseBody
+
+    @PUT("admin/staff-attendance/settings")
+    suspend fun updateAdminStaffAttendanceSettings(@Body request: RequestBody): ResponseBody
+
+    @GET("platform/broadcasts")
+    suspend fun platformBroadcasts(): ResponseBody
+
+    @POST("platform/broadcasts")
+    suspend fun createPlatformBroadcast(@Body request: RequestBody): ResponseBody
+
+    @POST("platform/broadcasts/{broadcast}/expire")
+    suspend fun expirePlatformBroadcast(
+        @Path("broadcast") broadcastId: Long,
+    ): ResponseBody
+
     @POST("auth/logout")
     suspend fun logout(): MessageDto
 }
