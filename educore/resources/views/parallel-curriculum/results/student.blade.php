@@ -23,6 +23,8 @@
 @section('content')
 @php($row=$report['student_result'])
 <div class="pc-result">
+    @include('parallel-curriculum.partials.module-navigation')
+
     <div class="toolbar">
         <a class="btn btn-s" href="{{ route('parallel-curriculum.results.index',['class_id'=>$report['class']->id,'term_id'=>$report['term']->id]) }}">← Back to Result Register</a>
         <div class="actions">
