@@ -34,11 +34,11 @@ class ParallelCurriculumExperienceTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "$programmeName.' Student Termly Performance Report'",
+            "\$programmeName.' Student Termly Performance Report'",
             $controller
         );
         $this->assertStringContainsString(
-            "$programmeName.' Cumulative Student Performance Report'",
+            "\$programmeName.' Cumulative Student Performance Report'",
             $controller
         );
     }
@@ -82,7 +82,7 @@ class ParallelCurriculumExperienceTest extends TestCase
             $controller
         );
         $this->assertStringContainsString(
-            "'attendanceOnly' => $attendanceOnly",
+            "'attendanceOnly' => \$attendanceOnly",
             $controller
         );
         $this->assertStringContainsString(
