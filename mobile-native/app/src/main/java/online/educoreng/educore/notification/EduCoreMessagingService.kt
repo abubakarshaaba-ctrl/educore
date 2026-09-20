@@ -24,10 +24,12 @@ import online.educoreng.educore.BuildConfig
 import online.educoreng.educore.MainActivity
 import online.educoreng.educore.R
 import online.educoreng.educore.core.data.repository.CommunicationRepository
+import online.educoreng.educore.core.data.repository.SessionRepository
 
 @AndroidEntryPoint
 class EduCoreMessagingService : FirebaseMessagingService() {
     @Inject lateinit var communicationRepository: CommunicationRepository
+    @Inject lateinit var sessionRepository: SessionRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -37,11 +39,16 @@ class EduCoreMessagingService : FirebaseMessagingService() {
         // issues a new registration token, while preserving the per-user token
         // registration used by school-specific notifications.
         FirebaseMessaging.getInstance().subscribeToTopic(APP_UPDATE_CHANNEL_ID)
-        serviceScope.launch { communicationRepository.registerPushToken(token) }
+        if (sessionRepository.hasStoredToken()) {
+            serviceScope.launch { communicationRepository.registerPushToken(token) }
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val isAppUpdate = message.data["type"] == APP_UPDATE_TYPE
+        if (!isAppUpdate && !sessionRepository.hasStoredToken()) {
+            return
+        }
         if (isAppUpdate) {
             val announcedVersionCode = message.data["version_code"]?.toIntOrNull()
             if (announcedVersionCode != null && announcedVersionCode <= BuildConfig.VERSION_CODE) {
