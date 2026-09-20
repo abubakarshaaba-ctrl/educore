@@ -18,6 +18,18 @@
 
 <div class="hero"><h2>Parallel Academic Lifecycle</h2><p>Manage class arms, class-level grading, promotion rules, next-session promotion and audited intra-/inter-class transfers independently from the conventional school structure.</p></div>
 
+<div class="pc-jumpbar" aria-label="Academic lifecycle sections">
+    <span class="pc-jumpbar-label">Jump to</span>
+    <a href="#lifecycle-arms">Class Arms</a>
+    <a href="#lifecycle-grades">Grade System</a>
+    <a href="#teaching-assignment-model">Teacher Assignment</a>
+    <a href="#lifecycle-promotion-rules">Promotion Rules</a>
+    <a href="#lifecycle-promotion-engine">Run Promotion</a>
+    <a href="#lifecycle-transfer">Transfers</a>
+    <a href="#lifecycle-transfer-history">Transfer History</a>
+    <a href="#lifecycle-promotion-history">Promotion History</a>
+</div>
+
 <form class="filter" method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}">
 <div class="fg" style="margin:0"><label class="fl">Parallel curriculum</label><select class="fc" name="parallel_curriculum_id">@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}" @selected((int)$curriculumId===(int)$curriculum->id)>{{ $curriculum->name }}</option>@endforeach</select></div>
 <div class="fg" style="margin:0"><label class="fl">Working session</label><select class="fc" name="session_id">@foreach($sessions as $session)<option value="{{ $session->id }}" @selected((int)$sessionId===(int)$session->id)>{{ $session->name }}{{ $session->is_current?' · Current':'' }}</option>@endforeach</select></div>
