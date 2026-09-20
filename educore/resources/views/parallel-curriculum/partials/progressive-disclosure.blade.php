@@ -7,9 +7,42 @@
         try { window.localStorage.setItem(key, value); } catch (e) {}
     };
 
+    const normaliseFieldName = (value) => String(value || '')
+        .replace(/\[([^\]]*)\]/g, '.$1')
+        .replace(/^\.+|\.+$/g, '');
+
+    const validationFields = Array.from(
+        document.querySelectorAll('[data-parallel-validation-error]')
+    ).flatMap((alert) => {
+        const raw = alert.dataset.parallelValidationFields || '[]';
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed)
+                ? parsed.map(normaliseFieldName).filter(Boolean)
+                : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    const itemContainsValidationError = (item) => {
+        if (validationFields.length === 0) return false;
+
+        const fieldNames = Array.from(item.querySelectorAll('[name]'))
+            .map((element) => normaliseFieldName(element.getAttribute('name')))
+            .filter(Boolean);
+
+        return validationFields.some((errorField) =>
+            fieldNames.some((fieldName) =>
+                errorField === fieldName
+                || errorField.startsWith(fieldName + '.')
+                || fieldName.startsWith(errorField + '.')
+            )
+        );
+    };
+
     document.querySelectorAll('[data-collapsible-root]').forEach((root) => {
         const storageKey = root.dataset.storageKey || 'parallel-curriculum';
-        const hasValidationError = !!document.querySelector('[data-parallel-validation-error]');
         const items = Array.from(root.querySelectorAll('[data-collapsible-item]'));
 
         const applyState = (item, collapsed, persist = true) => {
@@ -48,9 +81,12 @@
                 ? document.querySelector(window.location.hash)
                 : null;
             const containsHashTarget = !!hashTarget && (item === hashTarget || item.contains(hashTarget));
+            const containsValidationError = itemContainsValidationError(item);
+            if (containsValidationError) item.dataset.validationError = '1';
+
             const stored = safeRead(storageKey + ':' + collapseId);
             const defaultCollapsed = root.dataset.collapseDefault !== 'open';
-            const collapsed = containsHashTarget || hasValidationError
+            const collapsed = containsHashTarget || containsValidationError
                 ? false
                 : (stored === null ? defaultCollapsed : stored === '1');
 
