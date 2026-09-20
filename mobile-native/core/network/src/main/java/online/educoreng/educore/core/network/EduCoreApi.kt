@@ -30,6 +30,11 @@ import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDt
 import online.educoreng.educore.core.network.dto.ParallelPeriodMutationResponseDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationResponseDto
+import online.educoreng.educore.core.network.dto.ParallelStaffClockRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStaffClockResponseDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
 import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
 import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
@@ -251,6 +256,21 @@ interface EduCoreApi {
         @Path("period") periodId: Long,
     ): MessageDto
 
+    @POST("parallel-curriculum/operations/working-days")
+    suspend fun saveParallelWorkingDays(
+        @Body request: ParallelWorkingDaysMutationRequestDto,
+    ): ParallelWorkingDaysMutationResponseDto
+
+    @POST("parallel-curriculum/operations/staff-attendance/clock-in")
+    suspend fun clockInParallelStaff(
+        @Body request: ParallelStaffClockRequestDto,
+    ): ParallelStaffClockResponseDto
+
+    @POST("parallel-curriculum/operations/staff-attendance/clock-out")
+    suspend fun clockOutParallelStaff(
+        @Body request: ParallelStaffClockRequestDto,
+    ): ParallelStaffClockResponseDto
+
     @POST("parallel-curriculum/operations/attendance")
     suspend fun saveParallelAttendance(
         @Body request: ParallelAttendanceMutationRequestDto,
@@ -388,6 +408,11 @@ interface EduCoreApi {
     @POST("parallel-curriculum/lifecycle/arm-teachers")
     suspend fun saveParallelArmTeacher(
         @Body request: ParallelArmTeacherMutationRequestDto,
+    ): MessageDto
+
+    @POST("parallel-curriculum/lifecycle/arm-teaching-mode")
+    suspend fun saveParallelArmTeachingMode(
+        @Body request: ParallelArmTeachingModeMutationRequestDto,
     ): MessageDto
 
     @POST("parallel-curriculum/lifecycle/grades")
