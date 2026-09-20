@@ -30,6 +30,14 @@
     <p>Run the parallel programme on its own working week, day-specific resumption and closing times, timetable and staff attendance rules. Parallel learner and staff attendance remain separate from the conventional curriculum while teacher timetable clashes are still prevented across both systems.</p>
 </div>
 
+<div class="pc-jumpbar" aria-label="Parallel operations sections">
+    <span class="pc-jumpbar-label">Jump to</span>
+    <a href="#working-week">Working Week</a>
+    <a href="#staff-attendance">Staff Attendance</a>
+    <a href="#parallel-timetable">Timetable</a>
+    <a href="#learner-attendance">Learner Attendance</a>
+</div>
+
 <section class="panel">
     <div class="head"><strong>Working context</strong><span>Programme · session · term · level · arm · date</span></div>
     <div class="body">
