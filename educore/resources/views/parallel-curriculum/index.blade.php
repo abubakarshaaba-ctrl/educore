@@ -46,9 +46,16 @@
             <a href="{{ route('parallel-curriculum.student-assignments') }}">Assign Students</a>
             <a href="{{ route('parallel-curriculum.lifecycle.index') }}#teaching-assignment-model">Assign Teachers</a>
             <a href="{{ route('parallel-curriculum.results.index') }}">View Results</a>
+            <a href="{{ route('parallel-curriculum.results.broadsheet') }}">Broadsheets</a>
         @endif
-        @if($canViewOperations)
-            <a href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
+        @if(auth()->user()->canAccessRoute('parallel-curriculum.attendance.index'))
+            <a href="{{ route('parallel-curriculum.attendance.index') }}">Mark Attendance</a>
+        @endif
+        @if(auth()->user()->canAccessRoute('parallel-curriculum.skills.index'))
+            <a href="{{ route('parallel-curriculum.skills.index') }}">Rate Skills</a>
+        @endif
+        @if($canViewOperations && $canManage)
+            <a href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Staff</a>
         @endif
     </div>
 
