@@ -263,8 +263,7 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $classLevels = ($canManage && $isSetup)
-            ? ClassLevel::with('classArms')
-                ->orderBy('order_index')
+            ? ClassLevel::orderBy('order_index')
                 ->orderBy('name')
                 ->get()
             : collect();
@@ -1244,10 +1243,16 @@ class ParallelCurriculumController extends Controller
             ->unique()
             ->values();
 
-        $levels = ClassLevel::with('classArms')
-            ->whereIn('id', $classLevelIds)
+        $levels = ClassLevel::whereIn('id', $classLevelIds)
             ->get()
             ->keyBy('id');
+
+        $rulesByLevel = Schema::hasTable('class_level_subjects')
+            ? ClassLevelSubject::whereIn('class_level_id', $classLevelIds)
+                ->where('is_active', true)
+                ->get()
+                ->groupBy('class_level_id')
+            : collect();
 
         $mappingErrors = [];
         foreach ($classLevelIds as $classLevelId) {
@@ -1256,40 +1261,13 @@ class ParallelCurriculumController extends Controller
                 continue;
             }
 
-            $hasCurriculumRules = ClassLevelSubject::where('class_level_id', $level->id)
-                ->where('is_active', true)
-                ->exists();
-
-            if (! $hasCurriculumRules) {
-                continue;
-            }
-
-            if ($level->classArms->isEmpty()) {
-                $subjectOffered = ClassLevelSubject::where('class_level_id', $level->id)
-                    ->where('subject_id', $data['destination_subject_id'])
-                    ->where('is_active', true)
-                    ->where('subject_status', '!=', 'not_offered')
-                    ->exists();
-
-                if (! $subjectOffered) {
-                    $mappingErrors[] = "{$level->name}: the selected destination subject is not offered. Add it to this conventional class level or remove the class level from this mapping.";
-                }
-
-                continue;
-            }
-
-            $invalidArms = $level->classArms->filter(
-                fn (ClassArm $arm) => ! $this->service->conventionalSubjectAvailableForArm(
-                    $tenantId,
-                    (int) $data['destination_subject_id'],
-                    $arm
-                )
-            );
-
-            if ($invalidArms->isNotEmpty()) {
-                $mappingErrors[] = "{$level->name}: the selected destination subject is not offered in ".
-                    $invalidArms->map(fn (ClassArm $arm) => $arm->full_name)->join(', ').
-                    '. Add the subject to this conventional class level/track or remove the class level from this mapping.';
+            if (! $this->service->conventionalSubjectAvailableForClassLevel(
+                $tenantId,
+                (int) $data['destination_subject_id'],
+                $level,
+                $rulesByLevel->get($level->id, collect())
+            )) {
+                $mappingErrors[] = "{$level->name}: the selected destination subject is not offered in this conventional class level. Add it to the master curriculum for this level or remove the level from this mapping.";
             }
         }
 
