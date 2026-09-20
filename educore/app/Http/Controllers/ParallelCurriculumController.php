@@ -28,6 +28,7 @@ use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Services\ParallelCurriculumStudentAssignmentImportService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,45 @@ class ParallelCurriculumController extends Controller
     private function assertManage(): void
     {
         abort_unless($this->canManage(), 403, 'Only administrators can configure parallel curricula.');
+    }
+
+    private function legacyConventionalSubjectIdsByLevel(
+        int $tenantId,
+        Collection $classLevelIds
+    ): Collection {
+        if (
+            $classLevelIds->isEmpty()
+            || ! Schema::hasTable('class_arm_subjects')
+            || ! Schema::hasTable('class_arms')
+        ) {
+            return collect();
+        }
+
+        $query = DB::table('class_arm_subjects as assignment')
+            ->join('class_arms as arm', 'arm.id', '=', 'assignment.class_arm_id')
+            ->where('assignment.tenant_id', $tenantId)
+            ->where('arm.tenant_id', $tenantId)
+            ->whereIn('arm.class_level_id', $classLevelIds);
+
+        if (Schema::hasColumn('class_arm_subjects', 'is_active')) {
+            $query->where('assignment.is_active', true);
+        }
+        if (Schema::hasColumn('class_arms', 'deleted_at')) {
+            $query->whereNull('arm.deleted_at');
+        }
+
+        return $query
+            ->get([
+                'arm.class_level_id',
+                'assignment.subject_id',
+            ])
+            ->groupBy('class_level_id')
+            ->map(fn (Collection $rows) => $rows
+                ->pluck('subject_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+            );
     }
 
     private function classForTenant(int $id): ParallelCurriculumClass
@@ -270,18 +310,25 @@ class ParallelCurriculumController extends Controller
 
         $integrationSubjectCompatibility = collect();
         if ($canManage && $classLevels->isNotEmpty() && $conventionalSubjects->isNotEmpty()) {
-            $rulesByLevel = ClassLevelSubject::whereIn(
-                    'class_level_id',
-                    $classLevels->pluck('id')
-                )
-                ->where('is_active', true)
-                ->get()
-                ->groupBy('class_level_id');
+            $classLevelIds = $classLevels->pluck('id')->map(fn ($id) => (int) $id)->values();
+
+            $rulesByLevel = Schema::hasTable('class_level_subjects')
+                ? ClassLevelSubject::whereIn('class_level_id', $classLevelIds)
+                    ->where('is_active', true)
+                    ->get()
+                    ->groupBy('class_level_id')
+                : collect();
+
+            $legacySubjectIdsByLevel = $this->legacyConventionalSubjectIdsByLevel(
+                $tenantId,
+                $classLevelIds
+            );
 
             $integrationSubjectCompatibility = $conventionalSubjects
                 ->mapWithKeys(function (Subject $subject) use (
                     $classLevels,
                     $rulesByLevel,
+                    $legacySubjectIdsByLevel,
                     $tenantId
                 ): array {
                     $compatibleLevelIds = $classLevels
@@ -290,7 +337,8 @@ class ParallelCurriculumController extends Controller
                                 $tenantId,
                                 (int) $subject->id,
                                 $level,
-                                $rulesByLevel->get($level->id, collect())
+                                $rulesByLevel->get($level->id, collect()),
+                                $legacySubjectIdsByLevel->get($level->id, collect())
                             )
                         )
                         ->pluck('id')
@@ -1254,6 +1302,11 @@ class ParallelCurriculumController extends Controller
                 ->groupBy('class_level_id')
             : collect();
 
+        $legacySubjectIdsByLevel = $this->legacyConventionalSubjectIdsByLevel(
+            $tenantId,
+            $classLevelIds
+        );
+
         $mappingErrors = [];
         foreach ($classLevelIds as $classLevelId) {
             $level = $levels->get($classLevelId);
@@ -1265,7 +1318,8 @@ class ParallelCurriculumController extends Controller
                 $tenantId,
                 (int) $data['destination_subject_id'],
                 $level,
-                $rulesByLevel->get($level->id, collect())
+                $rulesByLevel->get($level->id, collect()),
+                $legacySubjectIdsByLevel->get($level->id, collect())
             )) {
                 $mappingErrors[] = "{$level->name}: the selected destination subject is not offered in this conventional class level. Add it to the master curriculum for this level or remove the level from this mapping.";
             }
