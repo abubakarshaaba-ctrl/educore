@@ -409,25 +409,40 @@ class ParallelCurriculumDirectoryController extends Controller
             ->unique()
             ->values();
 
-        $teachers = $teacherIds->isEmpty()
-            ? collect()
-            : DB::table('users')
+        $teachers = collect();
+        if ($teacherIds->isNotEmpty()) {
+            $userColumns = ['id', 'name'];
+            foreach ([
+                'staff_id',
+                'phone',
+                'role',
+                'is_active',
+                'employment_status',
+            ] as $optionalColumn) {
+                if (Schema::hasColumn('users', $optionalColumn)) {
+                    $userColumns[] = $optionalColumn;
+                }
+            }
+
+            $teachers = DB::table('users')
                 ->where('tenant_id', $tenantId)
                 ->whereIn('id', $teacherIds)
                 ->when(
                     Schema::hasColumn('users', 'deleted_at'),
                     fn ($query) => $query->whereNull('deleted_at')
                 )
-                ->get([
-                    'id',
-                    'name',
-                    'staff_id',
-                    'phone',
-                    'role',
-                    'is_active',
-                    'employment_status',
-                ])
+                ->get($userColumns)
+                ->map(function ($teacher) {
+                    $teacher->staff_id = $teacher->staff_id ?? null;
+                    $teacher->phone = $teacher->phone ?? null;
+                    $teacher->role = $teacher->role ?? 'staff';
+                    $teacher->is_active = $teacher->is_active ?? true;
+                    $teacher->employment_status = $teacher->employment_status ?? null;
+
+                    return $teacher;
+                })
                 ->keyBy('id');
+        }
 
         $teacherRows = $assignmentRows
             ->groupBy('teacher_id')
