@@ -2247,6 +2247,8 @@ private fun LazyListScope.lifecycleResults(
     onUnpublishResult: () -> Unit,
     onDownloadResultExport: (String) -> Unit,
     onDownloadStudentResultPdf: () -> Unit,
+    onDownloadCumulativeStudentResultPdf: (Long, Long, Long) -> Unit,
+    onDownloadParallelBroadsheetPdf: (String, Long, Long?, Long?, Long?) -> Unit,
 ) {
     item {
         ParallelResultControls(
@@ -2255,6 +2257,7 @@ private fun LazyListScope.lifecycleResults(
             onPublishResult = onPublishResult,
             onUnpublishResult = onUnpublishResult,
             onDownloadResultExport = onDownloadResultExport,
+            onDownloadParallelBroadsheetPdf = onDownloadParallelBroadsheetPdf,
         )
     }
 
