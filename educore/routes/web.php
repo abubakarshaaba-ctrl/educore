@@ -535,8 +535,12 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('skills', [\App\Http\Controllers\ParallelCurriculumSkillRatingController::class, 'save'])->name('skills.save');
         Route::get('attendance', [\App\Http\Controllers\ParallelCurriculumOperationsController::class, 'attendance'])->name('attendance.index');
         Route::get('results', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'index'])->name('results.index');
+        Route::get('results/broadsheet', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'broadsheet'])->name('results.broadsheet');
+        Route::get('results/broadsheet/pdf', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'broadsheetPdf'])->name('results.broadsheet.pdf');
         Route::get('results/class/{class}/student/{student}', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'student'])->name('results.student');
         Route::get('results/class/{class}/student/{student}/pdf', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'pdf'])->name('results.student.pdf');
+        Route::get('results/class/{class}/student/{student}/cumulative', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'cumulative'])->name('results.student.cumulative');
+        Route::get('results/class/{class}/student/{student}/cumulative/pdf', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'cumulativePdf'])->name('results.student.cumulative.pdf');
         Route::post('results/publish', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'publish'])->name('results.publish');
         Route::post('results/unpublish', [\App\Http\Controllers\ParallelCurriculumResultController::class, 'unpublish'])->name('results.unpublish');
         Route::get('score-sheet', [\App\Http\Controllers\ParallelCurriculumController::class, 'scoreSheet'])->name('score-sheet');
