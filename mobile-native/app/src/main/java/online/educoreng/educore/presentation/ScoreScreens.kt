@@ -328,9 +328,10 @@ private fun PublishedResultCard(result: PublishedResult, parallel: Boolean) {
             }.joinToString(" · ")
             Text(summary, color = EduCoreColors.Slate600)
 
-            if (parallel && result.maximumTotal != null) {
+            val maximumTotal = result.maximumTotal
+            if (parallel && maximumTotal != null) {
                 Text(
-                    "Total ${result.totalScore.formatScore()} / ${result.maximumTotal.formatScore()}",
+                    "Total ${result.totalScore.formatScore()} / ${maximumTotal.formatScore()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = EduCoreColors.Slate600,
                 )
