@@ -20,6 +20,7 @@ import online.educoreng.educore.core.network.dto.StudentProfileResponseDto
 import online.educoreng.educore.core.network.dto.PublishedResultsResponseDto
 import online.educoreng.educore.core.network.dto.PortalAttendanceResponseDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeGradeMutationRequestDto
