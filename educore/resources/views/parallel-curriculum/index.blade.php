@@ -23,7 +23,7 @@
 @section('content')
 <div class="pc-shell">
     @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
-    @if($errors->any())<div class="alert-e"><strong>Could not save.</strong> {{ $errors->first() }}</div>@endif
+    @if($errors->any())<div class="alert-e" data-parallel-validation-error><strong>Could not save.</strong> {{ $errors->first() }}</div>@endif
     @if($canManage && $schemaReconciliationPending)
         <div class="alert-e">
             <strong>Database update pending.</strong>
