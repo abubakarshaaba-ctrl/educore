@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Notifications\PlatformBroadcastEmailService;
 use App\Services\Notifications\PushNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +45,11 @@ class MobilePlatformBroadcastController extends Controller
         return response()->json(['broadcasts' => $broadcasts]);
     }
 
-    public function store(Request $request, PushNotificationService $push): JsonResponse
+    public function store(
+        Request $request,
+        PushNotificationService $push,
+        PlatformBroadcastEmailService $emails
+    ): JsonResponse
     {
         $user = $this->guard($request);
         abort_unless(Schema::hasTable('platform_broadcasts'), 503, 'Platform broadcasts are not available on this installation.');
@@ -90,11 +95,21 @@ class MobilePlatformBroadcastController extends Controller
             $push->notifyAnnouncementPublished($announcement);
         }
 
+        $emailStats = $emails->sendToTenantIds(
+            tenantIds: $tenantIds,
+            broadcastId: $broadcastId,
+            title: trim($data['title']),
+            body: trim($data['body']),
+            expiresAt: $data['expires_at'] ?? null,
+        );
+
         return response()->json([
-            'message' => sprintf('Platform broadcast delivered to %d school(s).', count($tenantIds)),
+            'message' => sprintf('Platform broadcast delivered to %d school(s) by push, in-app notice and email.', count($tenantIds)),
             'id' => $broadcastId,
             'schools' => count($tenantIds),
             'push_batches_attempted' => count($announcements),
+            'email_notifications_sent' => $emailStats['sent'],
+            'email_notifications_failed' => $emailStats['failed'],
         ], 201);
     }
 
