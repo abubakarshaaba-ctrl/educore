@@ -342,6 +342,72 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
     }
 
+    public function test_parallel_setup_includes_year_12_subjects_still_recorded_in_class_arm_assignments(): void
+    {
+        $context = $this->managerContext();
+
+        $year12 = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Year 12',
+            'section' => 'senior',
+            'order_index' => 12,
+        ]);
+
+        $arm = ClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $year12->id,
+            'name' => 'A',
+        ]);
+
+        $masterSubject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'English Language',
+            'code' => 'ENG',
+            'is_active' => true,
+        ]);
+
+        $legacyAssignedSubject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Further Mathematics',
+            'code' => 'FMTH',
+            'is_active' => true,
+        ]);
+
+        ClassLevelSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $year12->id,
+            'academic_track_id' => null,
+            'subject_id' => $masterSubject->id,
+            'subject_status' => 'compulsory',
+            'is_active' => true,
+        ]);
+
+        DB::table('class_arm_subjects')->insert([
+            'tenant_id' => $context['tenant']->id,
+            'class_arm_id' => $arm->id,
+            'subject_id' => $legacyAssignedSubject->id,
+            'teacher_id' => null,
+            'session_id' => $context['session']->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($context['admin'])
+            ->get(route('parallel-curriculum.setup'))
+            ->assertOk();
+
+        $compatibility = $response->viewData('integrationSubjectCompatibility');
+
+        $this->assertContains(
+            $year12->id,
+            $compatibility->get($masterSubject->id, [])
+        );
+        $this->assertContains(
+            $year12->id,
+            $compatibility->get($legacyAssignedSubject->id, [])
+        );
+    }
+
     public function test_parallel_mapping_form_filters_destination_subjects_by_selected_levels(): void
     {
         $view = file_get_contents(
