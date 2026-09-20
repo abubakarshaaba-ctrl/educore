@@ -14,16 +14,7 @@
 @if(session('success'))<div class="ok">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())' data-parallel-validation-target="{{ old('_parallel_section') }}"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
-<div class="tabs">
-<a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
-<a class="tab" href="{{ route('parallel-curriculum.setup') }}">Programme Setup</a>
-<a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
-<a class="tab" href="{{ route('parallel-curriculum.class-list') }}">Class List</a>
-<a class="tab" href="{{ route('parallel-curriculum.teacher-list') }}">Teacher List</a>
-<a class="tab active" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
-<a class="tab" href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
-<a class="tab" href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
-</div>
+@include('parallel-curriculum.partials.module-navigation')
 
 <div class="hero"><h2>Parallel Academic Lifecycle</h2><p>Manage class arms, class-level grading, promotion rules, next-session promotion and audited intra-/inter-class transfers independently from the conventional school structure.</p></div>
 
