@@ -93,7 +93,7 @@
 
     <section class="report" id="parallel-teacher-print">
         <div class="report-title">
-            <h2>{{ auth()->user()->tenant?->name ?: 'School' }}</h2>
+            <h2>{{ $schoolName }}</h2>
             <h3>Parallel Curriculum Teacher List</h3>
             <p>
                 {{ $selectedCurriculum?->name ?: 'No programme selected' }}
