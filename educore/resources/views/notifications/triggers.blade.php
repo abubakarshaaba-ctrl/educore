@@ -68,6 +68,7 @@ td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--midnight)}
 $eventDefs = [
     'fee_payment_received'      => ['💳 Fee Payment Received', 'Sent to guardian when a fee payment is recorded', ['{student_name}','{amount}','{balance}','{school_name}','{date}']],
     'report_card_published'     => ['📊 Report Card Published', 'Sent to parent when report cards are published for a term', ['{student_name}','{term}','{average}','{position}','{school_name}']],
+    'exam_scheduled'            => ['📝 CBT Exam Scheduled', 'Optional reminder to students/parents when a CBT exam is published', ['{exam_title}','{date}','{subject}','{school_name}']],
     'admission_status_changed'  => ['🎓 Admission Status Changed', 'Sent when application status is updated (shortlisted/admitted/rejected)', ['{student_name}','{status}','{school_name}','{date}']],
     'fee_overdue'               => ['⚠️ Fee Overdue Reminder', 'Sent when invoice is past due date', ['{student_name}','{amount}','{due_date}','{school_name}']],
     'invoice_generated'         => ['🧾 Invoice Generated', 'Sent when a new fee invoice is created for a student', ['{student_name}','{amount}','{term}','{school_name}']],
@@ -75,6 +76,7 @@ $eventDefs = [
 $defaultTemplates = [
     'fee_payment_received'     => 'Dear Parent, payment of ₦{amount} received for {student_name}. Outstanding balance: ₦{balance}. Thank you. — {school_name}',
     'report_card_published'    => 'Dear Parent, {student_name}\'s report card for {term} is now available. Average: {average}%, Position: {position}. Login to parent portal to view. — {school_name}',
+    'exam_scheduled'           => 'Reminder: {student_name} has a CBT exam ({exam_title}) scheduled. Please ensure they are prepared. — {school_name}',
     'admission_status_changed' => 'Dear {student_name}, your admission application status has been updated to: {status}. Contact {school_name} for details.',
     'fee_overdue'              => 'Dear Parent, the fee invoice of ₦{amount} for {student_name} was due on {due_date}. Please make payment to avoid disruption. — {school_name}',
     'invoice_generated'        => 'Dear Parent, a fee invoice of ₦{amount} has been generated for {student_name} for {term}. — {school_name}',
