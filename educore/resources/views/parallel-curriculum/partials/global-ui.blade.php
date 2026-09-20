@@ -558,4 +558,61 @@
         width: 100%;
     }
 }
+
+/* Progressive disclosure and dense-workspace controls */
+.pc-section-toolbar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    margin:0 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#F8FAFC;
+}
+.pc-section-toolbar .pc-toolbar-copy{min-width:0;flex:1}
+.pc-section-toolbar .pc-toolbar-copy strong{display:block;font-size:12.5px;color:var(--midnight)}
+.pc-section-toolbar .pc-toolbar-copy span{display:block;margin-top:2px;font-size:11.5px;line-height:1.45;color:var(--slate)}
+.pc-section-toolbar .pc-toolbar-actions{display:flex;gap:7px;flex-wrap:wrap}
+.pc-collapse-toggle{
+    flex:0 0 auto;min-height:34px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;
+    background:#fff;color:var(--midnight);font:700 11.5px/1.2 inherit;cursor:pointer;
+}
+.pc-collapse-toggle:hover{border-color:var(--indigo);background:#F8FAFF}
+.pc-collapsible-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+[data-collapsible-item].is-collapsed{box-shadow:none}
+[data-collapsible-item].is-collapsed > .pc-head,
+[data-collapsible-item].is-collapsed > .head{border-bottom:0}
+.pc-workspace-filter{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:12px;
+}
+.pc-workspace-filter input{width:100%;min-height:42px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font:500 13px inherit}
+.pc-workspace-filter .pc-filter-count{font-size:11.5px;font-weight:700;color:var(--slate);white-space:nowrap}
+
+@media(max-width:640px){
+    .pc-section-toolbar{align-items:stretch}
+    .pc-section-toolbar .pc-toolbar-copy{flex-basis:100%}
+    .pc-section-toolbar .pc-toolbar-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+    .pc-section-toolbar .pc-toolbar-actions .btn{width:100%}
+    .pc-collapse-toggle{min-height:40px}
+    .pc-collapsible-head{align-items:flex-start}
+    .pc-workspace-filter{grid-template-columns:1fr}
+    .pc-workspace-filter .pc-filter-count{white-space:normal}
+}
+
+/* Operations tables become readable cards on phones instead of forcing horizontal scroll. */
+@media(max-width:640px){
+    .pco .att-table-wrap{overflow:visible;border:0}
+    .pco table.att{min-width:0;width:100%;display:block}
+    .pco table.att thead{display:none}
+    .pco table.att tbody{display:grid;gap:10px}
+    .pco table.att tr{display:block;border:1px solid var(--border);border-radius:10px;background:#fff;overflow:hidden}
+    .pco table.att td{display:grid;grid-template-columns:minmax(92px,38%) minmax(0,1fr);gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #EEF2F7}
+    .pco table.att td:last-child{border-bottom:0}
+    .pco table.att td::before{font-size:10.5px;font-weight:800;color:var(--slate)}
+    .pco table.staff-att-table td:nth-child(1)::before{content:'Staff'}
+    .pco table.staff-att-table td:nth-child(2)::before{content:'Arrival'}
+    .pco table.staff-att-table td:nth-child(3)::before{content:'Status'}
+    .pco table.staff-att-table td:nth-child(4)::before{content:'Departure'}
+    .pco table.staff-att-table td:nth-child(5)::before{content:'Departure status'}
+    .pco table.learner-att-table td:nth-child(1)::before{content:'Learner'}
+    .pco table.learner-att-table td:nth-child(2)::before{content:'Status'}
+    .pco table.learner-att-table td:nth-child(3)::before{content:'Remark'}
+    .pco table.att .fc{min-width:0;width:100%}
+}
+
 </style>
