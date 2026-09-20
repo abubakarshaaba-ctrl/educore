@@ -686,6 +686,11 @@ class ParallelCurriculumResultService
                 : null,
             'parallelProgrammeName' => $report['curriculum']?->name,
             'parallelClassName' => trim($class->name.' '.($arm?->name ?? '')),
+            'reportDocumentTitle' => strtoupper(
+                trim((string) ($report['curriculum']?->name ?? 'Parallel Curriculum'))
+            ).($isCumulative
+                ? ' Cumulative Student Performance Report'
+                : ' Student Termly Performance Report'),
             'principalRemark' => $principalRemark,
             'formTeacherName' => $classArm->formTutor?->name,
             'promotion' => $promotion,
