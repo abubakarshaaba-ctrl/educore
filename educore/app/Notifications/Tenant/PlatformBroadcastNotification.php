@@ -23,6 +23,8 @@ class PlatformBroadcastNotification extends Notification
         public readonly string $body,
         public readonly ?string $imagePath = null,
         public readonly ?string $expiresAt = null,
+        public readonly ?string $schoolName = null,
+        public readonly ?string $actionUrl = null,
     ) {
     }
 
@@ -37,7 +39,11 @@ class PlatformBroadcastNotification extends Notification
         $mail = (new MailMessage)
             ->subject('EduCore Platform Broadcast: ' . $this->title)
             ->greeting($name !== '' ? 'Hello ' . $name . ',' : 'Hello,')
-            ->line('A new broadcast has been sent to your school by the EduCore Platform Super Admin.')
+            ->line(
+                'A new broadcast has been sent'
+                .($this->schoolName ? ' to '.$this->schoolName : ' to your school')
+                .' by the EduCore Platform Super Admin.'
+            )
             ->line($this->title);
 
         $body = trim(strip_tags($this->body));
@@ -69,8 +75,12 @@ class PlatformBroadcastNotification extends Notification
             $mail->line('This notice is available until ' . $this->expiresAt . '.');
         }
 
-        return $mail
-            ->action('View Platform Notices', route('platform.notices'))
-            ->line('This message was sent to your registered tenant administrator email address.');
+        if ($this->actionUrl) {
+            $mail->action('View Platform Notices', $this->actionUrl);
+        }
+
+        return $mail->line(
+            'This message was sent to the registered administrator/contact email for your school.'
+        );
     }
 }
