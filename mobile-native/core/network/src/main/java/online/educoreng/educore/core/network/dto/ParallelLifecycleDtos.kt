@@ -108,6 +108,9 @@ data class ParallelLifecycleArmDto(
     val code: String? = null,
     val capacity: Int? = null,
     @param:Json(name = "is_active") val isActive: Boolean = true,
+    @param:Json(name = "teaching_assignment_mode") val teachingAssignmentMode: String = "subject_based",
+    @param:Json(name = "class_teacher_id") val classTeacherId: Long? = null,
+    @param:Json(name = "class_teacher_name") val classTeacherName: String? = null,
     @param:Json(name = "subject_teachers") val subjectTeachers: List<ParallelLifecycleArmSubjectTeacherDto> = emptyList(),
 )
 
@@ -325,6 +328,12 @@ data class ParallelGradeMutationRequestDto(
     @param:Json(name = "grade_point") val gradePoint: Double? = null,
 )
 
+data class ParallelArmTeachingModeMutationRequestDto(
+    @param:Json(name = "parallel_curriculum_class_arm_id") val armId: Long,
+    @param:Json(name = "teaching_assignment_mode") val teachingAssignmentMode: String,
+    @param:Json(name = "class_teacher_id") val classTeacherId: Long? = null,
+)
+
 data class ParallelPromotionRuleMutationRequestDto(
     @param:Json(name = "parallel_curriculum_id") val parallelCurriculumId: Long,
     @param:Json(name = "source_class_ids") val sourceClassIds: List<Long>,
@@ -409,12 +418,15 @@ private fun ParallelLifecycleArmSubjectTeacherDto.toDomain() =
 
 private fun ParallelLifecycleArmDto.toDomain() =
     ParallelLifecycleArm(
-        id,
-        name,
-        code,
-        capacity,
-        isActive,
-        subjectTeachers.map { it.toDomain() },
+        id = id,
+        name = name,
+        code = code,
+        capacity = capacity,
+        isActive = isActive,
+        teachingAssignmentMode = teachingAssignmentMode,
+        classTeacherId = classTeacherId,
+        classTeacherName = classTeacherName,
+        subjectTeachers = subjectTeachers.map { it.toDomain() },
     )
 
 private fun ParallelLifecycleGradeDto.toDomain() =
