@@ -57,6 +57,98 @@ class ParallelCurriculumPortalAccessTest extends TestCase
         );
     }
 
+    public function test_parallel_student_report_exposes_conventional_report_card_content(): void
+    {
+        $fixture = $this->publishedFixture();
+
+        ParallelCurriculumAttendanceRecord::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'parallel_curriculum_id' => $fixture['curriculum']->id,
+            'parallel_curriculum_class_id' => $fixture['parallelClass']->id,
+            'parallel_curriculum_class_arm_id' => $fixture['parallelArm']->id,
+            'parallel_curriculum_enrolment_id' => $fixture['parallelEnrolment']->id,
+            'student_id' => $fixture['student']->id,
+            'term_id' => $fixture['term']->id,
+            'marked_by' => null,
+            'attendance_date' => now()->toDateString(),
+            'status' => 'present',
+            'remark' => null,
+        ]);
+
+        $presentation = app(ParallelCurriculumResultService::class)
+            ->conventionalStyleStudentReport(
+                $fixture['parallelClass'],
+                $fixture['term']->load('session'),
+                $fixture['student']->id
+            );
+
+        $this->assertNotNull($presentation);
+        $this->assertSame(
+            'Mutawassitah 1 A',
+            $presentation['parallelClassName']
+        );
+        $this->assertCount(2, $presentation['assessmentTypes']);
+        $this->assertCount(1, $presentation['subjectRows']);
+        $this->assertArrayHasKey(
+            'class_position',
+            $presentation['subjectRows'][0]
+        );
+        $this->assertArrayHasKey(
+            'class_lowest',
+            $presentation['subjectRows'][0]
+        );
+        $this->assertArrayHasKey(
+            'class_highest',
+            $presentation['subjectRows'][0]
+        );
+        $this->assertSame(1, $presentation['attendanceSummary']['days_open']);
+        $this->assertSame(1, $presentation['attendanceSummary']['days_present']);
+        $this->assertSame(100, $presentation['attendanceSummary']['rate']);
+        $this->assertNotEmpty($presentation['principalRemark']);
+    }
+
+    public function test_parallel_pdf_reuses_conventional_report_template(): void
+    {
+        $controller = file_get_contents(
+            app_path('Http/Controllers/ParallelCurriculumResultController.php')
+        );
+        $parallelStudentView = file_get_contents(
+            resource_path('views/parallel-curriculum/results/student.blade.php')
+        );
+        $conventionalPdf = file_get_contents(
+            resource_path('views/reports/pdf.blade.php')
+        );
+
+        $this->assertStringContainsString(
+            "Pdf::loadView('reports.pdf', \\$presentation)",
+            $controller
+        );
+        $this->assertStringContainsString(
+            'conventionalStyleStudentReport',
+            $controller
+        );
+        $this->assertStringContainsString(
+            'Behavioural Development and Attendance',
+            $parallelStudentView
+        );
+        $this->assertStringContainsString(
+            "Form Teacher's Comment",
+            $parallelStudentView
+        );
+        $this->assertStringContainsString(
+            "Principal's Comment",
+            $parallelStudentView
+        );
+        $this->assertStringContainsString(
+            'Next Term Begins',
+            $parallelStudentView
+        );
+        $this->assertStringContainsString(
+            '$reportDocumentTitle ??',
+            $conventionalPdf
+        );
+    }
+
     public function test_draft_parallel_report_is_not_available_through_portal_download(): void
     {
         $fixture = $this->publishedFixture();
