@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ParallelCurriculumDirectoryController extends Controller
@@ -182,25 +183,28 @@ class ParallelCurriculumDirectoryController extends Controller
         $user = $request->user();
         $tenantId = $this->tenantId();
 
-        $curricula = ParallelCurriculum::with([
-                'classes' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name'),
-            ])
+        $curricula = DB::table('parallel_curricula')
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name', 'code']);
 
-        $selectedCurriculum = $this->selectedCurriculum(
-            $curricula,
-            $request->integer('parallel_curriculum_id')
-        );
+        $requestedCurriculumId = $request->integer('parallel_curriculum_id');
+        $selectedCurriculum = $curricula->firstWhere('id', $requestedCurriculumId)
+            ?? $curricula->first();
 
-        $availableClasses = $selectedCurriculum?->classes?->values() ?? collect();
+        $availableClasses = collect();
+        if ($selectedCurriculum) {
+            $availableClasses = DB::table('parallel_curriculum_classes')
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_id', $selectedCurriculum->id)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code', 'sort_order']);
+        }
+
         $selectedClassId = $request->integer('class_id') ?: null;
-
         if (
             $selectedClassId
             && ! $availableClasses->contains(fn ($class) =>
@@ -210,62 +214,219 @@ class ParallelCurriculumDirectoryController extends Controller
             $selectedClassId = null;
         }
 
-        /*
-         * Reuse the same canonical workspace resolver that powers score entry.
-         * This keeps the directory aligned with class-teacher mode, arm-level
-         * subject overrides and default subject teachers, and avoids a second
-         * independently maintained teacher-resolution query.
-         */
-        $workspaces = $selectedCurriculum
-            ? $this->service->scoreWorkspacesForUser($user, null, true)
-                ->filter(fn (array $workspace) =>
-                    (int) ($workspace['curriculum_id'] ?? 0)
-                        === (int) $selectedCurriculum->id
-                    && (
-                        ! $selectedClassId
-                        || (int) ($workspace['class_id'] ?? 0)
-                            === (int) $selectedClassId
+        $classes = $selectedClassId
+            ? $availableClasses->where('id', $selectedClassId)->values()
+            : $availableClasses->values();
+
+        $classIds = $classes->pluck('id')->map(fn ($id) => (int) $id)->values();
+
+        $assignmentRows = collect();
+        $unassignedSlots = 0;
+
+        if ($selectedCurriculum && $classIds->isNotEmpty()) {
+            $classSubjectsReady = Schema::hasTable('parallel_curriculum_class_subjects');
+            $parallelSubjectsReady = Schema::hasTable('parallel_curriculum_subjects');
+            $newSubjectColumnReady = $classSubjectsReady
+                && Schema::hasColumn(
+                    'parallel_curriculum_class_subjects',
+                    'parallel_curriculum_subject_id'
+                );
+            $legacySubjectColumnReady = $classSubjectsReady
+                && Schema::hasColumn(
+                    'parallel_curriculum_class_subjects',
+                    'subject_id'
+                );
+
+            $assignments = collect();
+
+            if ($classSubjectsReady && $newSubjectColumnReady && $parallelSubjectsReady) {
+                $assignments = DB::table('parallel_curriculum_class_subjects as pcs')
+                    ->join(
+                        'parallel_curriculum_subjects as subject',
+                        'subject.id',
+                        '=',
+                        'pcs.parallel_curriculum_subject_id'
                     )
-                )
-                ->values()
-            : collect();
+                    ->where('pcs.tenant_id', $tenantId)
+                    ->whereIn('pcs.parallel_curriculum_class_id', $classIds)
+                    ->where('pcs.is_active', true)
+                    ->where('subject.is_active', true)
+                    ->get([
+                        'pcs.parallel_curriculum_class_id as class_id',
+                        'pcs.parallel_curriculum_subject_id as subject_id',
+                        'pcs.teacher_id',
+                        'subject.name as subject_name',
+                    ]);
+            } elseif ($classSubjectsReady && $legacySubjectColumnReady) {
+                // Compatibility for a deployment interrupted before the
+                // independent parallel-subject schema reconciliation completed.
+                $assignments = DB::table('parallel_curriculum_class_subjects as pcs')
+                    ->join('subjects as subject', 'subject.id', '=', 'pcs.subject_id')
+                    ->where('pcs.tenant_id', $tenantId)
+                    ->whereIn('pcs.parallel_curriculum_class_id', $classIds)
+                    ->where('pcs.is_active', true)
+                    ->get([
+                        'pcs.parallel_curriculum_class_id as class_id',
+                        'pcs.subject_id as subject_id',
+                        'pcs.teacher_id',
+                        'subject.name as subject_name',
+                    ]);
+            }
 
-        $unassignedSlots = $workspaces
-            ->filter(fn (array $workspace) =>
-                empty($workspace['effective_teacher_id'])
-            )
-            ->count();
+            $assignmentsByClass = $assignments->groupBy(
+                fn ($assignment) => (int) $assignment->class_id
+            );
 
-        $assignmentRows = $workspaces
-            ->filter(fn (array $workspace) =>
-                ! empty($workspace['effective_teacher_id'])
-            )
-            ->map(function (array $workspace): array {
-                $arm = $workspace['arm'] ?? null;
-                $isClassTeacherMode = $arm
-                    && method_exists($arm, 'usesClassTeacherModel')
-                    && $arm->usesClassTeacherModel();
+            $armsByClass = collect();
+            $armModesReady = Schema::hasTable('parallel_curriculum_class_arms');
+            $modeColumnReady = $armModesReady
+                && Schema::hasColumn(
+                    'parallel_curriculum_class_arms',
+                    'teaching_assignment_mode'
+                );
+            $classTeacherColumnReady = $armModesReady
+                && Schema::hasColumn(
+                    'parallel_curriculum_class_arms',
+                    'class_teacher_id'
+                );
 
-                return [
-                    'teacher_id' => (int) $workspace['effective_teacher_id'],
-                    'assignment_type' => $isClassTeacherMode
-                        ? 'Class/Form Teacher'
-                        : 'Subject Teacher',
-                    'class_arm' => $workspace['class_label'] ?? 'Parallel Class',
-                    'subject' => $workspace['subject_name'] ?? 'Subject',
+            if ($armModesReady) {
+                $armSelect = [
+                    'id',
+                    'parallel_curriculum_class_id',
+                    'name',
+                    'sort_order',
                 ];
-            });
+                if ($modeColumnReady) {
+                    $armSelect[] = 'teaching_assignment_mode';
+                }
+                if ($classTeacherColumnReady) {
+                    $armSelect[] = 'class_teacher_id';
+                }
+
+                $armsByClass = DB::table('parallel_curriculum_class_arms')
+                    ->where('tenant_id', $tenantId)
+                    ->whereIn('parallel_curriculum_class_id', $classIds)
+                    ->where('is_active', true)
+                    ->orderBy('parallel_curriculum_class_id')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get($armSelect)
+                    ->groupBy(fn ($arm) =>
+                        (int) $arm->parallel_curriculum_class_id
+                    );
+            }
+
+            $overrideMap = collect();
+            if (
+                Schema::hasTable('parallel_curriculum_arm_subject_teachers')
+                && Schema::hasColumn(
+                    'parallel_curriculum_arm_subject_teachers',
+                    'parallel_curriculum_subject_id'
+                )
+            ) {
+                $overrideMap = DB::table('parallel_curriculum_arm_subject_teachers')
+                    ->where('tenant_id', $tenantId)
+                    ->whereIn('parallel_curriculum_class_id', $classIds)
+                    ->where('is_active', true)
+                    ->get([
+                        'parallel_curriculum_class_arm_id as arm_id',
+                        'parallel_curriculum_subject_id as subject_id',
+                        'teacher_id',
+                    ])
+                    ->keyBy(fn ($row) =>
+                        (int) $row->arm_id.':'.(int) $row->subject_id
+                    );
+            }
+
+            foreach ($classes as $class) {
+                $classAssignments = $assignmentsByClass
+                    ->get((int) $class->id, collect())
+                    ->values();
+                $arms = $armsByClass
+                    ->get((int) $class->id, collect())
+                    ->values();
+
+                if ($arms->isEmpty()) {
+                    foreach ($classAssignments as $assignment) {
+                        if (! $assignment->teacher_id) {
+                            $unassignedSlots++;
+                            continue;
+                        }
+
+                        $assignmentRows->push([
+                            'teacher_id' => (int) $assignment->teacher_id,
+                            'assignment_type' => 'Subject Teacher',
+                            'class_arm' => (string) $class->name,
+                            'subject' => (string) $assignment->subject_name,
+                        ]);
+                    }
+
+                    continue;
+                }
+
+                foreach ($arms as $arm) {
+                    $mode = $modeColumnReady
+                        ? ((string) ($arm->teaching_assignment_mode ?? 'subject_based'))
+                        : 'subject_based';
+                    $classTeacherId = $classTeacherColumnReady
+                        ? (int) ($arm->class_teacher_id ?? 0)
+                        : 0;
+                    $classArmLabel = trim($class->name.' '.$arm->name);
+
+                    foreach ($classAssignments as $assignment) {
+                        if ($mode === 'class_teacher') {
+                            $teacherId = $classTeacherId ?: null;
+                            $assignmentType = 'Class/Form Teacher';
+                        } else {
+                            $override = $overrideMap->get(
+                                (int) $arm->id.':'.(int) $assignment->subject_id
+                            );
+                            $teacherId = $override?->teacher_id
+                                ?: $assignment->teacher_id;
+                            $assignmentType = 'Subject Teacher';
+                        }
+
+                        if (! $teacherId) {
+                            $unassignedSlots++;
+                            continue;
+                        }
+
+                        $assignmentRows->push([
+                            'teacher_id' => (int) $teacherId,
+                            'assignment_type' => $assignmentType,
+                            'class_arm' => $classArmLabel,
+                            'subject' => (string) $assignment->subject_name,
+                        ]);
+                    }
+                }
+            }
+        }
 
         $teacherIds = $assignmentRows
             ->pluck('teacher_id')
+            ->filter()
             ->unique()
             ->values();
 
         $teachers = $teacherIds->isEmpty()
             ? collect()
-            : User::where('tenant_id', $tenantId)
+            : DB::table('users')
+                ->where('tenant_id', $tenantId)
                 ->whereIn('id', $teacherIds)
-                ->get()
+                ->when(
+                    Schema::hasColumn('users', 'deleted_at'),
+                    fn ($query) => $query->whereNull('deleted_at')
+                )
+                ->get([
+                    'id',
+                    'name',
+                    'staff_id',
+                    'phone',
+                    'role',
+                    'is_active',
+                    'employment_status',
+                ])
                 ->keyBy('id');
 
         $teacherRows = $assignmentRows
@@ -276,8 +437,13 @@ class ParallelCurriculumDirectoryController extends Controller
                     return null;
                 }
 
+                $role = (string) ($teacher->role ?? 'staff');
+                $roleLabel = User::ROLE_LABELS[$role]
+                    ?? ucwords(str_replace('_', ' ', $role));
+
                 return [
                     'teacher' => $teacher,
+                    'role_label' => $roleLabel,
                     'assignment_types' => $rows
                         ->pluck('assignment_type')
                         ->unique()
@@ -321,6 +487,10 @@ class ParallelCurriculumDirectoryController extends Controller
             )
             ->count();
 
+        $schoolName = DB::table('tenants')
+            ->where('id', $tenantId)
+            ->value('name') ?: 'School';
+
         return view('parallel-curriculum.directories.teacher-list', compact(
             'curricula',
             'selectedCurriculum',
@@ -329,7 +499,8 @@ class ParallelCurriculumDirectoryController extends Controller
             'teacherRows',
             'classTeacherCount',
             'subjectTeacherCount',
-            'unassignedSlots'
+            'unassignedSlots',
+            'schoolName'
         ));
     }
 
