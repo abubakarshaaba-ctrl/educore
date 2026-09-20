@@ -174,7 +174,6 @@ internal fun OperationsScreen(
                         text = selectedDate?.let { "Date: $it" } ?: "Select date",
                         onClick = { showDatePicker = true },
                         modifier = Modifier.fillMaxWidth(),
-                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                     )
                     if (selectedSession != null || selectedTerm != null || selectedClass != null || selectedDate != null) {
                         EduCoreSecondaryButton(
