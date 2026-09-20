@@ -43,6 +43,15 @@ interface ParallelCurriculumLifecycleRepository {
 
     suspend fun deleteTimetablePeriod(periodId: Long): AppResult<String>
 
+    suspend fun saveWorkingDays(
+        curriculumId: Long,
+        days: List<online.educoreng.educore.core.model.ParallelWorkingDay>,
+    ): AppResult<String>
+
+    suspend fun clockInParallelStaff(curriculumId: Long): AppResult<String>
+
+    suspend fun clockOutParallelStaff(curriculumId: Long): AppResult<String>
+
     suspend fun saveParallelAttendance(
         armId: Long,
         termId: Long,
@@ -216,6 +225,12 @@ interface ParallelCurriculumLifecycleRepository {
         armId: Long,
         subjectId: Long,
         teacherId: Long?,
+    ): AppResult<String>
+
+    suspend fun saveArmTeachingMode(
+        armId: Long,
+        teachingAssignmentMode: String,
+        classTeacherId: Long?,
     ): AppResult<String>
 
     suspend fun saveGrade(
