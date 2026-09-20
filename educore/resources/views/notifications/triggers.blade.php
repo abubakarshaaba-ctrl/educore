@@ -59,7 +59,7 @@ td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--midnight)}
 @if(session('error'))<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px">⚠ {{ session('error') }}</div>@endif
 
 <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 16px;font-size:13px;color:#1D4ED8;margin-bottom:18px;line-height:1.6">
-    <strong>EduCore delivery policy:</strong> attendance alerts, announcements, ordinary messages, exam supervision, platform broadcasts and calendar activity are delivered by <strong>push + in-app notification only</strong>. Email is reserved for transactional communication such as results, finance, admissions, account/security, recruitment and tenant/subscription lifecycle events. The optional controls below apply only to transactional reminders.
+    <strong>EduCore delivery policy:</strong> attendance alerts, announcements, ordinary messages, exam supervision, platform broadcasts and calendar activity are delivered by <strong>push + in-app notification only</strong>. Email is reserved for transactional communication such as results, finance, admissions, account/security, recruitment and tenant/subscription lifecycle events. The optional controls below are separate reminder settings and cannot override the fixed push-only activities.
 </div>
 
 <form method="POST" action="{{ route('notifications.triggers.save') }}">
