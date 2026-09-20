@@ -179,7 +179,9 @@ class ParallelCurriculumDirectoryController extends Controller
     {
         $this->assertAccess();
 
+        $user = $request->user();
         $tenantId = $this->tenantId();
+
         $curricula = ParallelCurriculum::with([
                 'classes' => fn ($query) => $query
                     ->where('is_active', true)
@@ -208,118 +210,51 @@ class ParallelCurriculumDirectoryController extends Controller
             $selectedClassId = null;
         }
 
-        $classes = collect();
-        if ($selectedCurriculum) {
-            $armSchemaReady = Schema::hasTable('parallel_curriculum_class_arms');
-            $relations = [
-                'curriculum',
-                'subjectAssignments' => fn ($query) => $query
-                    ->where('is_active', true),
-                'subjectAssignments.subject',
-            ];
-
-            if ($armSchemaReady) {
-                $relations['arms'] = fn ($query) => $query
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name');
-            }
-
-            if (
-                $armSchemaReady
-                && Schema::hasTable('parallel_curriculum_arm_subject_teachers')
-            ) {
-                $relations['arms.subjectTeachers'] = fn ($query) =>
-                    $query->where('is_active', true);
-            }
-
-            $classes = ParallelCurriculumClass::with($relations)
-                ->where('tenant_id', $tenantId)
-                ->where('parallel_curriculum_id', $selectedCurriculum->id)
-                ->where('is_active', true)
-                ->when(
-                    $selectedClassId,
-                    fn ($query) => $query->whereKey($selectedClassId)
+        /*
+         * Reuse the same canonical workspace resolver that powers score entry.
+         * This keeps the directory aligned with class-teacher mode, arm-level
+         * subject overrides and default subject teachers, and avoids a second
+         * independently maintained teacher-resolution query.
+         */
+        $workspaces = $selectedCurriculum
+            ? $this->service->scoreWorkspacesForUser($user, null, true)
+                ->filter(fn (array $workspace) =>
+                    (int) ($workspace['curriculum_id'] ?? 0)
+                        === (int) $selectedCurriculum->id
+                    && (
+                        ! $selectedClassId
+                        || (int) ($workspace['class_id'] ?? 0)
+                            === (int) $selectedClassId
+                    )
                 )
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get();
+                ->values()
+            : collect();
 
-            if (! $armSchemaReady) {
-                $classes->each(fn (ParallelCurriculumClass $class) =>
-                    $class->setRelation('arms', collect())
-                );
-            }
-        }
+        $unassignedSlots = $workspaces
+            ->filter(fn (array $workspace) =>
+                empty($workspace['effective_teacher_id'])
+            )
+            ->count();
 
-        $assignmentRows = collect();
-        $unassignedSlots = 0;
+        $assignmentRows = $workspaces
+            ->filter(fn (array $workspace) =>
+                ! empty($workspace['effective_teacher_id'])
+            )
+            ->map(function (array $workspace): array {
+                $arm = $workspace['arm'] ?? null;
+                $isClassTeacherMode = $arm
+                    && method_exists($arm, 'usesClassTeacherModel')
+                    && $arm->usesClassTeacherModel();
 
-        foreach ($classes as $class) {
-            $assignments = $class->subjectAssignments
-                ->filter(fn ($assignment) => $assignment->subject?->is_active)
-                ->values();
-            $arms = $class->arms
-                ->where('is_active', true)
-                ->values();
-
-            if ($arms->isEmpty()) {
-                foreach ($assignments as $assignment) {
-                    if (! $assignment->teacher_id) {
-                        $unassignedSlots++;
-                        continue;
-                    }
-
-                    $assignmentRows->push([
-                        'teacher_id' => (int) $assignment->teacher_id,
-                        'assignment_type' => 'Subject Teacher',
-                        'class_arm' => $class->name,
-                        'subject' => $assignment->subject?->name ?: 'Subject',
-                    ]);
-                }
-
-                continue;
-            }
-
-            foreach ($arms as $arm) {
-                if ($arm->usesClassTeacherModel()) {
-                    if (! $arm->class_teacher_id) {
-                        $unassignedSlots++;
-                        continue;
-                    }
-
-                    $assignmentRows->push([
-                        'teacher_id' => (int) $arm->class_teacher_id,
-                        'assignment_type' => 'Class/Form Teacher',
-                        'class_arm' => trim($class->name.' '.$arm->name),
-                        'subject' => $assignments->isEmpty()
-                            ? 'No active subject assigned'
-                            : 'All assigned subjects',
-                    ]);
-
-                    continue;
-                }
-
-                foreach ($assignments as $assignment) {
-                    $teacherId = $this->service->effectiveTeacherId(
-                        $assignment,
-                        $arm
-                    );
-
-                    if (! $teacherId) {
-                        $unassignedSlots++;
-                        continue;
-                    }
-
-                    $assignmentRows->push([
-                        'teacher_id' => (int) $teacherId,
-                        'assignment_type' => 'Subject Teacher',
-                        'class_arm' => trim($class->name.' '.$arm->name),
-                        'subject' => $assignment->subject?->name ?: 'Subject',
-                    ]);
-                }
-            }
-        }
+                return [
+                    'teacher_id' => (int) $workspace['effective_teacher_id'],
+                    'assignment_type' => $isClassTeacherMode
+                        ? 'Class/Form Teacher'
+                        : 'Subject Teacher',
+                    'class_arm' => $workspace['class_label'] ?? 'Parallel Class',
+                    'subject' => $workspace['subject_name'] ?? 'Subject',
+                ];
+            });
 
         $teacherIds = $assignmentRows
             ->pluck('teacher_id')
@@ -335,28 +270,42 @@ class ParallelCurriculumDirectoryController extends Controller
 
         $teacherRows = $assignmentRows
             ->groupBy('teacher_id')
-            ->map(function (Collection $rows, int|string $teacherId) use ($teachers): ?array {
+            ->map(function (Collection $rows, $teacherId) use ($teachers): ?array {
                 $teacher = $teachers->get((int) $teacherId);
                 if (! $teacher) {
                     return null;
                 }
 
-                $types = $rows->pluck('assignment_type')->unique()->values();
-
                 return [
                     'teacher' => $teacher,
-                    'assignment_types' => $types,
-                    'class_arms' => $rows->pluck('class_arm')->unique()->sort()->values(),
-                    'subjects' => $rows->pluck('subject')->unique()->sort()->values(),
+                    'assignment_types' => $rows
+                        ->pluck('assignment_type')
+                        ->unique()
+                        ->values(),
+                    'class_arms' => $rows
+                        ->pluck('class_arm')
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values(),
+                    'subjects' => $rows
+                        ->pluck('subject')
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values(),
                     'assignment_count' => $rows->count(),
                     'is_active' => (bool) $teacher->is_active
-                        && ($teacher->employment_status === null
-                            || $teacher->employment_status === User::STAFF_STATUS_ACTIVE),
+                        && (
+                            $teacher->employment_status === null
+                            || $teacher->employment_status
+                                === User::STAFF_STATUS_ACTIVE
+                        ),
                 ];
             })
             ->filter()
             ->sortBy(fn (array $row) =>
-                mb_strtolower((string) $row['teacher']->name)
+                strtolower((string) $row['teacher']->name)
             )
             ->values();
 
@@ -365,6 +314,7 @@ class ParallelCurriculumDirectoryController extends Controller
                 $row['assignment_types']->contains('Class/Form Teacher')
             )
             ->count();
+
         $subjectTeacherCount = $teacherRows
             ->filter(fn (array $row) =>
                 $row['assignment_types']->contains('Subject Teacher')
