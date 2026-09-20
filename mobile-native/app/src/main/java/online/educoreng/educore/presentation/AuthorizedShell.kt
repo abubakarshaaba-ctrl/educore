@@ -581,6 +581,8 @@ internal fun AuthorizedShell(
                                 onUnpublishResult = parallelLifecycleViewModel::unpublishResult,
                                 onDownloadResultExport = parallelLifecycleViewModel::downloadResultExport,
                                 onDownloadStudentResultPdf = parallelLifecycleViewModel::downloadStudentResultPdf,
+                                onDownloadCumulativeStudentResultPdf = parallelLifecycleViewModel::downloadCumulativeStudentResultPdf,
+                                onDownloadParallelBroadsheetPdf = parallelLifecycleViewModel::downloadParallelBroadsheetPdf,
                                 onCreateArm = parallelLifecycleViewModel::createArm,
                                 onUpdateArm = parallelLifecycleViewModel::updateArm,
                                 onArchiveArm = parallelLifecycleViewModel::archiveArm,
@@ -601,6 +603,8 @@ internal fun AuthorizedShell(
                                 onClockOutParallelStaff = parallelLifecycleViewModel::clockOutParallelStaff,
                                 onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
                                 onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
+                                onLoadSkills = parallelLifecycleViewModel::loadSkills,
+                                onSaveSkills = parallelLifecycleViewModel::saveSkills,
                                 onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
                                 onTransfer = parallelLifecycleViewModel::transfer,
                                 onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
@@ -653,6 +657,9 @@ internal fun AuthorizedShell(
                                 onConfirm = reportsViewModel::confirmManagementAction,
                                 onDismissConfirmation = reportsViewModel::dismissConfirmation,
                                 onDownload = reportsViewModel::downloadPdf,
+                                onDownloadCumulative = {
+                                    reportsViewModel.downloadCumulativeBroadsheet(session.academicPeriod.sessionId)
+                                },
                                 onDocumentOpened = reportsViewModel::consumeDocument,
                                 onRetry = reportsViewModel::load,
                             )
