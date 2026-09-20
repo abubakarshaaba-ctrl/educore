@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import online.educoreng.educore.core.model.DeepLinkTarget
 
 object NotificationDeepLinkParser {
-    private val allowedTypes = setOf("announcement", "message_thread", "calendar_event")
+    private val allowedTypes = setOf("announcement", "message_thread", "calendar_event", "attendance")
 
     fun parse(values: Map<String, String>): DeepLinkTarget? {
         val type = values["destination_type"]
@@ -17,7 +17,7 @@ object NotificationDeepLinkParser {
         val id = values["destination_id"]
             ?.trim()
             ?.takeIf { value -> value.toLongOrNull()?.let { it > 0 } == true }
-        if (type == "message_thread" && id == null) return null
+        if (type in setOf("message_thread", "attendance") && id == null) return null
         return DeepLinkTarget(type, id)
     }
 
