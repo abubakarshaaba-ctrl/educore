@@ -141,9 +141,12 @@ class ParallelCurriculumResultController extends Controller
         );
 
         $presentation['tenant'] = auth()->user()->tenant;
+        $programmeName = strtoupper(
+            trim((string) ($presentation['parallelProgrammeName'] ?? $class->curriculum?->name ?? 'Parallel Curriculum'))
+        );
         $presentation['reportDocumentTitle'] = $presentation['isThirdTerm']
-            ? 'Parallel Curriculum Third-Term Cumulative Student Report'
-            : 'Parallel Curriculum Student Termly Performance Report';
+            ? $programmeName.' Cumulative Student Performance Report'
+            : $programmeName.' Student Termly Performance Report';
 
         $filename = str($student->admission_number ?: $student->full_name)
             ->slug('_')
