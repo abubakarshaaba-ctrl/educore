@@ -555,28 +555,71 @@ class ParallelCurriculumService
         int $tenantId,
         int $subjectId,
         \App\Models\ClassLevel $classLevel,
-        ?Collection $preloadedRules = null
+        ?Collection $preloadedRules = null,
+        ?Collection $preloadedLegacySubjectIds = null
     ): bool {
-        if (! Schema::hasTable('class_level_subjects')) {
-            return true;
-        }
+        $masterRulesReady = Schema::hasTable('class_level_subjects');
 
-        $rules = $preloadedRules ?? ClassLevelSubject::withoutTenantScope()
-            ->where('tenant_id', $tenantId)
-            ->where('class_level_id', $classLevel->id)
-            ->where('is_active', true)
-            ->get();
+        $rules = $masterRulesReady
+            ? ($preloadedRules ?? ClassLevelSubject::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('class_level_id', $classLevel->id)
+                ->where('is_active', true)
+                ->get())
+            : collect();
 
-        if ($rules->isEmpty()) {
-            return true;
-        }
-
-        return $rules
+        $offeredByMaster = $rules
             ->where('subject_id', $subjectId)
             ->contains(fn (ClassLevelSubject $rule) =>
                 $rule->is_active
                 && $rule->subject_status !== 'not_offered'
             );
+
+        if ($offeredByMaster) {
+            return true;
+        }
+
+        /*
+         * Some older schools still have valid conventional subjects recorded
+         * only in class_arm_subjects. The curriculum module itself ships a
+         * backfill utility for this legacy state, so Integration must not hide
+         * those subjects before that backfill is run.
+         */
+        $legacySubjectIds = $preloadedLegacySubjectIds;
+
+        if ($legacySubjectIds === null && Schema::hasTable('class_arm_subjects')) {
+            $legacyQuery = DB::table('class_arm_subjects as assignment')
+                ->join(
+                    'class_arms as arm',
+                    'arm.id',
+                    '=',
+                    'assignment.class_arm_id'
+                )
+                ->where('assignment.tenant_id', $tenantId)
+                ->where('arm.tenant_id', $tenantId)
+                ->where('arm.class_level_id', $classLevel->id);
+
+            if (Schema::hasColumn('class_arm_subjects', 'is_active')) {
+                $legacyQuery->where('assignment.is_active', true);
+            }
+            if (Schema::hasColumn('class_arms', 'deleted_at')) {
+                $legacyQuery->whereNull('arm.deleted_at');
+            }
+
+            $legacySubjectIds = $legacyQuery
+                ->pluck('assignment.subject_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+        }
+
+        if (($legacySubjectIds ?? collect())->contains((int) $subjectId)) {
+            return true;
+        }
+
+        // Preserve permissive behaviour for schools that have not configured
+        // any master class-level rules yet.
+        return ! $masterRulesReady || $rules->isEmpty();
     }
 
     public function conventionalSubjectAvailableForArm(
