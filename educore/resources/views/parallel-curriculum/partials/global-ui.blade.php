@@ -617,4 +617,28 @@
     .pco table.att .fc{min-width:0;width:100%}
 }
 
+
+/* Parallel result register: card layout on phones. */
+@media(max-width:640px){
+    .pc-results .table-wrap{overflow:visible;border:0}
+    .pc-results table.results-table{min-width:0;width:100%;display:block}
+    .pc-results table.results-table thead{display:none}
+    .pc-results table.results-table tbody{display:grid;gap:10px}
+    .pc-results table.results-table tr{display:block;border:1px solid var(--border);border-radius:10px;background:#fff;overflow:hidden}
+    .pc-results table.results-table td{display:grid;grid-template-columns:minmax(112px,40%) minmax(0,1fr);gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #EEF2F7}
+    .pc-results table.results-table td:last-child{border-bottom:0}
+    .pc-results table.results-table td::before{font-size:10.5px;font-weight:800;color:var(--slate)}
+    .pc-results table.results-table td:nth-child(1)::before{content:'Student'}
+    .pc-results table.results-table td:nth-child(2)::before{content:'Admission No.'}
+    .pc-results table.results-table td:nth-child(3)::before{content:'Arm'}
+    .pc-results table.results-table td:nth-child(4)::before{content:'Subjects complete'}
+    .pc-results table.results-table td:nth-child(5)::before{content:'Total'}
+    .pc-results table.results-table td:nth-child(6)::before{content:'Average'}
+    .pc-results table.results-table td:nth-child(7)::before{content:'Position'}
+    .pc-results table.results-table td:nth-child(8)::before{content:'Status'}
+    .pc-results table.results-table td:nth-child(9)::before{content:'Actions'}
+    .pc-results table.results-table .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+    .pc-results table.results-table .actions .btn{width:100%}
+}
+
 </style>
