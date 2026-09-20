@@ -216,6 +216,7 @@ class ParallelCurriculumController extends Controller
             ? $this->service->formTeacherArmsForUser(auth()->user())
             : collect();
 
+        $showQuickWorkspaceSelector = ! $isSetup && $workspaces->count() <= 80;
         $workspaceSearch = trim((string) $request->query('workspace_q', ''));
         $workspacePaginator = null;
 
@@ -382,6 +383,7 @@ class ParallelCurriculumController extends Controller
             'scoreTerms',
             'curricula',
             'workspaces',
+            'showQuickWorkspaceSelector',
             'workspaceSearch',
             'workspacePaginator',
             'parallelFormTeacherArms',
