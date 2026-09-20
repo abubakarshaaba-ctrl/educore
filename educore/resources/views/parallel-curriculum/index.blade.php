@@ -31,26 +31,7 @@
         </div>
     @endif
 
-    <div class="pc-tabs">
-        <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
-        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Workspace</a>
-        @if($canManage)
-            <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab">Programme Setup</a>
-            <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
-            <a href="{{ route('parallel-curriculum.class-list') }}" class="pc-tab">Class List</a>
-            <a href="{{ route('parallel-curriculum.teacher-list') }}" class="pc-tab">Teacher List</a>
-            <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
-        @endif
-        @if($canViewOperations)
-            <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
-        @endif
-        @if($canManage)
-            <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
-        @endif
-        @if(auth()->user()->canAccessModule('scores.view') || auth()->user()->canAccessExactModule('scores'))
-            <a href="{{ route('scores.broadsheet') }}" class="pc-tab">Broadsheet</a>
-        @endif
-    </div>
+    @include('parallel-curriculum.partials.module-navigation')
 
     <div class="pc-hero">
         <h2>Parallel Curriculum Integration</h2>
