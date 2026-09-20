@@ -117,7 +117,7 @@ data class PublishedResultDto(
     @param:Json(name = "class_size") val classSize: Int? = null,
     @param:Json(name = "subjects_offered") val subjectsOffered: Int,
     @param:Json(name = "subjects_failed") val subjectsFailed: Int,
-    @param:Json(name = "promotion_status") val promotionStatus: String,
+    @param:Json(name = "promotion_status") val promotionStatus: String = "",
     @param:Json(name = "form_tutor_remark") val formTutorRemark: String? = null,
     @param:Json(name = "principal_remark") val principalRemark: String? = null,
     val subjects: List<ResultSubjectDto> = emptyList(),
