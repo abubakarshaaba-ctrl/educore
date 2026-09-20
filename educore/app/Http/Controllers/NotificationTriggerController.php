@@ -57,7 +57,7 @@ class NotificationTriggerController extends Controller
 
         return back()->with(
             'success',
-            'Transactional notification preferences saved. Routine activity remains push + in-app.'
+            'Optional reminder preferences saved. Routine activity remains push + in-app.'
         );
     }
 
@@ -67,7 +67,8 @@ class NotificationTriggerController extends Controller
      * Routine operational events are deliberately rejected here because their
      * delivery is handled by PushNotificationService / in-app notification
      * flows. Transactional reminder events may still use this explicit tenant
-     * configuration.
+     * configuration. CBT exam scheduling remains an optional reminder event
+     * and is deliberately separate from exam-supervision push notifications.
      */
     public static function fire(string $event, array $data = [], ?int $tenantId = null): int
     {
