@@ -982,11 +982,23 @@ class ParallelCurriculumService
             return $composite;
         }
 
-        if (! $this->conventionalSubjectAvailableForArm(
-            $tenantId,
-            (int) $integration->destination_subject_id,
-            $conventionalArm
-        )) {
+        /*
+         * Integration mappings are defined per conventional class level.
+         * Use the same class-level subject resolver here that is used by the
+         * setup selector and save validation. Re-checking the student's arm
+         * track at this point made valid class-level mappings fail for most
+         * students in levels whose curriculum rules are track-specific or
+         * still partly stored in legacy class-arm assignments.
+         */
+        $conventionalLevel = $conventionalArm->classLevel;
+        if (
+            ! $conventionalLevel
+            || ! $this->conventionalSubjectAvailableForClassLevel(
+                $tenantId,
+                (int) $integration->destination_subject_id,
+                $conventionalLevel
+            )
+        ) {
             $composite = $this->persistStatus(
                 $existingComposite,
                 $enrolment,
@@ -998,7 +1010,7 @@ class ParallelCurriculumService
                 0,
                 [],
                 'unmapped',
-                'The mapped conventional subject is not offered for this student\'s class level or academic track.'
+                'The mapped conventional subject is not offered for this student\'s conventional class level.'
             );
             $this->clearDerivedScoresIfSafe($composite);
 
