@@ -7,6 +7,7 @@ use App\Models\PayrollItem;
 use App\Models\PayrollPeriod;
 use App\Models\User;
 use App\Services\PayrollGenerationService;
+use App\Services\Notifications\PayrollNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -130,10 +131,13 @@ class MobilePayrollController extends Controller
         ]);
     }
 
-    public function markPaid(Request $request, int $period)
-    {
+    public function markPaid(
+        Request $request,
+        int $period,
+        PayrollNotificationService $notifications
+    ) {
         $user = $this->guard($request, manage: true);
-        $payload = DB::transaction(function () use ($user, $period): array {
+        $payroll = DB::transaction(function () use ($user, $period): PayrollPeriod {
             $payroll = PayrollPeriod::where('tenant_id', $user->tenant_id)
                 ->whereKey($period)
                 ->lockForUpdate()
@@ -150,13 +154,17 @@ class MobilePayrollController extends Controller
                 ->where('payroll_period_id', $payroll->id)
                 ->update(['payment_status' => 'paid']);
 
-            return [
-                'message' => 'Payroll marked as paid.',
-                'period' => $this->periodPayload($payroll->fresh()),
-            ];
+            return $payroll->fresh();
         });
 
-        return response()->json($payload);
+        $sent = $notifications->notifyPaid($payroll);
+
+        return response()->json([
+            'message' => 'Payroll marked as paid.'
+                .($sent > 0 ? " {$sent} staff email notification(s) sent." : ''),
+            'period' => $this->periodPayload($payroll),
+            'email_notifications_sent' => $sent,
+        ]);
     }
 
     private function periodPayload(PayrollPeriod $period): array
