@@ -577,7 +577,7 @@ class ParallelCurriculumLifecycleTest extends TestCase
             $setup
         );
         $this->assertStringContainsString(
-            '$enrolments->take(12)',
+            '$enrolmentTotal',
             $setup
         );
         $this->assertStringContainsString(
