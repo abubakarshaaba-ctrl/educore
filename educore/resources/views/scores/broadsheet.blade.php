@@ -22,7 +22,7 @@
 .context-bar p{font-size:12px;color:var(--slate);margin-top:2px}
 .sheet-outer{overflow-x:auto;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05)}
 table{width:100%;border-collapse:collapse;white-space:nowrap;background:white}
-thead th{background:var(--midnight);color:white;padding:9px 12px;font-size:11px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,0.1)}
+thead th{background:var(--midnight);color:#D79A21!important;padding:9px 12px;font-size:11px;font-weight:700;text-align:center;border-right:1px solid rgba(255,255,255,0.1)}
 thead th.left{text-align:left}
 tbody td{padding:8px 10px;border-bottom:1px solid var(--border);border-right:1px solid #F1F5F9;font-size:12px;text-align:center;color:var(--midnight)}
 tbody td.student-cell{text-align:left;padding-left:12px;min-width:160px;background:#FAFBFF;position:sticky;left:0;z-index:1;border-right:2px solid var(--border)}
@@ -50,7 +50,7 @@ tbody tr:hover td.student-cell{background:#EFF6FF}
     .sheet-outer{border:none;box-shadow:none;overflow:visible}
     body{font-size:9pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     table{width:100%;table-layout:auto}
-    thead th{font-size:8pt;padding:6pt 5pt;background:#071E45!important;color:#fff!important;-webkit-print-color-adjust:exact}
+    thead th{font-size:8pt;padding:6pt 5pt;background:#071E45!important;color:#D79A21!important;-webkit-print-color-adjust:exact}
     tbody td{font-size:9pt;padding:5pt 5pt}
     tbody td.student-cell{position:static;font-size:9pt}
     .grade-pass{color:#047857!important}
