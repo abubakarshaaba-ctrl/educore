@@ -120,7 +120,7 @@ class ParallelCurriculumPortalAccessTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "Pdf::loadView('reports.pdf', \\$presentation)",
+            'Pdf::loadView(\'reports.pdf\', $presentation)',
             $controller
         );
         $this->assertStringContainsString(
