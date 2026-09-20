@@ -18,16 +18,7 @@
 
 @section('content')
 <div class="pc-score">
-<div class="pc-tabs">
-    <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
-    <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
-    @if($canManage)
-        <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
-        <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
-        <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
-        <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
-    @endif
-</div>
+@include('parallel-curriculum.partials.module-navigation')
 
 @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert-e">{{ $errors->first() }}</div>@endif
