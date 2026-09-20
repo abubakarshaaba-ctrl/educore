@@ -32,6 +32,9 @@ class ParallelCurriculumService
     public const SCORE_SOURCE = 'parallel_curriculum';
     public const SOURCE_REFERENCE_TYPE = 'parallel_curriculum_composite';
 
+    private ?bool $armTeachingModesReadyCache = null;
+    private ?bool $armTeacherOverridesReadyCache = null;
+
     public const MANAGEMENT_ROLE_KEYS = [
         'admin',
         'principal',
@@ -56,6 +59,21 @@ class ParallelCurriculumService
             && in_array((string) $user->roleKey(), self::MANAGEMENT_ROLE_KEYS, true);
     }
 
+    private function armTeachingModesReady(): bool
+    {
+        return $this->armTeachingModesReadyCache ??= (
+            Schema::hasColumn('parallel_curriculum_class_arms', 'teaching_assignment_mode')
+            && Schema::hasColumn('parallel_curriculum_class_arms', 'class_teacher_id')
+        );
+    }
+
+    private function armTeacherOverridesReady(): bool
+    {
+        return $this->armTeacherOverridesReadyCache ??= Schema::hasTable(
+            'parallel_curriculum_arm_subject_teachers'
+        );
+    }
+
     public function enabledForTenant(int $tenantId): bool
     {
         return SchoolSetting::withoutTenantScope()
@@ -77,14 +95,7 @@ class ParallelCurriculumService
     ): ?int {
         if (
             $arm
-            && Schema::hasColumn(
-                'parallel_curriculum_class_arms',
-                'teaching_assignment_mode'
-            )
-            && Schema::hasColumn(
-                'parallel_curriculum_class_arms',
-                'class_teacher_id'
-            )
+            && $this->armTeachingModesReady()
             && $arm->teaching_assignment_mode === 'class_teacher'
         ) {
             return $arm->class_teacher_id
@@ -92,14 +103,23 @@ class ParallelCurriculumService
                 : null;
         }
 
-        if ($arm && Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
-            $override = ParallelCurriculumArmSubjectTeacher::withoutTenantScope()
-                ->where('tenant_id', $assignment->tenant_id)
-                ->where('parallel_curriculum_class_id', $assignment->parallel_curriculum_class_id)
-                ->where('parallel_curriculum_class_arm_id', $arm->id)
-                ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
-                ->where('is_active', true)
-                ->first();
+        if ($arm && $this->armTeacherOverridesReady()) {
+            $override = $arm->relationLoaded('subjectTeachers')
+                ? $arm->subjectTeachers
+                    ->first(fn (ParallelCurriculumArmSubjectTeacher $item) =>
+                        $item->is_active
+                        && (int) $item->parallel_curriculum_class_id
+                            === (int) $assignment->parallel_curriculum_class_id
+                        && (int) $item->parallel_curriculum_subject_id
+                            === (int) $assignment->parallel_curriculum_subject_id
+                    )
+                : ParallelCurriculumArmSubjectTeacher::withoutTenantScope()
+                    ->where('tenant_id', $assignment->tenant_id)
+                    ->where('parallel_curriculum_class_id', $assignment->parallel_curriculum_class_id)
+                    ->where('parallel_curriculum_class_arm_id', $arm->id)
+                    ->where('parallel_curriculum_subject_id', $assignment->parallel_curriculum_subject_id)
+                    ->where('is_active', true)
+                    ->first();
 
             if ($override) {
                 return (int) $override->teacher_id;
@@ -169,7 +189,9 @@ class ParallelCurriculumService
         $armLifecycleReady = Schema::hasTable('parallel_curriculum_class_arms');
         $relations = ['curriculumClass.curriculum', 'subject'];
         if ($armLifecycleReady) {
-            $relations[] = 'curriculumClass.arms';
+            $relations[] = $this->armTeacherOverridesReady()
+                ? 'curriculumClass.arms.subjectTeachers'
+                : 'curriculumClass.arms';
         }
 
         // Full workspace visibility is reserved for lifecycle managers.
