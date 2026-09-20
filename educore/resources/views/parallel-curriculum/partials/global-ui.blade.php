@@ -645,4 +645,248 @@
     .pc-results table.results-table .actions .btn{width:100%}
 }
 
+/* Unified module navigation */
+.pc-directory,
+.ftc {
+    width:100%;
+    max-width:1280px;
+    margin-inline:auto;
+    min-width:0;
+}
+
+.pc-module-nav{
+    position:sticky;
+    top:8px;
+    z-index:30;
+    margin:0 0 16px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(255,255,255,.97);
+    box-shadow:0 6px 18px rgba(15,23,42,.06);
+    backdrop-filter:blur(10px);
+}
+.pc-module-nav-head{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 12px;
+}
+.pc-module-brand{
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    color:var(--midnight);
+    text-decoration:none;
+}
+.pc-module-brand-mark{
+    flex:0 0 auto;
+    width:34px;
+    height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:9px;
+    background:var(--midnight);
+    color:#fff;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.04em;
+}
+.pc-module-brand strong{
+    display:block;
+    font-size:12.5px;
+    line-height:1.25;
+}
+.pc-module-brand small{
+    display:block;
+    margin-top:2px;
+    color:var(--slate-light);
+    font-size:10.5px;
+    line-height:1.2;
+}
+.pc-module-nav-toggle{
+    flex:0 0 auto;
+    min-height:38px;
+    padding:7px 10px;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--midnight);
+    font:700 11.5px/1.2 inherit;
+    cursor:pointer;
+}
+.pc-module-nav-panel{
+    display:flex;
+    align-items:flex-start;
+    gap:6px;
+    padding:9px;
+    overflow-x:auto;
+    scrollbar-width:thin;
+}
+.pc-module-nav-group{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    padding-right:6px;
+    border-right:1px solid #E9EDF3;
+}
+.pc-module-nav-group:last-child{border-right:0;padding-right:0}
+.pc-module-nav-label{
+    padding:0 4px;
+    color:var(--slate-light);
+    font-size:9px;
+    line-height:1.2;
+    font-weight:900;
+    letter-spacing:.055em;
+    text-transform:uppercase;
+    white-space:nowrap;
+}
+.pc-module-nav-items{
+    display:flex;
+    align-items:center;
+    gap:4px;
+}
+.pc-module-nav-items a{
+    min-height:36px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:7px 10px;
+    border:1px solid transparent;
+    border-radius:8px;
+    color:var(--slate);
+    background:transparent;
+    text-decoration:none;
+    font-size:11.5px;
+    line-height:1.2;
+    font-weight:700;
+    white-space:nowrap;
+    transition:background 150ms,border-color 150ms,color 150ms;
+}
+.pc-module-nav-items a:hover{
+    background:#F8FAFC;
+    border-color:var(--border);
+    color:var(--midnight);
+}
+.pc-module-nav-items a.active{
+    background:var(--midnight);
+    border-color:var(--midnight);
+    color:#fff;
+}
+.pc-module-nav-items a:focus-visible,
+.pc-module-nav-toggle:focus-visible{
+    outline:3px solid rgba(215,154,33,.24);
+    outline-offset:2px;
+}
+
+/* Compact in-page jump navigation for dense admin workspaces. */
+.pc-jumpbar{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin:0 0 14px;
+    padding:9px 10px;
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fff;
+    scrollbar-width:thin;
+}
+.pc-jumpbar-label{
+    flex:0 0 auto;
+    color:var(--slate-light);
+    font-size:10px;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+}
+.pc-jumpbar a{
+    flex:0 0 auto;
+    min-height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 9px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#F8FAFC;
+    color:var(--midnight);
+    text-decoration:none;
+    font-size:11px;
+    font-weight:700;
+    white-space:nowrap;
+}
+.pc-jumpbar a:hover{border-color:var(--indigo);background:#F8FAFF}
+.pc-jumpbar a:focus-visible{outline:3px solid rgba(215,154,33,.20);outline-offset:2px}
+[id^="setup-"],
+[id^="lifecycle-"],
+#teaching-assignment-model,
+#working-week,
+#staff-attendance,
+#parallel-timetable,
+#learner-attendance,
+#parallel-score-entry,
+#parallel-workspaces{
+    scroll-margin-top:92px;
+}
+
+@media(max-width:768px){
+    .pc-module-nav{
+        position:sticky;
+        top:6px;
+        margin-bottom:12px;
+    }
+    .pc-module-nav-head{display:flex}
+    .pc-module-nav-panel{
+        display:none;
+        max-height:min(66vh,520px);
+        overflow-y:auto;
+        overflow-x:hidden;
+        padding:0 10px 10px;
+    }
+    .pc-module-nav.is-open .pc-module-nav-panel{
+        display:grid;
+        grid-template-columns:1fr;
+        gap:8px;
+    }
+    .pc-module-nav-group{
+        width:100%;
+        display:block;
+        padding:8px 0 0;
+        border-right:0;
+        border-top:1px solid #EEF2F7;
+    }
+    .pc-module-nav-label{
+        display:block;
+        padding:0 2px 6px;
+    }
+    .pc-module-nav-items{
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:6px;
+    }
+    .pc-module-nav-items a{
+        width:100%;
+        min-width:0;
+        min-height:42px;
+        padding:8px 9px;
+        white-space:normal;
+        text-align:center;
+    }
+    .pc-jumpbar{
+        margin-inline:-2px;
+        padding:8px;
+    }
+}
+
+@media(max-width:440px){
+    .pc-module-nav-items{grid-template-columns:1fr}
+}
+
 </style>
