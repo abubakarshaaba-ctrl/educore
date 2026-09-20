@@ -597,6 +597,14 @@ class ParallelCurriculumLifecycleTest extends TestCase
             "parallel-curriculum.partials.progressive-disclosure",
             $lifecycle
         );
+        $this->assertStringContainsString(
+            'data-parallel-validation-target="{{ old(\'_parallel_section\') }}"',
+            $lifecycle
+        );
+        $this->assertStringContainsString(
+            'id="lifecycle-promotion-engine"',
+            $lifecycle
+        );
 
         $this->assertStringContainsString(
             'data-storage-key="parallel-operations"',
@@ -604,6 +612,14 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
         $this->assertStringContainsString('staff-att-table', $operations);
         $this->assertStringContainsString('learner-att-table', $operations);
+        $this->assertStringContainsString(
+            'data-parallel-validation-target="{{ old(\'_parallel_section\') }}"',
+            $operations
+        );
+        $this->assertStringContainsString(
+            'name="_parallel_section" value="parallel-timetable"',
+            $operations
+        );
         $this->assertStringContainsString(
             "parallel-curriculum.partials.progressive-disclosure",
             $operations
