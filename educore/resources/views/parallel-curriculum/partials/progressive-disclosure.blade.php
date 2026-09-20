@@ -113,6 +113,36 @@
         root.querySelectorAll('[data-expand-all]').forEach((button) => {
             button.addEventListener('click', () => items.forEach((item) => applyState(item, false)));
         });
+
+        root.querySelectorAll('.pc-jumpbar a[href^="#"]').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                const selector = link.getAttribute('href');
+                if (!selector || selector === '#') return;
+
+                const target = root.querySelector(selector);
+                if (!target) return;
+
+                const item = target.matches('[data-collapsible-item]')
+                    ? target
+                    : target.closest('[data-collapsible-item]');
+
+                if (item) {
+                    applyState(item, false);
+                }
+
+                event.preventDefault();
+                try {
+                    window.history.replaceState(null, '', selector);
+                } catch (e) {}
+
+                window.requestAnimationFrame(() => {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                });
+            });
+        });
     });
 })();
 </script>
