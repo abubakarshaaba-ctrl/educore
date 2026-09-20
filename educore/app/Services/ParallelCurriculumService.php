@@ -541,12 +541,15 @@ class ParallelCurriculumService
     }
 
     /**
-     * Determine whether a conventional subject is valid for an entire class
-     * level, including every active academic-track arm in that level.
+     * Determine whether a conventional subject is offered at a class level.
      *
-     * When the school has not configured master curriculum rules for the
-     * level, legacy behaviour remains permissive. Callers may supply preloaded
-     * rules to avoid N+1 queries when building compatibility matrices.
+     * Integration is configured per conventional class level, not per class
+     * arm. Therefore the setup selector must be driven directly by the master
+     * class_level_subjects definition for that level. Academic-track/arm
+     * eligibility is still enforced later for each student during sync.
+     *
+     * When no master curriculum rules exist for the level, keep the legacy
+     * permissive behaviour so older schools are not blocked.
      */
     public function conventionalSubjectAvailableForClassLevel(
         int $tenantId,
@@ -558,8 +561,6 @@ class ParallelCurriculumService
             return true;
         }
 
-        $classLevel->loadMissing('classArms');
-
         $rules = $preloadedRules ?? ClassLevelSubject::withoutTenantScope()
             ->where('tenant_id', $tenantId)
             ->where('class_level_id', $classLevel->id)
@@ -570,27 +571,12 @@ class ParallelCurriculumService
             return true;
         }
 
-        $subjectRules = $rules
+        return $rules
             ->where('subject_id', $subjectId)
-            ->filter(fn (ClassLevelSubject $rule) =>
-                $rule->is_active && $rule->subject_status !== 'not_offered'
-            )
-            ->values();
-
-        if ($classLevel->classArms->isEmpty()) {
-            return $subjectRules->isNotEmpty();
-        }
-
-        return $classLevel->classArms->every(function (ClassArm $arm) use ($subjectRules): bool {
-            return $subjectRules->contains(function (ClassLevelSubject $rule) use ($arm): bool {
-                if ($arm->academic_track_id) {
-                    return $rule->academic_track_id === null
-                        || (int) $rule->academic_track_id === (int) $arm->academic_track_id;
-                }
-
-                return $rule->academic_track_id === null;
-            });
-        });
+            ->contains(fn (ClassLevelSubject $rule) =>
+                $rule->is_active
+                && $rule->subject_status !== 'not_offered'
+            );
     }
 
     public function conventionalSubjectAvailableForArm(
