@@ -32,7 +32,17 @@ class MobileApiRouteContractTest extends TestCase
             'GET api/v1/inventory',
             'GET api/v1/hostels',
             'GET api/v1/parallel-curriculum/results',
+            'GET api/v1/parallel-curriculum/results/broadsheet',
+            'GET api/v1/parallel-curriculum/results/broadsheet/pdf',
             'GET api/v1/parallel-curriculum/results/classes/{class}/students/{student}',
+            'GET api/v1/parallel-curriculum/results/classes/{class}/students/{student}/cumulative',
+            'GET api/v1/parallel-curriculum/results/classes/{class}/students/{student}/cumulative/pdf',
+            'GET api/v1/parallel-curriculum/skills',
+            'PUT api/v1/parallel-curriculum/skills',
+            'GET api/v1/parallel-curriculum/operations',
+            'POST api/v1/parallel-curriculum/operations/working-days',
+            'POST api/v1/parallel-curriculum/operations/staff-attendance/clock-in',
+            'POST api/v1/parallel-curriculum/operations/staff-attendance/clock-out',
             'POST api/v1/parallel-curriculum/results/publish',
             'POST api/v1/parallel-curriculum/results/unpublish',
             'GET api/v1/parallel-curriculum/lifecycle',
@@ -58,7 +68,10 @@ class MobileApiRouteContractTest extends TestCase
             'POST api/v1/parallel-curriculum/lifecycle/grades',
             'DELETE api/v1/parallel-curriculum/lifecycle/grades/{grade}',
             'POST api/v1/parallel-curriculum/lifecycle/arm-teachers',
+            'POST api/v1/parallel-curriculum/lifecycle/arm-teaching-mode',
             'POST api/v1/parallel-curriculum/lifecycle/promotion-rules',
+            'GET api/v1/scores/cumulative-broadsheet',
+            'GET api/v1/scores/cumulative-broadsheet/pdf',
             'GET api/v1/transfers',
             'GET api/v1/admin/staff-attendance',
             'GET api/v1/admin/staff-attendance/report',
@@ -90,5 +103,51 @@ class MobileApiRouteContractTest extends TestCase
         foreach ($expected as $signature) {
             $this->assertContains($signature, $registered, "Missing native API route: {$signature}");
         }
+    }
+
+    public function test_retrofit_interface_covers_every_registered_v1_route(): void
+    {
+        $apiFile = dirname(base_path()).
+            '/mobile-native/core/network/src/main/java/online/educoreng/educore/core/network/EduCoreApi.kt';
+
+        $this->assertFileExists($apiFile);
+
+        $source = file_get_contents($apiFile);
+        preg_match_all(
+            '/@(GET|POST|PUT|PATCH|DELETE)\("([^"]+)"\)/',
+            $source,
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        $native = collect($matches)
+            ->map(fn (array $match): string => $match[1].' '.$match[2])
+            ->unique()
+            ->values();
+
+        $registered = collect(Route::getRoutes())
+            ->filter(fn ($route) => str_starts_with($route->uri(), 'api/v1/'))
+            ->flatMap(function ($route) {
+                $path = substr($route->uri(), strlen('api/v1/'));
+
+                return collect($route->methods())
+                    ->filter(fn (string $method) =>
+                        in_array($method, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)
+                    )
+                    ->map(fn (string $method): string => $method.' '.$path);
+            })
+            ->unique()
+            ->values();
+
+        $missing = $registered
+            ->reject(fn (string $signature) => $native->contains($signature))
+            ->values();
+
+        $this->assertSame(
+            [],
+            $missing->all(),
+            "EduCoreApi.kt is missing registered native API routes:\n".
+                $missing->implode("\n")
+        );
     }
 }
