@@ -293,6 +293,21 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
     }
 
+    public function test_composite_breakdown_requires_parallel_lifecycle_management_access(): void
+    {
+        $controller = file_get_contents(
+            app_path('Http/Controllers/ParallelCurriculumController.php')
+        );
+
+        $breakdown = strstr(
+            $controller,
+            'public function breakdown(ParallelCurriculumComposite $composite)'
+        );
+
+        $this->assertNotFalse($breakdown);
+        $this->assertStringContainsString('$this->assertManage();', $breakdown);
+    }
+
     public function test_parallel_curriculum_workspaces_include_responsive_decongestion_controls(): void
     {
         $index = file_get_contents(
