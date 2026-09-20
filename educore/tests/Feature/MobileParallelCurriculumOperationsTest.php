@@ -307,6 +307,138 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_unassigned_subject_teacher_cannot_open_parallel_operations(): void
+    {
+        $context = $this->context();
+
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Unassigned Conventional Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $this->assertTrue($teacher->canAccessExactModule('scores.entry'));
+        $this->assertFalse(
+            app(\App\Services\ParallelCurriculumOperationsService::class)
+                ->canViewOperations($teacher)
+        );
+
+        $token = ApiToken::issue($teacher, 'parallel-unassigned-operations');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/parallel-curriculum/operations')
+            ->assertForbidden();
+
+        $this->actingAs($teacher)
+            ->get(route('parallel-curriculum.operations.index'))
+            ->assertForbidden();
+    }
+
+    public function test_assigned_teacher_cannot_select_or_export_an_unassigned_parallel_context(): void
+    {
+        $context = $this->context();
+
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Scoped Parallel Teacher',
+            'role' => 'form_subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $context['classSubject']->update(['teacher_id' => $teacher->id]);
+
+        $otherCurriculum = ParallelCurriculum::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Tahfeez',
+            'code' => 'THF',
+            'is_active' => true,
+        ]);
+
+        $otherClass = ParallelCurriculumClass::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $otherCurriculum->id,
+            'name' => 'Tahfeez 1',
+            'code' => 'T1',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        $otherArm = ParallelCurriculumClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $otherClass->id,
+            'name' => 'A',
+            'code' => 'A',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        $otherSubject = ParallelCurriculumSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $otherCurriculum->id,
+            'name' => 'Hifz',
+            'code' => 'HFZ',
+            'is_active' => true,
+        ]);
+
+        $otherTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Other Parallel Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        ParallelCurriculumClassSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $otherClass->id,
+            'parallel_curriculum_subject_id' => $otherSubject->id,
+            'teacher_id' => $otherTeacher->id,
+            'is_active' => true,
+        ]);
+
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => now()->subMonth()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+            'is_current' => true,
+        ]);
+
+        $service = app(\App\Services\ParallelCurriculumOperationsService::class);
+        $this->assertTrue($service->canViewOperations($teacher));
+        $this->assertTrue($service->canExportAttendance($teacher));
+        $this->assertFalse($service->canMarkAttendance($teacher, $otherArm));
+
+        $token = ApiToken::issue($teacher, 'parallel-scoped-operations');
+
+        $this->withToken($token)
+            ->getJson(
+                '/api/v1/parallel-curriculum/operations?'.
+                'parallel_curriculum_id='.$otherCurriculum->id
+            )
+            ->assertForbidden();
+
+        $this->withToken($token)
+            ->get(
+                '/api/v1/parallel-curriculum/operations/attendance/export?'.
+                http_build_query([
+                    'arm_id' => $otherArm->id,
+                    'term_id' => $term->id,
+                    'format' => 'csv',
+                ])
+            )
+            ->assertForbidden();
+
+        $this->actingAs($teacher)
+            ->get(route('parallel-curriculum.operations.index', [
+                'parallel_curriculum_id' => $otherCurriculum->id,
+            ]))
+            ->assertForbidden();
+    }
+
     public function test_parallel_attendance_exports_csv_and_pdf_for_authorized_admin(): void
     {
         $context = $this->context();
@@ -1057,6 +1189,12 @@ class MobileParallelCurriculumOperationsTest extends TestCase
 
         try {
             $this->withToken($token)
+                ->postJson('/api/v1/staff-attendance/clock-in', [
+                    'token' => $context['admin']->personalQrPayload(),
+                ])
+                ->assertOk();
+
+            $this->withToken($token)
                 ->postJson('/api/v1/parallel-curriculum/operations/staff-attendance/clock-in', [
                     'parallel_curriculum_id' => $context['curriculum']->id,
                 ])
@@ -1079,6 +1217,10 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 ->assertJsonPath('staff_attendance.self_record.clock_in_time', '08:10');
 
             Carbon::setTestNow(Carbon::parse('2026-09-21 14:30:00'));
+
+            $this->withToken($token)
+                ->postJson('/api/v1/staff-attendance/clock-out')
+                ->assertOk();
 
             $this->withToken($token)
                 ->postJson('/api/v1/parallel-curriculum/operations/staff-attendance/clock-out', [
