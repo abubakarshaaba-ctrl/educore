@@ -48,16 +48,22 @@ class ParallelCurriculumDirectoryController extends Controller
         $this->assertAccess();
 
         $tenantId = $this->tenantId();
-        $curricula = ParallelCurriculum::with([
-                'classes' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name'),
-                'classes.arms' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name'),
-            ])
+        $armSchemaReady = Schema::hasTable('parallel_curriculum_class_arms');
+
+        $curriculumRelations = [
+            'classes' => fn ($query) => $query
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name'),
+        ];
+        if ($armSchemaReady) {
+            $curriculumRelations['classes.arms'] = fn ($query) => $query
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name');
+        }
+
+        $curricula = ParallelCurriculum::with($curriculumRelations)
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('name')
@@ -78,6 +84,12 @@ class ParallelCurriculumDirectoryController extends Controller
         );
 
         $classes = $selectedCurriculum?->classes?->values() ?? collect();
+        if (! $armSchemaReady) {
+            $classes->each(fn (ParallelCurriculumClass $class) =>
+                $class->setRelation('arms', collect())
+            );
+        }
+
         $selectedClass = $classes->firstWhere(
             'id',
             $request->integer('class_id')
@@ -97,10 +109,12 @@ class ParallelCurriculumDirectoryController extends Controller
         $enrolments = collect();
 
         if ($selectedCurriculum && $selectedSession && $selectedClass) {
-            $query = ParallelCurriculumEnrolment::with([
-                    'student.currentClassArm.classLevel',
-                    'curriculumClassArm',
-                ])
+            $enrolmentRelations = ['student.currentClassArm.classLevel'];
+            if ($armSchemaReady) {
+                $enrolmentRelations[] = 'curriculumClassArm';
+            }
+
+            $query = ParallelCurriculumEnrolment::with($enrolmentRelations)
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_id', $selectedCurriculum->id)
                 ->where('parallel_curriculum_class_id', $selectedClass->id)
@@ -189,18 +203,25 @@ class ParallelCurriculumDirectoryController extends Controller
 
         $classes = collect();
         if ($selectedCurriculum) {
+            $armSchemaReady = Schema::hasTable('parallel_curriculum_class_arms');
             $relations = [
                 'curriculum',
-                'arms' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name'),
                 'subjectAssignments' => fn ($query) => $query
                     ->where('is_active', true),
                 'subjectAssignments.subject',
             ];
 
-            if (Schema::hasTable('parallel_curriculum_arm_subject_teachers')) {
+            if ($armSchemaReady) {
+                $relations['arms'] = fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name');
+            }
+
+            if (
+                $armSchemaReady
+                && Schema::hasTable('parallel_curriculum_arm_subject_teachers')
+            ) {
                 $relations['arms.subjectTeachers'] = fn ($query) =>
                     $query->where('is_active', true);
             }
@@ -216,6 +237,12 @@ class ParallelCurriculumDirectoryController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get();
+
+            if (! $armSchemaReady) {
+                $classes->each(fn (ParallelCurriculumClass $class) =>
+                    $class->setRelation('arms', collect())
+                );
+            }
         }
 
         $assignmentRows = collect();
