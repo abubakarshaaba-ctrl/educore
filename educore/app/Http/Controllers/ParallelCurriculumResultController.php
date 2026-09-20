@@ -99,10 +99,20 @@ class ParallelCurriculumResultController extends Controller
 
         abort_unless($term, 422, 'Select an academic term before opening the report.');
 
-        $report = $this->results->studentReport($class, $term, (int) $student->id);
-        abort_unless($report, 404, 'This student is not enrolled in the selected parallel class for this academic session.');
+        $presentation = $this->results->conventionalStyleStudentReport(
+            $class,
+            $term,
+            (int) $student->id
+        );
+        abort_unless(
+            $presentation,
+            404,
+            'This student is not enrolled in the selected parallel class for this academic session.'
+        );
 
-        return view('parallel-curriculum.results.student', compact('report'));
+        $presentation['tenant'] = auth()->user()->tenant;
+
+        return view('parallel-curriculum.results.student', $presentation);
     }
 
     public function pdf(Request $request, ParallelCurriculumClass $class, Student $student)
@@ -119,8 +129,21 @@ class ParallelCurriculumResultController extends Controller
 
         abort_unless($term, 422, 'Select an academic term before downloading the report.');
 
-        $report = $this->results->studentReport($class, $term, (int) $student->id);
-        abort_unless($report, 404, 'This student is not enrolled in the selected parallel class for this academic session.');
+        $presentation = $this->results->conventionalStyleStudentReport(
+            $class,
+            $term,
+            (int) $student->id
+        );
+        abort_unless(
+            $presentation,
+            404,
+            'This student is not enrolled in the selected parallel class for this academic session.'
+        );
+
+        $presentation['tenant'] = auth()->user()->tenant;
+        $presentation['reportDocumentTitle'] = $presentation['isThirdTerm']
+            ? 'Parallel Curriculum Third-Term Cumulative Student Report'
+            : 'Parallel Curriculum Student Termly Performance Report';
 
         $filename = str($student->admission_number ?: $student->full_name)
             ->slug('_')
@@ -128,8 +151,11 @@ class ParallelCurriculumResultController extends Controller
             ->append('_result.pdf')
             ->toString();
 
-        return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
-            ->setPaper('a4', 'portrait')
+        return Pdf::loadView('reports.pdf', $presentation)
+            ->setPaper(
+                'a4',
+                $presentation['isThirdTerm'] ? 'landscape' : 'portrait'
+            )
             ->download($filename);
     }
 
