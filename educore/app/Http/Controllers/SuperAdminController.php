@@ -14,6 +14,7 @@ use App\Services\StaffIdGenerator;
 use App\Services\TenantHostResolver;
 use App\Services\TenantOnboardingService;
 use App\Services\TenantUrlGenerator;
+use App\Services\Notifications\PlatformBroadcastEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -1366,7 +1367,7 @@ class SuperAdminController extends Controller
         return view('super.broadcasts', compact('broadcasts'));
     }
 
-    public function storeBroadcast(Request $request)
+    public function storeBroadcast(Request $request, PlatformBroadcastEmailService $emails)
     {
         $this->guard();
         $data = $request->validate([
@@ -1376,17 +1377,44 @@ class SuperAdminController extends Controller
             'expires_at' => ['nullable', 'date', 'after:today'],
         ]);
 
-        DB::table('platform_broadcasts')->insert([
+        $broadcastId = DB::table('platform_broadcasts')->insertGetId([
             'title'      => $data['title'],
             'body'       => $data['body'],
             'target'     => $data['target'],
             'created_by' => auth()->id(),
-            'expires_at' => isset($data['expires_at']) ? $data['expires_at'] : null,
+            'expires_at' => $data['expires_at'] ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        return back()->with('success', 'Broadcast sent to schools.');
+        $tenantQuery = Tenant::query();
+        match ($data['target']) {
+            'active' => $tenantQuery
+                ->where('status', Tenant::STATUS_ACTIVE)
+                ->where(fn ($expiry) => $expiry
+                    ->whereNull('subscription_expires_at')
+                    ->orWhereDate('subscription_expires_at', '>=', today())),
+            'trial' => $tenantQuery->where('status', Tenant::STATUS_PENDING),
+            'expired' => $tenantQuery->where(function ($expired): void {
+                $expired->where('status', Tenant::STATUS_SUBSCRIPTION_EXPIRED)
+                    ->orWhereDate('subscription_expires_at', '<', today());
+            }),
+            default => null,
+        };
+        $tenantIds = $tenantQuery->pluck('id');
+
+        $emailStats = $emails->sendToTenantIds(
+            tenantIds: $tenantIds,
+            broadcastId: (int) $broadcastId,
+            title: trim($data['title']),
+            body: trim($data['body']),
+            expiresAt: $data['expires_at'] ?? null,
+        );
+
+        return back()->with(
+            'success',
+            'Broadcast sent to schools; '.$emailStats['sent'].' email notification(s) delivered.'
+        );
     }
 
     public function deleteBroadcast($id)
