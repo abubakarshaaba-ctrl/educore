@@ -350,7 +350,15 @@ class ParallelCurriculumLifecycleTest extends TestCase
 
         $this->assertStringContainsString('id="integration-class-levels"', $view);
         $this->assertStringContainsString('id="integration-destination-subject"', $view);
+        $this->assertStringNotContainsString(
+            'id="integration-destination-subject" required disabled',
+            $view
+        );
         $this->assertStringContainsString('data-compatible-levels', $view);
+        $this->assertStringContainsString(
+            "levels?.addEventListener('input', refreshDestinationSubjects);",
+            $view
+        );
         $this->assertStringContainsString('No conventional subject is offered across every selected class level', $view);
     }
 
