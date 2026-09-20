@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\ClassArm;
+use App\Models\Student;
 use App\Models\Term;
 use App\Services\Mobile\MobileClassAccessService;
 use App\Services\Mobile\MobileIdempotencyService;
+use App\Services\Notifications\ActivityEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -120,20 +122,36 @@ class AttendanceController extends Controller
                         abort(409, 'Attendance changed on the server. Reload the sheet before saving your draft.');
                     }
 
+                    $notificationCandidates = [];
+
                     foreach ($data['records'] as $record) {
+                        $studentId = (int) $record['student_id'];
+                        $previousStatus = $current->get($studentId)?->status;
+                        $status = (string) $record['status'];
+
                         AttendanceRecord::updateOrCreate(
                             [
-                                'student_id' => $record['student_id'],
+                                'student_id' => $studentId,
                                 'class_arm_id' => $classArmId,
                                 'attendance_date' => $data['date'],
                             ],
                             [
                                 'term_id' => $term->id,
                                 'marked_by' => $user->id,
-                                'status' => $record['status'],
+                                'status' => $status,
                                 'remark' => $record['remark'] ?? null,
                             ]
                         );
+
+                        if (
+                            in_array($status, ['absent', 'late'], true)
+                            && ! in_array($previousStatus, ['absent', 'late'], true)
+                        ) {
+                            $notificationCandidates[] = [
+                                'student_id' => $studentId,
+                                'status' => $status,
+                            ];
+                        }
                     }
 
                     $savedRecords = AttendanceRecord::where('class_arm_id', $classArmId)
@@ -144,6 +162,7 @@ class AttendanceController extends Controller
                     return [
                         'saved' => count($data['records']),
                         'version' => $this->sheetVersion($savedRecords),
+                        'notification_candidates' => $notificationCandidates,
                         'summary' => [
                             'present' => $savedRecords->where('status', 'present')->count(),
                             'absent' => $savedRecords->where('status', 'absent')->count(),
@@ -152,6 +171,30 @@ class AttendanceController extends Controller
                         ],
                     ];
                 });
+
+                $notificationCandidates = $result['notification_candidates'];
+                if ($notificationCandidates !== []) {
+                    $students = Student::query()
+                        ->with('guardians')
+                        ->whereIn(
+                            'id',
+                            collect($notificationCandidates)->pluck('student_id')->unique()
+                        )
+                        ->get()
+                        ->keyBy('id');
+                    $activityNotifications = app(ActivityEmailService::class);
+
+                    foreach ($notificationCandidates as $candidate) {
+                        $student = $students->get($candidate['student_id']);
+                        if ($student) {
+                            $activityNotifications->notifyAttendanceStatus(
+                                $student,
+                                $candidate['status'],
+                                $data['date']
+                            );
+                        }
+                    }
+                }
 
                 return [
                     'contract_version' => 2,
