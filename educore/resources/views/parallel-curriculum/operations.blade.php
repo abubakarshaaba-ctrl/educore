@@ -25,11 +25,16 @@
 
 <div class="tabs">
     <a class="tab" href="{{ route('scores.index') }}">Conventional Scores</a>
-    <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
-    <a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
-    <a class="tab" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
+    <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
+    @if($canManageOperations)
+        <a class="tab" href="{{ route('parallel-curriculum.setup') }}">Programme Setup</a>
+        <a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
+        <a class="tab" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
+    @endif
     <a class="tab active" href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
-    <a class="tab" href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
+    @if($canManageOperations)
+        <a class="tab" href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
+    @endif
 </div>
 
 <div class="hero">
