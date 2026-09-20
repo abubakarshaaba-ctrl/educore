@@ -656,7 +656,7 @@
 
 .pc-module-nav{
     position:sticky;
-    top:8px;
+    top:calc(var(--header-h, 58px) + 8px);
     z-index:30;
     margin:0 0 16px;
     border:1px solid var(--border);
@@ -839,7 +839,7 @@
 @media(max-width:768px){
     .pc-module-nav{
         position:sticky;
-        top:6px;
+        top:calc(var(--header-h, 58px) + 6px);
         margin-bottom:12px;
     }
     .pc-module-nav-head{display:flex}
