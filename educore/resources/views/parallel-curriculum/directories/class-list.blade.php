@@ -37,16 +37,7 @@
 
 @section('content')
 <div class="pc-directory">
-    <div class="pc-nav no-print">
-        <a href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
-        <a href="{{ route('parallel-curriculum.setup') }}">Programme Setup</a>
-        <a href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
-        <a href="{{ route('parallel-curriculum.class-list') }}" class="active">Class List</a>
-        <a href="{{ route('parallel-curriculum.teacher-list') }}">Teacher List</a>
-        <a href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
-        <a href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
-        <a href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
-    </div>
+    @include('parallel-curriculum.partials.module-navigation')
 
     <div class="hero no-print">
         <div>
