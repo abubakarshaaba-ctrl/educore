@@ -44,13 +44,13 @@ interface AdvancedAdminApi {
         @Body body: AdvancedAdminConfirmationDto = AdvancedAdminConfirmationDto("RECONSTRUCT"),
     ): AdvancedAdminMessageDto
 
-    @POST("advanced-admin/migration-requests/{request}/approve")
+    @POST("advanced-admin/migration-requests/{migrationRequest}/approve")
     suspend fun approve(
-        @Path("request") requestId: Long,
+        @Path("migrationRequest") requestId: Long,
         @Body body: AdvancedAdminDecisionDto,
     ): AdvancedAdminMessageDto
 
-    @POST("advanced-admin/migration-requests/{request}/reject")
+    @POST("advanced-admin/migration-requests/{migrationRequest}/reject")
     suspend fun reject(
         @Path("request") requestId: Long,
         @Body body: AdvancedAdminDecisionDto,
