@@ -194,6 +194,10 @@ class ParallelCurriculumController extends Controller
             $canManage
         );
 
+        $parallelFormTeacherArms = $canManage
+            ? collect()
+            : $this->service->formTeacherArmsForUser(auth()->user());
+
         $templates = $canManage
             ? AssessmentTemplate::with('components')
                 ->where('status', AssessmentTemplate::STATUS_ACTIVE)
@@ -276,6 +280,7 @@ class ParallelCurriculumController extends Controller
             'scoreTerms',
             'curricula',
             'workspaces',
+            'parallelFormTeacherArms',
             'templates',
             'conventionalSubjects',
             'classLevels',
