@@ -12,6 +12,7 @@
 .pc-feature-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.pc-feature-link{display:flex;flex-direction:column;gap:5px;min-height:112px;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;color:inherit;text-decoration:none}.pc-feature-link:hover{border-color:var(--indigo);background:#F8FAFF;box-shadow:var(--shadow)}.pc-feature-link strong{font-size:12.5px;line-height:1.35;color:var(--midnight)}.pc-feature-link span{font-size:10.5px;line-height:1.5;color:var(--slate)}.pc-feature-link small{margin-top:auto;font-size:9.5px;font-weight:800;color:var(--indigo);text-transform:uppercase;letter-spacing:.03em}
 .item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #EEF2F7}.item:last-child{border-bottom:0}.item-main{min-width:0}.item-main strong{display:block;color:var(--midnight);font-size:11.5px;overflow-wrap:anywhere}.item-main span{display:block;color:var(--slate-light);font-size:10px;margin-top:2px}.badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:9.5px;font-weight:800;background:#EFF6FF;color:#1D4ED8}.badge.synced{background:#ECFDF3;color:#067647}.badge.pending{background:#FFFAEB;color:#B54708}.badge.conflict,.badge.locked{background:#FEF3F2;color:#B42318}.badge.unmapped{background:#F2F4F7;color:#475467}
 .alert-s,.alert-e{border-radius:9px;padding:10px 13px;font-size:11px;margin-bottom:12px}.alert-s{background:#ECFDF3;border:1px solid #ABEFC6;color:#067647}.alert-e{background:#FEF3F2;border:1px solid #FECDCA;color:#B42318}.checkbox-row{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--slate)}.checkbox-row input{margin-top:2px}
+.pc-setup-groups{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 2px}.pc-setup-group{min-height:38px;padding:8px 12px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--slate);font:700 11.5px inherit;cursor:pointer}.pc-setup-group:hover,.pc-setup-group.active{border-color:var(--midnight);background:var(--midnight);color:#fff}.pc-setup-group:focus-visible{outline:3px solid rgba(215,154,33,.25);outline-offset:2px}
 @media(max-width:840px){.pc-grid{grid-template-columns:1fr}.pc-card.full{grid-column:auto}.pc-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.score-entry-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.form-row,.score-entry-grid{grid-template-columns:1fr}.pc-hero{padding:15px}.pc-body{padding:13px}.btn{width:100%}.item{flex-direction:column}.pc-feature-grid{grid-template-columns:1fr}.pc-feature-link{min-height:0}}
 </style>
 @endpush
@@ -23,7 +24,7 @@
 @section('content')
 <div class="pc-shell">
     @if(session('success'))<div class="alert-s">{{ session('success') }}</div>@endif
-    @if($errors->any())<div class="alert-e" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())'><strong>Could not save.</strong> {{ $errors->first() }}</div>@endif
+    @if($errors->any())<div class="alert-e" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())' data-parallel-validation-target="{{ old('_parallel_section') }}"><strong>Could not save.</strong> {{ $errors->first() }}</div>@endif
     @if($schemaReconciliationPending)
         <div class="alert-e">
             <strong>Database update pending.</strong>
@@ -70,10 +71,18 @@
                 <button class="btn btn-s" type="button" data-collapse-all>Collapse all</button>
             </div>
         </div>
-        <section class="pc-card" data-collapsible-item>
+        <div class="pc-setup-groups" aria-label="Programme setup groups">
+            <button class="pc-setup-group active" type="button" data-setup-group-filter="structure">Structure & Placement</button>
+            <button class="pc-setup-group" type="button" data-setup-group-filter="assessment">Assessment & Grading</button>
+            <button class="pc-setup-group" type="button" data-setup-group-filter="integration">Integration</button>
+            <button class="pc-setup-group" type="button" data-setup-group-filter="synchronization">Synchronization</button>
+            <button class="pc-setup-group" type="button" data-setup-group-filter="all">All</button>
+        </div>
+        <section id="setup-programme" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">1. Create programme</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.curricula.store') }}">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-programme">
                     <div class="form-row">
                         <div class="fg"><label class="fl">Programme name</label><input class="fc" name="name" required placeholder="e.g. Islamiyyah"></div>
                         <div class="fg"><label class="fl">Code</label><input class="fc" name="code" placeholder="e.g. ISL"></div>
@@ -84,10 +93,11 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-class" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">2. Create parallel class level</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.classes.store') }}">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-class">
                     <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
                     <div class="form-row">
                         <div class="fg"><label class="fl">Class level name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1"></div>
@@ -99,10 +109,11 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-subject" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">3. Create programme subject</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.subjects.store') }}">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-subject">
                     <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
                     <div class="form-row">
                         <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" required placeholder="e.g. Qur'an, Fiqh, Hadith"></div>
@@ -114,10 +125,11 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-class-subject" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">4. Assign subjects to parallel class</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-class-subject">
                     <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
                     <div class="form-row">
                         <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">This explicitly defines which subjects belong to the selected parallel class. All-subject class teachers see only these class-assigned subjects.</div></div>
@@ -128,7 +140,7 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-placement" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">5. Assign students independently</div>
             <div class="pc-body">
                 <div class="item" style="padding-top:0">
@@ -143,10 +155,11 @@
             </div>
         </section>
 
-        <section class="pc-card full" data-collapsible-item>
+        <section id="setup-integration" class="pc-card full" data-collapsible-item data-setup-group="integration">
             <div class="pc-head">6. Map programme average to conventional results</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}" id="parallel-integration-form">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-integration">
                     <div class="fg">
                         <label class="fl">Source programme</label>
                         <select class="fc" name="parallel_curriculum_id" required>
@@ -200,10 +213,11 @@
             </div>
         </section>
 
-        <section class="pc-card full" data-collapsible-item>
+        <section id="setup-grading" class="pc-card full" data-collapsible-item data-setup-group="assessment">
             <div class="pc-head">7. Configure standalone result grading scale</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.grades.store') }}">@csrf
+                    <input type="hidden" name="_parallel_section" value="setup-grading">
                     <div class="form-row">
                         <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
                         <div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required maxlength="20" placeholder="e.g. A"></div>
@@ -240,7 +254,7 @@
                         @foreach($curriculum->grades as $grade)
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0 6px 12px;border-bottom:1px solid #F4F6F8">
                                 <span style="font-size:10px;color:var(--slate)"><strong>{{ $grade->grade_letter }}</strong> · {{ number_format($grade->min_score,2) }}–{{ number_format($grade->max_score,2) }} · {{ $grade->remark ?: 'No remark' }} · {{ $grade->is_pass_grade ? 'Pass' : 'Fail' }}</span>
-                                <form method="POST" action="{{ route('parallel-curriculum.grades.destroy',$grade) }}">@csrf @method('DELETE')<button class="btn btn-d" style="padding:4px 7px">Remove</button></form>
+                                <form method="POST" action="{{ route('parallel-curriculum.grades.destroy',$grade) }}">@csrf <input type="hidden" name="_parallel_section" value="setup-grading"> @method('DELETE')<button class="btn btn-d" style="padding:4px 7px">Remove</button></form>
                             </div>
                         @endforeach
                     @empty
@@ -250,7 +264,7 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-structure" class="pc-card" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">
                 <span>Current programme structure</span>
                 <span class="hint">Published result structures must be unpublished before protected edits.</span>
@@ -268,6 +282,7 @@
                                 <div class="pc-edit-panel">
                                     <form method="POST" action="{{ route('parallel-curriculum.curricula.update',$curriculum) }}">
                                         @csrf
+                                        <input type="hidden" name="_parallel_section" value="setup-structure">
                                         @method('PUT')
                                         <div class="form-row">
                                             <div class="fg"><label class="fl">Programme name</label><input class="fc" name="name" value="{{ $curriculum->name }}" required></div>
@@ -356,6 +371,7 @@
                                         <span class="hint">{{ $assignment->subject?->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
                                         <form method="POST" action="{{ route('parallel-curriculum.class-subjects.destroy',$assignment) }}">
                                             @csrf
+                                            <input type="hidden" name="_parallel_section" value="setup-structure">
                                             @method('DELETE')
                                             <button class="btn btn-d" type="submit">Remove</button>
                                         </form>
@@ -374,7 +390,7 @@
             </div>
         </section>
 
-        <section class="pc-card" data-collapsible-item>
+        <section id="setup-integration-list" class="pc-card" data-collapsible-item data-setup-group="integration">
             <div class="pc-head">Conventional result mappings</div>
             <div class="pc-body">
                 @forelse($integrations as $rule)
@@ -388,6 +404,7 @@
                             @if($rule->is_active)
                                 <form method="POST" action="{{ route('parallel-curriculum.integrations.destroy',$rule) }}" onsubmit="return confirm('Remove this conventional result mapping? Unpublished derived scores will be cleared; already-published results will be preserved.')">
                                     @csrf
+                                    <input type="hidden" name="_parallel_section" value="setup-integration-list">
                                     @method('DELETE')
                                     <button class="btn btn-d" type="submit">Remove</button>
                                 </form>
@@ -400,13 +417,13 @@
             </div>
         </section>
 
-        <section class="pc-card full" data-collapsible-item>
+        <section id="setup-assignments" class="pc-card full" data-collapsible-item data-setup-group="structure">
             <div class="pc-head">Current student parallel-class assignments @if($currentSession) · {{ $currentSession->name }}@endif</div>
             <div class="pc-body">
                 @forelse($enrolments->take(12) as $enrolment)
                     <div class="item">
                         <div class="item-main"><strong>{{ $enrolment->student?->full_name }} · {{ $enrolment->curriculumClass?->name }}</strong><span>{{ $enrolment->curriculum?->name }} · Conventional: {{ $enrolment->student?->currentClassArm?->full_name ?: 'Not assigned' }}</span></div>
-                        <form method="POST" action="{{ route('parallel-curriculum.enrolments.destroy',$enrolment) }}">@csrf @method('DELETE')<button class="btn btn-d">Remove</button></form>
+                        <form method="POST" action="{{ route('parallel-curriculum.enrolments.destroy',$enrolment) }}">@csrf <input type="hidden" name="_parallel_section" value="setup-assignments"> @method('DELETE')<button class="btn btn-d">Remove</button></form>
                     </div>
                 @empty
                     <div class="empty">No student has been assigned to a parallel class for the current session.</div>
@@ -420,13 +437,14 @@
             </div>
         </section>
 
-        <section class="pc-card full" data-collapsible-item>
+        <section id="setup-sync" class="pc-card full" data-collapsible-item data-setup-group="synchronization">
             <div class="pc-head">Composite synchronization @if($currentTerm) · {{ $currentTerm->name }}@endif</div>
             <div class="pc-body">
                 @if($currentTerm && $curricula->isNotEmpty())
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
                         @foreach($curricula as $curriculum)
                             <form method="POST" action="{{ route('parallel-curriculum.sync') }}">@csrf
+                                <input type="hidden" name="_parallel_section" value="setup-sync">
                                 <input type="hidden" name="parallel_curriculum_id" value="{{ $curriculum->id }}">
                                 <input type="hidden" name="term_id" value="{{ $currentTerm->id }}">
                                 <button class="btn btn-s">Sync {{ $curriculum->name }}</button>
@@ -451,64 +469,6 @@
 
 @push('scripts')
 <script>
-(function(){
-    const form = document.getElementById('parallel-score-entry-form');
-    if (!form) return;
-
-    const arm = document.getElementById('parallel-score-arm');
-    const subject = document.getElementById('parallel-score-subject');
-    const classId = document.getElementById('parallel-score-class-id');
-    const armId = document.getElementById('parallel-score-arm-id');
-    const term = document.getElementById('parallel-score-term');
-    const open = document.getElementById('parallel-score-open');
-
-    function refreshSubjects() {
-        const selectedArm = arm?.selectedOptions?.[0];
-        const workspaceKey = arm?.value || '';
-
-        classId.value = selectedArm?.dataset?.classId || '';
-        armId.value = selectedArm?.dataset?.armId || '';
-
-        let firstVisible = null;
-        Array.from(subject?.options || []).forEach((option, index) => {
-            if (index === 0) return;
-            const visible = !!workspaceKey && option.dataset.workspaceKey === workspaceKey;
-            option.hidden = !visible;
-            option.disabled = !visible;
-            if (visible && !firstVisible) firstVisible = option;
-        });
-
-        subject.disabled = !firstVisible;
-        subject.value = firstVisible ? firstVisible.value : '';
-        if (subject.options.length) {
-            subject.options[0].textContent = firstVisible
-                ? 'Select subject'
-                : (workspaceKey ? 'No assigned subject for this arm' : 'Select class arm first');
-        }
-
-        refreshButton();
-    }
-
-    function refreshButton() {
-        if (!open) return;
-        open.disabled = !classId.value || !subject.value || !term?.value;
-    }
-
-    arm?.addEventListener('change', refreshSubjects);
-    subject?.addEventListener('change', refreshButton);
-    term?.addEventListener('change', refreshButton);
-
-    if (arm && !arm.disabled && arm.options.length > 1) {
-        arm.selectedIndex = 1;
-    }
-    refreshSubjects();
-
-    form.addEventListener('submit', function(event){
-        refreshButton();
-        if (open?.disabled) event.preventDefault();
-    });
-})();
-
 (function(){
     const form = document.getElementById('parallel-integration-form');
     if (!form) return;
@@ -595,27 +555,48 @@
 @include('parallel-curriculum.partials.progressive-disclosure')
 <script>
 (function () {
-    const input = document.getElementById('parallel-workspace-filter');
-    const list = document.getElementById('parallel-workspace-list');
-    const count = document.getElementById('parallel-workspace-filter-count');
-    if (!input || !list || !count) return;
+    const root = document.querySelector('[data-storage-key="parallel-config"]');
+    if (!root) return;
 
-    const cards = Array.from(list.querySelectorAll('[data-workspace-card]'));
-    const refresh = () => {
-        const query = input.value.trim().toLowerCase();
-        let visible = 0;
+    const buttons = Array.from(root.querySelectorAll('[data-setup-group-filter]'));
+    const items = Array.from(root.querySelectorAll('[data-setup-group]'));
+    if (!buttons.length || !items.length) return;
 
-        cards.forEach((card) => {
-            const matches = !query || card.textContent.toLowerCase().includes(query);
-            card.hidden = !matches;
-            if (matches) visible++;
+    const storageKey = 'parallel-setup-active-group';
+    let stored = null;
+    try { stored = window.localStorage.getItem(storageKey); } catch (e) {}
+
+    const errorItem = items.find((item) => item.dataset.validationError === '1');
+    const hashTarget = window.location.hash ? document.querySelector(window.location.hash) : null;
+    const hashItem = hashTarget
+        ? items.find((item) => item === hashTarget || item.contains(hashTarget))
+        : null;
+
+    let active = hashItem?.dataset.setupGroup
+        || errorItem?.dataset.setupGroup
+        || (buttons.some((button) => button.dataset.setupGroupFilter === stored) ? stored : null)
+        || 'structure';
+
+    const apply = (group, persist = true) => {
+        active = group;
+        buttons.forEach((button) => {
+            const selected = button.dataset.setupGroupFilter === group;
+            button.classList.toggle('active', selected);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
         });
-
-        count.textContent = visible + ' of ' + cards.length + ' workspace(s)';
+        items.forEach((item) => {
+            item.hidden = group !== 'all' && item.dataset.setupGroup !== group;
+        });
+        if (persist) {
+            try { window.localStorage.setItem(storageKey, group); } catch (e) {}
+        }
     };
 
-    input.addEventListener('input', refresh);
-    refresh();
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => apply(button.dataset.setupGroupFilter));
+    });
+
+    apply(active, false);
 })();
 </script>
 @endpush
