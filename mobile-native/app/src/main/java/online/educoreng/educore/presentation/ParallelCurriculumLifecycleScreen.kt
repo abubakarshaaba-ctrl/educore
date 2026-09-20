@@ -38,6 +38,7 @@ import online.educoreng.educore.core.designsystem.component.EduCoreErrorBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreInfoBanner
 import online.educoreng.educore.core.designsystem.component.EduCoreLoadingState
 import online.educoreng.educore.core.designsystem.component.EduCorePrimaryButton
+import online.educoreng.educore.core.designsystem.component.EduCoreResponsiveButtonPair
 import online.educoreng.educore.core.designsystem.component.EduCoreSecondaryButton
 import online.educoreng.educore.core.designsystem.component.EduCoreTabs
 import online.educoreng.educore.core.designsystem.component.EduCoreTextField
