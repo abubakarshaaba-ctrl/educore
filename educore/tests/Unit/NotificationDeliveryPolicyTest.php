@@ -1,0 +1,51 @@
+<?php
+
+namespace Tests\Unit;
+
+use App\Models\Announcement;
+use App\Models\ExamPeriod;
+use App\Models\MessageThread;
+use App\Models\User;
+use App\Services\Notifications\ActivityEmailService;
+use App\Services\Notifications\NotificationDeliveryPolicy;
+use PHPUnit\Framework\TestCase;
+
+class NotificationDeliveryPolicyTest extends TestCase
+{
+    public function test_routine_operational_activity_is_push_and_in_app_only(): void
+    {
+        foreach ([
+            'announcement_published',
+            'student_absent',
+            'student_late',
+            'message_received',
+            'exam_scheduled',
+            'exam_supervision_published',
+            'platform_broadcast',
+            'calendar_event',
+        ] as $event) {
+            $this->assertTrue(NotificationDeliveryPolicy::isPushInAppOnly($event), $event);
+            $this->assertFalse(NotificationDeliveryPolicy::isLegacyConfigurable($event), $event);
+        }
+    }
+
+    public function test_transactional_reminders_are_the_only_legacy_configurable_events(): void
+    {
+        $this->assertSame([
+            'fee_payment_received',
+            'report_card_published',
+            'admission_status_changed',
+            'fee_overdue',
+            'invoice_generated',
+        ], NotificationDeliveryPolicy::LEGACY_CONFIGURABLE_EVENTS);
+    }
+
+    public function test_routine_email_compatibility_hooks_remain_no_ops(): void
+    {
+        $service = new ActivityEmailService();
+
+        $this->assertSame(0, $service->notifyAnnouncementPublished(new Announcement()));
+        $this->assertSame(0, $service->notifyMessageThread(new MessageThread(), new User(), 'Routine message'));
+        $this->assertSame(0, $service->notifyExamSupervisionPublished(new ExamPeriod()));
+    }
+}
