@@ -19,6 +19,8 @@
 
 @section('content')
 <div class="ftc">
+    @include('parallel-curriculum.partials.module-navigation')
+
     <div class="ftc-toolbar">
         @if(auth()->user()->canAccessRoute('attendance.index'))
             <a class="ftc-link" href="{{ route('attendance.index') }}">← Attendance</a>
