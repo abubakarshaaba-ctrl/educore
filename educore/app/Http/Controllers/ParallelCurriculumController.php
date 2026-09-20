@@ -27,6 +27,7 @@ use App\Services\ParallelCurriculumOperationsService;
 use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Services\ParallelCurriculumStudentAssignmentImportService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -100,21 +101,29 @@ class ParallelCurriculumController extends Controller
         );
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $this->assertEnabled();
 
-        if (request()->routeIs('parallel-curriculum.setup')) {
-            $this->assertManage();
-        }
+        return $this->renderWorkspace($request, false);
+    }
 
+    public function setup(Request $request)
+    {
+        $this->assertEnabled();
+        $this->assertManage();
+
+        return $this->renderWorkspace($request, true);
+    }
+
+    private function renderWorkspace(Request $request, bool $isSetup)
+    {
         $tenantId = $this->tenantId();
         $canManage = $this->canManage();
-        $isSetup = request()->routeIs('parallel-curriculum.setup');
         $canViewOperations = $this->operations->canViewOperations(auth()->user());
         $currentSession = AcademicSession::current()->first();
         $currentTerm = Term::current()->with('session')->first();
-        $scoreTerms = $currentSession
+        $scoreTerms = (! $isSetup && $currentSession)
             ? Term::where('session_id', $currentSession->id)
                 ->orderByDesc('is_current')
                 ->orderBy('id')
@@ -195,15 +204,51 @@ class ParallelCurriculumController extends Controller
             );
         }
 
-        $workspaces = $this->service->scoreWorkspacesForUser(
-            auth()->user(),
-            $currentTerm,
-            $canManage
-        );
-
-        $parallelFormTeacherArms = $canManage
+        $workspaces = $isSetup
             ? collect()
-            : $this->service->formTeacherArmsForUser(auth()->user());
+            : $this->service->scoreWorkspacesForUser(
+                auth()->user(),
+                $currentTerm,
+                $canManage
+            );
+
+        $parallelFormTeacherArms = (! $isSetup && ! $canManage)
+            ? $this->service->formTeacherArmsForUser(auth()->user())
+            : collect();
+
+        $workspaceSearch = trim((string) $request->query('workspace_q', ''));
+        $workspacePaginator = null;
+
+        if (! $isSetup) {
+            $filteredWorkspaces = $workspaceSearch === ''
+                ? $workspaces
+                : $workspaces->filter(function (array $workspace) use ($workspaceSearch): bool {
+                    $needle = mb_strtolower($workspaceSearch);
+                    $haystack = mb_strtolower(implode(' ', array_filter([
+                        $workspace['curriculum_name'] ?? null,
+                        $workspace['class_label'] ?? null,
+                        $workspace['subject_name'] ?? null,
+                        $workspace['effective_teacher_name'] ?? null,
+                    ])));
+
+                    return str_contains($haystack, $needle);
+                })->values();
+
+            $workspacePerPage = 24;
+            $workspacePage = max(1, $request->integer('workspace_page', 1));
+
+            $workspacePaginator = new LengthAwarePaginator(
+                $filteredWorkspaces->forPage($workspacePage, $workspacePerPage)->values(),
+                $filteredWorkspaces->count(),
+                $workspacePerPage,
+                $workspacePage,
+                [
+                    'path' => route('parallel-curriculum.index'),
+                    'pageName' => 'workspace_page',
+                    'query' => $request->except('workspace_page'),
+                ]
+            );
+        }
 
         $templates = ($canManage && $isSetup)
             ? AssessmentTemplate::with('components')
@@ -328,6 +373,8 @@ class ParallelCurriculumController extends Controller
             'scoreTerms',
             'curricula',
             'workspaces',
+            'workspaceSearch',
+            'workspacePaginator',
             'parallelFormTeacherArms',
             'templates',
             'conventionalSubjects',
