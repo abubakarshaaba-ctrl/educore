@@ -160,9 +160,7 @@ class MobileAdvancedAdministrationController extends Controller
         ]);
 
         $tenant = Tenant::query()->findOrFail($platform ? (int) $data['tenant_id'] : (int) $actor->tenant_id);
-        $sourceSystem = $data['source_platform'] === 'other'
-            ? trim((string) ($data['source_system_other'] ?? ''))
-            : trim((string) $data['source_platform']);
+        $sourceSystem = trim((string) $data['source_platform']);
 
         if ($sourceSystem === '') {
             return response()->json(['message' => 'Enter the source platform name.'], 422);
