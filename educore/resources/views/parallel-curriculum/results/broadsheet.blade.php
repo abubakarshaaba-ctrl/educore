@@ -124,7 +124,7 @@
                                     @endforeach
                                 @endif
                                 @foreach($subjects as $subject)
-                                    <th title="{{ $subject->name }}">{{ $subject->code ?: IlluminateSupportStr::limit($subject->name,7,'') }}</th>
+                                    <th title="{{ $subject->name }}">{{ $subject->code ?: \Illuminate\Support\Str::limit($subject->name,7,'') }}</th>
                                 @endforeach
                                 <th>Total</th><th>Avg</th><th>Pos</th>
                             </tr>
