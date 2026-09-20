@@ -243,6 +243,138 @@ internal fun ScoreAssignmentsScreen(
             }
         }
 
+        if (results.parallelResults.isNotEmpty()) {
+            item {
+                EduCoreSectionHeader(
+                    title = "Parallel curriculum results",
+                    supportingText = "Published results from the learner's additional programme",
+                )
+            }
+            items(results.parallelResults, key = { "parallel-" + it.id }) { result ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
+                    border = BorderStroke(1.dp, EduCoreColors.Line200),
+                    shape = MaterialTheme.shapes.large,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+                        verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    result.curriculumName ?: "Parallel curriculum",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = EduCoreColors.Ink900,
+                                )
+                                Text(
+                                    listOfNotNull(
+                                        result.resultClassName,
+                                        result.resultClassArmName?.let { "Arm " + it },
+                                        result.term,
+                                        result.session,
+                                    ).joinToString(" · "),
+                                    color = EduCoreColors.Slate600,
+                                )
+                            }
+                            EduCoreStatusBadge(
+                                result.average.formatScore() + "%",
+                                result.average.averageTone(),
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                        ) {
+                            EduCoreShowcaseStat(
+                                label = "Average",
+                                value = result.average.formatScore() + "%",
+                                icon = Icons.Default.Assessment,
+                                tone = result.average.averageTone(),
+                                modifier = Modifier.weight(1f),
+                            )
+                            EduCoreShowcaseStat(
+                                label = "Position",
+                                value = result.position?.toString() ?: "—",
+                                icon = Icons.Default.Groups,
+                                tone = EduCoreTone.Brand,
+                                modifier = Modifier.weight(1f),
+                            )
+                            EduCoreShowcaseStat(
+                                label = "Subjects",
+                                value = result.subjectsOffered.toString(),
+                                icon = Icons.Default.School,
+                                tone = EduCoreTone.Info,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+
+                        result.maximumTotal?.let { maximum ->
+                            Text(
+                                "Total " + result.totalScore.formatScore() + " / " + maximum.formatScore(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EduCoreColors.Slate600,
+                            )
+                        }
+
+                        EduCoreSectionHeader(
+                            title = "Subjects",
+                            supportingText = "Published parallel subject totals, grades and component scores",
+                        )
+                        result.subjects.forEach { subject ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = EduCoreColors.Page50,
+                                shape = MaterialTheme.shapes.medium,
+                                border = BorderStroke(1.dp, EduCoreColors.Line200),
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(subject.name, fontWeight = FontWeight.Medium, color = EduCoreColors.Ink900)
+                                            Text(
+                                                subject.grade + " · " + subject.remark,
+                                                color = EduCoreColors.Slate600,
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                        }
+                                        Text(
+                                            subject.total.formatScore(),
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = EduCoreColors.Navy900,
+                                        )
+                                    }
+                                    if (subject.assessments.isNotEmpty()) {
+                                        Text(
+                                            subject.assessments.joinToString(" · ") { assessment ->
+                                                assessment.name + ": " +
+                                                    (assessment.score?.formatScore() ?: "—") +
+                                                    "/" + assessment.maximum.formatScore()
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = EduCoreColors.Slate600,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(EduCoreSpacing.Lg)) }
     }
 }
@@ -577,7 +709,7 @@ internal fun PublishedResultsScreen(
         }
         state.errorMessage?.let { item { EduCoreErrorBanner(it) } }
 
-        if (results.results.isEmpty()) {
+        if (results.results.isEmpty() && results.parallelResults.isEmpty()) {
             item {
                 EduCoreShowcaseSectionCard {
                     EduCoreEmptyState(
@@ -588,7 +720,16 @@ internal fun PublishedResultsScreen(
             }
         }
 
-        items(results.results, key = PublishedResult::id) { result ->
+        if (results.results.isNotEmpty() && results.parallelResults.isNotEmpty()) {
+            item {
+                EduCoreSectionHeader(
+                    title = "Conventional curriculum",
+                    supportingText = "Published conventional report cards",
+                )
+            }
+        }
+
+        items(results.results, key = { "conventional-" + it.id }) { result ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = EduCoreColors.White),
