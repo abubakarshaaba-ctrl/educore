@@ -38,6 +38,20 @@
         <p>Run a second curriculum independently from conventional classes, then calculate each learner's programme average and distribute it into a locked conventional destination subject according to that class level's Assessment Template.</p>
     </div>
 
+    <div class="pc-jumpbar" aria-label="Common parallel curriculum tasks">
+        <span class="pc-jumpbar-label">Common tasks</span>
+        <a href="#parallel-score-entry">Enter Scores</a>
+        @if($canManage)
+            <a href="{{ route('parallel-curriculum.setup') }}">Configure Programme</a>
+            <a href="{{ route('parallel-curriculum.student-assignments') }}">Assign Students</a>
+            <a href="{{ route('parallel-curriculum.lifecycle.index') }}#teaching-assignment-model">Assign Teachers</a>
+            <a href="{{ route('parallel-curriculum.results.index') }}">View Results</a>
+        @endif
+        @if($canViewOperations)
+            <a href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
+        @endif
+    </div>
+
     <section class="pc-card full" style="margin-bottom:14px" id="parallel-score-entry">
         <div class="pc-head">Open Parallel Score Entry Sheet</div>
         <div class="pc-body">
