@@ -12,7 +12,7 @@
 @section('content')
 <div class="pcl" data-collapsible-root data-storage-key="parallel-lifecycle">
 @if(session('success'))<div class="ok">{{ session('success') }}</div>@endif
-@if($errors->any())<div class="err"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
+@if($errors->any())<div class="err" data-parallel-validation-error><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
 <div class="tabs">
 <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
