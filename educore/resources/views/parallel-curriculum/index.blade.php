@@ -167,6 +167,16 @@
                     <span>Choose one class teacher for every subject in an arm, or assign teachers subject-by-subject. The same teacher may teach the same subject across several classes/arms when timetable times do not clash.</span>
                     <small>Academic Lifecycle</small>
                 </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.class-list') }}">
+                    <strong>Parallel class list</strong>
+                    <span>Generate a session-based learner register by programme, parallel class and class arm, with conventional placement shown only as a reference.</span>
+                    <small>Class List</small>
+                </a>
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.teacher-list') }}">
+                    <strong>Parallel teacher list</strong>
+                    <span>Review the effective teaching roster after class-teacher mode, default subject teachers and arm-specific subject overrides are resolved.</span>
+                    <small>Teacher List</small>
+                </a>
                 <a class="pc-feature-link" href="{{ route('parallel-curriculum.operations.index') }}#working-week">
                     <strong>Days of the week</strong>
                     <span>Set an independent Monday–Sunday working week for the parallel curriculum. Each day can be enabled or disabled without changing the conventional curriculum.</span>
