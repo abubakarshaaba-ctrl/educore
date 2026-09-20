@@ -51,6 +51,9 @@ import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDay
+import online.educoreng.educore.core.model.ParallelSkillStudent
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
@@ -60,6 +63,7 @@ private enum class ParallelLifecycleTab(val label: String) {
     TEACHERS("Teachers"),
     GRADES("Grade System"),
     OPERATIONS("Timetable & Attendance"),
+    SKILLS("Skills Rating"),
     RESULTS("Results"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
@@ -101,13 +105,19 @@ fun ParallelCurriculumLifecycleScreen(
     onImportAssignments: (String, String, ByteArray) -> Unit,
     onRemoveStudent: (Long) -> Unit,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
+    onSaveArmTeachingMode: (Long, String, Long?) -> Unit,
     onSaveGrade: (List<Long>, String, Double?, Double?, String?, Boolean, Double?) -> Unit,
     onDeleteGrade: (Long) -> Unit,
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -122,6 +132,8 @@ fun ParallelCurriculumLifecycleScreen(
         state.selectedSessionId,
         state.operationsWorkspace?.selected?.curriculumId,
         state.operationsWorkspace?.selected?.sessionId,
+        state.skillWorkspace?.selectedArmId,
+        state.skillWorkspace?.selectedTermId,
     ) {
         val operationsSelection = state.operationsWorkspace?.selected
         if (
@@ -135,6 +147,9 @@ fun ParallelCurriculumLifecycleScreen(
                 )
         ) {
             onLoadOperations(null, null, null, null)
+        }
+        if (tab == ParallelLifecycleTab.SKILLS && state.skillWorkspace == null) {
+            onLoadSkills(null, null)
         }
     }
 
@@ -237,7 +252,11 @@ fun ParallelCurriculumLifecycleScreen(
                 onImportAssignments,
                 onRemoveStudent,
             )
-            ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(state, onSaveArmTeacher)
+            ParallelLifecycleTab.TEACHERS -> lifecycleTeachers(
+                state,
+                onSaveArmTeacher,
+                onSaveArmTeachingMode,
+            )
             ParallelLifecycleTab.GRADES -> lifecycleGrades(state, onSaveGrade, onDeleteGrade)
             ParallelLifecycleTab.OPERATIONS -> lifecycleOperations(
                 state = state,
@@ -245,7 +264,15 @@ fun ParallelCurriculumLifecycleScreen(
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
                 onSaveParallelAttendance = onSaveParallelAttendance,
+                onSaveWorkingDays = onSaveWorkingDays,
+                onClockInParallelStaff = onClockInParallelStaff,
+                onClockOutParallelStaff = onClockOutParallelStaff,
                 onDownloadAttendanceExport = onDownloadAttendanceExport,
+            )
+            ParallelLifecycleTab.SKILLS -> lifecycleSkills(
+                state = state,
+                onLoadSkills = onLoadSkills,
+                onSaveSkills = onSaveSkills,
             )
             ParallelLifecycleTab.RESULTS -> lifecycleResults(
                 state = state,
@@ -1530,6 +1557,7 @@ private fun StringLifecycleMenu(
 private fun LazyListScope.lifecycleTeachers(
     state: ParallelLifecycleUiState,
     onSaveArmTeacher: (Long, Long, Long?) -> Unit,
+    onSaveArmTeachingMode: (Long, String, Long?) -> Unit,
 ) {
     val workspace = state.workspace ?: return
     val levels = workspace.selectedCurriculum?.classes.orEmpty()
@@ -1583,6 +1611,7 @@ private fun LazyListScope.lifecycleTeachers(
                         staff = workspace.staff,
                         busy = state.isMutating,
                         onSave = onSaveArmTeacher,
+                        onSaveTeachingMode = onSaveArmTeachingMode,
                     )
                 }
             }
@@ -1597,11 +1626,79 @@ private fun ArmTeacherCard(
     staff: List<ParallelLifecycleStaff>,
     busy: Boolean,
     onSave: (Long, Long, Long?) -> Unit,
+    onSaveTeachingMode: (Long, String, Long?) -> Unit,
 ) {
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text(level.name + " " + arm.name, style = MaterialTheme.typography.titleMedium)
+
+        var teachingMode by remember(arm.id, arm.teachingAssignmentMode) {
+            mutableStateOf(arm.teachingAssignmentMode)
+        }
+        var classTeacherId by remember(arm.id, arm.classTeacherId) {
+            mutableStateOf(arm.classTeacherId ?: staff.firstOrNull()?.id)
+        }
+
         Text(
-            "Choose an override for each subject, or retain the class-level default.",
+            "Choose whether one class/form teacher takes all subjects in this arm or subjects are assigned independently.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        StringLifecycleMenu(
+            label = "Teaching assignment mode",
+            current = if (teachingMode == "class_teacher") {
+                "One Class/Form Teacher"
+            } else {
+                "Subject-based Teachers"
+            },
+            options = listOf(
+                "class_teacher" to "One Class/Form Teacher",
+                "subject_based" to "Subject-based Teachers",
+            ),
+            enabled = !busy,
+            onSelect = { teachingMode = it },
+        )
+
+        if (teachingMode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Class/Form teacher",
+                current = staff.firstOrNull { it.id == classTeacherId }?.name
+                    ?: arm.classTeacherName
+                    ?: "Select teacher",
+                options = staff.map { it.id to it.name },
+                enabled = !busy,
+                onSelect = { classTeacherId = it },
+            )
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCorePrimaryButton(
+            text = "Save Teaching Model",
+            onClick = {
+                onSaveTeachingMode(
+                    arm.id,
+                    teachingMode,
+                    if (teachingMode == "class_teacher") classTeacherId else null,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy &&
+                (teachingMode != "class_teacher" || classTeacherId != null),
+            loading = busy,
+        )
+
+        if (teachingMode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreInfoBanner(
+                title = "Class teacher mode",
+                message = "The selected class/form teacher becomes the effective teacher for every subject in this arm and can manage parallel attendance and comments.",
+            )
+            return@EduCoreDashboardCard
+        }
+
+        Text(
+            "Choose an arm override for each subject, or retain the class-level default.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
@@ -2669,6 +2766,9 @@ private fun LazyListScope.lifecycleOperations(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
 ) {
     item {
@@ -2678,6 +2778,9 @@ private fun LazyListScope.lifecycleOperations(
             onCreateTimetablePeriod = onCreateTimetablePeriod,
             onDeleteTimetablePeriod = onDeleteTimetablePeriod,
             onSaveParallelAttendance = onSaveParallelAttendance,
+            onSaveWorkingDays = onSaveWorkingDays,
+            onClockInParallelStaff = onClockInParallelStaff,
+            onClockOutParallelStaff = onClockOutParallelStaff,
             onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
     }
@@ -2690,6 +2793,10 @@ internal fun ParallelOperationsPanel(
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
+    onClockInParallelStaff: () -> Unit,
+    onClockOutParallelStaff: () -> Unit,
+    onDownloadAttendanceExport: (String) -> Unit,
 ) {
     val operations = state.operationsWorkspace
 
@@ -2784,6 +2891,17 @@ internal fun ParallelOperationsPanel(
         if (state.isOperationsLoading) {
             EduCoreLoadingState(message = "Refreshing parallel operations")
         }
+
+        ParallelWorkingDaysCard(
+            state = state,
+            onSaveWorkingDays = onSaveWorkingDays,
+        )
+
+        ParallelStaffAttendanceCard(
+            state = state,
+            onClockIn = onClockInParallelStaff,
+            onClockOut = onClockOutParallelStaff,
+        )
 
         ParallelTimetableCard(
             state = state,
