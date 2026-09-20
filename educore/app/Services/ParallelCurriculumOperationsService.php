@@ -938,6 +938,14 @@ class ParallelCurriculumOperationsService
         ];
     }
 
+    /**
+     * Compatibility endpoint for older clients.
+     *
+     * Parallel staff attendance must never create a second physical attendance
+     * event. Reuse the conventional staff attendance timestamp created by the
+     * shared QR flow; if that source event does not exist, require the user to
+     * scan through normal staff attendance first.
+     */
     public function clockInParallelStaff(
         User $user,
         int $curriculumId,
@@ -951,160 +959,93 @@ class ParallelCurriculumOperationsService
             'You are not assigned to teach in this parallel curriculum.'
         );
 
-        $now = now();
-        $date = $now->toDateString();
-        $day = strtolower($now->format('l'));
-        $schedule = $this->workingDay($tenantId, $curriculumId, $day);
-
-        if (! $schedule->is_working) {
-            throw ValidationException::withMessages([
-                'attendance' =>
-                    ucfirst($day).' is not configured as a parallel-curriculum working day.',
-            ]);
-        }
-
-        $existing = ParallelCurriculumStaffAttendanceRecord::query()
+        $source = \App\Models\StaffAttendanceRecord::query()
             ->where('tenant_id', $tenantId)
-            ->where('parallel_curriculum_id', $curriculumId)
             ->where('user_id', $user->id)
-            ->whereDate('attendance_date', $date)
+            ->whereDate('attendance_date', today())
             ->first();
 
-        if ($existing?->clock_in_time) {
+        if (! $source?->clock_in_time) {
             throw ValidationException::withMessages([
                 'attendance' =>
-                    'You have already clocked in for this parallel curriculum today.',
+                    'Scan the normal staff attendance QR first. The same arrival time is automatically applied to every assigned parallel curriculum.',
             ]);
         }
 
-        $clockIn = $now->format('H:i:s');
-        $resumption = substr((string) $schedule->resumption_time, 0, 8);
-        $closing = substr((string) $schedule->closing_time, 0, 8);
-        $grace = (int) $schedule->grace_minutes;
-
-        $status = $this->classifyParallelArrival(
-            $date,
-            $clockIn,
-            $resumption,
-            $grace
+        $records = $this->reconcileSharedStaffClockIn(
+            $user,
+            today()->toDateString(),
+            (string) $source->clock_in_time,
+            'shared_qr',
+            $user->id
         );
 
-        return ParallelCurriculumStaffAttendanceRecord::updateOrCreate(
-            [
-                'tenant_id' => $tenantId,
-                'parallel_curriculum_id' => $curriculumId,
-                'user_id' => $user->id,
-                'attendance_date' => $date,
-            ],
-            [
-                'status' => $status,
-                'clock_in_time' => $clockIn,
-                'expected_resumption_time' => $resumption,
-                'expected_closing_time' => $closing,
-                'grace_minutes' => $grace,
-                'clock_in_method' => $method,
-                'recorded_by' => $user->id,
-            ]
+        $record = $records->first(
+            fn (ParallelCurriculumStaffAttendanceRecord $item) =>
+                (int) $item->parallel_curriculum_id === $curriculumId
         );
+
+        if (! $record) {
+            throw ValidationException::withMessages([
+                'attendance' =>
+                    'Today is not an enabled working day for this parallel curriculum, or this account is no longer assigned to teach in it.',
+            ]);
+        }
+
+        return $record;
     }
 
+    /**
+     * Compatibility endpoint for older clients.
+     *
+     * A parallel clock-out is accepted only after the conventional attendance
+     * record has already been clocked out. The same departure time is then
+     * reconciled into every parallel context.
+     */
     public function clockOutParallelStaff(
         User $user,
         int $curriculumId
     ): ParallelCurriculumStaffAttendanceRecord {
         $tenantId = (int) $user->tenant_id;
 
-        $record = ParallelCurriculumStaffAttendanceRecord::query()
+        abort_unless(
+            $this->canClockParallelStaff($user, $curriculumId),
+            403,
+            'You are not assigned to teach in this parallel curriculum.'
+        );
+
+        $source = \App\Models\StaffAttendanceRecord::query()
             ->where('tenant_id', $tenantId)
-            ->where('parallel_curriculum_id', $curriculumId)
             ->where('user_id', $user->id)
             ->whereDate('attendance_date', today())
-            ->firstOrFail();
+            ->first();
 
-        if (! $record->clock_in_time) {
+        if (! $source?->clock_out_time) {
             throw ValidationException::withMessages([
-                'attendance' => 'Clock in before clocking out.',
+                'attendance' =>
+                    'Use the normal staff attendance clock-out first. The same departure time is automatically applied to every assigned parallel curriculum.',
             ]);
         }
 
-        if ($record->clock_out_time) {
+        $records = $this->reconcileSharedStaffClockOut(
+            $user,
+            today()->toDateString(),
+            (string) $source->clock_out_time
+        );
+
+        $record = $records->first(
+            fn (ParallelCurriculumStaffAttendanceRecord $item) =>
+                (int) $item->parallel_curriculum_id === $curriculumId
+        );
+
+        if (! $record) {
             throw ValidationException::withMessages([
-                'attendance' => 'You have already clocked out today.',
+                'attendance' =>
+                    'No shared parallel attendance context exists for this curriculum today.',
             ]);
         }
 
-        $time = now()->format('H:i:s');
-        $closing = substr((string) $record->expected_closing_time, 0, 8);
-
-        $record->update([
-            'clock_out_time' => $time,
-            'departure_status' => $closing && $time < $closing
-                ? 'early'
-                : 'on_time',
-        ]);
-
-        return $record->fresh();
-    }
-
-    private function assignedStaffIds(
-        int $tenantId,
-        int $curriculumId
-    ): Collection {
-        $classes = ParallelCurriculumClass::query()
-            ->where('tenant_id', $tenantId)
-            ->where('parallel_curriculum_id', $curriculumId)
-            ->where('is_active', true)
-            ->with([
-                'arms' => fn ($query) => $query->where('is_active', true),
-                'subjectAssignments' => fn ($query) =>
-                    $query->where('is_active', true),
-            ])
-            ->get();
-
-        $ids = collect();
-
-        foreach ($classes as $class) {
-            foreach ($class->arms as $arm) {
-                foreach ($class->subjectAssignments as $assignment) {
-                    $teacherId = $this->effectiveTeacherId(
-                        $tenantId,
-                        (int) $class->id,
-                        (int) $arm->id,
-                        (int) $assignment->parallel_curriculum_subject_id
-                    );
-
-                    if ($teacherId) {
-                        $ids->push($teacherId);
-                    }
-                }
-            }
-        }
-
-        return $ids
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-    }
-
-    private function workingDay(
-        int $tenantId,
-        int $curriculumId,
-        string $day
-    ): ParallelCurriculumWorkingDay {
-        return ParallelCurriculumWorkingDay::query()
-            ->where('tenant_id', $tenantId)
-            ->where('parallel_curriculum_id', $curriculumId)
-            ->where('day_of_week', $day)
-            ->first()
-            ?: new ParallelCurriculumWorkingDay([
-                'tenant_id' => $tenantId,
-                'parallel_curriculum_id' => $curriculumId,
-                'day_of_week' => $day,
-                'is_working' => ! in_array($day, ['saturday', 'sunday'], true),
-                'resumption_time' => '08:00:00',
-                'closing_time' => '15:00:00',
-                'grace_minutes' => 15,
-            ]);
+        return $record;
     }
 
     private function classifyParallelArrival(
