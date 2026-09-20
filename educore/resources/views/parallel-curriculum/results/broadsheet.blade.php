@@ -147,7 +147,7 @@
                                         <td>
                                             @if(($sd['score'] ?? null)!==null)
                                                 <span class="score">{{ number_format($sd['score'],1) }}</span>
-                                                @if($mode==='termly' && !empty($sd['grade']))<div style="font-size:8.5px;color:var(--slate-light)">{{ $sd['grade'] }}</div>@endif
+                                                @if(!empty($sd['grade']) && $sd['grade'] !== '—')<div style="font-size:8.5px;color:var(--slate-light)">{{ $sd['grade'] }}</div>@endif
                                             @else
                                                 <span class="missing">—</span>
                                             @endif
