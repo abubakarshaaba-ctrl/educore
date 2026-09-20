@@ -92,6 +92,8 @@
                     @endif
                 </span>
                 <div class="actions">
+                    <a class="btn btn-s" href="{{ route('parallel-curriculum.results.broadsheet', ['class_id'=>$report['class']->id,'term_id'=>$report['term']->id,'mode'=>'termly']) }}">Termly Broadsheet</a>
+                    <a class="btn btn-s" href="{{ route('parallel-curriculum.results.broadsheet', ['class_id'=>$report['class']->id,'session_id'=>$report['term']->session_id,'mode'=>'cumulative']) }}">Cumulative Broadsheet</a>
                     @if($report['is_published'])
                         <form method="POST" action="{{ route('parallel-curriculum.results.unpublish') }}">
                             @csrf
@@ -141,8 +143,10 @@
                                         <td><span class="badge {{ $row['complete'] ? 'ok' : 'warn' }}">{{ $row['complete'] ? 'Complete' : 'Incomplete' }}</span></td>
                                         <td>
                                             <div class="actions">
-                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">View</a>
-                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">PDF</a>
+                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">Term Result</a>
+                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'term_id'=>$report['term']->id]) }}">Term PDF</a>
+                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student.cumulative',['class'=>$report['class']->id,'student'=>$row['student']->id,'session_id'=>$report['term']->session_id]) }}">Cumulative</a>
+                                                <a class="btn btn-s" href="{{ route('parallel-curriculum.results.student.cumulative.pdf',['class'=>$report['class']->id,'student'=>$row['student']->id,'session_id'=>$report['term']->session_id]) }}">Cumulative PDF</a>
                                             </div>
                                         </td>
                                     </tr>
