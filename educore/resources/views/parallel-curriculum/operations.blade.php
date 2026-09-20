@@ -21,7 +21,7 @@
 @section('content')
 <div class="pco" data-collapsible-root data-storage-key="parallel-operations">
 @if(session('success'))<div class="alert ok">{{ session('success') }}</div>@endif
-@if($errors->any())<div class="alert err"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
+@if($errors->any())<div class="alert err" data-parallel-validation-error><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
 <div class="tabs">
     <a class="tab" href="{{ route('scores.index') }}">Conventional Scores</a>
