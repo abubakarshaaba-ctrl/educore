@@ -18,6 +18,18 @@ class NotificationDeepLinkParserTest {
     }
 
     @Test
+    fun `attendance requires a valid learner identifier`() {
+        val attendance = NotificationDeepLinkParser.parse(
+            mapOf("destination_type" to "attendance", "destination_id" to "73"),
+        )
+
+        assertEquals("attendance", attendance?.type)
+        assertEquals("73", attendance?.id)
+        assertNull(NotificationDeepLinkParser.parse(mapOf("destination_type" to "attendance")))
+        assertNull(NotificationDeepLinkParser.parse(mapOf("destination_type" to "attendance", "destination_id" to "invalid")))
+    }
+
+    @Test
     fun `announcement is valid without an identifier`() {
         val target = NotificationDeepLinkParser.parse(mapOf("destination_type" to "announcement"))
 
