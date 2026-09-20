@@ -172,9 +172,11 @@ class ParallelCurriculumService
             $relations[] = 'curriculumClass.arms';
         }
 
-        $canEnterAll = $includeAll
-            || $user->isSuperAdmin()
-            || $user->canAccessExactModule('scores');
+        // Full workspace visibility is reserved for lifecycle managers.
+        // A broad "scores" permission alone must not expose other teachers'
+        // parallel class-arm/subject combinations because scoreSheet() still
+        // enforces the effective parallel teacher assignment.
+        $canEnterAll = $includeAll || $user->isSuperAdmin();
 
         return ParallelCurriculumClassSubject::with($relations)
             ->where('tenant_id', $user->tenant_id)
@@ -238,6 +240,10 @@ class ParallelCurriculumService
                         'class' => $class,
                         'arm' => $arm,
                         'assignment' => $assignment,
+                        'curriculum_id' => (int) $curriculum->id,
+                        'class_id' => (int) $class->id,
+                        'arm_id' => $arm ? (int) $arm->id : null,
+                        'subject_id' => (int) $assignment->parallel_curriculum_subject_id,
                         'score_sheet_url' => $term
                             ? route('parallel-curriculum.score-sheet', $routeParameters)
                             : '#',
