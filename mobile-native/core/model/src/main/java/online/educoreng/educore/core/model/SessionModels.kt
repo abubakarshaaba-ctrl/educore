@@ -16,7 +16,7 @@ data class SchoolIdentity(
     val name: String,
     val slug: String,
     val primaryColor: String = "#071E45",
-    val accentColor: String = "#15447F",
+    val accentColor: String = "#D79A21",
     val motto: String? = null,
 ) {
     val tenantKey: String = id?.toString() ?: "platform"

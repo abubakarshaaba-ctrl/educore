@@ -22,12 +22,12 @@ data class NotificationItemDto(
     val id: Long,
     val title: String,
     val body: String,
+    @param:Json(name = "image_url") val imageUrl: String? = null,
     val priority: String,
     @param:Json(name = "published_at") val publishedAt: String,
     @param:Json(name = "expires_at") val expiresAt: String? = null,
     @param:Json(name = "is_read") val isRead: Boolean,
     @param:Json(name = "deep_link") val deepLink: DeepLinkDto,
-    @param:Json(name = "image_url") val imageUrl: String? = null,
 )
 data class NotificationsResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int,
@@ -114,7 +114,7 @@ data class MessageRecipientsResponseDto(val recipients: List<MessageRecipientDto
 data class PushTokenRequestDto(val token: String, val platform: String = "android")
 
 fun DeepLinkDto.toDomain() = DeepLinkTarget(type, id)
-fun NotificationItemDto.toDomain() = NotificationItem(id, title, body, priority, publishedAt, expiresAt, isRead, deepLink.toDomain(), imageUrl)
+fun NotificationItemDto.toDomain() = NotificationItem(id, title, body, imageUrl, priority, publishedAt, expiresAt, isRead, deepLink.toDomain())
 fun NotificationsResponseDto.toDomain() = NotificationPage(notifications.map(NotificationItemDto::toDomain), unreadCount, meta.currentPage, meta.lastPage)
 fun SchoolEventDto.toDomain() = SchoolEvent(id, title, description, startDate, endDate, type, color, isPublic, deepLink.toDomain())
 fun MessageThreadSummaryDto.toDomain() = MessageThreadSummary(id, subject, status, studentName, otherName, lastMessage, unreadCount, updatedAt, deepLink.toDomain())

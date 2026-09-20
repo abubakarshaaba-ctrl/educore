@@ -247,4 +247,124 @@ class DtoMappersTest {
         assertTrue(plan.note?.plainText?.contains("basic units of life") == true)
         assertEquals("draft", plan.status)
     }
+    @Test
+    fun `score assignment mapping preserves parallel workspace identity`() {
+        val dto = online.educoreng.educore.core.network.dto.ScoreAssignmentsResponseDto(
+            contractVersion = 3,
+            generatedAt = "2026-09-18T11:00:00+01:00",
+            term = online.educoreng.educore.core.network.dto.ScoreTermDto(8, "First Term", "2026/2027"),
+            assignments = listOf(
+                online.educoreng.educore.core.network.dto.ScoreAssignmentDto(
+                    classId = 5,
+                    className = "Tahfeez · Advanced",
+                    subjectId = 9,
+                    subjectName = "Qur'an",
+                    workspaceType = "parallel_curriculum",
+                ),
+            ),
+        )
+
+        val assignments = dto.toDomain()
+
+        assertEquals("parallel_curriculum", assignments.assignments.single().workspaceType)
+        assertEquals("Tahfeez · Advanced", assignments.assignments.single().className)
+    }
+
+    @Test
+    fun `score sheet mapping preserves parallel workspace identity and cell locks`() {
+        val dto = online.educoreng.educore.core.network.dto.ScoreSheetResponseDto(
+            contractVersion = 3,
+            generatedAt = "2026-09-18T11:00:00+01:00",
+            workspaceType = "parallel_curriculum",
+            version = "parallel-v1",
+            locked = false,
+            classRoom = online.educoreng.educore.core.network.dto.ScoreClassDto(5, "Tahfeez · Advanced"),
+            subject = online.educoreng.educore.core.network.dto.ScoreSubjectDto(9, "Qur'an"),
+            term = online.educoreng.educore.core.network.dto.ScoreTermDto(8, "First Term", "2026/2027"),
+            assessmentTypes = listOf(
+                online.educoreng.educore.core.network.dto.ScoreAssessmentDto(
+                    id = 3,
+                    name = "Continuous Assessment",
+                    max = 40.0,
+                    isExam = false,
+                    isSplit = false,
+                ),
+            ),
+            students = listOf(
+                online.educoreng.educore.core.network.dto.ScoreStudentDto(
+                    id = 21,
+                    name = "Amina Bello",
+                    admissionNumber = "STU021",
+                    scores = mapOf(
+                        "3" to online.educoreng.educore.core.network.dto.ScoreCellDto(
+                            total = 30.0,
+                            value = 30.0,
+                            locked = true,
+                            source = "parallel_curriculum_entry",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val sheet = dto.toDomain()
+
+        assertEquals("parallel_curriculum", sheet.workspaceType)
+        assertTrue(sheet.students.single().scores.getValue(3).locked)
+        assertEquals("parallel_curriculum_entry", sheet.students.single().scores.getValue(3).source)
+    }
+
+    @Test
+    fun `published result mapping keeps standalone parallel curriculum identity`() {
+        val dto = online.educoreng.educore.core.network.dto.PublishedResultsResponseDto(
+            student = online.educoreng.educore.core.network.dto.ResultStudentDto(
+                id = 21,
+                name = "Amina Bello",
+                admissionNumber = "STU021",
+            ),
+            parallelResults = listOf(
+                online.educoreng.educore.core.network.dto.PublishedResultDto(
+                    id = 4,
+                    term = "First Term",
+                    session = "2026/2027",
+                    average = 82.5,
+                    totalScore = 247.5,
+                    position = 2,
+                    classSize = 30,
+                    subjectsOffered = 3,
+                    subjectsFailed = 0,
+                    resultType = "parallel_curriculum",
+                    curriculumName = "Islamiyyah",
+                    resultClassName = "Mutawassitah 1",
+                    maximumTotal = 300.0,
+                    publicationStatus = "published",
+                    subjects = listOf(
+                        online.educoreng.educore.core.network.dto.ResultSubjectDto(
+                            name = "Qur'an",
+                            assessments = listOf(
+                                online.educoreng.educore.core.network.dto.ResultAssessmentDto(
+                                    name = "CA",
+                                    score = 35.0,
+                                    maximum = 40.0,
+                                ),
+                            ),
+                            total = 87.5,
+                            grade = "A",
+                            remark = "Excellent",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val results = dto.toDomain()
+        val parallel = results.parallelResults.single()
+
+        assertEquals("parallel_curriculum", parallel.resultType)
+        assertEquals("Islamiyyah", parallel.curriculumName)
+        assertEquals("Mutawassitah 1", parallel.resultClassName)
+        assertEquals(300.0, parallel.maximumTotal)
+        assertEquals("Qur'an", parallel.subjects.single().name)
+    }
+
 }

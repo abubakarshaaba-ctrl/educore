@@ -8,19 +8,15 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-val approvedFirebaseConfig = listOf(
-    file("firebase/google-services.json"),
-    rootProject.file("../mobile/android/app/google-services.json"),
-).firstOrNull { it.exists() }
-
-approvedFirebaseConfig?.let { firebaseConfig ->
+val approvedLegacyFirebaseConfig = rootProject.file("../mobile/android/app/google-services.json")
+if (approvedLegacyFirebaseConfig.exists()) {
     val releaseFirebaseConfig = file("src/release/google-services.json")
     val debugFirebaseConfig = file("src/debug/google-services.json")
     releaseFirebaseConfig.parentFile.mkdirs()
     debugFirebaseConfig.parentFile.mkdirs()
-    firebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
+    approvedLegacyFirebaseConfig.copyTo(releaseFirebaseConfig, overwrite = true)
     debugFirebaseConfig.writeText(
-        firebaseConfig.readText().replace(
+        approvedLegacyFirebaseConfig.readText().replace(
             "\"package_name\": \"online.educoreng.educore\"",
             "\"package_name\": \"online.educoreng.educore.nativepreview\"",
         ),
@@ -39,12 +35,6 @@ if (releasePropertiesFile.exists()) {
 val apiBaseUrl = providers.gradleProperty("EDUCORE_API_BASE_URL")
     .orElse("https://educoreng.online/api/v1/")
     .get()
-val buildRevision = providers.gradleProperty("EDUCORE_BUILD_REVISION")
-    .orElse(providers.environmentVariable("CM_COMMIT"))
-    .orElse("local")
-    .get()
-    .take(12)
-    .replace(Regex("[^A-Za-z0-9._-]"), "")
 
 gradle.taskGraph.addTaskExecutionGraphListener { _ ->
     val requestedTasks = gradle.startParameter.taskNames.map { it.substringAfterLast(':') }
@@ -74,13 +64,12 @@ android {
         applicationId = "online.educoreng.educore"
         minSdk = 23
         targetSdk = 36
-        versionCode = 25
-        versionName = "2.0.0-alpha12"
+        versionCode = 15
+        versionName = "2.0.0-alpha02"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
-        buildConfigField("String", "BUILD_REVISION", "\"$buildRevision\"")
     }
 
     signingConfigs {
@@ -120,19 +109,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
 
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
 }
 
 dependencies {
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-
     implementation(libs.moshi.core)
-    implementation(libs.retrofit.core)
-    implementation(libs.okhttp.core)
-    implementation(libs.coil.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.work.runtime)
     implementation(project(":core:common"))
@@ -165,6 +148,7 @@ dependencies {
     implementation(libs.zxing.embedded)
     implementation(libs.play.services.location)
     implementation(libs.firebase.messaging)
+    implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

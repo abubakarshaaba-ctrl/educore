@@ -16,13 +16,13 @@ import online.educoreng.educore.core.model.PublishedResults
 import online.educoreng.educore.core.model.ScoreAssignments
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.SyncState
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 
 data class ScoresUiState(
     val assignments: ScoreAssignments? = null,
     val sheet: ScoreSheet? = null,
     val publishedResults: PublishedResults? = null,
-    val selectedResultStudentId: Long? = null,
     val search: String = "",
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -38,7 +38,6 @@ class ScoresViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScoresUiState())
     val uiState: StateFlow<ScoresUiState> = _uiState.asStateFlow()
     private var draftJob: Job? = null
-    private var activeWorkspaceType: String = "conventional"
 
     fun loadAssignments() = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, sheet = null) }
@@ -52,18 +51,14 @@ class ScoresViewModel @Inject constructor(
         classId: Long,
         subjectId: Long,
         termId: Long?,
-        workspaceType: String = "conventional",
+        workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
     ) = viewModelScope.launch {
-        activeWorkspaceType = workspaceType
         _uiState.update { it.copy(isLoading = true, errorMessage = null, sheet = null) }
-        when (val result = repository.loadSheet(workspaceType, classId, subjectId, termId)) {
+        when (val result = repository.loadSheet(classId, subjectId, termId, workspaceType)) {
             is AppResult.Success -> _uiState.update { it.copy(sheet = result.value, isLoading = false) }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
     }
-
-    fun retrySheet(classId: Long, subjectId: Long, termId: Long?) =
-        openSheet(classId, subjectId, termId, activeWorkspaceType)
 
     fun setSearch(value: String) = _uiState.update { it.copy(search = value) }
 
@@ -88,15 +83,7 @@ class ScoresViewModel @Inject constructor(
             when (val result = repository.submit(_uiState.value.sheet ?: sheet)) {
                 is AppResult.Success -> _uiState.update {
                     if (result.value.syncState == SyncState.QUEUED) syncCoordinator.schedule()
-                    it.copy(
-                        sheet = result.value,
-                        isSaving = false,
-                        message = if (result.value.syncState == SyncState.QUEUED) {
-                            "Scores queued and will sync automatically."
-                        } else {
-                            "Scores saved successfully."
-                        },
-                    )
+                    it.copy(sheet = result.value, isSaving = false, message = if (result.value.syncState == SyncState.QUEUED) "Scores queued and will sync automatically." else "Scores saved successfully.")
                 }
                 is AppResult.Failure -> _uiState.update { it.copy(isSaving = false, errorMessage = result.error.userMessage) }
             }
@@ -111,37 +98,10 @@ class ScoresViewModel @Inject constructor(
         }
     }
 
-    fun loadResults(childId: Long? = PublishedResultWardSelection.consume() ?: _uiState.value.selectedResultStudentId) = viewModelScope.launch {
+    fun loadResults(childId: Long? = null) = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null, publishedResults = null) }
         when (val result = repository.loadPublishedResults(childId)) {
-            is AppResult.Success -> _uiState.update {
-                it.copy(
-                    publishedResults = result.value,
-                    selectedResultStudentId = result.value.studentId ?: childId,
-                    isLoading = false,
-                )
-            }
-            is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
-        }
-    }
-
-    fun loadStudentResults(classId: Long, studentId: Long) = viewModelScope.launch {
-        _uiState.update {
-            it.copy(
-                isLoading = true,
-                errorMessage = null,
-                publishedResults = null,
-                selectedResultStudentId = studentId,
-            )
-        }
-        when (val result = repository.loadStudentResults(classId, studentId)) {
-            is AppResult.Success -> _uiState.update {
-                it.copy(
-                    publishedResults = result.value,
-                    selectedResultStudentId = result.value.studentId ?: studentId,
-                    isLoading = false,
-                )
-            }
+            is AppResult.Success -> _uiState.update { it.copy(publishedResults = result.value, isLoading = false) }
             is AppResult.Failure -> _uiState.update { it.copy(isLoading = false, errorMessage = result.error.userMessage) }
         }
     }

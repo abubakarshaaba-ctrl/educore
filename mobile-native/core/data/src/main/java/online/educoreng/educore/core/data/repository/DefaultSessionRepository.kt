@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import online.educoreng.educore.core.common.AppError
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.local.EduCoreDatabase
@@ -39,7 +38,7 @@ class DefaultSessionRepository(
             if (tenantKey == null) {
                 flowOf(null)
             } else {
-                database.sessionDao().observe(tenantKey).map { it?.toDomain()?.normalizedForClient() }
+                database.sessionDao().observe(tenantKey).map { it?.toDomain() }
             }
         }
 
@@ -67,7 +66,7 @@ class DefaultSessionRepository(
                     is AppResult.Success -> bootstrap
                     is AppResult.Failure -> {
                         clearLocalSession()
-                        AppResult.Failure(bootstrap.error.asPostLoginBootstrapError())
+                        bootstrap
                     }
                 }
             }
@@ -82,7 +81,7 @@ class DefaultSessionRepository(
         when (val result = safeApiCall(moshi) { api.bootstrap() }) {
             is AppResult.Failure -> result
             is AppResult.Success -> {
-                val snapshot = result.value.toDomain().normalizedForClient()
+                val snapshot = result.value.toDomain()
                 persist(snapshot)
                 AppResult.Success(snapshot)
             }
@@ -121,9 +120,7 @@ class DefaultSessionRepository(
 
     override suspend fun logout(): AppResult<Unit> = withContext(Dispatchers.IO) {
         if (tokenVault.hasToken()) {
-            withTimeoutOrNull(600L) {
-                safeApiCall(moshi) { api.logout() }
-            }
+            safeApiCall(moshi) { api.logout() }
         }
         clearLocalSession()
         AppResult.Success(Unit)
@@ -141,54 +138,6 @@ class DefaultSessionRepository(
             )
         }
         tenantContextStore.setActiveTenant(snapshot.school.tenantKey)
-    }
-
-    private fun SessionSnapshot.normalizedForClient(): SessionSnapshot {
-        val granted = modules.distinctBy { it.key.lowercase() }
-        if (user.portal == "admin" || user.portal == "platform") {
-            return copy(modules = granted)
-        }
-
-        val hasSelfAttendance = granted.any { it.key.equals("staff-attendance.self", ignoreCase = true) }
-        val roleKey = user.roleKey.lowercase().replace('-', '_').replace(' ', '_')
-        val isTeacher = user.portal == "staff" && roleKey.contains("teacher")
-        val teacherReportKeys = setOf("reports", "report-cards", "report_cards", "results")
-
-        return copy(
-            modules = granted.filterNot { module ->
-                (hasSelfAttendance && module.key.equals("staff-attendance", ignoreCase = true)) ||
-                    (isTeacher && module.key.lowercase() in teacherReportKeys)
-            }
-        )
-    }
-
-    private fun AppError.asPostLoginBootstrapError(): AppError = when (this) {
-        is AppError.Unauthenticated -> AppError.Unauthenticated(
-            "Your account was verified, but the secure session could not be started. Please sign in again.",
-        )
-        is AppError.Forbidden,
-        is AppError.SubscriptionRestricted,
-        is AppError.Validation -> this
-        is AppError.NetworkUnavailable -> AppError.NetworkUnavailable(
-            "Your account was verified, but EduCore could not load your school workspace. Check your connection and try again.",
-        )
-        is AppError.Timeout -> AppError.Timeout(
-            "Your account was verified, but loading your school workspace took too long. Please try again.",
-        )
-        is AppError.Server -> AppError.Server(
-            userMessage = buildString {
-                append("Your account was verified, but EduCore could not load your school workspace. Please try again.")
-                requestId?.let { append(" Reference: $it") }
-            },
-            statusCode = statusCode,
-            requestId = requestId,
-        )
-        is AppError.NotFound,
-        is AppError.Conflict,
-        is AppError.RateLimited,
-        is AppError.Unexpected -> AppError.Unexpected(
-            "Your account was verified, but EduCore could not finish loading your school workspace. Please try again.",
-        )
     }
 
     private suspend fun clearLocalSession() {

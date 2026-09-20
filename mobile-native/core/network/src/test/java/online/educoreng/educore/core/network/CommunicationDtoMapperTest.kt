@@ -20,16 +20,7 @@ class CommunicationDtoMapperTest {
         val page = NotificationsResponseDto(
             contractVersion = 1,
             notifications = listOf(
-                NotificationItemDto(
-                    id = 8,
-                    title = "PTA meeting",
-                    body = "Friday at noon",
-                    priority = "important",
-                    publishedAt = "2026-08-31",
-                    expiresAt = null,
-                    isRead = false,
-                    deepLink = DeepLinkDto("announcement", "8"),
-                ),
+                NotificationItemDto(8, "PTA meeting", "Friday at noon", "important", "2026-08-31", null, false, DeepLinkDto("announcement", "8")),
             ),
             unreadCount = 1,
             meta = CommunicationMetaDto(1, 2),
@@ -37,8 +28,8 @@ class CommunicationDtoMapperTest {
 
         assertEquals(1, page.unreadCount)
         assertEquals(2, page.lastPage)
-        assertFalse(page.notifications.single().isRead)
-        assertEquals("announcement", page.notifications.single().deepLink.type)
+        assertFalse(page.items.single().isRead)
+        assertEquals("announcement", page.items.single().deepLink.type)
     }
 
     @Test
@@ -68,7 +59,7 @@ class CommunicationDtoMapperTest {
 
         assertEquals(14, thread.summary.id)
         assertTrue(thread.replies.single().isMine)
-        assertEquals(21L, thread.replies.single().attachment?.id)
+        assertEquals(21L, thread.replies.single().attachment?.replyId)
         assertEquals("evidence.pdf", thread.replies.single().attachment?.name)
     }
 }

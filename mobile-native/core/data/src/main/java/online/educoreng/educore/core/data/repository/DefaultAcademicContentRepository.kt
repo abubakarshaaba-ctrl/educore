@@ -14,10 +14,6 @@ import online.educoreng.educore.core.data.local.EduCoreDatabase
 import online.educoreng.educore.core.data.local.LessonPlanDraftEntity
 import online.educoreng.educore.core.data.preferences.TenantContextStore
 import online.educoreng.educore.core.model.DownloadedDocument
-import online.educoreng.educore.core.model.GeneratedKnowledgeDocument
-import online.educoreng.educore.core.model.KnowledgeCatalogue
-import online.educoreng.educore.core.model.KnowledgeMutationResult
-import online.educoreng.educore.core.model.KnowledgeTopic
 import online.educoreng.educore.core.model.LessonPlan
 import online.educoreng.educore.core.model.LessonPlanDraft
 import online.educoreng.educore.core.model.LessonPlannerOptions
@@ -25,7 +21,6 @@ import online.educoreng.educore.core.model.RepositoryCatalogue
 import online.educoreng.educore.core.model.RepositoryHierarchy
 import online.educoreng.educore.core.model.RepositoryResource
 import online.educoreng.educore.core.model.RepositoryResourceDetail
-import online.educoreng.educore.core.network.AcademicKnowledgeApi
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.LessonOptionsResponseDto
 import online.educoreng.educore.core.network.dto.LessonPlanDto
@@ -42,20 +37,11 @@ import online.educoreng.educore.core.network.safeApiCall
 class DefaultAcademicContentRepository(
     private val context: Context,
     private val api: EduCoreApi,
-    private val knowledgeApi: AcademicKnowledgeApi,
     private val moshi: Moshi,
     private val database: EduCoreDatabase,
     private val tenantContextStore: TenantContextStore,
     private val nowEpochMs: () -> Long = System::currentTimeMillis,
 ) : AcademicContentRepository {
-    constructor(
-        context: Context,
-        api: EduCoreApi,
-        moshi: Moshi,
-        database: EduCoreDatabase,
-        tenantContextStore: TenantContextStore,
-    ) : this(context, api, api, moshi, database, tenantContextStore)
-
     private val hierarchyAdapter by lazy { moshi.adapter(RepositoryHierarchyResponseDto::class.java) }
     private val resourcesAdapter by lazy { moshi.adapter(RepositoryResourcesResponseDto::class.java) }
     private val resourceAdapter by lazy { moshi.adapter(RepositoryResourceResponseDto::class.java) }
@@ -89,50 +75,6 @@ class DefaultAcademicContentRepository(
         filename = resource.filename ?: "${slug(resource.title)}.bin",
         mimeType = resource.mimeType ?: "application/octet-stream",
     ) { api.downloadRepositoryResource(resource.id) }
-
-    override suspend fun knowledgeTopics(
-        className: String?,
-        term: String?,
-        subject: String?,
-        query: String?,
-        ready: Boolean?,
-        page: Int,
-    ): AppResult<KnowledgeCatalogue> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) {
-            knowledgeApi.topics(className, term, subject, query, ready, perPage = REPOSITORY_PAGE_SIZE, page = page.coerceAtLeast(1))
-        }) {
-            is AppResult.Success -> AppResult.Success(result.value.toDomain())
-            is AppResult.Failure -> result
-        }
-    }
-
-    override suspend fun knowledgeTopic(id: Long): AppResult<KnowledgeTopic> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { knowledgeApi.topic(id) }) {
-            is AppResult.Success -> AppResult.Success(result.value.topic.toDomain())
-            is AppResult.Failure -> result
-        }
-    }
-
-    override suspend fun generateKnowledge(id: Long, type: String): AppResult<GeneratedKnowledgeDocument> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { knowledgeApi.generate(id, type) }) {
-            is AppResult.Success -> AppResult.Success(result.value.toDomain())
-            is AppResult.Failure -> result
-        }
-    }
-
-    override suspend fun saveKnowledgeLessonPlan(id: Long): AppResult<KnowledgeMutationResult> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { knowledgeApi.saveLessonPlan(id) }) {
-            is AppResult.Success -> AppResult.Success(result.value.toDomain())
-            is AppResult.Failure -> result
-        }
-    }
-
-    override suspend fun saveKnowledgeStudentNote(id: Long): AppResult<KnowledgeMutationResult> = withContext(Dispatchers.IO) {
-        when (val result = safeApiCall(moshi) { knowledgeApi.saveStudentNote(id) }) {
-            is AppResult.Success -> AppResult.Success(result.value.toDomain())
-            is AppResult.Failure -> result
-        }
-    }
 
     override suspend fun lessonOptions(): AppResult<LessonPlannerOptions> = cached(
         key = "lesson:options", adapter = optionsAdapter,

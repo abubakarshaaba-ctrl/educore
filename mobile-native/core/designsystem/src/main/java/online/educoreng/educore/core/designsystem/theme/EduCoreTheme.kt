@@ -5,14 +5,10 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -21,16 +17,16 @@ private val EduCoreColorScheme = lightColorScheme(
     onPrimary = EduCoreColors.White,
     primaryContainer = EduCoreColors.Info100,
     onPrimaryContainer = EduCoreColors.Navy900,
-    secondary = EduCoreColors.Navy700,
-    onSecondary = EduCoreColors.White,
+    secondary = EduCoreColors.Gold600,
+    onSecondary = EduCoreColors.Ink900,
     secondaryContainer = EduCoreColors.Gold100,
-    onSecondaryContainer = EduCoreColors.Navy900,
+    onSecondaryContainer = EduCoreColors.Warning700,
     background = EduCoreColors.Page50,
     onBackground = EduCoreColors.Ink900,
     surface = EduCoreColors.White,
     onSurface = EduCoreColors.Ink900,
     surfaceVariant = EduCoreColors.Surface100,
-    onSurfaceVariant = EduCoreColors.Slate700,
+    onSurfaceVariant = EduCoreColors.Slate600,
     outline = EduCoreColors.Line300,
     outlineVariant = EduCoreColors.Line200,
     error = EduCoreColors.Danger600,
@@ -39,160 +35,89 @@ private val EduCoreColorScheme = lightColorScheme(
     onErrorContainer = EduCoreColors.Danger700,
 )
 
-/**
- * Canonical adaptive ERP typography for the native app.
- *
- * The base scale remains information-dense but avoids sub-readable text on
- * modern high-density phones. Every value uses sp so Android accessibility
- * font scaling remains intact, and EduCoreTheme adds a window-size multiplier
- * for larger phones, tablets and expanded displays.
- */
 private val EduCoreTypography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 26.sp,
-        lineHeight = 32.sp,
-        letterSpacing = (-0.30).sp,
-    ),
-    displayMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 23.sp,
-        lineHeight = 29.sp,
-        letterSpacing = (-0.25).sp,
-    ),
     displaySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 21.sp,
-        lineHeight = 27.sp,
-        letterSpacing = (-0.20).sp,
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 21.sp,
-        lineHeight = 27.sp,
-        letterSpacing = (-0.15).sp,
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 19.sp,
-        lineHeight = 25.sp,
-        letterSpacing = (-0.12).sp,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        letterSpacing = (-0.10).sp,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
     ),
     titleLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+    ),
+    titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         lineHeight = 22.sp,
     ),
-    titleMedium = TextStyle(
+    titleSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-    ),
-    titleSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
-        lineHeight = 18.sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 20.sp,
+        lineHeight = 21.sp,
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
     ),
     bodySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
+        fontSize = 12.sp,
+        lineHeight = 17.sp,
     ),
     labelLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
-        lineHeight = 17.sp,
+        lineHeight = 16.sp,
     ),
     labelMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
-        lineHeight = 16.sp,
+        lineHeight = 15.sp,
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 10.sp,
-        lineHeight = 15.sp,
+        lineHeight = 14.sp,
     ),
 )
 
-/** Shared geometry: small enough for dense ERP screens, consistent everywhere. */
 private val EduCoreShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
 )
-
-internal fun eduCoreAdaptiveFontMultiplier(widthDp: Int, heightDp: Int): Float {
-    val shortestSideDp = minOf(widthDp, heightDp)
-
-    return when {
-        shortestSideDp >= 900 -> 1.38f
-        shortestSideDp >= 840 -> 1.32f
-        shortestSideDp >= 720 -> 1.26f
-        shortestSideDp >= 600 -> 1.18f
-        shortestSideDp >= 480 -> 1.12f
-        shortestSideDp >= 430 -> 1.08f
-        shortestSideDp >= 390 -> 1.05f
-        else -> 1.00f
-    }
-}
 
 @Composable
 fun EduCoreTheme(content: @Composable () -> Unit) {
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val adaptiveFontMultiplier = eduCoreAdaptiveFontMultiplier(
-        widthDp = configuration.screenWidthDp,
-        heightDp = configuration.screenHeightDp,
+    MaterialTheme(
+        colorScheme = EduCoreColorScheme,
+        typography = EduCoreTypography,
+        shapes = EduCoreShapes,
+        content = content,
     )
-
-    // Keep dp geometry unchanged while enlarging every sp-based text style as
-    // the available window grows. Multiplying the existing Android fontScale
-    // preserves the user's accessibility preference instead of replacing it.
-    val adaptiveDensity = Density(
-        density = density.density,
-        fontScale = density.fontScale * adaptiveFontMultiplier,
-    )
-
-    CompositionLocalProvider(LocalDensity provides adaptiveDensity) {
-        MaterialTheme(
-            colorScheme = EduCoreColorScheme,
-            typography = EduCoreTypography,
-            shapes = EduCoreShapes,
-            content = content,
-        )
-    }
 }

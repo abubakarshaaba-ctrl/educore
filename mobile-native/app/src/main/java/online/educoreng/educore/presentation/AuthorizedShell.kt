@@ -62,12 +62,12 @@ import online.educoreng.educore.core.designsystem.component.EduCoreTopAppBar
 import online.educoreng.educore.core.designsystem.icon.EduCoreIcons
 import online.educoreng.educore.core.designsystem.layout.EduCoreAdaptiveLayout
 import online.educoreng.educore.core.designsystem.layout.EduCoreWindowWidth
-import online.educoreng.educore.core.designsystem.layout.eduCoreGridMinCellWidth
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 import online.educoreng.educore.notification.NotificationDeepLinkStore
 
 @Composable
@@ -82,8 +82,6 @@ internal fun AuthorizedShell(
     onOpenWebModule: (String) -> Unit,
     onLogout: () -> Unit,
 ) {
-    @Suppress("UNUSED_VARIABLE")
-    val webFallbackDisabled = onOpenWebModule
     val navController = rememberNavController()
     val classesViewModel: ClassesViewModel = hiltViewModel()
     val classesState by classesViewModel.uiState.collectAsStateWithLifecycle()
@@ -93,18 +91,14 @@ internal fun AuthorizedShell(
     val parallelLifecycleState by parallelLifecycleViewModel.uiState.collectAsStateWithLifecycle()
     val scheduleViewModel: ScheduleViewModel = hiltViewModel()
     val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
+    val portalAttendanceViewModel: PortalAttendanceViewModel = hiltViewModel()
+    val portalAttendanceState by portalAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val academicContentViewModel: AcademicContentViewModel = hiltViewModel()
     val academicContentState by academicContentViewModel.uiState.collectAsStateWithLifecycle()
     val operationsViewModel: OperationsViewModel = hiltViewModel()
     val operationsState by operationsViewModel.uiState.collectAsStateWithLifecycle()
     val communicationViewModel: CommunicationViewModel = hiltViewModel()
     val communicationState by communicationViewModel.uiState.collectAsStateWithLifecycle()
-    val reportsViewModel: ReportsViewModel = hiltViewModel()
-    val reportsState by reportsViewModel.uiState.collectAsStateWithLifecycle()
-    val skillsViewModel: SkillsViewModel = hiltViewModel()
-    val skillsState by skillsViewModel.uiState.collectAsStateWithLifecycle()
-    val portalAttendanceViewModel: PortalAttendanceViewModel = hiltViewModel()
-    val portalAttendanceState by portalAttendanceViewModel.uiState.collectAsStateWithLifecycle()
     val pendingDeepLink by NotificationDeepLinkStore.pending.collectAsStateWithLifecycle()
     val tabs = remember(session) { ShellNavigationPolicy.tabs(session) }
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -112,21 +106,17 @@ internal fun AuthorizedShell(
     val currentTab = tabs.firstOrNull { it.id.route == currentRoute } ?: tabs.first()
     val currentTitle = when {
         currentRoute == NativeRoute.CLASSES -> "Classes"
-        currentRoute == NativeRoute.STUDENT_ATTENDANCE_CLASSES -> "Student Attendance"
         currentRoute == NativeRoute.CLASS_WORKSPACE -> "Class Workspace"
         currentRoute == NativeRoute.STUDENT_PROFILE -> "Student Profile"
         currentRoute == NativeRoute.ATTENDANCE -> "Student Attendance"
-        currentRoute == NativeRoute.PORTAL_ATTENDANCE -> if (session.user.portal == "parent") "Child Attendance" else "My Attendance"
-        currentRoute == NativeRoute.STAFF_ATTENDANCE -> "My Attendance"
-        currentRoute == NativeRoute.ADMIN_STAFF_ATTENDANCE -> "Staff Attendance"
+        currentRoute == NativeRoute.STAFF_ATTENDANCE -> "Staff Attendance"
         currentRoute == NativeRoute.SCORES -> "Score Entry"
         currentRoute == NativeRoute.SCORE_SHEET -> "Score Sheet"
-        currentRoute == NativeRoute.PUBLISHED_RESULTS -> "Result History"
+        currentRoute == NativeRoute.RESULTS -> "Published Results"
         currentRoute == NativeRoute.PARALLEL_LIFECYCLE -> "Parallel Curriculum"
         currentRoute == NativeRoute.PARALLEL_OPERATIONS -> "Parallel Timetable & Attendance"
         currentRoute == NativeRoute.SCHEDULE -> "Schedule"
-        currentRoute == NativeRoute.REPORTS -> "Report Cards"
-        currentRoute == NativeRoute.SKILLS -> "Skills Rating"
+        currentRoute == NativeRoute.PORTAL_ATTENDANCE -> "Attendance"
         currentRoute == NativeRoute.REPOSITORY -> "Academic Repository"
         currentRoute == NativeRoute.REPOSITORY_RESOURCE -> "Repository Resource"
         currentRoute == NativeRoute.LESSON_PLANS -> "Lesson Planner"
@@ -167,18 +157,6 @@ internal fun AuthorizedShell(
         communicationState.message?.let { message ->
             snackbarHostState.showSnackbar(message)
             communicationViewModel.consumeMessage()
-        }
-    }
-    LaunchedEffect(reportsState.message) {
-        reportsState.message?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            reportsViewModel.consumeMessage()
-        }
-    }
-    LaunchedEffect(skillsState.message) {
-        skillsState.message?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            skillsViewModel.consumeMessage()
         }
     }
     LaunchedEffect(pendingDeepLink, currentRoute, session.modules) {
@@ -236,11 +214,7 @@ internal fun AuthorizedShell(
                 Column {
                     EduCoreTopAppBar(
                         title = currentTitle,
-                        subtitle = listOfNotNull(
-                            session.school.name,
-                            session.academicPeriod.sessionName,
-                            session.academicPeriod.termName,
-                        ).joinToString(" · "),
+                        subtitle = listOfNotNull(session.school.name, session.academicPeriod.termName).joinToString(" · "),
                         actions = {
                             IconButton(onClick = onRefresh, enabled = !busy && online) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Refresh workspace")
@@ -327,28 +301,25 @@ internal fun AuthorizedShell(
                                         onRefreshDashboard = onRefreshDashboard,
                                         onModuleClick = { module ->
                                             when (module.key) {
-                                                "classes", "students" -> {
+                                                "classes", "students", "attendance" -> {
                                                     classesViewModel.loadClasses()
                                                     navController.navigate(NativeRoute.CLASSES) { launchSingleTop = true }
                                                 }
-                                                "attendance", "student-attendance" -> {
-                                                    classesViewModel.loadClasses()
-                                                    navController.navigate(NativeRoute.STUDENT_ATTENDANCE_CLASSES) { launchSingleTop = true }
-                                                }
-                                                "parent.attendance", "student.attendance" -> {
+                                                "student.attendance", "parent.attendance" -> {
                                                     portalAttendanceViewModel.load()
                                                     navController.navigate(NativeRoute.PORTAL_ATTENDANCE) { launchSingleTop = true }
                                                 }
-                                                "staff-attendance.self" -> {
+                                                "staff-attendance", "staff-attendance.self" -> {
                                                     classesViewModel.loadStaffAttendance()
                                                     navController.navigate(NativeRoute.STAFF_ATTENDANCE) { launchSingleTop = true }
                                                 }
-                                                "staff-attendance.admin" -> {
-                                                    navController.navigate(NativeRoute.ADMIN_STAFF_ATTENDANCE) { launchSingleTop = true }
-                                                }
-                                                "scores" -> {
-                                                    scoresViewModel.loadAssignments()
-                                                    navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                "scores", "scores.entry" -> {
+                                                    if (session.can("scores") || session.can("scores.entry")) {
+                                                        scoresViewModel.loadAssignments()
+                                                        navController.navigate(NativeRoute.SCORES) { launchSingleTop = true }
+                                                    } else {
+                                                        onOpenWebModule(module.path)
+                                                    }
                                                 }
                                                 "parallel-curriculum" -> {
                                                     parallelLifecycleViewModel.load()
@@ -357,21 +328,13 @@ internal fun AuthorizedShell(
                                                 "parallel-timetable" -> {
                                                     navController.navigate(NativeRoute.PARALLEL_OPERATIONS) { launchSingleTop = true }
                                                 }
+                                                "student.results", "parent.results" -> {
+                                                    scoresViewModel.loadResults()
+                                                    navController.navigate(NativeRoute.RESULTS) { launchSingleTop = true }
+                                                }
                                                 "timetable", "student.timetable", "parent.timetable" -> {
                                                     scheduleViewModel.load()
                                                     navController.navigate("native/schedule/0") { launchSingleTop = true }
-                                                }
-                                                "reports" -> {
-                                                    reportsViewModel.load()
-                                                    navController.navigate(NativeRoute.REPORTS) { launchSingleTop = true }
-                                                }
-                                                "skills" -> {
-                                                    skillsViewModel.load()
-                                                    navController.navigate(NativeRoute.SKILLS) { launchSingleTop = true }
-                                                }
-                                                "parent.results", "student.results" -> {
-                                                    scoresViewModel.loadResults()
-                                                    navController.navigate(NativeRoute.PUBLISHED_RESULTS) { launchSingleTop = true }
                                                 }
                                                 "academic-repository" -> {
                                                     academicContentViewModel.loadRepository()
@@ -395,7 +358,7 @@ internal fun AuthorizedShell(
                                                     operationsViewModel.load(module.key)
                                                     navController.navigate("native/operations/${module.key}") { launchSingleTop = true }
                                                 }
-                                                else -> Unit
+                                                else -> onOpenWebModule(module.path)
                                             }
                                         },
                                         onLogout = { confirmLogout = true },
@@ -412,19 +375,6 @@ internal fun AuthorizedShell(
                                 onOpenClass = { classId ->
                                     classesViewModel.openClass(classId)
                                     navController.navigate("native/classes/$classId")
-                                },
-                                onRetry = classesViewModel::loadClasses,
-                            )
-                        }
-                        composable(NativeRoute.STUDENT_ATTENDANCE_CLASSES) {
-                            StudentAttendanceClassPickerScreen(
-                                state = classesState,
-                                width = width,
-                                onBack = navController::popBackStack,
-                                onSearch = classesViewModel::setClassSearch,
-                                onOpenAttendance = { classId ->
-                                    classesViewModel.openAttendance(classId)
-                                    navController.navigate("native/classes/$classId/attendance")
                                 },
                                 onRetry = classesViewModel::loadClasses,
                             )
@@ -449,8 +399,15 @@ internal fun AuthorizedShell(
                                 },
                                 onOpenScores = { selectedClassId, subjectId ->
                                     val termId = session.academicPeriod.termId
-                                    scoresViewModel.openSheet(selectedClassId, subjectId, termId)
-                                    navController.navigate("native/scores/$selectedClassId/$subjectId/${termId ?: 0}")
+                                    scoresViewModel.openSheet(
+                                        selectedClassId,
+                                        subjectId,
+                                        termId,
+                                        SCORE_WORKSPACE_CONVENTIONAL,
+                                    )
+                                    navController.navigate(
+                                        "native/scores/$SCORE_WORKSPACE_CONVENTIONAL/$selectedClassId/$subjectId/${termId ?: 0}"
+                                    )
                                 },
                                 onOpenSchedule = { selectedClassId ->
                                     scheduleViewModel.load(classId = selectedClassId)
@@ -482,17 +439,8 @@ internal fun AuthorizedShell(
                                 onSubmit = classesViewModel::submitAttendance,
                             )
                         }
-                        composable(NativeRoute.PORTAL_ATTENDANCE) {
-                            PortalAttendanceScreen(
-                                state = portalAttendanceState,
-                                onBack = navController::popBackStack,
-                                onChild = portalAttendanceViewModel::selectChild,
-                                onTerm = portalAttendanceViewModel::selectTerm,
-                                onRetry = { portalAttendanceViewModel.load() },
-                            )
-                        }
                         composable(NativeRoute.STAFF_ATTENDANCE) {
-                            CompactStaffAttendanceScreen(
+                            StaffAttendanceScreen(
                                 state = classesState,
                                 online = online,
                                 onBack = navController::popBackStack,
@@ -504,20 +452,20 @@ internal fun AuthorizedShell(
                                 onProxyClockIn = classesViewModel::proxyClockIn,
                             )
                         }
-                        composable(NativeRoute.ADMIN_STAFF_ATTENDANCE) {
-                            AdminStaffAttendanceScreen(
-                                state = AdminStaffAttendanceUiState(),
-                                onBack = navController::popBackStack,
-                                onRefresh = {},
-                            )
-                        }
                         composable(NativeRoute.SCORES) {
                             ScoreAssignmentsScreen(
                                 state = scoresState,
                                 onSearch = scoresViewModel::setSearch,
                                 onOpen = { assignment, termId ->
-                                    scoresViewModel.openSheet(assignment.classId, assignment.subjectId, termId, assignment.workspaceType)
-                                    navController.navigate("native/scores/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}")
+                                    scoresViewModel.openSheet(
+                                        assignment.classId,
+                                        assignment.subjectId,
+                                        termId,
+                                        assignment.workspaceType,
+                                    )
+                                    navController.navigate(
+                                        "native/scores/${assignment.workspaceType}/${assignment.classId}/${assignment.subjectId}/${termId ?: 0}"
+                                    )
                                 },
                                 onRetry = scoresViewModel::loadAssignments,
                             )
@@ -525,12 +473,14 @@ internal fun AuthorizedShell(
                         composable(
                             route = NativeRoute.SCORE_SHEET,
                             arguments = listOf(
+                                navArgument("workspaceType") { type = NavType.StringType },
                                 navArgument("classId") { type = NavType.LongType },
                                 navArgument("subjectId") { type = NavType.LongType },
                                 navArgument("termId") { type = NavType.LongType },
                             ),
                         ) { entry ->
                             val arguments = requireNotNull(entry.arguments)
+                            val workspaceType = arguments.getString("workspaceType") ?: SCORE_WORKSPACE_CONVENTIONAL
                             val classId = arguments.getLong("classId")
                             val subjectId = arguments.getLong("subjectId")
                             val termId = arguments.getLong("termId").takeIf { it > 0 }
@@ -540,14 +490,15 @@ internal fun AuthorizedShell(
                                 onValue = scoresViewModel::updateScore,
                                 onDiscard = scoresViewModel::discardDraft,
                                 onSubmit = scoresViewModel::submit,
-                                onRetry = { scoresViewModel.retrySheet(classId, subjectId, termId) },
+                                onRetry = { scoresViewModel.openSheet(classId, subjectId, termId, workspaceType) },
                             )
                         }
-                        composable(NativeRoute.PUBLISHED_RESULTS) {
+                        composable(NativeRoute.RESULTS) {
                             PublishedResultsScreen(
                                 state = scoresState,
                                 onBack = navController::popBackStack,
                                 onRetry = { scoresViewModel.loadResults() },
+                                onChild = scoresViewModel::loadResults,
                             )
                         }
                         composable(NativeRoute.PARALLEL_LIFECYCLE) {
@@ -596,11 +547,13 @@ internal fun AuthorizedShell(
                                 onLoadOperations = parallelLifecycleViewModel::loadOperations,
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
+                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
                                 onSaveWorkingDays = parallelLifecycleViewModel::saveWorkingDays,
                                 onClockInParallelStaff = parallelLifecycleViewModel::clockInParallelStaff,
                                 onClockOutParallelStaff = parallelLifecycleViewModel::clockOutParallelStaff,
-                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
                                 onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
+                                onLoadSkills = parallelLifecycleViewModel::loadSkills,
+                                onSaveSkills = parallelLifecycleViewModel::saveSkills,
                                 onSavePromotionRule = parallelLifecycleViewModel::savePromotionRule,
                                 onTransfer = parallelLifecycleViewModel::transfer,
                                 onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
@@ -613,10 +566,10 @@ internal fun AuthorizedShell(
                                 onLoadContext = parallelLifecycleViewModel::loadOperationsContext,
                                 onCreateTimetablePeriod = parallelLifecycleViewModel::createTimetablePeriod,
                                 onDeleteTimetablePeriod = parallelLifecycleViewModel::deleteTimetablePeriod,
+                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
                                 onSaveWorkingDays = parallelLifecycleViewModel::saveWorkingDays,
                                 onClockInParallelStaff = parallelLifecycleViewModel::clockInParallelStaff,
                                 onClockOutParallelStaff = parallelLifecycleViewModel::clockOutParallelStaff,
-                                onSaveParallelAttendance = parallelLifecycleViewModel::saveParallelAttendance,
                                 onDownloadAttendanceExport = parallelLifecycleViewModel::downloadAttendanceExport,
                                 onDocumentOpened = parallelLifecycleViewModel::consumeDocument,
                             )
@@ -640,40 +593,13 @@ internal fun AuthorizedShell(
                                 },
                             )
                         }
-                        composable(NativeRoute.REPORTS) {
-                            ReportsScreen(
-                                state = reportsState,
+                        composable(NativeRoute.PORTAL_ATTENDANCE) {
+                            PortalAttendanceScreen(
+                                state = portalAttendanceState,
                                 onBack = navController::popBackStack,
-                                onClass = reportsViewModel::selectClass,
-                                onTerm = reportsViewModel::selectTerm,
-                                onNote = reportsViewModel::updatePublicationNote,
-                                onCompute = reportsViewModel::requestCompute,
-                                onPublish = reportsViewModel::requestPublish,
-                                onUnpublish = reportsViewModel::requestUnpublish,
-                                onConfirm = reportsViewModel::confirmManagementAction,
-                                onDismissConfirmation = reportsViewModel::dismissConfirmation,
-                                onDownload = reportsViewModel::downloadPdf,
-                                onDocumentOpened = reportsViewModel::consumeDocument,
-                                onRetry = reportsViewModel::load,
-                            )
-                        }
-                        composable(NativeRoute.SKILLS) {
-                            SkillsScreen(
-                                state = skillsState,
-                                onBack = {
-                                    if (skillsState.inSheet) skillsViewModel.requestCloseSheet() else navController.popBackStack()
-                                },
-                                onClass = skillsViewModel::selectClass,
-                                onTerm = skillsViewModel::selectTerm,
-                                onOpenSheet = skillsViewModel::openSheet,
-                                onCategory = skillsViewModel::setCategory,
-                                onPreviousStudent = skillsViewModel::previousStudent,
-                                onNextStudent = skillsViewModel::nextStudent,
-                                onRate = skillsViewModel::rate,
-                                onSave = skillsViewModel::save,
-                                onRetry = if (skillsState.inSheet) skillsViewModel::openSheet else skillsViewModel::load,
-                                onCancelDiscard = skillsViewModel::cancelDiscard,
-                                onConfirmDiscard = skillsViewModel::confirmDiscard,
+                                onChild = portalAttendanceViewModel::selectChild,
+                                onTerm = portalAttendanceViewModel::selectTerm,
+                                onRetry = { portalAttendanceViewModel.load() },
                             )
                         }
                         composable(NativeRoute.REPOSITORY) {
@@ -832,21 +758,17 @@ internal fun AuthorizedShell(
 
 private object NativeRoute {
     const val CLASSES = "native/classes"
-    const val STUDENT_ATTENDANCE_CLASSES = "native/student-attendance"
     const val CLASS_WORKSPACE = "native/classes/{classId}"
     const val STUDENT_PROFILE = "native/classes/{classId}/students/{studentId}"
     const val ATTENDANCE = "native/classes/{classId}/attendance"
-    const val PORTAL_ATTENDANCE = "native/portal-attendance"
     const val STAFF_ATTENDANCE = "native/staff-attendance"
-    const val ADMIN_STAFF_ATTENDANCE = "native/admin/staff-attendance"
     const val SCORES = "native/scores"
-    const val SCORE_SHEET = "native/scores/{classId}/{subjectId}/{termId}"
-    const val PUBLISHED_RESULTS = "native/published-results"
+    const val SCORE_SHEET = "native/scores/{workspaceType}/{classId}/{subjectId}/{termId}"
+    const val RESULTS = "native/results"
     const val PARALLEL_LIFECYCLE = "native/parallel-curriculum"
     const val PARALLEL_OPERATIONS = "native/parallel-timetable"
     const val SCHEDULE = "native/schedule/{classId}"
-    const val REPORTS = "native/reports"
-    const val SKILLS = "native/skills"
+    const val PORTAL_ATTENDANCE = "native/portal-attendance"
     const val REPOSITORY = "native/repository"
     const val REPOSITORY_RESOURCE = "native/repository/{resourceId}"
     const val LESSON_PLANS = "native/lesson-plans"
@@ -863,7 +785,7 @@ private object NativeRoute {
     val NOTIFICATION_MODULES = setOf("notifications.view", "parent.notifications", "student.notifications", "announcements")
     val CALENDAR_MODULES = setOf("calendar.view", "parent.calendar", "student.calendar")
     val OPERATIONS_MODULES = setOf(
-        "staff", "finance", "subscription", "analytics", "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
+        "fees", "parent.fees", "expenses", "payroll", "admissions", "library", "transport",
         "health", "inventory", "hostels", "subjects", "curriculum", "academic-cycle",
     )
 }
@@ -878,20 +800,15 @@ private fun ShellTabScreen(
     onModuleClick: (ModuleDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
-    if (tab.id == ShellTabId.MORE) {
-        StaffModulesHubScreen(
-            session = session,
-            width = width,
-            onModuleClick = onModuleClick,
-            onLogout = onLogout,
-        )
-        return
+    val columns = when (width) {
+        EduCoreWindowWidth.Compact -> 2
+        EduCoreWindowWidth.Medium -> 3
+        EduCoreWindowWidth.Expanded -> 4
     }
-
     val modules = ShellNavigationPolicy.modulesFor(tab.id, session)
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = eduCoreGridMinCellWidth(width)),
+        columns = GridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize().background(EduCoreColors.Page50),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(eduCoreScreenPadding()),
         horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
@@ -905,7 +822,7 @@ private fun ShellTabScreen(
                 onModuleClick = onModuleClick,
                 onRetry = onRefreshDashboard,
             )
-            ShellTabId.MORE -> Unit
+            ShellTabId.MORE -> moduleHubContent(session, onModuleClick, onLogout)
             else -> moduleSection(tab, modules, onModuleClick)
         }
     }
@@ -931,6 +848,33 @@ private fun LazyGridScope.moduleSection(
         }
     } else {
         items(modules, key = ModuleDescriptor::key) { module -> ModuleCard(module, onModuleClick) }
+    }
+}
+
+private fun LazyGridScope.moduleHubContent(
+    session: SessionSnapshot,
+    onModuleClick: (ModuleDescriptor) -> Unit,
+    onLogout: () -> Unit,
+) {
+    item(span = { GridItemSpan(maxLineSpan) }) {
+        EduCoreSectionHeader(
+            title = "All modules",
+            supportingText = "Organized from your current role and permissions",
+        )
+    }
+    ShellNavigationPolicy.groupedModules(session).forEach { (group, modules) ->
+        item(key = "header-${group.name}", span = { GridItemSpan(maxLineSpan) }) {
+            EduCoreSectionHeader(group.label)
+        }
+        items(modules, key = ModuleDescriptor::key) { module -> ModuleCard(module, onModuleClick) }
+    }
+    item(span = { GridItemSpan(maxLineSpan) }) {
+        EduCorePrimaryButton(
+            text = "Sign out",
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null) },
+        )
     }
 }
 
@@ -967,7 +911,7 @@ private fun moduleIcon(module: ModuleDescriptor): ImageVector {
         key.contains("timetable") || key.contains("schedule") -> EduCoreIcons.Schedule
         key.contains("lesson") -> EduCoreIcons.LessonPlan
         key.contains("repository") -> EduCoreIcons.Repository
-        key.contains("payment") || key.contains("fee") || key.contains("billing") || key.contains("subscription") -> EduCoreIcons.Payments
+        key.contains("payment") || key.contains("fee") || key.contains("billing") -> EduCoreIcons.Payments
         key.contains("notification") || key.contains("message") || key.contains("notice") -> EduCoreIcons.Notices
         key.contains("setting") -> EduCoreIcons.Settings
         else -> EduCoreIcons.Modules

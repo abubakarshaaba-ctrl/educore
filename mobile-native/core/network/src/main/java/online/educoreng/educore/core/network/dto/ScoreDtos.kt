@@ -2,9 +2,9 @@ package online.educoreng.educore.core.network.dto
 
 import com.squareup.moshi.Json
 import online.educoreng.educore.core.model.PublishedResult
-import online.educoreng.educore.core.model.PublishedResultStudent
 import online.educoreng.educore.core.model.PublishedResults
 import online.educoreng.educore.core.model.ResultAssessment
+import online.educoreng.educore.core.model.ResultLearner
 import online.educoreng.educore.core.model.ResultSubject
 import online.educoreng.educore.core.model.ScoreAssessment
 import online.educoreng.educore.core.model.ScoreAssignment
@@ -12,6 +12,7 @@ import online.educoreng.educore.core.model.ScoreAssignments
 import online.educoreng.educore.core.model.ScoreCell
 import online.educoreng.educore.core.model.ScoreSheet
 import online.educoreng.educore.core.model.ScoreStudent
+import online.educoreng.educore.core.model.SCORE_WORKSPACE_CONVENTIONAL
 
 data class ScoreTermDto(val id: Long, val name: String, val session: String? = null)
 data class ScoreClassDto(val id: Long, val name: String)
@@ -22,7 +23,7 @@ data class ScoreAssignmentDto(
     @param:Json(name = "class_name") val className: String,
     @param:Json(name = "subject_id") val subjectId: Long,
     @param:Json(name = "subject_name") val subjectName: String,
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
+    @param:Json(name = "workspace_type") val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ScoreAssignmentsResponseDto(
@@ -62,6 +63,7 @@ data class ScoreStudentDto(
 data class ScoreSheetResponseDto(
     @param:Json(name = "contract_version") val contractVersion: Int,
     @param:Json(name = "generated_at") val generatedAt: String,
+    @param:Json(name = "workspace_type") val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
     val version: String,
     val locked: Boolean,
     @param:Json(name = "lock_reason") val lockReason: String? = null,
@@ -70,7 +72,6 @@ data class ScoreSheetResponseDto(
     val term: ScoreTermDto,
     @param:Json(name = "assessment_types") val assessmentTypes: List<ScoreAssessmentDto> = emptyList(),
     val students: List<ScoreStudentDto> = emptyList(),
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
 )
 
 data class SaveScoresRequestDto(
@@ -80,7 +81,6 @@ data class SaveScoresRequestDto(
     val version: String,
     @param:Json(name = "request_id") val requestId: String,
     val scores: Map<String, Map<String, Double?>>,
-    @param:Json(name = "workspace_type") val workspaceType: String = "conventional",
 )
 
 data class SaveScoresResponseDto(
@@ -117,16 +117,24 @@ data class PublishedResultDto(
     @param:Json(name = "class_size") val classSize: Int? = null,
     @param:Json(name = "subjects_offered") val subjectsOffered: Int,
     @param:Json(name = "subjects_failed") val subjectsFailed: Int,
-    @param:Json(name = "promotion_status") val promotionStatus: String,
+    @param:Json(name = "promotion_status") val promotionStatus: String = "",
     @param:Json(name = "form_tutor_remark") val formTutorRemark: String? = null,
     @param:Json(name = "principal_remark") val principalRemark: String? = null,
     val subjects: List<ResultSubjectDto> = emptyList(),
+    @param:Json(name = "result_type") val resultType: String = "conventional",
+    @param:Json(name = "curriculum") val curriculumName: String? = null,
+    @param:Json(name = "class_name") val resultClassName: String? = null,
+    @param:Json(name = "class_arm_name") val resultClassArmName: String? = null,
+    @param:Json(name = "maximum_total") val maximumTotal: Double? = null,
+    @param:Json(name = "publication_status") val publicationStatus: String? = null,
+    @param:Json(name = "published_at") val publishedAt: String? = null,
 )
 
 data class PublishedResultsResponseDto(
     val student: ResultStudentDto? = null,
     val children: List<ResultStudentDto> = emptyList(),
     val results: List<PublishedResultDto> = emptyList(),
+    @param:Json(name = "parallel_results") val parallelResults: List<PublishedResultDto> = emptyList(),
 )
 
 fun ScoreAssignmentsResponseDto.toDomain(fromCache: Boolean = false) = ScoreAssignments(
@@ -136,7 +144,6 @@ fun ScoreAssignmentsResponseDto.toDomain(fromCache: Boolean = false) = ScoreAssi
 )
 
 fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = emptyMap(), stale: Boolean = false) = ScoreSheet(
-    workspaceType = workspaceType,
     classId = classRoom.id, className = classRoom.name, subjectId = subject.id, subjectName = subject.name,
     termId = term.id, termName = term.name, sessionName = term.session, version = version,
     locked = locked, lockReason = lockReason,
@@ -151,6 +158,7 @@ fun ScoreSheetResponseDto.toDomain(drafts: Map<Pair<Long, Long>, Double?> = empt
         }.toMap())
     },
     generatedAt = generatedAt, hasLocalDraft = drafts.isNotEmpty(), isDraftStale = stale,
+    workspaceType = workspaceType,
 )
 
 fun PublishedResultsResponseDto.toDomain() = PublishedResults(
@@ -158,21 +166,45 @@ fun PublishedResultsResponseDto.toDomain() = PublishedResults(
     studentName = student?.name,
     admissionNumber = student?.admissionNumber,
     className = student?.classRoom?.name,
+    results = results.map { it.toDomain() },
+    parallelResults = parallelResults.map { it.toDomain() },
     children = children.map {
-        PublishedResultStudent(
+        ResultLearner(
             id = it.id,
             name = it.name,
             admissionNumber = it.admissionNumber,
             className = it.classRoom?.name,
         )
     },
-    results = results.map { result ->
-        PublishedResult(
-            result.id, result.term, result.session, result.average, result.totalScore, result.position, result.classSize,
-            result.subjectsOffered, result.subjectsFailed, result.promotionStatus, result.formTutorRemark, result.principalRemark,
-            result.subjects.map { subject ->
-                ResultSubject(subject.name, subject.assessments.map { ResultAssessment(it.name, it.score, it.maximum) }, subject.total, subject.grade, subject.remark)
-            },
+)
+
+private fun PublishedResultDto.toDomain() = PublishedResult(
+    id = id,
+    term = term,
+    session = session,
+    average = average,
+    totalScore = totalScore,
+    position = position,
+    classSize = classSize,
+    subjectsOffered = subjectsOffered,
+    subjectsFailed = subjectsFailed,
+    promotionStatus = promotionStatus,
+    formTutorRemark = formTutorRemark,
+    principalRemark = principalRemark,
+    subjects = subjects.map { subject ->
+        ResultSubject(
+            subject.name,
+            subject.assessments.map { ResultAssessment(it.name, it.score, it.maximum) },
+            subject.total,
+            subject.grade,
+            subject.remark,
         )
     },
+    resultType = resultType,
+    curriculumName = curriculumName,
+    resultClassName = resultClassName,
+    resultClassArmName = resultClassArmName,
+    maximumTotal = maximumTotal,
+    publicationStatus = publicationStatus,
+    publishedAt = publishedAt,
 )

@@ -5,11 +5,12 @@ import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
-import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
 import online.educoreng.educore.core.model.ParallelStudentResultDetail
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 interface ParallelCurriculumLifecycleRepository {
     suspend fun load(
@@ -21,6 +22,17 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long? = null,
         termId: Long? = null,
     ): AppResult<ParallelResultWorkspace>
+
+    suspend fun loadSkills(
+        armId: Long? = null,
+        termId: Long? = null,
+    ): AppResult<ParallelSkillWorkspace>
+
+    suspend fun saveSkills(
+        armId: Long,
+        termId: Long,
+        students: List<ParallelSkillStudentDraft>,
+    ): AppResult<String>
 
     suspend fun loadOperations(
         curriculumId: Long? = null,
@@ -46,7 +58,7 @@ interface ParallelCurriculumLifecycleRepository {
 
     suspend fun saveWorkingDays(
         curriculumId: Long,
-        days: List<ParallelWorkingDayDraft>,
+        days: List<online.educoreng.educore.core.model.ParallelWorkingDay>,
     ): AppResult<String>
 
     suspend fun clockInParallelStaff(curriculumId: Long): AppResult<String>
@@ -95,6 +107,20 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long,
         studentId: Long,
         termId: Long,
+    ): AppResult<DownloadedDocument>
+
+    suspend fun downloadCumulativeStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        sessionId: Long,
+    ): AppResult<DownloadedDocument>
+
+    suspend fun downloadParallelBroadsheetPdf(
+        mode: String,
+        classId: Long,
+        armId: Long? = null,
+        termId: Long? = null,
+        sessionId: Long? = null,
     ): AppResult<DownloadedDocument>
 
     suspend fun createProgramme(
@@ -160,7 +186,6 @@ interface ParallelCurriculumLifecycleRepository {
         sessionId: Long,
         conventionalClassArmId: Long? = null,
         assignmentStatus: String = "all",
-        learnerStatus: String = "active",
         gender: String? = null,
         search: String? = null,
         page: Int = 1,
@@ -231,7 +256,7 @@ interface ParallelCurriculumLifecycleRepository {
 
     suspend fun saveArmTeachingMode(
         armId: Long,
-        mode: String,
+        teachingAssignmentMode: String,
         classTeacherId: Long?,
     ): AppResult<String>
 

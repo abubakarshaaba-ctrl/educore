@@ -1,5 +1,10 @@
 package online.educoreng.educore.core.designsystem.component
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,14 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
@@ -69,12 +72,8 @@ private fun EduCoreBanner(
     tone: EduCoreTone,
     icon: ImageVector,
 ) {
-    if (message.isBlank() && title.isNullOrBlank()) return
-
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics { liveRegion = LiveRegionMode.Polite },
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
         color = tone.container(),
         contentColor = tone.foreground(),
@@ -86,8 +85,8 @@ private fun EduCoreBanner(
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(EduCoreSizes.Icon))
             Column(Modifier.weight(1f)) {
-                title?.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.labelLarge) }
-                message.takeIf(String::isNotBlank)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                title?.let { Text(it, style = MaterialTheme.typography.labelLarge) }
+                Text(message, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -99,20 +98,13 @@ fun EduCoreLoadingState(
     message: String = "Loading",
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(EduCoreSpacing.Lg)
-            .semantics { liveRegion = LiveRegionMode.Polite },
+        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        CircularProgressIndicator(
-            color = EduCoreColors.Gold600,
-            strokeWidth = 2.dp,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(Modifier.height(EduCoreSpacing.Sm))
-        Text(message, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600)
+        CircularProgressIndicator(color = EduCoreColors.Gold600)
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = EduCoreColors.Slate600)
     }
 }
 
@@ -126,7 +118,7 @@ fun EduCoreEmptyState(
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Xl),
+        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -135,9 +127,9 @@ fun EduCoreEmptyState(
             color = EduCoreColors.Info100,
             contentColor = EduCoreColors.Navy900,
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.padding(EduCoreSpacing.Sm).size(EduCoreSizes.LargeIcon))
+            Icon(icon, contentDescription = null, modifier = Modifier.padding(EduCoreSpacing.Md).size(EduCoreSizes.LargeIcon))
         }
-        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        Spacer(Modifier.height(EduCoreSpacing.Md))
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(EduCoreSpacing.Xs))
         Text(
@@ -147,7 +139,7 @@ fun EduCoreEmptyState(
             textAlign = TextAlign.Center,
         )
         if (actionLabel != null && onAction != null) {
-            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Spacer(Modifier.height(EduCoreSpacing.Md))
             EduCorePrimaryButton(actionLabel, onAction)
         }
     }
@@ -160,29 +152,34 @@ fun EduCoreErrorState(
     title: String = "Unable to load",
     onRetry: (() -> Unit)? = null,
 ) {
-    Box(modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
-        EduCoreEmptyState(
-            title = title,
-            message = message,
-            icon = Icons.Default.ErrorOutline,
-            actionLabel = if (onRetry == null) null else "Retry",
-            onAction = onRetry,
-        )
-    }
+    EduCoreEmptyState(
+        title = title,
+        message = message,
+        modifier = modifier,
+        icon = Icons.Default.ErrorOutline,
+        actionLabel = if (onRetry == null) null else "Retry",
+        onAction = onRetry,
+    )
 }
 
-/**
- * Static skeletons deliberately avoid an infinite animation. Large lists can
- * render many placeholders at once; keeping them static removes continuous
- * recomposition/GPU work on lower-memory phones while still signalling loading.
- */
 @Composable
 fun EduCoreSkeleton(
     modifier: Modifier = Modifier,
 ) {
+    val transition = rememberInfiniteTransition(label = "skeleton")
+    val alpha by transition.animateFloat(
+        initialValue = 0.38f,
+        targetValue = 0.72f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 850),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "skeleton-alpha",
+    )
     Box(
         modifier = modifier
             .height(EduCoreSizes.TouchTarget)
+            .alpha(alpha)
             .background(EduCoreColors.Line200, MaterialTheme.shapes.small),
     )
 }

@@ -2,12 +2,15 @@ package online.educoreng.educore.core.model
 
 enum class SyncState { NONE, QUEUED, SYNCING, FAILED, CONFLICT }
 
+const val SCORE_WORKSPACE_CONVENTIONAL = "conventional"
+const val SCORE_WORKSPACE_PARALLEL = "parallel_curriculum"
+
 data class ScoreAssignment(
     val classId: Long,
     val className: String,
     val subjectId: Long,
     val subjectName: String,
-    val workspaceType: String = "conventional",
+    val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ScoreAssignments(
@@ -65,7 +68,7 @@ data class ScoreSheet(
     val isDraftStale: Boolean = false,
     val syncState: SyncState = SyncState.NONE,
     val syncMessage: String? = null,
-    val workspaceType: String = "conventional",
+    val workspaceType: String = SCORE_WORKSPACE_CONVENTIONAL,
 )
 
 data class ResultAssessment(
@@ -82,6 +85,13 @@ data class ResultSubject(
     val remark: String,
 )
 
+data class ResultLearner(
+    val id: Long,
+    val name: String,
+    val admissionNumber: String,
+    val className: String? = null,
+)
+
 data class PublishedResult(
     val id: Long,
     val term: String?,
@@ -96,20 +106,21 @@ data class PublishedResult(
     val formTutorRemark: String?,
     val principalRemark: String?,
     val subjects: List<ResultSubject>,
-)
-
-data class PublishedResultStudent(
-    val id: Long,
-    val name: String,
-    val admissionNumber: String,
-    val className: String?,
+    val resultType: String = "conventional",
+    val curriculumName: String? = null,
+    val resultClassName: String? = null,
+    val resultClassArmName: String? = null,
+    val maximumTotal: Double? = null,
+    val publicationStatus: String? = null,
+    val publishedAt: String? = null,
 )
 
 data class PublishedResults(
-    val studentId: Long?,
     val studentName: String?,
     val admissionNumber: String?,
     val className: String?,
-    val children: List<PublishedResultStudent> = emptyList(),
     val results: List<PublishedResult>,
+    val parallelResults: List<PublishedResult> = emptyList(),
+    val studentId: Long? = null,
+    val children: List<ResultLearner> = emptyList(),
 )

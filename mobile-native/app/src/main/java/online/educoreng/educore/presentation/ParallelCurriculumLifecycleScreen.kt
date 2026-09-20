@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -50,7 +51,9 @@ import online.educoreng.educore.core.model.ParallelLifecycleSubjectAssignment
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
-import online.educoreng.educore.core.model.ParallelWorkingDayDraft
+import online.educoreng.educore.core.model.ParallelWorkingDay
+import online.educoreng.educore.core.model.ParallelSkillStudent
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
@@ -60,6 +63,7 @@ private enum class ParallelLifecycleTab(val label: String) {
     TEACHERS("Teachers"),
     GRADES("Grade System"),
     OPERATIONS("Timetable & Attendance"),
+    SKILLS("Skills Rating"),
     RESULTS("Results"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
@@ -95,7 +99,7 @@ fun ParallelCurriculumLifecycleScreen(
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
-    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -107,11 +111,13 @@ fun ParallelCurriculumLifecycleScreen(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
-    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
     onClockInParallelStaff: () -> Unit,
     onClockOutParallelStaff: () -> Unit,
-    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -126,6 +132,8 @@ fun ParallelCurriculumLifecycleScreen(
         state.selectedSessionId,
         state.operationsWorkspace?.selected?.curriculumId,
         state.operationsWorkspace?.selected?.sessionId,
+        state.skillWorkspace?.selectedArmId,
+        state.skillWorkspace?.selectedTermId,
     ) {
         val operationsSelection = state.operationsWorkspace?.selected
         if (
@@ -139,6 +147,9 @@ fun ParallelCurriculumLifecycleScreen(
                 )
         ) {
             onLoadOperations(null, null, null, null)
+        }
+        if (tab == ParallelLifecycleTab.SKILLS && state.skillWorkspace == null) {
+            onLoadSkills(null, null)
         }
     }
 
@@ -252,11 +263,16 @@ fun ParallelCurriculumLifecycleScreen(
                 onLoadOperations = onLoadOperations,
                 onCreateTimetablePeriod = onCreateTimetablePeriod,
                 onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+                onSaveParallelAttendance = onSaveParallelAttendance,
                 onSaveWorkingDays = onSaveWorkingDays,
                 onClockInParallelStaff = onClockInParallelStaff,
                 onClockOutParallelStaff = onClockOutParallelStaff,
-                onSaveParallelAttendance = onSaveParallelAttendance,
                 onDownloadAttendanceExport = onDownloadAttendanceExport,
+            )
+            ParallelLifecycleTab.SKILLS -> lifecycleSkills(
+                state = state,
+                onLoadSkills = onLoadSkills,
+                onSaveSkills = onSaveSkills,
             )
             ParallelLifecycleTab.RESULTS -> lifecycleResults(
                 state = state,
@@ -977,7 +993,7 @@ private fun ArmEditor(
 
 private fun LazyListScope.lifecycleStudents(
     state: ParallelLifecycleUiState,
-    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -998,7 +1014,7 @@ private fun LazyListScope.lifecycleStudents(
 @Composable
 private fun StudentPlacementPanel(
     state: ParallelLifecycleUiState,
-    onLoadStudents: (Long?, String, String, String?, String, Int) -> Unit,
+    onLoadStudents: (Long?, String, String?, String, Int) -> Unit,
     onAssignStudents: (Long, Long, List<Long>) -> Unit,
     onDownloadAssignmentTemplate: () -> Unit,
     onImportAssignments: (String, String, ByteArray) -> Unit,
@@ -1071,9 +1087,6 @@ private fun StudentPlacementPanel(
     var assignmentStatus by remember(curriculum?.id, session?.id) {
         mutableStateOf(state.studentAssignmentStatus)
     }
-    var learnerStatus by remember(curriculum?.id, session?.id) {
-        mutableStateOf(state.studentLearnerStatus)
-    }
     var gender by remember(curriculum?.id, session?.id) {
         mutableStateOf(state.studentGender)
     }
@@ -1094,7 +1107,6 @@ private fun StudentPlacementPanel(
             onLoadStudents(
                 conventionalArmId,
                 assignmentStatus,
-                learnerStatus,
                 gender,
                 search,
                 1,
@@ -1195,23 +1207,6 @@ private fun StudentPlacementPanel(
 
             Spacer(Modifier.height(EduCoreSpacing.Sm))
             StringLifecycleMenu(
-                label = "Learner status",
-                current = when (learnerStatus) {
-                    "inactive" -> "Not active"
-                    "all" -> "All learner statuses"
-                    else -> "Active"
-                },
-                options = listOf(
-                    "active" to "Active",
-                    "inactive" to "Not active",
-                    "all" to "All learner statuses",
-                ),
-                enabled = !state.isStudentLoading && !state.isMutating,
-                onSelect = { learnerStatus = it },
-            )
-
-            Spacer(Modifier.height(EduCoreSpacing.Sm))
-            StringLifecycleMenu(
                 label = "Gender",
                 current = when (gender) {
                     "male" -> "Male"
@@ -1244,7 +1239,6 @@ private fun StudentPlacementPanel(
                     onLoadStudents(
                         conventionalArmId,
                         assignmentStatus,
-                        learnerStatus,
                         gender,
                         search,
                         1,
@@ -1350,7 +1344,7 @@ private fun StudentPlacementPanel(
         ) {
             EduCoreSecondaryButton(
                 text = "Select visible",
-                onClick = { selectedStudentIds = page.students.filter { it.isActive }.map { it.id }.toSet() },
+                onClick = { selectedStudentIds = page.students.map { it.id }.toSet() },
                 modifier = Modifier.weight(1f),
                 enabled = !state.isMutating,
             )
@@ -1383,7 +1377,7 @@ private fun StudentPlacementPanel(
                                 selectedStudentIds - student.id
                             }
                         },
-                        enabled = !state.isMutating && student.isActive,
+                        enabled = !state.isMutating,
                     )
                     Column(Modifier.weight(1f)) {
                         Text(student.name, style = MaterialTheme.typography.titleSmall)
@@ -1392,21 +1386,10 @@ private fun StudentPlacementPanel(
                                 student.admissionNumber,
                                 student.conventionalClassName ?: "No conventional class",
                                 student.gender?.replaceFirstChar { it.uppercase() },
-                                "Status: " + student.status
-                                    .replace('_', ' ')
-                                    .replaceFirstChar { it.uppercase() },
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
-                        if (!student.isActive) {
-                            Spacer(Modifier.height(EduCoreSpacing.Xs))
-                            Text(
-                                "This learner is not active and cannot be newly assigned. Existing parallel placement can still be removed.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = EduCoreColors.Slate600,
-                            )
-                        }
                         Spacer(Modifier.height(EduCoreSpacing.Xs))
                         Text(
                             student.assignment?.let { assignment ->
@@ -1417,13 +1400,12 @@ private fun StudentPlacementPanel(
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
-                        val assignment = student.assignment
-                        if (assignment != null) {
+                        if (student.assignment != null) {
                             Spacer(Modifier.height(EduCoreSpacing.Sm))
                             EduCoreDangerButton(
                                 text = "Remove Parallel Placement",
                                 onClick = {
-                                    pendingRemovalEnrolmentId = assignment.enrolmentId
+                                    pendingRemovalEnrolmentId = student.assignment.enrolmentId
                                     pendingRemovalStudentName = student.name
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -1465,7 +1447,6 @@ private fun StudentPlacementPanel(
                         onLoadStudents(
                             conventionalArmId,
                             assignmentStatus,
-                            learnerStatus,
                             gender,
                             search,
                             (page.pagination.currentPage - 1).coerceAtLeast(1),
@@ -1481,7 +1462,6 @@ private fun StudentPlacementPanel(
                         onLoadStudents(
                             conventionalArmId,
                             assignmentStatus,
-                            learnerStatus,
                             gender,
                             search,
                             (page.pagination.currentPage + 1)
@@ -1584,39 +1564,39 @@ private fun LazyListScope.lifecycleTeachers(
 
     item {
         SectionHeading(
-            "Teaching assignment model",
-            "Choose one teacher for every subject in an arm, or assign teachers by subject across any number of classes.",
+            "Arm-specific subject teachers",
+            "Override the class-level default teacher only where an individual arm needs a different teacher.",
         )
     }
 
-    if (!workspace.armTeachingModesReady) {
+    if (!workspace.armTeacherOverridesReady) {
         item {
             EduCoreInfoBanner(
-                title = "Teaching modes unavailable",
-                message = "Deploy the latest database migration before selecting class-teacher or subject-based assignment modes.",
+                title = "Teacher overrides unavailable",
+                message = "Deploy the latest database migration before assigning teachers by class arm.",
             )
         }
         return
     }
 
     if (levels.isEmpty()) {
-        item {
-            EduCoreEmptyState(
-                "No class levels",
-                "Create a parallel class level first.",
-            )
-        }
+        item { EduCoreEmptyState("No class levels", "Create a parallel class level first.") }
         return
     }
 
     levels.forEach { level ->
         val activeArms = level.arms.filter { it.isActive }
-        if (activeArms.isEmpty()) {
+
+        if (level.subjects.isEmpty() || activeArms.isEmpty()) {
             item(key = "teacher-empty-" + level.id) {
                 EduCoreDashboardCard(Modifier.fillMaxWidth()) {
                     Text(level.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Create at least one active class arm before configuring teachers.",
+                        if (level.subjects.isEmpty()) {
+                            "Assign at least one active subject to this class level before configuring arm teachers."
+                        } else {
+                            "Create at least one active class arm before configuring arm teachers."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = EduCoreColors.Slate600,
                     )
@@ -1629,9 +1609,8 @@ private fun LazyListScope.lifecycleTeachers(
                         level = level,
                         arm = arm,
                         staff = workspace.staff,
-                        armTeacherOverridesReady = workspace.armTeacherOverridesReady,
                         busy = state.isMutating,
-                        onSaveSubjectTeacher = onSaveArmTeacher,
+                        onSave = onSaveArmTeacher,
                         onSaveTeachingMode = onSaveArmTeachingMode,
                     )
                 }
@@ -1645,140 +1624,87 @@ private fun ArmTeacherCard(
     level: ParallelLifecycleClass,
     arm: ParallelLifecycleArm,
     staff: List<ParallelLifecycleStaff>,
-    armTeacherOverridesReady: Boolean,
     busy: Boolean,
-    onSaveSubjectTeacher: (Long, Long, Long?) -> Unit,
+    onSave: (Long, Long, Long?) -> Unit,
     onSaveTeachingMode: (Long, String, Long?) -> Unit,
 ) {
-    var mode by remember(arm.id, arm.teachingAssignmentMode) {
-        mutableStateOf(arm.teachingAssignmentMode.ifBlank { "subject_based" })
-    }
-    var classTeacherId by remember(arm.id, arm.classTeacherId) {
-        mutableStateOf(arm.classTeacherId)
-    }
-
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text(level.name + " " + arm.name, style = MaterialTheme.typography.titleMedium)
+
+        var teachingMode by remember(arm.id, arm.teachingAssignmentMode) {
+            mutableStateOf(arm.teachingAssignmentMode)
+        }
+        var classTeacherId by remember(arm.id, arm.classTeacherId) {
+            mutableStateOf(arm.classTeacherId ?: staff.firstOrNull()?.id)
+        }
+
         Text(
-            "Configure this arm independently from every other parallel class arm.",
+            "Choose whether one class/form teacher takes all subjects in this arm or subjects are assigned independently.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+        StringLifecycleMenu(
+            label = "Teaching assignment mode",
+            current = if (teachingMode == "class_teacher") {
+                "One Class/Form Teacher"
+            } else {
+                "Subject-based Teachers"
+            },
+            options = listOf(
+                "class_teacher" to "One Class/Form Teacher",
+                "subject_based" to "Subject-based Teachers",
+            ),
+            enabled = !busy,
+            onSelect = { teachingMode = it },
+        )
+
+        if (teachingMode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Class/Form teacher",
+                current = staff.firstOrNull { it.id == classTeacherId }?.name
+                    ?: arm.classTeacherName
+                    ?: "Select teacher",
+                options = staff.map { it.id to it.name },
+                enabled = !busy,
+                onSelect = { classTeacherId = it },
+            )
+        }
+
+        Spacer(Modifier.height(EduCoreSpacing.Sm))
+        EduCorePrimaryButton(
+            text = "Save Teaching Model",
+            onClick = {
+                onSaveTeachingMode(
+                    arm.id,
+                    teachingMode,
+                    if (teachingMode == "class_teacher") classTeacherId else null,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy &&
+                (teachingMode != "class_teacher" || classTeacherId != null),
+            loading = busy,
+        )
+
+        if (teachingMode == "class_teacher") {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            EduCoreInfoBanner(
+                title = "Class teacher mode",
+                message = "The selected class/form teacher becomes the effective teacher for every subject in this arm and can manage parallel attendance and comments.",
+            )
+            return@EduCoreDashboardCard
+        }
+
+        Text(
+            "Choose an arm override for each subject, or retain the class-level default.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
 
-        Spacer(Modifier.height(EduCoreSpacing.Md))
-        StringLifecycleMenu(
-            label = "Teaching assignment mode",
-            current = if (mode == "class_teacher") {
-                "One class teacher · all subjects"
-            } else {
-                "Subject-based teachers"
-            },
-            options = listOf(
-                "class_teacher" to "One class teacher · all subjects",
-                "subject_based" to "Subject-based teachers",
-            ),
-            enabled = !busy,
-            onSelect = { mode = it },
-        )
-
-        if (mode == "class_teacher") {
-            Spacer(Modifier.height(EduCoreSpacing.Sm))
-            ClassTeacherMenu(
-                selectedTeacherId = classTeacherId,
-                staff = staff,
-                enabled = !busy,
-                onSelect = { classTeacherId = it },
-            )
-            Spacer(Modifier.height(EduCoreSpacing.Xs))
-            Text(
-                "This teacher becomes the effective teacher for every active subject in this class arm.",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
-        } else {
-            Spacer(Modifier.height(EduCoreSpacing.Xs))
-            Text(
-                "Teachers can be assigned independently to each subject, including the same subject across several classes or arms.",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
-        }
-
-        Spacer(Modifier.height(EduCoreSpacing.Md))
-        EduCorePrimaryButton(
-            text = "Save Assignment Model",
-            onClick = {
-                onSaveTeachingMode(
-                    arm.id,
-                    mode,
-                    if (mode == "class_teacher") classTeacherId else null,
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !busy && (mode != "class_teacher" || classTeacherId != null),
-            loading = busy,
-        )
-
-        if (mode == "class_teacher") {
-            Spacer(Modifier.height(EduCoreSpacing.Lg))
-            HorizontalDivider()
-            Spacer(Modifier.height(EduCoreSpacing.Md))
-            Text(
-                "All subjects use " +
-                    (staff.firstOrNull { it.id == classTeacherId }?.name
-                        ?: arm.classTeacherName
-                        ?: "the selected class teacher"),
-                style = MaterialTheme.typography.titleSmall,
-                color = EduCoreColors.Navy900,
-            )
-            if (level.subjects.isNotEmpty()) {
-                Text(
-                    level.subjects.joinToString(" · ") {
-                        it.subjectName ?: "Subject"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = EduCoreColors.Slate600,
-                )
-            }
-            Text(
-                "Existing subject overrides are preserved but ignored until Subject-based teachers is selected again.",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
-            return@EduCoreDashboardCard
-        }
-
-        Spacer(Modifier.height(EduCoreSpacing.Lg))
-        HorizontalDivider()
-        Spacer(Modifier.height(EduCoreSpacing.Md))
-        Text(
-            "Subject teacher assignments",
-            style = MaterialTheme.typography.titleSmall,
-            color = EduCoreColors.Navy900,
-        )
-
-        if (!armTeacherOverridesReady) {
-            Text(
-                "Deploy the arm-teacher migration before creating subject-specific overrides.",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
-            return@EduCoreDashboardCard
-        }
-
-        if (level.subjects.isEmpty()) {
-            Text(
-                "Assign at least one active subject to this class level.",
-                style = MaterialTheme.typography.bodySmall,
-                color = EduCoreColors.Slate600,
-            )
-            return@EduCoreDashboardCard
-        }
-
         level.subjects.forEach { subject ->
-            val override = arm.subjectTeachers.firstOrNull {
-                it.subjectId == subject.subjectId
-            }
+            val override = arm.subjectTeachers.firstOrNull { it.subjectId == subject.subjectId }
             var selectedTeacherId by remember(
                 arm.id,
                 subject.subjectId,
@@ -1796,8 +1722,7 @@ private fun ArmTeacherCard(
                 color = EduCoreColors.Navy900,
             )
             Text(
-                "Class default: " +
-                    (subject.defaultTeacherName ?: "Admin / unassigned"),
+                "Class default: " + (subject.defaultTeacherName ?: "Admin / unassigned"),
                 style = MaterialTheme.typography.bodySmall,
                 color = EduCoreColors.Slate600,
             )
@@ -1821,61 +1746,11 @@ private fun ArmTeacherCard(
             )
             Spacer(Modifier.height(EduCoreSpacing.Sm))
             EduCoreSecondaryButton(
-                text = "Save Subject Teacher",
-                onClick = {
-                    onSaveSubjectTeacher(
-                        arm.id,
-                        subject.subjectId,
-                        selectedTeacherId,
-                    )
-                },
+                text = "Save Teacher",
+                onClick = { onSave(arm.id, subject.subjectId, selectedTeacherId) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
             )
-        }
-    }
-}
-
-@Composable
-private fun ClassTeacherMenu(
-    selectedTeacherId: Long?,
-    staff: List<ParallelLifecycleStaff>,
-    enabled: Boolean,
-    onSelect: (Long?) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = selectedTeacherId
-        ?.let { id -> staff.firstOrNull { it.id == id }?.name }
-        ?: "Select class teacher"
-
-    Column(Modifier.fillMaxWidth()) {
-        Text(
-            "Class teacher for all subjects",
-            style = MaterialTheme.typography.labelLarge,
-            color = EduCoreColors.Slate700,
-        )
-        Spacer(Modifier.height(EduCoreSpacing.Xs))
-        Box(Modifier.fillMaxWidth()) {
-            EduCoreSecondaryButton(
-                text = selectedName,
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = enabled && staff.isNotEmpty(),
-            )
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
-                staff.forEach { teacher ->
-                    DropdownMenuItem(
-                        text = { Text(teacher.name) },
-                        onClick = {
-                            expanded = false
-                            onSelect(teacher.id)
-                        },
-                    )
-                }
-            }
         }
     }
 }
@@ -1891,8 +1766,7 @@ private fun TeacherMenu(
     var expanded by remember { mutableStateOf(false) }
     val selectedName = selectedTeacherId
         ?.let { id -> staff.firstOrNull { it.id == id }?.name }
-        ?: "Use class default" +
-            (subject.defaultTeacherName?.let { " · $it" } ?: "")
+        ?: "Use class default" + (subject.defaultTeacherName?.let { " · $it" } ?: "")
 
     Column(Modifier.fillMaxWidth()) {
         Text(
@@ -2036,6 +1910,186 @@ private fun GradeEditor(
             enabled = !busy && selectedIds.isNotEmpty() && letter.isNotBlank(),
             loading = busy,
         )
+    }
+}
+
+private fun LazyListScope.lifecycleSkills(
+    state: ParallelLifecycleUiState,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    val workspace = state.skillWorkspace
+
+    item {
+        SectionHeading(
+            "Parallel skills rating",
+            "Rate affective and psychomotor development independently from the conventional curriculum.",
+        )
+    }
+
+    if (workspace == null) {
+        item {
+            if (state.isSkillsLoading) {
+                EduCoreLoadingState(message = "Loading parallel skills ratings")
+            } else {
+                EduCoreSecondaryButton(
+                    text = "Load Skills Rating",
+                    onClick = { onLoadSkills(null, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+            }
+        }
+        return
+    }
+
+    item {
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Rating context", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            LifecycleMenu(
+                label = "Parallel class arm",
+                current = workspace.arms
+                    .firstOrNull { it.id == workspace.selectedArmId }
+                    ?.label ?: "Select class arm",
+                options = workspace.arms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(it, workspace.selectedTermId) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Academic term",
+                current = workspace.terms
+                    .firstOrNull { it.id == workspace.selectedTermId }
+                    ?.label ?: "Select term",
+                options = workspace.terms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(workspace.selectedArmId, it) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Text(
+                workspace.ratingScale.joinToString(" · ") {
+                    it.value.toString() + " " + it.label
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+    }
+
+    if (state.isSkillsLoading) {
+        item { EduCoreLoadingState(message = "Refreshing skills ratings") }
+    }
+
+    if (workspace.students.isEmpty()) {
+        item {
+            EduCoreEmptyState(
+                "No learners",
+                "No active learner is assigned to the selected parallel class arm for this term.",
+            )
+        }
+        return
+    }
+
+    items(
+        workspace.students,
+        key = { "skill-student-" + it.enrolmentId },
+    ) { student ->
+        ParallelSkillStudentCard(
+            student = student,
+            skills = workspace.skills,
+            ratingScale = workspace.ratingScale.map { it.value to it.label },
+            canManage = workspace.canManage,
+            busy = state.isMutating,
+            onSave = onSaveSkills,
+        )
+    }
+}
+
+@Composable
+private fun ParallelSkillStudentCard(
+    student: ParallelSkillStudent,
+    skills: List<online.educoreng.educore.core.model.ParallelSkillDefinition>,
+    ratingScale: List<Pair<Int, String>>,
+    canManage: Boolean,
+    busy: Boolean,
+    onSave: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    var ratings by remember(student.enrolmentId, student.ratings) {
+        mutableStateOf<Map<Long, Int?>>(
+            student.ratings.mapValues { it.value }
+        )
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(student.name, style = MaterialTheme.typography.titleMedium)
+        Text(
+            student.admissionNumber ?: "No admission number",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        listOf("affective", "psychomotor").forEach { category ->
+            val categorySkills = skills
+                .filter { it.category == category }
+                .sortedBy { it.sortOrder }
+
+            if (categorySkills.isNotEmpty()) {
+                Spacer(Modifier.height(EduCoreSpacing.Lg))
+                Text(
+                    if (category == "affective") {
+                        "Affective Domain"
+                    } else {
+                        "Psychomotor Domain"
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = EduCoreColors.Navy900,
+                )
+
+                categorySkills.forEach { skill ->
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    StringLifecycleMenu(
+                        label = skill.name,
+                        current = ratings[skill.id]?.let { saved ->
+                            ratingScale.firstOrNull { it.first == saved }
+                                ?.let { saved.toString() + " · " + it.second }
+                                ?: saved.toString()
+                        } ?: "Not rated",
+                        options = listOf("" to "Not rated") +
+                            ratingScale.map {
+                                it.first.toString() to
+                                    (it.first.toString() + " · " + it.second)
+                            },
+                        enabled = canManage && !busy,
+                        onSelect = { selected ->
+                            ratings = ratings.toMutableMap().apply {
+                                this[skill.id] = selected.toIntOrNull()
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
+        if (canManage) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            EduCorePrimaryButton(
+                text = "Save Skills Rating",
+                onClick = {
+                    onSave(
+                        listOf(
+                            ParallelSkillStudentDraft(
+                                enrolmentId = student.enrolmentId,
+                                ratings = ratings,
+                            )
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+                loading = busy,
+            )
+        }
     }
 }
 
@@ -2891,10 +2945,10 @@ private fun LazyListScope.lifecycleOperations(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
-    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
     onClockInParallelStaff: () -> Unit,
     onClockOutParallelStaff: () -> Unit,
-    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
 ) {
     item {
@@ -2903,10 +2957,10 @@ private fun LazyListScope.lifecycleOperations(
             onLoadOperations = onLoadOperations,
             onCreateTimetablePeriod = onCreateTimetablePeriod,
             onDeleteTimetablePeriod = onDeleteTimetablePeriod,
+            onSaveParallelAttendance = onSaveParallelAttendance,
             onSaveWorkingDays = onSaveWorkingDays,
             onClockInParallelStaff = onClockInParallelStaff,
             onClockOutParallelStaff = onClockOutParallelStaff,
-            onSaveParallelAttendance = onSaveParallelAttendance,
             onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
     }
@@ -2918,10 +2972,10 @@ internal fun ParallelOperationsPanel(
     onLoadOperations: (Long?, Long?, Long?, String?) -> Unit,
     onCreateTimetablePeriod: (Long, Long, Long, String, String, String, String?) -> Unit,
     onDeleteTimetablePeriod: (Long) -> Unit,
-    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
     onClockInParallelStaff: () -> Unit,
     onClockOutParallelStaff: () -> Unit,
-    onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
 ) {
     val operations = state.operationsWorkspace
@@ -3048,104 +3102,147 @@ internal fun ParallelOperationsPanel(
 @Composable
 private fun ParallelWorkingDaysCard(
     state: ParallelLifecycleUiState,
-    onSaveWorkingDays: (List<ParallelWorkingDayDraft>) -> Unit,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
 ) {
     val operations = state.operationsWorkspace ?: return
-    var drafts by remember(operations.workingDays) {
-        mutableStateOf(
-            operations.workingDays.map {
-                ParallelWorkingDayDraft(
-                    dayOfWeek = it.dayOfWeek,
-                    isWorking = it.isWorking,
-                    resumptionTime = it.resumptionTime,
-                    closingTime = it.closingTime,
-                    graceMinutes = it.graceMinutes,
-                )
-            }
-        )
+    val dayOrder = listOf(
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    )
+    val initial = dayOrder.map { day ->
+        operations.workingDays.firstOrNull { it.dayOfWeek == day }
+            ?: ParallelWorkingDay(
+                dayOfWeek = day,
+                isWorking = day in setOf(
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                ),
+            )
+    }
+    var drafts by remember(
+        operations.selected.curriculumId,
+        operations.workingDays,
+    ) {
+        mutableStateOf(initial)
     }
 
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
-        Text("Parallel working days & staff hours", style = MaterialTheme.typography.titleMedium)
+        Text("Parallel working week", style = MaterialTheme.typography.titleMedium)
         Text(
-            "These days and hours are independent from the conventional curriculum. Each day can have a different resumption and closing time.",
+            "Configure each working day independently. Resumption, closing time and grace period belong to the parallel programme and are not copied from the conventional curriculum.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
-        drafts.forEachIndexed { index, item ->
+
+        drafts.forEachIndexed { index, day ->
             Spacer(Modifier.height(EduCoreSpacing.Md))
-            HorizontalDivider()
-            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            if (index > 0) {
+                HorizontalDivider()
+                Spacer(Modifier.height(EduCoreSpacing.Md))
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    item.dayOfWeek.replaceFirstChar { it.uppercase() },
+                    day.dayOfWeek.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Switch(
-                    checked = item.isWorking,
+                    checked = day.isWorking,
                     onCheckedChange = { checked ->
-                        drafts = drafts.toMutableList().also {
-                            it[index] = item.copy(isWorking = checked)
+                        drafts = drafts.map {
+                            if (it.dayOfWeek == day.dayOfWeek) {
+                                it.copy(isWorking = checked)
+                            } else {
+                                it
+                            }
                         }
                     },
-                    enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                    enabled = operations.capabilities.manageWorkingDays &&
+                        !state.isMutating,
                 )
             }
-            if (item.isWorking) {
+
+            if (day.isWorking) {
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
                 ) {
                     EduCoreTextField(
-                        value = item.resumptionTime.orEmpty(),
+                        value = day.resumptionTime.orEmpty(),
                         onValueChange = { value ->
-                            drafts = drafts.toMutableList().also {
-                                it[index] = item.copy(resumptionTime = value)
+                            drafts = drafts.map {
+                                if (it.dayOfWeek == day.dayOfWeek) {
+                                    it.copy(resumptionTime = value)
+                                } else {
+                                    it
+                                }
                             }
                         },
-                        label = "Resumption HH:mm",
+                        label = "Resume HH:mm",
                         modifier = Modifier.weight(1f),
-                        enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                        enabled = operations.capabilities.manageWorkingDays &&
+                            !state.isMutating,
                     )
                     EduCoreTextField(
-                        value = item.closingTime.orEmpty(),
+                        value = day.closingTime.orEmpty(),
                         onValueChange = { value ->
-                            drafts = drafts.toMutableList().also {
-                                it[index] = item.copy(closingTime = value)
+                            drafts = drafts.map {
+                                if (it.dayOfWeek == day.dayOfWeek) {
+                                    it.copy(closingTime = value)
+                                } else {
+                                    it
+                                }
                             }
                         },
-                        label = "Closing HH:mm",
+                        label = "Close HH:mm",
                         modifier = Modifier.weight(1f),
-                        enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                        enabled = operations.capabilities.manageWorkingDays &&
+                            !state.isMutating,
                     )
                 }
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
                 EduCoreTextField(
-                    value = item.graceMinutes.toString(),
+                    value = day.graceMinutes.toString(),
                     onValueChange = { value ->
-                        val minutes = value.toIntOrNull()?.coerceIn(0, 180) ?: 0
-                        drafts = drafts.toMutableList().also {
-                            it[index] = item.copy(graceMinutes = minutes)
+                        val minutes = value.filter(Char::isDigit)
+                            .take(3)
+                            .toIntOrNull()
+                            ?: 0
+                        drafts = drafts.map {
+                            if (it.dayOfWeek == day.dayOfWeek) {
+                                it.copy(graceMinutes = minutes)
+                            } else {
+                                it
+                            }
                         }
                     },
-                    label = "Late grace period (minutes)",
+                    label = "Grace period (minutes)",
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = operations.capabilities.manageWorkingDays && !state.isMutating,
+                    enabled = operations.capabilities.manageWorkingDays &&
+                        !state.isMutating,
                 )
             }
         }
+
         if (operations.capabilities.manageWorkingDays) {
             Spacer(Modifier.height(EduCoreSpacing.Lg))
             EduCorePrimaryButton(
-                text = "Save Parallel Working Days",
+                text = "Save Parallel Working Week",
                 onClick = { onSaveWorkingDays(drafts) },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isMutating && drafts.size == 7,
+                enabled = !state.isMutating,
                 loading = state.isMutating,
             )
         }
@@ -3159,79 +3256,89 @@ private fun ParallelStaffAttendanceCard(
     onClockOut: () -> Unit,
 ) {
     val operations = state.operationsWorkspace ?: return
-    val sheet = operations.staffAttendance ?: return
+    val attendance = operations.staffAttendance ?: return
 
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
         Text("Parallel staff attendance", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Attendance is evaluated against the selected parallel curriculum's day-specific working hours, not the conventional school schedule.",
+            "A single scan or clock action is reconciled against the schedules the staff member is assigned to. This panel shows the parallel-programme attendance outcome.",
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
         Spacer(Modifier.height(EduCoreSpacing.Md))
-        KeyValueRow("Date", sheet.date)
-        KeyValueRow("Day", sheet.dayOfWeek.replaceFirstChar { it.uppercase() })
-        KeyValueRow("Working day", if (sheet.isWorkingDay) "Yes" else "No")
-        KeyValueRow("Resumption", sheet.resumptionTime ?: "—")
-        KeyValueRow("Closing", sheet.closingTime ?: "—")
-        KeyValueRow("Late grace", sheet.graceMinutes.toString() + " min")
 
-        if (sheet.canClockSelf && operations.capabilities.clockParallelStaff && sheet.isWorkingDay) {
-            val selfRecord = sheet.selfRecord
+        KeyValueRow("Date", attendance.date)
+        KeyValueRow(
+            "Working day",
+            if (attendance.isWorkingDay) "Yes" else "No",
+        )
+        KeyValueRow(
+            "Schedule",
+            listOfNotNull(
+                attendance.resumptionTime,
+                attendance.closingTime,
+            ).joinToString(" – ").ifBlank { "Not configured" },
+        )
+        KeyValueRow("Grace", attendance.graceMinutes.toString() + " min")
+
+        attendance.selfRecord?.let { record ->
             Spacer(Modifier.height(EduCoreSpacing.Md))
-            if (selfRecord == null || selfRecord.clockInTime == null) {
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text("My attendance", style = MaterialTheme.typography.titleSmall)
+            KeyValueRow("Arrival", record.clockInTime ?: "Not clocked in")
+            KeyValueRow("Arrival status", record.status ?: "—")
+            KeyValueRow("Departure", record.clockOutTime ?: "Not clocked out")
+            KeyValueRow("Departure status", record.departureStatus ?: "—")
+        }
+
+        if (
+            operations.capabilities.clockParallelStaff &&
+            attendance.canClockSelf
+        ) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
                 EduCorePrimaryButton(
                     text = "Clock In",
                     onClick = onClockIn,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isMutating,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating &&
+                        attendance.selfRecord?.clockInTime == null,
                     loading = state.isMutating,
                 )
-            } else if (selfRecord.clockOutTime == null) {
-                EduCoreInfoBanner(
-                    title = "Clocked in",
-                    message = selfRecord.clockInTime + " · " +
-                        (selfRecord.status?.replace('_', ' ') ?: "recorded"),
-                )
-                Spacer(Modifier.height(EduCoreSpacing.Sm))
-                EduCorePrimaryButton(
+                EduCoreSecondaryButton(
                     text = "Clock Out",
                     onClick = onClockOut,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isMutating,
-                    loading = state.isMutating,
-                )
-            } else {
-                EduCoreInfoBanner(
-                    title = "Attendance complete",
-                    message = selfRecord.clockInTime + "–" + selfRecord.clockOutTime +
-                        " · " + (selfRecord.departureStatus?.replace('_', ' ') ?: "completed"),
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating &&
+                        attendance.selfRecord?.clockInTime != null &&
+                        attendance.selfRecord.clockOutTime == null,
                 )
             }
         }
 
-        Spacer(Modifier.height(EduCoreSpacing.Md))
-        if (sheet.staff.isEmpty()) {
-            EduCoreEmptyState(
-                "No assigned parallel staff",
-                "Assign a class teacher or subject teacher to populate this attendance register.",
+        if (attendance.staff.isNotEmpty()) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            Text(
+                "Assigned staff today",
+                style = MaterialTheme.typography.titleSmall,
             )
-        } else {
-            sheet.staff.forEach { person ->
-                HorizontalDivider()
+            attendance.staff.forEach { record ->
                 Spacer(Modifier.height(EduCoreSpacing.Sm))
-                Text(person.name, style = MaterialTheme.typography.titleSmall)
+                Text(record.name, style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    listOf(
-                        "Arrival: " + (person.clockInTime ?: "—"),
-                        "Status: " + (person.status?.replace('_', ' ') ?: "Not recorded"),
-                        "Departure: " + (person.clockOutTime ?: "—"),
-                        "Departure status: " + (person.departureStatus?.replace('_', ' ') ?: "—"),
-                    ).joinToString(" · "),
+                    listOfNotNull(
+                        record.status,
+                        record.clockInTime,
+                        record.departureStatus,
+                        record.clockOutTime,
+                    ).joinToString(" · ").ifBlank { "No attendance recorded" },
                     style = MaterialTheme.typography.bodySmall,
                     color = EduCoreColors.Slate600,
                 )
-                Spacer(Modifier.height(EduCoreSpacing.Sm))
             }
         }
     }
@@ -3249,10 +3356,7 @@ private fun ParallelTimetableCard(
     var subjectId by remember(selectedClass?.id, selectedClass?.subjects) {
         mutableStateOf(selectedClass?.subjects?.firstOrNull()?.id)
     }
-    val enabledDays = operations.workingDays.filter { it.isWorking }
-    var day by remember(enabledDays.map { it.dayOfWeek }) {
-        mutableStateOf(enabledDays.firstOrNull()?.dayOfWeek ?: "monday")
-    }
+    var day by remember { mutableStateOf("monday") }
     var start by remember { mutableStateOf("") }
     var end by remember { mutableStateOf("") }
     var venue by remember { mutableStateOf("") }
@@ -3264,14 +3368,6 @@ private fun ParallelTimetableCard(
             style = MaterialTheme.typography.bodySmall,
             color = EduCoreColors.Slate600,
         )
-
-        if (enabledDays.isEmpty()) {
-            Spacer(Modifier.height(EduCoreSpacing.Md))
-            EduCoreInfoBanner(
-                title = "No working day enabled",
-                message = "Enable at least one parallel working day before adding timetable periods.",
-            )
-        }
 
         if (operations.capabilities.manageTimetable && selectedClass != null && selectedArmId != null) {
             Spacer(Modifier.height(EduCoreSpacing.Md))
@@ -3287,12 +3383,13 @@ private fun ParallelTimetableCard(
             StringLifecycleMenu(
                 label = "Day",
                 current = day.replaceFirstChar { it.uppercase() },
-                options = enabledDays.map {
-                    it.dayOfWeek to (
-                        it.dayOfWeek.replaceFirstChar { ch -> ch.uppercase() } +
-                            " · " + (it.resumptionTime ?: "—") + "–" + (it.closingTime ?: "—")
-                        )
-                },
+                options = listOf(
+                    "monday" to "Monday",
+                    "tuesday" to "Tuesday",
+                    "wednesday" to "Wednesday",
+                    "thursday" to "Thursday",
+                    "friday" to "Friday",
+                ),
                 enabled = !state.isMutating,
                 onSelect = { day = it },
             )
@@ -3343,7 +3440,6 @@ private fun ParallelTimetableCard(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isMutating &&
-                    enabledDays.isNotEmpty() &&
                     subjectId != null &&
                     start.isNotBlank() &&
                     end.isNotBlank(),
@@ -3358,7 +3454,7 @@ private fun ParallelTimetableCard(
                 "No parallel lesson has been scheduled for this class arm in the selected session.",
             )
         } else {
-            val dayOrder = operations.workingDays.map { it.dayOfWeek }
+            val dayOrder = listOf("monday", "tuesday", "wednesday", "thursday", "friday")
             dayOrder.forEach { dayName ->
                 val periods = operations.periods
                     .filter { it.dayOfWeek == dayName }
@@ -3443,14 +3539,6 @@ private fun ParallelAttendanceCard(
                 )
             }
             Spacer(Modifier.height(EduCoreSpacing.Md))
-        }
-
-        if (attendance != null && !attendance.isWorkingDay) {
-            EduCoreInfoBanner(
-                title = "Non-working day",
-                message = "The selected date is not enabled as a working day for this parallel curriculum. Learner attendance cannot be saved for this date.",
-            )
-            return@EduCoreDashboardCard
         }
 
         if (!operations.capabilities.saveAttendance) {

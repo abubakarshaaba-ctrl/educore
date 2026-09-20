@@ -7,9 +7,9 @@ data class ParallelOperationsWorkspace(
     val sessions: List<ParallelOperationsSession>,
     val terms: List<ParallelOperationsTerm>,
     val classes: List<ParallelOperationsClass>,
+    val workingDays: List<ParallelWorkingDay> = emptyList(),
     val periods: List<ParallelOperationsPeriod>,
     val attendance: ParallelOperationsAttendance?,
-    val workingDays: List<ParallelWorkingDay> = emptyList(),
     val staffAttendance: ParallelStaffAttendance? = null,
 )
 
@@ -28,6 +28,35 @@ data class ParallelOperationsCapabilities(
     val exportAttendance: Boolean = false,
     val manageWorkingDays: Boolean = false,
     val clockParallelStaff: Boolean = false,
+)
+
+data class ParallelWorkingDay(
+    val dayOfWeek: String,
+    val isWorking: Boolean,
+    val resumptionTime: String? = null,
+    val closingTime: String? = null,
+    val graceMinutes: Int = 0,
+)
+
+data class ParallelStaffAttendanceRecord(
+    val userId: Long,
+    val name: String,
+    val status: String? = null,
+    val departureStatus: String? = null,
+    val clockInTime: String? = null,
+    val clockOutTime: String? = null,
+)
+
+data class ParallelStaffAttendance(
+    val date: String,
+    val dayOfWeek: String,
+    val isWorkingDay: Boolean,
+    val resumptionTime: String? = null,
+    val closingTime: String? = null,
+    val graceMinutes: Int = 0,
+    val canClockSelf: Boolean = false,
+    val selfRecord: ParallelStaffAttendanceRecord? = null,
+    val staff: List<ParallelStaffAttendanceRecord> = emptyList(),
 )
 
 data class ParallelOperationsOption(
@@ -88,55 +117,10 @@ data class ParallelOperationsPeriod(
     val venue: String? = null,
 )
 
-data class ParallelWorkingDay(
-    val dayOfWeek: String,
-    val isWorking: Boolean,
-    val resumptionTime: String? = null,
-    val closingTime: String? = null,
-    val graceMinutes: Int = 0,
-)
-
-data class ParallelWorkingDayDraft(
-    val dayOfWeek: String,
-    val isWorking: Boolean,
-    val resumptionTime: String? = null,
-    val closingTime: String? = null,
-    val graceMinutes: Int = 0,
-)
-
-data class ParallelStaffAttendance(
-    val date: String,
-    val dayOfWeek: String,
-    val isWorkingDay: Boolean,
-    val resumptionTime: String? = null,
-    val closingTime: String? = null,
-    val graceMinutes: Int = 0,
-    val canClockSelf: Boolean = false,
-    val staff: List<ParallelStaffAttendancePerson> = emptyList(),
-    val selfRecord: ParallelStaffAttendanceSelfRecord? = null,
-)
-
-data class ParallelStaffAttendanceSelfRecord(
-    val status: String? = null,
-    val departureStatus: String? = null,
-    val clockInTime: String? = null,
-    val clockOutTime: String? = null,
-)
-
-data class ParallelStaffAttendancePerson(
-    val userId: Long,
-    val name: String,
-    val status: String? = null,
-    val departureStatus: String? = null,
-    val clockInTime: String? = null,
-    val clockOutTime: String? = null,
-)
-
 data class ParallelOperationsAttendance(
     val date: String,
     val version: String,
     val students: List<ParallelOperationsAttendanceStudent>,
-    val isWorkingDay: Boolean = true,
 )
 
 data class ParallelOperationsAttendanceStudent(

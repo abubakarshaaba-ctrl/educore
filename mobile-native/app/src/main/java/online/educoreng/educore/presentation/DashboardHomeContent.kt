@@ -49,14 +49,6 @@ import online.educoreng.educore.core.model.DashboardMetric
 import online.educoreng.educore.core.model.ModuleDescriptor
 import online.educoreng.educore.core.model.SessionSnapshot
 
-private val HIDDEN_MOBILE_MODULES = setOf(
-    "dashboard",
-    "cbt",
-    "cbt-exams",
-    "examinations",
-    "student.exams",
-)
-
 internal fun LazyGridScope.dashboardHomeContent(
     session: SessionSnapshot,
     state: DashboardUiState,
@@ -71,7 +63,7 @@ internal fun LazyGridScope.dashboardHomeContent(
             }
         }
         EduCoreProfileHeader(
-            name = "${timeGreeting()}, ${session.user.name}",
+            name = "${timeGreeting(session.serverTime)}, ${session.user.name}",
             role = session.user.roleLabel,
             identifier = session.user.staffId ?: session.user.email,
             modifier = Modifier.fillMaxWidth(),
@@ -144,65 +136,34 @@ internal fun LazyGridScope.dashboardHomeContent(
         )
     }
 
-    val visibleModules = ShellNavigationPolicy.visibleModules(session)
-    val myAttendanceModule = session.modules.firstOrNull { it.key.equals("staff-attendance.self", ignoreCase = true) }
-    val visibleQuickActions = snapshot.quickActions.filter { action ->
-        val key = normalizeDashboardModuleKey(action.moduleKey)
-        visibleModules.any { it.key.equals(key, ignoreCase = true) } &&
-            key !in HIDDEN_MOBILE_MODULES &&
-            key != "staff-attendance.self"
-    }
-
-    if (visibleQuickActions.isNotEmpty() || myAttendanceModule != null) {
+    if (snapshot.quickActions.isNotEmpty()) {
         item(key = "actions-header", span = { GridItemSpan(maxLineSpan) }) {
             EduCoreSectionHeader(
                 title = "Quick actions",
                 supportingText = "Shortcuts available to your account",
             )
         }
-        myAttendanceModule?.let { module ->
-            item(key = "action-staff-attendance.self") {
-                EduCoreQuickAction(
-                    label = "My Attendance",
-                    icon = EduCoreIcons.Attendance,
-                    onClick = { onModuleClick(module) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        items(visibleQuickActions, key = { "action-${normalizeDashboardModuleKey(it.moduleKey)}" }) { action ->
-            val module = resolveDashboardModule(visibleModules, action.moduleKey)
-            if (module != null) {
-                DashboardDirectoryQuickAction(
-                    session = session,
-                    module = module,
-                    label = action.title,
-                    icon = moduleIconForDashboard(module),
-                    onFallback = onModuleClick,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+        items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
+            val module = session.modules.firstOrNull { it.key == action.moduleKey }
+            EduCoreQuickAction(
+                label = action.title,
+                icon = module?.let(::moduleIconForDashboard) ?: EduCoreIcons.Modules,
+                enabled = module != null,
+                onClick = { module?.let(onModuleClick) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 
     snapshot.sections.forEach { section ->
-        val visibleItems = section.items.filter { item ->
-            val key = item.moduleKey?.let(::normalizeDashboardModuleKey)
-            key == null || (
-                key !in HIDDEN_MOBILE_MODULES &&
-                    visibleModules.any { it.key.equals(key, ignoreCase = true) }
-                )
-        }
-        if (visibleItems.isNotEmpty()) {
-            item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
-                DashboardSectionCard(
-                    title = section.title,
-                    items = visibleItems,
-                    modules = visibleModules,
-                    onModuleClick = onModuleClick,
-                    compact = width == EduCoreWindowWidth.Compact,
-                )
-            }
+        item(key = "section-${section.key}", span = { GridItemSpan(maxLineSpan) }) {
+            DashboardSectionCard(
+                title = section.title,
+                items = section.items,
+                modules = session.modules,
+                onModuleClick = onModuleClick,
+                compact = width == EduCoreWindowWidth.Compact,
+            )
         }
     }
 }
@@ -277,7 +238,7 @@ private fun SubscriptionCountdownTile(session: SessionSnapshot) {
                     )
                     Text(
                         text = countdown,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.headlineSmall,
                     )
                 }
                 EduCoreStatusBadge(statusLabel, tone)
@@ -313,7 +274,7 @@ private fun DashboardSectionCard(
             verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         ) {
             items.forEachIndexed { index, item ->
-                val module = item.moduleKey?.let { key -> resolveDashboardModule(modules, key) }
+                val module = item.moduleKey?.let { key -> modules.firstOrNull { it.key == key } }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
@@ -349,19 +310,6 @@ private fun DashboardSectionCard(
             }
         }
     }
-}
-
-private fun normalizeDashboardModuleKey(key: String): String = when (key.trim().lowercase()) {
-    "staff-attendance" -> "staff-attendance.admin"
-    else -> key.trim().lowercase()
-}
-
-private fun resolveDashboardModule(
-    modules: List<ModuleDescriptor>,
-    key: String,
-): ModuleDescriptor? {
-    val normalized = normalizeDashboardModuleKey(key)
-    return modules.firstOrNull { it.key.equals(normalized, ignoreCase = true) }
 }
 
 private fun DashboardMetric.toIconKey(): String = moduleKey ?: key
@@ -418,10 +366,11 @@ private fun String.toStatusTone(): EduCoreTone = when (lowercase()) {
     else -> EduCoreTone.Neutral
 }
 
-private fun timeGreeting(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when (hour) {
-        in 0..11 -> "Good morning"
+private fun timeGreeting(serverTime: String?): String {
+    val calendar = Calendar.getInstance()
+    parseIsoEpoch(serverTime)?.let { calendar.timeInMillis = it }
+    return when (calendar.get(Calendar.HOUR_OF_DAY)) {
+        in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }

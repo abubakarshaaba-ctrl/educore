@@ -1,15 +1,12 @@
 package online.educoreng.educore.core.designsystem.component
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -18,12 +15,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
-
-private val CompactButtonPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
 
 @Composable
 fun EduCorePrimaryButton(
@@ -38,17 +34,14 @@ fun EduCorePrimaryButton(
         onClick = onClick,
         enabled = enabled && !loading,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
-        contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
-            containerColor = EduCoreColors.Gold500,
-            contentColor = EduCoreColors.Navy900,
-            disabledContainerColor = EduCoreColors.DisabledContainer,
-            disabledContentColor = EduCoreColors.DisabledContent,
+            containerColor = EduCoreColors.Navy900,
+            contentColor = Color.White,
         ),
     ) {
         if (loading) {
             CircularProgressIndicator(
-                color = EduCoreColors.Navy900,
+                color = Color.White,
                 strokeWidth = 2.dp,
                 modifier = Modifier.defaultMinSize(minWidth = 18.dp, minHeight = 18.dp),
             )
@@ -65,29 +58,13 @@ fun EduCoreSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    leadingIcon: (@Composable RowScope.() -> Unit)? = null,
-    trailingIcon: (@Composable RowScope.() -> Unit)? = null,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
-        contentPadding = CompactButtonPadding,
-        border = BorderStroke(1.dp, if (enabled) EduCoreColors.Line300 else EduCoreColors.Line200),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = EduCoreColors.Navy900,
-            disabledContentColor = EduCoreColors.DisabledContent,
-        ),
     ) {
-        leadingIcon?.let {
-            it.invoke(this)
-            androidx.compose.foundation.layout.Spacer(Modifier.width(EduCoreSpacing.Xs))
-        }
-        Text(text, modifier = if (trailingIcon != null) Modifier.weight(1f) else Modifier)
-        trailingIcon?.let {
-            androidx.compose.foundation.layout.Spacer(Modifier.width(EduCoreSpacing.Xs))
-            it.invoke(this)
-        }
+        Text(text)
     }
 }
 
@@ -102,12 +79,9 @@ fun EduCoreDangerButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
-        contentPadding = CompactButtonPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = EduCoreColors.Danger600,
-            contentColor = EduCoreColors.White,
-            disabledContainerColor = EduCoreColors.DisabledContainer,
-            disabledContentColor = EduCoreColors.DisabledContent,
+            contentColor = Color.White,
         ),
     ) {
         Text(text)
@@ -125,11 +99,6 @@ fun EduCoreTextButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.defaultMinSize(minHeight = EduCoreSizes.TouchTarget),
-        contentPadding = CompactButtonPadding,
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = EduCoreColors.Navy900,
-            disabledContentColor = EduCoreColors.DisabledContent,
-        ),
     ) {
         Text(text)
     }
@@ -149,15 +118,15 @@ fun EduCoreResponsiveButtonPair(
     primaryLoading: Boolean = false,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        if (maxWidth < 420.dp) {
+        if (maxWidth < 380.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                 EduCorePrimaryButton(primaryText, onPrimary, Modifier.fillMaxWidth(), primaryEnabled, primaryLoading)
                 EduCoreSecondaryButton(secondaryText, onSecondary, Modifier.fillMaxWidth(), secondaryEnabled)
             }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                EduCorePrimaryButton(primaryText, onPrimary, Modifier.weight(1f), primaryEnabled, primaryLoading)
+            Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md)) {
                 EduCoreSecondaryButton(secondaryText, onSecondary, Modifier.weight(1f), secondaryEnabled)
+                EduCorePrimaryButton(primaryText, onPrimary, Modifier.weight(1f), primaryEnabled, primaryLoading)
             }
         }
     }

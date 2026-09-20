@@ -15,24 +15,28 @@ import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
-import online.educoreng.educore.core.model.ParallelWorkingDayDraft
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
 import online.educoreng.educore.core.model.ParallelStudentResultDetail
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.dto.ParallelArmMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPeriodMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelAttendanceRecordRequestDto
+import online.educoreng.educore.core.network.dto.ParallelWorkingDayMutationDto
 import online.educoreng.educore.core.network.dto.ParallelWorkingDaysMutationRequestDto
-import online.educoreng.educore.core.network.dto.ParallelWorkingDayRequestDto
-import online.educoreng.educore.core.network.dto.ParallelStaffAttendanceRequestDto
-import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelStaffClockRequestDto
 import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto
+import online.educoreng.educore.core.network.dto.ParallelArmTeacherMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelGradeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelPromotionRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillSaveRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillStudentMutationDto
+import online.educoreng.educore.core.network.dto.ParallelSkillMutationDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
@@ -68,6 +72,40 @@ class DefaultParallelCurriculumLifecycleRepository(
             is AppResult.Success -> AppResult.Success(result.value.toDomain())
             is AppResult.Failure -> result
         }
+    }
+
+    override suspend fun loadSkills(
+        armId: Long?,
+        termId: Long?,
+    ): AppResult<ParallelSkillWorkspace> = withContext(Dispatchers.IO) {
+        when (val result = safeApiCall(moshi) { api.parallelSkills(armId, termId) }) {
+            is AppResult.Success -> AppResult.Success(result.value.toDomain())
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun saveSkills(
+        armId: Long,
+        termId: Long,
+        students: List<ParallelSkillStudentDraft>,
+    ): AppResult<String> = mutation {
+        api.saveParallelSkills(
+            ParallelSkillSaveRequestDto(
+                armId = armId,
+                termId = termId,
+                ratings = students.map { student ->
+                    ParallelSkillStudentMutationDto(
+                        enrolmentId = student.enrolmentId,
+                        skills = student.ratings.map { (skillId, rating) ->
+                            ParallelSkillMutationDto(
+                                skillId = skillId,
+                                rating = rating,
+                            )
+                        },
+                    )
+                },
+            )
+        ).message
     }
 
     override suspend fun loadOperations(
@@ -118,13 +156,13 @@ class DefaultParallelCurriculumLifecycleRepository(
 
     override suspend fun saveWorkingDays(
         curriculumId: Long,
-        days: List<ParallelWorkingDayDraft>,
+        days: List<online.educoreng.educore.core.model.ParallelWorkingDay>,
     ): AppResult<String> = mutation {
         api.saveParallelWorkingDays(
             ParallelWorkingDaysMutationRequestDto(
                 curriculumId = curriculumId,
                 days = days.map {
-                    ParallelWorkingDayRequestDto(
+                    ParallelWorkingDayMutationDto(
                         dayOfWeek = it.dayOfWeek,
                         isWorking = it.isWorking,
                         resumptionTime = it.resumptionTime,
@@ -137,11 +175,15 @@ class DefaultParallelCurriculumLifecycleRepository(
     }
 
     override suspend fun clockInParallelStaff(curriculumId: Long): AppResult<String> = mutation {
-        api.clockInParallelStaff(ParallelStaffAttendanceRequestDto(curriculumId)).message
+        api.clockInParallelStaff(
+            ParallelStaffClockRequestDto(curriculumId)
+        ).message
     }
 
     override suspend fun clockOutParallelStaff(curriculumId: Long): AppResult<String> = mutation {
-        api.clockOutParallelStaff(ParallelStaffAttendanceRequestDto(curriculumId)).message
+        api.clockOutParallelStaff(
+            ParallelStaffClockRequestDto(curriculumId)
+        ).message
     }
 
     override suspend fun saveParallelAttendance(
@@ -246,6 +288,48 @@ class DefaultParallelCurriculumLifecycleRepository(
         mimeType = "application/pdf",
     ) {
         api.downloadParallelStudentResultPdf(classId, studentId, termId)
+    }
+
+    override suspend fun downloadCumulativeStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        sessionId: Long,
+    ): AppResult<DownloadedDocument> = download(
+        filename = "parallel-student-cumulative-$studentId-$sessionId.pdf",
+        mimeType = "application/pdf",
+    ) {
+        api.downloadParallelCumulativeStudentResultPdf(
+            classId,
+            studentId,
+            sessionId,
+        )
+    }
+
+    override suspend fun downloadParallelBroadsheetPdf(
+        mode: String,
+        classId: Long,
+        armId: Long?,
+        termId: Long?,
+        sessionId: Long?,
+    ): AppResult<DownloadedDocument> {
+        val safeMode = mode.lowercase().takeIf {
+            it == "termly" || it == "cumulative"
+        } ?: return AppResult.Failure(
+            AppError.Unexpected("Unsupported parallel broadsheet mode.")
+        )
+
+        return download(
+            filename = "parallel-$safeMode-broadsheet-$classId.pdf",
+            mimeType = "application/pdf",
+        ) {
+            api.downloadParallelBroadsheetPdf(
+                mode = safeMode,
+                classId = classId,
+                armId = armId,
+                termId = termId,
+                sessionId = sessionId,
+            )
+        }
     }
 
     override suspend fun createProgramme(
@@ -389,7 +473,6 @@ class DefaultParallelCurriculumLifecycleRepository(
         sessionId: Long,
         conventionalClassArmId: Long?,
         assignmentStatus: String,
-        learnerStatus: String,
         gender: String?,
         search: String?,
         page: Int,
@@ -401,7 +484,6 @@ class DefaultParallelCurriculumLifecycleRepository(
                     sessionId = sessionId,
                     conventionalClassArmId = conventionalClassArmId,
                     assignmentStatus = assignmentStatus,
-                    learnerStatus = learnerStatus,
                     gender = gender,
                     search = search,
                     page = page,
@@ -567,13 +649,13 @@ class DefaultParallelCurriculumLifecycleRepository(
 
     override suspend fun saveArmTeachingMode(
         armId: Long,
-        mode: String,
+        teachingAssignmentMode: String,
         classTeacherId: Long?,
     ): AppResult<String> = mutation {
         api.saveParallelArmTeachingMode(
             ParallelArmTeachingModeMutationRequestDto(
-                parallelCurriculumClassArmId = armId,
-                teachingAssignmentMode = mode,
+                armId = armId,
+                teachingAssignmentMode = teachingAssignmentMode,
                 classTeacherId = classTeacherId,
             )
         ).message

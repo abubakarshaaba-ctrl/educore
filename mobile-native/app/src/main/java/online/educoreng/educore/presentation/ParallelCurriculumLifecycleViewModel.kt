@@ -19,7 +19,9 @@ import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
-import online.educoreng.educore.core.model.ParallelWorkingDayDraft
+import online.educoreng.educore.core.model.ParallelWorkingDay
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 data class ParallelLifecycleUiState(
     val workspace: ParallelLifecycleWorkspace? = null,
@@ -32,15 +34,16 @@ data class ParallelLifecycleUiState(
     val studentPage: ParallelLifecycleStudentPage? = null,
     val studentConventionalClassArmId: Long? = null,
     val studentAssignmentStatus: String = "all",
-    val studentLearnerStatus: String = "active",
     val studentGender: String? = null,
     val studentSearch: String = "",
     val studentPageNumber: Int = 1,
     val resultWorkspace: ParallelResultWorkspace? = null,
     val studentResultDetail: ParallelStudentResultDetail? = null,
     val operationsWorkspace: ParallelOperationsWorkspace? = null,
+    val skillWorkspace: ParallelSkillWorkspace? = null,
     val isLoading: Boolean = false,
     val isOperationsLoading: Boolean = false,
+    val isSkillsLoading: Boolean = false,
     val isResultLoading: Boolean = false,
     val isStudentLoading: Boolean = false,
     val isMutating: Boolean = false,
@@ -105,6 +108,65 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
             )
         }
         load(curriculumId, id)
+    }
+
+    fun loadSkills(
+        armId: Long? = _uiState.value.skillWorkspace?.selectedArmId,
+        termId: Long? = _uiState.value.skillWorkspace?.selectedTermId,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSkillsLoading = true, errorMessage = null) }
+            when (val result = repository.loadSkills(armId, termId)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        skillWorkspace = result.value,
+                        isSkillsLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isSkillsLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveSkills(students: List<ParallelSkillStudentDraft>) {
+        val workspace = _uiState.value.skillWorkspace
+            ?: return failLocal("Load a parallel skills workspace first.")
+        val armId = workspace.selectedArmId
+            ?: return failLocal("Select a parallel class arm first.")
+        val termId = workspace.selectedTermId
+            ?: return failLocal("Select an academic term first.")
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.saveSkills(
+                    armId = armId,
+                    termId = termId,
+                    students = students,
+                )
+            ) {
+                is AppResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            message = result.value,
+                        )
+                    }
+                    loadSkills(armId, termId)
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
     }
 
     fun loadOperations(
@@ -204,55 +266,35 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         mutateOperations { repository.deleteTimetablePeriod(periodId) }
     }
 
-    fun saveWorkingDays(days: List<ParallelWorkingDayDraft>) {
-        val operations = _uiState.value.operationsWorkspace
-            ?: return failLocal("Load the parallel operations workspace first.")
-        if (!operations.capabilities.manageWorkingDays) {
-            return failLocal("You do not have permission to manage parallel working days.")
-        }
-        val curriculumId = operations.selected.curriculumId
+    fun saveWorkingDays(days: List<ParallelWorkingDay>) {
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
             ?: _uiState.value.selectedCurriculumId
             ?: return failLocal("Select a parallel curriculum first.")
-        if (days.size != 7) return failLocal("Configure all seven days of the week.")
-        val timePattern = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
-        val invalid = days.firstOrNull { day ->
-            day.isWorking && (
-                day.resumptionTime.isNullOrBlank() ||
-                    day.closingTime.isNullOrBlank() ||
-                    !timePattern.matches(day.resumptionTime) ||
-                    !timePattern.matches(day.closingTime) ||
-                    day.closingTime.orEmpty() <= day.resumptionTime.orEmpty() ||
-                    day.graceMinutes < 0
-            )
+        if (days.isEmpty()) return failLocal("Configure at least one working day.")
+
+        mutateOperations {
+            repository.saveWorkingDays(curriculumId, days)
         }
-        if (invalid != null) {
-            return failLocal("Enter valid resumption, closing and grace values for " + invalid.dayOfWeek + ".")
-        }
-        mutateOperations { repository.saveWorkingDays(curriculumId, days) }
     }
 
     fun clockInParallelStaff() {
-        val operations = _uiState.value.operationsWorkspace
-            ?: return failLocal("Load the parallel operations workspace first.")
-        if (!operations.capabilities.clockParallelStaff) {
-            return failLocal("You are not eligible to clock in for this parallel curriculum.")
-        }
-        val curriculumId = operations.selected.curriculumId
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
             ?: _uiState.value.selectedCurriculumId
             ?: return failLocal("Select a parallel curriculum first.")
-        mutateOperations { repository.clockInParallelStaff(curriculumId) }
+
+        mutateOperations {
+            repository.clockInParallelStaff(curriculumId)
+        }
     }
 
     fun clockOutParallelStaff() {
-        val operations = _uiState.value.operationsWorkspace
-            ?: return failLocal("Load the parallel operations workspace first.")
-        if (!operations.capabilities.clockParallelStaff) {
-            return failLocal("You are not eligible to clock out for this parallel curriculum.")
-        }
-        val curriculumId = operations.selected.curriculumId
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
             ?: _uiState.value.selectedCurriculumId
             ?: return failLocal("Select a parallel curriculum first.")
-        mutateOperations { repository.clockOutParallelStaff(curriculumId) }
+
+        mutateOperations {
+            repository.clockOutParallelStaff(curriculumId)
+        }
     }
 
     fun downloadAttendanceExport(format: String) {
@@ -395,6 +437,72 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
             ?: return failLocal("Open a parallel result register first.")
         download {
             repository.downloadResultExport(report.classId, report.termId, format)
+        }
+    }
+
+    fun downloadCumulativeStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        sessionId: Long,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.downloadCumulativeStudentResultPdf(
+                    classId,
+                    studentId,
+                    sessionId,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        downloadedDocument = result.value,
+                        message = "Cumulative result ready.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun downloadParallelBroadsheetPdf(
+        mode: String,
+        classId: Long,
+        armId: Long? = null,
+        termId: Long? = null,
+        sessionId: Long? = null,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.downloadParallelBroadsheetPdf(
+                    mode,
+                    classId,
+                    armId,
+                    termId,
+                    sessionId,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        downloadedDocument = result.value,
+                        message = "Parallel broadsheet ready.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
         }
     }
 
@@ -557,7 +665,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
     fun loadStudents(
         conventionalClassArmId: Long? = _uiState.value.studentConventionalClassArmId,
         assignmentStatus: String = _uiState.value.studentAssignmentStatus,
-        learnerStatus: String = _uiState.value.studentLearnerStatus,
         gender: String? = _uiState.value.studentGender,
         search: String = _uiState.value.studentSearch,
         page: Int = 1,
@@ -572,7 +679,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                 it.copy(
                     studentConventionalClassArmId = conventionalClassArmId,
                     studentAssignmentStatus = assignmentStatus,
-                    studentLearnerStatus = learnerStatus,
                     studentGender = gender,
                     studentSearch = search,
                     studentPageNumber = page,
@@ -587,7 +693,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     sessionId = sessionId,
                     conventionalClassArmId = conventionalClassArmId,
                     assignmentStatus = assignmentStatus,
-                    learnerStatus = learnerStatus,
                     gender = gender,
                     search = search.trim().takeIf(String::isNotBlank),
                     page = page,
@@ -646,7 +751,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
-                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = 1,
@@ -678,7 +782,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
-                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = _uiState.value.studentPageNumber,
@@ -705,7 +808,6 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                     loadStudents(
                         conventionalClassArmId = _uiState.value.studentConventionalClassArmId,
                         assignmentStatus = _uiState.value.studentAssignmentStatus,
-                        learnerStatus = _uiState.value.studentLearnerStatus,
                         gender = _uiState.value.studentGender,
                         search = _uiState.value.studentSearch,
                         page = _uiState.value.studentPageNumber,
@@ -839,21 +941,21 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
     fun saveArmTeachingMode(
         armId: Long,
-        mode: String,
+        teachingAssignmentMode: String,
         classTeacherId: Long?,
     ) {
-        if (mode !in setOf("class_teacher", "subject_based")) {
+        if (teachingAssignmentMode !in setOf("class_teacher", "subject_based")) {
             return failLocal("Choose a valid teaching assignment mode.")
         }
-        if (mode == "class_teacher" && classTeacherId == null) {
-            return failLocal("Select the teacher who will take all subjects in this class arm.")
+        if (teachingAssignmentMode == "class_teacher" && classTeacherId == null) {
+            return failLocal("Select the class teacher.")
         }
 
         mutate {
             repository.saveArmTeachingMode(
                 armId = armId,
-                mode = mode,
-                classTeacherId = if (mode == "class_teacher") classTeacherId else null,
+                teachingAssignmentMode = teachingAssignmentMode,
+                classTeacherId = classTeacherId,
             )
         }
     }

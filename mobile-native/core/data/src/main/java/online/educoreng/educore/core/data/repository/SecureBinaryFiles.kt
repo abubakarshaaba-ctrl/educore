@@ -30,12 +30,7 @@ internal fun ResponseBody.readByteArrayBounded(maxBytes: Int): ByteArray = use {
     }
 }
 
-/**
- * Saves a remote document inside EduCore's private downloads directory and
- * returns a FileProvider URI that can be opened through the app's native
- * document workflow. The filename is sanitized and path traversal is blocked.
- */
-fun saveDownloadedDocument(
+internal fun saveDownloadedDocument(
     context: Context,
     body: ResponseBody,
     requestedName: String,

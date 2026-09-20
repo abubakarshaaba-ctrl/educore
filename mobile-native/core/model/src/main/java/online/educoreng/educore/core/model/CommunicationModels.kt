@@ -1,21 +1,21 @@
 package online.educoreng.educore.core.model
 
-data class DeepLinkTarget(val type: String, val id: String? = null)
+data class DeepLinkTarget(val type: String, val id: String?)
 
 data class NotificationItem(
     val id: Long,
     val title: String,
     val body: String,
+    val imageUrl: String?,
     val priority: String,
     val publishedAt: String,
     val expiresAt: String?,
     val isRead: Boolean,
     val deepLink: DeepLinkTarget,
-    val imageUrl: String? = null,
 )
 
 data class NotificationPage(
-    val notifications: List<NotificationItem>,
+    val items: List<NotificationItem>,
     val unreadCount: Int,
     val currentPage: Int,
     val lastPage: Int,
@@ -34,7 +34,7 @@ data class SchoolEvent(
 )
 
 data class MessageAttachment(
-    val id: Long,
+    val replyId: Long,
     val name: String,
     val mimeType: String,
     val size: Long?,

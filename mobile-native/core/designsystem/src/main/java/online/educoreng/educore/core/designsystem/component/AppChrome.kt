@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,10 +48,7 @@ fun EduCoreWordmark(
     modifier: Modifier = Modifier,
     trailingText: String? = null,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "Edu",
             color = Color.White,
@@ -65,7 +64,6 @@ fun EduCoreWordmark(
         trailingText?.takeIf(String::isNotBlank)?.let {
             Text(
                 text = " · $it",
-                modifier = Modifier.weight(1f),
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
@@ -89,9 +87,9 @@ fun EduCoreTopAppBar(
     TopAppBar(
         modifier = modifier,
         title = {
-            Column(Modifier.fillMaxWidth()) {
+            Column {
                 EduCoreWordmark(trailingText = title)
-                subtitle?.takeIf(String::isNotBlank)?.let {
+                subtitle?.let {
                     Text(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
@@ -144,11 +142,11 @@ fun EduCoreBottomNavigation(
                         },
                     ) { Icon(item.icon, contentDescription = item.label) }
                 },
-                label = { Text(item.label, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
+                label = { Text(item.label, maxLines = 1) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = EduCoreColors.Navy900,
                     selectedTextColor = EduCoreColors.Navy900,
-                    indicatorColor = Color.Transparent,
+                    indicatorColor = EduCoreColors.Gold100,
                     unselectedIconColor = EduCoreColors.Muted500,
                     unselectedTextColor = EduCoreColors.Muted500,
                 ),
@@ -169,7 +167,7 @@ fun EduCoreTenantHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(EduCoreColors.Navy900)
-            .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Sm),
+            .padding(horizontal = EduCoreSpacing.Lg, vertical = EduCoreSpacing.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -177,14 +175,14 @@ fun EduCoreTenantHeader(
                 text = schoolName,
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = listOfNotNull(role, session).joinToString(" · "),
                 color = Color.White.copy(alpha = 0.76f),
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -198,26 +196,20 @@ fun EduCorePageHeader(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    compactActions: Boolean = true,
+    compactActions: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    // Page-level arrow buttons are intentionally suppressed across the native
-    // app. Navigation remains available through the Android system back action,
-    // bottom navigation, and explicit close/cancel actions where appropriate.
-    @Suppress("UNUSED_VARIABLE")
-    val retainedBackHandler = onBack
-
     androidx.compose.material3.Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         color = EduCoreColors.Info100,
         border = BorderStroke(1.dp, EduCoreColors.Info200),
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm)) {
-            if (maxWidth < 600.dp && compactActions) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(EduCoreSpacing.Lg)) {
+            if (maxWidth < 520.dp && compactActions) {
                 Column(verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        PageHeaderIdentity(title, subtitle)
+                        PageHeaderIdentity(title, subtitle, onBack)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -227,7 +219,7 @@ fun EduCorePageHeader(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    PageHeaderIdentity(title, subtitle)
+                    PageHeaderIdentity(title, subtitle, onBack)
                     actions()
                 }
             }
@@ -236,9 +228,13 @@ fun EduCorePageHeader(
 }
 
 @Composable
-private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?) {
+private fun RowScope.PageHeaderIdentity(title: String, subtitle: String?, onBack: (() -> Unit)?) {
+    if (onBack != null) {
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+        Spacer(Modifier.width(EduCoreSpacing.Xs))
+    }
     Column(Modifier.weight(1f)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(title, style = MaterialTheme.typography.headlineSmall, color = EduCoreColors.Ink900, maxLines = 2, overflow = TextOverflow.Ellipsis)
         subtitle?.takeIf(String::isNotBlank)?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Slate600, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }

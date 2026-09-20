@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -38,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import online.educoreng.educore.core.designsystem.theme.EduCoreColors
 import online.educoreng.educore.core.designsystem.theme.EduCoreElevation
 import online.educoreng.educore.core.designsystem.theme.EduCoreSizes
@@ -60,7 +58,7 @@ fun EduCoreStatusBadge(
             text = text,
             modifier = Modifier.padding(horizontal = EduCoreSpacing.Sm, vertical = EduCoreSpacing.Xs),
             style = MaterialTheme.typography.labelSmall,
-            maxLines = 2,
+            maxLines = 1,
         )
     }
 }
@@ -73,62 +71,27 @@ fun EduCoreSectionHeader(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    // Root workspaces and tabbed communication screens already identify the
-    // active context elsewhere. Repeating those labels adds visual noise.
-    if (
-        supportingText == "Only modules permitted by the server are shown." ||
-        title in setOf("School notices", "Conversations", "School events")
-    ) return
-
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
-        color = EduCoreColors.White,
-        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Line200),
+        color = EduCoreColors.Gold50,
+        border = BorderStroke(EduCoreElevation.Resting, EduCoreColors.Gold200),
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val stackAction = maxWidth < 360.dp && actionLabel != null && onAction != null
-            if (stackAction) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
-                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Xs),
-                ) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = EduCoreColors.Navy900,
-                    )
-                    supportingText?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
-                    }
-                    EduCoreTextButton(
-                        text = requireNotNull(actionLabel),
-                        onClick = requireNotNull(onAction),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = EduCoreColors.Navy900,
-                        )
-                        supportingText?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
-                        }
-                    }
-                    if (actionLabel != null && onAction != null) {
-                        EduCoreTextButton(actionLabel, onAction)
-                    }
-                }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = EduCoreSpacing.Md, vertical = EduCoreSpacing.Sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            supportingText?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = EduCoreColors.Muted500)
             }
         }
+        if (actionLabel != null && onAction != null) {
+            EduCoreTextButton(actionLabel, onAction)
+        }
+    }
     }
 }
 
@@ -224,15 +187,15 @@ fun EduCoreProfileHeader(
     avatar: @Composable (() -> Unit)? = null,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
-        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+        modifier = modifier.fillMaxWidth().padding(EduCoreSpacing.Lg),
+        horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (avatar != null) {
             avatar()
         } else {
             Surface(
-                modifier = Modifier.size(42.dp),
+                modifier = Modifier.size(EduCoreSizes.LargeAvatar),
                 shape = MaterialTheme.shapes.large,
                 color = EduCoreColors.Gold100,
                 contentColor = EduCoreColors.Navy900,

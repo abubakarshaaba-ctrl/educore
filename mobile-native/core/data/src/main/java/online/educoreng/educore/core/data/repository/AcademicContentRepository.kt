@@ -2,10 +2,6 @@ package online.educoreng.educore.core.data.repository
 
 import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.model.DownloadedDocument
-import online.educoreng.educore.core.model.GeneratedKnowledgeDocument
-import online.educoreng.educore.core.model.KnowledgeCatalogue
-import online.educoreng.educore.core.model.KnowledgeMutationResult
-import online.educoreng.educore.core.model.KnowledgeTopic
 import online.educoreng.educore.core.model.LessonPlan
 import online.educoreng.educore.core.model.LessonPlanDraft
 import online.educoreng.educore.core.model.LessonPlannerOptions
@@ -19,13 +15,6 @@ interface AcademicContentRepository {
     suspend fun resources(className: String?, term: String?, subject: String?, query: String?, page: Int = 1): AppResult<RepositoryCatalogue>
     suspend fun resource(id: Long): AppResult<RepositoryResourceDetail>
     suspend fun downloadResource(resource: RepositoryResource): AppResult<DownloadedDocument>
-
-    suspend fun knowledgeTopics(className: String?, term: String?, subject: String?, query: String?, ready: Boolean? = null, page: Int = 1): AppResult<KnowledgeCatalogue>
-    suspend fun knowledgeTopic(id: Long): AppResult<KnowledgeTopic>
-    suspend fun generateKnowledge(id: Long, type: String): AppResult<GeneratedKnowledgeDocument>
-    suspend fun saveKnowledgeLessonPlan(id: Long): AppResult<KnowledgeMutationResult>
-    suspend fun saveKnowledgeStudentNote(id: Long): AppResult<KnowledgeMutationResult>
-
     suspend fun lessonOptions(): AppResult<LessonPlannerOptions>
     suspend fun lessonPlans(): AppResult<List<LessonPlan>>
     suspend fun lessonPlan(id: Long): AppResult<LessonPlan>

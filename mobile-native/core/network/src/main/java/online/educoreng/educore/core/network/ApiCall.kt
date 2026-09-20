@@ -24,23 +24,14 @@ suspend fun <T> safeApiCall(
 }
 
 private fun HttpException.toAppError(moshi: Moshi): AppError {
-    val httpResponse = response()
     val envelope = runCatching {
-        httpResponse?.errorBody()?.string()
+        response()?.errorBody()?.string()
             ?.takeIf(String::isNotBlank)
             ?.let { body ->
                 moshi.adapter(ErrorEnvelopeDto::class.java).fromJson(body)
             }
     }.getOrNull()
     val message = envelope?.message
-    val requestId = sequenceOf(
-        envelope?.requestId,
-        httpResponse?.headers()?.get("X-EduCore-Request-Id"),
-        httpResponse?.headers()?.get("X-EduCore-Bootstrap-Reference"),
-        httpResponse?.headers()?.get("X-Request-Id"),
-    ).filterNotNull()
-        .map(String::trim)
-        .firstOrNull { it.matches(REQUEST_ID_PATTERN) }
 
     return when (code()) {
         401 -> AppError.Unauthenticated(message ?: AppError.Unauthenticated().userMessage)
@@ -61,16 +52,8 @@ private fun HttpException.toAppError(moshi: Moshi): AppError {
             fieldErrors = envelope?.errors.orEmpty(),
         )
         429 -> AppError.RateLimited(message ?: AppError.RateLimited().userMessage)
-        in 500..599 -> AppError.Server(
-            userMessage = message ?: AppError.Server().userMessage,
-            statusCode = code(),
-            requestId = requestId,
-        )
-        else -> AppError.Server(
-            userMessage = message ?: AppError.Server().userMessage,
-            statusCode = code(),
-            requestId = requestId,
-        )
+        in 500..599 -> AppError.Server(userMessage = message ?: AppError.Server().userMessage, statusCode = code())
+        else -> AppError.Server(userMessage = message ?: AppError.Server().userMessage, statusCode = code())
     }
 }
 
@@ -80,5 +63,3 @@ private val SUBSCRIPTION_STATES = setOf(
     "expired",
     "missing",
 )
-
-private val REQUEST_ID_PATTERN = Regex("[A-Za-z0-9._-]{1,80}")

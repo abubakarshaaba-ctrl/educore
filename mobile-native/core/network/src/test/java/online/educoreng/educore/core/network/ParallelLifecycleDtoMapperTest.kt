@@ -81,9 +81,6 @@ class ParallelLifecycleDtoMapperTest {
                                     code = "A",
                                     capacity = 35,
                                     isActive = true,
-                                    teachingAssignmentMode = "class_teacher",
-                                    classTeacherId = 92,
-                                    classTeacherName = "Class Teacher",
                                     subjectTeachers = listOf(
                                         ParallelLifecycleArmSubjectTeacherDto(
                                             subjectId = 80,
@@ -101,10 +98,8 @@ class ParallelLifecycleDtoMapperTest {
             staff = listOf(
                 ParallelLifecycleStaffDto(90, "Teacher Default"),
                 ParallelLifecycleStaffDto(91, "Teacher Override"),
-                ParallelLifecycleStaffDto(92, "Class Teacher"),
             ),
             armTeacherOverridesReady = true,
-            armTeachingModesReady = true,
             enrolments = listOf(
                 ParallelLifecycleEnrolmentDto(
                     id = 50,
@@ -134,12 +129,8 @@ class ParallelLifecycleDtoMapperTest {
         assertEquals("Qur'an", level?.subjects?.single()?.subjectName)
         assertEquals("Teacher Default", level?.subjects?.single()?.defaultTeacherName)
         assertEquals("Teacher Override", arm?.subjectTeachers?.single()?.teacherName)
-        assertEquals("class_teacher", arm?.teachingAssignmentMode)
-        assertEquals(92L, arm?.classTeacherId)
-        assertEquals("Class Teacher", arm?.classTeacherName)
-        assertEquals(3, domain.staff.size)
+        assertEquals(2, domain.staff.size)
         assertTrue(domain.armTeacherOverridesReady)
-        assertTrue(domain.armTeachingModesReady)
         assertEquals("A", domain.enrolments.single().armName)
         assertTrue(domain.sessions.single().isCurrent)
     }
@@ -158,8 +149,6 @@ class ParallelLifecycleDtoMapperTest {
                     name = "Amina Bello",
                     admissionNumber = "STU001",
                     gender = "female",
-                    status = "left",
-                    isActive = false,
                     conventionalClassArmId = 5,
                     conventionalClassName = "JSS 1 A",
                     assignment = ParallelLifecycleStudentAssignmentDto(
@@ -182,8 +171,6 @@ class ParallelLifecycleDtoMapperTest {
         assertEquals(10, page.curriculumId)
         assertEquals("JSS 1 A", page.conventionalClassArms.single().name)
         assertEquals("Amina Bello", page.students.single().name)
-        assertEquals("left", page.students.single().status)
-        assertTrue(!page.students.single().isActive)
         assertEquals("Mutawassitah 1", page.students.single().assignment?.className)
         assertEquals("A", page.students.single().assignment?.armName)
         assertEquals(1, page.pagination.total)

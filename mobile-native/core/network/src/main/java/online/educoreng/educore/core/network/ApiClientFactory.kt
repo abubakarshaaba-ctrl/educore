@@ -19,7 +19,7 @@ class ApiClientFactory(
             .build()
     }
 
-    private val retrofit: Retrofit by lazy {
+    fun create(): EduCoreApi {
         require(baseUrl.startsWith("https://") || debugLogging) {
             "Production API traffic must use HTTPS."
         }
@@ -45,14 +45,11 @@ class ApiClientFactory(
             .addInterceptor(logging)
             .build()
 
-        Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
+            .create(EduCoreApi::class.java)
     }
-
-    fun create(): EduCoreApi = create(EduCoreApi::class.java)
-
-    fun <T> create(service: Class<T>): T = retrofit.create(service)
 }
