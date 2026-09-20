@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Notifications\ActivityEmailService;
 use App\Services\Notifications\NotificationDeliveryPolicy;
 use App\Notifications\PayrollPaidNotification;
+use App\Notifications\Tenant\PlatformBroadcastNotification;
 use PHPUnit\Framework\TestCase;
 
 class NotificationDeliveryPolicyTest extends TestCase
@@ -22,12 +23,35 @@ class NotificationDeliveryPolicyTest extends TestCase
             'student_late',
             'message_received',
             'exam_supervision_published',
-            'platform_broadcast',
             'calendar_event',
         ] as $event) {
             $this->assertTrue(NotificationDeliveryPolicy::isPushInAppOnly($event), $event);
             $this->assertFalse(NotificationDeliveryPolicy::isLegacyConfigurable($event), $event);
         }
+    }
+
+    public function test_platform_broadcast_is_push_in_app_and_email(): void
+    {
+        $this->assertTrue(
+            NotificationDeliveryPolicy::isPushInAppAndEmail('platform_broadcast')
+        );
+        $this->assertFalse(
+            NotificationDeliveryPolicy::isPushInAppOnly('platform_broadcast')
+        );
+        $this->assertContains(
+            'platform_broadcast',
+            NotificationDeliveryPolicy::TRANSACTIONAL_EMAIL
+        );
+
+        $notification = new PlatformBroadcastNotification(
+            broadcastId: 7,
+            title: 'System maintenance',
+            body: 'Maintenance notice',
+            schoolName: 'Test School',
+            actionUrl: 'https://school.example.test/platform-notices',
+        );
+
+        $this->assertSame(['mail'], $notification->via(new \stdClass()));
     }
 
     public function test_transactional_reminders_are_the_only_legacy_configurable_events(): void
