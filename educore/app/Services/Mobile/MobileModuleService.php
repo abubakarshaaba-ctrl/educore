@@ -21,7 +21,7 @@ class MobileModuleService
         'classes' => ['Classes', '/classes', 'classes'],
         'subjects' => ['Subjects', '/subjects', 'subjects'],
         'curriculum' => ['Curriculum', '/curriculum', 'curriculum'],
-        'parallel-curriculum' => ['Parallel Curriculum', '/parallel-curriculum', 'curriculum'],
+        'parallel-curriculum' => ['Parallel Curriculum Management', '/parallel-curriculum', 'curriculum'],
         'parallel-timetable' => ['Parallel Timetable & Attendance', '/parallel-curriculum/operations', 'timetable'],
         'academic-cycle' => ['Academic Sessions', '/academic-session', 'academic-cycle'],
         'attendance' => ['Student Attendance', '/attendance', 'attendance'],
