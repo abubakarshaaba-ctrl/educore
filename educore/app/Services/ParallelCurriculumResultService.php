@@ -387,7 +387,8 @@ class ParallelCurriculumResultService
     public function conventionalStyleStudentReport(
         ParallelCurriculumClass $class,
         Term $term,
-        int $studentId
+        int $studentId,
+        bool $forceCumulative = false
     ): ?array {
         $report = $this->studentReport($class, $term, $studentId);
         if (! $report) {
@@ -463,13 +464,14 @@ class ParallelCurriculumResultService
         })->values()->all();
 
         $termName = strtolower((string) $term->name);
-        $isThirdTerm = str_contains($termName, '3rd')
+        $isActualThirdTerm = str_contains($termName, '3rd')
             || str_contains($termName, 'third');
+        $isCumulative = $forceCumulative || $isActualThirdTerm;
 
         $overallAverage = $row['average'] === null ? 0.0 : (float) $row['average'];
         $overallTotal = (float) $row['grand_total'];
 
-        if ($isThirdTerm) {
+        if ($isCumulative) {
             $sessionTerms = Term::withoutTenantScope()
                 ->where('tenant_id', $tenantId)
                 ->where('session_id', $term->session_id)
@@ -554,7 +556,7 @@ class ParallelCurriculumResultService
         }
 
         $promotion = null;
-        if ($isThirdTerm && Schema::hasTable('parallel_curriculum_promotions')) {
+        if ($isActualThirdTerm && Schema::hasTable('parallel_curriculum_promotions')) {
             $promotion = ParallelCurriculumPromotion::withoutTenantScope()
                 ->with('destinationClass')
                 ->where('tenant_id', $tenantId)
@@ -669,7 +671,9 @@ class ParallelCurriculumResultService
             'term' => $term,
             'session' => $term->session,
             'summary' => $summary,
-            'isThirdTerm' => $isThirdTerm,
+            'isThirdTerm' => $isCumulative,
+            'isCumulative' => $isCumulative,
+            'isActualThirdTerm' => $isActualThirdTerm,
             'assessmentTypes' => $report['components'],
             'subjectRows' => $subjectRows,
             'gradingSystem' => $report['grades'],
