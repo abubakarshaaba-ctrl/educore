@@ -11,8 +11,10 @@ use App\Models\ParallelCurriculumWorkingDay;
 use App\Models\StaffAttendanceSetting;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ParallelCurriculumOperationsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class StaffAttendanceParallelReconciliationTest extends TestCase
@@ -193,6 +195,92 @@ class StaffAttendanceParallelReconciliationTest extends TestCase
                 [
                     'parallel_curriculum_id' => $other->id,
                     'user_id' => $fixture['teacher']->id,
+                ]
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_legacy_parallel_clock_in_cannot_create_an_independent_attendance_timestamp(): void
+    {
+        $fixture = $this->dualCurriculumTeacher();
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:15:00'));
+
+        try {
+            try {
+                app(ParallelCurriculumOperationsService::class)
+                    ->clockInParallelStaff(
+                        $fixture['teacher'],
+                        $fixture['curriculum']->id
+                    );
+
+                $this->fail(
+                    'Standalone parallel clock-in should require the shared conventional QR event.'
+                );
+            } catch (ValidationException $exception) {
+                $this->assertStringContainsString(
+                    'normal staff attendance QR first',
+                    $exception->getMessage()
+                );
+            }
+
+            $this->assertDatabaseMissing(
+                'parallel_curriculum_staff_attendance_records',
+                [
+                    'parallel_curriculum_id' => $fixture['curriculum']->id,
+                    'user_id' => $fixture['teacher']->id,
+                    'attendance_date' => '2026-09-21',
+                ]
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_legacy_parallel_clock_in_reuses_the_shared_qr_timestamp(): void
+    {
+        $fixture = $this->dualCurriculumTeacher();
+
+        ParallelCurriculumWorkingDay::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'parallel_curriculum_id' => $fixture['curriculum']->id,
+            'day_of_week' => 'monday',
+            'is_working' => true,
+            'resumption_time' => '08:00:00',
+            'closing_time' => '17:00:00',
+            'grace_minutes' => 0,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 07:30:00'));
+
+        try {
+            $this->withoutMiddleware()
+                ->actingAs($fixture['teacher'])
+                ->postJson(route('staff-attendance.api.clockin'), [
+                    'token' => $fixture['teacher']->personalQrPayload(),
+                ])
+                ->assertOk();
+
+            Carbon::setTestNow(Carbon::parse('2026-09-21 08:15:00'));
+
+            $record = app(ParallelCurriculumOperationsService::class)
+                ->clockInParallelStaff(
+                    $fixture['teacher'],
+                    $fixture['curriculum']->id
+                );
+
+            $this->assertSame('07:30:00', (string) $record->clock_in_time);
+            $this->assertSame('early', $record->status);
+
+            $this->assertDatabaseHas(
+                'parallel_curriculum_staff_attendance_records',
+                [
+                    'parallel_curriculum_id' => $fixture['curriculum']->id,
+                    'user_id' => $fixture['teacher']->id,
+                    'attendance_date' => '2026-09-21',
+                    'clock_in_time' => '07:30:00',
                 ]
             );
         } finally {
