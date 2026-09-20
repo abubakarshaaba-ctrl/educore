@@ -190,9 +190,13 @@
             @if($workspaces->isEmpty())
                 <div class="empty">{{ $canManage ? 'No parallel score workspace is configured yet.' : 'No parallel score workspace is assigned to this account yet.' }}</div>
             @else
-                <div class="workspaces">
+                <div class="pc-workspace-filter">
+                    <input type="search" id="parallel-workspace-filter" placeholder="Filter by programme, class, arm, subject or teacher" autocomplete="off">
+                    <span class="pc-filter-count" id="parallel-workspace-filter-count">{{ $workspaces->count() }} workspace(s)</span>
+                </div>
+                <div class="workspaces" id="parallel-workspace-list">
                     @foreach($workspaces as $workspace)
-                        <article class="workspace">
+                        <article class="workspace" data-workspace-card>
                             <strong>{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</strong>
                             <span>
                                 {{ $workspace['curriculum_name'] }}
@@ -225,8 +229,18 @@
     </div>
 
     @if($canManage)
-    <div class="pc-grid">
-        <section class="pc-card">
+    <div class="pc-grid" data-collapsible-root data-storage-key="parallel-config">
+        <div class="pc-section-toolbar">
+            <div class="pc-toolbar-copy">
+                <strong>Programme configuration</strong>
+                <span>Configuration sections are collapsed by default to keep this workspace focused. Open only the section you need.</span>
+            </div>
+            <div class="pc-toolbar-actions">
+                <button class="btn btn-s" type="button" data-expand-all>Expand all</button>
+                <button class="btn btn-s" type="button" data-collapse-all>Collapse all</button>
+            </div>
+        </div>
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">1. Create programme</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.curricula.store') }}">@csrf
@@ -240,7 +254,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">2. Create parallel class level</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.classes.store') }}">@csrf
@@ -255,7 +269,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">3. Create programme subject</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.subjects.store') }}">@csrf
@@ -270,7 +284,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">4. Assign subjects to parallel class</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
@@ -284,7 +298,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">5. Assign students independently</div>
             <div class="pc-body">
                 <div class="item" style="padding-top:0">
@@ -299,7 +313,7 @@
             </div>
         </section>
 
-        <section class="pc-card full">
+        <section class="pc-card full" data-collapsible-item>
             <div class="pc-head">6. Map programme average to conventional results</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}" id="parallel-integration-form">@csrf
@@ -356,7 +370,7 @@
             </div>
         </section>
 
-        <section class="pc-card full">
+        <section class="pc-card full" data-collapsible-item>
             <div class="pc-head">7. Configure standalone result grading scale</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.grades.store') }}">@csrf
@@ -406,7 +420,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">
                 <span>Current programme structure</span>
                 <span class="hint">Published result structures must be unpublished before protected edits.</span>
@@ -530,7 +544,7 @@
             </div>
         </section>
 
-        <section class="pc-card">
+        <section class="pc-card" data-collapsible-item>
             <div class="pc-head">Conventional result mappings</div>
             <div class="pc-body">
                 @forelse($integrations as $rule)
@@ -556,10 +570,10 @@
             </div>
         </section>
 
-        <section class="pc-card full">
+        <section class="pc-card full" data-collapsible-item>
             <div class="pc-head">Current student parallel-class assignments @if($currentSession) · {{ $currentSession->name }}@endif</div>
             <div class="pc-body">
-                @forelse($enrolments as $enrolment)
+                @forelse($enrolments->take(12) as $enrolment)
                     <div class="item">
                         <div class="item-main"><strong>{{ $enrolment->student?->full_name }} · {{ $enrolment->curriculumClass?->name }}</strong><span>{{ $enrolment->curriculum?->name }} · Conventional: {{ $enrolment->student?->currentClassArm?->full_name ?: 'Not assigned' }}</span></div>
                         <form method="POST" action="{{ route('parallel-curriculum.enrolments.destroy',$enrolment) }}">@csrf @method('DELETE')<button class="btn btn-d">Remove</button></form>
@@ -567,10 +581,16 @@
                 @empty
                     <div class="empty">No student has been assigned to a parallel class for the current session.</div>
                 @endforelse
+                @if($enrolments->count() > 12)
+                    <div class="score-entry-help" style="margin-top:10px">
+                        Showing 12 of {{ $enrolments->count() }} active assignments here to keep the dashboard compact.
+                        <a href="{{ route('parallel-curriculum.student-assignments') }}">Open the Student Assignment Workspace</a> to view and manage the full list.
+                    </div>
+                @endif
             </div>
         </section>
 
-        <section class="pc-card full">
+        <section class="pc-card full" data-collapsible-item>
             <div class="pc-head">Composite synchronization @if($currentTerm) · {{ $currentTerm->name }}@endif</div>
             <div class="pc-body">
                 @if($currentTerm && $curricula->isNotEmpty())
@@ -740,6 +760,32 @@
     });
 
     refreshDestinationSubjects();
+})();
+</script>
+@include('parallel-curriculum.partials.progressive-disclosure')
+<script>
+(function () {
+    const input = document.getElementById('parallel-workspace-filter');
+    const list = document.getElementById('parallel-workspace-list');
+    const count = document.getElementById('parallel-workspace-filter-count');
+    if (!input || !list || !count) return;
+
+    const cards = Array.from(list.querySelectorAll('[data-workspace-card]'));
+    const refresh = () => {
+        const query = input.value.trim().toLowerCase();
+        let visible = 0;
+
+        cards.forEach((card) => {
+            const matches = !query || card.textContent.toLowerCase().includes(query);
+            card.hidden = !matches;
+            if (matches) visible++;
+        });
+
+        count.textContent = visible + ' of ' + cards.length + ' workspace(s)';
+    };
+
+    input.addEventListener('input', refresh);
+    refresh();
 })();
 </script>
 @endpush
