@@ -1,6 +1,12 @@
 package online.educoreng.educore.core.network.dto
 
 import com.squareup.moshi.Json
+import online.educoreng.educore.core.model.ParallelSkillArm
+import online.educoreng.educore.core.model.ParallelSkillDefinition
+import online.educoreng.educore.core.model.ParallelSkillScale
+import online.educoreng.educore.core.model.ParallelSkillStudent
+import online.educoreng.educore.core.model.ParallelSkillTerm
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
 
 data class ParallelSkillWorkspaceDto(
     @param:Json(name = "contract_version") val contractVersion: Int = 1,
@@ -83,3 +89,52 @@ data class ParallelSkillSaveResponseDto(
     val saved: Int = 0,
     val cleared: Int = 0,
 )
+
+fun ParallelSkillWorkspaceDto.toDomain(): ParallelSkillWorkspace =
+    ParallelSkillWorkspace(
+        selectedArmId = selectedArmId,
+        selectedTermId = selectedTermId,
+        arms = arms.map {
+            ParallelSkillArm(
+                id = it.id,
+                name = it.name,
+                classId = it.classId,
+                className = it.className,
+                curriculumId = it.curriculumId,
+                curriculumName = it.curriculumName,
+                label = it.label,
+            )
+        },
+        terms = terms.map {
+            ParallelSkillTerm(
+                id = it.id,
+                name = it.name,
+                sessionId = it.sessionId,
+                sessionName = it.sessionName,
+                isCurrent = it.isCurrent,
+                label = it.label,
+            )
+        },
+        skills = skills.map {
+            ParallelSkillDefinition(
+                id = it.id,
+                name = it.name,
+                category = it.category,
+                sortOrder = it.sortOrder,
+            )
+        },
+        students = students.map { student ->
+            ParallelSkillStudent(
+                enrolmentId = student.enrolmentId,
+                studentId = student.studentId,
+                name = student.name,
+                admissionNumber = student.admissionNumber,
+                ratings = student.ratings.associate { it.skillId to it.rating },
+            )
+        },
+        ratingScale = ratingScale.map {
+            ParallelSkillScale(value = it.value, label = it.label)
+        },
+        canManage = capabilities.manage,
+    )
+
