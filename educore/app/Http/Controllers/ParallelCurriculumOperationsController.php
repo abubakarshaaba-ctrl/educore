@@ -242,6 +242,7 @@ class ParallelCurriculumOperationsController extends Controller
             'date' => $date,
             'periods' => $periods,
             'attendance' => $attendance,
+            'canManageOperations' => $canManageOperations,
             'canManageTimetable' => $this->operations->canManageTimetable($user),
             'canMarkAttendance' => $canMarkAttendance,
             'canExportAttendance' => $selectedArm
