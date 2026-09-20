@@ -19,6 +19,7 @@ import online.educoreng.educore.core.model.ParallelStudentResultDetail
 import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
+import online.educoreng.educore.core.model.ParallelWorkingDay
 
 data class ParallelLifecycleUiState(
     val workspace: ParallelLifecycleWorkspace? = null,
@@ -200,6 +201,37 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
 
     fun deleteTimetablePeriod(periodId: Long) {
         mutateOperations { repository.deleteTimetablePeriod(periodId) }
+    }
+
+    fun saveWorkingDays(days: List<ParallelWorkingDay>) {
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+        if (days.isEmpty()) return failLocal("Configure at least one working day.")
+
+        mutateOperations {
+            repository.saveWorkingDays(curriculumId, days)
+        }
+    }
+
+    fun clockInParallelStaff() {
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+
+        mutateOperations {
+            repository.clockInParallelStaff(curriculumId)
+        }
+    }
+
+    fun clockOutParallelStaff() {
+        val curriculumId = _uiState.value.operationsWorkspace?.selected?.curriculumId
+            ?: _uiState.value.selectedCurriculumId
+            ?: return failLocal("Select a parallel curriculum first.")
+
+        mutateOperations {
+            repository.clockOutParallelStaff(curriculumId)
+        }
     }
 
     fun downloadAttendanceExport(format: String) {
@@ -776,6 +808,27 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         teacherId: Long?,
     ) {
         mutate { repository.saveArmTeacher(armId, subjectId, teacherId) }
+    }
+
+    fun saveArmTeachingMode(
+        armId: Long,
+        teachingAssignmentMode: String,
+        classTeacherId: Long?,
+    ) {
+        if (teachingAssignmentMode !in setOf("class_teacher", "subject_based")) {
+            return failLocal("Choose a valid teaching assignment mode.")
+        }
+        if (teachingAssignmentMode == "class_teacher" && classTeacherId == null) {
+            return failLocal("Select the class teacher.")
+        }
+
+        mutate {
+            repository.saveArmTeachingMode(
+                armId = armId,
+                teachingAssignmentMode = teachingAssignmentMode,
+                classTeacherId = classTeacherId,
+            )
+        }
     }
 
     fun saveGrade(
