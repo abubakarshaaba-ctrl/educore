@@ -112,7 +112,7 @@ class MobileParallelCurriculumOperationsController extends Controller
             : null;
 
         if ($curriculum && ! $canManageOperations) {
-            $curriculum->classes->each(function ($item) use ($user): void {
+            $curriculum->classes->each(function ($item) use ($user, $tenantId): void {
                 $item->setRelation(
                     'arms',
                     $item->arms
@@ -123,6 +123,25 @@ class MobileParallelCurriculumOperationsController extends Controller
                                     $armItem
                                 )
                         )
+                        ->values()
+                );
+
+                $item->setRelation(
+                    'subjectAssignments',
+                    $item->subjectAssignments
+                        ->filter(function ($assignment) use ($item, $user, $tenantId): bool {
+                            return $item->arms->contains(
+                                fn (ParallelCurriculumClassArm $armItem) =>
+                                    (int) (
+                                        $this->operations->effectiveTeacherId(
+                                            $tenantId,
+                                            (int) $item->id,
+                                            (int) $armItem->id,
+                                            (int) $assignment->parallel_curriculum_subject_id
+                                        ) ?? 0
+                                    ) === (int) $user->id
+                            );
+                        })
                         ->values()
                 );
             });
@@ -185,6 +204,10 @@ class MobileParallelCurriculumOperationsController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_class_arm_id', $arm->id)
                 ->where('session_id', $sessionId)
+                ->when(
+                    ! $canManageOperations,
+                    fn ($query) => $query->where('teacher_id', $user->id)
+                )
                 ->get()
                 ->sortBy(fn (ParallelCurriculumTimetablePeriod $period) =>
                     array_search($period->day_of_week, ParallelCurriculumOperationsService::DAYS, true)
