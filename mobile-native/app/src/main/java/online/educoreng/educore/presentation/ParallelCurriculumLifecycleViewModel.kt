@@ -216,12 +216,14 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
         if (days.size != 7) return failLocal("Configure all seven days of the week.")
         val timePattern = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
         val invalid = days.firstOrNull { day ->
+            val resumptionTime = day.resumptionTime.orEmpty()
+            val closingTime = day.closingTime.orEmpty()
             day.isWorking && (
-                day.resumptionTime.isNullOrBlank() ||
-                    day.closingTime.isNullOrBlank() ||
-                    !timePattern.matches(day.resumptionTime) ||
-                    !timePattern.matches(day.closingTime) ||
-                    day.closingTime.orEmpty() <= day.resumptionTime.orEmpty() ||
+                resumptionTime.isBlank() ||
+                    closingTime.isBlank() ||
+                    !timePattern.matches(resumptionTime) ||
+                    !timePattern.matches(closingTime) ||
+                    closingTime <= resumptionTime ||
                     day.graceMinutes < 0
             )
         }
