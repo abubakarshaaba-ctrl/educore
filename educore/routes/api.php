@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\MobileBootstrapController;
 use App\Http\Controllers\Api\MobileClassController;
 use App\Http\Controllers\Api\MobileCommunicationController;
 use App\Http\Controllers\Api\MobileAcademicKnowledgeController;
+use App\Http\Controllers\Api\MobileAdvancedAdministrationController;
 use App\Http\Controllers\Api\MobileDashboardController;
 use App\Http\Controllers\Api\MobileLessonPlannerController;
 use App\Http\Controllers\Api\MobileOperationsController;
@@ -276,6 +277,17 @@ Route::prefix('v1')->group(function () {
             Route::post('fees/verify', [MobilePaymentController::class, 'verifyParentFee']);
             Route::get('fees/invoices/{invoice}/status', [MobilePaymentController::class, 'parentFeeStatus']);
             Route::get('fees/payments', [MobilePaymentController::class, 'parentPayments']);
+        });
+
+        Route::prefix('advanced-admin')->group(function () {
+            Route::get('/', [MobileAdvancedAdministrationController::class, 'index']);
+            Route::post('migrations', [MobileAdvancedAdministrationController::class, 'storeMigration']);
+            Route::post('migrations/{migration}/ingest', [MobileAdvancedAdministrationController::class, 'ingest']);
+            Route::post('migrations/{migration}/verify', [MobileAdvancedAdministrationController::class, 'verify']);
+            Route::post('migrations/{migration}/blueprint', [MobileAdvancedAdministrationController::class, 'reconstructBlueprint']);
+            Route::post('migration-requests/{migrationRequest}/approve', [MobileAdvancedAdministrationController::class, 'approve']);
+            Route::post('migration-requests/{migrationRequest}/reject', [MobileAdvancedAdministrationController::class, 'reject']);
+            Route::post('backup', [MobileAdvancedAdministrationController::class, 'backup']);
         });
 
         Route::prefix('admin')->group(function () {
