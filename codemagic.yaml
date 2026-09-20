@@ -25,6 +25,34 @@ workflows:
             exit 1
           fi
           printf '%s\n' "$(pwd)" > /tmp/educore-android-workspace
+      - name: Verify checked-out native source
+        script: |
+          set -euo pipefail
+          cd "$(cat /tmp/educore-android-workspace)"
+
+          echo "Codemagic branch: ${CM_BRANCH:-unknown}"
+          echo "Codemagic commit: ${CM_COMMIT:-unknown}"
+          echo "Git HEAD: $(git rev-parse HEAD)"
+
+          if [ -n "${CM_COMMIT:-}" ] && [ "$(git rev-parse HEAD)" != "$CM_COMMIT" ]; then
+            echo "Checked-out Git HEAD does not match CM_COMMIT."
+            exit 1
+          fi
+
+          API_FILE="core/network/src/main/java/online/educoreng/educore/core/network/EduCoreApi.kt"
+          DTO_FILE="core/network/src/main/java/online/educoreng/educore/core/network/dto/ParallelLifecycleDtos.kt"
+
+          grep -Fq "import online.educoreng.educore.core.network.dto.ParallelArmTeachingModeMutationRequestDto" "$API_FILE" || {
+            echo "Current checkout is missing the ParallelArmTeachingModeMutationRequestDto import."
+            exit 1
+          }
+
+          grep -Fq "data class ParallelArmTeachingModeMutationRequestDto(" "$DTO_FILE" || {
+            echo "Current checkout is missing the ParallelArmTeachingModeMutationRequestDto declaration."
+            exit 1
+          }
+
+          echo "Native source contract verified before Gradle."
       - name: Verify release environment
         script: |
           set -euo pipefail
