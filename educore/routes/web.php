@@ -485,6 +485,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('save',             [ScoreController::class, 'save'])->name('save');
         Route::get('broadsheet',        [ScoreController::class, 'broadsheet'])->name('broadsheet');
         Route::get('broadsheet/pdf',    [ScoreController::class, 'broadsheetPdf'])->name('broadsheet.pdf');
+        Route::get('cumulative-broadsheet', [ScoreController::class, 'cumulativeBroadsheet'])->name('cumulative-broadsheet');
+        Route::get('cumulative-broadsheet/pdf', [ScoreController::class, 'cumulativeBroadsheetPdf'])->name('cumulative-broadsheet.pdf');
     });
 
     // ── Parallel Curriculum Integration ───────────────────────────────
