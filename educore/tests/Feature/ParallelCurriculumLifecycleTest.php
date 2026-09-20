@@ -293,6 +293,73 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
     }
 
+    public function test_parallel_curriculum_workspaces_include_responsive_decongestion_controls(): void
+    {
+        $index = file_get_contents(
+            resource_path('views/parallel-curriculum/index.blade.php')
+        );
+        $lifecycle = file_get_contents(
+            resource_path('views/parallel-curriculum/lifecycle/index.blade.php')
+        );
+        $operations = file_get_contents(
+            resource_path('views/parallel-curriculum/operations.blade.php')
+        );
+        $results = file_get_contents(
+            resource_path('views/parallel-curriculum/results/index.blade.php')
+        );
+        $ui = file_get_contents(
+            resource_path('views/parallel-curriculum/partials/global-ui.blade.php')
+        );
+        $disclosure = file_get_contents(
+            resource_path('views/parallel-curriculum/partials/progressive-disclosure.blade.php')
+        );
+
+        $this->assertStringContainsString(
+            'data-storage-key="parallel-config"',
+            $index
+        );
+        $this->assertStringContainsString(
+            'id="parallel-workspace-filter"',
+            $index
+        );
+        $this->assertStringContainsString(
+            '$enrolments->take(12)',
+            $index
+        );
+        $this->assertStringContainsString(
+            "parallel-curriculum.partials.progressive-disclosure",
+            $index
+        );
+
+        $this->assertStringContainsString(
+            'data-storage-key="parallel-lifecycle"',
+            $lifecycle
+        );
+        $this->assertStringContainsString(
+            "parallel-curriculum.partials.progressive-disclosure",
+            $lifecycle
+        );
+
+        $this->assertStringContainsString(
+            'data-storage-key="parallel-operations"',
+            $operations
+        );
+        $this->assertStringContainsString('staff-att-table', $operations);
+        $this->assertStringContainsString('learner-att-table', $operations);
+        $this->assertStringContainsString(
+            "parallel-curriculum.partials.progressive-disclosure",
+            $operations
+        );
+
+        $this->assertStringContainsString('results-table', $results);
+        $this->assertStringContainsString(
+            'Parallel result register: card layout on phones.',
+            $ui
+        );
+        $this->assertStringContainsString('aria-expanded', $disclosure);
+        $this->assertStringContainsString('localStorage', $disclosure);
+    }
+
     private function mappingFixture(): array
     {
         $tenant = Tenant::create([
