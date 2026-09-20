@@ -394,6 +394,9 @@ class ParallelCurriculumResultController extends Controller
             ?: AcademicSession::where('tenant_id', $tenantId)
                 ->where('is_current', true)
                 ->value('id')
+            ?: AcademicSession::where('tenant_id', $tenantId)
+                ->orderByDesc('id')
+                ->value('id')
         );
 
         $session = AcademicSession::where('tenant_id', $tenantId)
@@ -452,6 +455,9 @@ class ParallelCurriculumResultController extends Controller
             $request->integer('session_id')
             ?: AcademicSession::where('tenant_id', $tenantId)
                 ->where('is_current', true)
+                ->value('id')
+            ?: AcademicSession::where('tenant_id', $tenantId)
+                ->orderByDesc('id')
                 ->value('id')
         );
 
