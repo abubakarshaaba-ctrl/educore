@@ -139,6 +139,8 @@ Route::prefix('v1')->group(function () {
         Route::get('scores/teaching', [ScoreController::class, 'teaching']);
         Route::get('scores/sheet', [ScoreController::class, 'sheet']);
         Route::post('scores/save', [ScoreController::class, 'save']);
+        Route::get('scores/cumulative-broadsheet', [ScoreController::class, 'cumulativeBroadsheet']);
+        Route::get('scores/cumulative-broadsheet/pdf', [ScoreController::class, 'cumulativeBroadsheetPdf']);
 
         Route::get('parallel-scores/teaching', [ParallelCurriculumScoreController::class, 'teaching']);
         Route::get('parallel-scores/sheet', [ParallelCurriculumScoreController::class, 'sheet']);
