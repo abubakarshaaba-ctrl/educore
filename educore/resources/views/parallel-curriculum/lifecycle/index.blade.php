@@ -91,7 +91,7 @@
 </div>
 </div></section>
 
-<section id="teaching-assignment-model" class="card full"><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm. In all-subject mode the class teacher sees only subjects already assigned to that class. In subject-based mode each teacher sees only the specific class/subject assignments that resolve to them.</span></div></div><div class="body">
+<section id="teaching-assignment-model" class="card full" data-collapsible-item><div class="head"><div><strong>3. Teaching assignment model</strong><br><span>Choose how teachers are allocated for each parallel class arm. In all-subject mode the class teacher sees only subjects already assigned to that class. In subject-based mode each teacher sees only the specific class/subject assignments that resolve to them.</span></div></div><div class="body">
 @if(!$armTeachingModesReady)
     <div class="alert-e" style="margin:0">
         Teaching assignment modes are waiting for the latest database migration. Existing subject-teacher assignments remain available.
