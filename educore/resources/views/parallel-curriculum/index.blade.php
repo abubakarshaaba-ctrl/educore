@@ -37,6 +37,8 @@
         @if($canManage)
             <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab">Programme Setup</a>
             <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
+            <a href="{{ route('parallel-curriculum.class-list') }}" class="pc-tab">Class List</a>
+            <a href="{{ route('parallel-curriculum.teacher-list') }}" class="pc-tab">Teacher List</a>
             <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
         @endif
         @if($canViewOperations)
