@@ -14,6 +14,7 @@ use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumSubject;
+use App\Models\ParallelCurriculumTimetablePeriod;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Tenant;
@@ -224,6 +225,58 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         ]);
         $context['classSubject']->update(['teacher_id' => $teacher->id]);
 
+        $otherTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Other Subject Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        $otherSubject = ParallelCurriculumSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Hadith',
+            'code' => 'HAD',
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumClassSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_subject_id' => $otherSubject->id,
+            'teacher_id' => $otherTeacher->id,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumTimetablePeriod::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'parallel_curriculum_subject_id' => $context['subject']->id,
+            'teacher_id' => $teacher->id,
+            'session_id' => $context['session']->id,
+            'day_of_week' => 'monday',
+            'start_time' => '11:00',
+            'end_time' => '11:40',
+            'venue' => 'Room A',
+        ]);
+
+        ParallelCurriculumTimetablePeriod::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'parallel_curriculum_class_id' => $context['class']->id,
+            'parallel_curriculum_class_arm_id' => $context['arm']->id,
+            'parallel_curriculum_subject_id' => $otherSubject->id,
+            'teacher_id' => $otherTeacher->id,
+            'session_id' => $context['session']->id,
+            'day_of_week' => 'monday',
+            'start_time' => '12:00',
+            'end_time' => '12:40',
+            'venue' => 'Room B',
+        ]);
+
         $term = Term::create([
             'tenant_id' => $context['tenant']->id,
             'session_id' => $context['session']->id,
@@ -275,6 +328,10 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertJsonPath('capabilities.manage_timetable', false)
             ->assertJsonPath('capabilities.save_attendance', true)
             ->assertJsonPath('capabilities.export_attendance', false)
+            ->assertJsonCount(1, 'classes.0.subjects')
+            ->assertJsonPath('classes.0.subjects.0.id', $context['subject']->id)
+            ->assertJsonCount(1, 'periods')
+            ->assertJsonPath('periods.0.teacher_id', $teacher->id)
             ->assertJsonPath('attendance.students.0.enrolment_id', $enrolment->id);
 
         $version = $response->json('attendance.version');
