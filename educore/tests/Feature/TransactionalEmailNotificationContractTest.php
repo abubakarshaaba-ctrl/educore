@@ -39,6 +39,23 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $this->assertStringContainsString('notifyPaid(', $mobile);
     }
 
+    public function test_platform_broadcast_email_is_called_from_all_publishers(): void
+    {
+        $api = file_get_contents(app_path('Http/Controllers/Api/PlatformBroadcastController.php'));
+        $mobile = file_get_contents(app_path('Http/Controllers/Api/MobilePlatformBroadcastController.php'));
+        $legacy = file_get_contents(app_path('Http/Controllers/SuperAdminController.php'));
+        $service = file_get_contents(app_path('Services/Notifications/PlatformBroadcastEmailService.php'));
+
+        $this->assertStringContainsString('PlatformBroadcastEmailService', $api);
+        $this->assertStringContainsString('sendToTenantIds(', $api);
+        $this->assertStringContainsString('PlatformBroadcastEmailService', $mobile);
+        $this->assertStringContainsString('sendToTenantIds(', $mobile);
+        $this->assertStringContainsString('PlatformBroadcastEmailService', $legacy);
+        $this->assertStringContainsString('sendToTenantIds(', $legacy);
+        $this->assertStringContainsString('PlatformBroadcastNotification', $service);
+        $this->assertStringContainsString('/platform-notices', $service);
+    }
+
     public function test_security_recruitment_and_tenant_lifecycle_mailers_remain_present(): void
     {
         foreach ([
