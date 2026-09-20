@@ -178,7 +178,7 @@ class ParallelCurriculumService
         // enforces the effective parallel teacher assignment.
         $canEnterAll = $includeAll || $user->isSuperAdmin();
 
-        return ParallelCurriculumClassSubject::with($relations)
+        $workspaces = ParallelCurriculumClassSubject::with($relations)
             ->where('tenant_id', $user->tenant_id)
             ->where('is_active', true)
             ->get()
@@ -251,9 +251,7 @@ class ParallelCurriculumService
                         'class_label' => $class->name.($arm ? ' '.$arm->name : ''),
                         'curriculum_name' => $curriculum?->name ?: 'Parallel Curriculum',
                         'effective_teacher_id' => $effectiveTeacherId,
-                        'effective_teacher_name' => $effectiveTeacherId
-                            ? User::whereKey($effectiveTeacherId)->value('name')
-                            : null,
+                        'effective_teacher_name' => null,
                         'is_form_teacher' => $isFormTeacher,
                         'attendance_url' => ($isFormTeacher && $arm)
                             ? route('parallel-curriculum.operations.index', array_filter([
@@ -273,6 +271,30 @@ class ParallelCurriculumService
                             : null,
                     ];
                 })->filter();
+            })
+            ->values();
+
+        $teacherIds = $workspaces
+            ->pluck('effective_teacher_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $teacherNames = $teacherIds->isEmpty()
+            ? collect()
+            : User::where('tenant_id', $user->tenant_id)
+                ->whereIn('id', $teacherIds)
+                ->pluck('name', 'id');
+
+        return $workspaces
+            ->map(function (array $workspace) use ($teacherNames): array {
+                $teacherId = $workspace['effective_teacher_id'] ?? null;
+                $workspace['effective_teacher_name'] = $teacherId
+                    ? $teacherNames->get((int) $teacherId)
+                    : null;
+
+                return $workspace;
             })
             ->values();
     }
