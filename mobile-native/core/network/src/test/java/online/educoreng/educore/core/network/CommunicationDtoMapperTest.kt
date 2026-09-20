@@ -20,7 +20,17 @@ class CommunicationDtoMapperTest {
         val page = NotificationsResponseDto(
             contractVersion = 1,
             notifications = listOf(
-                NotificationItemDto(8, "PTA meeting", "Friday at noon", "important", "2026-08-31", null, false, DeepLinkDto("announcement", "8")),
+                NotificationItemDto(
+                    id = 8,
+                    title = "PTA meeting",
+                    body = "Friday at noon",
+                    imageUrl = null,
+                    priority = "important",
+                    publishedAt = "2026-08-31",
+                    expiresAt = null,
+                    isRead = false,
+                    deepLink = DeepLinkDto("announcement", "8"),
+                ),
             ),
             unreadCount = 1,
             meta = CommunicationMetaDto(1, 2),
