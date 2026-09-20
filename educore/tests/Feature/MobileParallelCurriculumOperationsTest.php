@@ -389,7 +389,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
         $this->actingAs($context['admin'])
             ->get(route('parallel-curriculum.setup'))
             ->assertOk()
-            ->assertSee('Programme Setup &amp; Integration', false);
+            ->assertSee('Programme Setup & Integration', false);
 
         $this->actingAs($teacher)
             ->get(route('parallel-curriculum.setup'))
@@ -405,7 +405,7 @@ class MobileParallelCurriculumOperationsTest extends TestCase
                 'date' => now()->toDateString(),
             ]))
             ->assertOk()
-            ->assertSee('Timetable &amp; Attendance', false)
+            ->assertSee('Timetable & Attendance', false)
             ->assertDontSee('Programme Setup')
             ->assertDontSee('Student Assignments')
             ->assertDontSee('Academic Lifecycle')
