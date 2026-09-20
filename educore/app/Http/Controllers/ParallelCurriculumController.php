@@ -1575,6 +1575,7 @@ class ParallelCurriculumController extends Controller
     public function breakdown(ParallelCurriculumComposite $composite)
     {
         $this->assertEnabled();
+        $this->assertManage();
         abort_unless((int) $composite->tenant_id === $this->tenantId(), 403);
 
         $composite->load([
