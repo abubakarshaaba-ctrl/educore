@@ -210,8 +210,45 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $classLevels = $canManage
-            ? ClassLevel::orderBy('order_index')->orderBy('name')->get()
+            ? ClassLevel::with('classArms')
+                ->orderBy('order_index')
+                ->orderBy('name')
+                ->get()
             : collect();
+
+        $integrationSubjectCompatibility = collect();
+        if ($canManage && $classLevels->isNotEmpty() && $conventionalSubjects->isNotEmpty()) {
+            $rulesByLevel = ClassLevelSubject::whereIn(
+                    'class_level_id',
+                    $classLevels->pluck('id')
+                )
+                ->where('is_active', true)
+                ->get()
+                ->groupBy('class_level_id');
+
+            $integrationSubjectCompatibility = $conventionalSubjects
+                ->mapWithKeys(function (Subject $subject) use (
+                    $classLevels,
+                    $rulesByLevel,
+                    $tenantId
+                ): array {
+                    $compatibleLevelIds = $classLevels
+                        ->filter(fn (ClassLevel $level) =>
+                            $this->service->conventionalSubjectAvailableForClassLevel(
+                                $tenantId,
+                                (int) $subject->id,
+                                $level,
+                                $rulesByLevel->get($level->id, collect())
+                            )
+                        )
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->values()
+                        ->all();
+
+                    return [(int) $subject->id => $compatibleLevelIds];
+                });
+        }
 
         $staff = $canManage
             ? User::where('tenant_id', $tenantId)
@@ -284,6 +321,7 @@ class ParallelCurriculumController extends Controller
             'templates',
             'conventionalSubjects',
             'classLevels',
+            'integrationSubjectCompatibility',
             'staff',
             'integrations',
             'enrolments',
@@ -1164,7 +1202,7 @@ class ParallelCurriculumController extends Controller
                     ->exists();
 
                 if (! $subjectOffered) {
-                    $mappingErrors[] = "{$level->name}: the selected destination subject is not offered.";
+                    $mappingErrors[] = "{$level->name}: the selected destination subject is not offered. Add it to this conventional class level or remove the class level from this mapping.";
                 }
 
                 continue;
@@ -1179,8 +1217,9 @@ class ParallelCurriculumController extends Controller
             );
 
             if ($invalidArms->isNotEmpty()) {
-                $mappingErrors[] = "{$level->name}: the selected destination subject is unavailable in ".
-                    $invalidArms->map(fn (ClassArm $arm) => $arm->full_name)->join(', ').'.';
+                $mappingErrors[] = "{$level->name}: the selected destination subject is not offered in ".
+                    $invalidArms->map(fn (ClassArm $arm) => $arm->full_name)->join(', ').
+                    '. Add the subject to this conventional class level/track or remove the class level from this mapping.';
             }
         }
 
