@@ -580,9 +580,11 @@
 [data-collapsible-item].is-collapsed > .pc-head,
 [data-collapsible-item].is-collapsed > .head{border-bottom:0}
 .pc-workspace-filter{
-    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:12px;
+    display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:12px;
 }
 .pc-workspace-filter input{width:100%;min-height:42px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font:500 13px inherit}
+.pc-workspace-filter .pc-filter-actions{display:flex;gap:7px;align-items:center}
+.pc-workspace-filter .pc-filter-actions .btn{white-space:nowrap}
 .pc-workspace-filter .pc-filter-count{font-size:11.5px;font-weight:700;color:var(--slate);white-space:nowrap}
 
 @media(max-width:640px){
@@ -593,6 +595,8 @@
     .pc-collapse-toggle{min-height:40px}
     .pc-collapsible-head{align-items:flex-start}
     .pc-workspace-filter{grid-template-columns:1fr}
+    .pc-workspace-filter .pc-filter-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .pc-workspace-filter .pc-filter-actions .btn{width:100%}
     .pc-workspace-filter .pc-filter-count{white-space:normal}
 }
 
