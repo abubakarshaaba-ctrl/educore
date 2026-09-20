@@ -103,7 +103,7 @@ class ParallelCurriculumOperationsController extends Controller
             : null;
 
         if ($selectedCurriculum && ! $canManageOperations) {
-            $selectedCurriculum->classes->each(function ($class) use ($user): void {
+            $selectedCurriculum->classes->each(function ($class) use ($user, $tenantId): void {
                 $class->setRelation(
                     'arms',
                     $class->arms
@@ -114,6 +114,25 @@ class ParallelCurriculumOperationsController extends Controller
                                     $arm
                                 )
                         )
+                        ->values()
+                );
+
+                $class->setRelation(
+                    'subjectAssignments',
+                    $class->subjectAssignments
+                        ->filter(function ($assignment) use ($class, $user, $tenantId): bool {
+                            return $class->arms->contains(
+                                fn (ParallelCurriculumClassArm $arm) =>
+                                    (int) (
+                                        $this->operations->effectiveTeacherId(
+                                            $tenantId,
+                                            (int) $class->id,
+                                            (int) $arm->id,
+                                            (int) $assignment->parallel_curriculum_subject_id
+                                        ) ?? 0
+                                    ) === (int) $user->id
+                            );
+                        })
                         ->values()
                 );
             });
@@ -177,6 +196,10 @@ class ParallelCurriculumOperationsController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('parallel_curriculum_class_arm_id', $selectedArm->id)
                 ->where('session_id', $sessionId)
+                ->when(
+                    ! $canManageOperations,
+                    fn ($query) => $query->where('teacher_id', $user->id)
+                )
                 ->orderByRaw("CASE day_of_week
                     WHEN 'monday' THEN 1
                     WHEN 'tuesday' THEN 2
