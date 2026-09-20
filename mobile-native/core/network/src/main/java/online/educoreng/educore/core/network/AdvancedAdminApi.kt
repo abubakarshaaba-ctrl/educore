@@ -52,7 +52,7 @@ interface AdvancedAdminApi {
 
     @POST("advanced-admin/migration-requests/{migrationRequest}/reject")
     suspend fun reject(
-        @Path("request") requestId: Long,
+        @Path("migrationRequest") requestId: Long,
         @Body body: AdvancedAdminDecisionDto,
     ): AdvancedAdminMessageDto
 
