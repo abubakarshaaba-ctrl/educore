@@ -8,17 +8,22 @@ use App\Models\ClassLevel;
 use App\Models\ClassLevelSubject;
 use App\Models\ParallelCurriculum;
 use App\Models\ParallelCurriculumClass;
+use App\Models\ParallelCurriculumClassArm;
+use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumComposite;
 use App\Models\ParallelCurriculumEnrolment;
 use App\Models\ParallelCurriculumIntegration;
+use App\Models\ParallelCurriculumSubject;
 use App\Models\ReportCardPublication;
 use App\Models\Score;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Tenant;
 use App\Models\Term;
+use App\Models\User;
 use App\Services\ParallelCurriculumService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ParallelCurriculumLifecycleTest extends TestCase
@@ -281,6 +286,220 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertStringContainsString('No conventional subject is offered across every selected class level/academic track', $view);
     }
 
+    public function test_parallel_setup_uses_dedicated_controller_action_and_skips_score_workspace_loading(): void
+    {
+        $route = app('router')->getRoutes()->getByName('parallel-curriculum.setup');
+
+        $this->assertNotNull($route);
+        $this->assertStringEndsWith(
+            'ParallelCurriculumController@setup',
+            $route->getActionName()
+        );
+
+        $controller = file_get_contents(
+            app_path('Http/Controllers/ParallelCurriculumController.php')
+        );
+
+        $this->assertStringContainsString(
+            'public function setup(Request $request)',
+            $controller
+        );
+        $this->assertStringContainsString(
+            '$workspaces = $isSetup',
+            $controller
+        );
+        $this->assertStringContainsString(
+            '? collect()',
+            $controller
+        );
+    }
+
+    public function test_parallel_workspace_paginates_and_server_filters_large_workspace_sets(): void
+    {
+        $context = $this->managerContext();
+
+        $curriculum = ParallelCurriculum::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Islamiyyah',
+            'code' => 'ISL',
+            'is_active' => true,
+        ]);
+
+        $parallelClass = ParallelCurriculumClass::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $curriculum->id,
+            'name' => 'Mutawassitah 1',
+            'code' => 'M1',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $parallelClass->id,
+            'name' => 'A',
+            'code' => 'A',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        foreach (range(1, 30) as $index) {
+            $subject = ParallelCurriculumSubject::create([
+                'tenant_id' => $context['tenant']->id,
+                'parallel_curriculum_id' => $curriculum->id,
+                'name' => 'Parallel Subject '.$index,
+                'code' => 'PS'.$index,
+                'is_active' => true,
+            ]);
+
+            ParallelCurriculumClassSubject::create([
+                'tenant_id' => $context['tenant']->id,
+                'parallel_curriculum_class_id' => $parallelClass->id,
+                'parallel_curriculum_subject_id' => $subject->id,
+                'teacher_id' => null,
+                'is_active' => true,
+            ]);
+        }
+
+        $response = $this->actingAs($context['admin'])
+            ->get(route('parallel-curriculum.index'))
+            ->assertOk();
+
+        $paginator = $response->viewData('workspacePaginator');
+        $this->assertNotNull($paginator);
+        $this->assertSame(30, $paginator->total());
+        $this->assertCount(24, $paginator->items());
+
+        $filtered = $this->actingAs($context['admin'])
+            ->get(route('parallel-curriculum.index', [
+                'workspace_q' => 'Parallel Subject 30',
+            ]))
+            ->assertOk()
+            ->viewData('workspacePaginator');
+
+        $this->assertSame(1, $filtered->total());
+        $this->assertSame(
+            'Parallel Subject 30',
+            $filtered->items()[0]['subject_name']
+        );
+    }
+
+    public function test_manager_can_create_and_update_multi_level_parallel_mapping(): void
+    {
+        $context = $this->managerContext();
+
+        $levelOne = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'SS 1',
+            'section' => 'senior',
+            'order_index' => 1,
+        ]);
+        $levelTwo = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'SS 2',
+            'section' => 'senior',
+            'order_index' => 2,
+        ]);
+        $subject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Islamiyyah Studies',
+            'code' => 'ISS',
+            'is_active' => true,
+        ]);
+        $curriculum = ParallelCurriculum::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Islamiyyah',
+            'code' => 'ISL',
+            'is_active' => true,
+        ]);
+
+        $payload = [
+            '_parallel_section' => 'setup-integration',
+            'parallel_curriculum_id' => $curriculum->id,
+            'destination_class_level_ids' => [$levelOne->id, $levelTwo->id],
+            'destination_subject_id' => $subject->id,
+            'minimum_completed_subjects' => 2,
+            'require_all_subjects' => 0,
+            'auto_sync' => 0,
+        ];
+
+        $this->actingAs($context['admin'])
+            ->from(route('parallel-curriculum.setup'))
+            ->post(route('parallel-curriculum.integrations.store'), $payload)
+            ->assertRedirect(route('parallel-curriculum.setup'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('parallel_curriculum_integrations', 2);
+        foreach ([$levelOne, $levelTwo] as $level) {
+            $this->assertDatabaseHas('parallel_curriculum_integrations', [
+                'tenant_id' => $context['tenant']->id,
+                'parallel_curriculum_id' => $curriculum->id,
+                'destination_class_level_id' => $level->id,
+                'destination_subject_id' => $subject->id,
+                'minimum_completed_subjects' => 2,
+                'require_all_subjects' => 0,
+                'auto_sync' => 0,
+                'is_active' => 1,
+            ]);
+        }
+
+        $payload['minimum_completed_subjects'] = 1;
+        $payload['require_all_subjects'] = 1;
+        $payload['auto_sync'] = 1;
+
+        $this->actingAs($context['admin'])
+            ->from(route('parallel-curriculum.setup'))
+            ->post(route('parallel-curriculum.integrations.store'), $payload)
+            ->assertRedirect(route('parallel-curriculum.setup'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('parallel_curriculum_integrations', 2);
+        foreach ([$levelOne, $levelTwo] as $level) {
+            $this->assertDatabaseHas('parallel_curriculum_integrations', [
+                'destination_class_level_id' => $level->id,
+                'minimum_completed_subjects' => 1,
+                'require_all_subjects' => 1,
+                'auto_sync' => 1,
+                'is_active' => 1,
+            ]);
+        }
+    }
+
+    public function test_published_mapping_change_is_rejected_through_web_workflow(): void
+    {
+        $fixture = $this->mappingFixture();
+
+        ReportCardPublication::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'class_arm_id' => $fixture['classArm']->id,
+            'term_id' => $fixture['term']->id,
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $response = $this->actingAs($fixture['admin'])
+            ->from(route('parallel-curriculum.setup'))
+            ->post(route('parallel-curriculum.integrations.store'), [
+                '_parallel_section' => 'setup-integration',
+                'parallel_curriculum_id' => $fixture['curriculum']->id,
+                'destination_class_level_ids' => [$fixture['classLevel']->id],
+                'destination_subject_id' => $fixture['subject']->id,
+                'minimum_completed_subjects' => 2,
+                'require_all_subjects' => 0,
+                'auto_sync' => 1,
+            ]);
+
+        $response
+            ->assertRedirect(route('parallel-curriculum.setup'))
+            ->assertSessionHasErrors('destination_class_level_ids');
+
+        $this->assertSame(
+            1,
+            $fixture['integration']->fresh()->minimum_completed_subjects
+        );
+        $this->assertTrue($fixture['integration']->fresh()->require_all_subjects);
+    }
+
     public function test_parallel_mapping_removal_route_is_registered(): void
     {
         $route = app('router')->getRoutes()->getByName('parallel-curriculum.integrations.destroy');
@@ -402,7 +621,7 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertStringNotContainsString('hasValidationError', $disclosure);
     }
 
-    private function mappingFixture(): array
+    private function managerContext(): array
     {
         $tenant = Tenant::create([
             'name' => 'Parallel Curriculum Test School',
@@ -422,6 +641,34 @@ class ParallelCurriculumLifecycleTest extends TestCase
             'name' => 'First Term',
             'is_current' => true,
         ]);
+
+        $admin = User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Academic Admin',
+            'role' => 'admin',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        DB::table('school_settings')->insert([
+            'tenant_id' => $tenant->id,
+            'key' => 'parallel_curriculum_enabled',
+            'value' => '1',
+            'group' => 'academic',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return compact('tenant', 'session', 'term', 'admin');
+    }
+
+    private function mappingFixture(): array
+    {
+        $context = $this->managerContext();
+        $tenant = $context['tenant'];
+        $session = $context['session'];
+        $term = $context['term'];
+        $admin = $context['admin'];
 
         $classLevel = ClassLevel::create([
             'tenant_id' => $tenant->id,
@@ -529,6 +776,7 @@ class ParallelCurriculumLifecycleTest extends TestCase
             'tenant',
             'session',
             'term',
+            'admin',
             'classLevel',
             'classArm',
             'subject',
