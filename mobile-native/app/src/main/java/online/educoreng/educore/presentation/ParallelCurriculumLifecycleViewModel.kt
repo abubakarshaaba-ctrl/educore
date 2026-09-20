@@ -20,6 +20,8 @@ import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelOperationsWorkspace
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
 import online.educoreng.educore.core.model.ParallelWorkingDay
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 data class ParallelLifecycleUiState(
     val workspace: ParallelLifecycleWorkspace? = null,
@@ -38,8 +40,10 @@ data class ParallelLifecycleUiState(
     val resultWorkspace: ParallelResultWorkspace? = null,
     val studentResultDetail: ParallelStudentResultDetail? = null,
     val operationsWorkspace: ParallelOperationsWorkspace? = null,
+    val skillWorkspace: ParallelSkillWorkspace? = null,
     val isLoading: Boolean = false,
     val isOperationsLoading: Boolean = false,
+    val isSkillsLoading: Boolean = false,
     val isResultLoading: Boolean = false,
     val isStudentLoading: Boolean = false,
     val isMutating: Boolean = false,
@@ -104,6 +108,65 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
             )
         }
         load(curriculumId, id)
+    }
+
+    fun loadSkills(
+        armId: Long? = _uiState.value.skillWorkspace?.selectedArmId,
+        termId: Long? = _uiState.value.skillWorkspace?.selectedTermId,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSkillsLoading = true, errorMessage = null) }
+            when (val result = repository.loadSkills(armId, termId)) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        skillWorkspace = result.value,
+                        isSkillsLoading = false,
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isSkillsLoading = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveSkills(students: List<ParallelSkillStudentDraft>) {
+        val workspace = _uiState.value.skillWorkspace
+            ?: return failLocal("Load a parallel skills workspace first.")
+        val armId = workspace.selectedArmId
+            ?: return failLocal("Select a parallel class arm first.")
+        val termId = workspace.selectedTermId
+            ?: return failLocal("Select an academic term first.")
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.saveSkills(
+                    armId = armId,
+                    termId = termId,
+                    students = students,
+                )
+            ) {
+                is AppResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isMutating = false,
+                            message = result.value,
+                        )
+                    }
+                    loadSkills(armId, termId)
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
     }
 
     fun loadOperations(
@@ -374,6 +437,72 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
             ?: return failLocal("Open a parallel result register first.")
         download {
             repository.downloadResultExport(report.classId, report.termId, format)
+        }
+    }
+
+    fun downloadCumulativeStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        sessionId: Long,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.downloadCumulativeStudentResultPdf(
+                    classId,
+                    studentId,
+                    sessionId,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        downloadedDocument = result.value,
+                        message = "Cumulative result ready.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
+        }
+    }
+
+    fun downloadParallelBroadsheetPdf(
+        mode: String,
+        classId: Long,
+        armId: Long? = null,
+        termId: Long? = null,
+        sessionId: Long? = null,
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMutating = true, errorMessage = null) }
+            when (
+                val result = repository.downloadParallelBroadsheetPdf(
+                    mode,
+                    classId,
+                    armId,
+                    termId,
+                    sessionId,
+                )
+            ) {
+                is AppResult.Success -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        downloadedDocument = result.value,
+                        message = "Parallel broadsheet ready.",
+                    )
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(
+                        isMutating = false,
+                        errorMessage = result.error.userMessage,
+                    )
+                }
+            }
         }
     }
 
