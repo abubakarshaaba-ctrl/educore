@@ -68,7 +68,9 @@ tbody tr:hover td.student-cell{background:#EFF6FF}
 @section('content')
 <div class="page-tabs">
     <a href="{{ route('scores.index') }}"            class="page-tab">Score Entry</a>
-    <a href="{{ route('scores.broadsheet') }}"       class="page-tab active">Broadsheet</a>
+    <a href="{{ route('scores.broadsheet') }}"       class="page-tab active">Termly Broadsheet</a>
+    <a href="{{ route('scores.cumulative-broadsheet') }}" class="page-tab">Cumulative Broadsheet</a>
+    <a href="{{ route('parallel-curriculum.results.broadsheet') }}" class="page-tab">Parallel Broadsheet</a>
     @if(auth()->user()->canAccessExactModule('scores'))
     <a href="{{ route('scores.assessment-types') }}" class="page-tab">Assessment Types</a>
     @endif
