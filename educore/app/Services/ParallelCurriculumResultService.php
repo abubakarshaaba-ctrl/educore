@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\AssessmentTemplateComponent;
-use App\Models\StudentSkillRating;
+use App\Models\ParallelCurriculumSkillRating;
 use App\Models\SkillDefinition;
 use App\Models\ParallelCurriculumPromotion;
 use App\Models\ParallelCurriculumAttendanceRecord;
@@ -654,11 +654,13 @@ class ParallelCurriculumResultService
             ->orderBy('order_index')
             ->get();
 
-        $skillRatings = StudentSkillRating::withoutTenantScope()
-            ->where('tenant_id', $tenantId)
-            ->where('student_id', $student->id)
-            ->where('term_id', $term->id)
-            ->get();
+        $skillRatings = Schema::hasTable('parallel_curriculum_skill_ratings')
+            ? ParallelCurriculumSkillRating::withoutTenantScope()
+                ->where('tenant_id', $tenantId)
+                ->where('parallel_curriculum_enrolment_id', $enrolment->id)
+                ->where('term_id', $term->id)
+                ->get()
+            : collect();
 
         return [
             'report' => $report,
