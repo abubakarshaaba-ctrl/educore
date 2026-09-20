@@ -51,12 +51,25 @@ class MobileParallelCurriculumOperationsController extends Controller
 
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
+        $canManageOperations = $this->operations->canManageOperations($user);
 
         $curricula = ParallelCurriculum::query()
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+
+        if (! $canManageOperations) {
+            $curricula = $curricula
+                ->filter(
+                    fn (ParallelCurriculum $curriculum) =>
+                        $this->operations->canClockParallelStaff(
+                            $user,
+                            (int) $curriculum->id
+                        )
+                )
+                ->values();
+        }
 
         $sessions = AcademicSession::query()
             ->where('tenant_id', $tenantId)
@@ -70,7 +83,15 @@ class MobileParallelCurriculumOperationsController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $curriculumId = (int) ($data['parallel_curriculum_id'] ?? 0)
+        $requestedCurriculumId = (int) ($data['parallel_curriculum_id'] ?? 0);
+        if (
+            $requestedCurriculumId
+            && ! $curricula->contains('id', $requestedCurriculumId)
+        ) {
+            abort(403, 'You are not assigned to the selected parallel curriculum.');
+        }
+
+        $curriculumId = $requestedCurriculumId
             ?: (int) optional($curricula->first())->id;
         $sessionId = (int) ($data['session_id'] ?? 0)
             ?: (int) optional($sessions->firstWhere('is_current', true) ?? $sessions->first())->id;
@@ -90,12 +111,48 @@ class MobileParallelCurriculumOperationsController extends Controller
                 ->find($curriculumId)
             : null;
 
+        if ($curriculum && ! $canManageOperations) {
+            $curriculum->classes->each(function ($item) use ($user): void {
+                $item->setRelation(
+                    'arms',
+                    $item->arms
+                        ->filter(
+                            fn (ParallelCurriculumClassArm $armItem) =>
+                                $this->operations->canMarkAttendance(
+                                    $user,
+                                    $armItem
+                                )
+                        )
+                        ->values()
+                );
+            });
+
+            $curriculum->setRelation(
+                'classes',
+                $curriculum->classes
+                    ->filter(fn ($item) => $item->arms->isNotEmpty())
+                    ->values()
+            );
+        }
+
         $classes = $curriculum?->classes ?? collect();
-        $classId = (int) ($data['class_id'] ?? 0) ?: (int) optional($classes->first())->id;
+
+        $requestedClassId = (int) ($data['class_id'] ?? 0);
+        if ($requestedClassId && ! $classes->contains('id', $requestedClassId)) {
+            abort(403, 'You are not assigned to the selected parallel class.');
+        }
+
+        $classId = $requestedClassId ?: (int) optional($classes->first())->id;
         $class = $classes->firstWhere('id', $classId);
 
         $arms = $class?->arms ?? collect();
-        $armId = (int) ($data['arm_id'] ?? 0) ?: (int) optional($arms->first())->id;
+
+        $requestedArmId = (int) ($data['arm_id'] ?? 0);
+        if ($requestedArmId && ! $arms->contains('id', $requestedArmId)) {
+            abort(403, 'You are not assigned to the selected parallel class arm.');
+        }
+
+        $armId = $requestedArmId ?: (int) optional($arms->first())->id;
         $arm = $arms->firstWhere('id', $armId);
 
         $terms = $terms->where('session_id', $sessionId)->values();
@@ -177,7 +234,13 @@ class MobileParallelCurriculumOperationsController extends Controller
             'capabilities' => [
                 'manage_timetable' => $this->operations->canManageTimetable($user),
                 'save_attendance' => $canSaveAttendance,
-                'export_attendance' => $this->operations->canExportAttendance($user),
+                'export_attendance' => $arm
+                    ? $this->operations->canExportAttendance($user)
+                        && (
+                            $canManageOperations
+                            || $this->operations->canMarkAttendance($user, $arm)
+                        )
+                    : false,
                 'manage_working_days' =>
                     $this->operations->canManageTimetable($user),
                 'clock_parallel_staff' => $curriculum
