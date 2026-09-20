@@ -15,6 +15,8 @@
 
 @section('content')
 <div class="wrap pc-breakdown">
+    @include('parallel-curriculum.partials.module-navigation')
+
     <a class="btn" href="{{ route('parallel-curriculum.index') }}">← Back to Parallel Curriculum</a>
 
     <div class="hero" style="margin-top:12px">
