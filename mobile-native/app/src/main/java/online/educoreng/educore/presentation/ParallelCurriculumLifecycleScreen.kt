@@ -51,6 +51,8 @@ import online.educoreng.educore.core.model.ParallelLifecycleWorkspace
 import online.educoreng.educore.core.model.ParallelPromotionPreviewRow
 import online.educoreng.educore.core.model.ParallelAttendanceDraft
 import online.educoreng.educore.core.model.ParallelWorkingDayDraft
+import online.educoreng.educore.core.model.ParallelSkillStudent
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 private enum class ParallelLifecycleTab(val label: String) {
     OVERVIEW("Overview"),
@@ -60,6 +62,7 @@ private enum class ParallelLifecycleTab(val label: String) {
     TEACHERS("Teachers"),
     GRADES("Grade System"),
     OPERATIONS("Timetable & Attendance"),
+    SKILLS("Skills Rating"),
     RESULTS("Results"),
     PROMOTION("Promotion"),
     TRANSFERS("Transfers"),
@@ -92,6 +95,8 @@ fun ParallelCurriculumLifecycleScreen(
     onUnpublishResult: () -> Unit,
     onDownloadResultExport: (String) -> Unit,
     onDownloadStudentResultPdf: () -> Unit,
+    onDownloadCumulativeStudentResultPdf: (Long, Long, Long) -> Unit,
+    onDownloadParallelBroadsheetPdf: (String, Long, Long?, Long?, Long?) -> Unit,
     onCreateArm: (Long, String, String?, Int?) -> Unit,
     onUpdateArm: (Long, String, String?, Int?) -> Unit,
     onArchiveArm: (Long) -> Unit,
@@ -112,6 +117,8 @@ fun ParallelCurriculumLifecycleScreen(
     onClockOutParallelStaff: () -> Unit,
     onSaveParallelAttendance: (List<ParallelAttendanceDraft>) -> Unit,
     onDownloadAttendanceExport: (String) -> Unit,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
     onSavePromotionRule: (List<Long>, String, Long?, Double?, Int?, Boolean, String, String, Boolean) -> Unit,
     onTransfer: (Long, Long, Long, String, String?) -> Unit,
     onDocumentOpened: () -> Unit,
@@ -126,6 +133,8 @@ fun ParallelCurriculumLifecycleScreen(
         state.selectedSessionId,
         state.operationsWorkspace?.selected?.curriculumId,
         state.operationsWorkspace?.selected?.sessionId,
+        state.skillWorkspace?.selectedArmId,
+        state.skillWorkspace?.selectedTermId,
     ) {
         val operationsSelection = state.operationsWorkspace?.selected
         if (
@@ -139,6 +148,9 @@ fun ParallelCurriculumLifecycleScreen(
                 )
         ) {
             onLoadOperations(null, null, null, null)
+        }
+        if (tab == ParallelLifecycleTab.SKILLS && state.skillWorkspace == null) {
+            onLoadSkills(null, null)
         }
     }
 
@@ -258,6 +270,11 @@ fun ParallelCurriculumLifecycleScreen(
                 onSaveParallelAttendance = onSaveParallelAttendance,
                 onDownloadAttendanceExport = onDownloadAttendanceExport,
             )
+            ParallelLifecycleTab.SKILLS -> lifecycleSkills(
+                state = state,
+                onLoadSkills = onLoadSkills,
+                onSaveSkills = onSaveSkills,
+            )
             ParallelLifecycleTab.RESULTS -> lifecycleResults(
                 state = state,
                 onLoadResults = onLoadResults,
@@ -267,6 +284,8 @@ fun ParallelCurriculumLifecycleScreen(
                 onUnpublishResult = onUnpublishResult,
                 onDownloadResultExport = onDownloadResultExport,
                 onDownloadStudentResultPdf = onDownloadStudentResultPdf,
+                onDownloadCumulativeStudentResultPdf = onDownloadCumulativeStudentResultPdf,
+                onDownloadParallelBroadsheetPdf = onDownloadParallelBroadsheetPdf,
             )
             ParallelLifecycleTab.PROMOTION -> lifecyclePromotion(
                 state,
@@ -2039,6 +2058,186 @@ private fun GradeEditor(
     }
 }
 
+private fun LazyListScope.lifecycleSkills(
+    state: ParallelLifecycleUiState,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    val workspace = state.skillWorkspace
+
+    item {
+        SectionHeading(
+            "Parallel skills rating",
+            "Rate affective and psychomotor development independently from the conventional curriculum.",
+        )
+    }
+
+    if (workspace == null) {
+        item {
+            if (state.isSkillsLoading) {
+                EduCoreLoadingState(message = "Loading parallel skills ratings")
+            } else {
+                EduCoreSecondaryButton(
+                    text = "Load Skills Rating",
+                    onClick = { onLoadSkills(null, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+            }
+        }
+        return
+    }
+
+    item {
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Rating context", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            LifecycleMenu(
+                label = "Parallel class arm",
+                current = workspace.arms
+                    .firstOrNull { it.id == workspace.selectedArmId }
+                    ?.label ?: "Select class arm",
+                options = workspace.arms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(it, workspace.selectedTermId) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Academic term",
+                current = workspace.terms
+                    .firstOrNull { it.id == workspace.selectedTermId }
+                    ?.label ?: "Select term",
+                options = workspace.terms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(workspace.selectedArmId, it) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Text(
+                workspace.ratingScale.joinToString(" · ") {
+                    it.value.toString() + " " + it.label
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+    }
+
+    if (state.isSkillsLoading) {
+        item { EduCoreLoadingState(message = "Refreshing skills ratings") }
+    }
+
+    if (workspace.students.isEmpty()) {
+        item {
+            EduCoreEmptyState(
+                "No learners",
+                "No active learner is assigned to the selected parallel class arm for this term.",
+            )
+        }
+        return
+    }
+
+    items(
+        workspace.students,
+        key = { "skill-student-" + it.enrolmentId },
+    ) { student ->
+        ParallelSkillStudentCard(
+            student = student,
+            skills = workspace.skills,
+            ratingScale = workspace.ratingScale.map { it.value to it.label },
+            canManage = workspace.canManage,
+            busy = state.isMutating,
+            onSave = onSaveSkills,
+        )
+    }
+}
+
+@Composable
+private fun ParallelSkillStudentCard(
+    student: ParallelSkillStudent,
+    skills: List<online.educoreng.educore.core.model.ParallelSkillDefinition>,
+    ratingScale: List<Pair<Int, String>>,
+    canManage: Boolean,
+    busy: Boolean,
+    onSave: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    var ratings by remember(student.enrolmentId, student.ratings) {
+        mutableStateOf<Map<Long, Int?>>(
+            student.ratings.mapValues { it.value }
+        )
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(student.name, style = MaterialTheme.typography.titleMedium)
+        Text(
+            student.admissionNumber ?: "No admission number",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        listOf("affective", "psychomotor").forEach { category ->
+            val categorySkills = skills
+                .filter { it.category == category }
+                .sortedBy { it.sortOrder }
+
+            if (categorySkills.isNotEmpty()) {
+                Spacer(Modifier.height(EduCoreSpacing.Lg))
+                Text(
+                    if (category == "affective") {
+                        "Affective Domain"
+                    } else {
+                        "Psychomotor Domain"
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = EduCoreColors.Navy900,
+                )
+
+                categorySkills.forEach { skill ->
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    StringLifecycleMenu(
+                        label = skill.name,
+                        current = ratings[skill.id]?.let { saved ->
+                            ratingScale.firstOrNull { it.first == saved }
+                                ?.let { saved.toString() + " · " + it.second }
+                                ?: saved.toString()
+                        } ?: "Not rated",
+                        options = listOf("" to "Not rated") +
+                            ratingScale.map {
+                                it.first.toString() to
+                                    (it.first.toString() + " · " + it.second)
+                            },
+                        enabled = canManage && !busy,
+                        onSelect = { selected ->
+                            ratings = ratings.toMutableMap().apply {
+                                this[skill.id] = selected.toIntOrNull()
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
+        if (canManage) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            EduCorePrimaryButton(
+                text = "Save Skills Rating",
+                onClick = {
+                    onSave(
+                        listOf(
+                            ParallelSkillStudentDraft(
+                                enrolmentId = student.enrolmentId,
+                                ratings = ratings,
+                            )
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+                loading = busy,
+            )
+        }
+    }
+}
+
 private fun LazyListScope.lifecycleResults(
     state: ParallelLifecycleUiState,
     onLoadResults: (Long?, Long?) -> Unit,
@@ -2133,9 +2332,21 @@ private fun LazyListScope.lifecycleResults(
 
     state.studentResultDetail?.let { detail ->
         item {
+            val sessionId = state.resultWorkspace?.terms
+                ?.firstOrNull { it.id == detail.termId }
+                ?.sessionId
             ParallelStudentResultDetailCard(
                 detail = detail,
                 onDownloadPdf = onDownloadStudentResultPdf,
+                onDownloadCumulativePdf = sessionId?.let { resolvedSessionId ->
+                    {
+                        onDownloadCumulativeStudentResultPdf(
+                            detail.classId,
+                            detail.studentId,
+                            resolvedSessionId,
+                        )
+                    }
+                },
                 onClose = onCloseStudentResult,
             )
         }
@@ -2149,6 +2360,7 @@ private fun ParallelResultControls(
     onPublishResult: () -> Unit,
     onUnpublishResult: () -> Unit,
     onDownloadResultExport: (String) -> Unit,
+    onDownloadParallelBroadsheetPdf: (String, Long, Long?, Long?, Long?) -> Unit,
 ) {
     val workspace = state.resultWorkspace
     var classId by remember(workspace?.selectedClassId) {
@@ -2266,6 +2478,38 @@ private fun ParallelResultControls(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isMutating,
                 )
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCoreSecondaryButton(
+                    text = "Download Term Broadsheet PDF",
+                    onClick = {
+                        onDownloadParallelBroadsheetPdf(
+                            "termly",
+                            report.classId,
+                            null,
+                            report.termId,
+                            null,
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+                workspace.terms.firstOrNull { it.id == report.termId }?.sessionId?.let { sessionId ->
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    EduCoreSecondaryButton(
+                        text = "Download Cumulative Broadsheet PDF",
+                        onClick = {
+                            onDownloadParallelBroadsheetPdf(
+                                "cumulative",
+                                report.classId,
+                                null,
+                                null,
+                                sessionId,
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isMutating,
+                    )
+                }
                 Spacer(Modifier.height(EduCoreSpacing.Md))
                 if (report.isPublished) {
                     EduCoreDangerButton(
@@ -2317,6 +2561,7 @@ private fun ParallelResultControls(
 private fun ParallelStudentResultDetailCard(
     detail: online.educoreng.educore.core.model.ParallelStudentResultDetail,
     onDownloadPdf: () -> Unit,
+    onDownloadCumulativePdf: (() -> Unit)?,
     onClose: () -> Unit,
 ) {
     EduCoreDashboardCard(Modifier.fillMaxWidth()) {
@@ -2373,6 +2618,14 @@ private fun ParallelStudentResultDetailCard(
             onClick = onDownloadPdf,
             modifier = Modifier.fillMaxWidth(),
         )
+        onDownloadCumulativePdf?.let { downloadCumulative ->
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            EduCoreSecondaryButton(
+                text = "Download Cumulative Result PDF",
+                onClick = downloadCumulative,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(Modifier.height(EduCoreSpacing.Sm))
         EduCoreSecondaryButton(
             text = "Close Result Details",
