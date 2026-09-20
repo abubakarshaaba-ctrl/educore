@@ -351,6 +351,10 @@ class ParallelCurriculumLifecycleTest extends TestCase
             $lifecycle
         );
         $this->assertStringContainsString(
+            'id="teaching-assignment-model" class="card full" data-collapsible-item',
+            $lifecycle
+        );
+        $this->assertStringContainsString(
             "parallel-curriculum.partials.progressive-disclosure",
             $lifecycle
         );
