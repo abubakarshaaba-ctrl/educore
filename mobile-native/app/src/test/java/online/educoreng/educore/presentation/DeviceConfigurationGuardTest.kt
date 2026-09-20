@@ -32,4 +32,20 @@ class DeviceConfigurationGuardTest {
         assertTrue(manifestText.contains("android:usesCleartextTraffic=\"false\""))
         assertTrue(manifestText.contains("android:allowBackup=\"false\""))
     }
+
+    @Test
+    fun camera_and_notification_capabilities_remain_declared_without_requiring_camera_hardware() {
+        assertTrue(manifestText.contains("android.permission.CAMERA"))
+        assertTrue(manifestText.contains("android.permission.POST_NOTIFICATIONS"))
+        assertTrue(manifestText.contains("android.hardware.camera"))
+        assertTrue(manifestText.contains("android:required=\"false\""))
+    }
+
+    @Test
+    fun downloaded_documents_and_push_deep_links_keep_required_android_components() {
+        assertTrue(manifestText.contains("androidx.core.content.FileProvider"))
+        assertTrue(manifestText.contains("android:grantUriPermissions=\"true\""))
+        assertTrue(manifestText.contains(".notification.EduCoreMessagingService"))
+        assertTrue(manifestText.contains("com.google.firebase.MESSAGING_EVENT"))
+    }
 }
