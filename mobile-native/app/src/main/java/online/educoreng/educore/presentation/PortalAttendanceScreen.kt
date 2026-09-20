@@ -88,7 +88,7 @@ fun PortalAttendanceScreen(
                 ) {
                     workspace.children.forEach { child ->
                         EduCoreFilterChip(
-                            text = child.name.substringBefore(" "),
+                            label = child.name.substringBefore(" "),
                             selected = child.id == workspace.student.id,
                             onClick = { onChild(child.id) },
                         )
@@ -105,7 +105,7 @@ fun PortalAttendanceScreen(
                 ) {
                     workspace.terms.forEach { term ->
                         EduCoreFilterChip(
-                            text = term.name,
+                            label = term.name,
                             selected = term.id == workspace.selectedTermId,
                             onClick = { onTerm(term.id) },
                         )
