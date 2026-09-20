@@ -39,6 +39,9 @@ import online.educoreng.educore.core.network.dto.ParallelResultWorkspaceDto
 import online.educoreng.educore.core.network.dto.ParallelStudentResultDetailDto
 import online.educoreng.educore.core.network.dto.ParallelResultPublicationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelStudentAssignmentRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillWorkspaceDto
+import online.educoreng.educore.core.network.dto.ParallelSkillSaveRequestDto
+import online.educoreng.educore.core.network.dto.ParallelSkillSaveResponseDto
 import online.educoreng.educore.core.network.dto.ParallelProgrammeMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelClassMutationRequestDto
 import online.educoreng.educore.core.network.dto.ParallelSubjectMutationRequestDto
@@ -196,6 +199,17 @@ interface EduCoreApi {
 
     @POST("parallel-scores/save")
     suspend fun saveParallelScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
+
+    @GET("parallel-curriculum/skills")
+    suspend fun parallelSkills(
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+    ): ParallelSkillWorkspaceDto
+
+    @PUT("parallel-curriculum/skills")
+    suspend fun saveParallelSkills(
+        @Body request: ParallelSkillSaveRequestDto,
+    ): ParallelSkillSaveResponseDto
 
     @GET("parallel-curriculum/results")
     suspend fun parallelResults(
