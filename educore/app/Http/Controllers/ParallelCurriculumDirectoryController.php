@@ -131,8 +131,15 @@ class ParallelCurriculumDirectoryController extends Controller
                 );
             }
 
-            $enrolments = $query
-                ->get()
+            $enrolments = $query->get();
+
+            if (! $armSchemaReady) {
+                $enrolments->each(fn (ParallelCurriculumEnrolment $enrolment) =>
+                    $enrolment->setRelation('curriculumClassArm', null)
+                );
+            }
+
+            $enrolments = $enrolments
                 ->sortBy(fn (ParallelCurriculumEnrolment $enrolment) =>
                     mb_strtolower(
                         trim(
