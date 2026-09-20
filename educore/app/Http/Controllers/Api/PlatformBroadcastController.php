@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\Tenant;
+use App\Services\Notifications\PlatformBroadcastEmailService;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class PlatformBroadcastController extends Controller
         return response()->json(['broadcasts' => $broadcasts]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, PlatformBroadcastEmailService $emails)
     {
         $this->guard($request);
 
@@ -117,10 +118,21 @@ class PlatformBroadcastController extends Controller
                 }
             });
 
+        $emailStats = $emails->sendToTenantIds(
+            tenantIds: $tenantIds,
+            broadcastId: (int) $broadcastId,
+            title: trim($data['title']),
+            body: $body,
+            imagePath: $imagePath,
+            expiresAt: $data['expires_at'] ?? null,
+        );
+
         return response()->json([
-            'message' => "Broadcast published to {$tenantIds->count()} school(s); push notification dispatched and the notice is available in-app.",
+            'message' => "Broadcast published to {$tenantIds->count()} school(s); push, in-app and email notifications dispatched.",
             'status' => 'published',
             'id' => $broadcastId,
+            'email_notifications_sent' => $emailStats['sent'],
+            'email_notifications_failed' => $emailStats['failed'],
             'image_url' => $imagePath ? Storage::disk('public')->url($imagePath) : null,
         ], 201);
     }
