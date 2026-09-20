@@ -30,6 +30,9 @@ data class ParallelLifecycleArm(
     val code: String?,
     val capacity: Int?,
     val isActive: Boolean,
+    val teachingAssignmentMode: String = "subject_based",
+    val classTeacherId: Long? = null,
+    val classTeacherName: String? = null,
     val subjectTeachers: List<ParallelLifecycleArmSubjectTeacher> = emptyList(),
 )
 
