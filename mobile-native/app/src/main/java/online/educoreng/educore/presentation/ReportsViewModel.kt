@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import online.educoreng.educore.core.data.repository.saveDownloadedDocument
 import online.educoreng.educore.core.model.DownloadedDocument
 import online.educoreng.educore.core.network.ApiClientFactory
+import online.educoreng.educore.core.network.EduCoreApi
 import online.educoreng.educore.core.network.ReportsApi
 import online.educoreng.educore.core.network.dto.ReportPublishRequestDto
 import online.educoreng.educore.core.network.dto.ReportSummaryRowDto
@@ -59,6 +60,7 @@ internal class ReportsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val api: ReportsApi = factory.create(ReportsApi::class.java)
+    private val eduCoreApi: EduCoreApi = factory.create(EduCoreApi::class.java)
     private val _uiState = MutableStateFlow(ReportsUiState())
     val uiState: StateFlow<ReportsUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
@@ -187,6 +189,47 @@ internal class ReportsViewModel @Inject constructor(
                         isDownloadingPdf = false,
                         document = document,
                         message = "Report card PDF generated successfully.",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.update {
+                    it.copy(isDownloadingPdf = false, errorMessage = error.reportMessage())
+                }
+            }
+        }
+    }
+
+    fun downloadCumulativeBroadsheet(sessionId: Long?) {
+        val classId = _uiState.value.selectedClassId ?: return
+        val resolvedSessionId = sessionId ?: run {
+            _uiState.update { it.copy(errorMessage = "No active academic session is available for the cumulative broadsheet.") }
+            return
+        }
+        if (_uiState.value.isDownloadingPdf) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isDownloadingPdf = true, errorMessage = null, message = null, document = null)
+            }
+            try {
+                val body = eduCoreApi.downloadCumulativeBroadsheetPdf(classId, resolvedSessionId)
+                val className = _uiState.value.workspace?.classRoom?.name ?: "Class"
+                val sessionName = _uiState.value.workspace?.term?.session ?: "Session"
+                val document = withContext(Dispatchers.IO) {
+                    saveDownloadedDocument(
+                        context = context,
+                        body = body,
+                        requestedName = "EduCore_Cumulative_Broadsheet_${safePart(className)}_${safePart(sessionName)}.pdf",
+                        requestedMimeType = "application/pdf",
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        isDownloadingPdf = false,
+                        document = document,
+                        message = "Cumulative broadsheet PDF generated successfully.",
                     )
                 }
             } catch (cancelled: CancellationException) {
