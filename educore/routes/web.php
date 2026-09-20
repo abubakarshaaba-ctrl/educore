@@ -492,6 +492,8 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('/', [\App\Http\Controllers\ParallelCurriculumController::class, 'index'])->name('index');
         Route::get('setup', [\App\Http\Controllers\ParallelCurriculumController::class, 'setup'])->name('setup');
         Route::get('student-assignments', [\App\Http\Controllers\ParallelCurriculumController::class, 'studentAssignments'])->name('student-assignments');
+        Route::get('class-list', [\App\Http\Controllers\ParallelCurriculumDirectoryController::class, 'classList'])->name('class-list');
+        Route::get('teacher-list', [\App\Http\Controllers\ParallelCurriculumDirectoryController::class, 'teacherList'])->name('teacher-list');
         Route::get('lifecycle', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'index'])->name('lifecycle.index');
         Route::post('lifecycle/arms', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'storeArm'])->name('lifecycle.arms.store');
         Route::put('lifecycle/arms/{arm}', [\App\Http\Controllers\ParallelCurriculumLifecycleController::class, 'updateArm'])->name('lifecycle.arms.update');
