@@ -705,25 +705,30 @@ class ScoreController extends Controller
             }
         }
 
+        $classLabel = trim(
+            ($classArm->classLevel?->name ?? 'Class').' '.($classArm->name ?? '')
+        );
         $filename = 'Cumulative_Broadsheet_'.
-            str_replace(
-                ' ',
-                '_',
-                $classArm->classLevel->name.'_'.$classArm->name
-            ).'_'.str_replace(' ', '_', $session->name).'.pdf';
+            preg_replace('/[^A-Za-z0-9_-]+/', '_', $classLabel).
+            '_'.preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) $session->name).
+            '.pdf';
 
-        return Pdf::loadView(
+        $pdfData = array_merge(
+            compact(
+                'classArm',
+                'session',
+                'tenant',
+                'logoAbsPath'
+            ),
+            $data
+        );
+
+        $pdf = Pdf::loadView(
             'scores.cumulative-broadsheet-pdf',
-            array_merge(
-                compact(
-                    'classArm',
-                    'session',
-                    'tenant',
-                    'logoAbsPath'
-                ),
-                $data
-            )
-        )->setPaper('a4', 'landscape')->download($filename);
+            $pdfData
+        )->setPaper('a4', 'landscape');
+
+        return $pdf->download($filename);
     }
 
     private function buildCumulativeBroadsheetData(
