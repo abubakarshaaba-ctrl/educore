@@ -222,7 +222,7 @@ class StaffAttendanceParallelReconciliationTest extends TestCase
             } catch (ValidationException $exception) {
                 $this->assertStringContainsString(
                     'normal staff attendance QR first',
-                    $exception->getMessage()
+                    $exception->errors()['attendance'][0] ?? ''
                 );
             }
 
