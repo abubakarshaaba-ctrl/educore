@@ -21,7 +21,7 @@
 @section('content')
 <div class="pco" data-collapsible-root data-storage-key="parallel-operations">
 @if(session('success'))<div class="alert ok">{{ session('success') }}</div>@endif
-@if($errors->any())<div class="alert err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())'><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
+@if($errors->any())<div class="alert err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())' data-parallel-validation-target="{{ old('_parallel_section') }}"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
 <div class="tabs">
     <a class="tab" href="{{ route('scores.index') }}">Conventional Scores</a>
@@ -81,6 +81,7 @@
         @if($canManageTimetable)
         <form method="POST" action="{{ route('parallel-curriculum.operations.working-days.save') }}">
             @csrf
+            <input type="hidden" name="_parallel_section" value="working-week">
             <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px">
                 @foreach($workingDays as $dayConfig)
@@ -220,6 +221,7 @@
             @if($canManageTimetable)
             <form method="POST" action="{{ route('parallel-curriculum.operations.periods.store') }}" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #EEF2F7">
                 @csrf
+                <input type="hidden" name="_parallel_section" value="parallel-timetable">
                 <input type="hidden" name="parallel_curriculum_class_id" value="{{ $selectedClass->id }}">
                 <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
                 <input type="hidden" name="session_id" value="{{ $sessionId }}">
@@ -258,7 +260,7 @@
                             <div class="time"><strong>{{ substr((string)$period->start_time,0,5) }}–{{ substr((string)$period->end_time,0,5) }}</strong><span>{{ $period->venue ?: 'No venue' }}</span></div>
                             <div><strong>{{ $period->subject?->name ?: 'Subject' }}</strong><span>{{ $selectedClass->name }} {{ $selectedArm->name }}</span></div>
                             <div class="teacher"><strong>{{ $period->teacher?->name ?: 'Teacher unassigned' }}</strong><span>Effective teacher</span></div>
-                            @if($canManageTimetable)<form method="POST" action="{{ route('parallel-curriculum.operations.periods.destroy',$period) }}">@csrf @method('DELETE')<button class="btn d" type="submit">Remove</button></form>@endif
+                            @if($canManageTimetable)<form method="POST" action="{{ route('parallel-curriculum.operations.periods.destroy',$period) }}">@csrf <input type="hidden" name="_parallel_section" value="parallel-timetable"> @method('DELETE')<button class="btn d" type="submit">Remove</button></form>@endif
                         </div>
                     @empty
                         <div class="empty">No period scheduled.</div>
@@ -302,6 +304,7 @@
                 @else
                 <form method="POST" action="{{ route('parallel-curriculum.operations.attendance.save') }}">
                     @csrf
+                    <input type="hidden" name="_parallel_section" value="learner-attendance">
                     <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $selectedArm->id }}">
                     <input type="hidden" name="term_id" value="{{ $termId }}">
                     <input type="hidden" name="attendance_date" value="{{ $date }}">
