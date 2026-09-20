@@ -196,40 +196,66 @@
             @if($workspaces->isEmpty())
                 <div class="empty">{{ $canManage ? 'No parallel score workspace is configured yet.' : 'No parallel score workspace is assigned to this account yet.' }}</div>
             @else
-                <div class="pc-workspace-filter">
-                    <input type="search" id="parallel-workspace-filter" placeholder="Filter by programme, class, arm, subject or teacher" autocomplete="off">
-                    <span class="pc-filter-count" id="parallel-workspace-filter-count">{{ $workspaces->count() }} workspace(s)</span>
-                </div>
-                <div class="workspaces" id="parallel-workspace-list">
-                    @foreach($workspaces as $workspace)
-                        <article class="workspace" data-workspace-card>
-                            <strong>{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</strong>
-                            <span>
-                                {{ $workspace['curriculum_name'] }}
-                                @if(!empty($workspace['effective_teacher_name']))
-                                    · {{ $workspace['effective_teacher_name'] }}
-                                @else
-                                    · Admin / unassigned
+                <form method="GET" action="{{ route('parallel-curriculum.index') }}" class="pc-workspace-filter" id="parallel-workspace-filter-form">
+                    <input
+                        type="search"
+                        name="workspace_q"
+                        id="parallel-workspace-filter"
+                        value="{{ $workspaceSearch }}"
+                        placeholder="Filter by programme, class, arm, subject or teacher"
+                        autocomplete="off"
+                    >
+                    <div class="pc-filter-actions">
+                        <button class="btn btn-s" type="submit">Filter</button>
+                        @if($workspaceSearch !== '')
+                            <a class="btn btn-s" href="{{ route('parallel-curriculum.index') }}">Clear</a>
+                        @endif
+                    </div>
+                    <span class="pc-filter-count">
+                        {{ $workspacePaginator?->total() ?? 0 }} matching · {{ $workspaces->count() }} total
+                    </span>
+                </form>
+
+                @if(($workspacePaginator?->count() ?? 0) === 0)
+                    <div class="empty">No score workspace matches “{{ $workspaceSearch }}”.</div>
+                @else
+                    <div class="workspaces" id="parallel-workspace-list">
+                        @foreach($workspacePaginator as $workspace)
+                            <article class="workspace" data-workspace-card>
+                                <strong>{{ $workspace['subject_name'] }} · {{ $workspace['class_label'] }}</strong>
+                                <span>
+                                    {{ $workspace['curriculum_name'] }}
+                                    @if(!empty($workspace['effective_teacher_name']))
+                                        · {{ $workspace['effective_teacher_name'] }}
+                                    @else
+                                        · Admin / unassigned
+                                    @endif
+                                    @if(!empty($workspace['arm']))
+                                        · Arm-specific roster
+                                    @endif
+                                </span>
+                                @if(!empty($workspace['is_form_teacher']))
+                                    <span class="workspace-badge">Form Teacher · All Subjects</span>
                                 @endif
-                                @if(!empty($workspace['arm']))
-                                    · Arm-specific roster
-                                @endif
-                            </span>
-                            @if(!empty($workspace['is_form_teacher']))
-                                <span class="workspace-badge">Form Teacher · All Subjects</span>
-                            @endif
-                            <div class="workspace-actions">
-                                <a class="workspace-open" href="{{ $workspace['score_sheet_url'] }}">Open Score Sheet</a>
-                                @if(!empty($workspace['attendance_url']))
-                                    <a class="workspace-secondary" href="{{ $workspace['attendance_url'] }}">Mark Attendance</a>
-                                @endif
-                                @if(!empty($workspace['form_teacher_comments_url']))
-                                    <a class="workspace-secondary" href="{{ $workspace['form_teacher_comments_url'] }}">Form Teacher Comments</a>
-                                @endif
-                            </div>
-                        </article>
-                    @endforeach
-                </div>
+                                <div class="workspace-actions">
+                                    <a class="workspace-open" href="{{ $workspace['score_sheet_url'] }}">Open Score Sheet</a>
+                                    @if(!empty($workspace['attendance_url']))
+                                        <a class="workspace-secondary" href="{{ $workspace['attendance_url'] }}">Mark Attendance</a>
+                                    @endif
+                                    @if(!empty($workspace['form_teacher_comments_url']))
+                                        <a class="workspace-secondary" href="{{ $workspace['form_teacher_comments_url'] }}">Form Teacher Comments</a>
+                                    @endif
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+
+                    @if($workspacePaginator?->hasPages())
+                        <div class="pagination-wrap" style="margin-top:14px">
+                            {{ $workspacePaginator->links() }}
+                        </div>
+                    @endif
+                @endif
             @endif
         </div>
     </div>
@@ -392,29 +418,5 @@
     refreshDestinationSubjects();
 })();
 </script>
-<script>
-(function () {
-    const input = document.getElementById('parallel-workspace-filter');
-    const list = document.getElementById('parallel-workspace-list');
-    const count = document.getElementById('parallel-workspace-filter-count');
-    if (!input || !list || !count) return;
 
-    const cards = Array.from(list.querySelectorAll('[data-workspace-card]'));
-    const refresh = () => {
-        const query = input.value.trim().toLowerCase();
-        let visible = 0;
-
-        cards.forEach((card) => {
-            const matches = !query || card.textContent.toLowerCase().includes(query);
-            card.hidden = !matches;
-            if (matches) visible++;
-        });
-
-        count.textContent = visible + ' of ' + cards.length + ' workspace(s)';
-    };
-
-    input.addEventListener('input', refresh);
-    refresh();
-})();
-</script>
 @endpush
