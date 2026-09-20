@@ -15,7 +15,8 @@
 @if($errors->any())<div class="err" data-parallel-validation-error><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
 <div class="tabs">
-<a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Curriculum</a>
+<a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
+<a class="tab" href="{{ route('parallel-curriculum.setup') }}">Programme Setup</a>
 <a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
 <a class="tab active" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
 <a class="tab" href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
