@@ -163,8 +163,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('parallel-curriculum/results')->group(function () {
             Route::get('/', [MobileParallelCurriculumResultController::class, 'index']);
             Route::get('export', [MobileParallelCurriculumResultController::class, 'export']);
+            Route::get('broadsheet', [MobileParallelCurriculumResultController::class, 'broadsheet']);
+            Route::get('broadsheet/pdf', [MobileParallelCurriculumResultController::class, 'broadsheetPdf']);
             Route::get('classes/{class}/students/{student}', [MobileParallelCurriculumResultController::class, 'student']);
             Route::get('classes/{class}/students/{student}/pdf', [MobileParallelCurriculumResultController::class, 'studentPdf']);
+            Route::get('classes/{class}/students/{student}/cumulative', [MobileParallelCurriculumResultController::class, 'cumulativeStudent']);
+            Route::get('classes/{class}/students/{student}/cumulative/pdf', [MobileParallelCurriculumResultController::class, 'cumulativeStudentPdf']);
             Route::post('publish', [MobileParallelCurriculumResultController::class, 'publish']);
             Route::post('unpublish', [MobileParallelCurriculumResultController::class, 'unpublish']);
         });
