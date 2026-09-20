@@ -108,8 +108,8 @@ class PlatformBroadcastEmailService
 
                     $tenantEmail = strtolower(trim((string) $tenant->email));
                     if (
-                        filter_var($tenantEmail, FILTER_VALIDATE_EMAIL)
-                        && ! isset($seen[$tenantEmail])
+                        $seen === []
+                        && filter_var($tenantEmail, FILTER_VALIDATE_EMAIL)
                     ) {
                         $stats['recipients']++;
 
