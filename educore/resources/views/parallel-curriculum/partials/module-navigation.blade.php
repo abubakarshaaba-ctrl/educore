@@ -13,6 +13,10 @@
         );
     $pcCanUseComments = $pcUser
         && $pcUser->canAccessRoute('parallel-curriculum.form-teacher-comments.index');
+    $pcCanUseSkills = $pcUser
+        && $pcUser->canAccessRoute('parallel-curriculum.skills.index');
+    $pcCanUseAttendance = $pcUser
+        && $pcUser->canAccessRoute('parallel-curriculum.attendance.index');
 
     $pcCurrentLabel = match (true) {
         request()->routeIs('parallel-curriculum.setup') => 'Programme Setup',
@@ -20,7 +24,10 @@
         request()->routeIs('parallel-curriculum.class-list') => 'Class List',
         request()->routeIs('parallel-curriculum.teacher-list') => 'Teacher List',
         request()->routeIs('parallel-curriculum.lifecycle.*') => 'Academic Lifecycle',
+        request()->routeIs('parallel-curriculum.attendance.*') => 'Student Attendance',
+        request()->routeIs('parallel-curriculum.skills.*') => 'Skills Rating',
         request()->routeIs('parallel-curriculum.operations.*') => 'Timetable & Attendance',
+        request()->routeIs('parallel-curriculum.results.broadsheet*') => 'Broadsheet',
         request()->routeIs('parallel-curriculum.results.*') => 'Parallel Results',
         request()->routeIs('parallel-curriculum.score-sheet') => 'Score Entry',
         request()->routeIs('parallel-curriculum.breakdown') => 'Result Breakdown',
@@ -107,16 +114,23 @@
             </div>
         @endif
 
-        @if($pcCanViewOperations || $pcCanUseComments)
+        @if($pcCanViewOperations || $pcCanUseAttendance || $pcCanUseSkills || $pcCanUseComments)
             <div class="pc-module-nav-group">
                 <span class="pc-module-nav-label">Daily work</span>
                 <div class="pc-module-nav-items">
-                    @if($pcCanViewOperations)
+                    @if($pcCanUseAttendance)
                         <a
-                            href="{{ route('parallel-curriculum.operations.index') }}"
-                            class="{{ request()->routeIs('parallel-curriculum.operations.*') ? 'active' : '' }}"
-                            @if(request()->routeIs('parallel-curriculum.operations.*')) aria-current="page" @endif
-                        >Timetable & Attendance</a>
+                            href="{{ route('parallel-curriculum.attendance.index') }}"
+                            class="{{ request()->routeIs('parallel-curriculum.attendance.*') ? 'active' : '' }}"
+                            @if(request()->routeIs('parallel-curriculum.attendance.*')) aria-current="page" @endif
+                        >Student Attendance</a>
+                    @endif
+                    @if($pcCanUseSkills)
+                        <a
+                            href="{{ route('parallel-curriculum.skills.index') }}"
+                            class="{{ request()->routeIs('parallel-curriculum.skills.*') ? 'active' : '' }}"
+                            @if(request()->routeIs('parallel-curriculum.skills.*')) aria-current="page" @endif
+                        >Skills Rating</a>
                     @endif
                     @if($pcCanUseComments)
                         <a
@@ -124,6 +138,13 @@
                             class="{{ request()->routeIs('parallel-curriculum.form-teacher-comments.*') ? 'active' : '' }}"
                             @if(request()->routeIs('parallel-curriculum.form-teacher-comments.*')) aria-current="page" @endif
                         >Form Comments</a>
+                    @endif
+                    @if($pcCanViewOperations && $pcCanManage)
+                        <a
+                            href="{{ route('parallel-curriculum.operations.index') }}"
+                            class="{{ request()->routeIs('parallel-curriculum.operations.*') ? 'active' : '' }}"
+                            @if(request()->routeIs('parallel-curriculum.operations.*')) aria-current="page" @endif
+                        >Timetable & Staff</a>
                     @endif
                 </div>
             </div>
@@ -135,9 +156,14 @@
                 @if($pcCanManage)
                     <a
                         href="{{ route('parallel-curriculum.results.index') }}"
-                        class="{{ request()->routeIs('parallel-curriculum.results.*') || request()->routeIs('parallel-curriculum.breakdown') ? 'active' : '' }}"
-                        @if(request()->routeIs('parallel-curriculum.results.*') || request()->routeIs('parallel-curriculum.breakdown')) aria-current="page" @endif
+                        class="{{ (request()->routeIs('parallel-curriculum.results.*') && !request()->routeIs('parallel-curriculum.results.broadsheet*')) || request()->routeIs('parallel-curriculum.breakdown') ? 'active' : '' }}"
+                        @if((request()->routeIs('parallel-curriculum.results.*') && !request()->routeIs('parallel-curriculum.results.broadsheet*')) || request()->routeIs('parallel-curriculum.breakdown')) aria-current="page" @endif
                     >Parallel Results</a>
+                    <a
+                        href="{{ route('parallel-curriculum.results.broadsheet') }}"
+                        class="{{ request()->routeIs('parallel-curriculum.results.broadsheet*') ? 'active' : '' }}"
+                        @if(request()->routeIs('parallel-curriculum.results.broadsheet*')) aria-current="page" @endif
+                    >Parallel Broadsheet</a>
                 @endif
                 @if($pcCanViewBroadsheet)
                     <a href="{{ route('scores.broadsheet') }}">Broadsheet</a>
