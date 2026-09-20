@@ -141,7 +141,7 @@
                                         <span class="name">{{ $teacher->name }}</span>
                                         @if($teacher->phone)<div>{{ $teacher->phone }}</div>@endif
                                     </td>
-                                    <td>{{ AppModelsUser::ROLE_LABELS[$teacher->role] ?? str($teacher->role ?: 'staff')->replace('_',' ')->title() }}</td>
+                                    <td>{{ $row['role_label'] }}</td>
                                     <td>
                                         @foreach($row['assignment_types'] as $type)
                                             <span class="assignment-type">{{ $type }}</span>
@@ -164,7 +164,7 @@
                         <div class="teacher-card-top">
                             <div>
                                 <strong>{{ $loop->iteration }}. {{ $teacher->name }}</strong>
-                                <span class="meta">{{ $teacher->staff_id ?: 'No Staff ID' }} · {{ AppModelsUser::ROLE_LABELS[$teacher->role] ?? str($teacher->role ?: 'staff')->replace('_',' ')->title() }}</span>
+                                <span class="meta">{{ $teacher->staff_id ?: 'No Staff ID' }} · {{ $row['role_label'] }}</span>
                             </div>
                             <span class="badge {{ $row['is_active'] ? '' : 'inactive' }}">{{ $row['is_active'] ? 'Active' : 'Inactive' }}</span>
                         </div>
