@@ -236,6 +236,13 @@ class ParallelCurriculumLifecycleTest extends TestCase
                 $fixture['classArm']
             )
         );
+        $this->assertFalse(
+            $service->conventionalSubjectAvailableForClassLevel(
+                $fixture['tenant']->id,
+                $fixture['subject']->id,
+                $fixture['classLevel']->load('classArms')
+            )
+        );
 
         ClassLevelSubject::create([
             'tenant_id' => $fixture['tenant']->id,
@@ -253,6 +260,25 @@ class ParallelCurriculumLifecycleTest extends TestCase
                 $fixture['classArm']
             )
         );
+        $this->assertTrue(
+            $service->conventionalSubjectAvailableForClassLevel(
+                $fixture['tenant']->id,
+                $fixture['subject']->id,
+                $fixture['classLevel']->fresh()->load('classArms')
+            )
+        );
+    }
+
+    public function test_parallel_mapping_form_filters_destination_subjects_by_selected_levels(): void
+    {
+        $view = file_get_contents(
+            resource_path('views/parallel-curriculum/index.blade.php')
+        );
+
+        $this->assertStringContainsString('id="integration-class-levels"', $view);
+        $this->assertStringContainsString('id="integration-destination-subject"', $view);
+        $this->assertStringContainsString('data-compatible-levels', $view);
+        $this->assertStringContainsString('No conventional subject is offered across every selected class level/academic track', $view);
     }
 
     public function test_parallel_mapping_removal_route_is_registered(): void
