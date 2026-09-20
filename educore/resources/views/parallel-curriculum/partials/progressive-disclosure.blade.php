@@ -11,9 +11,15 @@
         .replace(/\[([^\]]*)\]/g, '.$1')
         .replace(/^\.+|\.+$/g, '');
 
-    const validationFields = Array.from(
+    const validationAlerts = Array.from(
         document.querySelectorAll('[data-parallel-validation-error]')
-    ).flatMap((alert) => {
+    );
+
+    const validationTargets = validationAlerts
+        .map((alert) => String(alert.dataset.parallelValidationTarget || '').trim())
+        .filter(Boolean);
+
+    const validationFields = validationAlerts.flatMap((alert) => {
         const raw = alert.dataset.parallelValidationFields || '[]';
         try {
             const parsed = JSON.parse(raw);
@@ -26,6 +32,10 @@
     });
 
     const itemContainsValidationError = (item) => {
+        if (validationTargets.length > 0) {
+            return !!item.id && validationTargets.includes(item.id);
+        }
+
         if (validationFields.length === 0) return false;
 
         const fieldNames = Array.from(item.querySelectorAll('[name]'))
