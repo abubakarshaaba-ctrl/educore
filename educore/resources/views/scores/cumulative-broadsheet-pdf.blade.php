@@ -1,39 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <title>Cumulative Broadsheet</title>
 <style>
-@page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:7px;margin:0}.hdr{display:table;width:100%;padding-bottom:6px;margin-bottom:7px;border-bottom:2px solid #D79A21}.logo{display:table-cell;width:52px;vertical-align:middle}.logo img{max-width:43px;max-height:43px}.brand{display:table-cell;vertical-align:middle}.school{font-size:14px;font-weight:800;color:#071E45;text-transform:uppercase}.contact{font-size:6.5px;color:#667085;margin-top:2px}.doc{display:table-cell;text-align:right;vertical-align:middle}.doc strong{display:block;font-size:12px;color:#071E45}.doc span{font-size:7px;color:#667085}.ctx{padding:6px 8px;background:#F8FAFC;border:1px solid #DDE3EC;margin-bottom:7px}.ctx strong{font-size:9px;color:#071E45}.ctx span{font-size:7px;color:#667085}.tbl{width:100%;border-collapse:collapse;table-layout:fixed}.tbl th{padding:4px 3px;background:#071E45;color:#fff;border:1px solid #334E75;text-align:center;font-size:6.3px}.tbl th:first-child{width:15%;text-align:left}.tbl td{padding:4px 3px;border:1px solid #DDE3EC;text-align:center;font-size:6.7px}.tbl td:first-child{text-align:left}.name{font-weight:700;color:#071E45}.adm{font-size:5.6px;color:#667085}.sum{font-weight:700;background:#F8FAFC}.stats td{background:#EFF6FF;font-size:5.8px;line-height:1.4}.key{margin-top:6px;font-size:5.8px;color:#667085}.footer{margin-top:7px;padding-top:5px;border-top:1px solid #DDE3EC;font-size:6px;color:#94A3B8;text-align:right}
+@page { size:A4 landscape; margin:18mm 16mm; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DejaVu Sans','Arial',sans-serif; font-size:7.2pt; color:#1E293B; background:#fff; }
+.page-safe { padding:0 3mm; }
+
+.hdr { display:table; width:100%; border-bottom:2pt solid #D79A21; padding-bottom:7pt; margin-bottom:7pt; }
+.hdr-logo-cell { display:table-cell; width:54pt; vertical-align:middle; padding-right:8pt; }
+.hdr-logo { width:44pt; height:44pt; object-fit:contain; }
+.hdr-logo-fallback {
+    width:42pt; height:42pt; line-height:42pt; text-align:center;
+    border:0.8pt solid #071E45; border-radius:21pt;
+    color:#071E45; font-size:18pt; font-weight:700;
+}
+.hdr-info { display:table-cell; vertical-align:middle; }
+.school-name { font-size:12.5pt; font-weight:700; color:#0F172A; text-transform:uppercase; line-height:1.1; }
+.school-contact { font-size:6.5pt; color:#475569; margin-top:2pt; line-height:1.35; }
+.hdr-right { display:table-cell; vertical-align:middle; text-align:right; white-space:nowrap; }
+.doc-label { font-size:12pt; font-weight:700; color:#D79A21; }
+.doc-sub { font-size:7pt; color:#475569; margin-top:3pt; }
+
+.ctx { display:table; width:100%; background:#F8FAFC; border:0.5pt solid #E2E8F0; padding:5pt 8pt; margin-bottom:7pt; }
+.ctx-left { display:table-cell; vertical-align:middle; }
+.ctx-title { font-size:9pt; font-weight:700; color:#071E45; }
+.ctx-sub { font-size:6.5pt; color:#64748B; margin-top:2pt; }
+.ctx-right { display:table-cell; vertical-align:middle; text-align:right; font-size:6.5pt; color:#94A3B8; }
+
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
+thead th {
+    background:#071E45; color:#D79A21;
+    padding:4pt 3pt; font-size:6.2pt; font-weight:700;
+    text-align:center; border-right:0.5pt solid #334E75;
+}
+thead th.th-student { text-align:left; padding-left:5pt; }
+tbody td {
+    padding:4pt 3pt; border-bottom:0.5pt solid #E2E8F0;
+    border-right:0.5pt solid #F1F5F9;
+    text-align:center; font-size:6.6pt; color:#334155;
+}
+tbody td.td-student { text-align:left; padding-left:5pt; font-weight:600; color:#0F172A; }
+tbody td.td-student small { display:block; margin-top:1pt; font-size:5.6pt; color:#94A3B8; font-weight:400; }
+tbody td.td-summary { font-weight:700; background:#F8FAFC; color:#0F172A; }
+tbody td.td-pos { font-weight:800; color:#B7791F; background:#FEF9EC; }
+tbody tr:nth-child(even) td { background:#FAFAFA; }
+tbody tr:nth-child(even) td.td-summary { background:#F1F5F9; }
+tbody tr:nth-child(even) td.td-pos { background:#FEF9EC; }
+.stats-row td { background:#EFF6FF; border-top:1pt solid #D79A21; font-size:5.8pt; line-height:1.35; }
+
+.subject-key { margin-top:6pt; padding-top:4pt; border-top:0.5pt solid #E2E8F0; font-size:5.8pt; color:#64748B; }
+.footer { margin-top:6pt; font-size:6pt; color:#94A3B8; text-align:right; }
 </style>
 </head>
 <body>
+<div class="page-safe">
+
 <div class="hdr">
-<div class="logo">@if($logoAbsPath)<img src="{{ $logoAbsPath }}" alt="Logo">@endif</div>
-<div class="brand"><div class="school">{{ $tenant?->name }}</div><div class="contact">{{ $tenant?->address }} @if($tenant?->phone) · {{ $tenant->phone }} @endif @if($tenant?->email) · {{ $tenant->email }} @endif</div></div>
-<div class="doc"><strong>CUMULATIVE CLASS BROADSHEET</strong><span>{{ $session->name }}</span></div>
+    <div class="hdr-logo-cell">
+        @if(!empty($logoAbsPath))
+            <img src="{{ $logoAbsPath }}" class="hdr-logo" alt="School Logo">
+        @else
+            <div class="hdr-logo-fallback">{{ strtoupper(substr((string)($tenant->name ?? 'E'),0,1)) }}</div>
+        @endif
+    </div>
+    <div class="hdr-info">
+        <div class="school-name">{{ $tenant->name ?? 'School' }}</div>
+        <div class="school-contact">
+            {{ $tenant->address ?? '' }}
+            @if(!empty($tenant->phone)) &nbsp;|&nbsp; {{ $tenant->phone }} @endif
+            @if(!empty($tenant->email)) &nbsp;|&nbsp; {{ $tenant->email }} @endif
+        </div>
+    </div>
+    <div class="hdr-right">
+        <div class="doc-label">CUMULATIVE CLASS BROADSHEET</div>
+        <div class="doc-sub">{{ $session->name ?? '' }}</div>
+    </div>
 </div>
-<div class="ctx"><strong>{{ $classArm->classLevel?->name }} {{ $classArm->name }}</strong><span> · {{ $matrix->count() }} learners · {{ $subjects->count() }} subjects · {{ $terms->count() }} terms</span></div>
-<table class="tbl">
-<thead><tr>
-<th>Learner</th>
-@foreach($terms as $index=>$term)<th>{{ $index+1 }}T Avg</th>@endforeach
-@foreach($subjects as $subject)<th>{{ $subject->code ?: \Illuminate\Support\Str::limit($subject->name,6,'') }}</th>@endforeach
-<th>Total</th><th>Avg</th><th>Pos</th>
-</tr></thead>
-<tbody>
-@foreach($matrix as $row)
-<tr>
-<td><div class="name">{{ $row['student']->full_name }}</div><div class="adm">{{ $row['student']->admission_number }}</div></td>
-@foreach($terms as $term)@php($ta=$row['term_averages'][(int)$term->id] ?? null)<td>{{ $ta===null?'—':number_format($ta,1) }}</td>@endforeach
-@foreach($subjects as $subject)@php($sd=$row['subjects'][(int)$subject->id] ?? null)<td>{{ ($sd['average'] ?? null)===null?'—':number_format($sd['average'],1) }}</td>@endforeach
-<td class="sum">{{ number_format($row['total'],1) }}</td><td class="sum">{{ number_format($row['average'],1) }}</td><td class="sum">{{ $row['position'] }}</td>
-</tr>
-@endforeach
-<tr class="stats"><td><strong>Class Stats</strong></td>@foreach($terms as $term)<td>—</td>@endforeach @foreach($subjects as $subject)@php($st=$subjectStats->get((int)$subject->id,[]))<td>H {{ $st['highest'] ?? '—' }}<br>L {{ $st['lowest'] ?? '—' }}<br>A {{ $st['avg'] ?? '—' }}</td>@endforeach<td colspan="3"></td></tr>
-</tbody>
+
+<div class="ctx">
+    <div class="ctx-left">
+        <div class="ctx-title">{{ $classArm->classLevel->name ?? 'Class' }} {{ $classArm->name ?? '' }}</div>
+        <div class="ctx-sub">{{ $matrix->count() }} learner(s) &nbsp;·&nbsp; {{ $subjects->count() }} subject(s) &nbsp;·&nbsp; {{ $terms->count() }} term(s)</div>
+    </div>
+    <div class="ctx-right">Generated {{ now()->format('d M Y, g:i A') }}</div>
+</div>
+
+@php
+    $studentPct = 15;
+    $termCount = max($terms->count(), 1);
+    $subjectCount = max($subjects->count(), 1);
+    $summaryPct = 5;
+    $fixedPct = $studentPct + ($summaryPct * 3);
+    $dataCount = $termCount + $subjectCount;
+    $dataPct = $dataCount > 0 ? round((100 - $fixedPct) / $dataCount, 3) : 0;
+@endphp
+
+<table>
+    <colgroup>
+        <col style="width:{{ $studentPct }}%">
+        @for($i=0; $i<$termCount; $i++)<col style="width:{{ $dataPct }}%">@endfor
+        @for($i=0; $i<$subjectCount; $i++)<col style="width:{{ $dataPct }}%">@endfor
+        <col style="width:{{ $summaryPct }}%">
+        <col style="width:{{ $summaryPct }}%">
+        <col style="width:{{ $summaryPct }}%">
+    </colgroup>
+    <thead>
+        <tr>
+            <th class="th-student">Learner</th>
+            @foreach($terms as $index=>$term)
+                <th>{{ $index+1 }}T Avg</th>
+            @endforeach
+            @foreach($subjects as $subject)
+                @php
+                    $code = trim((string)($subject->code ?? ''));
+                    if ($code === '') {
+                        $parts = preg_split('/\s+/', trim((string)$subject->name)) ?: [];
+                        $code = '';
+                        foreach ($parts as $part) {
+                            if ($part !== '') $code .= substr($part,0,1);
+                        }
+                    }
+                    $code = strtoupper(substr($code,0,6));
+                @endphp
+                <th>{{ $code }}</th>
+            @endforeach
+            <th>Total</th>
+            <th>Avg</th>
+            <th>Pos</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($matrix as $row)
+            <tr>
+                <td class="td-student">
+                    {{ $row['student']->full_name }}
+                    <small>{{ $row['student']->admission_number }}</small>
+                </td>
+                @foreach($terms as $term)
+                    @php($termAverage=$row['term_averages'][(int)$term->id] ?? null)
+                    <td>{{ $termAverage===null ? '—' : number_format((float)$termAverage,1) }}</td>
+                @endforeach
+                @foreach($subjects as $subject)
+                    @php($subjectData=$row['subjects'][(int)$subject->id] ?? null)
+                    <td>
+                        @if(($subjectData['average'] ?? null) !== null)
+                            {{ number_format((float)$subjectData['average'],1) }}
+                            @if(!empty($subjectData['grade']) && $subjectData['grade'] !== '—')
+                                <br><span style="font-size:5.4pt;color:#64748B">{{ $subjectData['grade'] }}</span>
+                            @endif
+                        @else
+                            —
+                        @endif
+                    </td>
+                @endforeach
+                <td class="td-summary">{{ number_format((float)$row['total'],1) }}</td>
+                <td class="td-summary">{{ $row['average']===null ? '—' : number_format((float)$row['average'],1) }}</td>
+                <td class="td-pos">{{ $row['position'] ?? '—' }}</td>
+            </tr>
+        @endforeach
+
+        <tr class="stats-row">
+            <td class="td-student"><strong>Class Stats</strong></td>
+            @foreach($terms as $term)<td>—</td>@endforeach
+            @foreach($subjects as $subject)
+                @php($st=$subjectStats->get((int)$subject->id,[]))
+                <td>
+                    H {{ $st['highest'] ?? '—' }}<br>
+                    L {{ $st['lowest'] ?? '—' }}<br>
+                    A {{ $st['avg'] ?? '—' }}
+                </td>
+            @endforeach
+            <td colspan="3"></td>
+        </tr>
+    </tbody>
 </table>
-<div class="key"><strong>Subject Key:</strong> @foreach($subjects as $subject){{ $subject->code ?: \Illuminate\Support\Str::limit($subject->name,6,'') }} = {{ $subject->name }}@if(!$loop->last) · @endif @endforeach</div>
-<div class="footer">Generated by EduCore for {{ $tenant?->name }} · {{ now()->format('d M Y, H:i') }}</div>
+
+<div class="subject-key">
+    <strong>Subject Key:</strong>
+    @foreach($subjects as $subject)
+        @php
+            $code = trim((string)($subject->code ?? ''));
+            if ($code === '') {
+                $parts = preg_split('/\s+/', trim((string)$subject->name)) ?: [];
+                $code = '';
+                foreach ($parts as $part) {
+                    if ($part !== '') $code .= substr($part,0,1);
+                }
+            }
+            $code = strtoupper(substr($code,0,6));
+        @endphp
+        {{ $code }} = {{ $subject->name }}@if(!$loop->last) &nbsp;·&nbsp; @endif
+    @endforeach
+</div>
+
+<div class="footer">Generated by EduCore for {{ $tenant->name ?? 'School' }}</div>
+
+</div>
 </body>
 </html>
