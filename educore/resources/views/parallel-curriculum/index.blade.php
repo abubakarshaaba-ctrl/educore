@@ -113,11 +113,11 @@
                 @if($workspaces->isEmpty())
                     @if($canManage)
                         <div class="score-entry-help">
-                            No active parallel class-arm/subject score workspace exists yet. Create the programme subjects, assign them to a parallel class, create at least one active arm, and configure the teaching assignment model.
+                            No active parallel class-arm/subject score workspace exists yet. Create programme subjects, explicitly assign the required subjects to each parallel class, create at least one active arm, and configure the teaching assignment model.
                         </div>
                     @else
                         <div class="score-entry-help">
-                            This account has parallel score-entry access, but no parallel class-arm/subject assignment currently resolves to this staff ID. Conventional teaching assignments do not automatically assign parallel subjects. An academic administrator must assign this teacher under <strong>Parallel Curriculum → Academic Lifecycle → Teaching assignment model</strong>.
+                            This account has parallel score-entry access, but no parallel class-arm/subject assignment currently resolves to this staff ID. Conventional teaching assignments do not automatically assign parallel subjects. The class must first have subjects explicitly assigned to it, then this teacher must resolve to those subjects through <strong>Parallel Curriculum → Academic Lifecycle → Teaching assignment model</strong>.
                         </div>
                     @endif
                 @else
@@ -265,13 +265,13 @@
         </section>
 
         <section class="pc-card">
-            <div class="pc-head">4. Assign subjects & teacher</div>
+            <div class="pc-head">4. Assign subjects to parallel class</div>
             <div class="pc-body">
                 <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
                     <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">The selected subject must belong to the same programme as the class. This teacher is the default; individual arms can override it in Academic Lifecycle.</div></div>
-                        <div class="fg"><label class="fl">Default teacher for all arms (optional)</label><select class="fc" name="teacher_id"><option value="">Admin entry / unassigned</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select></div>
+                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">This explicitly defines which subjects belong to the selected parallel class. All-subject class teachers see only these class-assigned subjects.</div></div>
+                        <div class="fg"><label class="fl">Default subject teacher for all arms (optional)</label><select class="fc" name="teacher_id"><option value="">No default subject teacher</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select><div class="hint">Used only when the arm is in Subject-based teachers mode. An arm-specific teacher may override this default in Academic Lifecycle.</div></div>
                     </div>
                     <button class="btn btn-p">Assign Subject</button>
                 </form>
