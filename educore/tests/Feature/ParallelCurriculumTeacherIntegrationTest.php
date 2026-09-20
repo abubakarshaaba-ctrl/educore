@@ -38,9 +38,19 @@ class ParallelCurriculumTeacherIntegrationTest extends TestCase
     {
         $context = $this->context(true);
 
+        ParallelCurriculumSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Fiqh',
+            'code' => 'FIQ',
+            'is_active' => true,
+        ]);
+
         $workspaces = app(ParallelCurriculumService::class)
             ->scoreWorkspacesForUser($context['teacher'], $context['term']);
 
+        // Fiqh belongs to the programme but is not assigned to this class,
+        // therefore the all-subject class teacher must not see it.
         $this->assertCount(1, $workspaces);
         $this->assertSame($context['arm']->id, $workspaces->first()['arm']->id);
         $this->assertSame(
@@ -65,7 +75,7 @@ class ParallelCurriculumTeacherIntegrationTest extends TestCase
         );
     }
 
-    public function test_subject_based_parallel_teacher_gets_arm_specific_score_workspace(): void
+    public function test_subject_based_teacher_sees_only_specific_subjects_assigned_to_them_across_classes(): void
     {
         $context = $this->context(true);
 
@@ -83,15 +93,98 @@ class ParallelCurriculumTeacherIntegrationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $secondSubject = ParallelCurriculumSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Hadith',
+            'code' => 'HAD',
+            'is_active' => true,
+        ]);
+
+        $thirdSubject = ParallelCurriculumSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Fiqh',
+            'code' => 'FIQ',
+            'is_active' => true,
+        ]);
+
+        $secondClass = ParallelCurriculumClass::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_id' => $context['curriculum']->id,
+            'name' => 'Mutawassitah 2',
+            'code' => 'M2',
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+
+        $secondArm = ParallelCurriculumClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'name' => 'A',
+            'code' => 'A',
+            'teaching_assignment_mode' => 'subject_based',
+            'class_teacher_id' => null,
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        ParallelCurriculumClassSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'parallel_curriculum_subject_id' => $secondSubject->id,
+            'teacher_id' => $context['teacher']->id,
+            'is_active' => true,
+        ]);
+
+        $otherTeacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Other Parallel Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+
+        ParallelCurriculumClassSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'parallel_curriculum_class_id' => $secondClass->id,
+            'parallel_curriculum_subject_id' => $thirdSubject->id,
+            'teacher_id' => $otherTeacher->id,
+            'is_active' => true,
+        ]);
+
         $workspaces = app(ParallelCurriculumService::class)
             ->scoreWorkspacesForUser($context['teacher'], $context['term']);
 
-        $this->assertCount(1, $workspaces);
-        $this->assertSame($context['class']->id, $workspaces->first()['class_id']);
-        $this->assertSame($context['arm']->id, $workspaces->first()['arm_id']);
-        $this->assertSame($context['subject']->id, $workspaces->first()['subject_id']);
-        $this->assertSame($context['teacher']->id, $workspaces->first()['effective_teacher_id']);
-        $this->assertFalse($workspaces->first()['is_form_teacher']);
+        $this->assertCount(2, $workspaces);
+
+        $workspaceKeys = $workspaces
+            ->map(fn (array $workspace) =>
+                $workspace['class_id'].':'.$workspace['arm_id'].':'.$workspace['subject_id']
+            )
+            ->values();
+
+        $this->assertTrue($workspaceKeys->contains(
+            $context['class']->id.':'.$context['arm']->id.':'.$context['subject']->id
+        ));
+        $this->assertTrue($workspaceKeys->contains(
+            $secondClass->id.':'.$secondArm->id.':'.$secondSubject->id
+        ));
+        $this->assertFalse($workspaceKeys->contains(
+            $secondClass->id.':'.$secondArm->id.':'.$thirdSubject->id
+        ));
+
+        $this->assertTrue(
+            $workspaces->every(
+                fn (array $workspace) =>
+                    (int) $workspace['effective_teacher_id'] === (int) $context['teacher']->id
+            )
+        );
+        $this->assertTrue(
+            $workspaces->every(
+                fn (array $workspace) => $workspace['is_form_teacher'] === false
+            )
+        );
     }
 
     public function test_parallel_workspace_view_contains_class_arm_subject_and_term_selectors(): void
