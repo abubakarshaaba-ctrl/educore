@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -1400,12 +1399,13 @@ private fun StudentPlacementPanel(
                             style = MaterialTheme.typography.bodySmall,
                             color = EduCoreColors.Slate600,
                         )
-                        if (student.assignment != null) {
+                        val currentAssignment = student.assignment
+                        if (currentAssignment != null) {
                             Spacer(Modifier.height(EduCoreSpacing.Sm))
                             EduCoreDangerButton(
                                 text = "Remove Parallel Placement",
                                 onClick = {
-                                    pendingRemovalEnrolmentId = student.assignment.enrolmentId
+                                    pendingRemovalEnrolmentId = currentAssignment.enrolmentId
                                     pendingRemovalStudentName = student.name
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -3297,27 +3297,18 @@ private fun ParallelStaffAttendanceCard(
             attendance.canClockSelf
         ) {
             Spacer(Modifier.height(EduCoreSpacing.Md))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
-            ) {
-                EduCorePrimaryButton(
-                    text = "Clock In",
-                    onClick = onClockIn,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isMutating &&
-                        attendance.selfRecord?.clockInTime == null,
-                    loading = state.isMutating,
-                )
-                EduCoreSecondaryButton(
-                    text = "Clock Out",
-                    onClick = onClockOut,
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isMutating &&
-                        attendance.selfRecord?.clockInTime != null &&
-                        attendance.selfRecord.clockOutTime == null,
-                )
-            }
+            val selfRecord = attendance.selfRecord
+            EduCoreResponsiveButtonPair(
+                primaryText = "Clock In",
+                onPrimary = onClockIn,
+                secondaryText = "Clock Out",
+                onSecondary = onClockOut,
+                primaryEnabled = !state.isMutating && selfRecord?.clockInTime == null,
+                secondaryEnabled = !state.isMutating &&
+                    selfRecord?.clockInTime != null &&
+                    selfRecord.clockOutTime == null,
+                primaryLoading = state.isMutating,
+            )
         }
 
         if (attendance.staff.isNotEmpty()) {
