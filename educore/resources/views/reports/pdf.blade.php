@@ -258,7 +258,7 @@ table { border-collapse: collapse; }
             @if(!empty($tenant->email)) &nbsp;|&nbsp; {{ $tenant->email }} @endif
         </div>
         <div class="document-title">
-            {{ $isThird ? 'Third-Term Cumulative Student Report' : 'Student Termly Performance Report' }}
+            {{ $reportDocumentTitle ?? ($isThird ? 'Third-Term Cumulative Student Report' : 'Student Termly Performance Report') }}
         </div>
     </td>
 </tr>
