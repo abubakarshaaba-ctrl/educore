@@ -10,7 +10,7 @@
 @endpush
 
 @section('content')
-<div class="pcl">
+<div class="pcl" data-collapsible-root data-storage-key="parallel-lifecycle">
 @if(session('success'))<div class="ok">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="err"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
@@ -30,9 +30,20 @@
 <button class="btn p" type="submit">Load Lifecycle</button>
 </form>
 
+<div class="pc-section-toolbar">
+    <div class="pc-toolbar-copy">
+        <strong>Lifecycle sections</strong>
+        <span>Open the class arms, grading, promotion, transfer or teacher-assignment section you are working on. Other sections stay collapsed to reduce page density.</span>
+    </div>
+    <div class="pc-toolbar-actions">
+        <button class="btn s" type="button" data-expand-all>Expand all</button>
+        <button class="btn s" type="button" data-collapse-all>Collapse all</button>
+    </div>
+</div>
+
 @if($selectedCurriculum)
 <div class="grid">
-<section class="card full"><div class="head"><div><strong>1. Class levels and arms</strong><br><span>Each parallel level can have independent arms and capacity.</span></div></div><div class="body">
+<section class="card full" data-collapsible-item><div class="head"><div><strong>1. Class levels and arms</strong><br><span>Each parallel level can have independent arms and capacity.</span></div></div><div class="body">
 @foreach($selectedCurriculum->classes as $class)
 <div class="level"><div class="rule"><strong>{{ $class->name }}</strong><span>{{ $class->code ?: 'No code' }} · {{ $class->arms->where('is_active',true)->count() }} active arm(s)</span></div>
 <div class="arms">
@@ -52,7 +63,7 @@
 @endforeach
 </div></section>
 
-<section class="card"><div class="head"><div><strong>2. Class grade system</strong><br><span>Apply a band to one or several parallel levels.</span></div></div><div class="body">
+<section class="card" data-collapsible-item><div class="head"><div><strong>2. Class grade system</strong><br><span>Apply a band to one or several parallel levels.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.store') }}">@csrf<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <div class="fg"><label class="fl">Class levels</label><select class="fc" name="class_ids[]" multiple required>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select><div class="hint">Class-specific grades override the programme default scale.</div></div>
 <div class="row three"><div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required></div><div class="fg"><label class="fl">Min</label><input class="fc" type="number" step=".01" min="0" max="100" name="min_score" required></div><div class="fg"><label class="fl">Max</label><input class="fc" type="number" step=".01" min="0" max="100" name="max_score" required></div></div>
@@ -195,7 +206,7 @@
 @endif
 </div></section>
 
-<section class="card"><div class="head"><div><strong>4. Promotion rules</strong><br><span>Apply one progression policy to one or several parallel class levels.</span></div></div><div class="body">
+<section class="card" data-collapsible-item><div class="head"><div><strong>4. Promotion rules</strong><br><span>Apply one progression policy to one or several parallel class levels.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}" id="promotion-rule-form">
 @csrf
 <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
@@ -256,7 +267,7 @@
 </div>
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>5. Promotion engine</strong><br><span>Select the class levels to process. Unselected levels remain untouched.</span></div></div><div class="body">
+<section class="card full" data-collapsible-item><div class="head"><div><strong>5. Promotion engine</strong><br><span>Select the class levels to process. Unselected levels remain untouched.</span></div></div><div class="body">
 <form method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}">
 <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <input type="hidden" name="session_id" value="{{ $sessionId }}">
@@ -300,15 +311,15 @@
 @endif
 </div></section>
 
-<section class="card full"><div class="head"><div><strong>6. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
+<section class="card full" data-collapsible-item><div class="head"><div><strong>6. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
 <form method="POST" action="{{ route('parallel-curriculum.lifecycle.transfers.store') }}">@csrf
 <div class="row"><div class="fg"><label class="fl">Student / current placement</label><select class="fc" name="enrolment_id" required><option value="">Select learner</option>@foreach($enrolments as $enrolment)<option value="{{ $enrolment->id }}">{{ $enrolment->student?->full_name }} · {{ $enrolment->student?->admission_number }} · {{ $enrolment->curriculumClass?->name }} {{ $enrolment->curriculumClassArm?->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination level</label><select class="fc" name="destination_class_id" id="life-destination-class" required><option value="">Select</option>@foreach($selectedCurriculum->classes->where('is_active',true) as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
 <div class="row"><div class="fg"><label class="fl">Destination arm</label><select class="fc" name="destination_arm_id" id="life-destination-arm" required disabled><option value="">Choose destination level first</option>@foreach($selectedCurriculum->classes as $class)@foreach($class->arms->where('is_active',true) as $arm)<option value="{{ $arm->id }}" data-class-id="{{ $class->id }}" hidden disabled>{{ $class->name }} · {{ $arm->name }}{{ $arm->capacity ? ' · Capacity '.$arm->capacity : '' }}</option>@endforeach @endforeach</select></div><div class="fg"><label class="fl">Effective date</label><input class="fc" type="date" name="effective_date" value="{{ now()->toDateString() }}"></div></div>
 <div class="fg"><label class="fl">Reason</label><textarea class="fc" name="reason" rows="3" required></textarea></div><button class="btn p" type="submit">Complete Transfer</button></form>
 </div></section>
 
-<section class="card"><div class="head"><strong>Recent transfer history</strong><span>Latest 30</span></div><div class="body">@forelse($transfers as $transfer)<div class="rule"><strong>{{ $transfer->student?->full_name }} · {{ $transfer->movement_type==='intra_class'?'Intra-class':'Inter-class' }}</strong><span>{{ $transfer->fromClass?->name }} {{ $transfer->fromArm?->name }} → {{ $transfer->toClass?->name }} {{ $transfer->toArm?->name }} · {{ $transfer->session?->name }}</span></div>@empty<div class="hint">No transfers recorded.</div>@endforelse</div></section>
-<section class="card"><div class="head"><strong>Recent promotion history</strong><span>Latest 30</span></div><div class="body">@forelse($promotions as $promotion)<div class="rule"><strong>{{ $promotion->student?->full_name }} · {{ ucfirst($promotion->decision) }}</strong><span>{{ $promotion->sourceClass?->name }} {{ $promotion->sourceArm?->name }} → {{ $promotion->destinationClass?->name ?: 'Programme complete' }} {{ $promotion->destinationArm?->name }} · {{ $promotion->sourceSession?->name }} → {{ $promotion->targetSession?->name }}</span></div>@empty<div class="hint">No promotions processed.</div>@endforelse</div></section>
+<section class="card" data-collapsible-item><div class="head"><strong>Recent transfer history</strong><span>Latest 30</span></div><div class="body">@forelse($transfers as $transfer)<div class="rule"><strong>{{ $transfer->student?->full_name }} · {{ $transfer->movement_type==='intra_class'?'Intra-class':'Inter-class' }}</strong><span>{{ $transfer->fromClass?->name }} {{ $transfer->fromArm?->name }} → {{ $transfer->toClass?->name }} {{ $transfer->toArm?->name }} · {{ $transfer->session?->name }}</span></div>@empty<div class="hint">No transfers recorded.</div>@endforelse</div></section>
+<section class="card" data-collapsible-item><div class="head"><strong>Recent promotion history</strong><span>Latest 30</span></div><div class="body">@forelse($promotions as $promotion)<div class="rule"><strong>{{ $promotion->student?->full_name }} · {{ ucfirst($promotion->decision) }}</strong><span>{{ $promotion->sourceClass?->name }} {{ $promotion->sourceArm?->name }} → {{ $promotion->destinationClass?->name ?: 'Programme complete' }} {{ $promotion->destinationArm?->name }} · {{ $promotion->sourceSession?->name }} → {{ $promotion->targetSession?->name }}</span></div>@empty<div class="hint">No promotions processed.</div>@endforelse</div></section>
 </div>
 @else
 <div class="card"><div class="body"><div class="hint">Create a parallel curriculum programme first.</div></div></div>
