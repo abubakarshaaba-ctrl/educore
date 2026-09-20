@@ -560,6 +560,8 @@
 }
 
 /* Progressive disclosure and dense-workspace controls */
+.pc-grid > .pc-section-toolbar,
+.pcl .grid > .pc-section-toolbar{grid-column:1/-1}
 .pc-section-toolbar{
     display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
     margin:0 0 14px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#F8FAFC;
