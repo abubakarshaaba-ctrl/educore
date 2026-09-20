@@ -70,4 +70,18 @@ class ModulePresentationPolicyTest {
         assertFalse(ModulePresentationPolicy.allowsBrowserHandoff("reports"))
         assertFalse(ModulePresentationPolicy.allowsBrowserHandoff("platform.settings"))
     }
+
+    @Test
+    fun `all established school workflows refuse browser handoff`() {
+        listOf(
+            "classes", "students", "attendance", "staff-attendance.self",
+            "staff-attendance.admin", "scores", "reports", "skills", "transfers",
+            "gradebook", "fees", "expenses", "payroll", "admissions", "library",
+            "transport", "health", "inventory", "hostels", "subjects", "curriculum",
+            "academic-cycle", "academic-repository", "lesson-planner", "messages",
+            "announcements", "calendar.view", "profile", "settings",
+        ).forEach { key ->
+            assertFalse("$key must remain native", ModulePresentationPolicy.allowsBrowserHandoff(key))
+        }
+    }
 }
