@@ -272,7 +272,7 @@ class ParallelCurriculumLifecycleTest extends TestCase
     public function test_parallel_mapping_form_filters_destination_subjects_by_selected_levels(): void
     {
         $view = file_get_contents(
-            resource_path('views/parallel-curriculum/index.blade.php')
+            resource_path('views/parallel-curriculum/setup.blade.php')
         );
 
         $this->assertStringContainsString('id="integration-class-levels"', $view);
@@ -313,6 +313,9 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $index = file_get_contents(
             resource_path('views/parallel-curriculum/index.blade.php')
         );
+        $setup = file_get_contents(
+            resource_path('views/parallel-curriculum/setup.blade.php')
+        );
         $lifecycle = file_get_contents(
             resource_path('views/parallel-curriculum/lifecycle/index.blade.php')
         );
@@ -330,20 +333,37 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            'data-storage-key="parallel-config"',
+            'id="parallel-workspace-filter-form"',
             $index
         );
         $this->assertStringContainsString(
-            'id="parallel-workspace-filter"',
+            '$workspacePaginator',
             $index
+        );
+        $this->assertStringNotContainsString(
+            '1. Create programme',
+            $index
+        );
+
+        $this->assertStringContainsString(
+            'data-storage-key="parallel-config"',
+            $setup
+        );
+        $this->assertStringContainsString(
+            'data-setup-group-filter="structure"',
+            $setup
+        );
+        $this->assertStringContainsString(
+            'data-setup-group-filter="integration"',
+            $setup
         );
         $this->assertStringContainsString(
             '$enrolments->take(12)',
-            $index
+            $setup
         );
         $this->assertStringContainsString(
             "parallel-curriculum.partials.progressive-disclosure",
-            $index
+            $setup
         );
 
         $this->assertStringContainsString(
@@ -377,6 +397,9 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
         $this->assertStringContainsString('aria-expanded', $disclosure);
         $this->assertStringContainsString('localStorage', $disclosure);
+        $this->assertStringContainsString('parallelValidationTarget', $disclosure);
+        $this->assertStringContainsString('itemContainsValidationError', $disclosure);
+        $this->assertStringNotContainsString('hasValidationError', $disclosure);
     }
 
     private function mappingFixture(): array
