@@ -37,6 +37,8 @@
         <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab">Parallel Workspace</a>
         <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab active">Programme Setup</a>
         <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
+        <a href="{{ route('parallel-curriculum.class-list') }}" class="pc-tab">Class List</a>
+        <a href="{{ route('parallel-curriculum.teacher-list') }}" class="pc-tab">Teacher List</a>
         <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
         <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
         <a href="{{ route('parallel-curriculum.results.index') }}" class="pc-tab">Parallel Results</a>
