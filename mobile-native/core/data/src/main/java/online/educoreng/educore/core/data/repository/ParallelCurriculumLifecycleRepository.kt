@@ -9,6 +9,8 @@ import online.educoreng.educore.core.model.ParallelPromotionPreview
 import online.educoreng.educore.core.model.ParallelLifecycleStudentPage
 import online.educoreng.educore.core.model.ParallelResultWorkspace
 import online.educoreng.educore.core.model.ParallelStudentResultDetail
+import online.educoreng.educore.core.model.ParallelSkillWorkspace
+import online.educoreng.educore.core.model.ParallelSkillStudentDraft
 
 interface ParallelCurriculumLifecycleRepository {
     suspend fun load(
@@ -20,6 +22,17 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long? = null,
         termId: Long? = null,
     ): AppResult<ParallelResultWorkspace>
+
+    suspend fun loadSkills(
+        armId: Long? = null,
+        termId: Long? = null,
+    ): AppResult<ParallelSkillWorkspace>
+
+    suspend fun saveSkills(
+        armId: Long,
+        termId: Long,
+        students: List<ParallelSkillStudentDraft>,
+    ): AppResult<String>
 
     suspend fun loadOperations(
         curriculumId: Long? = null,
@@ -94,6 +107,20 @@ interface ParallelCurriculumLifecycleRepository {
         classId: Long,
         studentId: Long,
         termId: Long,
+    ): AppResult<DownloadedDocument>
+
+    suspend fun downloadCumulativeStudentResultPdf(
+        classId: Long,
+        studentId: Long,
+        sessionId: Long,
+    ): AppResult<DownloadedDocument>
+
+    suspend fun downloadParallelBroadsheetPdf(
+        mode: String,
+        classId: Long,
+        armId: Long? = null,
+        termId: Long? = null,
+        sessionId: Long? = null,
     ): AppResult<DownloadedDocument>
 
     suspend fun createProgramme(
