@@ -19,7 +19,7 @@
 @endpush
 
 @section('content')
-<div class="pco">
+<div class="pco" data-collapsible-root data-storage-key="parallel-operations">
 @if(session('success'))<div class="alert ok">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert err"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
@@ -52,8 +52,19 @@
     </div>
 </section>
 
+<div class="pc-section-toolbar">
+    <div class="pc-toolbar-copy">
+        <strong>Operations sections</strong>
+        <span>Working context stays visible. Expand only working week, staff attendance, timetable or learner attendance when needed.</span>
+    </div>
+    <div class="pc-toolbar-actions">
+        <button class="btn s" type="button" data-expand-all>Expand all</button>
+        <button class="btn s" type="button" data-collapse-all>Collapse all</button>
+    </div>
+</div>
+
 @if($selectedCurriculum)
-<section id="working-week" class="panel">
+<section id="working-week" class="panel" data-collapsible-item>
     <div class="head">
         <div>
             <strong>Parallel working days & staff attendance hours</strong><br>
@@ -110,7 +121,7 @@
     </div>
 </section>
 
-<section id="staff-attendance" class="panel">
+<section id="staff-attendance" class="panel" data-collapsible-item>
     @php($parallelStaffSchedule=$staffAttendance['schedule'] ?? null)
     @php($selfParallelRecord=$staffAttendance ? $staffAttendance['records']->get(auth()->id()) : null)
     <div class="head">
@@ -163,7 +174,7 @@
 
         @if($staffAttendance && $staffAttendance['staff']->isNotEmpty())
             <div class="att-table-wrap">
-                <table class="att">
+                <table class="att staff-att-table">
                     <thead>
                         <tr>
                             <th>Staff</th>
@@ -198,7 +209,7 @@
 <section class="panel"><div class="empty">Create a parallel programme, class level and active arm before configuring timetable or attendance.</div></section>
 @else
 <div class="grid">
-    <section id="parallel-timetable" class="panel">
+    <section id="parallel-timetable" class="panel" data-collapsible-item>
         <div class="head"><div><strong>Weekly parallel timetable</strong><br><span>{{ $selectedCurriculum->name }} · {{ $selectedClass->name }} {{ $selectedArm->name }}</span></div><span>{{ $periods->count() }} period(s)</span></div>
         <div class="body">
             @if($canManageTimetable)
@@ -252,7 +263,7 @@
         </div>
     </section>
 
-    <section id="learner-attendance" class="panel">
+    <section id="learner-attendance" class="panel" data-collapsible-item>
         <div class="head"><div><strong>Daily parallel attendance</strong><br><span>{{ $selectedClass->name }} {{ $selectedArm->name }} · {{ $date }}</span></div><span>{{ $canMarkAttendance?'Editable':'View restricted' }}</span></div>
         <div class="body">
             @if(!$canMarkAttendance)
@@ -291,7 +302,7 @@
                     <input type="hidden" name="attendance_date" value="{{ $date }}">
                     <input type="hidden" name="version" value="{{ $attendance['version'] }}">
                     <div class="att-table-wrap">
-                        <table class="att">
+                        <table class="att learner-att-table">
                             <thead><tr><th>Learner</th><th>Status</th><th>Remark</th></tr></thead>
                             <tbody>
                             @forelse($attendance['enrolments'] as $index=>$enrolment)
@@ -318,3 +329,7 @@
 @endif
 </div>
 @endsection
+
+@push('scripts')
+@include('parallel-curriculum.partials.progressive-disclosure')
+@endpush
