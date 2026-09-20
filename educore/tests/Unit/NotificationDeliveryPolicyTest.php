@@ -5,9 +5,11 @@ namespace Tests\Unit;
 use App\Models\Announcement;
 use App\Models\ExamPeriod;
 use App\Models\MessageThread;
+use App\Models\PayrollPeriod;
 use App\Models\User;
 use App\Services\Notifications\ActivityEmailService;
 use App\Services\Notifications\NotificationDeliveryPolicy;
+use App\Notifications\PayrollPaidNotification;
 use PHPUnit\Framework\TestCase;
 
 class NotificationDeliveryPolicyTest extends TestCase
@@ -19,7 +21,6 @@ class NotificationDeliveryPolicyTest extends TestCase
             'student_absent',
             'student_late',
             'message_received',
-            'exam_scheduled',
             'exam_supervision_published',
             'platform_broadcast',
             'calendar_event',
@@ -34,10 +35,23 @@ class NotificationDeliveryPolicyTest extends TestCase
         $this->assertSame([
             'fee_payment_received',
             'report_card_published',
+            'exam_scheduled',
             'admission_status_changed',
             'fee_overdue',
             'invoice_generated',
         ], NotificationDeliveryPolicy::LEGACY_CONFIGURABLE_EVENTS);
+    }
+
+    public function test_payroll_paid_notification_remains_mail_only(): void
+    {
+        $notification = new PayrollPaidNotification(
+            new PayrollPeriod(['title' => 'September 2026']),
+            250000.00,
+            'Test School',
+            'https://example.test/login'
+        );
+
+        $this->assertSame(['mail'], $notification->via(new \stdClass()));
     }
 
     public function test_routine_email_compatibility_hooks_remain_no_ops(): void
