@@ -213,7 +213,11 @@ class User extends Authenticatable
         'curriculum' => ['curriculum'],
         'academic-repository' => ['academic-repository'],
         'lesson-planner' => ['lesson-planner'],
-        'attendance' => ['attendance'],
+        'attendance' => [
+            'attendance',
+            'parallel-curriculum.attendance',
+            'parallel-curriculum.operations.attendance.save',
+        ],
         'transcript' => ['students.transcript'],
         'exam-timetable' => ['exams'],
 
@@ -255,7 +259,7 @@ class User extends Authenticatable
         'reports.remarks' => ['reports.remarks', 'reports.remarks.page.view', 'reports.remarks.save', 'reports.remarks.bulk'],
 
         // skills
-        'skills' => ['skills'],
+        'skills' => ['skills', 'parallel-curriculum.skills'],
 
         // ── CBT ───────────────────────────────────────────────────────
         'cbt' => ['cbt'],
