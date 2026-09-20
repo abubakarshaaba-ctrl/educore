@@ -325,9 +325,13 @@ class ParallelCurriculumOperationsService
             ->findOrFail($termId);
 
         abort_unless(
-            $this->canExportAttendance($user),
+            $this->canExportAttendance($user)
+                && (
+                    $this->canManageOperations($user)
+                    || $this->canMarkAttendance($user, $arm)
+                ),
             403,
-            'You do not have permission to export parallel attendance.'
+            'You do not have permission to export attendance for this parallel class arm.'
         );
 
         $fromDate = Carbon::parse($from ?: $term->start_date?->toDateString() ?: now()->toDateString())->startOfDay();
@@ -435,14 +439,54 @@ class ParallelCurriculumOperationsService
         });
     }
 
-    public function canViewOperations(User $user): bool
+    public function canManageOperations(User $user): bool
     {
         return $user->isSuperAdmin()
             || $user->canManage('timetable')
-            || $user->canAccessExactModule('scores')
+            || $user->canManage('students')
+            || in_array(
+                (string) $user->roleKey(),
+                ParallelCurriculumService::MANAGEMENT_ROLE_KEYS,
+                true
+            );
+    }
+
+    public function canViewOperations(User $user): bool
+    {
+        if ($this->canManageOperations($user)) {
+            return true;
+        }
+
+        $hasOperationalModule =
+            $user->canAccessExactModule('scores')
             || $user->canAccessExactModule('scores.entry')
             || $user->canAccessExactModule('timetable.view')
             || $user->canAccessExactModule('attendance');
+
+        if (! $hasOperationalModule) {
+            return false;
+        }
+
+        if (
+            ! Schema::hasTable('parallel_curricula')
+            || ! Schema::hasTable('parallel_curriculum_classes')
+            || ! Schema::hasTable('parallel_curriculum_class_arms')
+            || ! Schema::hasTable('parallel_curriculum_class_subjects')
+        ) {
+            return false;
+        }
+
+        $curriculumIds = ParallelCurriculum::query()
+            ->where('tenant_id', (int) $user->tenant_id)
+            ->where('is_active', true)
+            ->pluck('id');
+
+        return $curriculumIds->contains(
+            fn ($curriculumId) => $this->canClockParallelStaff(
+                $user,
+                (int) $curriculumId
+            )
+        );
     }
 
     public function canExportAttendance(User $user): bool
