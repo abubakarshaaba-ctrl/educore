@@ -330,6 +330,7 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $enrolments = collect();
+        $enrolmentTotal = 0;
         if ($canManage && $isSetup && $currentSession && $enrolmentReady) {
             $enrolmentRelations = [
                 'student.currentClassArm.classLevel',
@@ -341,10 +342,18 @@ class ParallelCurriculumController extends Controller
                 $enrolmentRelations[] = 'curriculumClassArm';
             }
 
-            $enrolments = ParallelCurriculumEnrolment::with($enrolmentRelations)
-                ->where('session_id', $currentSession->id)
-                ->where('is_active', true)
+            $enrolmentQuery = ParallelCurriculumEnrolment::where(
+                    'session_id',
+                    $currentSession->id
+                )
+                ->where('is_active', true);
+
+            $enrolmentTotal = (clone $enrolmentQuery)->count();
+
+            $enrolments = $enrolmentQuery
+                ->with($enrolmentRelations)
                 ->orderBy('parallel_curriculum_class_id')
+                ->limit(12)
                 ->get();
         }
 
@@ -383,6 +392,7 @@ class ParallelCurriculumController extends Controller
             'staff',
             'integrations',
             'enrolments',
+            'enrolmentTotal',
             'recentComposites',
             'armLifecycleReady',
             'schemaReconciliationPending'
