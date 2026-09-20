@@ -443,7 +443,6 @@ class ParallelCurriculumOperationsService
     {
         return $user->isSuperAdmin()
             || $user->canManage('timetable')
-            || $user->canManage('students')
             || in_array(
                 (string) $user->roleKey(),
                 ParallelCurriculumService::MANAGEMENT_ROLE_KEYS,
