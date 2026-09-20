@@ -1913,6 +1913,186 @@ private fun GradeEditor(
     }
 }
 
+private fun LazyListScope.lifecycleSkills(
+    state: ParallelLifecycleUiState,
+    onLoadSkills: (Long?, Long?) -> Unit,
+    onSaveSkills: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    val workspace = state.skillWorkspace
+
+    item {
+        SectionHeading(
+            "Parallel skills rating",
+            "Rate affective and psychomotor development independently from the conventional curriculum.",
+        )
+    }
+
+    if (workspace == null) {
+        item {
+            if (state.isSkillsLoading) {
+                EduCoreLoadingState(message = "Loading parallel skills ratings")
+            } else {
+                EduCoreSecondaryButton(
+                    text = "Load Skills Rating",
+                    onClick = { onLoadSkills(null, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isMutating,
+                )
+            }
+        }
+        return
+    }
+
+    item {
+        EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+            Text("Rating context", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            LifecycleMenu(
+                label = "Parallel class arm",
+                current = workspace.arms
+                    .firstOrNull { it.id == workspace.selectedArmId }
+                    ?.label ?: "Select class arm",
+                options = workspace.arms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(it, workspace.selectedTermId) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            LifecycleMenu(
+                label = "Academic term",
+                current = workspace.terms
+                    .firstOrNull { it.id == workspace.selectedTermId }
+                    ?.label ?: "Select term",
+                options = workspace.terms.map { it.id to it.label },
+                enabled = !state.isSkillsLoading && !state.isMutating,
+                onSelect = { onLoadSkills(workspace.selectedArmId, it) },
+            )
+            Spacer(Modifier.height(EduCoreSpacing.Sm))
+            Text(
+                workspace.ratingScale.joinToString(" · ") {
+                    it.value.toString() + " " + it.label
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = EduCoreColors.Slate600,
+            )
+        }
+    }
+
+    if (state.isSkillsLoading) {
+        item { EduCoreLoadingState(message = "Refreshing skills ratings") }
+    }
+
+    if (workspace.students.isEmpty()) {
+        item {
+            EduCoreEmptyState(
+                "No learners",
+                "No active learner is assigned to the selected parallel class arm for this term.",
+            )
+        }
+        return
+    }
+
+    items(
+        workspace.students,
+        key = { "skill-student-" + it.enrolmentId },
+    ) { student ->
+        ParallelSkillStudentCard(
+            student = student,
+            skills = workspace.skills,
+            ratingScale = workspace.ratingScale.map { it.value to it.label },
+            canManage = workspace.canManage,
+            busy = state.isMutating,
+            onSave = onSaveSkills,
+        )
+    }
+}
+
+@Composable
+private fun ParallelSkillStudentCard(
+    student: ParallelSkillStudent,
+    skills: List<online.educoreng.educore.core.model.ParallelSkillDefinition>,
+    ratingScale: List<Pair<Int, String>>,
+    canManage: Boolean,
+    busy: Boolean,
+    onSave: (List<ParallelSkillStudentDraft>) -> Unit,
+) {
+    var ratings by remember(student.enrolmentId, student.ratings) {
+        mutableStateOf<Map<Long, Int?>>(
+            student.ratings.mapValues { it.value }
+        )
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text(student.name, style = MaterialTheme.typography.titleMedium)
+        Text(
+            student.admissionNumber ?: "No admission number",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        listOf("affective", "psychomotor").forEach { category ->
+            val categorySkills = skills
+                .filter { it.category == category }
+                .sortedBy { it.sortOrder }
+
+            if (categorySkills.isNotEmpty()) {
+                Spacer(Modifier.height(EduCoreSpacing.Lg))
+                Text(
+                    if (category == "affective") {
+                        "Affective Domain"
+                    } else {
+                        "Psychomotor Domain"
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = EduCoreColors.Navy900,
+                )
+
+                categorySkills.forEach { skill ->
+                    Spacer(Modifier.height(EduCoreSpacing.Sm))
+                    StringLifecycleMenu(
+                        label = skill.name,
+                        current = ratings[skill.id]?.let { saved ->
+                            ratingScale.firstOrNull { it.first == saved }
+                                ?.let { saved.toString() + " · " + it.second }
+                                ?: saved.toString()
+                        } ?: "Not rated",
+                        options = listOf("" to "Not rated") +
+                            ratingScale.map {
+                                it.first.toString() to
+                                    (it.first.toString() + " · " + it.second)
+                            },
+                        enabled = canManage && !busy,
+                        onSelect = { selected ->
+                            ratings = ratings.toMutableMap().apply {
+                                this[skill.id] = selected.toIntOrNull()
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
+        if (canManage) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            EduCorePrimaryButton(
+                text = "Save Skills Rating",
+                onClick = {
+                    onSave(
+                        listOf(
+                            ParallelSkillStudentDraft(
+                                enrolmentId = student.enrolmentId,
+                                ratings = ratings,
+                            )
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+                loading = busy,
+            )
+        }
+    }
+}
+
 private fun LazyListScope.lifecycleResults(
     state: ParallelLifecycleUiState,
     onLoadResults: (Long?, Long?) -> Unit,
@@ -2916,6 +3096,251 @@ internal fun ParallelOperationsPanel(
             onSaveParallelAttendance = onSaveParallelAttendance,
             onDownloadAttendanceExport = onDownloadAttendanceExport,
         )
+    }
+}
+
+@Composable
+private fun ParallelWorkingDaysCard(
+    state: ParallelLifecycleUiState,
+    onSaveWorkingDays: (List<ParallelWorkingDay>) -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    val dayOrder = listOf(
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    )
+    val initial = dayOrder.map { day ->
+        operations.workingDays.firstOrNull { it.dayOfWeek == day }
+            ?: ParallelWorkingDay(
+                dayOfWeek = day,
+                isWorking = day in setOf(
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                ),
+            )
+    }
+    var drafts by remember(
+        operations.selected.curriculumId,
+        operations.workingDays,
+    ) {
+        mutableStateOf(initial)
+    }
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Parallel working week", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Configure each working day independently. Resumption, closing time and grace period belong to the parallel programme and are not copied from the conventional curriculum.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+
+        drafts.forEachIndexed { index, day ->
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            if (index > 0) {
+                HorizontalDivider()
+                Spacer(Modifier.height(EduCoreSpacing.Md))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    day.dayOfWeek.replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Switch(
+                    checked = day.isWorking,
+                    onCheckedChange = { checked ->
+                        drafts = drafts.map {
+                            if (it.dayOfWeek == day.dayOfWeek) {
+                                it.copy(isWorking = checked)
+                            } else {
+                                it
+                            }
+                        }
+                    },
+                    enabled = operations.capabilities.manageWorkingDays &&
+                        !state.isMutating,
+                )
+            }
+
+            if (day.isWorking) {
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    EduCoreTextField(
+                        value = day.resumptionTime.orEmpty(),
+                        onValueChange = { value ->
+                            drafts = drafts.map {
+                                if (it.dayOfWeek == day.dayOfWeek) {
+                                    it.copy(resumptionTime = value)
+                                } else {
+                                    it
+                                }
+                            }
+                        },
+                        label = "Resume HH:mm",
+                        modifier = Modifier.weight(1f),
+                        enabled = operations.capabilities.manageWorkingDays &&
+                            !state.isMutating,
+                    )
+                    EduCoreTextField(
+                        value = day.closingTime.orEmpty(),
+                        onValueChange = { value ->
+                            drafts = drafts.map {
+                                if (it.dayOfWeek == day.dayOfWeek) {
+                                    it.copy(closingTime = value)
+                                } else {
+                                    it
+                                }
+                            }
+                        },
+                        label = "Close HH:mm",
+                        modifier = Modifier.weight(1f),
+                        enabled = operations.capabilities.manageWorkingDays &&
+                            !state.isMutating,
+                    )
+                }
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                EduCoreTextField(
+                    value = day.graceMinutes.toString(),
+                    onValueChange = { value ->
+                        val minutes = value.filter(Char::isDigit)
+                            .take(3)
+                            .toIntOrNull()
+                            ?: 0
+                        drafts = drafts.map {
+                            if (it.dayOfWeek == day.dayOfWeek) {
+                                it.copy(graceMinutes = minutes)
+                            } else {
+                                it
+                            }
+                        }
+                    },
+                    label = "Grace period (minutes)",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = operations.capabilities.manageWorkingDays &&
+                        !state.isMutating,
+                )
+            }
+        }
+
+        if (operations.capabilities.manageWorkingDays) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            EduCorePrimaryButton(
+                text = "Save Parallel Working Week",
+                onClick = { onSaveWorkingDays(drafts) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isMutating,
+                loading = state.isMutating,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParallelStaffAttendanceCard(
+    state: ParallelLifecycleUiState,
+    onClockIn: () -> Unit,
+    onClockOut: () -> Unit,
+) {
+    val operations = state.operationsWorkspace ?: return
+    val attendance = operations.staffAttendance ?: return
+
+    EduCoreDashboardCard(Modifier.fillMaxWidth()) {
+        Text("Parallel staff attendance", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "A single scan or clock action is reconciled against the schedules the staff member is assigned to. This panel shows the parallel-programme attendance outcome.",
+            style = MaterialTheme.typography.bodySmall,
+            color = EduCoreColors.Slate600,
+        )
+        Spacer(Modifier.height(EduCoreSpacing.Md))
+
+        KeyValueRow("Date", attendance.date)
+        KeyValueRow(
+            "Working day",
+            if (attendance.isWorkingDay) "Yes" else "No",
+        )
+        KeyValueRow(
+            "Schedule",
+            listOfNotNull(
+                attendance.resumptionTime,
+                attendance.closingTime,
+            ).joinToString(" – ").ifBlank { "Not configured" },
+        )
+        KeyValueRow("Grace", attendance.graceMinutes.toString() + " min")
+
+        attendance.selfRecord?.let { record ->
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            HorizontalDivider()
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Text("My attendance", style = MaterialTheme.typography.titleSmall)
+            KeyValueRow("Arrival", record.clockInTime ?: "Not clocked in")
+            KeyValueRow("Arrival status", record.status ?: "—")
+            KeyValueRow("Departure", record.clockOutTime ?: "Not clocked out")
+            KeyValueRow("Departure status", record.departureStatus ?: "—")
+        }
+
+        if (
+            operations.capabilities.clockParallelStaff &&
+            attendance.canClockSelf
+        ) {
+            Spacer(Modifier.height(EduCoreSpacing.Md))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+            ) {
+                EduCorePrimaryButton(
+                    text = "Clock In",
+                    onClick = onClockIn,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating &&
+                        attendance.selfRecord?.clockInTime == null,
+                    loading = state.isMutating,
+                )
+                EduCoreSecondaryButton(
+                    text = "Clock Out",
+                    onClick = onClockOut,
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.isMutating &&
+                        attendance.selfRecord?.clockInTime != null &&
+                        attendance.selfRecord.clockOutTime == null,
+                )
+            }
+        }
+
+        if (attendance.staff.isNotEmpty()) {
+            Spacer(Modifier.height(EduCoreSpacing.Lg))
+            Text(
+                "Assigned staff today",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            attendance.staff.forEach { record ->
+                Spacer(Modifier.height(EduCoreSpacing.Sm))
+                Text(record.name, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    listOfNotNull(
+                        record.status,
+                        record.clockInTime,
+                        record.departureStatus,
+                        record.clockOutTime,
+                    ).joinToString(" · ").ifBlank { "No attendance recorded" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
+            }
+        }
     }
 }
 
