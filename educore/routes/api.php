@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\MobileOperationsController;
 use App\Http\Controllers\Api\MobilePaymentController;
 use App\Http\Controllers\Api\MobileParallelCurriculumLifecycleController;
 use App\Http\Controllers\Api\MobileParallelCurriculumResultController;
+use App\Http\Controllers\Api\MobileParallelCurriculumSkillController;
 use App\Http\Controllers\Api\MobileReleaseController;
 use App\Http\Controllers\Api\MobilePortalController;
 use App\Http\Controllers\Api\MobileScheduleController;
@@ -152,6 +153,11 @@ Route::prefix('v1')->group(function () {
             Route::delete('periods/{period}', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'destroyPeriod']);
             Route::post('attendance', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'saveAttendance']);
             Route::get('attendance/export', [\App\Http\Controllers\Api\MobileParallelCurriculumOperationsController::class, 'exportAttendance']);
+        });
+
+        Route::prefix('parallel-curriculum/skills')->group(function () {
+            Route::get('/', [MobileParallelCurriculumSkillController::class, 'index']);
+            Route::put('/', [MobileParallelCurriculumSkillController::class, 'save']);
         });
 
         Route::prefix('parallel-curriculum/results')->group(function () {
