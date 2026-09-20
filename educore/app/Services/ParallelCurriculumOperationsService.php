@@ -1048,6 +1048,67 @@ class ParallelCurriculumOperationsService
         return $record;
     }
 
+    private function assignedStaffIds(
+        int $tenantId,
+        int $curriculumId
+    ): Collection {
+        $classes = ParallelCurriculumClass::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('is_active', true)
+            ->with([
+                'arms' => fn ($query) => $query->where('is_active', true),
+                'subjectAssignments' => fn ($query) =>
+                    $query->where('is_active', true),
+            ])
+            ->get();
+
+        $ids = collect();
+
+        foreach ($classes as $class) {
+            foreach ($class->arms as $arm) {
+                foreach ($class->subjectAssignments as $assignment) {
+                    $teacherId = $this->effectiveTeacherId(
+                        $tenantId,
+                        (int) $class->id,
+                        (int) $arm->id,
+                        (int) $assignment->parallel_curriculum_subject_id
+                    );
+
+                    if ($teacherId) {
+                        $ids->push($teacherId);
+                    }
+                }
+            }
+        }
+
+        return $ids
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function workingDay(
+        int $tenantId,
+        int $curriculumId,
+        string $day
+    ): ParallelCurriculumWorkingDay {
+        return ParallelCurriculumWorkingDay::query()
+            ->where('tenant_id', $tenantId)
+            ->where('parallel_curriculum_id', $curriculumId)
+            ->where('day_of_week', $day)
+            ->first()
+            ?: new ParallelCurriculumWorkingDay([
+                'tenant_id' => $tenantId,
+                'parallel_curriculum_id' => $curriculumId,
+                'day_of_week' => $day,
+                'is_working' => ! in_array($day, ['saturday', 'sunday'], true),
+                'resumption_time' => '08:00:00',
+                'closing_time' => '15:00:00',
+                'grace_minutes' => 15,
+            ]);
+    }
+
     private function classifyParallelArrival(
         string $date,
         string $clockIn,
