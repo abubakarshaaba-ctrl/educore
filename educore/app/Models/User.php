@@ -224,9 +224,12 @@ class User extends Authenticatable
             'parallel-curriculum.index', 'parallel-curriculum.score-sheet',
             'parallel-curriculum.scores.save', 'parallel-curriculum.breakdown',
             'parallel-curriculum.operations.index',
+            'parallel-curriculum.attendance.index',
             'parallel-curriculum.operations.attendance.save',
             'parallel-curriculum.form-teacher-comments.index',
             'parallel-curriculum.form-teacher-comments.save',
+            'parallel-curriculum.skills.index',
+            'parallel-curriculum.skills.save',
         ], // enter+save assigned conventional/parallel scores, assigned parallel attendance and form comments
         'scores.view' => [
             'scores.index', 'scores.broadsheet', 'parallel-curriculum.breakdown',
