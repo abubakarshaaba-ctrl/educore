@@ -80,7 +80,7 @@
                     @if(!empty($tenant?->email)) · {{ $tenant->email }} @endif
                 </div>
                 <div class="document-title">
-                    {{ $isThirdTerm ? 'Parallel Curriculum Third-Term Cumulative Student Report' : 'Parallel Curriculum Student Termly Performance Report' }}
+                    {{ $reportDocumentTitle ?? (($isCumulative ?? false) ? strtoupper($parallelProgrammeName ?? 'Parallel Curriculum').' Cumulative Student Performance Report' : strtoupper($parallelProgrammeName ?? 'Parallel Curriculum').' Student Termly Performance Report') }}
                 </div>
             </div>
         </header>
@@ -91,7 +91,7 @@
             <div class="field"><span class="label">Class</span><span class="value">{{ $parallelClassName }}</span></div>
             <div class="field"><span class="label">Gender</span><span class="value">{{ ucfirst($student->gender ?? '—') }}</span></div>
             <div class="field"><span class="label">Session / Term</span><span class="value">{{ $session?->name }} / {{ $term->name }}</span></div>
-            <div class="field"><span class="label">Date of Birth</span><span class="value">{{ $student->date_of_birth ? CarbonCarbon::parse($student->date_of_birth)->format('d M Y') : '—' }}</span></div>
+            <div class="field"><span class="label">Date of Birth</span><span class="value">{{ $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->format('d M Y') : '—' }}</span></div>
             <div class="field"><span class="label">Date Issued</span><span class="value">{{ now()->format('d M Y') }}</span></div>
             <div class="field"><span class="label">Number in Class</span><span class="value">{{ $total ?: '—' }}</span></div>
         </section>
@@ -105,7 +105,7 @@
             <div class="kpi"><div class="kpi-value">{{ number_format((float)($summary->total_score ?? 0),1) }}</div><div class="kpi-label">Total Score</div></div>
         </section>
 
-        <div class="section-bar">{{ $isThirdTerm ? 'Third-Term Cumulative Academic Performance' : $term->name.' Academic Performance' }}</div>
+        <div class="section-bar">{{ ($isCumulative ?? false) ? 'Cumulative Academic Performance' : $term->name.' Academic Performance' }}</div>
         <div class="table-wrap">
             <table class="academic">
                 <thead>
@@ -233,8 +233,8 @@
 
         <footer class="report-footer {{ $isThirdTerm ? 'third' : '' }}">
             <div class="footer-cell"><span class="label">Form Teacher</span><span class="value">{{ $formTeacherName ?: '—' }}</span></div>
-            <div class="footer-cell"><span class="label">Next Term Begins</span><span class="value">{{ $term->next_term_begins ? CarbonCarbon::parse($term->next_term_begins)->format('d M Y') : 'To be announced' }}</span></div>
-            @if($isThirdTerm)
+            <div class="footer-cell"><span class="label">Next Term Begins</span><span class="value">{{ $term->next_term_begins ? \Carbon\Carbon::parse($term->next_term_begins)->format('d M Y') : 'To be announced' }}</span></div>
+            @if($isActualThirdTerm ?? false)
                 <div class="footer-cell">
                     <span class="label">Promotion Decision</span>
                     <span class="value">
