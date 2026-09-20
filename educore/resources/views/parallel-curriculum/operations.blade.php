@@ -23,19 +23,7 @@
 @if(session('success'))<div class="alert ok">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())' data-parallel-validation-target="{{ old('_parallel_section') }}"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
-<div class="tabs">
-    <a class="tab" href="{{ route('scores.index') }}">Conventional Scores</a>
-    <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
-    @if($canManageOperations)
-        <a class="tab" href="{{ route('parallel-curriculum.setup') }}">Programme Setup</a>
-        <a class="tab" href="{{ route('parallel-curriculum.student-assignments') }}">Student Assignments</a>
-        <a class="tab" href="{{ route('parallel-curriculum.lifecycle.index') }}">Academic Lifecycle</a>
-    @endif
-    <a class="tab active" href="{{ route('parallel-curriculum.operations.index') }}">Timetable & Attendance</a>
-    @if($canManageOperations)
-        <a class="tab" href="{{ route('parallel-curriculum.results.index') }}">Parallel Results</a>
-    @endif
-</div>
+@include('parallel-curriculum.partials.module-navigation')
 
 <div class="hero">
     <h2>Parallel Timetable & Attendance</h2>
