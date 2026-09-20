@@ -12,7 +12,7 @@
 @section('content')
 <div class="pcl" data-collapsible-root data-storage-key="parallel-lifecycle">
 @if(session('success'))<div class="ok">{{ session('success') }}</div>@endif
-@if($errors->any())<div class="err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())'><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
+@if($errors->any())<div class="err" data-parallel-validation-error data-parallel-validation-fields='@json($errors->keys())' data-parallel-validation-target="{{ old('_parallel_section') }}"><strong>Could not complete the operation.</strong> {{ $errors->first() }}</div>@endif
 
 <div class="tabs">
 <a class="tab" href="{{ route('parallel-curriculum.index') }}">Parallel Workspace</a>
@@ -44,28 +44,28 @@
 
 @if($selectedCurriculum)
 <div class="grid">
-<section class="card full" data-collapsible-item><div class="head"><div><strong>1. Class levels and arms</strong><br><span>Each parallel level can have independent arms and capacity.</span></div></div><div class="body">
+<section id="lifecycle-arms" class="card full" data-collapsible-item><div class="head"><div><strong>1. Class levels and arms</strong><br><span>Each parallel level can have independent arms and capacity.</span></div></div><div class="body">
 @foreach($selectedCurriculum->classes as $class)
 <div class="level"><div class="rule"><strong>{{ $class->name }}</strong><span>{{ $class->code ?: 'No code' }} · {{ $class->arms->where('is_active',true)->count() }} active arm(s)</span></div>
 <div class="arms">
 @foreach($class->arms as $arm)
 <div class="arm"><strong>{{ $class->name }} {{ $arm->name }}</strong><span>{{ $arm->is_active?'Active':'Archived' }} · Capacity: {{ $arm->capacity ?: 'Unlimited' }}</span>
 @if($arm->is_active)
-<details><summary>Edit arm</summary><form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.update',$arm) }}">@csrf @method('PUT')
+<details><summary>Edit arm</summary><form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.update',$arm) }}">@csrf <input type="hidden" name="_parallel_section" value="lifecycle-arms"> @method('PUT')
 <div class="row"><div class="fg"><label class="fl">Arm</label><input class="fc" name="name" value="{{ $arm->name }}" required></div><div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $arm->code }}"></div></div>
 <div class="fg"><label class="fl">Capacity</label><input class="fc" type="number" min="1" name="capacity" value="{{ $arm->capacity }}"></div><button class="btn p" type="submit">Save</button></form>
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.archive',$arm) }}" style="margin-top:6px">@csrf @method('DELETE')<button class="btn d" type="submit">Archive</button></form></details>
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.archive',$arm) }}" style="margin-top:6px">@csrf <input type="hidden" name="_parallel_section" value="lifecycle-arms"> @method('DELETE')<button class="btn d" type="submit">Archive</button></form></details>
 @endif
 </div>
 @endforeach
-<div class="arm"><strong>Add another arm</strong><form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.store') }}" style="margin-top:7px">@csrf<input type="hidden" name="parallel_curriculum_class_id" value="{{ $class->id }}">
+<div class="arm"><strong>Add another arm</strong><form method="POST" action="{{ route('parallel-curriculum.lifecycle.arms.store') }}" style="margin-top:7px">@csrf<input type="hidden" name="_parallel_section" value="lifecycle-arms"><input type="hidden" name="parallel_curriculum_class_id" value="{{ $class->id }}">
 <div class="row"><div class="fg"><label class="fl">Arm</label><input class="fc" name="name" placeholder="B" required></div><div class="fg"><label class="fl">Code</label><input class="fc" name="code" placeholder="B"></div></div><div class="fg"><label class="fl">Capacity</label><input class="fc" type="number" min="1" name="capacity"></div><button class="btn s" type="submit">Create Arm</button></form></div>
 </div></div>
 @endforeach
 </div></section>
 
-<section class="card" data-collapsible-item><div class="head"><div><strong>2. Class grade system</strong><br><span>Apply a band to one or several parallel levels.</span></div></div><div class="body">
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.store') }}">@csrf<input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
+<section id="lifecycle-grades" class="card" data-collapsible-item><div class="head"><div><strong>2. Class grade system</strong><br><span>Apply a band to one or several parallel levels.</span></div></div><div class="body">
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.store') }}">@csrf<input type="hidden" name="_parallel_section" value="lifecycle-grades"><input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <div class="fg"><label class="fl">Class levels</label><select class="fc" name="class_ids[]" multiple required>@foreach($selectedCurriculum->classes as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select><div class="hint">Class-specific grades override the programme default scale.</div></div>
 <div class="row three"><div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required></div><div class="fg"><label class="fl">Min</label><input class="fc" type="number" step=".01" min="0" max="100" name="min_score" required></div><div class="fg"><label class="fl">Max</label><input class="fc" type="number" step=".01" min="0" max="100" name="max_score" required></div></div>
 <div class="row"><div class="fg"><label class="fl">Remark</label><input class="fc" name="remark"></div><div class="fg"><label class="fl">Grade point</label><input class="fc" type="number" step=".01" min="0" name="grade_point"></div></div>
@@ -78,7 +78,7 @@
         @foreach($class->classGrades as $grade)
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px">
                 <span>{{ $grade->grade_letter }} · {{ number_format($grade->min_score,0) }}–{{ number_format($grade->max_score,0) }} · {{ $grade->remark ?: 'No remark' }} · {{ $grade->is_pass_grade ? 'Pass' : 'Fail' }}</span>
-                <form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.destroy',$grade) }}">
+                <form method="POST" action="{{ route('parallel-curriculum.lifecycle.grades.destroy',$grade) }}"><input type="hidden" name="_parallel_section" value="lifecycle-grades">
                     @csrf @method('DELETE')
                     <button class="btn d" type="submit">Remove</button>
                 </form>
@@ -119,7 +119,7 @@
                 {{ $teachingMode === 'class_teacher' ? 'One class teacher · all subjects' : 'Subject-based teachers' }}
             </div>
 
-            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teaching-mode.store') }}" style="margin-top:10px">
+            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teaching-mode.store') }}" style="margin-top:10px"><input type="hidden" name="_parallel_section" value="teaching-assignment-model">
                 @csrf
                 <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
                 <div class="row">
@@ -164,7 +164,7 @@
                     @else
                         @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
                             @php($override=$arm->subjectTeachers->where('is_active',true)->firstWhere('parallel_curriculum_subject_id',$assignment->parallel_curriculum_subject_id))
-                            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teachers.store') }}" style="margin-top:9px;padding-top:9px;border-top:1px solid #EEF2F7">
+                            <form method="POST" action="{{ route('parallel-curriculum.lifecycle.arm-teachers.store') }}" style="margin-top:9px;padding-top:9px;border-top:1px solid #EEF2F7"><input type="hidden" name="_parallel_section" value="teaching-assignment-model">
                                 @csrf
                                 <input type="hidden" name="parallel_curriculum_class_arm_id" value="{{ $arm->id }}">
                                 <input type="hidden" name="parallel_curriculum_subject_id" value="{{ $assignment->parallel_curriculum_subject_id }}">
@@ -207,8 +207,8 @@
 @endif
 </div></section>
 
-<section class="card" data-collapsible-item><div class="head"><div><strong>4. Promotion rules</strong><br><span>Apply one progression policy to one or several parallel class levels.</span></div></div><div class="body">
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}" id="promotion-rule-form">
+<section id="lifecycle-promotion-rules" class="card" data-collapsible-item><div class="head"><div><strong>4. Promotion rules</strong><br><span>Apply one progression policy to one or several parallel class levels.</span></div></div><div class="body">
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotion-rules.store') }}" id="promotion-rule-form"><input type="hidden" name="_parallel_section" value="lifecycle-promotion-rules">
 @csrf
 <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <div class="fg">
@@ -268,7 +268,7 @@
 </div>
 </div></section>
 
-<section class="card full" data-collapsible-item><div class="head"><div><strong>5. Promotion engine</strong><br><span>Select the class levels to process. Unselected levels remain untouched.</span></div></div><div class="body">
+<section id="lifecycle-promotion-engine" class="card full" data-collapsible-item><div class="head"><div><strong>5. Promotion engine</strong><br><span>Select the class levels to process. Unselected levels remain untouched.</span></div></div><div class="body">
 <form method="GET" action="{{ route('parallel-curriculum.lifecycle.index') }}">
 <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <input type="hidden" name="session_id" value="{{ $sessionId }}">
@@ -296,7 +296,7 @@
 <div class="wrap desktop"><table class="tbl"><thead><tr><th>Student</th><th>Source</th><th>Average</th><th>Failed</th><th>Decision</th><th>Destination</th><th>Reason</th></tr></thead><tbody>@foreach($preview['rows'] as $row)<tr><td><strong>{{ $row['student']?->full_name }}</strong><br>{{ $row['student']?->admission_number }}</td><td>{{ $row['enrolment']->curriculumClass?->name }} {{ $row['enrolment']->curriculumClassArm?->name }}</td><td>{{ $row['average']===null?'—':number_format($row['average'],1).'%' }}</td><td>{{ $row['failed_subjects'] }}</td><td><span class="badge {{ $row['decision'] }}">{{ ucfirst($row['decision']) }}</span></td><td>{{ $row['destination_class']?->name ?: '—' }} {{ $row['destination_arm']?->name ?: '' }}</td><td>{{ $row['reason'] }}</td></tr>@endforeach</tbody></table></div>
 <div class="mobile">@foreach($preview['rows'] as $row)<div class="mrow"><strong>{{ $row['student']?->full_name }} · {{ ucfirst($row['decision']) }}</strong><span>{{ $row['enrolment']->curriculumClass?->name }} {{ $row['enrolment']->curriculumClassArm?->name }} → {{ $row['destination_class']?->name ?: 'Programme complete' }} {{ $row['destination_arm']?->name }} · Avg {{ $row['average']===null?'—':number_format($row['average'],1).'%' }} · {{ $row['reason'] }}</span></div>@endforeach</div>
 @if($preview['counts']['blocked']===0 && $preview['counts']['total']>0)
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotions.execute') }}" style="margin-top:12px">
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.promotions.execute') }}" style="margin-top:12px"><input type="hidden" name="_parallel_section" value="lifecycle-promotion-engine">
 @csrf
 <input type="hidden" name="parallel_curriculum_id" value="{{ $selectedCurriculum->id }}">
 <input type="hidden" name="source_session_id" value="{{ $preview['source_session']->id }}">
@@ -312,15 +312,15 @@
 @endif
 </div></section>
 
-<section class="card full" data-collapsible-item><div class="head"><div><strong>6. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
-<form method="POST" action="{{ route('parallel-curriculum.lifecycle.transfers.store') }}">@csrf
+<section id="lifecycle-transfer" class="card full" data-collapsible-item><div class="head"><div><strong>6. Intra- and inter-class transfer</strong><br><span>Arm-to-arm movement within the same level is intra-class. Level-to-level movement is inter-class.</span></div></div><div class="body">
+<form method="POST" action="{{ route('parallel-curriculum.lifecycle.transfers.store') }}">@csrf<input type="hidden" name="_parallel_section" value="lifecycle-transfer">
 <div class="row"><div class="fg"><label class="fl">Student / current placement</label><select class="fc" name="enrolment_id" required><option value="">Select learner</option>@foreach($enrolments as $enrolment)<option value="{{ $enrolment->id }}">{{ $enrolment->student?->full_name }} · {{ $enrolment->student?->admission_number }} · {{ $enrolment->curriculumClass?->name }} {{ $enrolment->curriculumClassArm?->name }}</option>@endforeach</select></div><div class="fg"><label class="fl">Destination level</label><select class="fc" name="destination_class_id" id="life-destination-class" required><option value="">Select</option>@foreach($selectedCurriculum->classes->where('is_active',true) as $class)<option value="{{ $class->id }}">{{ $class->name }}</option>@endforeach</select></div></div>
 <div class="row"><div class="fg"><label class="fl">Destination arm</label><select class="fc" name="destination_arm_id" id="life-destination-arm" required disabled><option value="">Choose destination level first</option>@foreach($selectedCurriculum->classes as $class)@foreach($class->arms->where('is_active',true) as $arm)<option value="{{ $arm->id }}" data-class-id="{{ $class->id }}" hidden disabled>{{ $class->name }} · {{ $arm->name }}{{ $arm->capacity ? ' · Capacity '.$arm->capacity : '' }}</option>@endforeach @endforeach</select></div><div class="fg"><label class="fl">Effective date</label><input class="fc" type="date" name="effective_date" value="{{ now()->toDateString() }}"></div></div>
 <div class="fg"><label class="fl">Reason</label><textarea class="fc" name="reason" rows="3" required></textarea></div><button class="btn p" type="submit">Complete Transfer</button></form>
 </div></section>
 
-<section class="card" data-collapsible-item><div class="head"><strong>Recent transfer history</strong><span>Latest 30</span></div><div class="body">@forelse($transfers as $transfer)<div class="rule"><strong>{{ $transfer->student?->full_name }} · {{ $transfer->movement_type==='intra_class'?'Intra-class':'Inter-class' }}</strong><span>{{ $transfer->fromClass?->name }} {{ $transfer->fromArm?->name }} → {{ $transfer->toClass?->name }} {{ $transfer->toArm?->name }} · {{ $transfer->session?->name }}</span></div>@empty<div class="hint">No transfers recorded.</div>@endforelse</div></section>
-<section class="card" data-collapsible-item><div class="head"><strong>Recent promotion history</strong><span>Latest 30</span></div><div class="body">@forelse($promotions as $promotion)<div class="rule"><strong>{{ $promotion->student?->full_name }} · {{ ucfirst($promotion->decision) }}</strong><span>{{ $promotion->sourceClass?->name }} {{ $promotion->sourceArm?->name }} → {{ $promotion->destinationClass?->name ?: 'Programme complete' }} {{ $promotion->destinationArm?->name }} · {{ $promotion->sourceSession?->name }} → {{ $promotion->targetSession?->name }}</span></div>@empty<div class="hint">No promotions processed.</div>@endforelse</div></section>
+<section id="lifecycle-transfer-history" class="card" data-collapsible-item><div class="head"><strong>Recent transfer history</strong><span>Latest 30</span></div><div class="body">@forelse($transfers as $transfer)<div class="rule"><strong>{{ $transfer->student?->full_name }} · {{ $transfer->movement_type==='intra_class'?'Intra-class':'Inter-class' }}</strong><span>{{ $transfer->fromClass?->name }} {{ $transfer->fromArm?->name }} → {{ $transfer->toClass?->name }} {{ $transfer->toArm?->name }} · {{ $transfer->session?->name }}</span></div>@empty<div class="hint">No transfers recorded.</div>@endforelse</div></section>
+<section id="lifecycle-promotion-history" class="card" data-collapsible-item><div class="head"><strong>Recent promotion history</strong><span>Latest 30</span></div><div class="body">@forelse($promotions as $promotion)<div class="rule"><strong>{{ $promotion->student?->full_name }} · {{ ucfirst($promotion->decision) }}</strong><span>{{ $promotion->sourceClass?->name }} {{ $promotion->sourceArm?->name }} → {{ $promotion->destinationClass?->name ?: 'Programme complete' }} {{ $promotion->destinationArm?->name }} · {{ $promotion->sourceSession?->name }} → {{ $promotion->targetSession?->name }}</span></div>@empty<div class="hint">No promotions processed.</div>@endforelse</div></section>
 </div>
 @else
 <div class="card"><div class="body"><div class="hint">Create a parallel curriculum programme first.</div></div></div>
