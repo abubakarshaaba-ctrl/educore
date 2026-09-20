@@ -110,6 +110,7 @@ class ParallelCurriculumController extends Controller
 
         $tenantId = $this->tenantId();
         $canManage = $this->canManage();
+        $isSetup = request()->routeIs('parallel-curriculum.setup');
         $canViewOperations = $this->operations->canViewOperations(auth()->user());
         $currentSession = AcademicSession::current()->first();
         $currentTerm = Term::current()->with('session')->first();
@@ -169,9 +170,11 @@ class ParallelCurriculumController extends Controller
             $curriculumRelations[] = 'classes.arms';
         }
 
-        $curricula = ParallelCurriculum::with($curriculumRelations)
-            ->orderBy('name')
-            ->get();
+        $curricula = $isSetup
+            ? ParallelCurriculum::with($curriculumRelations)
+                ->orderBy('name')
+                ->get()
+            : collect();
 
         if (! $subjectSchemaReady) {
             $curricula->each(function (ParallelCurriculum $curriculum): void {
@@ -202,18 +205,18 @@ class ParallelCurriculumController extends Controller
             ? collect()
             : $this->service->formTeacherArmsForUser(auth()->user());
 
-        $templates = $canManage
+        $templates = ($canManage && $isSetup)
             ? AssessmentTemplate::with('components')
                 ->where('status', AssessmentTemplate::STATUS_ACTIVE)
                 ->orderBy('name')
                 ->get()
             : collect();
 
-        $conventionalSubjects = $canManage
+        $conventionalSubjects = ($canManage && $isSetup)
             ? Subject::where('is_active', true)->orderBy('name')->get()
             : collect();
 
-        $classLevels = $canManage
+        $classLevels = ($canManage && $isSetup)
             ? ClassLevel::with('classArms')
                 ->orderBy('order_index')
                 ->orderBy('name')
@@ -254,7 +257,7 @@ class ParallelCurriculumController extends Controller
                 });
         }
 
-        $staff = $canManage
+        $staff = ($canManage && $isSetup)
             ? User::where('tenant_id', $tenantId)
                 ->where('is_active', true)
                 ->whereIn('role', User::staffRoleNames())
@@ -270,7 +273,7 @@ class ParallelCurriculumController extends Controller
                 ->values()
             : collect();
 
-        $integrations = ($canManage && $integrationReady)
+        $integrations = ($canManage && $isSetup && $integrationReady)
             ? ParallelCurriculumIntegration::with([
                     'curriculum',
                     'destinationClassLevel',
@@ -282,7 +285,7 @@ class ParallelCurriculumController extends Controller
             : collect();
 
         $enrolments = collect();
-        if ($canManage && $currentSession && $enrolmentReady) {
+        if ($canManage && $isSetup && $currentSession && $enrolmentReady) {
             $enrolmentRelations = [
                 'student.currentClassArm.classLevel',
                 'curriculumClass',
@@ -300,7 +303,7 @@ class ParallelCurriculumController extends Controller
                 ->get();
         }
 
-        $recentComposites = ($currentTerm && $compositeReady)
+        $recentComposites = ($isSetup && $currentTerm && $compositeReady)
             ? ParallelCurriculumComposite::with([
                     'student',
                     'curriculum',
@@ -313,7 +316,7 @@ class ParallelCurriculumController extends Controller
                 ->get()
             : collect();
 
-        $view = request()->routeIs('parallel-curriculum.setup')
+        $view = $isSetup
             ? 'parallel-curriculum.setup'
             : 'parallel-curriculum.index';
 
