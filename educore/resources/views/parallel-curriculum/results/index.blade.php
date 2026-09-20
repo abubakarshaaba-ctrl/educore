@@ -23,7 +23,8 @@
 
     <div class="pc-tabs">
         <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
-        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab">Parallel Curriculum</a>
+        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab">Parallel Workspace</a>
+        <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab">Programme Setup</a>
         <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
         <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
         <a href="{{ route('parallel-curriculum.operations.index') }}" class="pc-tab">Timetable & Attendance</a>
@@ -77,7 +78,7 @@
                 <div class="note error">The Assessment Template totals {{ number_format($report['component_weight'],2) }}%. It must total 100% before publication.</div>
             @endif
             @if($report['grades']->isEmpty())
-                <div class="note warning">No grading scale is configured for {{ $report['curriculum']?->name }}. Add grade bands in the Parallel Curriculum workspace before publishing.</div>
+                <div class="note warning">No grading scale is configured for {{ $report['curriculum']?->name }}. Add grade bands in Programme Setup before publishing.</div>
             @elseif(!$report['grading_scale_complete'])
                 <div class="note warning">The grading scale does not cover the full 0–100 range. Close all gaps before publishing results.</div>
             @elseif($report['ungraded_subject_results_count'] > 0)
