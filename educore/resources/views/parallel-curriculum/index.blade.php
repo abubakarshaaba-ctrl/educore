@@ -58,6 +58,7 @@
     <section class="pc-card full" style="margin-bottom:14px" id="parallel-score-entry">
         <div class="pc-head">Open Parallel Score Entry Sheet</div>
         <div class="pc-body">
+            @if($showQuickWorkspaceSelector)
             <form method="GET" action="{{ route('parallel-curriculum.score-sheet') }}" id="parallel-score-entry-form">
                 <input type="hidden" name="class_id" id="parallel-score-class-id">
                 <input type="hidden" name="arm_id" id="parallel-score-arm-id">
@@ -139,6 +140,12 @@
                     </button>
                 </div>
             </form>
+            @else
+                <div class="score-entry-help" style="margin-top:0">
+                    This account currently has {{ $workspaces->count() }} parallel score workspaces. The large dropdown selector is hidden to keep this page fast and responsive. Use <strong>Assigned parallel score workspaces</strong> below to search by programme, class, arm, subject or teacher, then open the required score sheet directly.
+                </div>
+                <a class="btn btn-p" href="#parallel-workspaces" style="margin-top:10px">Find a Score Workspace</a>
+            @endif
         </div>
     </section>
 
@@ -190,7 +197,7 @@
         <div class="alert-e">Set a current academic session and term before entering or synchronizing parallel-curriculum results.</div>
     @endif
 
-    <div class="pc-card full" style="margin-bottom:14px">
+    <div class="pc-card full" style="margin-bottom:14px" id="parallel-workspaces">
         <div class="pc-head">{{ $canManage ? 'Available' : 'Assigned' }} parallel score workspaces @if($currentTerm) · {{ $currentTerm->name }}@endif</div>
         <div class="pc-body">
             @if($workspaces->isEmpty())
