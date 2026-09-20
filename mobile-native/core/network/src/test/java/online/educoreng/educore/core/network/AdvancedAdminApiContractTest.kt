@@ -16,8 +16,8 @@ class AdvancedAdminApiContractTest {
         assertEquals("advanced-admin/migrations/{migration}/ingest", methods.getValue("ingest").getAnnotation(POST::class.java).value)
         assertEquals("advanced-admin/migrations/{migration}/verify", methods.getValue("verify").getAnnotation(POST::class.java).value)
         assertEquals("advanced-admin/migrations/{migration}/blueprint", methods.getValue("reconstructBlueprint").getAnnotation(POST::class.java).value)
-        assertEquals("advanced-admin/migration-requests/{request}/approve", methods.getValue("approve").getAnnotation(POST::class.java).value)
-        assertEquals("advanced-admin/migration-requests/{request}/reject", methods.getValue("reject").getAnnotation(POST::class.java).value)
+        assertEquals("advanced-admin/migration-requests/{migrationRequest}/approve", methods.getValue("approve").getAnnotation(POST::class.java).value)
+        assertEquals("advanced-admin/migration-requests/{migrationRequest}/reject", methods.getValue("reject").getAnnotation(POST::class.java).value)
         assertEquals("advanced-admin/backup", methods.getValue("backup").getAnnotation(POST::class.java).value)
     }
 
