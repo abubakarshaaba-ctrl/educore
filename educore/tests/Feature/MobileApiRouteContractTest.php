@@ -72,6 +72,14 @@ class MobileApiRouteContractTest extends TestCase
             'POST api/v1/parallel-curriculum/lifecycle/promotion-rules',
             'GET api/v1/scores/cumulative-broadsheet',
             'GET api/v1/scores/cumulative-broadsheet/pdf',
+            'GET api/v1/advanced-admin',
+            'POST api/v1/advanced-admin/migrations',
+            'POST api/v1/advanced-admin/migrations/{migration}/ingest',
+            'POST api/v1/advanced-admin/migrations/{migration}/verify',
+            'POST api/v1/advanced-admin/migrations/{migration}/blueprint',
+            'POST api/v1/advanced-admin/migration-requests/{migrationRequest}/approve',
+            'POST api/v1/advanced-admin/migration-requests/{migrationRequest}/reject',
+            'POST api/v1/advanced-admin/backup',
             'GET api/v1/transfers',
             'GET api/v1/admin/staff-attendance',
             'GET api/v1/admin/staff-attendance/report',
@@ -107,21 +115,25 @@ class MobileApiRouteContractTest extends TestCase
 
     public function test_retrofit_interface_covers_every_registered_v1_route(): void
     {
-        $apiFile = dirname(base_path()).
-            '/mobile-native/core/network/src/main/java/online/educoreng/educore/core/network/EduCoreApi.kt';
+        $apiDirectory = dirname(base_path()).
+            '/mobile-native/core/network/src/main/java/online/educoreng/educore/core/network';
 
-        $this->assertFileExists($apiFile);
+        $this->assertDirectoryExists($apiDirectory);
 
-        $source = file_get_contents($apiFile);
-        preg_match_all(
-            '/@(GET|POST|PUT|PATCH|DELETE)\("([^"]+)"\)/',
-            $source,
-            $matches,
-            PREG_SET_ORDER
-        );
+        $native = collect(glob($apiDirectory.'/*Api.kt') ?: [])
+            ->flatMap(function (string $apiFile) {
+                $source = file_get_contents($apiFile);
+                preg_match_all(
+                    '/@(GET|POST|PUT|PATCH|DELETE)\("([^"]+)"\)/',
+                    $source,
+                    $matches,
+                    PREG_SET_ORDER
+                );
 
-        $native = collect($matches)
-            ->map(fn (array $match): string => $match[1].' '.$match[2])
+                return collect($matches)->map(
+                    fn (array $match): string => $match[1].' '.$match[2]
+                );
+            })
             ->unique()
             ->values();
 
