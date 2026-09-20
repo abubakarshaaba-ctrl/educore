@@ -559,6 +559,14 @@ class ParallelCurriculumLifecycleTest extends TestCase
             '$workspacePaginator',
             $index
         );
+        $this->assertStringContainsString(
+            '$showQuickWorkspaceSelector',
+            $index
+        );
+        $this->assertStringContainsString(
+            'id="parallel-workspaces"',
+            $index
+        );
         $this->assertStringNotContainsString(
             '1. Create programme',
             $index
