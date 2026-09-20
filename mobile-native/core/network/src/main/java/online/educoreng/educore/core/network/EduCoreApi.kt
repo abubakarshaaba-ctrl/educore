@@ -187,6 +187,19 @@ interface EduCoreApi {
     @POST("scores/save")
     suspend fun saveScores(@Body request: SaveScoresRequestDto): SaveScoresResponseDto
 
+    @GET("scores/cumulative-broadsheet")
+    suspend fun cumulativeBroadsheet(
+        @Query("class_arm_id") classArmId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @Streaming
+    @GET("scores/cumulative-broadsheet/pdf")
+    suspend fun downloadCumulativeBroadsheetPdf(
+        @Query("class_arm_id") classArmId: Long,
+        @Query("session_id") sessionId: Long,
+    ): ResponseBody
+
     @GET("parallel-scores/teaching")
     suspend fun parallelScoreAssignments(): ScoreAssignmentsResponseDto
 
