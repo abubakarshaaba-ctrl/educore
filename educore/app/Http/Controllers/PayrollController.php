@@ -11,6 +11,7 @@ use App\Models\StaffDeduction;
 use App\Models\StaffDisciplinaryAction;
 use App\Models\PayrollTaxBand;
 use App\Services\PayrollTaxService;
+use App\Services\Notifications\PayrollNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -188,11 +189,27 @@ class PayrollController extends Controller
         return back()->with('success', 'Payroll approved.');
     }
 
-    public function markPaid(PayrollPeriod $period)
+    public function markPaid(PayrollPeriod $period, PayrollNotificationService $notifications)
     {
-        $period->update(['status' => 'paid', 'payment_date' => now()->toDateString()]);
-        PayrollItem::where('payroll_period_id', $period->id)->update(['payment_status' => 'paid']);
-        return back()->with('success', 'Payroll marked as paid.');
+        abort_unless((int) $period->tenant_id === $this->tenantId(), 404);
+        abort_unless($period->status === 'approved', 422, 'Approve the payroll before marking it paid.');
+
+        DB::transaction(function () use ($period): void {
+            $period->update([
+                'status' => 'paid',
+                'payment_date' => now()->toDateString(),
+            ]);
+            PayrollItem::where('tenant_id', $period->tenant_id)
+                ->where('payroll_period_id', $period->id)
+                ->update(['payment_status' => 'paid']);
+        });
+
+        $sent = $notifications->notifyPaid($period->fresh());
+
+        return back()->with(
+            'success',
+            'Payroll marked as paid.'.($sent > 0 ? " {$sent} staff email notification(s) sent." : '')
+        );
     }
 
     public function salarySettings()
