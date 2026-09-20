@@ -302,22 +302,56 @@
         <section class="pc-card full">
             <div class="pc-head">6. Map programme average to conventional results</div>
             <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}">@csrf
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Source programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
-                        <div class="fg"><label class="fl">Destination subject</label><select class="fc" name="destination_subject_id" required><option value="">Select conventional subject</option>@foreach($conventionalSubjects as $subject)<option value="{{ $subject->id }}">{{ $subject->name }}</option>@endforeach</select><div class="hint">Example: Islamiyyah Studies. The destination subject must be offered by the master curriculum for every selected class level/track. Derived rows are locked against manual editing.</div></div>
+                <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}" id="parallel-integration-form">@csrf
+                    <div class="fg">
+                        <label class="fl">Source programme</label>
+                        <select class="fc" name="parallel_curriculum_id" required>
+                            <option value="">Select programme</option>
+                            @foreach($curricula as $curriculum)
+                                <option value="{{ $curriculum->id }}" @selected((int)old('parallel_curriculum_id') === (int)$curriculum->id)>{{ $curriculum->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="fg"><label class="fl">Conventional class levels</label><select class="fc" name="destination_class_level_ids[]" multiple required>@foreach($classLevels as $level)<option value="{{ $level->id }}">{{ $level->name }}</option>@endforeach</select><div class="hint">Each selected class level continues to use its own Assessment Template when the composite is distributed.</div></div>
+
+                    <div class="fg">
+                        <label class="fl">Conventional class levels</label>
+                        @php($oldIntegrationLevels=collect(old('destination_class_level_ids', []))->map(fn($id)=>(int)$id)->all())
+                        <select class="fc" name="destination_class_level_ids[]" id="integration-class-levels" multiple required>
+                            @foreach($classLevels as $level)
+                                <option value="{{ $level->id }}" @selected(in_array((int)$level->id,$oldIntegrationLevels,true))>{{ $level->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="hint">Select the conventional class levels that will receive the programme average. Each level continues to use its own Assessment Template.</div>
+                    </div>
+
+                    <div class="fg">
+                        <label class="fl">Destination subject</label>
+                        <select class="fc" name="destination_subject_id" id="integration-destination-subject" required disabled>
+                            <option value="">Select class level(s) first</option>
+                            @foreach($conventionalSubjects as $subject)
+                                <option
+                                    value="{{ $subject->id }}"
+                                    data-compatible-levels="{{ collect($integrationSubjectCompatibility->get((int)$subject->id, []))->implode(',') }}"
+                                    @selected((int)old('destination_subject_id') === (int)$subject->id)
+                                >{{ $subject->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="hint" id="integration-subject-help">
+                            Only subjects offered by the master conventional curriculum in every selected class level/academic track can be used as the destination.
+                        </div>
+                        <div class="score-entry-help" id="integration-compatibility-warning" hidden style="margin-top:8px"></div>
+                    </div>
+
                     <div class="form-row">
-                        <div class="fg"><label class="fl">Minimum completed subjects</label><input class="fc" type="number" name="minimum_completed_subjects" value="1" min="1" max="50"></div>
+                        <div class="fg"><label class="fl">Minimum completed subjects</label><input class="fc" type="number" name="minimum_completed_subjects" value="{{ old('minimum_completed_subjects',1) }}" min="1" max="50"></div>
                         <div style="padding-top:22px">
                             <input type="hidden" name="require_all_subjects" value="0">
-                            <label class="checkbox-row"><input type="checkbox" name="require_all_subjects" value="1" checked><span>Require all active parallel subjects before calculating the average.</span></label>
+                            <label class="checkbox-row"><input type="checkbox" name="require_all_subjects" value="1" @checked(old('require_all_subjects','1'))><span>Require all active parallel subjects before calculating the average.</span></label>
                             <input type="hidden" name="auto_sync" value="0">
-                            <label class="checkbox-row" style="margin-top:8px"><input type="checkbox" name="auto_sync" value="1" checked><span>Automatically refresh the conventional score after parallel score entry.</span></label>
+                            <label class="checkbox-row" style="margin-top:8px"><input type="checkbox" name="auto_sync" value="1" @checked(old('auto_sync','1'))><span>Automatically refresh the conventional score after parallel score entry.</span></label>
                         </div>
                     </div>
-                    <button class="btn btn-p">Save Integration Mapping</button>
+                    <button class="btn btn-p" type="submit" id="save-integration-mapping">Save Integration Mapping</button>
                 </form>
             </div>
         </section>
