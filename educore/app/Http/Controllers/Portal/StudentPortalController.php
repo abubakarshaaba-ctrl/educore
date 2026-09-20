@@ -227,19 +227,44 @@ class StudentPortalController extends Controller
     public function parallelResultPdf(int $publication)
     {
         $student = $this->getStudent();
-        $report = app(ParallelCurriculumResultService::class)
+        $publishedReport = app(ParallelCurriculumResultService::class)
             ->publishedReportForStudent($student, $publication);
 
-        abort_unless($report, 404, 'This published parallel curriculum result is unavailable.');
+        abort_unless(
+            $publishedReport,
+            404,
+            'This published parallel curriculum result is unavailable.'
+        );
+
+        $presentation = app(ParallelCurriculumResultService::class)
+            ->conventionalStyleStudentReport(
+                $publishedReport['class'],
+                $publishedReport['term'],
+                (int) $student->id
+            );
+
+        abort_unless(
+            $presentation,
+            404,
+            'This published parallel curriculum result is unavailable.'
+        );
+
+        $presentation['tenant'] = auth()->user()->tenant;
+        $presentation['reportDocumentTitle'] = $presentation['isThirdTerm']
+            ? 'Parallel Curriculum Third-Term Cumulative Student Report'
+            : 'Parallel Curriculum Student Termly Performance Report';
 
         $filename = str($student->admission_number ?: $student->full_name)
             ->slug('_')
-            ->append('_', str($report['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
+            ->append('_', str($publishedReport['curriculum']?->name ?: 'parallel_curriculum')->slug('_'))
             ->append('_result.pdf')
             ->toString();
 
-        return Pdf::loadView('parallel-curriculum.results.pdf', compact('report'))
-            ->setPaper('a4', 'portrait')
+        return Pdf::loadView('reports.pdf', $presentation)
+            ->setPaper(
+                'a4',
+                $presentation['isThirdTerm'] ? 'landscape' : 'portrait'
+            )
             ->download($filename);
     }
 
