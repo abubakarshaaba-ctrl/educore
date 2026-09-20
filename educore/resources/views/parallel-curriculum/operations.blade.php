@@ -26,10 +26,17 @@
 @include('parallel-curriculum.partials.module-navigation')
 
 <div class="hero">
-    <h2>Parallel Timetable & Attendance</h2>
-    <p>Run the parallel programme on its own working week, day-specific resumption and closing times, timetable and staff attendance rules. Parallel learner and staff attendance remain separate from the conventional curriculum while teacher timetable clashes are still prevented across both systems.</p>
+    <h2>{{ $attendanceOnly ? 'Parallel Student Attendance' : 'Parallel Timetable & Attendance' }}</h2>
+    <p>
+        @if($attendanceOnly)
+            Mark daily learner attendance for the parallel class arms you are authorized to manage. Attendance is stored independently from the conventional curriculum and flows into the parallel result.
+        @else
+            Run the parallel programme on its own working week, day-specific resumption and closing times, timetable and staff attendance rules. Parallel learner and staff attendance remain separate from the conventional curriculum while teacher timetable clashes are still prevented across both systems.
+        @endif
+    </p>
 </div>
 
+@if(!$attendanceOnly)
 <div class="pc-jumpbar" aria-label="Parallel operations sections">
     <span class="pc-jumpbar-label">Jump to</span>
     <a href="#working-week">Working Week</a>
@@ -37,22 +44,24 @@
     <a href="#parallel-timetable">Timetable</a>
     <a href="#learner-attendance">Learner Attendance</a>
 </div>
+@endif
 
 <section class="panel">
     <div class="head"><strong>Working context</strong><span>Programme · session · term · level · arm · date</span></div>
     <div class="body">
-        <form method="GET" action="{{ route('parallel-curriculum.operations.index') }}" class="filters">
+        <form method="GET" action="{{ $attendanceOnly ? route('parallel-curriculum.attendance.index') : route('parallel-curriculum.operations.index') }}" class="filters">
             <div class="fg"><label class="fl">Parallel programme</label><select class="fc" name="parallel_curriculum_id">@foreach($curricula as $item)<option value="{{ $item->id }}" @selected((int)$curriculumId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
             <div class="fg"><label class="fl">Session</label><select class="fc" name="session_id">@foreach($sessions as $item)<option value="{{ $item->id }}" @selected((int)$sessionId===(int)$item->id)>{{ $item->name }}{{ $item->is_current?' · Current':'' }}</option>@endforeach</select></div>
             <div class="fg"><label class="fl">Term</label><select class="fc" name="term_id">@foreach($terms as $item)<option value="{{ $item->id }}" @selected((int)$termId===(int)$item->id)>{{ $item->session?->name }} · {{ $item->name }}</option>@endforeach</select></div>
             <div class="fg"><label class="fl">Parallel level</label><select class="fc" name="class_id">@foreach(($selectedCurriculum?->classes ?? collect()) as $item)<option value="{{ $item->id }}" @selected((int)$classId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
             <div class="fg"><label class="fl">Arm</label><select class="fc" name="arm_id">@foreach(($selectedClass?->arms ?? collect()) as $item)<option value="{{ $item->id }}" @selected((int)$armId===(int)$item->id)>{{ $item->name }}</option>@endforeach</select></div>
             <div class="fg"><label class="fl">Attendance date</label><input class="fc" type="date" name="date" value="{{ $date }}" max="{{ now()->toDateString() }}"></div>
-            <button class="btn p" type="submit" style="grid-column:1/-1">Load Parallel Operations</button>
+            <button class="btn p" type="submit" style="grid-column:1/-1">{{ $attendanceOnly ? 'Load Attendance Register' : 'Load Parallel Operations' }}</button>
         </form>
     </div>
 </section>
 
+@if(!$attendanceOnly)
 <div class="pc-section-toolbar">
     <div class="pc-toolbar-copy">
         <strong>Operations sections</strong>
@@ -63,8 +72,9 @@
         <button class="btn s" type="button" data-collapse-all>Collapse all</button>
     </div>
 </div>
+@endif
 
-@if($selectedCurriculum)
+@if(!$attendanceOnly && $selectedCurriculum)
 <section id="working-week" class="panel" data-collapsible-item>
     <div class="head">
         <div>
@@ -210,7 +220,8 @@
 @if(!$selectedCurriculum || !$selectedClass || !$selectedArm)
 <section class="panel"><div class="empty">Create a parallel programme, class level and active arm before configuring timetable or attendance.</div></section>
 @else
-<div class="grid">
+<div class="{{ $attendanceOnly ? '' : 'grid' }}">
+    @if(!$attendanceOnly)
     <section id="parallel-timetable" class="panel" data-collapsible-item>
         <div class="head"><div><strong>Weekly parallel timetable</strong><br><span>{{ $selectedCurriculum->name }} · {{ $selectedClass->name }} {{ $selectedArm->name }}</span></div><span>{{ $periods->count() }} period(s)</span></div>
         <div class="body">
@@ -265,6 +276,7 @@
             @endforeach
         </div>
     </section>
+    @endif
 
     <section id="learner-attendance" class="panel" data-collapsible-item>
         <div class="head"><div><strong>Daily parallel attendance</strong><br><span>{{ $selectedClass->name }} {{ $selectedArm->name }} · {{ $date }}</span></div><span>{{ $canMarkAttendance?'Editable':'View restricted' }}</span></div>
