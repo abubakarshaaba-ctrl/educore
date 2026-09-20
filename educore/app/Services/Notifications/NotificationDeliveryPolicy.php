@@ -17,12 +17,16 @@ final class NotificationDeliveryPolicy
         'student_late',
         'message_received',
         'exam_supervision_published',
-        'platform_broadcast',
         'calendar_event',
+    ];
+
+    public const PUSH_IN_APP_AND_EMAIL = [
+        'platform_broadcast',
     ];
 
     public const TRANSACTIONAL_EMAIL = [
         'account_security',
+        'platform_broadcast',
         'report_card_published',
         'fee_payment_received',
         'fee_overdue',
@@ -50,6 +54,11 @@ final class NotificationDeliveryPolicy
     public static function isPushInAppOnly(string $event): bool
     {
         return in_array($event, self::PUSH_IN_APP_ONLY, true);
+    }
+
+    public static function isPushInAppAndEmail(string $event): bool
+    {
+        return in_array($event, self::PUSH_IN_APP_AND_EMAIL, true);
     }
 
     public static function isLegacyConfigurable(string $event): bool
