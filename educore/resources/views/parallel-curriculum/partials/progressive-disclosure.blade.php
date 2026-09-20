@@ -9,7 +9,7 @@
 
     document.querySelectorAll('[data-collapsible-root]').forEach((root) => {
         const storageKey = root.dataset.storageKey || 'parallel-curriculum';
-        const hasValidationError = !!document.querySelector('.alert-e, .err');
+        const hasValidationError = !!document.querySelector('[data-parallel-validation-error]');
         const items = Array.from(root.querySelectorAll('[data-collapsible-item]'));
 
         const applyState = (item, collapsed, persist = true) => {
