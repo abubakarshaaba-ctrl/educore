@@ -274,6 +274,74 @@ class ParallelCurriculumLifecycleTest extends TestCase
         );
     }
 
+    public function test_parallel_setup_loads_subjects_from_selected_conventional_class_level_even_when_track_rules_differ(): void
+    {
+        $context = $this->managerContext();
+
+        $level = ClassLevel::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Basic 6',
+            'section' => 'primary',
+            'order_index' => 6,
+        ]);
+
+        $firstTrackId = DB::table('academic_tracks')->insertGetId([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Track One',
+            'slug' => 'track-one-'.uniqid(),
+            'section' => 'primary',
+            'is_active' => true,
+            'sort_order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $secondTrackId = DB::table('academic_tracks')->insertGetId([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Track Two',
+            'slug' => 'track-two-'.uniqid(),
+            'section' => 'primary',
+            'is_active' => true,
+            'sort_order' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        ClassArm::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $level->id,
+            'academic_track_id' => $secondTrackId,
+            'name' => 'A',
+        ]);
+
+        $subject = Subject::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Arabic Studies',
+            'code' => 'ARB',
+            'is_active' => true,
+        ]);
+
+        ClassLevelSubject::create([
+            'tenant_id' => $context['tenant']->id,
+            'class_level_id' => $level->id,
+            'academic_track_id' => $firstTrackId,
+            'subject_id' => $subject->id,
+            'subject_status' => 'compulsory',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($context['admin'])
+            ->get(route('parallel-curriculum.setup'))
+            ->assertOk();
+
+        $compatibility = $response->viewData('integrationSubjectCompatibility');
+
+        $this->assertContains(
+            $level->id,
+            $compatibility->get($subject->id, [])
+        );
+    }
+
     public function test_parallel_mapping_form_filters_destination_subjects_by_selected_levels(): void
     {
         $view = file_get_contents(
@@ -283,7 +351,7 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertStringContainsString('id="integration-class-levels"', $view);
         $this->assertStringContainsString('id="integration-destination-subject"', $view);
         $this->assertStringContainsString('data-compatible-levels', $view);
-        $this->assertStringContainsString('No conventional subject is offered across every selected class level/academic track', $view);
+        $this->assertStringContainsString('No conventional subject is offered across every selected class level', $view);
     }
 
     public function test_parallel_setup_uses_dedicated_controller_action_and_skips_score_workspace_loading(): void
