@@ -297,7 +297,7 @@ table { border-collapse: collapse; }
 </table>
 
 @if($isThird)
-    <table class="section-bar"><tr><td>Third-Term Cumulative Academic Performance</td></tr></table>
+    <table class="section-bar"><tr><td>{{ ($isCumulative ?? false) ? 'Cumulative Academic Performance' : 'Third-Term Cumulative Academic Performance' }}</td></tr></table>
     <table class="academic">
         <thead>
         <tr>
@@ -480,7 +480,7 @@ table { border-collapse: collapse; }
     <span class="label">Next Term Begins</span><br>
     <span class="value">{{ $term->next_term_begins ? \Carbon\Carbon::parse($term->next_term_begins)->format('d M Y') : 'To be announced' }}</span>
 </td>
-@if($isThird)
+@if($isActualThirdTerm ?? $isThird)
 <td>
     <span class="label">Promotion Decision</span><br>
     <span class="value">
