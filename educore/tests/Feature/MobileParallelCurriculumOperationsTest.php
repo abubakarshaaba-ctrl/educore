@@ -368,6 +368,13 @@ class MobileParallelCurriculumOperationsTest extends TestCase
     {
         $context = $this->context();
 
+        $adminModules = collect(app(MobileModuleService::class)->forUser($context['admin']));
+        $this->assertSame(
+            'Parallel Curriculum Management',
+            $adminModules->firstWhere('key', 'parallel-curriculum')['title'] ?? null
+        );
+        $this->assertNotNull($adminModules->firstWhere('key', 'parallel-timetable'));
+
         $teacher = User::create([
             'tenant_id' => $context['tenant']->id,
             'name' => 'Assigned Parallel Teacher',
