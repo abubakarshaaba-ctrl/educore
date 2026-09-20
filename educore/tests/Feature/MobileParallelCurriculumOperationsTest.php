@@ -364,6 +364,54 @@ class MobileParallelCurriculumOperationsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_parallel_setup_is_manager_only_and_teacher_navigation_hides_manager_workspaces(): void
+    {
+        $context = $this->context();
+
+        $teacher = User::create([
+            'tenant_id' => $context['tenant']->id,
+            'name' => 'Assigned Parallel Teacher',
+            'role' => 'subject_teacher',
+            'is_active' => true,
+            'employment_status' => User::STAFF_STATUS_ACTIVE,
+        ]);
+        $context['classSubject']->update(['teacher_id' => $teacher->id]);
+
+        $term = Term::create([
+            'tenant_id' => $context['tenant']->id,
+            'session_id' => $context['session']->id,
+            'name' => 'First Term',
+            'start_date' => now()->subMonth()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+            'is_current' => true,
+        ]);
+
+        $this->actingAs($context['admin'])
+            ->get(route('parallel-curriculum.setup'))
+            ->assertOk()
+            ->assertSee('Programme Setup &amp; Integration', false);
+
+        $this->actingAs($teacher)
+            ->get(route('parallel-curriculum.setup'))
+            ->assertForbidden();
+
+        $this->actingAs($teacher)
+            ->get(route('parallel-curriculum.operations.index', [
+                'parallel_curriculum_id' => $context['curriculum']->id,
+                'session_id' => $context['session']->id,
+                'term_id' => $term->id,
+                'class_id' => $context['class']->id,
+                'arm_id' => $context['arm']->id,
+                'date' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('Timetable &amp; Attendance', false)
+            ->assertDontSee('Programme Setup')
+            ->assertDontSee('Student Assignments')
+            ->assertDontSee('Academic Lifecycle')
+            ->assertDontSee('Parallel Results');
+    }
+
     public function test_unassigned_subject_teacher_cannot_open_parallel_operations(): void
     {
         $context = $this->context();
