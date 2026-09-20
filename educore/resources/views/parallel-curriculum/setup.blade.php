@@ -196,7 +196,7 @@
                             @endforeach
                         </select>
                         <div class="hint" id="integration-subject-help">
-                            Only subjects offered by the master conventional curriculum in every selected class level/academic track can be used as the destination.
+                            Only subjects offered by the master conventional curriculum in every selected class level can be used as the destination. Student-level synchronization still respects each learner's academic-track eligibility.
                         </div>
                         <div class="score-entry-help" id="integration-compatibility-warning" hidden style="margin-top:8px"></div>
                     </div>
@@ -531,7 +531,7 @@
             if (selectedIds.length > 0 && compatibleCount === 0) {
                 warning.hidden = false;
                 warning.textContent =
-                    'No conventional subject is offered across every selected class level/academic track. Configure the intended destination subject in the conventional master curriculum for those levels/tracks, or select fewer class levels.';
+                    'No conventional subject is offered across every selected class level. Configure the intended destination subject in the conventional master curriculum for those levels, or select fewer class levels.';
             } else {
                 warning.hidden = true;
                 warning.textContent = '';
