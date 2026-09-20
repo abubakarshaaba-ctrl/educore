@@ -166,7 +166,8 @@
                     >Parallel Broadsheet</a>
                 @endif
                 @if($pcCanViewBroadsheet)
-                    <a href="{{ route('scores.broadsheet') }}">Broadsheet</a>
+                    <a href="{{ route('scores.broadsheet') }}">Conventional Termly</a>
+                    <a href="{{ route('scores.cumulative-broadsheet') }}">Conventional Cumulative</a>
                 @endif
                 <a href="{{ route('scores.index') }}">Conventional Scores</a>
             </div>
