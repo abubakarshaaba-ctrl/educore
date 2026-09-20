@@ -650,50 +650,6 @@ class ParallelCurriculumLifecycleController extends Controller
             ->where('is_active', true)
             ->get();
 
-        // "One class teacher · all subjects" must produce score workspaces.
-        // If this class has not yet been given any active class-subject rows,
-        // seed it from the programme's active subjects. We only do this when
-        // the class has zero active subjects; an existing explicit subset is
-        // preserved exactly as configured.
-        if (
-            $data['teaching_assignment_mode'] === 'class_teacher'
-            && $assignments->isEmpty()
-        ) {
-            $programmeSubjects = ParallelCurriculumSubject::query()
-                ->where('tenant_id', $tenantId)
-                ->where('parallel_curriculum_id', $class->parallel_curriculum_id)
-                ->where('is_active', true)
-                ->orderBy('id')
-                ->get();
-
-            if ($programmeSubjects->isEmpty()) {
-                throw ValidationException::withMessages([
-                    'teaching_assignment_mode' =>
-                        'Create at least one active programme subject before assigning one class teacher to all subjects.',
-                ]);
-            }
-
-            foreach ($programmeSubjects as $programmeSubject) {
-                ParallelCurriculumClassSubject::updateOrCreate(
-                    [
-                        'tenant_id' => $tenantId,
-                        'parallel_curriculum_class_id' => $class->id,
-                        'parallel_curriculum_subject_id' => $programmeSubject->id,
-                    ],
-                    [
-                        'teacher_id' => null,
-                        'is_active' => true,
-                    ]
-                );
-            }
-
-            $assignments = $class->subjectAssignments()
-                ->where('is_active', true)
-                ->get();
-
-            $this->parallel->reconcileClassStructure($class);
-        }
-
         if ($teacherId) {
             $teacher = User::findOrFail($teacherId);
 
@@ -760,7 +716,7 @@ class ParallelCurriculumLifecycleController extends Controller
         return back()->with(
             'success',
             $data['teaching_assignment_mode'] === 'class_teacher'
-                ? "{$class->name} {$arm->name} now uses one class teacher for all {$assignments->count()} active subject(s), learner attendance and form-teacher comments."
+                ? "{$class->name} {$arm->name} now uses one class teacher for the {$assignments->count()} active subject(s) assigned to this class, plus learner attendance and form-teacher comments."
                 : "{$class->name} {$arm->name} now uses subject-based teacher assignments."
         );
     }
