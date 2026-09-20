@@ -240,6 +240,40 @@ interface EduCoreApi {
         @Query("term_id") termId: Long,
     ): ResponseBody
 
+    @GET("parallel-curriculum/results/broadsheet")
+    suspend fun parallelBroadsheet(
+        @Query("mode") mode: String = "termly",
+        @Query("class_id") classId: Long? = null,
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/broadsheet/pdf")
+    suspend fun downloadParallelBroadsheetPdf(
+        @Query("mode") mode: String = "termly",
+        @Query("class_id") classId: Long,
+        @Query("arm_id") armId: Long? = null,
+        @Query("term_id") termId: Long? = null,
+        @Query("session_id") sessionId: Long? = null,
+    ): ResponseBody
+
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/cumulative")
+    suspend fun parallelCumulativeStudentResult(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("session_id") sessionId: Long,
+    ): ResponseBody
+
+    @Streaming
+    @GET("parallel-curriculum/results/classes/{class}/students/{student}/cumulative/pdf")
+    suspend fun downloadParallelCumulativeStudentResultPdf(
+        @Path("class") classId: Long,
+        @Path("student") studentId: Long,
+        @Query("session_id") sessionId: Long,
+    ): ResponseBody
+
     @POST("parallel-curriculum/results/publish")
     suspend fun publishParallelResult(
         @Body request: ParallelResultPublicationRequestDto,
