@@ -115,9 +115,15 @@
                         <div class="score-entry-help">
                             No active parallel class-arm/subject score workspace exists yet. Create programme subjects, explicitly assign the required subjects to each parallel class, create at least one active arm, and configure the teaching assignment model.
                         </div>
+                    @elseif(($parallelFormTeacherArms ?? collect())->isNotEmpty())
+                        <div class="score-entry-help">
+                            You are already assigned as the all-subject class teacher for
+                            <strong>{{ ($parallelFormTeacherArms ?? collect())->map(fn($arm) => ($arm->curriculumClass?->name ?? 'Class').' '.$arm->name)->implode(', ') }}</strong>,
+                            but those class(es) currently have no active class-subject assignment that can generate a score workspace. An academic administrator must explicitly assign the required subjects to the class under <strong>Parallel Curriculum → Assign subjects to parallel class</strong>. Once assigned, only those class subjects will appear here.
+                        </div>
                     @else
                         <div class="score-entry-help">
-                            This account has parallel score-entry access, but no parallel class-arm/subject assignment currently resolves to this staff ID. Conventional teaching assignments do not automatically assign parallel subjects. The class must first have subjects explicitly assigned to it, then this teacher must resolve to those subjects through <strong>Parallel Curriculum → Academic Lifecycle → Teaching assignment model</strong>.
+                            This account has parallel score-entry access, but no parallel class-arm/subject assignment currently resolves to this staff ID. Conventional teaching assignments do not automatically assign parallel subjects. In subject-based mode, only the specific subjects/classes assigned to this teacher will appear here.
                         </div>
                     @endif
                 @else
