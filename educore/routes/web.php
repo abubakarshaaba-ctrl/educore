@@ -1278,7 +1278,7 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
 
     // â”€â”€ Broadcasts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::get('broadcasts',             [SuperAdminController::class, 'broadcasts'])->name('broadcasts');
-    Route::post('broadcasts',            [SuperAdminController::class, 'storeBroadcast'])->name('broadcasts.store');
+    Route::post('broadcasts',            [\App\Http\Controllers\WebPlatformBroadcastController::class, 'store'])->name('broadcasts.store');
     Route::delete('broadcasts/{id}',     [SuperAdminController::class, 'deleteBroadcast'])->name('broadcasts.delete');
 }); // End super admin
 
