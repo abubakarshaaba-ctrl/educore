@@ -121,19 +121,23 @@ class MainViewModel @Inject constructor(
         if (_uiState.value.phase == AppPhase.SIGNED_OUT) return
         val online = _uiState.value.isOnline
 
-        // Sign out locally in the UI first. Network token revocation is best-effort and
-        // must never keep the user waiting on the authenticated shell.
+        // Sign out locally in the UI first. Keep the authenticated API token
+        // available just long enough to unregister this FCM token, then revoke
+        // the server session. This prevents a logged-out device from remaining
+        // subscribed if session revocation wins a race with push unregister.
         _uiState.value = AppUiState(phase = AppPhase.SIGNED_OUT, isOnline = online)
 
-        viewModelScope.launch {
-            sessionRepository.logout()
-        }
-
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
-                viewModelScope.launch {
-                    communicationRepository.unregisterPushToken(token)
+            val pushToken = task
+                .takeIf { it.isSuccessful }
+                ?.result
+                ?.takeIf(String::isNotBlank)
+
+            viewModelScope.launch {
+                if (online && pushToken != null) {
+                    communicationRepository.unregisterPushToken(pushToken)
                 }
+                sessionRepository.logout()
             }
         }
     }
