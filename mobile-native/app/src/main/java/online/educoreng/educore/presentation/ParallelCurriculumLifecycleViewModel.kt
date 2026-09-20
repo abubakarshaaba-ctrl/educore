@@ -107,6 +107,7 @@ class ParallelCurriculumLifecycleViewModel @Inject constructor(
                 studentPage = null,
                 studentPageNumber = 1,
                 operationsWorkspace = null,
+                skillWorkspace = null,
             )
         }
         load(curriculumId, id)
