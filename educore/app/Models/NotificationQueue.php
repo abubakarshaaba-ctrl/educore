@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class NotificationQueue extends BaseTenantModel
 {
-    protected $table = 'notification_queue';
+    protected $table = 'notification_queues';
 
     protected $fillable = [
         'tenant_id',
