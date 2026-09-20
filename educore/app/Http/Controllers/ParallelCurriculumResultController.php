@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicSession;
 use App\Models\ParallelCurriculumClass;
 use App\Models\ParallelCurriculumClassArm;
 use App\Models\ParallelCurriculumEnrolment;
@@ -14,6 +15,7 @@ use App\Services\ParallelCurriculumResultService;
 use App\Services\ParallelCurriculumService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -371,6 +373,579 @@ class ParallelCurriculumResultController extends Controller
                 'term_id' => $term->id,
             ])
             ->with('success', 'Parallel form-teacher comments saved.');
+    }
+
+    public function cumulative(
+        Request $request,
+        ParallelCurriculumClass $class,
+        Student $student
+    ) {
+        $this->assertAccess();
+
+        $tenantId = $this->tenantId();
+        abort_unless(
+            (int) $class->tenant_id === $tenantId
+                && (int) $student->tenant_id === $tenantId,
+            403
+        );
+
+        $sessionId = (int) (
+            $request->integer('session_id')
+            ?: AcademicSession::where('tenant_id', $tenantId)
+                ->where('is_current', true)
+                ->value('id')
+        );
+
+        $session = AcademicSession::where('tenant_id', $tenantId)
+            ->findOrFail($sessionId);
+
+        $term = Term::with('session')
+            ->where('tenant_id', $tenantId)
+            ->where('session_id', $session->id)
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->last();
+
+        abort_unless(
+            $term,
+            422,
+            'The selected session has no academic term available for cumulative reporting.'
+        );
+
+        $presentation = $this->results->conventionalStyleStudentReport(
+            $class,
+            $term,
+            (int) $student->id,
+            true
+        );
+
+        abort_unless(
+            $presentation,
+            404,
+            'This student is not enrolled in the selected parallel class for this academic session.'
+        );
+
+        $presentation['tenant'] = auth()->user()->tenant;
+        $presentation['reportDocumentTitle'] = strtoupper(
+            trim((string) ($presentation['parallelProgrammeName'] ?? 'Parallel Curriculum'))
+        ).' Cumulative Student Performance Report';
+
+        return view('parallel-curriculum.results.student', $presentation);
+    }
+
+    public function cumulativePdf(
+        Request $request,
+        ParallelCurriculumClass $class,
+        Student $student
+    ) {
+        $this->assertAccess();
+
+        $tenantId = $this->tenantId();
+        abort_unless(
+            (int) $class->tenant_id === $tenantId
+                && (int) $student->tenant_id === $tenantId,
+            403
+        );
+
+        $sessionId = (int) (
+            $request->integer('session_id')
+            ?: AcademicSession::where('tenant_id', $tenantId)
+                ->where('is_current', true)
+                ->value('id')
+        );
+
+        $session = AcademicSession::where('tenant_id', $tenantId)
+            ->findOrFail($sessionId);
+
+        $term = Term::with('session')
+            ->where('tenant_id', $tenantId)
+            ->where('session_id', $session->id)
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->last();
+
+        abort_unless(
+            $term,
+            422,
+            'The selected session has no academic term available for cumulative reporting.'
+        );
+
+        $presentation = $this->results->conventionalStyleStudentReport(
+            $class,
+            $term,
+            (int) $student->id,
+            true
+        );
+
+        abort_unless(
+            $presentation,
+            404,
+            'This student is not enrolled in the selected parallel class for this academic session.'
+        );
+
+        $presentation['tenant'] = auth()->user()->tenant;
+        $programmeName = strtoupper(
+            trim((string) ($presentation['parallelProgrammeName'] ?? 'Parallel Curriculum'))
+        );
+        $presentation['reportDocumentTitle'] =
+            $programmeName.' Cumulative Student Performance Report';
+
+        $filename = str($student->admission_number ?: $student->full_name)
+            ->slug('_')
+            ->append('_', str($class->curriculum?->name)->slug('_'))
+            ->append('_cumulative_result.pdf')
+            ->toString();
+
+        return Pdf::loadView('reports.pdf', $presentation)
+            ->setPaper('a4', 'landscape')
+            ->download($filename);
+    }
+
+    public function broadsheet(Request $request)
+    {
+        $this->assertAccess();
+
+        $context = $this->broadsheetContext($request);
+
+        return view('parallel-curriculum.results.broadsheet', $context);
+    }
+
+    public function broadsheetPdf(Request $request)
+    {
+        $this->assertAccess();
+
+        $context = $this->broadsheetContext($request, true);
+        abort_unless(
+            $context['selectedClass'] && $context['matrix']->isNotEmpty(),
+            422,
+            'Select a parallel class and academic period with result data before exporting the broadsheet.'
+        );
+
+        $tenant = auth()->user()->tenant;
+        $logoAbsPath = null;
+        if (! empty($tenant?->logo_path)) {
+            $cleanPath = preg_replace(
+                '#^storage/#',
+                '',
+                ltrim($tenant->logo_path, '/')
+            );
+            $candidate = storage_path('app/public/'.$cleanPath);
+            if (file_exists($candidate)) {
+                $logoAbsPath = $candidate;
+            }
+        }
+
+        $context['tenant'] = $tenant;
+        $context['logoAbsPath'] = $logoAbsPath;
+
+        $periodLabel = $context['mode'] === 'cumulative'
+            ? ($context['selectedSession']?->name ?? 'Session')
+            : (($context['selectedTerm']?->name ?? 'Term')
+                .' '.($context['selectedTerm']?->session?->name ?? ''));
+
+        $filename = str(
+            ($context['selectedClass']->curriculum?->name ?? 'parallel')
+            .'-'.$context['selectedClass']->name
+            .'-'.$periodLabel
+            .'-broadsheet'
+        )->slug('_')->append('.pdf')->toString();
+
+        return Pdf::loadView(
+            'parallel-curriculum.results.broadsheet-pdf',
+            $context
+        )->setPaper('a4', 'landscape')->download($filename);
+    }
+
+    private function broadsheetContext(
+        Request $request,
+        bool $forPdf = false
+    ): array {
+        $tenantId = $this->tenantId();
+        $mode = $request->input('mode') === 'cumulative'
+            ? 'cumulative'
+            : 'termly';
+
+        $classes = ParallelCurriculumClass::with([
+                'curriculum',
+                'arms' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name'),
+            ])
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->whereHas(
+                'curriculum',
+                fn ($query) => $query->where('is_active', true)
+            )
+            ->orderBy('parallel_curriculum_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        $sessions = AcademicSession::where('tenant_id', $tenantId)
+            ->orderByDesc('is_current')
+            ->orderByDesc('id')
+            ->get();
+
+        $terms = Term::with('session')
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('id')
+            ->get();
+
+        $classId = (int) (
+            $request->integer('class_id')
+            ?: ($classes->first()?->id ?? 0)
+        );
+        $selectedClass = $classId
+            ? $classes->firstWhere('id', $classId)
+            : null;
+
+        abort_if(
+            $classId && ! $selectedClass,
+            404,
+            'The selected parallel class is unavailable.'
+        );
+
+        $armId = (int) $request->integer('arm_id');
+        $selectedArm = null;
+        if ($selectedClass && $armId) {
+            $selectedArm = $selectedClass->arms->firstWhere('id', $armId);
+            abort_unless(
+                $selectedArm,
+                404,
+                'The selected parallel class arm is unavailable.'
+            );
+        }
+
+        $selectedTerm = null;
+        $selectedSession = null;
+        $periodTerms = collect();
+
+        if ($mode === 'cumulative') {
+            $sessionId = (int) (
+                $request->integer('session_id')
+                ?: ($sessions->firstWhere('is_current', true)?->id
+                    ?? $sessions->first()?->id
+                    ?? 0)
+            );
+            $selectedSession = $sessionId
+                ? $sessions->firstWhere('id', $sessionId)
+                : null;
+
+            abort_if(
+                $sessionId && ! $selectedSession,
+                404,
+                'The selected academic session is unavailable.'
+            );
+
+            if ($selectedSession) {
+                $periodTerms = $terms
+                    ->where('session_id', $selectedSession->id)
+                    ->sortBy(fn (Term $term) =>
+                        ($term->start_date?->format('Y-m-d') ?? '9999-12-31')
+                        .'-'.str_pad((string) $term->id, 10, '0', STR_PAD_LEFT)
+                    )
+                    ->values();
+            }
+        } else {
+            $currentTerm = $terms->firstWhere('is_current', true);
+            $termId = (int) (
+                $request->integer('term_id')
+                ?: ($currentTerm?->id ?? $terms->first()?->id ?? 0)
+            );
+            $selectedTerm = $termId
+                ? $terms->firstWhere('id', $termId)
+                : null;
+
+            abort_if(
+                $termId && ! $selectedTerm,
+                404,
+                'The selected academic term is unavailable.'
+            );
+
+            if ($selectedTerm) {
+                $selectedSession = $selectedTerm->session;
+                $periodTerms = collect([$selectedTerm]);
+            }
+        }
+
+        $subjects = collect();
+        $matrix = collect();
+        $subjectStats = collect();
+
+        if ($selectedClass && $periodTerms->isNotEmpty()) {
+            $reports = $periodTerms
+                ->mapWithKeys(fn (Term $term) => [
+                    (int) $term->id =>
+                        $this->results->classReport($selectedClass, $term),
+                ]);
+
+            $firstReport = $reports->first();
+            $subjects = collect($firstReport['subject_assignments'] ?? [])
+                ->map(fn ($assignment) => $assignment->subject)
+                ->filter()
+                ->unique('id')
+                ->sortBy('name')
+                ->values();
+
+            if ($mode === 'cumulative') {
+                $matrix = $this->buildCumulativeBroadsheetMatrix(
+                    $reports,
+                    $periodTerms,
+                    $subjects,
+                    $armId
+                );
+            } else {
+                $matrix = $this->buildTermlyBroadsheetMatrix(
+                    $firstReport,
+                    $subjects,
+                    $armId
+                );
+            }
+
+            $subjectStats = $this->broadsheetSubjectStats(
+                $matrix,
+                $subjects
+            );
+        }
+
+        return compact(
+            'mode',
+            'classes',
+            'sessions',
+            'terms',
+            'selectedClass',
+            'selectedArm',
+            'selectedTerm',
+            'selectedSession',
+            'periodTerms',
+            'subjects',
+            'matrix',
+            'subjectStats',
+            'forPdf'
+        );
+    }
+
+    private function buildTermlyBroadsheetMatrix(
+        array $report,
+        Collection $subjects,
+        int $armId
+    ): Collection {
+        $rows = collect($report['results'] ?? []);
+
+        if ($armId) {
+            $rows = $rows->filter(
+                fn (array $row) =>
+                    (int) (
+                        $row['enrolment']
+                            ->parallel_curriculum_class_arm_id
+                        ?? 0
+                    ) === $armId
+            );
+        }
+
+        $matrix = $rows->map(function (array $row) use ($subjects): array {
+            $subjectMap = collect($row['subjects'])->keyBy('subject_id');
+            $scores = [];
+
+            foreach ($subjects as $subject) {
+                $subjectRow = $subjectMap->get((int) $subject->id);
+                $scores[(int) $subject->id] = [
+                    'score' => $subjectRow['percentage'] ?? null,
+                    'grade' => $subjectRow['grade'] ?? '—',
+                    'complete' => (bool) ($subjectRow['complete'] ?? false),
+                ];
+            }
+
+            return [
+                'student' => $row['student'],
+                'enrolment' => $row['enrolment'],
+                'subjects' => $scores,
+                'term_averages' => [],
+                'total' => (float) ($row['grand_total'] ?? 0),
+                'average' => $row['average'] === null
+                    ? null
+                    : (float) $row['average'],
+                'position' => null,
+            ];
+        })->values();
+
+        return $this->rankBroadsheetRows($matrix);
+    }
+
+    private function buildCumulativeBroadsheetMatrix(
+        Collection $reports,
+        Collection $periodTerms,
+        Collection $subjects,
+        int $armId
+    ): Collection {
+        $rowsByTerm = $reports->map(function (array $report) use ($armId) {
+            $rows = collect($report['results'] ?? []);
+
+            if ($armId) {
+                $rows = $rows->filter(
+                    fn (array $row) =>
+                        (int) (
+                            $row['enrolment']
+                                ->parallel_curriculum_class_arm_id
+                            ?? 0
+                        ) === $armId
+                );
+            }
+
+            return $rows->keyBy(fn (array $row) => (int) $row['student']->id);
+        });
+
+        $studentIds = $rowsByTerm
+            ->flatMap(fn (Collection $rows) => $rows->keys())
+            ->unique()
+            ->values();
+
+        $matrix = $studentIds->map(function ($studentId) use (
+            $rowsByTerm,
+            $periodTerms,
+            $subjects
+        ): array {
+            $firstRow = null;
+            foreach ($periodTerms as $term) {
+                $candidate = $rowsByTerm
+                    ->get((int) $term->id, collect())
+                    ->get((int) $studentId);
+                if ($candidate) {
+                    $firstRow = $candidate;
+                    break;
+                }
+            }
+
+            $subjectRows = [];
+            foreach ($subjects as $subject) {
+                $termScores = [];
+                foreach ($periodTerms as $term) {
+                    $studentRow = $rowsByTerm
+                        ->get((int) $term->id, collect())
+                        ->get((int) $studentId);
+                    $subjectRow = $studentRow
+                        ? collect($studentRow['subjects'])->first(
+                            fn (array $item) =>
+                                (int) $item['subject_id']
+                                    === (int) $subject->id
+                        )
+                        : null;
+
+                    $termScores[(int) $term->id] =
+                        $subjectRow['percentage'] ?? null;
+                }
+
+                $available = collect($termScores)
+                    ->filter(fn ($score) => $score !== null)
+                    ->map(fn ($score) => (float) $score);
+
+                $subjectRows[(int) $subject->id] = [
+                    'score' => $available->isNotEmpty()
+                        ? round((float) $available->avg(), 1)
+                        : null,
+                    'term_scores' => $termScores,
+                    'grade' => '—',
+                    'complete' => $available->count() === $periodTerms->count(),
+                ];
+            }
+
+            $termAverages = [];
+            foreach ($periodTerms as $term) {
+                $studentRow = $rowsByTerm
+                    ->get((int) $term->id, collect())
+                    ->get((int) $studentId);
+                $termAverages[(int) $term->id] =
+                    $studentRow['average'] ?? null;
+            }
+
+            $availableSubjectScores = collect($subjectRows)
+                ->pluck('score')
+                ->filter(fn ($score) => $score !== null)
+                ->map(fn ($score) => (float) $score);
+
+            return [
+                'student' => $firstRow['student'],
+                'enrolment' => $firstRow['enrolment'],
+                'subjects' => $subjectRows,
+                'term_averages' => $termAverages,
+                'total' => round((float) $availableSubjectScores->sum(), 1),
+                'average' => $availableSubjectScores->isNotEmpty()
+                    ? round((float) $availableSubjectScores->avg(), 1)
+                    : null,
+                'position' => null,
+            ];
+        })->filter(fn (array $row) => ! empty($row['student']))->values();
+
+        return $this->rankBroadsheetRows($matrix);
+    }
+
+    private function rankBroadsheetRows(Collection $rows): Collection
+    {
+        $ranked = $rows
+            ->sortByDesc(fn (array $row) => $row['average'] ?? -1)
+            ->values();
+
+        $previousAverage = null;
+        $previousPosition = null;
+
+        return $ranked->map(function (array $row, int $index) use (
+            &$previousAverage,
+            &$previousPosition
+        ): array {
+            if ($row['average'] === null) {
+                $row['position'] = null;
+                return $row;
+            }
+
+            $average = (float) $row['average'];
+            $position = $index + 1;
+
+            if (
+                $previousAverage !== null
+                && abs($average - $previousAverage) < 0.0001
+            ) {
+                $position = $previousPosition;
+            }
+
+            $row['position'] = $position;
+            $previousAverage = $average;
+            $previousPosition = $position;
+
+            return $row;
+        });
+    }
+
+    private function broadsheetSubjectStats(
+        Collection $matrix,
+        Collection $subjects
+    ): Collection {
+        return $subjects->mapWithKeys(function ($subject) use ($matrix): array {
+            $scores = $matrix
+                ->map(fn (array $row) =>
+                    $row['subjects'][(int) $subject->id]['score'] ?? null
+                )
+                ->filter(fn ($score) => $score !== null)
+                ->map(fn ($score) => (float) $score)
+                ->values();
+
+            return [
+                (int) $subject->id => [
+                    'highest' => $scores->isNotEmpty()
+                        ? round((float) $scores->max(), 1)
+                        : '—',
+                    'lowest' => $scores->isNotEmpty()
+                        ? round((float) $scores->min(), 1)
+                        : '—',
+                    'avg' => $scores->isNotEmpty()
+                        ? round((float) $scores->avg(), 1)
+                        : '—',
+                ],
+            ];
+        });
     }
 
     public function publish(Request $request)
