@@ -56,9 +56,10 @@ td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--midnight)}
 </div>
 
 @if(session('success'))<div class="alert-s">✓ {{ session('success') }}</div>@endif
+@if(session('error'))<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px">⚠ {{ session('error') }}</div>@endif
 
-<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 16px;font-size:13px;color:#1D4ED8;margin-bottom:18px">
-    ⚡ <strong>Auto Triggers</strong> send SMS or email notifications automatically when specific events happen — fee payments, report cards published, absences, and more.
+<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 16px;font-size:13px;color:#1D4ED8;margin-bottom:18px;line-height:1.6">
+    <strong>EduCore delivery policy:</strong> attendance alerts, announcements, ordinary messages, exam supervision, platform broadcasts and calendar activity are delivered by <strong>push + in-app notification only</strong>. Email is reserved for transactional communication such as results, finance, admissions, account/security, recruitment and tenant/subscription lifecycle events. The optional controls below apply only to transactional reminders.
 </div>
 
 <form method="POST" action="{{ route('notifications.triggers.save') }}">
@@ -67,8 +68,6 @@ td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--midnight)}
 $eventDefs = [
     'fee_payment_received'      => ['💳 Fee Payment Received', 'Sent to guardian when a fee payment is recorded', ['{student_name}','{amount}','{balance}','{school_name}','{date}']],
     'report_card_published'     => ['📊 Report Card Published', 'Sent to parent when report cards are published for a term', ['{student_name}','{term}','{average}','{position}','{school_name}']],
-    'student_absent'            => ['🏫 Student Absent', 'Sent to parent when student is marked absent', ['{student_name}','{date}','{school_name}']],
-    'exam_scheduled'            => ['📝 CBT Exam Scheduled', 'Sent to students/parents when a CBT exam is published', ['{exam_title}','{date}','{subject}','{school_name}']],
     'admission_status_changed'  => ['🎓 Admission Status Changed', 'Sent when application status is updated (shortlisted/admitted/rejected)', ['{student_name}','{status}','{school_name}','{date}']],
     'fee_overdue'               => ['⚠️ Fee Overdue Reminder', 'Sent when invoice is past due date', ['{student_name}','{amount}','{due_date}','{school_name}']],
     'invoice_generated'         => ['🧾 Invoice Generated', 'Sent when a new fee invoice is created for a student', ['{student_name}','{amount}','{term}','{school_name}']],
@@ -76,8 +75,6 @@ $eventDefs = [
 $defaultTemplates = [
     'fee_payment_received'     => 'Dear Parent, payment of ₦{amount} received for {student_name}. Outstanding balance: ₦{balance}. Thank you. — {school_name}',
     'report_card_published'    => 'Dear Parent, {student_name}\'s report card for {term} is now available. Average: {average}%, Position: {position}. Login to parent portal to view. — {school_name}',
-    'student_absent'           => 'Dear Parent, {student_name} was absent from school on {date}. Please contact us if this was not planned. — {school_name}',
-    'exam_scheduled'           => 'Reminder: {student_name} has a CBT exam ({exam_title}) scheduled. Please ensure they are prepared. — {school_name}',
     'admission_status_changed' => 'Dear {student_name}, your admission application status has been updated to: {status}. Contact {school_name} for details.',
     'fee_overdue'              => 'Dear Parent, the fee invoice of ₦{amount} for {student_name} was due on {due_date}. Please make payment to avoid disruption. — {school_name}',
     'invoice_generated'        => 'Dear Parent, a fee invoice of ₦{amount} has been generated for {student_name} for {term}. — {school_name}',
@@ -149,8 +146,12 @@ $defaultTemplates = [
             </select>
         </div>
         <div>
-            <label class="fl" style="font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;display:block;margin-bottom:4px">Test Phone Number</label>
+            <label class="fl" style="font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;display:block;margin-bottom:4px">Test Phone</label>
             <input type="text" name="phone" class="fc" placeholder="08012345678" style="min-width:160px">
+        </div>
+        <div>
+            <label class="fl" style="font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;display:block;margin-bottom:4px">Test Email</label>
+            <input type="email" name="email" class="fc" placeholder="parent@example.com" style="min-width:210px">
         </div>
         <button type="submit" class="btn btn-ghost">📤 Send Test</button>
     </form>
