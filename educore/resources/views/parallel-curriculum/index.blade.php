@@ -33,8 +33,9 @@
 
     <div class="pc-tabs">
         <a href="{{ route('scores.index') }}" class="pc-tab">Conventional Scores</a>
-        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Curriculum</a>
+        <a href="{{ route('parallel-curriculum.index') }}" class="pc-tab active">Parallel Workspace</a>
         @if($canManage)
+            <a href="{{ route('parallel-curriculum.setup') }}" class="pc-tab">Programme Setup</a>
             <a href="{{ route('parallel-curriculum.student-assignments') }}" class="pc-tab">Student Assignments</a>
             <a href="{{ route('parallel-curriculum.lifecycle.index') }}" class="pc-tab">Academic Lifecycle</a>
         @endif
@@ -147,6 +148,11 @@
         <div class="pc-body">
             <div class="pc-feature-grid">
                 @if($canManage)
+                <a class="pc-feature-link" href="{{ route('parallel-curriculum.setup') }}">
+                    <strong>Programme setup & integration</strong>
+                    <span>Create programmes, levels and subjects, assign subjects to classes, configure standalone grading and map programme averages into compatible conventional subjects.</span>
+                    <small>Programme Setup</small>
+                </a>
                 <a class="pc-feature-link" href="{{ route('parallel-curriculum.lifecycle.index') }}#teaching-assignment-model">
                     <strong>Subject & class-teacher assignment</strong>
                     <span>Choose one class teacher for every subject in an arm, or assign teachers subject-by-subject. The same teacher may teach the same subject across several classes/arms when timetable times do not clash.</span>
@@ -229,392 +235,17 @@
     </div>
 
     @if($canManage)
-    <div class="pc-grid" data-collapsible-root data-storage-key="parallel-config">
-        <div class="pc-section-toolbar">
-            <div class="pc-toolbar-copy">
-                <strong>Programme configuration</strong>
-                <span>Configuration sections are collapsed by default to keep this workspace focused. Open only the section you need.</span>
-            </div>
-            <div class="pc-toolbar-actions">
-                <button class="btn btn-s" type="button" data-expand-all>Expand all</button>
-                <button class="btn btn-s" type="button" data-collapse-all>Collapse all</button>
+    <section class="pc-card full" style="margin-bottom:14px">
+        <div class="pc-head">Administration</div>
+        <div class="pc-body">
+            <div class="score-entry-help" style="margin-top:0">
+                Programme structure, grading, conventional-result mapping and configuration controls now live in the dedicated
+                <a href="{{ route('parallel-curriculum.setup') }}"><strong>Programme Setup</strong></a> workspace.
+                This page remains focused on score entry, assigned workspaces and operational navigation.
             </div>
         </div>
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">1. Create programme</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.curricula.store') }}">@csrf
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Programme name</label><input class="fc" name="name" required placeholder="e.g. Islamiyyah"></div>
-                        <div class="fg"><label class="fl">Code</label><input class="fc" name="code" placeholder="e.g. ISL"></div>
-                    </div>
-                    <div class="fg"><label class="fl">Default Assessment Template</label><select class="fc" name="default_assessment_template_id" required><option value="">Select template</option>@foreach($templates as $template)<option value="{{ $template->id }}">{{ $template->name }} · {{ number_format($template->total_weight,0) }}%</option>@endforeach</select><div class="hint">This template controls how each parallel subject is scored. A class can override it.</div></div>
-                    <button class="btn btn-p">Create Programme</button>
-                </form>
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">2. Create parallel class level</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.classes.store') }}">@csrf
-                    <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Class level name</label><input class="fc" name="name" required placeholder="e.g. Mutawassitah 1"></div>
-                        <div class="fg"><label class="fl">Code</label><input class="fc" name="code"></div>
-                    </div>
-                    <div class="fg"><label class="fl">Template override (optional)</label><select class="fc" name="assessment_template_id"><option value="">Use programme default</option>@foreach($templates as $template)<option value="{{ $template->id }}">{{ $template->name }}</option>@endforeach</select></div>
-                    <button class="btn btn-p">Create Class</button>
-                </form>
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">3. Create programme subject</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.subjects.store') }}">@csrf
-                    <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" required placeholder="e.g. Qur'an, Fiqh, Hadith"></div>
-                        <div class="fg"><label class="fl">Code (optional)</label><input class="fc" name="code" placeholder="e.g. QRN"></div>
-                    </div>
-                    <div class="hint" style="margin-bottom:10px">Programme subjects are independent and do not appear in conventional subject selectors. Create class arms separately in Academic Lifecycle.</div>
-                    <button class="btn btn-p">Save Programme Subject</button>
-                </form>
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">4. Assign subjects to parallel class</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.class-subjects.store') }}">@csrf
-                    <div class="fg"><label class="fl">Parallel class</label><select class="fc" name="parallel_curriculum_class_id" required><option value="">Select class</option>@foreach($curricula as $curriculum)@foreach($curriculum->classes as $class)<option value="{{ $class->id }}">{{ $curriculum->name }} · {{ $class->name }}</option>@endforeach @endforeach</select></div>
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Programme subject</label><select class="fc" name="parallel_curriculum_subject_id" required><option value="">Select programme subject</option>@foreach($curricula as $curriculum)@foreach($curriculum->subjects->where('is_active',true) as $subject)<option value="{{ $subject->id }}">{{ $curriculum->name }} · {{ $subject->name }}</option>@endforeach @endforeach</select><div class="hint">This explicitly defines which subjects belong to the selected parallel class. All-subject class teachers see only these class-assigned subjects.</div></div>
-                        <div class="fg"><label class="fl">Default subject teacher for all arms (optional)</label><select class="fc" name="teacher_id"><option value="">No default subject teacher</option>@foreach($staff as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select><div class="hint">Used only when the arm is in Subject-based teachers mode. An arm-specific teacher may override this default in Academic Lifecycle.</div></div>
-                    </div>
-                    <button class="btn btn-p">Assign Subject</button>
-                </form>
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">5. Assign students independently</div>
-            <div class="pc-body">
-                <div class="item" style="padding-top:0">
-                    <div class="item-main">
-                        <strong>Bulk student assignment workspace</strong>
-                        <span>Filter learners by conventional class, gender, assignment status, name or admission number. Select many learners at once and place or move them into an independent parallel class.</span>
-                    </div>
-                    <span class="badge">{{ $enrolments->count() }} active</span>
-                </div>
-                <div class="hint" style="margin:10px 0 12px">Conventional classes are used only to find students. A learner's conventional placement is never changed by parallel-curriculum assignment.</div>
-                <a class="btn btn-p" href="{{ route('parallel-curriculum.student-assignments') }}">Open Student Assignment Workspace</a>
-            </div>
-        </section>
-
-        <section class="pc-card full" data-collapsible-item>
-            <div class="pc-head">6. Map programme average to conventional results</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.integrations.store') }}" id="parallel-integration-form">@csrf
-                    <div class="fg">
-                        <label class="fl">Source programme</label>
-                        <select class="fc" name="parallel_curriculum_id" required>
-                            <option value="">Select programme</option>
-                            @foreach($curricula as $curriculum)
-                                <option value="{{ $curriculum->id }}" @selected((int)old('parallel_curriculum_id') === (int)$curriculum->id)>{{ $curriculum->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="fg">
-                        <label class="fl">Conventional class levels</label>
-                        @php($oldIntegrationLevels=collect(old('destination_class_level_ids', []))->map(fn($id)=>(int)$id)->all())
-                        <select class="fc" name="destination_class_level_ids[]" id="integration-class-levels" multiple required>
-                            @foreach($classLevels as $level)
-                                <option value="{{ $level->id }}" @selected(in_array((int)$level->id,$oldIntegrationLevels,true))>{{ $level->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="hint">Select the conventional class levels that will receive the programme average. Each level continues to use its own Assessment Template.</div>
-                    </div>
-
-                    <div class="fg">
-                        <label class="fl">Destination subject</label>
-                        <select class="fc" name="destination_subject_id" id="integration-destination-subject" required disabled>
-                            <option value="">Select class level(s) first</option>
-                            @foreach($conventionalSubjects as $subject)
-                                <option
-                                    value="{{ $subject->id }}"
-                                    data-compatible-levels="{{ collect($integrationSubjectCompatibility->get((int)$subject->id, []))->implode(',') }}"
-                                    @selected((int)old('destination_subject_id') === (int)$subject->id)
-                                >{{ $subject->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="hint" id="integration-subject-help">
-                            Only subjects offered by the master conventional curriculum in every selected class level/academic track can be used as the destination.
-                        </div>
-                        <div class="score-entry-help" id="integration-compatibility-warning" hidden style="margin-top:8px"></div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Minimum completed subjects</label><input class="fc" type="number" name="minimum_completed_subjects" value="{{ old('minimum_completed_subjects',1) }}" min="1" max="50"></div>
-                        <div style="padding-top:22px">
-                            <input type="hidden" name="require_all_subjects" value="0">
-                            <label class="checkbox-row"><input type="checkbox" name="require_all_subjects" value="1" @checked(old('require_all_subjects','1'))><span>Require all active parallel subjects before calculating the average.</span></label>
-                            <input type="hidden" name="auto_sync" value="0">
-                            <label class="checkbox-row" style="margin-top:8px"><input type="checkbox" name="auto_sync" value="1" @checked(old('auto_sync','1'))><span>Automatically refresh the conventional score after parallel score entry.</span></label>
-                        </div>
-                    </div>
-                    <button class="btn btn-p" type="submit" id="save-integration-mapping">Save Integration Mapping</button>
-                </form>
-            </div>
-        </section>
-
-        <section class="pc-card full" data-collapsible-item>
-            <div class="pc-head">7. Configure standalone result grading scale</div>
-            <div class="pc-body">
-                <form method="POST" action="{{ route('parallel-curriculum.grades.store') }}">@csrf
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Programme</label><select class="fc" name="parallel_curriculum_id" required><option value="">Select programme</option>@foreach($curricula as $curriculum)<option value="{{ $curriculum->id }}">{{ $curriculum->name }}</option>@endforeach</select></div>
-                        <div class="fg"><label class="fl">Grade</label><input class="fc" name="grade_letter" required maxlength="20" placeholder="e.g. A"></div>
-                    </div>
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Minimum score</label><input class="fc" type="number" name="min_score" min="0" max="100" step="0.01" required placeholder="70"></div>
-                        <div class="fg"><label class="fl">Maximum score</label><input class="fc" type="number" name="max_score" min="0" max="100" step="0.01" required placeholder="100"></div>
-                    </div>
-                    <div class="form-row">
-                        <div class="fg"><label class="fl">Remark</label><input class="fc" name="remark" maxlength="100" placeholder="e.g. Excellent"></div>
-                        <div style="padding-top:22px">
-                            <input type="hidden" name="is_pass_grade" value="0">
-                            <label class="checkbox-row"><input type="checkbox" name="is_pass_grade" value="1" checked><span>Count this as a pass grade.</span></label>
-                        </div>
-                    </div>
-                    <div class="hint" style="margin-bottom:10px">Grade ranges must not overlap. For formal publication, the configured bands should cover every possible score from 0 to 100 without gaps.</div>
-                    <button class="btn btn-p">Save Grade Band</button>
-                </form>
-
-                <div style="margin-top:14px;border-top:1px solid #EEF2F7;padding-top:10px">
-                    @forelse($curricula as $curriculum)
-                        <div class="item">
-                            <div class="item-main">
-                                <strong>{{ $curriculum->name }}</strong>
-                                <span>
-                                    @if($curriculum->grades->isEmpty())
-                                        No grading bands configured.
-                                    @else
-                                        {{ $curriculum->grades->map(fn($grade) => $grade->grade_letter.' '.$grade->min_score.'–'.$grade->max_score)->join(' · ') }}
-                                    @endif
-                                </span>
-                            </div>
-                        </div>
-                        @foreach($curriculum->grades as $grade)
-                            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0 6px 12px;border-bottom:1px solid #F4F6F8">
-                                <span style="font-size:10px;color:var(--slate)"><strong>{{ $grade->grade_letter }}</strong> · {{ number_format($grade->min_score,2) }}–{{ number_format($grade->max_score,2) }} · {{ $grade->remark ?: 'No remark' }} · {{ $grade->is_pass_grade ? 'Pass' : 'Fail' }}</span>
-                                <form method="POST" action="{{ route('parallel-curriculum.grades.destroy',$grade) }}">@csrf @method('DELETE')<button class="btn btn-d" style="padding:4px 7px">Remove</button></form>
-                            </div>
-                        @endforeach
-                    @empty
-                        <div class="empty">Create a programme before configuring its grading scale.</div>
-                    @endforelse
-                </div>
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">
-                <span>Current programme structure</span>
-                <span class="hint">Published result structures must be unpublished before protected edits.</span>
-            </div>
-            <div class="pc-body">
-                @forelse($curricula as $curriculum)
-                    <div class="pc-structure-group">
-                        <div class="item" style="padding-top:0">
-                            <div class="item-main">
-                                <strong>{{ $curriculum->name }} @if($curriculum->code) · {{ $curriculum->code }}@endif</strong>
-                                <span>Default: {{ $curriculum->defaultAssessmentTemplate?->name ?: 'No template' }} · {{ $curriculum->subjects->where('is_active',true)->count() }} active subject(s) · {{ $curriculum->classes->where('is_active',true)->count() }} active class(es)</span>
-                            </div>
-                            <details class="pc-edit-details">
-                                <summary>Edit programme</summary>
-                                <div class="pc-edit-panel">
-                                    <form method="POST" action="{{ route('parallel-curriculum.curricula.update',$curriculum) }}">
-                                        @csrf
-                                        @method('PUT')
-                                        <div class="form-row">
-                                            <div class="fg"><label class="fl">Programme name</label><input class="fc" name="name" value="{{ $curriculum->name }}" required></div>
-                                            <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $curriculum->code }}"></div>
-                                        </div>
-                                        <div class="fg">
-                                            <label class="fl">Default Assessment Template</label>
-                                            <select class="fc" name="default_assessment_template_id" required>
-                                                @foreach($templates as $template)
-                                                    <option value="{{ $template->id }}" @selected((int)$curriculum->default_assessment_template_id === (int)$template->id)>{{ $template->name }} · {{ number_format($template->total_weight,0) }}%</option>
-                                                @endforeach
-                                            </select>
-                                            <div class="hint">Template changes are blocked once parallel scores exist; programme-detail changes are blocked while programme results are published.</div>
-                                        </div>
-                                        <button class="btn btn-p" type="submit">Save Programme Changes</button>
-                                    </form>
-                                </div>
-                            </details>
-                        </div>
-
-                        <div class="pc-structure-label">Programme subjects</div>
-                        @forelse($curriculum->subjects->where('is_active',true) as $subject)
-                            <div class="pc-structure-child">
-                                <div class="pc-structure-child-head">
-                                    <div class="pc-structure-child-title">
-                                        <strong>{{ $subject->name }}</strong>
-                                        <span>{{ $subject->code ?: 'No code' }}</span>
-                                    </div>
-                                    <details class="pc-edit-details">
-                                        <summary>Edit subject</summary>
-                                        <div class="pc-edit-panel">
-                                            <form method="POST" action="{{ route('parallel-curriculum.subjects.update',$subject) }}">
-                                                @csrf
-                                                @method('PUT')
-                                                <div class="form-row">
-                                                    <div class="fg"><label class="fl">Subject name</label><input class="fc" name="name" value="{{ $subject->name }}" required></div>
-                                                    <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $subject->code }}"></div>
-                                                </div>
-                                                <div class="hint" style="margin-bottom:10px">Renaming is blocked while a published parallel result uses this subject.</div>
-                                                <button class="btn btn-p" type="submit">Save Subject Changes</button>
-                                            </form>
-                                        </div>
-                                    </details>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="hint">No active programme subjects yet.</div>
-                        @endforelse
-
-                        <div class="pc-structure-label">Parallel classes</div>
-                        @forelse($curriculum->classes as $class)
-                            <div class="pc-structure-child">
-                                <div class="pc-structure-child-head">
-                                    <div class="pc-structure-child-title">
-                                        <strong>{{ $class->name }} @if($class->code) · {{ $class->code }}@endif</strong>
-                                        <span>Template: {{ $class->assessmentTemplate?->name ?: 'Programme default' }}</span>
-                                    </div>
-                                    <details class="pc-edit-details">
-                                        <summary>Edit class</summary>
-                                        <div class="pc-edit-panel">
-                                            <form method="POST" action="{{ route('parallel-curriculum.classes.update',$class) }}">
-                                                @csrf
-                                                @method('PUT')
-                                                <div class="form-row">
-                                                    <div class="fg"><label class="fl">Class name</label><input class="fc" name="name" value="{{ $class->name }}" required></div>
-                                                    <div class="fg"><label class="fl">Code</label><input class="fc" name="code" value="{{ $class->code }}"></div>
-                                                </div>
-                                                <div class="fg">
-                                                    <label class="fl">Assessment Template</label>
-                                                    <select class="fc" name="assessment_template_id">
-                                                        <option value="">Use programme default</option>
-                                                        @foreach($templates as $template)
-                                                            <option value="{{ $template->id }}" @selected((int)$class->assessment_template_id === (int)$template->id)>{{ $template->name }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <div class="hint">Template changes are blocked after scores are recorded; all class-detail edits are blocked while this class result is published.</div>
-                                                </div>
-                                                <button class="btn btn-p" type="submit">Save Class Changes</button>
-                                            </form>
-                                        </div>
-                                    </details>
-                                </div>
-
-                                @forelse($class->subjectAssignments->where('is_active',true) as $assignment)
-                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;flex-wrap:wrap">
-                                        <span class="hint">{{ $assignment->subject?->name }} @if($assignment->teacher) · {{ $assignment->teacher->name }}@endif</span>
-                                        <form method="POST" action="{{ route('parallel-curriculum.class-subjects.destroy',$assignment) }}">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button class="btn btn-d" type="submit">Remove</button>
-                                        </form>
-                                    </div>
-                                @empty
-                                    <div class="hint" style="margin-top:6px">No subjects assigned to this class yet.</div>
-                                @endforelse
-                            </div>
-                        @empty
-                            <div class="hint">No parallel classes yet.</div>
-                        @endforelse
-                    </div>
-                @empty
-                    <div class="empty">Create the first programme above.</div>
-                @endforelse
-            </div>
-        </section>
-
-        <section class="pc-card" data-collapsible-item>
-            <div class="pc-head">Conventional result mappings</div>
-            <div class="pc-body">
-                @forelse($integrations as $rule)
-                    <div class="item">
-                        <div class="item-main">
-                            <strong>{{ $rule->curriculum?->name }} → {{ $rule->destinationSubject?->name }}</strong>
-                            <span>{{ $rule->destinationClassLevel?->name }} · {{ $rule->require_all_subjects ? 'All subjects required' : 'Minimum '.$rule->minimum_completed_subjects }} · {{ $rule->auto_sync ? 'Auto sync' : 'Manual sync' }}</span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-                            <span class="badge {{ $rule->is_active ? 'synced' : 'unmapped' }}">{{ $rule->is_active ? 'Active' : 'Inactive' }}</span>
-                            @if($rule->is_active)
-                                <form method="POST" action="{{ route('parallel-curriculum.integrations.destroy',$rule) }}" onsubmit="return confirm('Remove this conventional result mapping? Unpublished derived scores will be cleared; already-published results will be preserved.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn btn-d" type="submit">Remove</button>
-                                </form>
-                            @endif
-                        </div>
-                    </div>
-                @empty
-                    <div class="empty">No integration rules configured yet.</div>
-                @endforelse
-            </div>
-        </section>
-
-        <section class="pc-card full" data-collapsible-item>
-            <div class="pc-head">Current student parallel-class assignments @if($currentSession) · {{ $currentSession->name }}@endif</div>
-            <div class="pc-body">
-                @forelse($enrolments->take(12) as $enrolment)
-                    <div class="item">
-                        <div class="item-main"><strong>{{ $enrolment->student?->full_name }} · {{ $enrolment->curriculumClass?->name }}</strong><span>{{ $enrolment->curriculum?->name }} · Conventional: {{ $enrolment->student?->currentClassArm?->full_name ?: 'Not assigned' }}</span></div>
-                        <form method="POST" action="{{ route('parallel-curriculum.enrolments.destroy',$enrolment) }}">@csrf @method('DELETE')<button class="btn btn-d">Remove</button></form>
-                    </div>
-                @empty
-                    <div class="empty">No student has been assigned to a parallel class for the current session.</div>
-                @endforelse
-                @if($enrolments->count() > 12)
-                    <div class="score-entry-help" style="margin-top:10px">
-                        Showing 12 of {{ $enrolments->count() }} active assignments here to keep the dashboard compact.
-                        <a href="{{ route('parallel-curriculum.student-assignments') }}">Open the Student Assignment Workspace</a> to view and manage the full list.
-                    </div>
-                @endif
-            </div>
-        </section>
-
-        <section class="pc-card full" data-collapsible-item>
-            <div class="pc-head">Composite synchronization @if($currentTerm) · {{ $currentTerm->name }}@endif</div>
-            <div class="pc-body">
-                @if($currentTerm && $curricula->isNotEmpty())
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-                        @foreach($curricula as $curriculum)
-                            <form method="POST" action="{{ route('parallel-curriculum.sync') }}">@csrf
-                                <input type="hidden" name="parallel_curriculum_id" value="{{ $curriculum->id }}">
-                                <input type="hidden" name="term_id" value="{{ $currentTerm->id }}">
-                                <button class="btn btn-s">Sync {{ $curriculum->name }}</button>
-                            </form>
-                        @endforeach
-                    </div>
-                @endif
-                @forelse($recentComposites as $composite)
-                    <div class="item">
-                        <div class="item-main"><strong>{{ $composite->student?->full_name }} · {{ $composite->curriculum?->name }}</strong><span>{{ $composite->completed_subject_count }}/{{ $composite->subject_count }} subjects · Average: {{ $composite->average_score === null ? '—' : number_format($composite->average_score,2) }} · {{ $composite->sync_message }}</span></div>
-                        <a class="badge {{ $composite->sync_status }}" href="{{ route('parallel-curriculum.breakdown',$composite) }}">{{ ucfirst($composite->sync_status) }}</a>
-                    </div>
-                @empty
-                    <div class="empty">Composite records will appear after parallel scores are entered or synchronized.</div>
-                @endforelse
-            </div>
-        </section>
-    </div>
+    </section>
+    @endif
     @endif
 </div>
 @endsection
@@ -762,7 +393,6 @@
     refreshDestinationSubjects();
 })();
 </script>
-@include('parallel-curriculum.partials.progressive-disclosure')
 <script>
 (function () {
     const input = document.getElementById('parallel-workspace-filter');
