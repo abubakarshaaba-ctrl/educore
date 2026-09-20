@@ -8,6 +8,7 @@ use App\Models\ClassArm;
 use App\Models\GradingSystem;
 use App\Models\Score;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Services\Scores\ObjectiveScoreResolver;
@@ -15,6 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class ScoreController extends Controller
@@ -735,11 +737,28 @@ class ScoreController extends Controller
             ->orderBy('id')
             ->get();
 
-        $students = Student::where('current_class_arm_id', $classArm->id)
-            ->where('status', Student::STATUS_ACTIVE)
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get();
+        $sessionStudentIds = collect();
+        if (Schema::hasTable('student_enrollments')) {
+            $sessionStudentIds = StudentEnrollment::withoutTenantScope()
+                ->where('tenant_id', $this->tenantId())
+                ->where('class_arm_id', $classArm->id)
+                ->where('session_id', $session->id)
+                ->pluck('student_id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+        }
+
+        $students = $sessionStudentIds->isNotEmpty()
+            ? Student::whereIn('id', $sessionStudentIds)
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get()
+            : Student::where('current_class_arm_id', $classArm->id)
+                ->where('status', Student::STATUS_ACTIVE)
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get();
 
         $studentIds = $students->pluck('id');
         $termIds = $terms->pluck('id');
