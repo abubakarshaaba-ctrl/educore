@@ -1006,6 +1006,361 @@ interface EduCoreApi {
     @POST("transfers/interclass/{transfer}/cancel")
     suspend fun cancelInterclassTransfer(@Path("transfer") transferId: Long): ResponseBody
 
+    // Complete transport parity for routes declared directly in routes/api.php.
+    @GET("academic-repository/knowledge")
+    suspend fun academicRepositoryKnowledge(
+        @Query("q") query: String? = null,
+    ): ResponseBody
+
+    @GET("academic-repository/knowledge/{topic}")
+    suspend fun academicRepositoryKnowledgeTopic(
+        @Path("topic") topic: String,
+    ): ResponseBody
+
+    @GET("academic-repository/knowledge/{topic}/generate/{type}")
+    suspend fun generateAcademicRepositoryKnowledge(
+        @Path("topic") topic: String,
+        @Path("type") type: String,
+    ): ResponseBody
+
+    @POST("academic-repository/knowledge/{topic}/save-lesson-plan")
+    suspend fun saveKnowledgeLessonPlan(
+        @Path("topic") topic: String,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("academic-repository/knowledge/{topic}/save-student-note")
+    suspend fun saveKnowledgeStudentNote(
+        @Path("topic") topic: String,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @Streaming
+    @GET("academic-repository/resources/{source}/content")
+    suspend fun academicRepositoryResourceContent(
+        @Path("source") source: Long,
+    ): ResponseBody
+
+    @GET("me")
+    suspend fun mobileMe(): ResponseBody
+
+    @GET("profile")
+    suspend fun mobileProfile(): ResponseBody
+
+    @PATCH("profile")
+    suspend fun updateMobileProfile(@Body request: RequestBody): ResponseBody
+
+    @PUT("profile/password")
+    suspend fun updateMobilePassword(@Body request: RequestBody): ResponseBody
+
+    @POST("profile/passport")
+    suspend fun uploadMobilePassport(@Body request: RequestBody): ResponseBody
+
+    @Streaming
+    @GET("profile/passport-file")
+    suspend fun mobilePassportFile(): ResponseBody
+
+    @GET("portal/modules")
+    suspend fun portalModules(): ResponseBody
+
+    @GET("announcements")
+    suspend fun mobileAnnouncements(): ResponseBody
+
+    @POST("notifications/{announcement}/read")
+    suspend fun markMobileAnnouncementRead(
+        @Path("announcement") announcementId: Long,
+    ): ResponseBody
+
+    @GET("timetable/mine")
+    suspend fun myMobileTimetable(): ResponseBody
+
+    @GET("timetable/form-class")
+    suspend fun mobileFormClassTimetable(): ResponseBody
+
+    @GET("id-card")
+    suspend fun mobileIdCard(): ResponseBody
+
+    @Streaming
+    @GET("id-card/pdf")
+    suspend fun mobileIdCardPdf(): ResponseBody
+
+    @Streaming
+    @GET("id-card/signature-file")
+    suspend fun mobileIdCardSignatureFile(): ResponseBody
+
+    @POST("id-card/photo")
+    suspend fun uploadMobileIdCardPhoto(@Body request: RequestBody): ResponseBody
+
+    @GET("payslips")
+    suspend fun mobilePayslips(): ResponseBody
+
+    @GET("payslips/{item}")
+    suspend fun mobilePayslip(@Path("item") payslipId: Long): ResponseBody
+
+    @Streaming
+    @GET("payslips/{item}/pdf")
+    suspend fun mobilePayslipPdf(@Path("item") payslipId: Long): ResponseBody
+
+    @GET("exam-duties")
+    suspend fun mobileExamDuties(): ResponseBody
+
+    @POST("devices/register")
+    suspend fun registerMobileDevice(@Body request: RequestBody): ResponseBody
+
+    @POST("devices/unregister")
+    suspend fun unregisterMobileDevice(@Body request: RequestBody): ResponseBody
+
+    @GET("student/dashboard")
+    suspend fun studentDashboardRaw(): ResponseBody
+
+    @GET("student/timetable")
+    suspend fun studentTimetableRaw(): ResponseBody
+
+    @GET("student/attendance")
+    suspend fun studentAttendanceRaw(): ResponseBody
+
+    @GET("parent/dashboard")
+    suspend fun parentDashboardRaw(): ResponseBody
+
+    @GET("parent/invoices")
+    suspend fun parentInvoicesRaw(): ResponseBody
+
+    @GET("parent/attendance")
+    suspend fun parentAttendanceRaw(): ResponseBody
+
+    @GET("parent/fees")
+    suspend fun parentFeesRaw(): ResponseBody
+
+    @GET("parent/fees/children/{student}")
+    suspend fun parentChildFeesRaw(
+        @Path("student") studentId: Long,
+    ): ResponseBody
+
+    @GET("parent/fees/invoices/{invoice}")
+    suspend fun parentFeeInvoiceRaw(
+        @Path("invoice") invoiceId: Long,
+    ): ResponseBody
+
+    @POST("parent/fees/{invoice}/checkout")
+    suspend fun parentFeeCheckoutRaw(
+        @Path("invoice") invoiceId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("parent/fees/verify")
+    suspend fun verifyParentFeeRaw(@Body request: RequestBody): ResponseBody
+
+    @GET("parent/fees/invoices/{invoice}/status")
+    suspend fun parentFeeStatusRaw(
+        @Path("invoice") invoiceId: Long,
+    ): ResponseBody
+
+    @GET("parent/fees/payments")
+    suspend fun parentFeePaymentsRaw(): ResponseBody
+
+    @GET("admin/dashboard")
+    suspend fun adminDashboardRaw(): ResponseBody
+
+    @GET("admin/students")
+    suspend fun adminStudentsRaw(): ResponseBody
+
+    @GET("admin/staff")
+    suspend fun adminStaffRaw(): ResponseBody
+
+    @GET("admin/academics")
+    suspend fun adminAcademicsRaw(): ResponseBody
+
+    @GET("admin/finance")
+    suspend fun adminFinanceRaw(): ResponseBody
+
+    @PATCH("admin/students/{student}")
+    suspend fun updateAdminStudentRaw(
+        @Path("student") studentId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @PATCH("admin/staff/{member}")
+    suspend fun updateAdminStaffRaw(
+        @Path("member") memberId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admin/management")
+    suspend fun adminManagementRaw(): ResponseBody
+
+    @POST("admin/students")
+    suspend fun createAdminStudentRaw(@Body request: RequestBody): ResponseBody
+
+    @POST("admin/staff")
+    suspend fun createAdminStaffRaw(@Body request: RequestBody): ResponseBody
+
+    @POST("admin/classes")
+    suspend fun createAdminClassRaw(@Body request: RequestBody): ResponseBody
+
+    @PATCH("admin/classes/{classArm}")
+    suspend fun updateAdminClassRaw(
+        @Path("classArm") classArmId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admin/subjects")
+    suspend fun createAdminSubjectRaw(@Body request: RequestBody): ResponseBody
+
+    @PATCH("admin/subjects/{subject}")
+    suspend fun updateAdminSubjectRaw(
+        @Path("subject") subjectId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admin/subscription")
+    suspend fun adminSubscriptionRaw(): ResponseBody
+
+    @GET("admin/subscription/invoices")
+    suspend fun adminSubscriptionInvoicesRaw(): ResponseBody
+
+    @POST("admin/subscription/invoices")
+    suspend fun createAdminSubscriptionInvoiceRaw(
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admin/subscription/invoices/{invoice}/checkout")
+    suspend fun adminSubscriptionCheckoutRaw(
+        @Path("invoice") invoiceId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admin/subscription/invoices/{invoice}/bank-transfer")
+    suspend fun adminSubscriptionBankTransferRaw(
+        @Path("invoice") invoiceId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admin/subscription/invoices/{invoice}/status")
+    suspend fun adminSubscriptionInvoiceStatusRaw(
+        @Path("invoice") invoiceId: Long,
+    ): ResponseBody
+
+    @POST("admin/subscription/verify")
+    suspend fun verifyAdminSubscriptionRaw(@Body request: RequestBody): ResponseBody
+
+    @GET("accountant/dashboard")
+    suspend fun accountantDashboardRaw(): ResponseBody
+
+    @GET("accountant/payroll")
+    suspend fun accountantPayrollRaw(): ResponseBody
+
+    @GET("accountant/preparation-options")
+    suspend fun accountantPreparationOptionsRaw(): ResponseBody
+
+    @POST("accountant/fees/generate")
+    suspend fun accountantGenerateFeesRaw(@Body request: RequestBody): ResponseBody
+
+    @POST("accountant/payroll/generate")
+    suspend fun accountantGeneratePayrollRaw(@Body request: RequestBody): ResponseBody
+
+    @GET("platform/dashboard")
+    suspend fun platformDashboardRaw(): ResponseBody
+
+    @GET("platform/tenants")
+    suspend fun platformTenantsRaw(): ResponseBody
+
+    @GET("platform/billing")
+    suspend fun platformBillingRaw(): ResponseBody
+
+    @GET("platform/plans")
+    suspend fun platformPlansRaw(): ResponseBody
+
+    @PATCH("platform/tenants/{tenant}")
+    suspend fun updatePlatformTenantRaw(
+        @Path("tenant") tenantId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @DELETE("platform/tenants/{tenant}")
+    suspend fun deletePlatformTenantRaw(
+        @Path("tenant") tenantId: Long,
+    ): ResponseBody
+
+    @POST("platform/tenants")
+    suspend fun createPlatformTenantRaw(@Body request: RequestBody): ResponseBody
+
+    @GET("platform/agents")
+    suspend fun platformAgentsRaw(): ResponseBody
+
+    @POST("platform/agents")
+    suspend fun createPlatformAgentRaw(@Body request: RequestBody): ResponseBody
+
+    @PATCH("platform/agents/{agent}")
+    suspend fun updatePlatformAgentRaw(
+        @Path("agent") agentId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("admissions")
+    suspend fun mobileAdmissionsRaw(): ResponseBody
+
+    @POST("admissions")
+    suspend fun createMobileAdmissionRaw(@Body request: RequestBody): ResponseBody
+
+    @GET("admissions/{admission}")
+    suspend fun mobileAdmissionRaw(
+        @Path("admission") admissionId: Long,
+    ): ResponseBody
+
+    @PATCH("admissions/{admission}/status")
+    suspend fun updateMobileAdmissionStatusRaw(
+        @Path("admission") admissionId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admissions/{admission}/interview")
+    suspend fun scheduleMobileAdmissionInterviewRaw(
+        @Path("admission") admissionId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admissions/{admission}/interview/result")
+    suspend fun recordMobileAdmissionInterviewRaw(
+        @Path("admission") admissionId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @POST("admissions/{admission}/offer")
+    suspend fun sendMobileAdmissionOfferRaw(
+        @Path("admission") admissionId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
+    @GET("transport-officer/dashboard")
+    suspend fun transportOfficerDashboardRaw(): ResponseBody
+
+    @GET("transport-officer/routes/{route}/manifest")
+    suspend fun transportRouteManifestRaw(
+        @Path("route") routeId: Long,
+    ): ResponseBody
+
+    @POST("transport-officer/assignments")
+    suspend fun createTransportAssignmentRaw(@Body request: RequestBody): ResponseBody
+
+    @DELETE("transport-officer/assignments/{student}")
+    suspend fun deleteTransportAssignmentRaw(
+        @Path("student") studentId: Long,
+    ): ResponseBody
+
+    @GET("health-officer/dashboard")
+    suspend fun healthOfficerDashboardRaw(): ResponseBody
+
+    @GET("health-officer/students/{student}")
+    suspend fun healthOfficerStudentRaw(
+        @Path("student") studentId: Long,
+    ): ResponseBody
+
+    @POST("health-officer/students/{student}")
+    suspend fun saveHealthOfficerStudentRaw(
+        @Path("student") studentId: Long,
+        @Body request: RequestBody,
+    ): ResponseBody
+
     @POST("auth/logout")
     suspend fun logout(): MessageDto
 }
