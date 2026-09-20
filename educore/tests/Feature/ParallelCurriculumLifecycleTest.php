@@ -829,6 +829,73 @@ class ParallelCurriculumLifecycleTest extends TestCase
         $this->assertStringNotContainsString('hasValidationError', $disclosure);
     }
 
+    public function test_parallel_curriculum_uses_unified_responsive_module_navigation(): void
+    {
+        $navigation = file_get_contents(
+            resource_path('views/parallel-curriculum/partials/module-navigation.blade.php')
+        );
+        $ui = file_get_contents(
+            resource_path('views/parallel-curriculum/partials/global-ui.blade.php')
+        );
+        $index = file_get_contents(
+            resource_path('views/parallel-curriculum/index.blade.php')
+        );
+        $setup = file_get_contents(
+            resource_path('views/parallel-curriculum/setup.blade.php')
+        );
+        $lifecycle = file_get_contents(
+            resource_path('views/parallel-curriculum/lifecycle/index.blade.php')
+        );
+        $operations = file_get_contents(
+            resource_path('views/parallel-curriculum/operations.blade.php')
+        );
+        $results = file_get_contents(
+            resource_path('views/parallel-curriculum/results/index.blade.php')
+        );
+        $scoreSheet = file_get_contents(
+            resource_path('views/parallel-curriculum/score-sheet.blade.php')
+        );
+
+        $this->assertStringContainsString('data-pc-module-nav', $navigation);
+        $this->assertStringContainsString('data-pc-nav-toggle', $navigation);
+        $this->assertStringContainsString('aria-current="page"', $navigation);
+        $this->assertStringContainsString('Workspace', $navigation);
+        $this->assertStringContainsString('People', $navigation);
+        $this->assertStringContainsString('Daily work', $navigation);
+        $this->assertStringContainsString('Results', $navigation);
+
+        foreach ([$index, $setup, $lifecycle, $operations, $results, $scoreSheet] as $view) {
+            $this->assertStringContainsString(
+                "parallel-curriculum.partials.module-navigation",
+                $view
+            );
+        }
+
+        $this->assertStringContainsString(
+            'top:calc(var(--header-h, 58px) + 8px)',
+            $ui
+        );
+        $this->assertStringContainsString(
+            '@media(max-width:768px)',
+            $ui
+        );
+        $this->assertStringContainsString('pc-module-nav-items', $ui);
+        $this->assertStringContainsString('pc-jumpbar', $ui);
+
+        $this->assertStringContainsString(
+            'aria-label="Common parallel curriculum tasks"',
+            $index
+        );
+        $this->assertStringContainsString(
+            'href="#teaching-assignment-model"',
+            $lifecycle
+        );
+        $this->assertStringContainsString(
+            'href="#staff-attendance"',
+            $operations
+        );
+    }
+
     private function managerContext(): array
     {
         $tenant = Tenant::create([
