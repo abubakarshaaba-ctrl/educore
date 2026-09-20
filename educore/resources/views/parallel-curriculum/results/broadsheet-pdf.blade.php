@@ -46,7 +46,14 @@
     @endif
     @foreach($subjects as $subject)
         @php($sd=$row['subjects'][(int)$subject->id] ?? null)
-        <td>{{ ($sd['score'] ?? null)===null ? '—' : number_format($sd['score'],1) }}</td>
+        <td>
+            @if(($sd['score'] ?? null)===null)
+                —
+            @else
+                {{ number_format($sd['score'],1) }}
+                @if(!empty($sd['grade']) && $sd['grade'] !== '—')<br><span style="font-size:5.8px;color:#667085">{{ $sd['grade'] }}</span>@endif
+            @endif
+        </td>
     @endforeach
     <td class="sum">{{ number_format($row['total'],1) }}</td>
     <td class="sum">{{ $row['average']===null?'—':number_format($row['average'],1) }}</td>
