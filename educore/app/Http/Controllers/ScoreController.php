@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicSession;
 use App\Models\AssessmentType;
 use App\Models\ClassArm;
 use App\Models\GradingSystem;
@@ -600,6 +601,318 @@ class ScoreController extends Controller
 
         $filename = 'Broadsheet_' . str_replace(' ', '_', $classArm->classLevel->name . '_' . $classArm->name) . '_' . str_replace(' ', '_', $term->name) . '.pdf';
         return $pdf->download($filename);
+    }
+
+    // ---------------------------------------------------------------
+    // CUMULATIVE BROADSHEET
+    // ---------------------------------------------------------------
+    public function cumulativeBroadsheet(Request $request)
+    {
+        $user = auth()->user();
+
+        if (
+            ! $user->canAccessExactModule('scores.view')
+            && ! $this->hasFullScoreAccess($user)
+        ) {
+            abort(
+                403,
+                'You do not have access to the cumulative broadsheet.'
+            );
+        }
+
+        $classArms = $this->hasFullScoreAccess($user)
+            ? ClassArm::with('classLevel')->get()
+            : ClassArm::with('classLevel')
+                ->where('form_tutor_id', $user->id)
+                ->get();
+
+        $sessions = AcademicSession::where('tenant_id', $this->tenantId())
+            ->orderByDesc('is_current')
+            ->orderByDesc('id')
+            ->get();
+
+        if (
+            ! $request->filled('class_arm_id')
+            || ! $request->filled('session_id')
+        ) {
+            return view(
+                'scores.cumulative-broadsheet',
+                compact('classArms', 'sessions')
+            );
+        }
+
+        $classArm = ClassArm::with('classLevel')
+            ->where('tenant_id', $this->tenantId())
+            ->findOrFail($request->integer('class_arm_id'));
+        $session = AcademicSession::where('tenant_id', $this->tenantId())
+            ->findOrFail($request->integer('session_id'));
+
+        $this->assertTeachesOrTutorsClass($user, (int) $classArm->id);
+
+        $data = $this->buildCumulativeBroadsheetData(
+            $classArm,
+            $session
+        );
+
+        return view('scores.cumulative-broadsheet', array_merge(
+            compact('classArms', 'sessions', 'classArm', 'session'),
+            $data
+        ));
+    }
+
+    public function cumulativeBroadsheetPdf(Request $request)
+    {
+        $request->validate([
+            'class_arm_id' => ['required', 'integer'],
+            'session_id' => ['required', 'integer'],
+        ]);
+
+        $classArm = ClassArm::with('classLevel')
+            ->where('tenant_id', $this->tenantId())
+            ->findOrFail($request->integer('class_arm_id'));
+        $session = AcademicSession::where('tenant_id', $this->tenantId())
+            ->findOrFail($request->integer('session_id'));
+
+        $this->assertTeachesOrTutorsClass(
+            auth()->user(),
+            (int) $classArm->id
+        );
+
+        $data = $this->buildCumulativeBroadsheetData(
+            $classArm,
+            $session
+        );
+
+        abort_unless(
+            $data['matrix']->isNotEmpty(),
+            422,
+            'No cumulative score data is available for the selected class and session.'
+        );
+
+        $tenant = auth()->user()->tenant;
+        $logoAbsPath = null;
+        if (! empty($tenant?->logo_path)) {
+            $cleanPath = preg_replace(
+                '#^storage/#',
+                '',
+                ltrim($tenant->logo_path, '/')
+            );
+            $candidate = storage_path('app/public/'.$cleanPath);
+            if (file_exists($candidate)) {
+                $logoAbsPath = $candidate;
+            }
+        }
+
+        $filename = 'Cumulative_Broadsheet_'.
+            str_replace(
+                ' ',
+                '_',
+                $classArm->classLevel->name.'_'.$classArm->name
+            ).'_'.str_replace(' ', '_', $session->name).'.pdf';
+
+        return Pdf::loadView(
+            'scores.cumulative-broadsheet-pdf',
+            array_merge(
+                compact(
+                    'classArm',
+                    'session',
+                    'tenant',
+                    'logoAbsPath'
+                ),
+                $data
+            )
+        )->setPaper('a4', 'landscape')->download($filename);
+    }
+
+    private function buildCumulativeBroadsheetData(
+        ClassArm $classArm,
+        AcademicSession $session
+    ): array {
+        $terms = Term::with('session')
+            ->where('tenant_id', $this->tenantId())
+            ->where('session_id', $session->id)
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get();
+
+        $students = Student::where('current_class_arm_id', $classArm->id)
+            ->where('status', Student::STATUS_ACTIVE)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        $studentIds = $students->pluck('id');
+        $termIds = $terms->pluck('id');
+
+        $allScores = ($studentIds->isNotEmpty() && $termIds->isNotEmpty())
+            ? Score::whereIn('student_id', $studentIds)
+                ->whereIn('term_id', $termIds)
+                ->get()
+            : collect();
+
+        $subjects = Subject::whereIn(
+                'id',
+                $allScores->pluck('subject_id')->unique()
+            )
+            ->orderBy('name')
+            ->get();
+
+        $gradingSystem = GradingSystem::where(
+                'class_level_id',
+                $classArm->class_level_id
+            )
+            ->get();
+
+        $matrix = collect();
+
+        foreach ($students as $student) {
+            $subjectRows = [];
+            $rowTotal = 0.0;
+            $subjectCount = 0;
+            $termAverages = [];
+
+            foreach ($terms as $term) {
+                $termSubjectTotals = collect();
+
+                foreach ($subjects as $subject) {
+                    $termScores = $allScores
+                        ->where('student_id', $student->id)
+                        ->where('subject_id', $subject->id)
+                        ->where('term_id', $term->id);
+
+                    if ($termScores->isNotEmpty()) {
+                        $termSubjectTotals->push(
+                            round((float) $termScores->sum('score'), 1)
+                        );
+                    }
+                }
+
+                $termAverages[(int) $term->id] =
+                    $termSubjectTotals->isNotEmpty()
+                        ? round((float) $termSubjectTotals->avg(), 1)
+                        : null;
+            }
+
+            foreach ($subjects as $subject) {
+                $termTotals = [];
+
+                foreach ($terms as $term) {
+                    $termScores = $allScores
+                        ->where('student_id', $student->id)
+                        ->where('subject_id', $subject->id)
+                        ->where('term_id', $term->id);
+
+                    $termTotals[(int) $term->id] =
+                        $termScores->isNotEmpty()
+                            ? round((float) $termScores->sum('score'), 1)
+                            : null;
+                }
+
+                $available = collect($termTotals)
+                    ->filter(fn ($score) => $score !== null)
+                    ->map(fn ($score) => (float) $score);
+
+                $cumulativeAverage = $available->isNotEmpty()
+                    ? round((float) $available->avg(), 1)
+                    : null;
+
+                $grade = $cumulativeAverage === null
+                    ? null
+                    : $gradingSystem->first(
+                        fn ($row) =>
+                            $cumulativeAverage >= (float) $row->min_score
+                            && $cumulativeAverage <= (float) $row->max_score
+                    );
+
+                $subjectRows[(int) $subject->id] = [
+                    'term_totals' => $termTotals,
+                    'average' => $cumulativeAverage,
+                    'grade' => $grade?->grade_letter ?? '—',
+                    'is_pass' => (bool) ($grade?->is_pass_grade ?? false),
+                ];
+
+                if ($cumulativeAverage !== null) {
+                    $rowTotal += $cumulativeAverage;
+                    $subjectCount++;
+                }
+            }
+
+            $matrix->push([
+                'student' => $student,
+                'subjects' => $subjectRows,
+                'term_averages' => $termAverages,
+                'total' => round($rowTotal, 1),
+                'average' => $subjectCount > 0
+                    ? round($rowTotal / $subjectCount, 1)
+                    : null,
+                'position' => null,
+            ]);
+        }
+
+        $matrix = $matrix
+            ->filter(fn (array $row) => $row['average'] !== null)
+            ->sortByDesc('average')
+            ->values();
+
+        $previousAverage = null;
+        $previousPosition = null;
+
+        $matrix = $matrix->map(function (
+            array $row,
+            int $index
+        ) use (&$previousAverage, &$previousPosition): array {
+            $position = $index + 1;
+            $average = (float) $row['average'];
+
+            if (
+                $previousAverage !== null
+                && abs($average - $previousAverage) < 0.0001
+            ) {
+                $position = $previousPosition;
+            }
+
+            $row['position'] = $position;
+            $previousAverage = $average;
+            $previousPosition = $position;
+
+            return $row;
+        });
+
+        $subjectStats = $subjects->mapWithKeys(
+            function ($subject) use ($matrix): array {
+                $scores = $matrix
+                    ->map(fn (array $row) =>
+                        $row['subjects'][(int) $subject->id]['average']
+                            ?? null
+                    )
+                    ->filter(fn ($score) => $score !== null)
+                    ->map(fn ($score) => (float) $score)
+                    ->values();
+
+                return [
+                    (int) $subject->id => [
+                        'highest' => $scores->isNotEmpty()
+                            ? round((float) $scores->max(), 1)
+                            : '—',
+                        'lowest' => $scores->isNotEmpty()
+                            ? round((float) $scores->min(), 1)
+                            : '—',
+                        'avg' => $scores->isNotEmpty()
+                            ? round((float) $scores->avg(), 1)
+                            : '—',
+                    ],
+                ];
+            }
+        );
+
+        return compact(
+            'terms',
+            'students',
+            'subjects',
+            'matrix',
+            'subjectStats',
+            'gradingSystem'
+        );
     }
 
     // ---------------------------------------------------------------
