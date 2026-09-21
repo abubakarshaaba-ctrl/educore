@@ -50,11 +50,11 @@ class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
         $mobile = file_get_contents(app_path('Services/Mobile/MobileCommunicationService.php'));
 
         $this->assertStringContainsString(
-            "$user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin']",
+            "\$user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin']",
             $mobile,
         );
         $this->assertStringContainsString(
-            "$user->canManage('announcements') => ['all', 'staff', 'admin']",
+            "\$user->canManage('announcements') => ['all', 'staff', 'admin']",
             $mobile,
         );
     }
@@ -66,7 +66,7 @@ class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
         $navigation = file_get_contents(resource_path('views/layouts/partials/full-nav.blade.php'));
 
         $this->assertStringContainsString(
-            "->when(! $user?->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))",
+            "->when(! \$user?->isAdmin(), fn (\$query) => \$query->whereNull('platform_broadcast_id'))",
             $announcements,
         );
         $this->assertStringContainsString("Announcement::whereNull('platform_broadcast_id')", $announcements);
@@ -76,7 +76,7 @@ class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
             $support,
         );
         $this->assertStringContainsString(
-            "@if($u->isAdmin() && $u->canAccessModule('notices'))",
+            "@if(\$u->isAdmin() && \$u->canAccessModule('notices'))",
             $navigation,
         );
     }
