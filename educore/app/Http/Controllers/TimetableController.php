@@ -444,10 +444,11 @@ class TimetableController extends Controller
                                   ->get()
                                   ->groupBy('day_of_week');
 
-        [, $allSlots] = $this->weekSlots($config, $days);
+        [$daySlots, $allSlots] = $this->weekSlots($config, $days);
 
         return view('timetable.teacher', compact(
-            'teachers', 'sessions', 'teacher', 'session', 'days', 'periods', 'allSlots'
+            'teachers', 'sessions', 'teacher', 'session', 'days',
+            'periods', 'allSlots', 'daySlots'
         ));
     }
 
@@ -458,14 +459,41 @@ class TimetableController extends Controller
         }
 
         $daySlots = [];
-        $allSlots = [];
+        $slotUnion = [];
+
         foreach ($days as $day) {
             $slots = $config->computeSlotsForDay($day);
             $daySlots[$day] = $slots;
-            if (count($slots) > count($allSlots)) {
-                $allSlots = $slots;
+
+            foreach ($slots as $slot) {
+                // Different weekday starts can shift every period and break.
+                // Build a true union so no valid day-specific slot disappears
+                // merely because another day has the same or a larger count.
+                $key = implode('|', [
+                    $slot['is_break'] ? 'break' : 'period',
+                    $slot['start'],
+                    $slot['end'],
+                    $slot['is_break'] ? ($slot['label'] ?? 'Break') : ($slot['period'] ?? ''),
+                ]);
+                $slotUnion[$key] = $slot;
             }
         }
+
+        $allSlots = array_values($slotUnion);
+        usort($allSlots, function (array $a, array $b): int {
+            $time = strcmp($a['start'], $b['start']);
+            if ($time !== 0) {
+                return $time;
+            }
+
+            // At an identical start time, a teaching period precedes a break
+            // for a more natural grid order.
+            if ((bool) $a['is_break'] !== (bool) $b['is_break']) {
+                return $a['is_break'] ? 1 : -1;
+            }
+
+            return strcmp($a['end'], $b['end']);
+        });
 
         return [$daySlots, $allSlots];
     }
