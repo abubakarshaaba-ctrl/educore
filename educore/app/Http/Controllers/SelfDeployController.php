@@ -224,6 +224,7 @@ class SelfDeployController extends Controller
 
         return response()->json([
             'ok'       => true,
+            'deploy_mode' => 'zip-stream',
             'copied'   => $copied,
             'removed'  => $removed,
             'apk'      => $apk,
@@ -298,14 +299,20 @@ class SelfDeployController extends Controller
                 }
 
                 $freeBytes = @disk_free_space(dirname($zipPath));
-                if (is_numeric($freeBytes) && $freeBytes > 0 && $freeBytes < ($bytes * 3)) {
+                // Streaming deployment keeps only the ZIP plus one temporary
+                // destination file at a time. Reserve a modest safety margin
+                // instead of the old 3x-archive requirement used by full-tree
+                // extraction.
+                $minimumFree = $bytes + (16 * 1024 * 1024);
+                if (is_numeric($freeBytes) && $freeBytes > 0 && $freeBytes < $minimumFree) {
                     unset($body);
                     return [
                         'ok' => false,
                         'status' => $lastStatus,
                         'bytes' => $bytes,
                         'free_bytes' => (int) $freeBytes,
-                        'hint' => 'Insufficient free disk space for the deployment archive and extraction workspace.',
+                        'required_free_bytes' => $minimumFree,
+                        'hint' => 'Insufficient free disk space for the deployment archive and streaming safety margin.',
                     ];
                 }
 
