@@ -50,11 +50,11 @@ class ConventionalStaffWorkHoursContractTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            "$this->attendanceSchedule()->forDate(",
+            '$this->attendanceSchedule()->forDate(',
             $controller,
         );
         $this->assertStringContainsString(
-            "'scheduled_workday' => (bool) $schedule->is_working",
+            "'scheduled_workday' => (bool) \$schedule->is_working",
             $controller,
         );
     }
@@ -98,7 +98,7 @@ class ConventionalStaffWorkHoursContractTest extends TestCase
         $admin = file_get_contents(app_path('Http/Controllers/Api/AdminStaffAttendanceController.php'));
 
         $this->assertStringContainsString(
-            "substr((string) $settings->resumption_time, 0, 8)",
+            'substr((string) $settings->resumption_time, 0, 8)',
             $service,
         );
         $this->assertStringContainsString(
