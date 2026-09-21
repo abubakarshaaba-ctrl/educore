@@ -128,7 +128,7 @@ class StaffAttendanceController extends Controller
             'early'   => $todayRecords->where('status','early')->count(),
             'present' => $todayRecords->where('status','present')->count(),
             'late'    => $todayRecords->where('status','late')->count(),
-            'absent'  => $staffTotal - $todayRecords->whereIn('status',['early','present','late'])->count(),
+            'absent'  => max(0, $staffTotal - $todayRecords->whereIn('status',['early','present','late'])->count()),
         ];
 
         $weekTrend = StaffAttendanceRecord::select(
@@ -785,15 +785,35 @@ class StaffAttendanceController extends Controller
             return back()->withErrors(['user_id' => 'Select a staff member employed on the attendance date.']);
         }
 
+        $settings = $this->attendanceSettings();
+        $schedule = $this->attendanceSchedule()->forDate(
+            (int) $tid,
+            $data['attendance_date'],
+            $settings
+        );
+        $clockOut = $data['clock_out_time'] ? $data['clock_out_time'].':00' : null;
+        $closing = $schedule->closing_time
+            ? substr((string) $schedule->closing_time, 0, 8)
+            : null;
+
         StaffAttendanceRecord::updateOrCreate(
             ['tenant_id' => $tid, 'user_id' => $data['user_id'], 'attendance_date' => $data['attendance_date']],
             [
-                'status'         => $data['status'],
-                'clock_in_time'  => $data['clock_in_time'] ? $data['clock_in_time'].':00' : null,
-                'clock_out_time' => $data['clock_out_time'] ? $data['clock_out_time'].':00' : null,
-                'clock_in_method'=> 'manual',
-                'clocked_in_by'  => auth()->id(),
-                'notes'          => $data['notes'],
+                'status' => $data['status'],
+                'clock_in_time' => $data['clock_in_time'] ? $data['clock_in_time'].':00' : null,
+                'clock_out_time' => $clockOut,
+                'expected_resumption_time' => $schedule->resumption_time
+                    ? substr((string) $schedule->resumption_time, 0, 8)
+                    : null,
+                'expected_closing_time' => $closing,
+                'grace_minutes' => (int) $schedule->grace_minutes,
+                'scheduled_workday' => (bool) $schedule->is_working,
+                'departure_status' => $clockOut && $closing
+                    ? ($clockOut < $closing ? 'early' : 'on_time')
+                    : null,
+                'clock_in_method' => 'manual',
+                'clocked_in_by' => auth()->id(),
+                'notes' => $data['notes'],
             ]
         );
         return back()->with('success', 'Attendance record updated.');
@@ -828,9 +848,15 @@ class StaffAttendanceController extends Controller
             $detail = [];
             foreach ($workingDays as $day) {
                 $rec    = $recs->first(fn($r) => $r->attendance_date->toDateString() === $day);
-                $status = $rec ? $rec->status : 'absent';
+                $status = $rec && in_array($rec->status, ['early','present','late','absent'], true)
+                    ? $rec->status
+                    : 'absent';
                 $counts[$status]++;
-                $detail[$day] = ['status'=>$status,'clock_in'=>$rec?->clock_in_time,'clock_out'=>$rec?->clock_out_time];
+                $detail[$day] = [
+                    'status' => $status,
+                    'clock_in' => $rec?->clock_in_time,
+                    'clock_out' => $rec?->clock_out_time,
+                ];
             }
             $total = count($workingDays);
             return [
