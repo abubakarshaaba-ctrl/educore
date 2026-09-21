@@ -136,7 +136,7 @@
             @if($config)
                 Up to {{ $config->periods_per_day }} periods/day · {{ $config->period_duration }} mins each
                 @if(count($config->breaks ?? []))· {{ count($config->breaks) }} break(s)@endif
-                @if(count($config->day_end_times ?? []))· variable weekday closing times@endif
+                @if(count($config->day_start_times ?? []) || count($config->day_end_times ?? []))· variable weekday school hours@endif
             @else
                 No school hours configured
             @endif
@@ -164,7 +164,7 @@
             <tr>
                 <th>Time</th>
                 @foreach($days as $day)
-                <th>{{ ucfirst($day) }}@if($config)<br><span style="font-size:9px;font-weight:400;opacity:.75">to {{ $config->closingTimeFor($day) }}</span>@endif</th>
+                <th>{{ ucfirst($day) }}@if($config)<br><span style="font-size:9px;font-weight:400;opacity:.75">{{ $config->startingTimeFor($day) }}–{{ $config->closingTimeFor($day) }}</span>@endif</th>
                 @endforeach
             </tr>
         </thead>
@@ -175,7 +175,11 @@
                     <td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>
                     @foreach($days as $day)
                     @php
-                        $hasBreak = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
+                        $hasBreak = collect($daySlots[$day] ?? [])->contains(
+                            fn($daySlot) => $daySlot['is_break']
+                                && $daySlot['start'] === $slot['start']
+                                && $daySlot['end'] === $slot['end']
+                        );
                     @endphp
                     <td class="{{ $hasBreak ? '' : 'closed-break' }}">{{ $hasBreak ? '☕ '.$slot['label'] : 'Closed' }}</td>
                     @endforeach
@@ -183,14 +187,20 @@
                 @else
                 <tr>
                     <td class="time-col">
-                        P{{ $slot['period'] }}<br>
-                        <span style="font-weight:400">{{ substr($slot['start'],0,5) }}</span><br>
+                        <span style="font-weight:700">{{ substr($slot['start'],0,5) }}</span><br>
                         <span style="font-weight:400">{{ substr($slot['end'],0,5) }}</span>
                     </td>
                     @foreach($days as $day)
                     @php
-                        $slotAvailable = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => ! $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
-                        $match = $periods->get($day, collect())->first(fn($p) => $p->start_time === $slot['start']);
+                        $slotAvailable = collect($daySlots[$day] ?? [])->contains(
+                            fn($daySlot) => ! $daySlot['is_break']
+                                && $daySlot['start'] === $slot['start']
+                                && $daySlot['end'] === $slot['end']
+                        );
+                        $match = $periods->get($day, collect())->first(
+                            fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5)
+                                && substr((string) $p->end_time, 0, 5) === substr((string) $slot['end'], 0, 5)
+                        );
                     @endphp
                     <td>
                         @if(!$slotAvailable)

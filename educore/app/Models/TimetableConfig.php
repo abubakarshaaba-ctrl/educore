@@ -10,14 +10,15 @@ class TimetableConfig extends BaseTenantModel
     protected $table = 'timetable_configs';
 
     protected $fillable = [
-        'tenant_id', 'session_id', 'school_start', 'school_end', 'day_end_times',
-        'periods_per_day', 'period_duration', 'breaks',
+        'tenant_id', 'session_id', 'school_start', 'day_start_times',
+        'school_end', 'day_end_times', 'periods_per_day', 'period_duration', 'breaks',
     ];
 
     protected function casts(): array
     {
         return [
             'breaks' => 'array',
+            'day_start_times' => 'array',
             'day_end_times' => 'array',
         ];
     }
@@ -25,6 +26,21 @@ class TimetableConfig extends BaseTenantModel
     public function session(): BelongsTo
     {
         return $this->belongsTo(AcademicSession::class, 'session_id');
+    }
+
+    /**
+     * Return the configured start time for one weekday, falling back to the
+     * session-wide default start time for existing configurations.
+     */
+    public function startingTimeFor(string $day): string
+    {
+        $day = strtolower(trim($day));
+        $overrides = $this->day_start_times ?? [];
+        $configured = is_array($overrides) ? ($overrides[$day] ?? null) : null;
+
+        return $configured
+            ? substr((string) $configured, 0, 5)
+            : substr((string) $this->school_start, 0, 5);
     }
 
     /**
@@ -44,14 +60,17 @@ class TimetableConfig extends BaseTenantModel
 
     /**
      * Compute period slots accounting for breaks and, when a weekday is
-     * supplied, that day's configured closing time. periods_per_day remains a
-     * maximum; an earlier closing day simply receives fewer available slots.
+     * supplied, that day's effective start and closing times. periods_per_day
+     * remains a maximum; a later start or earlier closing time simply gives
+     * that weekday fewer available slots.
      */
     public function computeSlots(?string $day = null): array
     {
         $slots       = [];
         $breaks      = collect($this->breaks ?? []);
-        $currentTime = substr((string) $this->school_start, 0, 5);
+        $currentTime = $day !== null
+            ? $this->startingTimeFor($day)
+            : substr((string) $this->school_start, 0, 5);
         $closingTime = $day !== null
             ? $this->closingTimeFor($day)
             : substr((string) $this->school_end, 0, 5);
