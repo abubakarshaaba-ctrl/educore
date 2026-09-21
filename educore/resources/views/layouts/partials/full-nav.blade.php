@@ -421,7 +421,7 @@
             <span class="nav-label">Messages</span>
         </a>
         @endif
-        @if($u->canAccessModule('notices'))
+        @if($u->isAdmin() && $u->canAccessModule('notices'))
         <a href="{{ route('platform.notices') }}" class="nav-item {{ request()->routeIs('platform.notices') ? 'active' : '' }}" data-tip="Platform Notices">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
             <span class="nav-label">Notices</span>
