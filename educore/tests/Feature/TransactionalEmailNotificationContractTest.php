@@ -36,18 +36,19 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $this->assertStringContainsString('notifyPaid(', $mobile);
     }
 
-    public function test_platform_broadcast_email_is_called_from_all_publishers(): void
+    public function test_platform_broadcast_email_is_delivered_by_the_after_response_pipeline(): void
     {
         $api = file_get_contents(app_path('Http/Controllers/Api/PlatformBroadcastController.php'));
-        $mobile = file_get_contents(app_path('Http/Controllers/Api/MobilePlatformBroadcastController.php'));
-        $legacy = file_get_contents(app_path('Http/Controllers/SuperAdminController.php'));
+        $web = file_get_contents(app_path('Http/Controllers/WebPlatformBroadcastController.php'));
+        $publisher = file_get_contents(app_path('Services/Notifications/PlatformBroadcastPublisher.php'));
+        $job = file_get_contents(app_path('Jobs/DeliverPlatformBroadcastAfterResponse.php'));
         $service = file_get_contents(app_path('Services/Notifications/PlatformBroadcastEmailService.php'));
-        $this->assertStringContainsString('PlatformBroadcastEmailService', $api);
-        $this->assertStringContainsString('sendToTenantIds(', $api);
-        $this->assertStringContainsString('PlatformBroadcastEmailService', $mobile);
-        $this->assertStringContainsString('sendToTenantIds(', $mobile);
-        $this->assertStringContainsString('PlatformBroadcastEmailService', $legacy);
-        $this->assertStringContainsString('sendToTenantIds(', $legacy);
+
+        $this->assertStringContainsString('PlatformBroadcastPublisher', $api);
+        $this->assertStringContainsString('PlatformBroadcastPublisher', $web);
+        $this->assertStringContainsString('DeliverPlatformBroadcastAfterResponse::dispatchAfterResponse(', $publisher);
+        $this->assertStringContainsString('PlatformBroadcastEmailService', $job);
+        $this->assertStringContainsString('sendToTenantIds(', $job);
         $this->assertStringContainsString('PlatformBroadcastNotification', $service);
         $this->assertStringContainsString('/platform-notices', $service);
     }
@@ -61,7 +62,7 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $branding = file_get_contents(app_path('Services/Notifications/MailBranding.php'));
         $header = file_get_contents(resource_path('views/vendor/mail/html/header.blade.php'));
 
-        $this->assertStringContainsString('MailBranding::platform(', $platform);
+        $this->assertStringContainsString('MailBranding::platformView(', $platform);
         $this->assertStringContainsString('MailBranding::platform(', $subscription);
         $this->assertStringContainsString('MailBranding::school(', $guardian);
         $this->assertStringContainsString('MailBranding::school(', $payroll);

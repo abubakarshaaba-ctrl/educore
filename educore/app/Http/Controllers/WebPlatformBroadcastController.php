@@ -2,23 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Api\PlatformBroadcastController;
-use App\Services\Notifications\PlatformBroadcastEmailService;
+use App\Services\Notifications\PlatformBroadcastPublisher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class WebPlatformBroadcastController extends PlatformBroadcastController
+class WebPlatformBroadcastController extends Controller
 {
     public function store(
         Request $request,
-        PlatformBroadcastEmailService $emails
+        PlatformBroadcastPublisher $publisher,
     ): RedirectResponse {
-        $response = parent::store($request, $emails);
-        $payload = $response->getData(true);
+        abort_unless(
+            $request->user()?->isSuperAdmin(),
+            403,
+            'Platform Super Admin access required.',
+        );
+
+        $data = $request->validate($publisher->validationRules());
+
+        $publication = $publisher->publish(
+            actor: $request->user(),
+            data: $data,
+            image: $request->file('image'),
+        );
 
         return back()->with(
             'success',
-            $payload['message'] ?? 'Broadcast sent to schools.'
+            "Broadcast published to {$publication['tenant_count']} school(s). Push and email delivery is processing.",
         );
     }
 }
