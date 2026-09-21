@@ -73,10 +73,21 @@ tbody tr:last-child td{border-bottom:none}
 @if(session('success'))<div class="alert-s">✓ {{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert-e">{{ $errors->first() }}</div>@endif
 
+<div style="background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12px;color:var(--slate);line-height:1.5">
+    @if($todaySchedule->is_working)
+        <strong>Today's conventional work hours:</strong>
+        {{ substr((string) $todaySchedule->resumption_time,0,5) }}–{{ substr((string) $todaySchedule->closing_time,0,5) }}
+        · {{ (int) $todaySchedule->grace_minutes }} min grace.
+    @else
+        <strong>Conventional curriculum is not scheduled today.</strong>
+        A shared QR scan may still record an applicable parallel-curriculum attendance context.
+    @endif
+</div>
+
 {{-- Today's status box --}}
 <div class="today-box">
     @if($todayRecord && $todayRecord->clock_in_time)
-        @php $statusIcons = ['early'=>'🔵','present'=>'🟢','late'=>'🟡','absent'=>'🔴']; @endphp
+        @php $statusIcons = ['early'=>'🔵','present'=>'🟢','late'=>'🟡','absent'=>'🔴','not_scheduled'=>'⚪']; @endphp
         <div class="today-status">{{ $statusIcons[$todayRecord->status] ?? '—' }}</div>
         <div style="font-size:18px;font-weight:700">{{ $todayRecord->statusLabel() }}</div>
         <div class="today-time">
