@@ -63,7 +63,7 @@ class DeliverPlatformBroadcastAfterResponse
             'failed' => 0,
         ];
 
-        Announcement::query()
+        Announcement::withoutTenantScope()
             ->where('platform_broadcast_id', $this->broadcastId)
             ->orderBy('id')
             ->chunkById(100, function ($announcements) use ($push, &$pushStats): void {
