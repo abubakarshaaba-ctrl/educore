@@ -45,6 +45,10 @@ class PlatformBroadcastRegressionGuardTest extends TestCase
         $this->assertStringContainsString("'priority' => 'high'", $push);
         $this->assertStringNotContainsString("'notification' =>", $push);
         $this->assertFileDoesNotExist(app_path('Services/Notifications/PlatformBroadcastPushListener.php'));
+        $this->assertFileDoesNotExist(app_path('Http/Controllers/Api/MobilePlatformBroadcastController.php'));
+
+        $legacy = file_get_contents(app_path('Http/Controllers/SuperAdminController.php'));
+        $this->assertStringNotContainsString('function storeBroadcast(', $legacy);
     }
 
     public function test_delivery_transport_failures_are_contained_after_publication(): void
