@@ -37,16 +37,15 @@ class TenantResetPasswordNotification extends Notification
         $expires = (int) config('auth.passwords.users.expire', 60);
 
         $mail = (new MailMessage)
-            ->subject('Reset your '.$this->tenant->name.' password')
-            ->greeting('Reset your password')
-            ->line('A password reset was requested for your '.$this->tenant->name.' account.')
-            ->line('Use the secure button below to choose a new password.')
-            ->action('Reset Password', $url)
-            ->line('This secure link expires in '.$expires.' minutes.')
-            ->line('If you did not request this change, ignore this email. Your current password will remain unchanged.');
+            ->subject('Reset your '.$this->tenant->name.' password');
 
-        return MailBranding::school(
+        return MailBranding::schoolView(
             $mail,
+            'mail.school.password-reset',
+            [
+                'resetUrl' => $url,
+                'expires' => $expires,
+            ],
             (int) $this->tenant->id,
             $this->tenant->name,
             $this->tenant->email,
