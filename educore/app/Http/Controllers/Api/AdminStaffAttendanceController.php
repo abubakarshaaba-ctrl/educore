@@ -83,6 +83,10 @@ class AdminStaffAttendanceController extends Controller
             ])->values(),
             'settings' => $this->settingsPayload($settings),
             'day_schedule' => $this->workingDayPayload($daySchedule),
+            'working_days' => $scheduleService->workingDays(
+                (int) $user->tenant_id,
+                $settings
+            )->map(fn ($day): array => $this->workingDayPayload($day))->values(),
         ]);
     }
 
@@ -109,20 +113,28 @@ class AdminStaffAttendanceController extends Controller
             ->get();
         $records = $attendanceRecords->groupBy('user_id');
 
-        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records): array {
+        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records, $workingDays): array {
             $rows = $records->get($member->id, collect());
-            $onTime = $rows->whereIn('status', ['early', 'present'])->count();
-            $attended = $rows->whereIn('status', ['early', 'present', 'late'])->count();
+            $scheduledRows = $rows->filter(
+                fn (StaffAttendanceRecord $row) =>
+                    $workingDays->contains($row->attendance_date?->format('Y-m-d'))
+                    && in_array($row->status, ['early', 'present', 'late', 'absent'], true)
+            );
+            $onTime = $scheduledRows->whereIn('status', ['early', 'present'])->count();
+            $attended = $scheduledRows->whereIn('status', ['early', 'present', 'late'])->count();
+            $absent = max(0, $workingDays->count() - $attended);
             return [
                 'id' => $member->id,
                 'name' => $member->name,
                 'staff_id' => $member->staff_id,
-                'early' => $rows->where('status', 'early')->count(),
-                'present' => $rows->where('status', 'present')->count(),
-                'late' => $rows->where('status', 'late')->count(),
-                'absent' => $rows->where('status', 'absent')->count(),
-                'days' => $rows->count(),
-                'punctuality' => $attended > 0 ? (int) round(($onTime / $attended) * 100) : 0,
+                'early' => $scheduledRows->where('status', 'early')->count(),
+                'present' => $scheduledRows->where('status', 'present')->count(),
+                'late' => $scheduledRows->where('status', 'late')->count(),
+                'absent' => $absent,
+                'days' => $workingDays->count(),
+                'punctuality' => $workingDays->count() > 0
+                    ? (int) round(($onTime / $workingDays->count()) * 100)
+                    : 0,
                 'detail' => $rows->sortBy('attendance_date')->map(fn (StaffAttendanceRecord $row): array => [
                     'date' => $row->attendance_date?->format('Y-m-d'),
                     'status' => $row->status,
@@ -163,6 +175,17 @@ class AdminStaffAttendanceController extends Controller
         ]);
 
         $target = User::tenantStaff($user->tenant_id)->findOrFail((int) $data['user_id']);
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $schedule = app(StaffAttendanceScheduleService::class)->forDate(
+            (int) $user->tenant_id,
+            $data['attendance_date'],
+            $settings
+        );
+        $clockOut = isset($data['clock_out_time']) ? $data['clock_out_time'].':00' : null;
+        $closing = $schedule->closing_time
+            ? substr((string) $schedule->closing_time, 0, 8)
+            : null;
+
         $record = StaffAttendanceRecord::updateOrCreate(
             [
                 'tenant_id' => $user->tenant_id,
@@ -172,7 +195,16 @@ class AdminStaffAttendanceController extends Controller
             [
                 'status' => $data['status'],
                 'clock_in_time' => isset($data['clock_in_time']) ? $data['clock_in_time'].':00' : null,
-                'clock_out_time' => isset($data['clock_out_time']) ? $data['clock_out_time'].':00' : null,
+                'clock_out_time' => $clockOut,
+                'expected_resumption_time' => $schedule->resumption_time
+                    ? substr((string) $schedule->resumption_time, 0, 8)
+                    : null,
+                'expected_closing_time' => $closing,
+                'grace_minutes' => (int) $schedule->grace_minutes,
+                'scheduled_workday' => (bool) $schedule->is_working,
+                'departure_status' => $clockOut && $closing
+                    ? ($clockOut < $closing ? 'early' : 'on_time')
+                    : null,
                 'clock_in_method' => 'manual',
                 'clocked_in_by' => $user->id,
                 'geo_verified' => false,
@@ -235,7 +267,15 @@ class AdminStaffAttendanceController extends Controller
             $geoVerified = true;
         }
 
-        $attendance = DB::transaction(function () use ($offline, $user, $geoVerified): StaffAttendanceRecord {
+        $attendanceDate = $offline->attendance_date->toDateString();
+        $scheduleService = app(StaffAttendanceScheduleService::class);
+        $schedule = $scheduleService->forDate(
+            (int) $offline->tenant_id,
+            $attendanceDate,
+            $settings
+        );
+
+        $attendance = DB::transaction(function () use ($offline, $user, $geoVerified, $attendanceDate, $scheduleService, $schedule): StaffAttendanceRecord {
             $record = StaffAttendanceRecord::updateOrCreate(
                 [
                     'tenant_id' => $offline->tenant_id,
@@ -243,8 +283,20 @@ class AdminStaffAttendanceController extends Controller
                     'attendance_date' => $offline->attendance_date,
                 ],
                 [
-                    'status' => 'present',
+                    'status' => $scheduleService->classifyArrival(
+                        $schedule,
+                        $attendanceDate,
+                        (string) $offline->clock_in_time
+                    ),
                     'clock_in_time' => $offline->clock_in_time,
+                    'expected_resumption_time' => $schedule->resumption_time
+                        ? substr((string) $schedule->resumption_time, 0, 8)
+                        : null,
+                    'expected_closing_time' => $schedule->closing_time
+                        ? substr((string) $schedule->closing_time, 0, 8)
+                        : null,
+                    'grace_minutes' => (int) $schedule->grace_minutes,
+                    'scheduled_workday' => (bool) $schedule->is_working,
                     'clock_in_method' => 'offline_review',
                     'clocked_in_by' => $offline->clocked_by ?: $offline->user_id,
                     'clock_in_lat' => $offline->lat,
