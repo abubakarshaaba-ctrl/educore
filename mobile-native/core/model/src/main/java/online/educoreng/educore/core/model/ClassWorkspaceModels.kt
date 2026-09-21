@@ -146,7 +146,7 @@ data class StaffAttendanceSnapshot(
     val today: StaffAttendanceToday?,
     val geoEnabled: Boolean,
     val geoRadiusMeters: Int,
+    val records: List<StaffAttendanceRecord>,
     val todaySchedule: StaffAttendanceWorkingDay? = null,
     val workingDays: List<StaffAttendanceWorkingDay> = emptyList(),
-    val records: List<StaffAttendanceRecord>,
 )
