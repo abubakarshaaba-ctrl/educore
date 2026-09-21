@@ -81,6 +81,7 @@ class PlatformBroadcastEmailService
                         if (! filter_var($email, FILTER_VALIDATE_EMAIL) || isset($seen[$email])) {
                             continue;
                         }
+
                         $seen[$email] = true;
                         $stats['recipients']++;
 
@@ -104,8 +105,6 @@ class PlatformBroadcastEmailService
                             ]);
                         }
                     }
-
-                }
                 }
             });
 
