@@ -18,20 +18,15 @@
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:collapse;">
             <tr>
                 <td valign="middle" style="width:46px;padding:0 11px 0 0;vertical-align:middle;">
-                    @if($logoUrl)
-                        <img src="{{ $logoUrl }}" alt="{{ $isSchool ? $name : 'EduCore' }}" width="42" height="42"
-                             style="display:block;width:42px;height:42px;max-width:42px;border-radius:9px;background:#ffffff;{{ $isSchool ? 'border:1px solid #ffffff;' : '' }}object-fit:contain;">
-                    @else
-                        <table width="42" height="42" cellpadding="0" cellspacing="0" role="presentation"
-                               style="width:42px;height:42px;border-collapse:separate;background:#F2C14E;border-radius:9px;">
-                            <tr>
-                                <td align="center" valign="middle"
-                                    style="width:42px;height:42px;text-align:center;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:42px;font-weight:900;color:{{ $isSchool ? '#0E5A47' : '#082653' }};">
-                                    {{ $isSchool ? $initial : 'E' }}
-                                </td>
-                            </tr>
-                        </table>
-                    @endif
+                    <table width="42" height="42" cellpadding="0" cellspacing="0" role="presentation"
+                           style="width:42px;height:42px;border-collapse:separate;background:{{ $isSchool ? '#FFFFFF' : '#F2C14E' }};border-radius:9px;">
+                        <tr>
+                            <td align="center" valign="middle"
+                                style="width:42px;height:42px;text-align:center;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:22px;line-height:42px;font-weight:900;color:{{ $isSchool ? '#0E5A47' : '#082653' }};">
+                                {{ $isSchool ? $initial : 'E' }}
+                            </td>
+                        </tr>
+                    </table>
                 </td>
                 <td valign="middle" style="padding:0;vertical-align:middle;">
                     @if($isSchool)
