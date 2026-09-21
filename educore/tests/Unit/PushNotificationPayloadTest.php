@@ -31,7 +31,7 @@ class PushNotificationPayloadTest extends TestCase
         ]);
     }
 
-    public function test_device_push_uses_notification_and_data_payload_for_background_reliability(): void
+    public function test_device_push_is_data_only_high_priority_and_native_rendered(): void
     {
         $sentMessage = null;
         Http::fake(function ($request) use (&$sentMessage) {
@@ -40,6 +40,7 @@ class PushNotificationPayloadTest extends TestCase
             }
 
             $sentMessage = $request->data()['message'] ?? null;
+
             return Http::response(['name' => 'projects/educore-test/messages/1'], 200);
         });
 
@@ -47,20 +48,26 @@ class PushNotificationPayloadTest extends TestCase
             'device-token',
             'Test title',
             'Test body',
-            ['type' => 'announcement', 'destination_id' => '5'],
+            [
+                'type' => 'announcement',
+                'destination_type' => 'announcement',
+                'destination_id' => '5',
+            ],
         );
 
         $this->assertTrue($ok);
         $this->assertSame('device-token', $sentMessage['token']);
-        $this->assertSame('Test title', $sentMessage['notification']['title']);
-        $this->assertSame('Test body', $sentMessage['notification']['body']);
-        $this->assertSame('educore_notifications', $sentMessage['android']['notification']['channel_id']);
-        $this->assertSame('ic_educore_notification', $sentMessage['android']['notification']['icon']);
+        $this->assertArrayNotHasKey('notification', $sentMessage);
+        $this->assertSame('high', $sentMessage['android']['priority']);
+        $this->assertArrayNotHasKey('notification', $sentMessage['android']);
         $this->assertSame('announcement', $sentMessage['data']['type']);
+        $this->assertSame('announcement', $sentMessage['data']['destination_type']);
+        $this->assertSame('5', $sentMessage['data']['destination_id']);
         $this->assertSame('Test title', $sentMessage['data']['title']);
+        $this->assertSame('Test body', $sentMessage['data']['body']);
     }
 
-    public function test_app_update_topic_remains_data_only_for_native_version_gating(): void
+    public function test_app_update_topic_uses_the_same_data_only_contract(): void
     {
         $sentMessage = null;
         Http::fake(function ($request) use (&$sentMessage) {
@@ -69,6 +76,7 @@ class PushNotificationPayloadTest extends TestCase
             }
 
             $sentMessage = $request->data()['message'] ?? null;
+
             return Http::response(['name' => 'projects/educore-test/messages/2'], 200);
         });
 
@@ -82,6 +90,9 @@ class PushNotificationPayloadTest extends TestCase
         $this->assertTrue($ok);
         $this->assertSame('educore_app_updates', $sentMessage['topic']);
         $this->assertArrayNotHasKey('notification', $sentMessage);
+        $this->assertSame('high', $sentMessage['android']['priority']);
         $this->assertSame('app_update', $sentMessage['data']['type']);
+        $this->assertSame('EduCore update available', $sentMessage['data']['title']);
+        $this->assertSame('A newer build is ready.', $sentMessage['data']['body']);
     }
 }
