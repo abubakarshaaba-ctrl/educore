@@ -57,6 +57,7 @@ import online.educoreng.educore.core.network.dto.AdminAttendanceManualRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceProxyDecisionRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceReviewRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceSettingsRequestDto
+import online.educoreng.educore.core.network.dto.AdminAttendanceWorkingDayRequestDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceRecordDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceReportDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceResponseDto
@@ -187,20 +188,24 @@ class AdminStaffAttendanceViewModel @Inject constructor(
     }
 
     fun saveSettings(
-        resumption: String,
-        grace: Int,
-        closing: String,
+        workingDays: List<AdminAttendanceWorkingDayRequestDto>,
         geoEnabled: Boolean,
         lat: Double?,
         lng: Double?,
         radius: Int?,
     ) {
+        val settings = _uiState.value.snapshot?.settings
+        val fallback = workingDays.firstOrNull {
+            it.isWorking && !it.resumptionTime.isNullOrBlank() && !it.closingTime.isNullOrBlank()
+        }
+
         mutate {
             api.updateSettings(
                 AdminAttendanceSettingsRequestDto(
-                    resumptionTime = resumption,
-                    graceMinutes = grace,
-                    closingTime = closing,
+                    resumptionTime = fallback?.resumptionTime ?: settings?.resumptionTime.orEmpty(),
+                    graceMinutes = fallback?.graceMinutes ?: settings?.graceMinutes ?: 0,
+                    closingTime = fallback?.closingTime ?: settings?.closingTime.orEmpty(),
+                    workingDays = workingDays,
                     geoEnabled = geoEnabled,
                     geoLat = lat,
                     geoLng = lng,
@@ -271,7 +276,7 @@ internal fun AdminStaffAttendanceScreen(
     onManualOverride: (AdminStaffAttendanceRecordDto, String, String?, String?, String?) -> Unit,
     onProcessOffline: (Long, Boolean) -> Unit,
     onDecideProxy: (Long, Boolean) -> Unit,
-    onSaveSettings: (String, Int, String, Boolean, Double?, Double?, Int?) -> Unit,
+    onSaveSettings: (List<AdminAttendanceWorkingDayRequestDto>, Boolean, Double?, Double?, Int?) -> Unit,
     onResetQr: () -> Unit,
 ) {
     var editing by remember { mutableStateOf<AdminStaffAttendanceRecordDto?>(null) }
