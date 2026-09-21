@@ -380,6 +380,42 @@ private fun DailyAttendanceSection(
                 Button(onClick = onLoad, enabled = !state.isLoading) { Text("Load") }
             }
         }
+        snapshot.daySchedule?.let { schedule ->
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = EduCoreColors.White,
+                    shape = MaterialTheme.shapes.medium,
+                    shadowElevation = 1.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Text(
+                            schedule.dayOfWeek.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = EduCoreColors.Ink900,
+                        )
+                        Text(
+                            if (schedule.isWorking) {
+                                "Conventional work hours " +
+                                    (schedule.resumptionTime ?: "—") +
+                                    "–" +
+                                    (schedule.closingTime ?: "—") +
+                                    " · " +
+                                    schedule.graceMinutes +
+                                    " min grace"
+                            } else {
+                                "Not a conventional working day"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
+            }
+        }
         item {
             OutlinedTextField(
                 value = state.dailyQuery,
