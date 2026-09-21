@@ -128,6 +128,12 @@ class MobileReleaseController extends Controller
             }
         }
 
+        $pushAlreadySent = (
+            ($previous['source_release_tag'] ?? null) === $sourceReleaseTag
+            && (int) ($previous['version_code'] ?? 0) === $versionCode
+            && ! empty($previous['push_sent_at'])
+        );
+
         $release = [
             'platform' => 'android',
             'version_name' => $versionName,
@@ -139,6 +145,7 @@ class MobileReleaseController extends Controller
             'published_at' => now()->toIso8601String(),
             'source_release_tag' => $sourceReleaseTag,
             'sha256' => $sha256,
+            'push_sent_at' => $pushAlreadySent ? (string) $previous['push_sent_at'] : null,
         ];
 
         Storage::disk('local')->put(
@@ -146,10 +153,7 @@ class MobileReleaseController extends Controller
             json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
 
-        if (
-            ($previous['source_release_tag'] ?? null) === $sourceReleaseTag
-            && (int) ($previous['version_code'] ?? 0) === $versionCode
-        ) {
+        if ($pushAlreadySent) {
             return response()->json([
                 'status' => 'accepted',
                 'version_name' => $versionName,
@@ -157,6 +161,7 @@ class MobileReleaseController extends Controller
                 'topic' => self::APP_UPDATES_TOPIC,
                 'delivered' => true,
                 'push' => 'skipped-already-notified',
+                'push_sent_at' => $release['push_sent_at'],
                 'release_recorded' => true,
                 'authenticated_by' => $authenticatedBySecret ? 'shared-secret' : 'github-release-attestation',
             ]);
@@ -179,6 +184,17 @@ class MobileReleaseController extends Controller
             $payload,
         );
 
+        // Release metadata and push delivery are different states. Persist the
+        // delivery marker only after FCM accepts the message so a transient
+        // failure can be retried by Codemagic or the self-deploy flow.
+        if ($delivered) {
+            $release['push_sent_at'] = now()->toIso8601String();
+            Storage::disk('local')->put(
+                self::RELEASE_FILE,
+                json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+            );
+        }
+
         return response()->json([
             'status' => $delivered ? 'accepted' : 'push_failed',
             'version_name' => $versionName,
@@ -186,6 +202,8 @@ class MobileReleaseController extends Controller
             'topic' => self::APP_UPDATES_TOPIC,
             'delivered' => $delivered,
             'push' => $delivered ? 'sent' : 'failed',
+            'push_sent_at' => $release['push_sent_at'],
+            'retryable' => ! $delivered,
             'release_recorded' => true,
             'authenticated_by' => $authenticatedBySecret ? 'shared-secret' : 'github-release-attestation',
         ], $delivered ? 200 : 502);

@@ -582,6 +582,12 @@ class SelfDeployController extends Controller
             }
         }
 
+        $pushAlreadySent = (
+            ($previous['source_release_tag'] ?? null) === $tag
+            && (int) ($previous['version_code'] ?? 0) === $versionCode
+            && ! empty($previous['push_sent_at'])
+        );
+
         $downloadUrl = url('/download/app');
         $body = "EduCore {$versionName} is ready to install. Tap to update.";
         $release = [
@@ -595,6 +601,7 @@ class SelfDeployController extends Controller
             'published_at' => now()->toIso8601String(),
             'source_release_tag' => $tag,
             'sha256' => $apk['sha256'] ?? null,
+            'push_sent_at' => $pushAlreadySent ? (string) $previous['push_sent_at'] : null,
         ];
 
         Storage::disk('local')->put(
@@ -602,13 +609,14 @@ class SelfDeployController extends Controller
             json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
 
-        if (($previous['source_release_tag'] ?? null) === $tag) {
+        if ($pushAlreadySent) {
             return [
                 'status' => 'recorded',
                 'release' => $tag,
                 'version_name' => $versionName,
                 'version_code' => $versionCode,
                 'push' => 'skipped-already-notified',
+                'push_sent_at' => $release['push_sent_at'],
             ];
         }
 
@@ -627,12 +635,22 @@ class SelfDeployController extends Controller
                 ],
             );
 
+            if ($delivered) {
+                $release['push_sent_at'] = now()->toIso8601String();
+                Storage::disk('local')->put(
+                    $releaseFile,
+                    json_encode($release, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+                );
+            }
+
             return [
                 'status' => 'recorded',
                 'release' => $tag,
                 'version_name' => $versionName,
                 'version_code' => $versionCode,
                 'push' => $delivered ? 'sent' : 'failed',
+                'push_sent_at' => $release['push_sent_at'],
+                'retryable' => ! $delivered,
             ];
         } catch (\Throwable $e) {
             return [
