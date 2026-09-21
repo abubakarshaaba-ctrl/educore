@@ -20,6 +20,7 @@ import online.educoreng.educore.core.data.repository.CommunicationRepository
 import online.educoreng.educore.core.data.repository.DashboardRepository
 import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.model.SessionSnapshot
+import online.educoreng.educore.notification.PushNotificationContract
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 
 @HiltViewModel
@@ -194,7 +195,7 @@ class MainViewModel @Inject constructor(
         // Reassert the app-update subscription every time an authenticated
         // session becomes ready. This repairs installations whose FCM token or
         // topic membership changed while the app was not running.
-        FirebaseMessaging.getInstance().subscribeToTopic("educore_app_updates")
+        FirebaseMessaging.getInstance().subscribeToTopic(PushNotificationContract.APP_UPDATES_TOPIC)
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             val token = task

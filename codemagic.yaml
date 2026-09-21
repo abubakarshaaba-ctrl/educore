@@ -195,14 +195,11 @@ workflows:
           # The native project keeps the approved Firebase file outside the
           # normal generated source-set locations. Gradle copies it into the
           # release/debug source sets during configuration.
-          if [ -s app/firebase/google-services.json ]; then
-            echo "Using app/firebase/google-services.json."
-          elif [ -s ../mobile/android/app/google-services.json ]; then
-            echo "Using legacy mobile/android/app/google-services.json."
-          else
-            echo "Approved Firebase google-services.json is missing. Production push notifications cannot work without it."
+          if [ ! -s app/firebase/google-services.json ]; then
+            echo "Approved app/firebase/google-services.json is missing. Production push notifications cannot work without it."
             exit 1
           fi
+          echo "Using canonical app/firebase/google-services.json."
       - name: Run native unit tests, lint and debug build
         script: |
           set -euo pipefail
