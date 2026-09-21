@@ -11,7 +11,7 @@ use Symfony\Component\Mime\Part\File;
 
 final class MailBranding
 {
-    private const PLATFORM_ICON_CID = 'educore-platform-icon@educoreng.online';
+    private const PLATFORM_ICON_CID = 'educore-platform-icon';
 
     public static function platform(MailMessage $mail): MailMessage
     {
@@ -89,9 +89,9 @@ final class MailBranding
                 return;
             }
 
-            $part = new DataPart(new File($path), 'educore-icon-email.png', 'image/png');
-            $part->setContentId(self::PLATFORM_ICON_CID);
-            $message->addPart($part->asInline());
+            // Symfony's native embed helper creates the inline MIME part and
+            // matching Content-ID that Gmail/Outlook resolve with cid:...
+            $message->embedFromPath($path, self::PLATFORM_ICON_CID, 'image/png');
         });
     }
 
