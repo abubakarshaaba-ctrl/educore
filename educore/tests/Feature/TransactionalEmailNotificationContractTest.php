@@ -69,6 +69,8 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $this->assertStringContainsString("'context' => 'school'", $branding);
         $this->assertStringContainsString('header-school', $header);
         $this->assertStringContainsString('header-platform', $header);
+        $notificationView = file_get_contents(resource_path('views/vendor/notifications/email.blade.php'));
+        $this->assertStringContainsString(':brand="$mailBrand ?? []"', $notificationView);
     }
 
     public function test_school_branding_uses_raster_logo_and_school_reply_to(): void

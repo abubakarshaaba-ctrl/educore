@@ -32,6 +32,8 @@ final class MailBranding
         $name = trim((string) ($schoolName ?: $tenant?->name ?: 'Your School'));
         $email = trim((string) ($replyToEmail ?: $tenant?->email ?: ''));
 
+        $mail->success();
+
         $mail = self::apply($mail, [
             'context' => 'school',
             'name' => $name,

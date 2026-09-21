@@ -1,8 +1,10 @@
+@props(['brand' => []])
+
 <x-mail::layout>
 <x-slot:header>
 <x-mail::header
-    :url="$mailBrand['home_url'] ?? config('app.url')"
-    :brand="$mailBrand ?? []"
+    :url="$brand['home_url'] ?? config('app.url')"
+    :brand="$brand"
 />
 </x-slot:header>
 
@@ -17,6 +19,6 @@
 @endisset
 
 <x-slot:footer>
-<x-mail::footer :brand="$mailBrand ?? []"></x-mail::footer>
+<x-mail::footer :brand="$brand"></x-mail::footer>
 </x-slot:footer>
 </x-mail::layout>

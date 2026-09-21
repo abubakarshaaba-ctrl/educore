@@ -46,6 +46,8 @@ img { max-width: 100%; }
 .platform-mail-tagline { color: #DCE7F7; font-size: 12px; letter-spacing: 0.01em; margin-top: 5px; }
 
 .school-mail-logo { background-color: #FFFFFF; border: 3px solid #FFFFFF; border-radius: 12px; display: block; height: 58px; object-fit: contain; width: 58px; }
+.school-mail-mark { background-color: #FFFFFF; border-radius: 12px; height: 58px; text-align: center; width: 58px; }
+.school-mail-mark td { color: #0E5A47; font-size: 28px; font-weight: 900; height: 58px; line-height: 58px; text-align: center; width: 58px; }
 .school-mail-name { color: #FFFFFF; font-size: 21px; font-weight: 850; letter-spacing: -0.01em; line-height: 1.15; text-transform: uppercase; }
 .school-mail-motto { color: #D9F3EA; font-size: 12px; margin-top: 5px; }
 

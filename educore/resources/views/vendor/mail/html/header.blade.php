@@ -7,6 +7,7 @@
     $tagline = trim((string) ($brand['tagline'] ?? 'One Platform. Every School Operation.'));
     $motto = trim((string) ($brand['motto'] ?? ''));
     $logoUrl = $brand['logo_url'] ?? null;
+    $initial = mb_strtoupper(mb_substr($name, 0, 1));
 @endphp
 
 <tr>
@@ -17,7 +18,11 @@
                 <td class="brand-logo-cell" valign="middle">
                     @if($isSchool && $logoUrl)
                         <img src="{{ $logoUrl }}" class="school-mail-logo" alt="{{ $name }}" width="58" height="58">
-                    @elseif(!$isSchool)
+                    @elseif($isSchool)
+                        <table class="school-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
+                            <tr><td>{{ $initial }}</td></tr>
+                        </table>
+                    @else
                         <table class="platform-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
                             <tr><td>E</td></tr>
                         </table>
