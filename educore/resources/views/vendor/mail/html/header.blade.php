@@ -8,40 +8,51 @@
     $motto = trim((string) ($brand['motto'] ?? ''));
     $logoUrl = $brand['logo_url'] ?? null;
     $initial = mb_strtoupper(mb_substr($name, 0, 1));
+    $bg = $isSchool ? '#0E5A47' : '#082653';
+    $soft = $isSchool ? '#D9F3EA' : '#DCE7F7';
 @endphp
 
 <tr>
-<td class="header {{ $isSchool ? 'header-school' : 'header-platform' }}">
-    <a href="{{ $url }}" class="brand-link">
-        <table class="brand-table" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+<td bgcolor="{{ $bg }}" style="background-color:{{ $bg }};padding:0;border-radius:16px 16px 0 0;">
+    <a href="{{ $url }}" style="display:block;text-decoration:none;padding:24px 28px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:collapse;">
             <tr>
-                <td class="brand-logo-cell" valign="middle">
+                <td valign="middle" style="width:64px;padding:0 14px 0 0;">
                     @if($isSchool && $logoUrl)
-                        <img src="{{ $logoUrl }}" class="school-mail-logo" alt="{{ $name }}" width="58" height="58">
-                    @elseif($isSchool)
-                        <table class="school-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
-                            <tr><td>{{ $initial }}</td></tr>
-                        </table>
-                    @elseif($logoUrl)
-                        <img src="{{ $logoUrl }}" class="platform-mail-logo" alt="EduCore" width="58" height="58">
+                        <img src="{{ $logoUrl }}" alt="{{ $name }}" width="56" height="56"
+                             style="display:block;width:56px;height:56px;max-width:56px;border-radius:12px;background:#ffffff;border:2px solid #ffffff;object-fit:contain;">
                     @else
-                        <table class="platform-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
-                            <tr><td>E</td></tr>
+                        <table width="56" height="56" cellpadding="0" cellspacing="0" role="presentation"
+                               style="width:56px;height:56px;border-collapse:separate;background:#F2C14E;border-radius:12px;">
+                            <tr>
+                                <td align="center" valign="middle"
+                                    style="width:56px;height:56px;text-align:center;vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:28px;line-height:56px;font-weight:900;color:{{ $isSchool ? '#0E5A47' : '#082653' }};">
+                                    {{ $isSchool ? $initial : 'E' }}
+                                </td>
+                            </tr>
                         </table>
                     @endif
                 </td>
-                <td class="brand-copy-cell" valign="middle">
+                <td valign="middle" style="padding:0;vertical-align:middle;">
                     @if($isSchool)
-                        <div class="school-mail-name">{{ $name }}</div>
-                        <div class="school-mail-motto">{{ $motto !== '' ? $motto : 'School communication' }}</div>
+                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:21px;line-height:1.2;font-weight:800;letter-spacing:-0.01em;color:#ffffff;text-transform:uppercase;">
+                            {{ $name }}
+                        </div>
+                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;margin-top:5px;color:{{ $soft }};">
+                            {{ $motto !== '' ? $motto : 'Official school communication' }}
+                        </div>
                     @else
-                        <div class="platform-mail-wordmark"><span class="brand-edu">Edu</span><span class="brand-core">Core</span></div>
-                        <div class="platform-mail-tagline">{{ $tagline }}</div>
+                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:27px;line-height:1.1;font-weight:850;letter-spacing:-0.03em;color:#ffffff;">
+                            <span style="color:#ffffff;font-weight:850;">Edu</span><span style="color:#F2C14E;font-weight:850;">Core</span>
+                        </div>
+                        <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;margin-top:5px;color:{{ $soft }};">
+                            {{ $tagline }}
+                        </div>
                     @endif
                 </td>
             </tr>
         </table>
     </a>
-    <div class="{{ $isSchool ? 'school-gold-line' : 'platform-gold-line' }}"></div>
+    <div style="height:5px;line-height:5px;background:#F2C14E;font-size:0;">&nbsp;</div>
 </td>
 </tr>
