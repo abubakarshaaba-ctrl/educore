@@ -70,7 +70,29 @@ class PlatformBroadcastNotification extends Notification
 
     private function plainBody(): string
     {
-        return EduCoreRichText::plainText($this->body);
+        $body = EduCoreRichText::plainText($this->body);
+        if ($body === '') {
+            return '';
+        }
+
+        $lines = preg_split('/\R/u', $body) ?: [$body];
+        $firstContentIndex = null;
+
+        foreach ($lines as $index => $line) {
+            if (trim($line) !== '') {
+                $firstContentIndex = $index;
+                break;
+            }
+        }
+
+        if (
+            $firstContentIndex !== null
+            && mb_strtolower(trim($lines[$firstContentIndex])) === mb_strtolower(trim($this->title))
+        ) {
+            unset($lines[$firstContentIndex]);
+        }
+
+        return trim(implode("\n", $lines));
     }
 }
 
