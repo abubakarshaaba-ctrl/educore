@@ -285,38 +285,80 @@ class SelfDeployController extends Controller
                 throw new \RuntimeException('Archive contains an unsafe relative path.');
             }
 
+            // GitHub wraps every zipball in one generated root directory.
+            // Create that root, then ignore repository paths that never
+            // contribute to the live deployment.
+            if (count($segments) === 1) {
+                if (str_ends_with($name, '/') && !$this->ensureDirectory($base . '/' . $segments[0])) {
+                    throw new \RuntimeException('Unable to create archive root directory.');
+                }
+                continue;
+            }
+
+            $repoRelative = implode('/', array_slice($segments, 1));
+            if (!$this->shouldExtractRepoPath($repoRelative)) {
+                continue;
+            }
+
             $target = $base . '/' . implode('/', $segments);
             if (str_ends_with($name, '/')) {
                 if (!$this->ensureDirectory($target)) {
-                    throw new \RuntimeException('Unable to create archive directory: ' . $name);
+                    throw new \RuntimeException('Unable to create archive directory: ' . $repoRelative);
                 }
                 continue;
             }
 
             if (!$this->ensureDirectory(dirname($target))) {
-                throw new \RuntimeException('Unable to create parent directory for: ' . $name);
+                throw new \RuntimeException('Unable to create parent directory for: ' . $repoRelative);
             }
 
             $source = $zip->getStream($name);
             if ($source === false) {
-                throw new \RuntimeException('Unable to read archive entry: ' . $name);
+                throw new \RuntimeException('Unable to read archive entry: ' . $repoRelative);
             }
 
             $destination = @fopen($target, 'wb');
             if ($destination === false) {
                 fclose($source);
-                throw new \RuntimeException('Unable to create extracted file: ' . $name);
+                throw new \RuntimeException(
+                    'Unable to create extracted file: ' . $repoRelative
+                    . ' (free bytes: ' . (string) (@disk_free_space($extractDir) ?: 'unknown') . ')'
+                );
             }
 
             try {
                 if (stream_copy_to_stream($source, $destination) === false) {
-                    throw new \RuntimeException('Unable to extract archive entry: ' . $name);
+                    throw new \RuntimeException('Unable to extract archive entry: ' . $repoRelative);
                 }
             } finally {
                 fclose($source);
                 fclose($destination);
             }
         }
+    }
+
+    /**
+     * Extract only paths that can contribute to SYNC_PATHS. Parent directories
+     * remain eligible so deployable descendants can be created normally.
+     */
+    private function shouldExtractRepoPath(string $repoPath): bool
+    {
+        $repoPath = trim(str_replace('\\', '/', $repoPath), '/');
+        if ($repoPath === '') {
+            return true;
+        }
+
+        foreach (self::SYNC_PATHS as $syncPath) {
+            $syncPath = trim(str_replace('\\', '/', $syncPath), '/');
+
+            if ($repoPath === $syncPath
+                || str_starts_with($repoPath, $syncPath . '/')
+                || str_starts_with($syncPath, $repoPath . '/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function ensureDirectory(string $dir): bool
