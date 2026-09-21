@@ -60,7 +60,7 @@
         @endif
         <div class="ann-meta">
           {{ \Carbon\Carbon::parse($ann->publish_date)->format('d M Y') }}
-          · For: {{ ucfirst($ann->audience) }}
+          · For: {{ $ann->audience === 'tenant_admin' ? 'Tenant Admin' : ucfirst($ann->audience) }}
           @if($ann->expire_date) · Expires: {{ \Carbon\Carbon::parse($ann->expire_date)->format('d M Y') }}@endif
         </div>
       </div>

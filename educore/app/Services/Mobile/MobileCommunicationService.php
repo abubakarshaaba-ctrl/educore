@@ -135,7 +135,8 @@ class MobileCommunicationService
         return match (true) {
             $user->isStudent() => ['all', 'students'],
             $user->isParent() => ['all', 'parents'],
-            $user->isAdmin() || $user->canManage('announcements') => ['all', 'staff', 'admin'],
+            $user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin'],
+            $user->canManage('announcements') => ['all', 'staff', 'admin'],
             default => ['all', 'staff'],
         };
     }

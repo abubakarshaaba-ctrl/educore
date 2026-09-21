@@ -23,6 +23,8 @@ class SupportController extends Controller
 
     public function platformNotices()
     {
+        $this->guardTenantAdmin();
+
         $tenantId = $this->tenantId();
         $tenant   = auth()->user()->tenant;
 
@@ -49,6 +51,8 @@ class SupportController extends Controller
 
     public function dismissBroadcast($id)
     {
+        $this->guardTenantAdmin();
+
         try {
             DB::table('platform_broadcast_dismissals')->insertOrIgnore([
                 'broadcast_id' => $id,
@@ -58,6 +62,11 @@ class SupportController extends Controller
         } catch (\Exception $e) {}
 
         return back();
+    }
+
+    private function guardTenantAdmin(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403, 'Tenant administrator access required.');
     }
 
     public function store(Request $request)

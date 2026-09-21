@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Notifications\Tenant\PlatformBroadcastNotification;
 use App\Services\TenantUrlGenerator;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 
 class PlatformBroadcastEmailService
 {
@@ -17,9 +16,9 @@ class PlatformBroadcastEmailService
     }
 
     /**
-     * Email a platform broadcast to the active administrator account(s) of
-     * every targeted tenant. If a tenant has no active admin email, fall back
-     * to the tenant contact email so the school still receives the notice.
+     * Email a platform broadcast only to active tenant-administrator user
+     * accounts. Tenant contact addresses and other leadership/staff roles are
+     * deliberately excluded from platform broadcast delivery.
      *
      * @param iterable<int|string> $tenantIds
      * @return array{tenants:int,recipients:int,sent:int,failed:int}
@@ -82,6 +81,7 @@ class PlatformBroadcastEmailService
                         if (! filter_var($email, FILTER_VALIDATE_EMAIL) || isset($seen[$email])) {
                             continue;
                         }
+
                         $seen[$email] = true;
                         $stats['recipients']++;
 
@@ -101,35 +101,6 @@ class PlatformBroadcastEmailService
                                 'broadcast_id' => $broadcastId,
                                 'tenant_id' => $tenant->id,
                                 'user_id' => $admin->id,
-                                'error' => $error->getMessage(),
-                            ]);
-                        }
-                    }
-
-                    $tenantEmail = strtolower(trim((string) $tenant->email));
-                    if (
-                        $seen === []
-                        && filter_var($tenantEmail, FILTER_VALIDATE_EMAIL)
-                    ) {
-                        $stats['recipients']++;
-
-                        try {
-                            Notification::route('mail', [
-                                $tenantEmail => $tenant->name.' Administrator',
-                            ])->notify($this->notification(
-                                tenant: $tenant,
-                                broadcastId: $broadcastId,
-                                title: $title,
-                                body: $body,
-                                imagePath: $imagePath,
-                                expiresAt: $expiresAt,
-                            ));
-                            $stats['sent']++;
-                        } catch (\Throwable $error) {
-                            $stats['failed']++;
-                            Log::error('Platform broadcast tenant-contact email failed.', [
-                                'broadcast_id' => $broadcastId,
-                                'tenant_id' => $tenant->id,
                                 'error' => $error->getMessage(),
                             ]);
                         }
