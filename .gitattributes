@@ -1,0 +1,14 @@
+# Keep GitHub source archives used by /deploy/pull lean and shared-host safe.
+# These files remain fully tracked in the repository; export-ignore affects
+# generated ZIP/tar source archives only.
+.github/ export-ignore
+mobile-native/ export-ignore
+mobile/ export-ignore
+docs/ export-ignore
+storage/ export-ignore
+assets/ export-ignore
+codemagic.yaml export-ignore
+.cpanel.yml export-ignore
+.gitignore export-ignore
+educore/tests/ export-ignore
+educore/public/downloads/EduCore.apk export-ignore
