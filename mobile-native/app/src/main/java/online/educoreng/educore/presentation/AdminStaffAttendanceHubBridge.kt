@@ -79,19 +79,31 @@ internal fun AdminStaffAttendanceScreen(
             viewModel.loadDaily()
             return
         }
-        val workingDays = liveState.snapshot?.workingDays.orEmpty().map { day ->
-            AdminAttendanceWorkingDayRequestDto(
-                dayOfWeek = day.dayOfWeek,
-                isWorking = day.isWorking,
-                resumptionTime = day.resumptionTime,
-                closingTime = day.closingTime,
-                graceMinutes = day.graceMinutes,
-            )
-        }
-        if (workingDays.isEmpty()) {
-            locationMessage = "Load conventional work hours before capturing the school location."
-            viewModel.loadDaily()
-            return
+        val serverDays = liveState.snapshot?.workingDays.orEmpty()
+        val workingDays = if (serverDays.isNotEmpty()) {
+            serverDays.map { day ->
+                AdminAttendanceWorkingDayRequestDto(
+                    dayOfWeek = day.dayOfWeek,
+                    isWorking = day.isWorking,
+                    resumptionTime = day.resumptionTime,
+                    closingTime = day.closingTime,
+                    graceMinutes = day.graceMinutes,
+                )
+            }
+        } else {
+            listOf(
+                "monday", "tuesday", "wednesday", "thursday",
+                "friday", "saturday", "sunday",
+            ).mapIndexed { index, day ->
+                val working = index < 5
+                AdminAttendanceWorkingDayRequestDto(
+                    dayOfWeek = day,
+                    isWorking = working,
+                    resumptionTime = settings.resumptionTime.takeIf { working },
+                    closingTime = settings.closingTime.takeIf { working },
+                    graceMinutes = if (working) settings.graceMinutes else 0,
+                )
+            }
         }
         viewModel.saveSettings(
             workingDays = workingDays,
