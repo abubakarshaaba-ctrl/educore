@@ -14,7 +14,13 @@ class AnnouncementController extends Controller
 
         $announcements = Announcement::where('is_published', true)
             ->where(fn($q) => $q->whereNull('expire_date')->orWhere('expire_date','>=',today()))
-            ->when(! $user?->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))
+            ->when(! $user?->isAdmin(), fn ($query) => $query->where(function ($visible): void {
+                $visible->whereNull('platform_broadcast_id')
+                    ->orWhere(function ($platform): void {
+                        $platform->whereNotNull('platform_broadcast_id')
+                            ->where('audience', 'all');
+                    });
+            }))
             ->orderByDesc('priority')
             ->orderByDesc('publish_date')
             ->paginate(15);
