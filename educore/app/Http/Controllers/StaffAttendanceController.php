@@ -837,11 +837,6 @@ class StaffAttendanceController extends Controller
         $year      = $request->integer('year',  now()->year);
         $tid       = auth()->user()->tenant_id;
         $settings  = $this->attendanceSettings();
-        $todaySchedule = $this->attendanceSchedule()->forDate(
-            (int) $user->tenant_id,
-            today()->toDateString(),
-            $settings
-        );
         $startDate = Carbon::createFromDate($year, $month, 1);
         $endDate   = (clone $startDate)->endOfMonth();
 
@@ -895,6 +890,11 @@ class StaffAttendanceController extends Controller
         $month     = $request->integer('month', now()->month);
         $year      = $request->integer('year',  now()->year);
         $settings  = $this->attendanceSettings();
+        $todaySchedule = $this->attendanceSchedule()->forDate(
+            (int) $user->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
         $startDate = Carbon::createFromDate($year, $month, 1);
         $endDate   = (clone $startDate)->endOfMonth();
 
