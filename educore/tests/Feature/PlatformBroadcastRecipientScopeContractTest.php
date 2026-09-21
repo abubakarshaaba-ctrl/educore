@@ -34,12 +34,12 @@ class PlatformBroadcastRecipientScopeContractTest extends TestCase
             $publisher,
         );
         $this->assertStringContainsString(
-            "$recipientScope = (string) ($data['recipient_scope'] ?? 'tenant_admin')",
+            "\$recipientScope = (string) (\$data['recipient_scope'] ?? 'tenant_admin')",
             $publisher,
         );
-        $this->assertStringContainsString("'recipient_scope' => $recipientScope", $publisher);
+        $this->assertStringContainsString("'recipient_scope' => \$recipientScope", $publisher);
         $this->assertStringContainsString(
-            "'audience' => $recipientScope === 'all_users' ? 'all' : 'tenant_admin'",
+            "'audience' => \$recipientScope === 'all_users' ? 'all' : 'tenant_admin'",
             $publisher,
         );
     }
@@ -49,7 +49,7 @@ class PlatformBroadcastRecipientScopeContractTest extends TestCase
         $push = file_get_contents(app_path('Services/Notifications/PushNotificationService.php'));
 
         $this->assertStringContainsString(
-            "'tenant_admin' => $query->whereIn('role', User::roleAliasesFor('admin'))",
+            "'tenant_admin' => \$query->whereIn('role', User::roleAliasesFor('admin'))",
             $push,
         );
         $this->assertStringContainsString('default => $query', $push);
@@ -64,16 +64,16 @@ class PlatformBroadcastRecipientScopeContractTest extends TestCase
         $service = file_get_contents(app_path('Services/Notifications/PlatformBroadcastEmailService.php'));
         $job = file_get_contents(app_path('Jobs/DeliverPlatformBroadcastAfterResponse.php'));
 
-        $this->assertStringContainsString("string $recipientScope = 'tenant_admin'", $service);
+        $this->assertStringContainsString("string \$recipientScope = 'tenant_admin'", $service);
         $this->assertStringContainsString(
-            "$recipientScope === 'tenant_admin'",
+            "\$recipientScope === 'tenant_admin'",
             $service,
         );
         $this->assertStringContainsString("User::roleAliasesFor('admin')", $service);
         $this->assertStringContainsString("->where('is_active', true)", $service);
         $this->assertStringContainsString("->where('is_super_admin', false)", $service);
         $this->assertStringContainsString(
-            "recipientScope: (string) ($broadcast->recipient_scope ?? 'tenant_admin')",
+            "recipientScope: (string) (\$broadcast->recipient_scope ?? 'tenant_admin')",
             $job,
         );
     }
@@ -87,11 +87,11 @@ class PlatformBroadcastRecipientScopeContractTest extends TestCase
         $student = file_get_contents(app_path('Http/Controllers/Portal/StudentPortalController.php'));
 
         $this->assertStringContainsString(
-            "$user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin']",
+            "\$user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin']",
             $mobile,
         );
         $this->assertStringContainsString(
-            "$user->canManage('announcements') => ['all', 'staff', 'admin']",
+            "\$user->canManage('announcements') => ['all', 'staff', 'admin']",
             $mobile,
         );
 
@@ -124,11 +124,11 @@ class PlatformBroadcastRecipientScopeContractTest extends TestCase
         $api = file_get_contents(app_path('Http/Controllers/Api/PlatformBroadcastController.php'));
 
         $this->assertStringContainsString(
-            "'recipient_scope' => $broadcast->recipient_scope ?? 'tenant_admin'",
+            "'recipient_scope' => \$broadcast->recipient_scope ?? 'tenant_admin'",
             $api,
         );
         $this->assertStringContainsString(
-            "'recipient_scope' => $publication['recipient_scope']",
+            "'recipient_scope' => \$publication['recipient_scope']",
             $api,
         );
     }
