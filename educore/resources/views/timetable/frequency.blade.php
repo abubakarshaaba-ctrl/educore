@@ -91,10 +91,13 @@
 @else
 @php
     $totalPeriods = $assignments->sum(function($a) use ($frequencies) { return $frequencies->get($a->subject_id)?->periods_per_week ?? 2; });
-    $availableSlots = isset($config) ? $config->periods_per_day * 5 : null;
+    $schoolDays = ['monday','tuesday','wednesday','thursday','friday'];
+    $availableSlots = isset($config)
+        ? collect($schoolDays)->sum(fn($day) => $config->teachingPeriodCountForDay($day))
+        : null;
 @endphp
 @if(isset($config))
-<div class="info-banner">ℹ️ School config: <strong>{{ $config->periods_per_day }} periods/day × 5 days = {{ $config->periods_per_day * 5 }} total slots/week</strong> · Period duration: <strong>{{ $config->period_duration }} mins</strong></div>
+<div class="info-banner">ℹ️ School config: <strong>{{ $availableSlots }} effective teaching slots/week</strong> · Up to {{ $config->periods_per_day }} periods/day · Period duration: <strong>{{ $config->period_duration }} mins</strong> · weekday start/end overrides included</div>
 @else
 <div class="info-banner" style="background:#FFFBEB;border-color:#FDE68A;color:var(--amber)">⚠️ School hours not configured yet. <a href="{{ route('timetable.configure') }}" style="color:var(--indigo);font-weight:600;margin-left:6px">Set up school hours →</a></div>
 @endif
