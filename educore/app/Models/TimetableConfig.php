@@ -60,8 +60,9 @@ class TimetableConfig extends BaseTenantModel
 
     /**
      * Compute period slots accounting for breaks and, when a weekday is
-     * supplied, that day's configured closing time. periods_per_day remains a
-     * maximum; an earlier closing day simply receives fewer available slots.
+     * supplied, that day's effective start and closing times. periods_per_day
+     * remains a maximum; a later start or earlier closing time simply gives
+     * that weekday fewer available slots.
      */
     public function computeSlots(?string $day = null): array
     {
