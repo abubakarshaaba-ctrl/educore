@@ -46,7 +46,7 @@ class StaffAttendanceController extends Controller
     public function saveSettings(Request $request)
     {
         $data = $request->validate([
-            'days' => ['nullable', 'array'],
+            'days' => ['nullable', 'array', 'size:7'],
             'days.*.is_working' => ['nullable', 'boolean'],
             'days.*.resumption_time' => ['nullable', 'date_format:H:i'],
             'days.*.closing_time' => ['nullable', 'date_format:H:i'],
