@@ -7,6 +7,7 @@ use App\Models\StaffOfflineClockIn;
 use App\Models\StaffProxyRequest;
 use App\Models\User;
 use App\Services\ParallelCurriculumOperationsService;
+use App\Services\StaffAttendanceScheduleService;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -25,29 +26,86 @@ class StaffAttendanceController extends Controller
         return StaffAttendanceSetting::forTenant(auth()->user()->tenant_id);
     }
 
+    private function attendanceSchedule(): StaffAttendanceScheduleService
+    {
+        return app(StaffAttendanceScheduleService::class);
+    }
+
     // ── Admin: Settings ───────────────────────────────────────────────
     public function settings()
     {
         $settings = $this->attendanceSettings();
-        return view('staff-attendance.settings', compact('settings'));
+        $workingDays = $this->attendanceSchedule()->workingDays(
+            (int) auth()->user()->tenant_id,
+            $settings
+        );
+
+        return view('staff-attendance.settings', compact('settings', 'workingDays'));
     }
 
     public function saveSettings(Request $request)
     {
         $data = $request->validate([
-            'resumption_time'   => ['required', 'date_format:H:i'],
-            'grace_minutes'     => ['required', 'integer', 'min:0', 'max:120'],
-            'closing_time'      => ['required', 'date_format:H:i'],
-            'geo_enabled'       => ['boolean'],
-            'geo_lat'           => ['nullable', 'numeric', 'between:-90,90'],
-            'geo_lng'           => ['nullable', 'numeric', 'between:-180,180'],
+            'days' => ['nullable', 'array'],
+            'days.*.is_working' => ['nullable', 'boolean'],
+            'days.*.resumption_time' => ['nullable', 'date_format:H:i'],
+            'days.*.closing_time' => ['nullable', 'date_format:H:i'],
+            'days.*.grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
+            // Legacy scalar fields remain accepted for older clients/forms.
+            'resumption_time' => ['nullable', 'date_format:H:i'],
+            'grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
+            'closing_time' => ['nullable', 'date_format:H:i'],
+            'geo_enabled' => ['boolean'],
+            'geo_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'geo_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'geo_radius_meters' => ['nullable', 'integer', 'min:10', 'max:2000'],
         ]);
-        $data['geo_enabled'] = $request->boolean('geo_enabled');
-        $data['resumption_time'] .= ':00';
-        $data['closing_time']    .= ':00';
-        $this->attendanceSettings()->update($data);
-        return back()->with('success', 'Attendance settings saved.');
+
+        $settings = $this->attendanceSettings();
+        $tenantId = (int) auth()->user()->tenant_id;
+
+        if ($request->has('days')) {
+            $days = [];
+            foreach (StaffAttendanceScheduleService::DAYS as $day) {
+                $row = $request->input("days.$day", []);
+                $days[$day] = [
+                    'is_working' => (bool) ($row['is_working'] ?? false),
+                    'resumption_time' => $row['resumption_time'] ?? null,
+                    'closing_time' => $row['closing_time'] ?? null,
+                    'grace_minutes' => (int) ($row['grace_minutes'] ?? 0),
+                ];
+            }
+
+            $saved = $this->attendanceSchedule()->save($tenantId, $days);
+
+            // Keep the original scalar fields aligned with the first enabled
+            // day so older app versions continue to operate safely.
+            $fallback = $saved->first(fn ($day) => (bool) $day->is_working);
+            if ($fallback) {
+                $settings->update([
+                    'resumption_time' => substr((string) $fallback->resumption_time, 0, 8),
+                    'grace_minutes' => (int) $fallback->grace_minutes,
+                    'closing_time' => substr((string) $fallback->closing_time, 0, 8),
+                ]);
+            }
+        } elseif (
+            isset($data['resumption_time'], $data['grace_minutes'], $data['closing_time'])
+        ) {
+            $settings->update([
+                'resumption_time' => $data['resumption_time'].':00',
+                'grace_minutes' => (int) $data['grace_minutes'],
+                'closing_time' => $data['closing_time'].':00',
+            ]);
+        }
+
+        $settings->update([
+            'geo_enabled' => $request->boolean('geo_enabled'),
+            'geo_lat' => $data['geo_lat'] ?? null,
+            'geo_lng' => $data['geo_lng'] ?? null,
+            'geo_radius_meters' => $data['geo_radius_meters'] ?? $settings->geo_radius_meters,
+        ]);
+
+        return back()->with('success', 'Conventional curriculum work hours and attendance settings saved.');
     }
 
     // ── Admin: Dashboard / overview ───────────────────────────────────
