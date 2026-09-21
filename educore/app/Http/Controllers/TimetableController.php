@@ -68,9 +68,9 @@ class TimetableController extends Controller
             'breaks.*.label'        => ['required', 'string', 'max:50'],
         ]);
 
-        // The default day must still be able to accommodate the configured
-        // maximum periods. Individual weekdays may intentionally close earlier
-        // and therefore contain fewer periods.
+        // The default school window must still accommodate the configured
+        // maximum periods. Individual weekdays may intentionally start later
+        // or close earlier and therefore contain fewer periods.
         $totalMins  = $validated['periods_per_day'] * $validated['period_duration'];
         $breakMins  = collect($validated['breaks'] ?? [])->sum('duration');
         $available  = $this->timeDiffMins($validated['school_start'], $validated['school_end']);
