@@ -8,10 +8,8 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-val approvedFirebaseConfig = listOf(
-    file("firebase/google-services.json"),
-    rootProject.file("../mobile/android/app/google-services.json"),
-).firstOrNull { it.exists() }
+val approvedFirebaseConfig = file("firebase/google-services.json")
+    .takeIf { it.exists() }
 
 approvedFirebaseConfig?.let { firebaseConfig ->
     val releaseFirebaseConfig = file("src/release/google-services.json")
@@ -74,8 +72,8 @@ android {
         applicationId = "online.educoreng.educore"
         minSdk = 23
         targetSdk = 36
-        versionCode = 30
-        versionName = "2.0.0-alpha17"
+        versionCode = 31
+        versionName = "2.0.0-alpha18"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
