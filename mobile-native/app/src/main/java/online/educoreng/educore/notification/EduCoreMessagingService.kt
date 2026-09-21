@@ -1,13 +1,11 @@
 package online.educoreng.educore.notification
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessaging
@@ -34,47 +32,59 @@ class EduCoreMessagingService : FirebaseMessagingService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
-        // Token rotation must not silently detach the installation from the
-        // global app-update topic. Reassert the subscription whenever Firebase
-        // issues a new registration token, while preserving the per-user token
-        // registration used by school-specific notifications.
-        FirebaseMessaging.getInstance().subscribeToTopic(APP_UPDATE_CHANNEL_ID)
+        FirebaseMessaging.getInstance()
+            .subscribeToTopic(PushNotificationContract.APP_UPDATES_TOPIC)
+
+        // User-specific tokens need an authenticated API session. If Firebase
+        // rotates while signed out, MainViewModel registers the current token
+        // again as soon as the next authenticated session becomes ready.
         if (sessionRepository.hasStoredToken()) {
-            serviceScope.launch { communicationRepository.registerPushToken(token) }
+            serviceScope.launch {
+                communicationRepository.registerPushToken(token)
+            }
         }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val isAppUpdate = message.data["type"] == APP_UPDATE_TYPE
-        if (!isAppUpdate && !sessionRepository.hasStoredToken()) {
-            return
-        }
+        val data = message.data
+        if (data.isEmpty()) return
+
+        val isAppUpdate =
+            data[PushNotificationContract.KEY_TYPE] == PushNotificationContract.APP_UPDATE_TYPE
+
+        // Tenant/user notifications must never surface after the local session
+        // has been cleared. App-update notifications are installation-scoped.
+        if (!isAppUpdate && !sessionRepository.hasStoredToken()) return
+
         if (isAppUpdate) {
-            val announcedVersionCode = message.data["version_code"]?.toIntOrNull()
+            val announcedVersionCode =
+                data[PushNotificationContract.KEY_VERSION_CODE]?.toIntOrNull()
             if (announcedVersionCode != null && announcedVersionCode <= BuildConfig.VERSION_CODE) {
                 return
             }
         }
 
-        val target = if (isAppUpdate) null else NotificationDeepLinkParser.parse(message.data)
-        if (target != null) NotificationDeepLinkStore.publish(target)
+        val target = if (isAppUpdate) null else NotificationDeepLinkParser.parse(data)
+        if (target != null) {
+            NotificationDeepLinkStore.publish(target)
+        }
 
-        val versionName = message.data["version_name"].orEmpty()
+        val versionName = data[PushNotificationContract.KEY_VERSION_NAME].orEmpty()
         val updateBody = versionName
             .takeIf(String::isNotBlank)
             ?.let { "EduCore $it is ready to install." }
             ?: "A new EduCore version is ready to install."
 
         showNotification(
-            title = message.notification?.title
-                ?: message.data["title"]
+            title = data[PushNotificationContract.KEY_TITLE]
                 ?: if (isAppUpdate) "EduCore update available" else getString(R.string.app_name),
-            body = message.notification?.body
-                ?: message.data["body"]
+            body = data[PushNotificationContract.KEY_BODY]
                 ?: if (isAppUpdate) updateBody else "You have a new EduCore notification.",
             target = target,
-            downloadUrl = message.data["download_url"].takeIf { isAppUpdate && !it.isNullOrBlank() },
+            downloadUrl = data[PushNotificationContract.KEY_DOWNLOAD_URL]
+                .takeIf { isAppUpdate && !it.isNullOrBlank() },
             isAppUpdate = isAppUpdate,
+            messageId = message.messageId,
         )
     }
 
@@ -89,23 +99,14 @@ class EduCoreMessagingService : FirebaseMessagingService() {
         target: online.educoreng.educore.core.model.DeepLinkTarget?,
         downloadUrl: String? = null,
         isAppUpdate: Boolean = false,
+        messageId: String? = null,
     ) {
-        val channelId = if (isAppUpdate) APP_UPDATE_CHANNEL_ID else GENERAL_CHANNEL_ID
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    channelId,
-                    if (isAppUpdate) "EduCore app updates" else "EduCore notifications",
-                    NotificationManager.IMPORTANCE_HIGH,
-                ).apply {
-                    description = if (isAppUpdate) {
-                        "Notifications when a newer EduCore Android version is available"
-                    } else {
-                        "School notices, messages and important EduCore alerts"
-                    }
-                },
-            )
+        EduCoreNotificationChannels.ensureCreated(this)
+
+        val channelId = if (isAppUpdate) {
+            PushNotificationContract.APP_UPDATES_TOPIC
+        } else {
+            PushNotificationContract.GENERAL_CHANNEL_ID
         }
 
         val intent = if (!downloadUrl.isNullOrBlank()) {
@@ -119,7 +120,12 @@ class EduCoreMessagingService : FirebaseMessagingService() {
                 putExtra("destination_id", target?.id)
             }
         }
-        val requestCode = (System.currentTimeMillis() and 0x7fffffff).toInt()
+
+        val requestCode = messageId
+            ?.hashCode()
+            ?.and(0x7fffffff)
+            ?: (System.currentTimeMillis() and 0x7fffffff).toInt()
+
         val pendingIntent = PendingIntent.getActivity(
             this,
             requestCode,
@@ -131,6 +137,7 @@ class EduCoreMessagingService : FirebaseMessagingService() {
             BitmapFactory.decodeResource(resources, R.drawable.educore_app_icon)
         }.getOrNull()
 
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(
             requestCode,
             NotificationCompat.Builder(this, channelId)
@@ -145,11 +152,5 @@ class EduCoreMessagingService : FirebaseMessagingService() {
                 .setContentIntent(pendingIntent)
                 .build(),
         )
-    }
-
-    private companion object {
-        const val GENERAL_CHANNEL_ID = "educore_notifications"
-        const val APP_UPDATE_CHANNEL_ID = "educore_app_updates"
-        const val APP_UPDATE_TYPE = "app_update"
     }
 }
