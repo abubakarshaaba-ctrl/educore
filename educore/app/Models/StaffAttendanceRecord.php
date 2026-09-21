@@ -10,6 +10,8 @@ class StaffAttendanceRecord extends BaseTenantModel
     protected $fillable = [
         'tenant_id', 'user_id', 'attendance_date', 'status',
         'clock_in_time', 'clock_out_time',
+        'expected_resumption_time', 'expected_closing_time',
+        'grace_minutes', 'departure_status', 'scheduled_workday',
         'clock_in_method', 'clocked_in_by',
         'clock_in_lat', 'clock_in_lng', 'geo_verified',
         'notes', 'is_offline_upload', 'clock_in_photo', 'proxy_photo',
@@ -25,6 +27,8 @@ class StaffAttendanceRecord extends BaseTenantModel
             'clock_in_lat'      => 'float',
             'clock_in_lng'      => 'float',
             'proxy_reviewed_at' => 'datetime',
+            'grace_minutes'      => 'integer',
+            'scheduled_workday'  => 'boolean',
         ];
     }
 
@@ -40,7 +44,8 @@ class StaffAttendanceRecord extends BaseTenantModel
             'present' => 'Present',
             'late'    => 'Late',
             'absent'  => 'Absent',
-            default   => ucfirst($this->status),
+            'not_scheduled' => 'Not Scheduled',
+            default   => ucfirst(str_replace('_', ' ', $this->status)),
         };
     }
 
