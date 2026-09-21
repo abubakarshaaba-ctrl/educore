@@ -6,6 +6,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\Tenant\PlatformBroadcastNotification;
 use App\Services\TenantUrlGenerator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
 class PlatformBroadcastEmailService
@@ -16,10 +17,6 @@ class PlatformBroadcastEmailService
     }
 
     /**
-     * Email a platform broadcast only to active tenant-administrator user
-     * accounts. Tenant contact addresses and other leadership/staff roles are
-     * deliberately excluded from platform broadcast delivery.
-     *
      * @param iterable<int|string> $tenantIds
      * @return array{tenants:int,recipients:int,sent:int,failed:int}
      */
@@ -30,6 +27,7 @@ class PlatformBroadcastEmailService
         string $body,
         ?string $imagePath = null,
         ?string $expiresAt = null,
+        string $recipientScope = 'tenant_admin',
     ): array {
         $ids = collect($tenantIds)
             ->map(fn ($id) => (int) $id)
@@ -57,27 +55,33 @@ class PlatformBroadcastEmailService
                 $body,
                 $imagePath,
                 $expiresAt,
+                $recipientScope,
                 &$stats
             ): void {
                 foreach ($tenants as $tenant) {
                     $stats['tenants']++;
 
-                    $admins = User::query()
+                    $recipients = User::query()
                         ->where('tenant_id', $tenant->id)
                         ->where('is_active', true)
-                        ->where(function ($query): void {
-                            $query->whereNull('employment_status')
-                                ->orWhere('employment_status', User::STAFF_STATUS_ACTIVE);
-                        })
-                        ->whereIn('role', User::roleAliasesFor('admin'))
+                        ->where('is_super_admin', false)
                         ->whereNotNull('email')
                         ->where('email', '!=', '')
+                        ->when(
+                            $recipientScope === 'tenant_admin',
+                            fn (Builder $query) => $query
+                                ->whereIn('role', User::roleAliasesFor('admin'))
+                                ->where(function (Builder $employment): void {
+                                    $employment->whereNull('employment_status')
+                                        ->orWhere('employment_status', User::STAFF_STATUS_ACTIVE);
+                                }),
+                        )
                         ->orderBy('id')
-                        ->get(['id', 'name', 'email']);
+                        ->get(['id', 'tenant_id', 'name', 'email', 'role', 'is_super_admin']);
 
                     $seen = [];
-                    foreach ($admins as $admin) {
-                        $email = strtolower(trim((string) $admin->email));
+                    foreach ($recipients as $recipient) {
+                        $email = strtolower(trim((string) $recipient->email));
                         if (! filter_var($email, FILTER_VALIDATE_EMAIL) || isset($seen[$email])) {
                             continue;
                         }
@@ -86,8 +90,9 @@ class PlatformBroadcastEmailService
                         $stats['recipients']++;
 
                         try {
-                            $admin->notify($this->notification(
+                            $recipient->notify($this->notification(
                                 tenant: $tenant,
+                                recipient: $recipient,
                                 broadcastId: $broadcastId,
                                 title: $title,
                                 body: $body,
@@ -100,7 +105,8 @@ class PlatformBroadcastEmailService
                             Log::error('Platform broadcast email failed.', [
                                 'broadcast_id' => $broadcastId,
                                 'tenant_id' => $tenant->id,
-                                'user_id' => $admin->id,
+                                'user_id' => $recipient->id,
+                                'recipient_scope' => $recipientScope,
                                 'error' => $error->getMessage(),
                             ]);
                         }
@@ -113,6 +119,7 @@ class PlatformBroadcastEmailService
 
     private function notification(
         Tenant $tenant,
+        User $recipient,
         int $broadcastId,
         string $title,
         string $body,
@@ -126,7 +133,20 @@ class PlatformBroadcastEmailService
             imagePath: $imagePath,
             expiresAt: $expiresAt,
             schoolName: $tenant->name,
-            actionUrl: $this->tenantUrls->url($tenant, '/platform-notices'),
+            actionUrl: $this->actionUrl($tenant, $recipient),
         );
+    }
+
+    private function actionUrl(Tenant $tenant, User $recipient): string
+    {
+        $path = match (true) {
+            $recipient->isAdmin() => '/platform-notices',
+            $recipient->isParent() => '/parent/notifications',
+            $recipient->isStudent() => '/student/dashboard',
+            $recipient->canAccessModule('announcements') => '/announcements',
+            default => '/my/dashboard',
+        };
+
+        return $this->tenantUrls->url($tenant, $path);
     }
 }

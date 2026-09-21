@@ -34,20 +34,14 @@ class PushNotificationService
             ->where('is_active', true)
             ->where('is_super_admin', false);
 
-        if ($announcement->platform_broadcast_id !== null) {
-            // Platform broadcasts are a distinct communication channel:
-            // selected schools stay governed by the broadcast target, while
-            // recipients inside each school are tenant administrators only.
-            $query->whereIn('role', User::roleAliasesFor('admin'));
-        } else {
-            match ($announcement->audience) {
-                'staff' => $query->whereIn('role', User::staffRoleNames()),
-                'students' => $query->where('role', 'student'),
-                'parents' => $query->where('role', 'parent'),
-                'admin' => $query->whereIn('role', ['admin', 'principal', 'vice_principal']),
-                default => $query,
-            };
-        }
+        match ($announcement->audience) {
+            'staff' => $query->whereIn('role', User::staffRoleNames()),
+            'students' => $query->where('role', 'student'),
+            'parents' => $query->where('role', 'parent'),
+            'tenant_admin' => $query->whereIn('role', User::roleAliasesFor('admin')),
+            'admin' => $query->whereIn('role', ['admin', 'principal', 'vice_principal']),
+            default => $query,
+        };
 
         $stats = ['users' => 0, 'tokens' => 0, 'sent' => 0, 'failed' => 0];
 

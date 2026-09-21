@@ -63,10 +63,12 @@ select.fc{cursor:pointer}
             </div>
             <div class="fg" style="max-width:520px">
                 <label>Recipients</label>
-                <div class="fc" style="background:#F8FAFC;color:var(--midnight);font-weight:700;cursor:default">
-                    Tenant Administrators Only
-                </div>
-                <span class="help">Only the tenant administrator account(s) in each selected school will receive the in-app notice, push notification and email.</span>
+                <select name="recipient_scope" class="fc">
+                    <option value="tenant_admin" {{ old('recipient_scope', 'tenant_admin') === 'tenant_admin' ? 'selected' : '' }}>Tenant Administrators Only</option>
+                    <option value="all_users" {{ old('recipient_scope') === 'all_users' ? 'selected' : '' }}>All Users</option>
+                </select>
+                <span class="help">Choose who inside each selected school should receive the in-app notice, push notification and email.</span>
+                @error('recipient_scope')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
             </div>
             <div class="fg">
                 <label>Message Body (optional if an image is selected)</label>
@@ -100,6 +102,7 @@ select.fc{cursor:pointer}
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                     <div class="b-title">{{ $bc->title }}</div>
                     <span class="badge">{{ ucfirst($bc->target) }}</span>
+                    <span class="badge">{{ ($bc->recipient_scope ?? 'tenant_admin') === 'all_users' ? 'All Users' : 'Tenant Admins' }}</span>
                     @if($bc->expires_at && \Carbon\Carbon::parse($bc->expires_at)->isPast())
                         <span style="font-size:11px;color:#DC2626;font-weight:600">Expired</span>
                     @endif

@@ -151,7 +151,6 @@ class StudentPortalController extends Controller
         // Announcements
         $announcements = Announcement::where('tenant_id', $student->tenant_id)
             ->where('is_published', true)
-            ->whereNull('platform_broadcast_id')
             ->whereIn('audience', ['all', 'students'])
             ->latest($this->announcementOrderColumn())
             ->limit(5)

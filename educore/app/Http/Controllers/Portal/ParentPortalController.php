@@ -96,7 +96,6 @@ class ParentPortalController extends Controller
 
         $announcements = Announcement::where('tenant_id', $guardian->tenant_id)
             ->where('is_published', true)
-            ->whereNull('platform_broadcast_id')
             ->whereIn('audience', ['all', 'parents'])
             ->latest('publish_date')->limit(6)->get();
 
@@ -340,7 +339,6 @@ class ParentPortalController extends Controller
 
         $announcements = Announcement::where('tenant_id', $guardian->tenant_id)
             ->where('is_published', true)
-            ->whereNull('platform_broadcast_id')
             ->whereIn('audience', ['all', 'parents'])
             ->latest('publish_date')->paginate(20);
 
