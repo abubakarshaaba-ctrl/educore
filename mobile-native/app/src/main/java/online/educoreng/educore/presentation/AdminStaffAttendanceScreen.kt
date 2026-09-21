@@ -679,12 +679,7 @@ private fun AttendanceSettingsSection(
                             onCheckedChange = { enabled ->
                                 workingDays = workingDays.map {
                                     if (it.dayOfWeek == day.dayOfWeek) {
-                                        it.copy(
-                                            isWorking = enabled,
-                                            resumptionTime = if (enabled) it.resumptionTime else null,
-                                            closingTime = if (enabled) it.closingTime else null,
-                                            graceMinutes = if (enabled) it.graceMinutes else 0,
-                                        )
+                                        it.copy(isWorking = enabled)
                                     } else {
                                         it
                                     }
