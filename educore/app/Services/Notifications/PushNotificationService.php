@@ -7,6 +7,7 @@ use App\Models\DeviceToken;
 use App\Models\ExamPeriod;
 use App\Models\MessageThread;
 use App\Models\User;
+use App\Support\EduCoreRichText;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
