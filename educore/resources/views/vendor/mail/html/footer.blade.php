@@ -11,31 +11,35 @@
 @endphp
 
 <tr>
-<td>
-<table class="footer" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
+<td style="padding:0;">
+<table align="center" width="570" cellpadding="0" cellspacing="0" role="presentation" style="width:570px;max-width:100%;margin:22px auto 0;border-collapse:collapse;">
 <tr>
-<td class="content-cell footer-cell" align="center">
+<td align="center" style="padding:20px 24px 8px;text-align:center;font-family:Arial,Helvetica,sans-serif;">
     @if($isSchool)
-        <div class="footer-school-name">{{ $name }}</div>
+        <div style="font-size:14px;line-height:1.4;font-weight:800;color:#0E5A47;text-align:center;">{{ $name }}</div>
         @if($address !== '')
-            <p class="footer-contact">{{ $address }}</p>
+            <div style="font-size:12px;line-height:1.5;color:#64748B;margin-top:5px;text-align:center;">{{ $address }}</div>
         @endif
         @if($phone !== '' || $email !== '')
-            <p class="footer-contact">
+            <div style="font-size:12px;line-height:1.5;color:#64748B;margin-top:4px;text-align:center;">
                 @if($phone !== ''){{ $phone }}@endif
                 @if($phone !== '' && $email !== '') &nbsp;·&nbsp; @endif
                 @if($email !== ''){{ $email }}@endif
-            </p>
+            </div>
         @endif
-        <div class="footer-powered">Powered securely by <span class="brand-edu">Edu</span><span class="brand-core">Core</span></div>
-        <p class="footer-small">&copy; {{ date('Y') }} {{ $name }}. All rights reserved.</p>
+        <div style="font-size:12px;line-height:1.5;color:#64748B;margin-top:10px;text-align:center;">
+            Powered securely by <span style="font-weight:800;color:#0B3B78;">Edu</span><span style="font-weight:800;color:#D79A21;">Core</span>
+        </div>
+        <div style="font-size:11px;line-height:1.5;color:#94A3B8;margin-top:6px;text-align:center;">&copy; {{ date('Y') }} {{ $name }}. All rights reserved.</div>
     @else
-        <div class="footer-platform-mark"><span class="brand-edu">Edu</span><span class="brand-core">Core</span></div>
-        <p>Secure school communication powered by EduCore.</p>
+        <div style="font-size:18px;line-height:1.3;font-weight:850;text-align:center;">
+            <span style="color:#0B3B78;font-weight:850;">Edu</span><span style="color:#D79A21;font-weight:850;">Core</span>
+        </div>
+        <div style="font-size:12px;line-height:1.5;color:#64748B;margin-top:6px;text-align:center;">Secure school communication powered by EduCore.</div>
         @if($supportEmail !== '')
-            <p class="footer-contact">{{ $supportEmail }}</p>
+            <div style="font-size:12px;line-height:1.5;color:#64748B;margin-top:4px;text-align:center;">{{ $supportEmail }}</div>
         @endif
-        <p class="footer-small">&copy; {{ date('Y') }} EduCore. All rights reserved.</p>
+        <div style="font-size:11px;line-height:1.5;color:#94A3B8;margin-top:6px;text-align:center;">&copy; {{ date('Y') }} EduCore. All rights reserved.</div>
     @endif
 </td>
 </tr>
