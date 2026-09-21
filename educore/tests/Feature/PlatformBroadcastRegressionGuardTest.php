@@ -19,6 +19,7 @@ class PlatformBroadcastRegressionGuardTest extends TestCase
         $this->assertStringContainsString('DeliverPlatformBroadcastAfterResponse::dispatchAfterResponse(', $publisher);
         $this->assertStringContainsString('PushNotificationService', $job);
         $this->assertStringContainsString('PlatformBroadcastEmailService', $job);
+        $this->assertStringContainsString('Announcement::withoutTenantScope()', $job);
         $this->assertStringContainsString("Log::info('Platform broadcast delivery completed.'", $job);
     }
 
