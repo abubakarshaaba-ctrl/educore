@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
+use App\Models\User;
+use App\Notifications\UnifiedResetPasswordNotification;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginUserResolver;
 use App\Services\TenantAccessService;
@@ -143,9 +145,20 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $data = $request->validate(['email' => ['required', 'email']]);
-        Password::sendResetLink(['email' => strtolower(trim($data['email']))]);
+        $email = strtolower(trim($data['email']));
 
-        // Deliberately identical response whether the address exists or not.
+        $user = User::query()
+            ->where('email', $email)
+            ->where('is_active', true)
+            ->first();
+
+        // Keep the response identical for known and unknown addresses so this
+        // endpoint cannot be used to enumerate accounts.
+        if ($user && ! $user->isSuperAdmin()) {
+            $token = Password::broker()->createToken($user);
+            $user->notify(new UnifiedResetPasswordNotification($token, $user->tenant));
+        }
+
         return response()->json(['message' => 'If that email is registered, a password reset link has been sent.']);
     }
 }
