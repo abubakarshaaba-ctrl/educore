@@ -85,7 +85,7 @@ class ConventionalStaffWorkHoursContractTest extends TestCase
 
         $this->assertStringContainsString("'day_schedule'", $admin);
         $this->assertStringContainsString("'working_days'", $admin);
-        $this->assertStringContainsString("'working_days' => ['nullable', 'array']", $admin);
+        $this->assertStringContainsString("'working_days' => ['nullable', 'array', 'size:7']", $admin);
 
         $this->assertStringContainsString("'today_schedule'", $self);
         $this->assertStringContainsString("'working_days'", $self);
