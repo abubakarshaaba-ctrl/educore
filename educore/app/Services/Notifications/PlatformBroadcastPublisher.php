@@ -21,7 +21,7 @@ class PlatformBroadcastPublisher
             'body' => ['nullable', 'string', 'max:5000', 'required_without:image'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body'],
             'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
-            'recipient_scope' => ['required', Rule::in(['tenant_admin', 'all_users'])],
+            'recipient_scope' => ['nullable', Rule::in(['tenant_admin', 'all_users'])],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
     }
@@ -32,7 +32,7 @@ class PlatformBroadcastPublisher
      * HTTP response so transport latency cannot turn a successful publication
      * into a 500 response.
      *
-     * @return array{id:int,tenant_ids:array<int>,tenant_count:int,image_path:?string}
+     * @return array{id:int,tenant_ids:array<int>,tenant_count:int,image_path:?string,recipient_scope:string}
      */
     public function publish(
         User $actor,
@@ -42,7 +42,7 @@ class PlatformBroadcastPublisher
         $title = trim((string) $data['title']);
         $body = trim((string) ($data['body'] ?? ''));
         $target = (string) $data['target'];
-        $recipientScope = (string) $data['recipient_scope'];
+        $recipientScope = (string) ($data['recipient_scope'] ?? 'tenant_admin');
         $expiresAt = $data['expires_at'] ?? null;
 
         $tenantIds = $this->targetTenants($target)
@@ -129,6 +129,7 @@ class PlatformBroadcastPublisher
             'tenant_ids' => $tenantIds,
             'tenant_count' => count($tenantIds),
             'image_path' => $imagePath,
+            'recipient_scope' => $recipientScope,
         ];
     }
 
