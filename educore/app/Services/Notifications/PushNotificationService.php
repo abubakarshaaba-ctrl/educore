@@ -38,6 +38,7 @@ class PushNotificationService
             'staff' => $query->whereIn('role', User::staffRoleNames()),
             'students' => $query->where('role', 'student'),
             'parents' => $query->where('role', 'parent'),
+            'tenant_admin' => $query->whereIn('role', User::roleAliasesFor('admin')),
             'admin' => $query->whereIn('role', ['admin', 'principal', 'vice_principal']),
             default => $query,
         };
