@@ -38,6 +38,7 @@ img { max-width: 100%; }
 .brand-logo-cell { padding: 0 14px 0 0; width: 62px; }
 .brand-copy-cell { padding: 0; }
 
+.platform-mail-logo { display: block; height: 58px; width: 58px; }
 .platform-mail-mark { background-color: #F2C14E; border-radius: 12px; height: 52px; text-align: center; width: 52px; }
 .platform-mail-mark td { color: #082653; font-size: 28px; font-weight: 900; height: 52px; line-height: 52px; text-align: center; width: 52px; }
 .platform-mail-wordmark { color: #FFFFFF; font-size: 27px; font-weight: 850; letter-spacing: -0.03em; line-height: 1.05; }

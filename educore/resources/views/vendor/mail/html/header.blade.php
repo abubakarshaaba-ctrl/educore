@@ -22,6 +22,8 @@
                         <table class="school-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
                             <tr><td>{{ $initial }}</td></tr>
                         </table>
+                    @elseif($logoUrl)
+                        <img src="{{ $logoUrl }}" class="platform-mail-logo" alt="EduCore" width="58" height="58">
                     @else
                         <table class="platform-mail-mark" cellpadding="0" cellspacing="0" role="presentation">
                             <tr><td>E</td></tr>

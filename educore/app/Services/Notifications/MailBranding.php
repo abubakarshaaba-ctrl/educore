@@ -14,6 +14,7 @@ final class MailBranding
             'context' => 'platform',
             'name' => 'EduCore',
             'tagline' => 'One Platform. Every School Operation.',
+            'logo_url' => rtrim((string) config('app.url'), '/').'/brand/educore-icon-email.png',
             'home_url' => rtrim((string) config('app.url'), '/'),
             'support_email' => 'support@educoreng.online',
         ])
