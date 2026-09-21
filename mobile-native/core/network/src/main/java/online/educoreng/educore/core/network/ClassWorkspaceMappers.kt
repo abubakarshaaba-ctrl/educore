@@ -13,6 +13,7 @@ import online.educoreng.educore.core.model.StaffAttendanceCounts
 import online.educoreng.educore.core.model.StaffAttendanceRecord
 import online.educoreng.educore.core.model.StaffAttendanceSnapshot
 import online.educoreng.educore.core.model.StaffAttendanceToday
+import online.educoreng.educore.core.model.StaffAttendanceWorkingDay
 import online.educoreng.educore.core.model.StudentProfile
 import online.educoreng.educore.core.model.StudentSummary
 import online.educoreng.educore.core.network.dto.AttendanceSheetResponseDto
@@ -131,6 +132,24 @@ fun StaffAttendanceResponseDto.toDomain(): StaffAttendanceSnapshot = StaffAttend
     today = today?.let { StaffAttendanceToday(it.status, it.clockIn, it.clockOut) },
     geoEnabled = settings.geoEnabled,
     geoRadiusMeters = settings.geoRadiusMeters,
+    todaySchedule = todaySchedule?.let {
+        StaffAttendanceWorkingDay(
+            it.dayOfWeek,
+            it.isWorking,
+            it.resumptionTime,
+            it.closingTime,
+            it.graceMinutes,
+        )
+    },
+    workingDays = workingDays.map {
+        StaffAttendanceWorkingDay(
+            it.dayOfWeek,
+            it.isWorking,
+            it.resumptionTime,
+            it.closingTime,
+            it.graceMinutes,
+        )
+    },
     records = records.map { StaffAttendanceRecord(it.date, it.status, it.clockIn, it.clockOut, it.method) },
 )
 
