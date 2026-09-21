@@ -38,7 +38,7 @@ class TimetableWebRenderingContractTest extends TestCase
             $configView
         );
         $this->assertStringContainsString(
-            "'day_start_times' => $dayStartTimes",
+            "'day_start_times' => \$dayStartTimes",
             $controller
         );
         $this->assertStringContainsString(
