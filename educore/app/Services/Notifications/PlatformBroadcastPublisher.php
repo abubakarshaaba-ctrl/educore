@@ -89,7 +89,7 @@ class PlatformBroadcastPublisher
                                 'title' => $title,
                                 'body' => $body,
                                 'image_path' => $imagePath,
-                                'audience' => 'tenant_admin',
+                                'audience' => 'all',
                                 'priority' => 'important',
                                 'publish_date' => $now->toDateString(),
                                 'expire_date' => $expiresAt

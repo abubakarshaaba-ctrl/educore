@@ -51,14 +51,22 @@ select.fc{cursor:pointer}
                     @error('title')<span style="font-size:11px;color:#DC2626">{{ $message }}</span>@enderror
                 </div>
                 <div class="fg">
-                    <label>Target Audience</label>
+                    <label>Target Schools</label>
                     <select name="target" class="fc">
                         <option value="all" {{ old('target')=='all'?'selected':'' }}>All Schools</option>
                         <option value="trial" {{ old('target')=='trial'?'selected':'' }}>Trial Schools Only</option>
                         <option value="active" {{ old('target')=='active'?'selected':'' }}>Active Subscriptions Only</option>
                         <option value="expired" {{ old('target')=='expired'?'selected':'' }}>Expired Schools Only</option>
                     </select>
+                    <span class="help">Choose which schools should receive this platform broadcast.</span>
                 </div>
+            </div>
+            <div class="fg" style="max-width:520px">
+                <label>Recipients</label>
+                <div class="fc" style="background:#F8FAFC;color:var(--midnight);font-weight:700;cursor:default">
+                    Tenant Administrators Only
+                </div>
+                <span class="help">Only the tenant administrator account(s) in each selected school will receive the in-app notice, push notification and email.</span>
             </div>
             <div class="fg">
                 <label>Message Body (optional if an image is selected)</label>
