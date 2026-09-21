@@ -124,6 +124,7 @@ class TeacherController extends Controller
     public function announcements(Request $request)
     {
         $items = Announcement::where('is_published', true)
+            ->whereNull('platform_broadcast_id')
             ->whereIn('audience', ['all', 'staff'])
             ->where(fn ($q) => $q->whereNull('expire_date')->orWhere('expire_date', '>=', now()->toDateString()))
             ->orderByDesc('publish_date')
