@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use App\Models\Tenant;
 use App\Services\Notifications\MailBranding;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,10 +11,8 @@ class UnifiedResetPasswordNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(
-        public readonly string $token,
-        public readonly ?Tenant $tenant = null,
-    ) {
+    public function __construct(public readonly string $token)
+    {
     }
 
     public function via(object $notifiable): array
@@ -30,20 +27,14 @@ class UnifiedResetPasswordNotification extends Notification
         $expires = (int) config('auth.passwords.users.expire', 60);
 
         $mail = (new MailMessage)
-            ->subject($this->tenant
-                ? 'Reset your '.$this->tenant->name.' password'
-                : 'Reset your EduCore password')
+            ->subject('Reset your EduCore password')
             ->greeting('Reset your password')
-            ->line($this->tenant
-                ? 'A password reset was requested for your '.$this->tenant->name.' account.'
-                : 'A password reset was requested for your EduCore account.')
+            ->line('A password reset was requested for your EduCore account.')
             ->line('Use the secure button below to choose a new password.')
             ->action('Reset Password', $url)
             ->line('This secure link expires in '.$expires.' minutes.')
             ->line('If you did not request this change, ignore this email. Your current password will remain unchanged.');
 
-        return $this->tenant
-            ? MailBranding::school($mail, (int) $this->tenant->id, $this->tenant->name, $this->tenant->email)
-            : MailBranding::platform($mail);
+        return MailBranding::platform($mail);
     }
 }
