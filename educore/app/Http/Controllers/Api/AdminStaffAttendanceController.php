@@ -144,9 +144,14 @@ class AdminStaffAttendanceController extends Controller
             ];
         });
 
-        $onTime = $attendanceRecords->whereIn('status', ['early', 'present'])->count();
-        $attended = $attendanceRecords->whereIn('status', ['early', 'present', 'late'])->count();
-        $late = $attendanceRecords->where('status', 'late')->count();
+        $scheduledAttendanceRecords = $attendanceRecords->filter(
+            fn (StaffAttendanceRecord $row) =>
+                $workingDays->contains($row->attendance_date?->format('Y-m-d'))
+                && in_array($row->status, ['early', 'present', 'late', 'absent'], true)
+        );
+        $onTime = $scheduledAttendanceRecords->whereIn('status', ['early', 'present'])->count();
+        $attended = $scheduledAttendanceRecords->whereIn('status', ['early', 'present', 'late'])->count();
+        $late = $scheduledAttendanceRecords->where('status', 'late')->count();
 
         return response()->json([
             'month' => $month,
