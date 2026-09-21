@@ -5,21 +5,37 @@ namespace App\Services\Notifications;
 use App\Models\Tenant;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\File;
 
 final class MailBranding
 {
+    private const PLATFORM_ICON_CID = 'educore-platform-icon@educoreng.online';
+
     public static function platform(MailMessage $mail): MailMessage
     {
-        return self::apply($mail, self::platformBrand())
+        $mail = $mail
+            ->view('mail.platform.notification', [
+                'mailBrand' => self::platformBrand(),
+                'platformIconCid' => self::PLATFORM_ICON_CID,
+            ])
             ->from((string) config('mail.from.address'), 'EduCore')
-            ->salutation("Regards,\nEduCore");
+            ->salutation("Regards,\nThe EduCore Team");
+
+        return self::embedPlatformIcon($mail);
     }
 
     public static function platformView(MailMessage $mail, string $view, array $data = []): MailMessage
     {
-        return $mail
-            ->view($view, array_merge($data, ['mailBrand' => self::platformBrand()]))
+        $mail = $mail
+            ->view($view, array_merge($data, [
+                'mailBrand' => self::platformBrand(),
+                'platformIconCid' => self::PLATFORM_ICON_CID,
+            ]))
             ->from((string) config('mail.from.address'), 'EduCore');
+
+        return self::embedPlatformIcon($mail);
     }
 
     public static function school(
@@ -64,6 +80,21 @@ final class MailBranding
         return $mail;
     }
 
+    private static function embedPlatformIcon(MailMessage $mail): MailMessage
+    {
+        return $mail->withSymfonyMessage(function (Email $message): void {
+            $path = public_path('brand/educore-icon-email.png');
+
+            if (! is_file($path)) {
+                return;
+            }
+
+            $part = new DataPart(new File($path), 'educore-icon-email.png', 'image/png');
+            $part->setContentId(self::PLATFORM_ICON_CID);
+            $message->addPart($part->asInline());
+        });
+    }
+
     private static function apply(MailMessage $mail, array $brand): MailMessage
     {
         return $mail
@@ -76,11 +107,7 @@ final class MailBranding
         return [
             'context' => 'platform',
             'name' => 'EduCore',
-            'tagline' => 'One Platform. Every School Operation.',
-            // Do not make core email branding depend on a remotely loaded image.
-            // The header uses a deterministic monogram/wordmark that renders
-            // cleanly even when a mail client blocks remote images.
-            'logo_url' => null,
+            'tagline' => 'One Platform. Every School.',
             'home_url' => rtrim((string) config('app.url'), '/'),
             'support_email' => 'support@educoreng.online',
         ];
