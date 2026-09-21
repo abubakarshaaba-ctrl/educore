@@ -16,7 +16,7 @@ thead th{font-size:11px;font-weight:600;color:var(--slate-light);text-transform:
 tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
 tbody tr:last-child td{border-bottom:none}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
-.b-early{background:#E0F2FE;color:#0284C7}.b-present{background:#ECFDF5;color:var(--emerald)}.b-late{background:#FFFBEB;color:var(--amber)}.b-absent{background:#FEF2F2;color:var(--crimson)}
+.b-early{background:#E0F2FE;color:#0284C7}.b-present{background:#ECFDF5;color:var(--emerald)}.b-late{background:#FFFBEB;color:var(--amber)}.b-absent{background:#FEF2F2;color:var(--crimson)}.b-not_scheduled{background:#F1F5F9;color:#64748B}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;font-size:12.5px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms}
 .btn-p{background:var(--indigo);color:white}.btn-g{background:#F1F5F9;color:var(--midnight);border:1px solid var(--border)}.btn-sm{padding:5px 10px;font-size:11px}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--emerald);margin-bottom:14px}
