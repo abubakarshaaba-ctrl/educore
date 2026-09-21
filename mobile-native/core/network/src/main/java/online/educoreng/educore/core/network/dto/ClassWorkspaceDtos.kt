@@ -173,9 +173,9 @@ data class StaffAttendanceResponseDto(
     val counts: StaffAttendanceCountsDto,
     val today: StaffAttendanceTodayDto? = null,
     val settings: StaffAttendanceSettingsDto,
+    val records: List<StaffAttendanceRecordDto> = emptyList(),
     @param:Json(name = "today_schedule") val todaySchedule: StaffAttendanceWorkingDayDto? = null,
     @param:Json(name = "working_days") val workingDays: List<StaffAttendanceWorkingDayDto> = emptyList(),
-    val records: List<StaffAttendanceRecordDto> = emptyList(),
 )
 
 data class ProxyAttendanceColleagueDto(
