@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicSession;
 use App\Models\ClassArm;
+use App\Models\TimetableConfig;
 use App\Models\TimetablePeriod;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,7 @@ class TimetableController extends Controller
 
         return response()->json([
             'title' => 'My Teaching Schedule',
+            'school_hours' => $this->schoolHours($user->tenant_id, $session?->id),
             'days'  => $this->groupByDay($periods, withClass: true),
         ]);
     }
@@ -50,8 +52,34 @@ class TimetableController extends Controller
 
         return response()->json([
             'title' => trim(optional($arm->classLevel)->name . ' ' . $arm->name) . ' Timetable',
+            'school_hours' => $this->schoolHours($user->tenant_id, $session?->id),
             'days'  => $this->groupByDay($periods, withTeacher: true),
         ]);
+    }
+
+
+    private function schoolHours(int $tenantId, ?int $sessionId): array
+    {
+        if (! $sessionId) {
+            return [];
+        }
+
+        $config = TimetableConfig::where('tenant_id', $tenantId)
+            ->where('session_id', $sessionId)
+            ->first();
+
+        if (! $config) {
+            return [];
+        }
+
+        return collect(array_slice(self::DAYS, 0, 5))
+            ->map(fn (string $day): array => [
+                'day' => $day,
+                'start' => $config->startingTimeFor($day),
+                'end' => $config->closingTimeFor($day),
+            ])
+            ->values()
+            ->all();
     }
 
     private function groupByDay($periods, bool $withClass = false, bool $withTeacher = false): array
