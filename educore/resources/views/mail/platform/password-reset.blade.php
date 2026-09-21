@@ -16,29 +16,29 @@
 <td bgcolor="#082653" style="background:#082653;padding:0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
 <tr>
-<td style="padding:22px 26px 18px;">
+<td style="padding:14px 18px 11px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
         <tr>
-            <td valign="middle" style="width:52px;padding:0 12px 0 0;">
-                <img src="cid:{{ $platformIconCid }}" alt="EduCore" width="48" height="48"
-                     style="display:block;width:48px;height:48px;max-width:48px;border:0;border-radius:10px;background:#FFFFFF;">
+            <td valign="middle" style="width:40px;padding:0 9px 0 0;">
+                <img src="cid:{{ $platformIconCid }}" alt="EduCore" width="36" height="36"
+                     style="display:block;width:36px;height:36px;max-width:36px;border:0;border-radius:8px;background:#FFFFFF;">
             </td>
             <td valign="middle" style="padding:0;">
-                <div style="font-family:Arial,Helvetica,sans-serif;font-size:27px;line-height:1.05;font-weight:800;letter-spacing:-.5px;color:#FFFFFF;">
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:21px;line-height:1.05;font-weight:800;letter-spacing:-.5px;color:#FFFFFF;">
                     <span style="color:#FFFFFF;">Edu</span><span style="color:#F2C14E;">Core</span>
                 </div>
-                <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.45;color:#CFE0F4;margin-top:4px;">
+                <div style="font-family:Arial,Helvetica,sans-serif;font-size:9.5px;line-height:1.35;color:#CFE0F4;margin-top:2px;">
                     One Platform. Every School.
                 </div>
             </td>
         </tr>
     </table>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:14px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:8px;">
         <tr>
-            <td style="border-top:1px solid rgba(255,255,255,.16);padding-top:11px;text-align:center;
-                       font-family:Arial,Helvetica,sans-serif;font-size:10px;line-height:1.5;
-                       letter-spacing:2.2px;text-transform:uppercase;color:#DCE7F7;">
+            <td style="border-top:1px solid rgba(255,255,255,.16);padding-top:7px;text-align:center;
+                       font-family:Arial,Helvetica,sans-serif;font-size:8.5px;line-height:1.4;
+                       letter-spacing:1.35px;text-transform:uppercase;color:#DCE7F7;">
                 <span style="color:#DCE7F7;">Learn</span>
                 <span style="color:#F2C14E;">&nbsp;•&nbsp;</span>
                 <span style="color:#DCE7F7;">Manage</span>
@@ -66,8 +66,8 @@
 </tr></table>
 </td></tr></table>
 
-<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:26px auto 24px;border-collapse:separate;"><tr><td bgcolor="#0B3B78" style="background:#0B3B78;border-radius:10px;text-align:center;">
-<a href="{{ $resetUrl }}" style="display:inline-block;padding:14px 32px;font-size:15px;line-height:1.2;font-weight:800;color:#FFFFFF;text-decoration:none;border-radius:10px;">Reset Password &nbsp;→</a>
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:26px auto 24px;border-collapse:separate;"><tr><td bgcolor="#0B3B78" style="background:#0B3B78;border-radius:8px;text-align:center;">
+<a href="{{ $resetUrl }}" style="display:inline-block;padding:14px 32px;font-size:15px;line-height:1.2;font-weight:800;color:#FFFFFF;text-decoration:none;border-radius:8px;">Reset Password &nbsp;→</a>
 </td></tr></table>
 
 <p style="margin:0 0 20px;text-align:center;font-size:14px;line-height:1.5;color:#64748B;">This link will expire in <strong style="color:#0B1D3A;">{{ $expires }} minutes.</strong></p>
@@ -94,8 +94,8 @@
 </tr></table></td></tr>
 
 <tr><td bgcolor="#082653" style="background:#082653;padding:22px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;"><tr>
-<td valign="middle"><div style="font-size:22px;line-height:1.1;font-weight:800;"><span style="color:#FFFFFF;">Edu</span><span style="color:#F2C14E;">Core</span></div><div style="margin-top:4px;font-size:10px;line-height:1.5;color:#CFE0F4;">One Platform. Every School.</div></td>
-<td align="right" valign="middle" style="font-size:10px;line-height:1.5;color:#CFE0F4;">© {{ date('Y') }} EduCore<br><span style="color:#F2C14E;">www.educoreng.online</span></td>
+<td valign="middle"><div style="font-size:22px;line-height:1.1;font-weight:800;"><span style="color:#FFFFFF;">Edu</span><span style="color:#F2C14E;">Core</span></div><div style="margin-top:2px;font-size:8.5px;line-height:1.4;color:#CFE0F4;">One Platform. Every School.</div></td>
+<td align="right" valign="middle" style="font-size:8.5px;line-height:1.4;color:#CFE0F4;">© {{ date('Y') }} EduCore<br><span style="color:#F2C14E;">www.educoreng.online</span></td>
 </tr></table></td></tr>
 
 </table>
