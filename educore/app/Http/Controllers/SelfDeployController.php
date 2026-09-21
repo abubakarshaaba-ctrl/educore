@@ -75,6 +75,13 @@ class SelfDeployController extends Controller
 
         @mkdir($work, 0755, true);
 
+        // Older deployer versions expanded a second copy of the repository
+        // under storage/app/self-deploy/tree. Remove any stale copy before
+        // starting so abandoned files cannot consume the host's inode/quota
+        // allowance or leave unwritable paths behind.
+        $legacyExtractDir = $work . '/tree';
+        $this->rrmdir($legacyExtractDir);
+
         // 1. Download the master zipball from GitHub. Public repos work
         //    anonymously; private repos use a server-side read-only token.
         //    Credentials are never accepted in the deployment URL.
@@ -117,52 +124,25 @@ class SelfDeployController extends Controller
             ], 500);
         }
 
-        $extractDir = $work . '/tree';
-        $this->rrmdir($extractDir);
-        if (!$this->ensureDirectory($extractDir)) {
-            $zip->close();
-            return response()->json([
-                'ok' => false,
-                'step' => 'prepare-extract-dir',
-                'hint' => 'Unable to create the self-deploy extraction directory.',
-            ], 500);
-        }
-
+        // 2. Stream only deployable ZIP entries directly into the live tree.
+        // This intentionally avoids expanding a duplicate repository under
+        // storage/app/self-deploy/tree. Shared hosts commonly enforce inode or
+        // account quotas while disabling disk_free_space(), which made the old
+        // extract-then-copy flow fail with "free bytes: unknown" even though
+        // the final live destination itself remained writable.
         try {
-            $this->extractZipSafely($zip, $extractDir);
+            $copied = $this->syncZipToLiveTree($zip, $docroot);
         } catch (\Throwable $e) {
             $zip->close();
-            $this->rrmdir($extractDir);
+            @unlink($zipPath);
+
             return response()->json([
                 'ok' => false,
-                'step' => 'unzip',
-                'hint' => mb_substr($e->getMessage(), 0, 250),
+                'step' => 'sync-zip',
+                'hint' => mb_substr($e->getMessage(), 0, 400),
             ], 500);
         }
         $zip->close();
-
-        // Zipball wraps everything in "<repo>-master/"
-        $roots = glob($extractDir . '/*', GLOB_ONLYDIR);
-        if (!$roots) {
-            return response()->json(['ok' => false, 'step' => 'locate-root'], 500);
-        }
-        $srcRoot = $roots[0];
-
-        // 3. Sync the deployable paths
-        $copied = 0;
-        foreach (self::SYNC_PATHS as $path) {
-            $repoPath = rtrim($path, '/');
-            $src = $srcRoot . '/' . $repoPath;
-            $dst = $docroot . '/' . $repoPath;
-
-            if (is_dir($src)) {
-                $copied += $this->copyTree($src, $dst, $repoPath);
-            } elseif (is_file($src) && !in_array($repoPath, self::PRESERVED_LIVE_PATHS, true)) {
-                if ($this->ensureDirectory(dirname($dst)) && copy($src, $dst)) {
-                    $copied++;
-                }
-            }
-        }
 
         // Shared-host copies do not prune removed source files. Delete only
         // explicitly retired paths so obsolete public assets cannot linger.
@@ -206,7 +186,6 @@ class SelfDeployController extends Controller
             $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
 
             @unlink($zipPath);
-            $this->rrmdir($extractDir);
 
             return response()->json([
                 'ok' => false,
@@ -238,9 +217,10 @@ class SelfDeployController extends Controller
         // worker handling this request.
         $opcacheReset = function_exists('opcache_reset') ? opcache_reset() : null;
 
-        // 6. Tidy up the workspace
+        // 6. Tidy up the workspace. There is no extracted repository tree in
+        // the new streaming deploy path; only the downloaded archive remains.
         @unlink($zipPath);
-        $this->rrmdir($extractDir);
+        $this->rrmdir($legacyExtractDir);
 
         return response()->json([
             'ok'       => true,
@@ -376,53 +356,57 @@ class SelfDeployController extends Controller
         ];
     }
 
-    private function extractZipSafely(\ZipArchive $zip, string $extractDir): void
+    /**
+     * Stream deployable files directly from the GitHub ZIP into the live tree.
+     *
+     * No expanded repository copy is created. Every file is first written to a
+     * temporary sibling path and then atomically renamed when possible, so a
+     * failed write does not replace the last known-good live file.
+     */
+    private function syncZipToLiveTree(\ZipArchive $zip, string $docroot): int
     {
-        $base = rtrim(str_replace('\\', '/', $extractDir), '/');
+        $copied = 0;
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if (!is_string($name) || $name === '') {
+            if (! is_string($name) || $name === '') {
                 continue;
             }
 
-            $name = str_replace('\\', '/', $name);
-            $name = ltrim($name, '/');
-
+            $name = ltrim(str_replace('\\', '/', $name), '/');
             if ($name === '' || str_contains($name, "\0")) {
                 throw new \RuntimeException('Archive contains an invalid path.');
             }
 
-            $segments = array_values(array_filter(explode('/', $name), static fn ($segment) => $segment !== ''));
+            $segments = array_values(array_filter(
+                explode('/', $name),
+                static fn ($segment) => $segment !== ''
+            ));
+
             if (in_array('..', $segments, true)) {
                 throw new \RuntimeException('Archive contains an unsafe relative path.');
             }
 
-            // GitHub wraps every zipball in one generated root directory.
-            // Create that root, then ignore repository paths that never
-            // contribute to the live deployment.
-            if (count($segments) === 1) {
-                if (str_ends_with($name, '/') && !$this->ensureDirectory($base . '/' . $segments[0])) {
-                    throw new \RuntimeException('Unable to create archive root directory.');
-                }
+            // GitHub zipballs always wrap repository content in one generated
+            // root directory. Root/directory entries do not need to be written;
+            // parent directories are created lazily for eligible files.
+            if (count($segments) < 2 || str_ends_with($name, '/')) {
                 continue;
             }
 
             $repoRelative = implode('/', array_slice($segments, 1));
-            if (!$this->shouldExtractRepoPath($repoRelative)) {
+            if (! $this->shouldExtractRepoPath($repoRelative)
+                || in_array($repoRelative, self::PRESERVED_LIVE_PATHS, true)) {
                 continue;
             }
 
-            $target = $base . '/' . implode('/', $segments);
-            if (str_ends_with($name, '/')) {
-                if (!$this->ensureDirectory($target)) {
-                    throw new \RuntimeException('Unable to create archive directory: ' . $repoRelative);
-                }
-                continue;
-            }
-
-            if (!$this->ensureDirectory(dirname($target))) {
-                throw new \RuntimeException('Unable to create parent directory for: ' . $repoRelative);
+            $target = $docroot . '/' . $repoRelative;
+            $targetDir = dirname($target);
+            if (! $this->ensureDirectory($targetDir)) {
+                throw new \RuntimeException(
+                    'Unable to create live parent directory for: ' . $repoRelative
+                    . ' (' . $this->filesystemDiagnostics($targetDir) . ')'
+                );
             }
 
             $source = $zip->getStream($name);
@@ -430,29 +414,93 @@ class SelfDeployController extends Controller
                 throw new \RuntimeException('Unable to read archive entry: ' . $repoRelative);
             }
 
-            $destination = @fopen($target, 'wb');
+            $tmp = $target . '.deploytmp-' . bin2hex(random_bytes(5));
+            $destination = @fopen($tmp, 'wb');
             if ($destination === false) {
                 fclose($source);
                 throw new \RuntimeException(
-                    'Unable to create extracted file: ' . $repoRelative
-                    . ' (free bytes: ' . (string) (@disk_free_space($extractDir) ?: 'unknown') . ')'
+                    'Unable to create deployment temp file for: ' . $repoRelative
+                    . ' (' . $this->filesystemDiagnostics($targetDir) . ')'
                 );
             }
 
+            $streamed = false;
             try {
-                if (stream_copy_to_stream($source, $destination) === false) {
-                    throw new \RuntimeException('Unable to extract archive entry: ' . $repoRelative);
-                }
+                $streamed = stream_copy_to_stream($source, $destination);
             } finally {
                 fclose($source);
                 fclose($destination);
             }
+
+            if ($streamed === false) {
+                @unlink($tmp);
+                throw new \RuntimeException(
+                    'Unable to stream archive entry: ' . $repoRelative
+                    . ' (' . $this->filesystemDiagnostics($targetDir) . ')'
+                );
+            }
+
+            $stat = $zip->statIndex($i);
+            $expectedBytes = is_array($stat) && isset($stat['size'])
+                ? (int) $stat['size']
+                : null;
+
+            clearstatcache(true, $tmp);
+            $writtenBytes = @filesize($tmp);
+            if ($expectedBytes !== null
+                && is_int($writtenBytes)
+                && $writtenBytes !== $expectedBytes) {
+                @unlink($tmp);
+                throw new \RuntimeException(
+                    'Incomplete deployment write for: ' . $repoRelative
+                    . " (expected {$expectedBytes} bytes, wrote {$writtenBytes})"
+                );
+            }
+
+            // Avoid rewriting byte-identical live files.
+            if (is_file($target)
+                && @filesize($target) === $writtenBytes
+                && @hash_file('sha256', $target) === @hash_file('sha256', $tmp)) {
+                @unlink($tmp);
+                continue;
+            }
+
+            @chmod($tmp, 0644);
+
+            // rename() is atomic on the same filesystem. Some shared hosts deny
+            // replace-on-rename, so fall back to copy while keeping the old live
+            // file intact until the completed temp file exists.
+            if (! @rename($tmp, $target)) {
+                if (! @copy($tmp, $target)) {
+                    @unlink($tmp);
+                    throw new \RuntimeException(
+                        'Unable to replace live file: ' . $repoRelative
+                        . ' (' . $this->filesystemDiagnostics($targetDir) . ')'
+                    );
+                }
+                @unlink($tmp);
+            }
+
+            $copied++;
         }
+
+        return $copied;
+    }
+
+    private function filesystemDiagnostics(string $path): string
+    {
+        $directory = is_dir($path) ? $path : dirname($path);
+        $free = @disk_free_space($directory);
+
+        return 'directory writable: '
+            . (is_writable($directory) ? 'yes' : 'no')
+            . ', free bytes: '
+            . (is_numeric($free) ? (string) (int) $free : 'unknown');
     }
 
     /**
-     * Extract only paths that can contribute to SYNC_PATHS. Parent directories
-     * remain eligible so deployable descendants can be created normally.
+     * Select only repository paths that can contribute to SYNC_PATHS. Parent
+     * directories remain eligible so deployable descendants are recognized.
      */
     private function shouldExtractRepoPath(string $repoPath): bool
     {
@@ -775,43 +823,6 @@ class SelfDeployController extends Controller
                 'message' => mb_substr($e->getMessage(), 0, 200),
             ];
         }
-    }
-
-    private function copyTree(string $src, string $dst, string $repoPath): int
-    {
-        $count = 0;
-        $this->ensureDirectory($dst);
-
-        $it = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-
-        foreach ($it as $item) {
-            $subPath = str_replace('\\', '/', $it->getSubPathname());
-            $sourcePath = $repoPath . '/' . $subPath;
-            if (in_array($sourcePath, self::PRESERVED_LIVE_PATHS, true)) {
-                continue;
-            }
-
-            $target = $dst . '/' . $it->getSubPathname();
-            if ($item->isDir()) {
-                $this->ensureDirectory($target);
-            } else {
-                // Skip files that are byte-identical in size — avoids re-copying
-                // large unchanged assets on every deploy.
-                if (is_file($target)
-                    && filesize($target) === $item->getSize()
-                    && hash_file('sha256', $target) === hash_file('sha256', $item->getPathname())) {
-                    continue;
-                }
-                if ($this->ensureDirectory(dirname($target)) && copy($item->getPathname(), $target)) {
-                    $count++;
-                }
-            }
-        }
-
-        return $count;
     }
 
     private function rrmdir(string $dir): void
