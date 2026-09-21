@@ -3,16 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Announcement;
-use App\Models\Tenant;
-use App\Services\Notifications\PlatformBroadcastEmailService;
-use App\Services\Notifications\PushNotificationService;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Notifications\PlatformBroadcastPublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
-use Throwable;
 
 class PlatformBroadcastController extends Controller
 {
@@ -44,109 +38,37 @@ class PlatformBroadcastController extends Controller
         return response()->json(['broadcasts' => $broadcasts]);
     }
 
-    public function store(Request $request, PlatformBroadcastEmailService $emails)
-    {
+    public function store(
+        Request $request,
+        PlatformBroadcastPublisher $publisher,
+    ) {
         $this->guard($request);
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:150'],
-            'body' => ['nullable', 'string', 'max:5000', 'required_without:image'],
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body'],
-            'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
-            'expires_at' => ['nullable', 'date', 'after:now'],
-        ]);
+        $data = $request->validate($publisher->validationRules());
 
-        $body = trim((string) ($data['body'] ?? ''));
-        $tenantIds = $this->targetTenants($data['target'])->pluck('id');
-        $now = now();
-        $imagePath = $request->file('image')?->store('platform-broadcasts', 'public');
-
-        try {
-            $broadcastId = DB::transaction(function () use ($request, $data, $body, $tenantIds, $now, $imagePath) {
-                $broadcastId = DB::table('platform_broadcasts')->insertGetId([
-                    'created_by' => $request->user()->id,
-                    'title' => trim($data['title']),
-                    'body' => $body,
-                    'image_path' => $imagePath,
-                    'target' => $data['target'],
-                    'tenant_count' => $tenantIds->count(),
-                    'expires_at' => $data['expires_at'] ?? null,
-                    'expired_at' => null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-
-                foreach ($tenantIds->chunk(250) as $chunk) {
-                    DB::table('announcements')->insert(
-                        $chunk->map(fn ($tenantId) => [
-                            'tenant_id' => $tenantId,
-                            'platform_broadcast_id' => $broadcastId,
-                            'title' => trim($data['title']),
-                            'body' => $body,
-                            'image_path' => $imagePath,
-                            'audience' => 'all',
-                            'priority' => 'important',
-                            'publish_date' => $now->toDateString(),
-                            'expire_date' => isset($data['expires_at'])
-                                ? \Illuminate\Support\Carbon::parse($data['expires_at'])->toDateString()
-                                : null,
-                            'is_published' => true,
-                            'created_by' => $request->user()->id,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ])->all()
-                    );
-                }
-
-                return $broadcastId;
-            });
-        } catch (Throwable $exception) {
-            if ($imagePath) {
-                Storage::disk('public')->delete($imagePath);
-            }
-
-            throw $exception;
-        }
-
-        $push = app(PushNotificationService::class);
-        $pushStats = ['users' => 0, 'tokens' => 0, 'sent' => 0, 'failed' => 0];
-        Announcement::query()
-            ->where('platform_broadcast_id', $broadcastId)
-            ->orderBy('id')
-            ->chunkById(100, function ($announcements) use ($push, &$pushStats): void {
-                foreach ($announcements as $announcement) {
-                    $result = $push->notifyAnnouncementPublished($announcement);
-                    $pushStats['users'] += $result['users'];
-                    $pushStats['tokens'] += $result['tokens'];
-                    $pushStats['sent'] += $result['sent'];
-                    $pushStats['failed'] += $result['failed'];
-                }
-            });
-
-        $emailStats = $emails->sendToTenantIds(
-            tenantIds: $tenantIds,
-            broadcastId: (int) $broadcastId,
-            title: trim($data['title']),
-            body: $body,
-            imagePath: $imagePath,
-            expiresAt: $data['expires_at'] ?? null,
+        $publication = $publisher->publish(
+            actor: $request->user(),
+            data: $data,
+            image: $request->file('image'),
         );
 
-        $pushMessage = $pushStats['tokens'] === 0
-            ? 'No registered mobile device tokens were available for push delivery.'
-            : "Push accepted for {$pushStats['sent']} of {$pushStats['tokens']} registered device(s).";
-
         return response()->json([
-            'message' => "Broadcast published to {$tenantIds->count()} school(s). {$pushMessage}",
+            'message' => "Broadcast published to {$publication['tenant_count']} school(s). Push and email delivery is processing.",
             'status' => 'published',
-            'id' => $broadcastId,
-            'push_users_matched' => $pushStats['users'],
-            'push_device_tokens' => $pushStats['tokens'],
-            'push_notifications_sent' => $pushStats['sent'],
-            'push_notifications_failed' => $pushStats['failed'],
-            'email_notifications_sent' => $emailStats['sent'],
-            'email_notifications_failed' => $emailStats['failed'],
-            'image_url' => $imagePath ? Storage::disk('public')->url($imagePath) : null,
+            'delivery_status' => 'processing_after_response',
+            'id' => $publication['id'],
+            // Keep the existing numeric response contract stable. Final
+            // delivery totals are recorded in the application log after the
+            // response has been sent.
+            'push_users_matched' => 0,
+            'push_device_tokens' => 0,
+            'push_notifications_sent' => 0,
+            'push_notifications_failed' => 0,
+            'email_notifications_sent' => 0,
+            'email_notifications_failed' => 0,
+            'image_url' => $publication['image_path']
+                ? Storage::disk('public')->url($publication['image_path'])
+                : null,
         ], 201);
     }
 
@@ -173,24 +95,6 @@ class PlatformBroadcastController extends Controller
             'status' => 'expired',
             'id' => $broadcast,
         ]);
-    }
-
-    private function targetTenants(string $target): Builder
-    {
-        $query = Tenant::query();
-
-        return match ($target) {
-            'active' => $query->where('status', Tenant::STATUS_ACTIVE)
-                ->where(fn (Builder $expiry) => $expiry
-                    ->whereNull('subscription_expires_at')
-                    ->orWhereDate('subscription_expires_at', '>=', today())),
-            'trial' => $query->where('status', Tenant::STATUS_PENDING),
-            'expired' => $query->where(function (Builder $expired) {
-                $expired->where('status', Tenant::STATUS_SUBSCRIPTION_EXPIRED)
-                    ->orWhereDate('subscription_expires_at', '<', today());
-            }),
-            default => $query,
-        };
     }
 
     private function guard(Request $request): void
