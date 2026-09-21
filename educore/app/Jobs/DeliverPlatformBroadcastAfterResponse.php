@@ -27,6 +27,23 @@ class DeliverPlatformBroadcastAfterResponse
         PushNotificationService $push,
         PlatformBroadcastEmailService $emails,
     ): void {
+        try {
+            $this->deliver($push, $emails);
+        } catch (Throwable $error) {
+            // The HTTP publication response has already been sent by the time
+            // this command runs. Never allow a downstream transport/storage
+            // exception to masquerade as a failed broadcast publication.
+            Log::error('Platform broadcast after-response delivery aborted unexpectedly.', [
+                'broadcast_id' => $this->broadcastId,
+                'error' => $error->getMessage(),
+            ]);
+        }
+    }
+
+    private function deliver(
+        PushNotificationService $push,
+        PlatformBroadcastEmailService $emails,
+    ): void {
         $broadcast = DB::table('platform_broadcasts')
             ->where('id', $this->broadcastId)
             ->first();
