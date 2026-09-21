@@ -21,6 +21,7 @@ class PlatformBroadcastPublisher
             'body' => ['nullable', 'string', 'max:5000', 'required_without:image'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', 'required_without:body'],
             'target' => ['required', Rule::in(['all', 'active', 'trial', 'expired'])],
+            'recipient_scope' => ['required', Rule::in(['tenant_admin', 'all_users'])],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
     }
@@ -41,6 +42,7 @@ class PlatformBroadcastPublisher
         $title = trim((string) $data['title']);
         $body = trim((string) ($data['body'] ?? ''));
         $target = (string) $data['target'];
+        $recipientScope = (string) $data['recipient_scope'];
         $expiresAt = $data['expires_at'] ?? null;
 
         $tenantIds = $this->targetTenants($target)
@@ -58,6 +60,7 @@ class PlatformBroadcastPublisher
                 $title,
                 $body,
                 $target,
+                $recipientScope,
                 $expiresAt,
                 $tenantIds,
                 $imagePath,
@@ -69,6 +72,7 @@ class PlatformBroadcastPublisher
                     'body' => $body,
                     'image_path' => $imagePath,
                     'target' => $target,
+                    'recipient_scope' => $recipientScope,
                     'tenant_count' => count($tenantIds),
                     'expires_at' => $expiresAt,
                     'expired_at' => null,
@@ -89,7 +93,7 @@ class PlatformBroadcastPublisher
                                 'title' => $title,
                                 'body' => $body,
                                 'image_path' => $imagePath,
-                                'audience' => 'all',
+                                'audience' => $recipientScope === 'all_users' ? 'all' : 'tenant_admin',
                                 'priority' => 'important',
                                 'publish_date' => $now->toDateString(),
                                 'expire_date' => $expiresAt
