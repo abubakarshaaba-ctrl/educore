@@ -23,8 +23,6 @@ class SupportController extends Controller
 
     public function platformNotices()
     {
-        $this->guardTenantAdmin();
-
         $tenantId = $this->tenantId();
         $tenant   = auth()->user()->tenant;
 
@@ -35,6 +33,7 @@ class SupportController extends Controller
 
         $notices = DB::table('platform_broadcasts')
             ->whereIn('target', ['all', $tenantStatus])
+            ->when(! auth()->user()?->isAdmin(), fn ($query) => $query->where('recipient_scope', 'all_users'))
             ->where(function ($query) {
                 $query->whereNull('expires_at')
                     ->orWhere('expires_at', '>', now());
