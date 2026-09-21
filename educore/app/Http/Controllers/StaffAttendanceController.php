@@ -155,6 +155,11 @@ class StaffAttendanceController extends Controller
     public function qrDisplay()
     {
         $settings = $this->attendanceSettings();
+        $todaySchedule = $this->attendanceSchedule()->forDate(
+            (int) auth()->user()->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
 
         // Use the STATIC (permanent) school QR — never rotates.
         // The image can be printed, laminated, or put on a wall indefinitely.
@@ -162,7 +167,13 @@ class StaffAttendanceController extends Controller
         $url      = route('staff-attendance.my') . '?qr_token=' . urlencode($payload);
         $qrBase64 = $this->buildQrBase64($url);
 
-        return view('staff-attendance.qr-display', compact('settings', 'qrBase64', 'payload', 'url'));
+        return view('staff-attendance.qr-display', compact(
+            'settings',
+            'todaySchedule',
+            'qrBase64',
+            'payload',
+            'url'
+        ));
     }
 
     // ── Reset static QR (invalidates all printed copies) ─────────────
@@ -826,6 +837,11 @@ class StaffAttendanceController extends Controller
         $year      = $request->integer('year',  now()->year);
         $tid       = auth()->user()->tenant_id;
         $settings  = $this->attendanceSettings();
+        $todaySchedule = $this->attendanceSchedule()->forDate(
+            (int) $user->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
         $startDate = Carbon::createFromDate($year, $month, 1);
         $endDate   = (clone $startDate)->endOfMonth();
 
@@ -905,7 +921,7 @@ class StaffAttendanceController extends Controller
                 ->exists();
 
         return view('staff-attendance.my-attendance', compact(
-            'records','counts','month','year','settings',
+            'records','counts','month','year','settings','todaySchedule',
             'todayRecord','user','hasPIN','pendingProxies','hasPendingOffline'
         ));
     }
