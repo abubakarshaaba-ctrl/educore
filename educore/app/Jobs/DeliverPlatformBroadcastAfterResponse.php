@@ -101,6 +101,7 @@ class DeliverPlatformBroadcastAfterResponse
                 body: (string) $broadcast->body,
                 imagePath: $broadcast->image_path ?? null,
                 expiresAt: $broadcast->expires_at ?? null,
+                recipientScope: (string) ($broadcast->recipient_scope ?? 'tenant_admin'),
             );
         } catch (Throwable $error) {
             $emailStats['failed']++;
@@ -113,6 +114,7 @@ class DeliverPlatformBroadcastAfterResponse
         Log::info('Platform broadcast delivery completed.', [
             'broadcast_id' => $this->broadcastId,
             'targeted_tenants' => count($this->tenantIds),
+            'recipient_scope' => (string) ($broadcast->recipient_scope ?? 'tenant_admin'),
             'push_users_matched' => $pushStats['users'],
             'push_device_tokens' => $pushStats['tokens'],
             'push_notifications_sent' => $pushStats['sent'],
