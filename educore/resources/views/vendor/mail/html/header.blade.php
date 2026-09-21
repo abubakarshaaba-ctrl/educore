@@ -18,9 +18,9 @@
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:collapse;">
             <tr>
                 <td valign="middle" style="width:64px;padding:0 14px 0 0;">
-                    @if($isSchool && $logoUrl)
-                        <img src="{{ $logoUrl }}" alt="{{ $name }}" width="56" height="56"
-                             style="display:block;width:56px;height:56px;max-width:56px;border-radius:12px;background:#ffffff;border:2px solid #ffffff;object-fit:contain;">
+                    @if($logoUrl)
+                        <img src="{{ $logoUrl }}" alt="{{ $isSchool ? $name : 'EduCore' }}" width="56" height="56"
+                             style="display:block;width:56px;height:56px;max-width:56px;border-radius:12px;background:#ffffff;{{ $isSchool ? 'border:2px solid #ffffff;' : '' }}object-fit:contain;">
                     @else
                         <table width="56" height="56" cellpadding="0" cellspacing="0" role="presentation"
                                style="width:56px;height:56px;border-collapse:separate;background:#F2C14E;border-radius:12px;">
