@@ -188,10 +188,44 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    private var pushRegistrationErrorReported = false
+
     private fun registerPushToken() {
+        // Reassert the app-update subscription every time an authenticated
+        // session becomes ready. This repairs installations whose FCM token or
+        // topic membership changed while the app was not running.
+        FirebaseMessaging.getInstance().subscribeToTopic("educore_app_updates")
+
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            task.takeIf { it.isSuccessful }?.result?.takeIf(String::isNotBlank)?.let { token ->
-                viewModelScope.launch { communicationRepository.registerPushToken(token) }
+            val token = task
+                .takeIf { it.isSuccessful }
+                ?.result
+                ?.takeIf(String::isNotBlank)
+
+            if (token == null) {
+                if (!pushRegistrationErrorReported) {
+                    pushRegistrationErrorReported = true
+                    _uiState.update {
+                        it.copy(message = "EduCore could not obtain a push-notification token on this device.")
+                    }
+                }
+                return@addOnCompleteListener
+            }
+
+            viewModelScope.launch {
+                when (val registration = communicationRepository.registerPushToken(token)) {
+                    is AppResult.Success -> pushRegistrationErrorReported = false
+                    is AppResult.Failure -> {
+                        if (!pushRegistrationErrorReported) {
+                            pushRegistrationErrorReported = true
+                            _uiState.update {
+                                it.copy(
+                                    message = "Push notification registration failed: " + registration.error.userMessage
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

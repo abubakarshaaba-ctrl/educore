@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,7 +42,10 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var notificationAccessBlocked by remember { mutableStateOf(false) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationAccessBlocked = !granted
+    }
     var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
     ReportDrawnWhen { state.phase != AppPhase.STARTING }
 
@@ -50,8 +55,14 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
     }
 
     LaunchedEffect(state.phase) {
+        if (state.phase != AppPhase.READY) return@LaunchedEffect
+
+        val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        if (!notificationsEnabled) {
+            notificationAccessBlocked = true
+        }
+
         if (
-            state.phase == AppPhase.READY &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -123,6 +134,37 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 88.dp),
+            )
+        }
+
+        if (notificationAccessBlocked && state.phase == AppPhase.READY) {
+            AlertDialog(
+                onDismissRequest = { notificationAccessBlocked = false },
+                title = { Text("Enable EduCore notifications") },
+                text = {
+                    Text(
+                        "Push notifications are currently blocked for EduCore on this device. " +
+                            "Enable notifications in Android settings so school notices, messages and app-update alerts can be delivered."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                            runCatching { context.startActivity(intent) }
+                            notificationAccessBlocked = false
+                        },
+                    ) {
+                        Text("Open settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { notificationAccessBlocked = false }) {
+                        Text("Later")
+                    }
+                },
             )
         }
 
