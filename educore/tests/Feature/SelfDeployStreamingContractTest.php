@@ -54,7 +54,7 @@ class SelfDeployStreamingContractTest extends TestCase
             $controller
         );
         $this->assertStringContainsString(
-            "in_array($repoRelative, self::PRESERVED_LIVE_PATHS, true)",
+            'in_array($repoRelative, self::PRESERVED_LIVE_PATHS, true)',
             $controller
         );
     }
