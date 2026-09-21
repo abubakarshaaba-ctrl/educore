@@ -7,6 +7,7 @@ use App\Http\Controllers\StaffAttendanceController;
 use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
 use App\Models\StaffOfflineClockIn;
+use App\Services\StaffAttendanceScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -185,6 +186,12 @@ class StaffAttendanceApiController extends Controller
             ->first();
 
         $settings = StaffAttendanceSetting::firstOrCreate(['tenant_id' => $user->tenant_id]);
+        $scheduleService = app(StaffAttendanceScheduleService::class);
+        $todaySchedule = $scheduleService->forDate(
+            (int) $user->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
 
         return response()->json([
             'month'  => $month,
@@ -204,6 +211,31 @@ class StaffAttendanceApiController extends Controller
                 'geo_enabled'       => (bool) $settings->geo_enabled,
                 'geo_radius_meters' => (int) ($settings->geo_radius_meters ?? 0),
             ],
+            'today_schedule' => [
+                'day_of_week' => (string) $todaySchedule->day_of_week,
+                'is_working' => (bool) $todaySchedule->is_working,
+                'resumption_time' => $todaySchedule->resumption_time
+                    ? substr((string) $todaySchedule->resumption_time, 0, 5)
+                    : null,
+                'closing_time' => $todaySchedule->closing_time
+                    ? substr((string) $todaySchedule->closing_time, 0, 5)
+                    : null,
+                'grace_minutes' => (int) $todaySchedule->grace_minutes,
+            ],
+            'working_days' => $scheduleService->workingDays(
+                (int) $user->tenant_id,
+                $settings
+            )->map(fn ($day): array => [
+                'day_of_week' => (string) $day->day_of_week,
+                'is_working' => (bool) $day->is_working,
+                'resumption_time' => $day->resumption_time
+                    ? substr((string) $day->resumption_time, 0, 5)
+                    : null,
+                'closing_time' => $day->closing_time
+                    ? substr((string) $day->closing_time, 0, 5)
+                    : null,
+                'grace_minutes' => (int) $day->grace_minutes,
+            ])->values(),
             'records' => $records,
         ]);
     }
