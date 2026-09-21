@@ -54,10 +54,12 @@ class TimetableController extends Controller
         abort_unless(auth()->user()->canManage('timetable'), 403);
         $validated = $request->validate([
             'session_id'      => ['required', Rule::exists('academic_sessions', 'id')->where('tenant_id', $this->tenantId())],
-            'school_start'    => ['required', 'date_format:H:i'],
-            'school_end'      => ['required', 'date_format:H:i', 'after:school_start'],
-            'day_end_times'   => ['nullable', 'array:monday,tuesday,wednesday,thursday,friday'],
-            'day_end_times.*' => ['nullable', 'date_format:H:i', 'after:school_start'],
+            'school_start'      => ['required', 'date_format:H:i'],
+            'school_end'        => ['required', 'date_format:H:i', 'after:school_start'],
+            'day_start_times'   => ['nullable', 'array:monday,tuesday,wednesday,thursday,friday'],
+            'day_start_times.*' => ['nullable', 'date_format:H:i'],
+            'day_end_times'     => ['nullable', 'array:monday,tuesday,wednesday,thursday,friday'],
+            'day_end_times.*'   => ['nullable', 'date_format:H:i'],
             'periods_per_day' => ['required', 'integer', 'min:1', 'max:12'],
             'period_duration' => ['required', 'integer', 'min:20', 'max:120'],
             'breaks'          => ['nullable', 'array'],
@@ -80,33 +82,53 @@ class TimetableController extends Controller
             ]);
         }
 
+        $dayStartTimes = [];
         $dayEndTimes = [];
-        foreach (self::SCHOOL_DAYS as $day) {
-            $end = trim((string) ($validated['day_end_times'][$day] ?? ''));
-            if ($end === '') {
-                continue;
-            }
 
-            $dayAvailable = $this->timeDiffMins($validated['school_start'], $end);
-            if ($dayAvailable < (int) $validated['period_duration']) {
+        foreach (self::SCHOOL_DAYS as $day) {
+            $startOverride = trim((string) ($validated['day_start_times'][$day] ?? ''));
+            $endOverride = trim((string) ($validated['day_end_times'][$day] ?? ''));
+
+            $effectiveStart = $startOverride !== ''
+                ? $startOverride
+                : $validated['school_start'];
+            $effectiveEnd = $endOverride !== ''
+                ? $endOverride
+                : $validated['school_end'];
+
+            if ($effectiveStart >= $effectiveEnd) {
                 return back()->withInput()->withErrors([
-                    "day_end_times.{$day}" => ucfirst($day) . ' must allow at least one complete teaching period after the school start time.',
+                    "day_start_times.{$day}" => ucfirst($day)
+                        . ' start time must be earlier than its closing time.',
                 ]);
             }
 
-            // Store only genuine overrides. Equal values continue to inherit the
-            // default end time, keeping existing configurations compact.
-            if ($end !== $validated['school_end']) {
-                $dayEndTimes[$day] = $end;
+            $dayAvailable = $this->timeDiffMins($effectiveStart, $effectiveEnd);
+            if ($dayAvailable < (int) $validated['period_duration']) {
+                return back()->withInput()->withErrors([
+                    "day_end_times.{$day}" => ucfirst($day)
+                        . ' must allow at least one complete teaching period between its effective start and closing time.',
+                ]);
+            }
+
+            // Store only genuine overrides. Blank or default-equivalent values
+            // continue to inherit the session-wide defaults.
+            if ($startOverride !== '' && $startOverride !== $validated['school_start']) {
+                $dayStartTimes[$day] = $startOverride;
+            }
+
+            if ($endOverride !== '' && $endOverride !== $validated['school_end']) {
+                $dayEndTimes[$day] = $endOverride;
             }
         }
 
         TimetableConfig::updateOrCreate(
             ['tenant_id' => auth()->user()->tenant_id, 'session_id' => $validated['session_id']],
             [
-                'school_start'    => $validated['school_start'],
-                'school_end'      => $validated['school_end'],
-                'day_end_times'   => $dayEndTimes,
+                'school_start'      => $validated['school_start'],
+                'day_start_times'   => $dayStartTimes,
+                'school_end'        => $validated['school_end'],
+                'day_end_times'     => $dayEndTimes,
                 'periods_per_day' => $validated['periods_per_day'],
                 'period_duration' => $validated['period_duration'],
                 'breaks'          => $validated['breaks'] ?? [],
@@ -114,7 +136,7 @@ class TimetableController extends Controller
         );
 
         return redirect()->route('timetable.configure', ['session_id' => $validated['session_id']])
-            ->with('success', 'School timetable configuration saved, including weekday closing times.');
+            ->with('success', 'School timetable configuration saved, including weekday start and closing times.');
     }
 
     // ---------------------------------------------------------------
@@ -340,7 +362,7 @@ class TimetableController extends Controller
             ->first();
 
         if ($config) {
-            $schoolStart = substr((string) $config->school_start, 0, 5);
+            $schoolStart = $config->startingTimeFor($validated['day_of_week']);
             $closingTime = $config->closingTimeFor($validated['day_of_week']);
             if ($validated['start_time'] < $schoolStart || $validated['end_time'] > $closingTime) {
                 return back()->withInput()->withErrors([
