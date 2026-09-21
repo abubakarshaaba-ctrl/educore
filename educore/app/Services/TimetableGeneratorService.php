@@ -48,8 +48,8 @@ class TimetableGeneratorService
             ];
         }
 
-        // 2. Compute each weekday independently because schools may close at
-        // different times on different days (for example, an early Friday).
+        // 2. Compute each weekday independently because both start and
+        // closing times may differ from one school day to another.
         $weekGrid = [];
         $totalSlots = 0;
         foreach (self::DAYS as $day) {
@@ -89,7 +89,7 @@ class TimetableGeneratorService
             return [
                 'created'   => 0,
                 'skipped'   => 0,
-                'conflicts' => ["Total periods needed ({$totalNeeded}) exceeds available weekly slots ({$totalSlots}) after applying the configured weekday closing times. Reduce subject frequencies or extend school hours."],
+                'conflicts' => ["Total periods needed ({$totalNeeded}) exceeds available weekly slots ({$totalSlots}) after applying the configured weekday school hours. Reduce subject frequencies or extend school hours."],
             ];
         }
 
