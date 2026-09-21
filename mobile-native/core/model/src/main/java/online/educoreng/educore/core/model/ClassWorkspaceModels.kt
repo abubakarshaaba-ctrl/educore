@@ -124,6 +124,14 @@ data class StaffAttendanceRecord(
     val method: String?,
 )
 
+data class StaffAttendanceWorkingDay(
+    val dayOfWeek: String,
+    val isWorking: Boolean,
+    val resumptionTime: String?,
+    val closingTime: String?,
+    val graceMinutes: Int,
+)
+
 data class ProxyAttendanceColleague(
     val id: Long,
     val name: String,
@@ -138,5 +146,7 @@ data class StaffAttendanceSnapshot(
     val today: StaffAttendanceToday?,
     val geoEnabled: Boolean,
     val geoRadiusMeters: Int,
+    val todaySchedule: StaffAttendanceWorkingDay? = null,
+    val workingDays: List<StaffAttendanceWorkingDay> = emptyList(),
     val records: List<StaffAttendanceRecord>,
 )
