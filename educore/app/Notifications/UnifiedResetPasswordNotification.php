@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\Tenant;
+use App\Services\Notifications\MailBranding;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -10,8 +12,10 @@ class UnifiedResetPasswordNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public readonly string $token)
-    {
+    public function __construct(
+        public readonly string $token,
+        public readonly ?Tenant $tenant = null,
+    ) {
     }
 
     public function via(object $notifiable): array
@@ -25,13 +29,21 @@ class UnifiedResetPasswordNotification extends Notification
         $url = route('password.reset', ['token' => $this->token, 'email' => $email]);
         $expires = (int) config('auth.passwords.users.expire', 60);
 
-        return (new MailMessage)
-            ->subject('Reset your EduCore password')
+        $mail = (new MailMessage)
+            ->subject($this->tenant
+                ? 'Reset your '.$this->tenant->name.' password'
+                : 'Reset your EduCore password')
             ->greeting('Reset your password')
-            ->line('We received a request to reset the password for your EduCore account.')
-            ->line('Use the secure button below to choose a new password. For your protection, this link expires in ' . $expires . ' minutes.')
+            ->line($this->tenant
+                ? 'A password reset was requested for your '.$this->tenant->name.' account.'
+                : 'A password reset was requested for your EduCore account.')
+            ->line('Use the secure button below to choose a new password.')
             ->action('Reset Password', $url)
-            ->line('If you did not request this change, you can safely ignore this email. Your current password will remain unchanged.')
-            ->salutation('EduCore Security');
+            ->line('This secure link expires in '.$expires.' minutes.')
+            ->line('If you did not request this change, ignore this email. Your current password will remain unchanged.');
+
+        return $this->tenant
+            ? MailBranding::school($mail, (int) $this->tenant->id, $this->tenant->name, $this->tenant->email)
+            : MailBranding::platform($mail);
     }
 }
