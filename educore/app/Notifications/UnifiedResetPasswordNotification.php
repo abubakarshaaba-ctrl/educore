@@ -29,11 +29,10 @@ class UnifiedResetPasswordNotification extends Notification
         $mail = (new MailMessage)
             ->subject('Reset your EduCore password')
             ->greeting('Reset your password')
-            ->line('A password reset was requested for your EduCore account.')
-            ->line('Use the secure button below to choose a new password.')
+            ->line('We received a request to reset the password for your EduCore account.')
             ->action('Reset Password', $url)
-            ->line('This secure link expires in '.$expires.' minutes.')
-            ->line('If you did not request this change, ignore this email. Your current password will remain unchanged.');
+            ->line('For your security, this reset link expires in '.$expires.' minutes.')
+            ->line('If you did not request this change, ignore this email. Your current password remains unchanged.');
 
         return MailBranding::platform($mail);
     }

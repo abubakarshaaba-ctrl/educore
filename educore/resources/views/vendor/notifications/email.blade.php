@@ -1,12 +1,12 @@
 <x-mail::message :brand="$mailBrand ?? []">
 {{-- Greeting --}}
 @if (! empty($greeting))
-# {{ $greeting }}
+<h1>{{ $greeting }}</h1>
 @else
 @if ($level === 'error')
-# @lang('Whoops!')
+<h1>@lang('Whoops!')</h1>
 @else
-# @lang('Hello!')
+<h1>@lang('Hello!')</h1>
 @endif
 @endif
 
@@ -47,7 +47,7 @@
 @isset($actionText)
 <x-slot:subcopy>
 @lang(
-    "If you're having trouble clicking the \":actionText\" button, copy and paste the URL below\n".
+    "If you're having trouble clicking the ":actionText" button, copy and paste the URL below\n".
     'into your web browser:',
     [
         'actionText' => $actionText,

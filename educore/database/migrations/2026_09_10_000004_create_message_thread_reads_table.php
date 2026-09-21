@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('message_thread_reads')) {
+            return;
+        }
+
         Schema::create('message_thread_reads', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -15,8 +19,9 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
-            $table->unique(['thread_id', 'user_id']);
-            $table->index(['tenant_id', 'user_id']);
+
+            $table->unique(['thread_id', 'user_id'], 'uq_msg_thread_reads');
+            $table->index(['tenant_id', 'user_id'], 'idx_msg_reads_tenant_user');
         });
     }
 

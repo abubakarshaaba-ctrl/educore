@@ -81,8 +81,7 @@ class MessagingController extends Controller
             return $thread;
         });
 
-        app(PushNotificationService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
-        app(ActivityEmailService::class)->notifyMessageThread($thread, auth()->user(), $data['body']);
+        $this->dispatchMessageSideEffects($thread, auth()->user(), $data['body']);
         return redirect()->route('messages.thread',$thread)->with('success','Message sent.');
     }
 
@@ -157,8 +156,7 @@ class MessagingController extends Controller
             return $thread;
         });
 
-        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
-        app(ActivityEmailService::class)->notifyMessageThread($thread, $user, $data['body']);
+        $this->dispatchMessageSideEffects($thread, $user, $data['body']);
         return redirect()->route('messages.thread',$thread)->with('success',$audience ? 'Shared conversation started.' : 'Message sent.');
     }
 
@@ -194,9 +192,21 @@ class MessagingController extends Controller
             'tenant_id'=>$this->tenantId(), 'thread_id'=>$thread->id, 'sender_id'=>$user->id, 'body'=>trim($data['body']),
         ]);
         $thread->touch();
-        app(PushNotificationService::class)->notifyMessageThread($thread,$user,$data['body']);
-        app(ActivityEmailService::class)->notifyMessageThread($thread,$user,$data['body']);
+        $this->dispatchMessageSideEffects($thread, $user, $data['body']);
         return back()->with('success','Reply sent.');
+    }
+
+    private function dispatchMessageSideEffects(MessageThread $thread, User $sender, string $body): void
+    {
+        // A successfully persisted message must not be turned into a 500
+        // response because a secondary push/email transport is unavailable.
+        foreach ([PushNotificationService::class, ActivityEmailService::class] as $service) {
+            try {
+                app($service)->notifyMessageThread($thread, $sender, $body);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     public function close(MessageThread $thread)
