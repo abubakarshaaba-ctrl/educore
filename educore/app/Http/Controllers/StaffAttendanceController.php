@@ -7,6 +7,7 @@ use App\Models\StaffOfflineClockIn;
 use App\Models\StaffProxyRequest;
 use App\Models\User;
 use App\Services\ParallelCurriculumOperationsService;
+use App\Services\StaffAttendanceScheduleService;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -25,29 +26,94 @@ class StaffAttendanceController extends Controller
         return StaffAttendanceSetting::forTenant(auth()->user()->tenant_id);
     }
 
+    private function attendanceSchedule(): StaffAttendanceScheduleService
+    {
+        return app(StaffAttendanceScheduleService::class);
+    }
+
     // ── Admin: Settings ───────────────────────────────────────────────
     public function settings()
     {
         $settings = $this->attendanceSettings();
-        return view('staff-attendance.settings', compact('settings'));
+        $tenantId = (int) auth()->user()->tenant_id;
+        $workingDays = $this->attendanceSchedule()->workingDays(
+            $tenantId,
+            $settings
+        );
+        $hasPendingOffline = StaffOfflineClockIn::where('tenant_id', $tenantId)
+            ->where('status', 'pending')
+            ->exists();
+
+        return view('staff-attendance.settings', compact(
+            'settings',
+            'workingDays',
+            'hasPendingOffline'
+        ));
     }
 
     public function saveSettings(Request $request)
     {
         $data = $request->validate([
-            'resumption_time'   => ['required', 'date_format:H:i'],
-            'grace_minutes'     => ['required', 'integer', 'min:0', 'max:120'],
-            'closing_time'      => ['required', 'date_format:H:i'],
-            'geo_enabled'       => ['boolean'],
-            'geo_lat'           => ['nullable', 'numeric', 'between:-90,90'],
-            'geo_lng'           => ['nullable', 'numeric', 'between:-180,180'],
+            'days' => ['nullable', 'array', 'size:7'],
+            'days.*.is_working' => ['nullable', 'boolean'],
+            'days.*.resumption_time' => ['nullable', 'date_format:H:i'],
+            'days.*.closing_time' => ['nullable', 'date_format:H:i'],
+            'days.*.grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
+            // Legacy scalar fields remain accepted for older clients/forms.
+            'resumption_time' => ['nullable', 'date_format:H:i'],
+            'grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
+            'closing_time' => ['nullable', 'date_format:H:i'],
+            'geo_enabled' => ['boolean'],
+            'geo_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'geo_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'geo_radius_meters' => ['nullable', 'integer', 'min:10', 'max:2000'],
         ]);
-        $data['geo_enabled'] = $request->boolean('geo_enabled');
-        $data['resumption_time'] .= ':00';
-        $data['closing_time']    .= ':00';
-        $this->attendanceSettings()->update($data);
-        return back()->with('success', 'Attendance settings saved.');
+
+        $settings = $this->attendanceSettings();
+        $tenantId = (int) auth()->user()->tenant_id;
+
+        if ($request->has('days')) {
+            $days = [];
+            foreach (StaffAttendanceScheduleService::DAYS as $day) {
+                $row = $request->input("days.$day", []);
+                $days[$day] = [
+                    'is_working' => (bool) ($row['is_working'] ?? false),
+                    'resumption_time' => $row['resumption_time'] ?? null,
+                    'closing_time' => $row['closing_time'] ?? null,
+                    'grace_minutes' => (int) ($row['grace_minutes'] ?? 0),
+                ];
+            }
+
+            $saved = $this->attendanceSchedule()->save($tenantId, $days);
+
+            // Keep the original scalar fields aligned with the first enabled
+            // day so older app versions continue to operate safely.
+            $fallback = $saved->first(fn ($day) => (bool) $day->is_working);
+            if ($fallback) {
+                $settings->update([
+                    'resumption_time' => substr((string) $fallback->resumption_time, 0, 8),
+                    'grace_minutes' => (int) $fallback->grace_minutes,
+                    'closing_time' => substr((string) $fallback->closing_time, 0, 8),
+                ]);
+            }
+        } elseif (
+            isset($data['resumption_time'], $data['grace_minutes'], $data['closing_time'])
+        ) {
+            $settings->update([
+                'resumption_time' => $data['resumption_time'].':00',
+                'grace_minutes' => (int) $data['grace_minutes'],
+                'closing_time' => $data['closing_time'].':00',
+            ]);
+        }
+
+        $settings->update([
+            'geo_enabled' => $request->boolean('geo_enabled'),
+            'geo_lat' => $data['geo_lat'] ?? null,
+            'geo_lng' => $data['geo_lng'] ?? null,
+            'geo_radius_meters' => $data['geo_radius_meters'] ?? $settings->geo_radius_meters,
+        ]);
+
+        return back()->with('success', 'Conventional curriculum work hours and attendance settings saved.');
     }
 
     // ── Admin: Dashboard / overview ───────────────────────────────────
@@ -56,8 +122,11 @@ class StaffAttendanceController extends Controller
         $today    = today()->toDateString();
         $settings = $this->attendanceSettings();
         $tid      = auth()->user()->tenant_id;
+        $todaySchedule = $this->attendanceSchedule()->forDate($tid, $today, $settings);
 
-        $staffTotal = User::attendanceEligibleOn($tid, $today)->count();
+        $staffTotal = $todaySchedule->is_working
+            ? User::attendanceEligibleOn($tid, $today)->count()
+            : 0;
 
         $todayRecords = StaffAttendanceRecord::with('staff')
             ->where('tenant_id', $tid)
@@ -67,7 +136,7 @@ class StaffAttendanceController extends Controller
             'early'   => $todayRecords->where('status','early')->count(),
             'present' => $todayRecords->where('status','present')->count(),
             'late'    => $todayRecords->where('status','late')->count(),
-            'absent'  => $staffTotal - $todayRecords->whereIn('status',['early','present','late'])->count(),
+            'absent'  => max(0, $staffTotal - $todayRecords->whereIn('status',['early','present','late'])->count()),
         ];
 
         $weekTrend = StaffAttendanceRecord::select(
@@ -85,7 +154,7 @@ class StaffAttendanceController extends Controller
         $allStaff = User::attendanceEligibleOn($tid, $today)->orderBy('name')->get();
 
         return view('staff-attendance.index', compact(
-            'settings','summary','todayRecords','staffTotal',
+            'settings','todaySchedule','summary','todayRecords','staffTotal',
             'weekTrend','pendingOffline','pendingProxy','today','allStaff'
         ));
     }
@@ -94,6 +163,11 @@ class StaffAttendanceController extends Controller
     public function qrDisplay()
     {
         $settings = $this->attendanceSettings();
+        $todaySchedule = $this->attendanceSchedule()->forDate(
+            (int) auth()->user()->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
 
         // Use the STATIC (permanent) school QR — never rotates.
         // The image can be printed, laminated, or put on a wall indefinitely.
@@ -101,7 +175,13 @@ class StaffAttendanceController extends Controller
         $url      = route('staff-attendance.my') . '?qr_token=' . urlencode($payload);
         $qrBase64 = $this->buildQrBase64($url);
 
-        return view('staff-attendance.qr-display', compact('settings', 'qrBase64', 'payload', 'url'));
+        return view('staff-attendance.qr-display', compact(
+            'settings',
+            'todaySchedule',
+            'qrBase64',
+            'payload',
+            'url'
+        ));
     }
 
     // ── Reset static QR (invalidates all printed copies) ─────────────
@@ -570,7 +650,17 @@ class StaffAttendanceController extends Controller
             ], 422);
         }
 
-        $rec->update(['clock_out_time' => $time]);
+        $closing = $rec->expected_closing_time
+            ? substr((string) $rec->expected_closing_time, 0, 8)
+            : null;
+        $departureStatus = $closing
+            ? ($time < $closing ? 'early' : 'on_time')
+            : null;
+
+        $rec->update([
+            'clock_out_time' => $time,
+            'departure_status' => $departureStatus,
+        ]);
 
         $parallelRecords = collect();
         try {
@@ -585,13 +675,11 @@ class StaffAttendanceController extends Controller
             ]);
         }
 
-        $settings = $this->attendanceSettings();
-
         return response()->json([
             'ok' => true,
             'message' => 'Clocked out at '.Carbon::parse($time)->format('g:i A').'.',
             'attendance_contexts' => $this->clockOutAttendanceContexts(
-                $settings,
+                $rec->fresh(),
                 $time,
                 $parallelRecords
             ),
@@ -716,15 +804,35 @@ class StaffAttendanceController extends Controller
             return back()->withErrors(['user_id' => 'Select a staff member employed on the attendance date.']);
         }
 
+        $settings = $this->attendanceSettings();
+        $schedule = $this->attendanceSchedule()->forDate(
+            (int) $tid,
+            $data['attendance_date'],
+            $settings
+        );
+        $clockOut = $data['clock_out_time'] ? $data['clock_out_time'].':00' : null;
+        $closing = $schedule->closing_time
+            ? substr((string) $schedule->closing_time, 0, 8)
+            : null;
+
         StaffAttendanceRecord::updateOrCreate(
             ['tenant_id' => $tid, 'user_id' => $data['user_id'], 'attendance_date' => $data['attendance_date']],
             [
-                'status'         => $data['status'],
-                'clock_in_time'  => $data['clock_in_time'] ? $data['clock_in_time'].':00' : null,
-                'clock_out_time' => $data['clock_out_time'] ? $data['clock_out_time'].':00' : null,
-                'clock_in_method'=> 'manual',
-                'clocked_in_by'  => auth()->id(),
-                'notes'          => $data['notes'],
+                'status' => $data['status'],
+                'clock_in_time' => $data['clock_in_time'] ? $data['clock_in_time'].':00' : null,
+                'clock_out_time' => $clockOut,
+                'expected_resumption_time' => $schedule->resumption_time
+                    ? substr((string) $schedule->resumption_time, 0, 8)
+                    : null,
+                'expected_closing_time' => $closing,
+                'grace_minutes' => (int) $schedule->grace_minutes,
+                'scheduled_workday' => (bool) $schedule->is_working,
+                'departure_status' => $clockOut && $closing
+                    ? ($clockOut < $closing ? 'early' : 'on_time')
+                    : null,
+                'clock_in_method' => 'manual',
+                'clocked_in_by' => auth()->id(),
+                'notes' => $data['notes'],
             ]
         );
         return back()->with('success', 'Attendance record updated.');
@@ -740,10 +848,12 @@ class StaffAttendanceController extends Controller
         $startDate = Carbon::createFromDate($year, $month, 1);
         $endDate   = (clone $startDate)->endOfMonth();
 
-        $workingDays = [];
-        for ($d = clone $startDate; $d->lte($endDate); $d->addDay()) {
-            if ($d->isWeekday()) $workingDays[] = $d->toDateString();
-        }
+        $workingDays = $this->attendanceSchedule()->workingDatesForMonth(
+            (int) $tid,
+            $startDate,
+            $endDate,
+            $settings
+        );
 
         $staff = User::tenantStaff($tid)->orderBy('name')->get();
 
@@ -757,9 +867,15 @@ class StaffAttendanceController extends Controller
             $detail = [];
             foreach ($workingDays as $day) {
                 $rec    = $recs->first(fn($r) => $r->attendance_date->toDateString() === $day);
-                $status = $rec ? $rec->status : 'absent';
+                $status = $rec && in_array($rec->status, ['early','present','late','absent'], true)
+                    ? $rec->status
+                    : 'absent';
                 $counts[$status]++;
-                $detail[$day] = ['status'=>$status,'clock_in'=>$rec?->clock_in_time,'clock_out'=>$rec?->clock_out_time];
+                $detail[$day] = [
+                    'status' => $status,
+                    'clock_in' => $rec?->clock_in_time,
+                    'clock_out' => $rec?->clock_out_time,
+                ];
             }
             $total = count($workingDays);
             return [
@@ -782,6 +898,11 @@ class StaffAttendanceController extends Controller
         $month     = $request->integer('month', now()->month);
         $year      = $request->integer('year',  now()->year);
         $settings  = $this->attendanceSettings();
+        $todaySchedule = $this->attendanceSchedule()->forDate(
+            (int) $user->tenant_id,
+            today()->toDateString(),
+            $settings
+        );
         $startDate = Carbon::createFromDate($year, $month, 1);
         $endDate   = (clone $startDate)->endOfMonth();
 
@@ -808,7 +929,7 @@ class StaffAttendanceController extends Controller
                 ->exists();
 
         return view('staff-attendance.my-attendance', compact(
-            'records','counts','month','year','settings',
+            'records','counts','month','year','settings','todaySchedule',
             'todayRecord','user','hasPIN','pendingProxies','hasPendingOffline'
         ));
     }
@@ -912,50 +1033,74 @@ class StaffAttendanceController extends Controller
         bool $offline = false, bool $proxyVerified = false,
         ?string $photo = null, ?string $proxyPhoto = null
     ): mixed {
-        $date   = $date ?? today()->toDateString();
-        $time   = $time ?? now()->format('H:i:s');
+        $date = $date ?? today()->toDateString();
+        $time = $time ?? now()->format('H:i:s');
 
         $target = User::attendanceEligibleOn($tenantId, $date)->whereKey($userId)->first();
-        if (!$target) {
+        if (! $target) {
             $msg = 'Only staff employed on the attendance date can be marked for new attendance.';
-            if (request()->expectsJson()) return response()->json(['ok' => false, 'message' => $msg], 422);
+            if (request()->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $msg], 422);
+            }
+
             return back()->withErrors(['error' => $msg]);
         }
 
-        $status = $settings->classifyClockIn($time);
+        $schedule = $this->attendanceSchedule()->forDate(
+            $tenantId,
+            $date,
+            $settings
+        );
+        $status = $this->attendanceSchedule()->classifyArrival(
+            $schedule,
+            $date,
+            $time
+        );
 
         $existing = StaffAttendanceRecord::where('user_id', $userId)
             ->where('tenant_id', $tenantId)
             ->whereDate('attendance_date', $date)
-            ->whereNotNull('clock_in_time')->first();
+            ->whereNotNull('clock_in_time')
+            ->first();
 
         if ($existing) {
-            $msg = "Already clocked in at " . Carbon::parse($existing->clock_in_time)->format('g:i A');
-            if (request()->expectsJson()) return response()->json(['ok' => false, 'message' => $msg], 422);
+            $msg = 'Already clocked in at '.Carbon::parse($existing->clock_in_time)->format('g:i A');
+            if (request()->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $msg], 422);
+            }
+
             return back()->withErrors(['error' => $msg]);
         }
 
-        StaffAttendanceRecord::updateOrCreate(
+        $conventionalRecord = StaffAttendanceRecord::updateOrCreate(
             ['tenant_id' => $tenantId, 'user_id' => $userId, 'attendance_date' => $date],
             [
-                'status'           => $status,
-                'clock_in_time'    => $time,
-                'clock_in_method'  => $method,
-                'clocked_in_by'    => $clockedBy,
-                'clock_in_lat'     => $lat,
-                'clock_in_lng'     => $lng,
-                'geo_verified'     => $geoVerified,
-                'proxy_verified'   => $proxyVerified,
-                'proxy_pin_used'   => $proxyVerified && $method === 'proxy',
-                'is_offline_upload'=> $offline,
-                'clock_in_photo'   => $this->storeAttendancePhoto($photo, $tenantId, 'self'),
-                'proxy_photo'      => $this->storeAttendancePhoto($proxyPhoto, $tenantId, 'proxy', true),
+                'status' => $status,
+                'clock_in_time' => $time,
+                'expected_resumption_time' => $schedule->resumption_time
+                    ? substr((string) $schedule->resumption_time, 0, 8)
+                    : null,
+                'expected_closing_time' => $schedule->closing_time
+                    ? substr((string) $schedule->closing_time, 0, 8)
+                    : null,
+                'grace_minutes' => (int) $schedule->grace_minutes,
+                'scheduled_workday' => (bool) $schedule->is_working,
+                'clock_in_method' => $method,
+                'clocked_in_by' => $clockedBy,
+                'clock_in_lat' => $lat,
+                'clock_in_lng' => $lng,
+                'geo_verified' => $geoVerified,
+                'proxy_verified' => $proxyVerified,
+                'proxy_pin_used' => $proxyVerified && $method === 'proxy',
+                'is_offline_upload' => $offline,
+                'clock_in_photo' => $this->storeAttendancePhoto($photo, $tenantId, 'self'),
+                'proxy_photo' => $this->storeAttendancePhoto($proxyPhoto, $tenantId, 'proxy', true),
             ]
         );
 
-        // One physical QR event is the source of truth. Re-use the exact same
-        // timestamp for every applicable parallel curriculum and let each
-        // programme evaluate punctuality against its own daily schedule.
+        // One physical QR event remains the source of truth. The same timestamp
+        // is evaluated independently against the conventional day's work hours
+        // and every assigned parallel curriculum's own daily schedule.
         $parallelRecords = collect();
         try {
             $parallelRecords = app(ParallelCurriculumOperationsService::class)
@@ -967,8 +1112,6 @@ class StaffAttendanceController extends Controller
                     $clockedBy
                 );
         } catch (\Throwable $e) {
-            // A parallel-curriculum configuration problem must never discard a
-            // valid main staff attendance scan.
             Log::warning('Parallel staff attendance clock-in reconciliation failed', [
                 'tenant_id' => $tenantId,
                 'user_id' => $userId,
@@ -977,12 +1120,17 @@ class StaffAttendanceController extends Controller
             ]);
         }
 
-        $label   = match($status) { 'early'=>'Early arrival','present'=>'Present','late'=>'Late', default=>'Marked' };
+        $label = match ($status) {
+            'early' => 'Early arrival',
+            'present' => 'Present',
+            'late' => 'Late',
+            'not_scheduled' => 'No conventional work schedule',
+            default => 'Marked',
+        };
         $timeStr = Carbon::parse($time)->format('g:i A');
         $contexts = $this->clockInAttendanceContexts(
-            $settings,
+            $conventionalRecord,
             $time,
-            $status,
             $parallelRecords
         );
 
@@ -994,6 +1142,9 @@ class StaffAttendanceController extends Controller
             ->implode('; ');
 
         $message = "{$label} — clocked in at {$timeStr}.";
+        if ($status === 'not_scheduled') {
+            $message .= ' The scan is retained as the shared physical attendance event and does not count as a conventional working day.';
+        }
         if ($parallelSummary !== '') {
             $message .= " Parallel attendance — {$parallelSummary}.";
         }
@@ -1016,23 +1167,27 @@ class StaffAttendanceController extends Controller
      * means the scan occurred after the scheduled resumption.
      */
     private function clockInAttendanceContexts(
-        StaffAttendanceSetting $settings,
+        StaffAttendanceRecord $conventionalRecord,
         string $time,
-        string $status,
         Collection $parallelRecords
     ): array {
+        $expectedResumption = $conventionalRecord->expected_resumption_time
+            ? substr((string) $conventionalRecord->expected_resumption_time, 0, 8)
+            : null;
+
         $contexts = [[
             'type' => 'conventional',
             'name' => 'Conventional curriculum',
-            'status' => $status,
+            'is_working_day' => (bool) $conventionalRecord->scheduled_workday,
+            'status' => $conventionalRecord->status,
             'clock_in_time' => substr($time, 0, 5),
-            'expected_resumption_time' =>
-                substr((string) $settings->resumption_time, 0, 5),
-            'grace_minutes' => (int) $settings->grace_minutes,
-            'minutes_from_resumption' => $this->minutesFromExpected(
-                $time,
-                (string) $settings->resumption_time
-            ),
+            'expected_resumption_time' => $expectedResumption
+                ? substr($expectedResumption, 0, 5)
+                : null,
+            'grace_minutes' => (int) ($conventionalRecord->grace_minutes ?? 0),
+            'minutes_from_resumption' => $expectedResumption
+                ? $this->minutesFromExpected($time, $expectedResumption)
+                : null,
         ]];
 
         foreach ($parallelRecords as $record) {
@@ -1040,6 +1195,7 @@ class StaffAttendanceController extends Controller
                 'type' => 'parallel',
                 'curriculum_id' => (int) $record->parallel_curriculum_id,
                 'name' => $record->curriculum?->name ?? 'Parallel curriculum',
+                'is_working_day' => true,
                 'status' => $record->status,
                 'clock_in_time' => $record->clock_in_time
                     ? substr((string) $record->clock_in_time, 0, 5)
@@ -1062,24 +1218,23 @@ class StaffAttendanceController extends Controller
     }
 
     private function clockOutAttendanceContexts(
-        StaffAttendanceSetting $settings,
+        StaffAttendanceRecord $conventionalRecord,
         string $time,
         Collection $parallelRecords
     ): array {
-        $conventionalClosing = substr(
-            (string) $settings->closing_time,
-            0,
-            8
-        );
+        $conventionalClosing = $conventionalRecord->expected_closing_time
+            ? substr((string) $conventionalRecord->expected_closing_time, 0, 8)
+            : null;
 
         $contexts = [[
             'type' => 'conventional',
             'name' => 'Conventional curriculum',
+            'is_working_day' => (bool) $conventionalRecord->scheduled_workday,
             'clock_out_time' => substr($time, 0, 5),
-            'expected_closing_time' => substr($conventionalClosing, 0, 5),
-            'departure_status' => $time < $conventionalClosing
-                ? 'early'
-                : 'on_time',
+            'expected_closing_time' => $conventionalClosing
+                ? substr($conventionalClosing, 0, 5)
+                : null,
+            'departure_status' => $conventionalRecord->departure_status,
         ]];
 
         foreach ($parallelRecords as $record) {
@@ -1087,6 +1242,7 @@ class StaffAttendanceController extends Controller
                 'type' => 'parallel',
                 'curriculum_id' => (int) $record->parallel_curriculum_id,
                 'name' => $record->curriculum?->name ?? 'Parallel curriculum',
+                'is_working_day' => true,
                 'clock_out_time' => $record->clock_out_time
                     ? substr((string) $record->clock_out_time, 0, 5)
                     : null,

@@ -21,7 +21,7 @@ tbody td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#F8FAFC}
 .badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
-.b-early{background:#E0F2FE;color:#0284C7}.b-present{background:#ECFDF5;color:var(--emerald)}.b-late{background:#FFFBEB;color:var(--amber)}.b-absent{background:#FEF2F2;color:var(--crimson)}
+.b-early{background:#E0F2FE;color:#0284C7}.b-present{background:#ECFDF5;color:var(--emerald)}.b-late{background:#FFFBEB;color:var(--amber)}.b-absent{background:#FEF2F2;color:var(--crimson)}.b-not_scheduled{background:#F1F5F9;color:#64748B}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 14px;font-size:12.5px;font-weight:600;font-family:inherit;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:all 150ms;min-width:0}
 .btn-p{background:var(--indigo);color:white}.btn-g{background:#F1F5F9;color:var(--midnight);border:1px solid var(--border)}.btn-sm{padding:4px 10px;font-size:11px}
 .alert-s{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--emerald);margin-bottom:14px}
@@ -104,9 +104,13 @@ tbody tr:hover td{background:#F8FAFC}
     <div>
         <div style="font-size:15px;font-weight:700;color:var(--midnight)">Today — {{ \Carbon\Carbon::parse($today)->format('l, d F Y') }}</div>
         <div style="font-size:12px;color:var(--slate-light);margin-top:2px">
-            Resumption: <strong>{{ substr($settings->resumption_time,0,5) }}</strong> ·
-            Grace: <strong>{{ $settings->grace_minutes }}min</strong> ·
-            Closing: <strong>{{ substr($settings->closing_time,0,5) }}</strong>
+            @if($todaySchedule->is_working)
+                Conventional work hours:
+                <strong>{{ substr((string) $todaySchedule->resumption_time,0,5) }}–{{ substr((string) $todaySchedule->closing_time,0,5) }}</strong>
+                · Grace: <strong>{{ (int) $todaySchedule->grace_minutes }}min</strong>
+            @else
+                <strong>Conventional curriculum: not a scheduled working day</strong>
+            @endif
             @if($settings->geo_enabled) · 📍 Geo-fence active @endif
         </div>
     </div>
@@ -137,7 +141,7 @@ tbody tr:hover td{background:#F8FAFC}
     <div>
         <div class="card">
             <div class="ch">
-                Today's Clock-ins ({{ $todayRecords->count() }}/{{ $staffTotal }})
+                Today's Physical Clock-ins ({{ $todayRecords->count() }}{{ $todaySchedule->is_working ? '/'.$staffTotal : '' }})
                 <a href="{{ route('staff-attendance.report') }}" class="btn btn-g btn-sm">View Monthly →</a>
             </div>
             <div class="tbl"><table>

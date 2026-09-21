@@ -7,6 +7,7 @@ use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
 use App\Models\StaffOfflineClockIn;
 use App\Models\User;
+use App\Services\StaffAttendanceScheduleService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,12 @@ class AdminStaffAttendanceController extends Controller
         $user = $this->guard($request);
         $date = $request->date('date')?->toDateString() ?? today()->toDateString();
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $scheduleService = app(StaffAttendanceScheduleService::class);
+        $daySchedule = $scheduleService->forDate(
+            (int) $user->tenant_id,
+            $date,
+            $settings
+        );
 
         $allRecords = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
             ->whereDate('attendance_date', $date)
@@ -38,7 +45,9 @@ class AdminStaffAttendanceController extends Controller
             ->orderBy('clock_in_time')
             ->get();
 
-        $eligible = User::attendanceEligibleOn($user->tenant_id, $date)->count();
+        $eligible = $daySchedule->is_working
+            ? User::attendanceEligibleOn($user->tenant_id, $date)->count()
+            : 0;
         $clockedIn = $allRecords->whereNotNull('clock_in_time')->count();
         $onTime = $allRecords->whereIn('status', ['early', 'present'])->count();
         $attended = $allRecords->whereIn('status', ['early', 'present', 'late'])->count();
@@ -73,6 +82,11 @@ class AdminStaffAttendanceController extends Controller
                 'proxy_review_status' => $record->proxy_review_status,
             ])->values(),
             'settings' => $this->settingsPayload($settings),
+            'day_schedule' => $this->workingDayPayload($daySchedule),
+            'working_days' => $scheduleService->workingDays(
+                (int) $user->tenant_id,
+                $settings
+            )->map(fn ($day): array => $this->workingDayPayload($day))->values(),
         ]);
     }
 
@@ -84,30 +98,43 @@ class AdminStaffAttendanceController extends Controller
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = (clone $start)->endOfMonth();
 
-        $workingDays = collect();
-        for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
-            if (!$day->isWeekend()) $workingDays->push($day->toDateString());
-        }
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $workingDays = collect(
+            app(StaffAttendanceScheduleService::class)->workingDatesForMonth(
+                (int) $user->tenant_id,
+                $start,
+                $end,
+                $settings
+            )
+        );
 
         $attendanceRecords = StaffAttendanceRecord::where('tenant_id', $user->tenant_id)
             ->whereBetween('attendance_date', [$start, $end])
             ->get();
         $records = $attendanceRecords->groupBy('user_id');
 
-        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records): array {
+        $staff = User::tenantStaff($user->tenant_id)->orderBy('name')->get()->map(function (User $member) use ($records, $workingDays): array {
             $rows = $records->get($member->id, collect());
-            $onTime = $rows->whereIn('status', ['early', 'present'])->count();
-            $attended = $rows->whereIn('status', ['early', 'present', 'late'])->count();
+            $scheduledRows = $rows->filter(
+                fn (StaffAttendanceRecord $row) =>
+                    $workingDays->contains($row->attendance_date?->format('Y-m-d'))
+                    && in_array($row->status, ['early', 'present', 'late', 'absent'], true)
+            );
+            $onTime = $scheduledRows->whereIn('status', ['early', 'present'])->count();
+            $attended = $scheduledRows->whereIn('status', ['early', 'present', 'late'])->count();
+            $absent = max(0, $workingDays->count() - $attended);
             return [
                 'id' => $member->id,
                 'name' => $member->name,
                 'staff_id' => $member->staff_id,
-                'early' => $rows->where('status', 'early')->count(),
-                'present' => $rows->where('status', 'present')->count(),
-                'late' => $rows->where('status', 'late')->count(),
-                'absent' => $rows->where('status', 'absent')->count(),
-                'days' => $rows->count(),
-                'punctuality' => $attended > 0 ? (int) round(($onTime / $attended) * 100) : 0,
+                'early' => $scheduledRows->where('status', 'early')->count(),
+                'present' => $scheduledRows->where('status', 'present')->count(),
+                'late' => $scheduledRows->where('status', 'late')->count(),
+                'absent' => $absent,
+                'days' => $workingDays->count(),
+                'punctuality' => $workingDays->count() > 0
+                    ? (int) round(($onTime / $workingDays->count()) * 100)
+                    : 0,
                 'detail' => $rows->sortBy('attendance_date')->map(fn (StaffAttendanceRecord $row): array => [
                     'date' => $row->attendance_date?->format('Y-m-d'),
                     'status' => $row->status,
@@ -117,9 +144,14 @@ class AdminStaffAttendanceController extends Controller
             ];
         });
 
-        $onTime = $attendanceRecords->whereIn('status', ['early', 'present'])->count();
-        $attended = $attendanceRecords->whereIn('status', ['early', 'present', 'late'])->count();
-        $late = $attendanceRecords->where('status', 'late')->count();
+        $scheduledAttendanceRecords = $attendanceRecords->filter(
+            fn (StaffAttendanceRecord $row) =>
+                $workingDays->contains($row->attendance_date?->format('Y-m-d'))
+                && in_array($row->status, ['early', 'present', 'late', 'absent'], true)
+        );
+        $onTime = $scheduledAttendanceRecords->whereIn('status', ['early', 'present'])->count();
+        $attended = $scheduledAttendanceRecords->whereIn('status', ['early', 'present', 'late'])->count();
+        $late = $scheduledAttendanceRecords->where('status', 'late')->count();
 
         return response()->json([
             'month' => $month,
@@ -148,6 +180,17 @@ class AdminStaffAttendanceController extends Controller
         ]);
 
         $target = User::tenantStaff($user->tenant_id)->findOrFail((int) $data['user_id']);
+        $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
+        $schedule = app(StaffAttendanceScheduleService::class)->forDate(
+            (int) $user->tenant_id,
+            $data['attendance_date'],
+            $settings
+        );
+        $clockOut = isset($data['clock_out_time']) ? $data['clock_out_time'].':00' : null;
+        $closing = $schedule->closing_time
+            ? substr((string) $schedule->closing_time, 0, 8)
+            : null;
+
         $record = StaffAttendanceRecord::updateOrCreate(
             [
                 'tenant_id' => $user->tenant_id,
@@ -157,7 +200,16 @@ class AdminStaffAttendanceController extends Controller
             [
                 'status' => $data['status'],
                 'clock_in_time' => isset($data['clock_in_time']) ? $data['clock_in_time'].':00' : null,
-                'clock_out_time' => isset($data['clock_out_time']) ? $data['clock_out_time'].':00' : null,
+                'clock_out_time' => $clockOut,
+                'expected_resumption_time' => $schedule->resumption_time
+                    ? substr((string) $schedule->resumption_time, 0, 8)
+                    : null,
+                'expected_closing_time' => $closing,
+                'grace_minutes' => (int) $schedule->grace_minutes,
+                'scheduled_workday' => (bool) $schedule->is_working,
+                'departure_status' => $clockOut && $closing
+                    ? ($clockOut < $closing ? 'early' : 'on_time')
+                    : null,
                 'clock_in_method' => 'manual',
                 'clocked_in_by' => $user->id,
                 'geo_verified' => false,
@@ -220,7 +272,15 @@ class AdminStaffAttendanceController extends Controller
             $geoVerified = true;
         }
 
-        $attendance = DB::transaction(function () use ($offline, $user, $geoVerified): StaffAttendanceRecord {
+        $attendanceDate = $offline->attendance_date->toDateString();
+        $scheduleService = app(StaffAttendanceScheduleService::class);
+        $schedule = $scheduleService->forDate(
+            (int) $offline->tenant_id,
+            $attendanceDate,
+            $settings
+        );
+
+        $attendance = DB::transaction(function () use ($offline, $user, $geoVerified, $attendanceDate, $scheduleService, $schedule): StaffAttendanceRecord {
             $record = StaffAttendanceRecord::updateOrCreate(
                 [
                     'tenant_id' => $offline->tenant_id,
@@ -228,8 +288,20 @@ class AdminStaffAttendanceController extends Controller
                     'attendance_date' => $offline->attendance_date,
                 ],
                 [
-                    'status' => 'present',
+                    'status' => $scheduleService->classifyArrival(
+                        $schedule,
+                        $attendanceDate,
+                        (string) $offline->clock_in_time
+                    ),
                     'clock_in_time' => $offline->clock_in_time,
+                    'expected_resumption_time' => $schedule->resumption_time
+                        ? substr((string) $schedule->resumption_time, 0, 8)
+                        : null,
+                    'expected_closing_time' => $schedule->closing_time
+                        ? substr((string) $schedule->closing_time, 0, 8)
+                        : null,
+                    'grace_minutes' => (int) $schedule->grace_minutes,
+                    'scheduled_workday' => (bool) $schedule->is_working,
                     'clock_in_method' => 'offline_review',
                     'clocked_in_by' => $offline->clocked_by ?: $offline->user_id,
                     'clock_in_lat' => $offline->lat,
@@ -304,19 +376,79 @@ class AdminStaffAttendanceController extends Controller
     {
         $user = $this->guard($request);
         $data = $request->validate([
-            'resumption_time' => ['required', 'date_format:H:i'],
-            'grace_minutes' => ['required', 'integer', 'min:0', 'max:120'],
-            'closing_time' => ['required', 'date_format:H:i'],
+            // Legacy scalar fields remain accepted for older native clients.
+            'resumption_time' => ['nullable', 'date_format:H:i'],
+            'grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
+            'closing_time' => ['nullable', 'date_format:H:i'],
+            'working_days' => ['nullable', 'array', 'size:7'],
+            'working_days.*.day_of_week' => [
+                'required_with:working_days',
+                Rule::in(StaffAttendanceScheduleService::DAYS),
+                'distinct',
+            ],
+            'working_days.*.is_working' => ['required_with:working_days', 'boolean'],
+            'working_days.*.resumption_time' => ['nullable', 'date_format:H:i'],
+            'working_days.*.closing_time' => ['nullable', 'date_format:H:i'],
+            'working_days.*.grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
             'geo_enabled' => ['required', 'boolean'],
             'geo_lat' => ['nullable', 'numeric', 'between:-90,90'],
             'geo_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'geo_radius_meters' => ['nullable', 'integer', 'min:10', 'max:2000'],
         ]);
-        $data['resumption_time'] .= ':00';
-        $data['closing_time'] .= ':00';
+
         $settings = StaffAttendanceSetting::forTenant($user->tenant_id);
-        $settings->update($data);
-        return response()->json(['message' => 'Staff attendance settings updated.', 'settings' => $this->settingsPayload($settings->fresh())]);
+        $scheduleService = app(StaffAttendanceScheduleService::class);
+
+        if (! empty($data['working_days'])) {
+            $days = collect($data['working_days'])
+                ->keyBy('day_of_week')
+                ->map(fn (array $row): array => [
+                    'is_working' => (bool) $row['is_working'],
+                    'resumption_time' => $row['resumption_time'] ?? null,
+                    'closing_time' => $row['closing_time'] ?? null,
+                    'grace_minutes' => (int) ($row['grace_minutes'] ?? 0),
+                ])
+                ->all();
+
+            $saved = $scheduleService->save((int) $user->tenant_id, $days);
+            $fallback = $saved->first(fn ($day) => (bool) $day->is_working);
+
+            if ($fallback) {
+                $settings->update([
+                    'resumption_time' => substr((string) $fallback->resumption_time, 0, 8),
+                    'grace_minutes' => (int) $fallback->grace_minutes,
+                    'closing_time' => substr((string) $fallback->closing_time, 0, 8),
+                ]);
+            }
+        } elseif (
+            isset($data['resumption_time'], $data['grace_minutes'], $data['closing_time'])
+        ) {
+            $settings->update([
+                'resumption_time' => $data['resumption_time'].':00',
+                'grace_minutes' => (int) $data['grace_minutes'],
+                'closing_time' => $data['closing_time'].':00',
+            ]);
+        }
+
+        $settings->update([
+            'geo_enabled' => (bool) $data['geo_enabled'],
+            'geo_lat' => $data['geo_lat'] ?? null,
+            'geo_lng' => $data['geo_lng'] ?? null,
+            'geo_radius_meters' => $data['geo_radius_meters'] ?? $settings->geo_radius_meters,
+        ]);
+
+        $workingDays = $scheduleService->workingDays(
+            (int) $user->tenant_id,
+            $settings->fresh()
+        );
+
+        return response()->json([
+            'message' => 'Conventional curriculum work hours and staff attendance settings updated.',
+            'settings' => $this->settingsPayload($settings->fresh()),
+            'working_days' => $workingDays
+                ->map(fn ($day): array => $this->workingDayPayload($day))
+                ->values(),
+        ]);
     }
 
     private function guard(Request $request): User
@@ -344,4 +476,19 @@ class AdminStaffAttendanceController extends Controller
             'geo_radius_meters' => $settings->geo_radius_meters === null ? null : (int) $settings->geo_radius_meters,
         ];
     }
+    private function workingDayPayload($day): array
+    {
+        return [
+            'day_of_week' => (string) $day->day_of_week,
+            'is_working' => (bool) $day->is_working,
+            'resumption_time' => $day->resumption_time
+                ? substr((string) $day->resumption_time, 0, 5)
+                : null,
+            'closing_time' => $day->closing_time
+                ? substr((string) $day->closing_time, 0, 5)
+                : null,
+            'grace_minutes' => (int) $day->grace_minutes,
+        ];
+    }
+
 }

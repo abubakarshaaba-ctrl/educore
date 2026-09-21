@@ -7,6 +7,7 @@ use App\Models\StaffAttendanceRecord;
 use App\Models\StaffAttendanceSetting;
 use App\Models\StaffOfflineClockIn;
 use App\Models\User;
+use App\Services\StaffAttendanceScheduleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,14 +114,43 @@ class AdminOfflineAttendanceController extends Controller
                 $manualReason = $issue ?: 'Legacy offline evidence required administrator review.';
             }
 
-            $attendance = DB::transaction(function () use ($offline, $user, $settings, $geoVerified, $manual, $manualReason): StaffAttendanceRecord {
+            $attendanceDate = $offline->attendance_date->toDateString();
+            $scheduleService = app(StaffAttendanceScheduleService::class);
+            $schedule = $scheduleService->forDate(
+                (int) $offline->tenant_id,
+                $attendanceDate,
+                $settings
+            );
+
+            $attendance = DB::transaction(function () use ($offline, $user, $settings, $scheduleService, $schedule, $attendanceDate, $geoVerified, $manual, $manualReason): StaffAttendanceRecord {
                 $attendanceModel = new StaffAttendanceRecord();
                 $attendanceTable = $attendanceModel->getTable();
 
                 $values = [
-                    'status' => $settings->classifyClockIn((string) $offline->clock_in_time),
+                    'status' => $scheduleService->classifyArrival(
+                        $schedule,
+                        $attendanceDate,
+                        (string) $offline->clock_in_time
+                    ),
                     'clock_in_time' => $offline->clock_in_time,
                 ];
+
+                if (Schema::hasColumn($attendanceTable, 'expected_resumption_time')) {
+                    $values['expected_resumption_time'] = $schedule->resumption_time
+                        ? substr((string) $schedule->resumption_time, 0, 8)
+                        : null;
+                }
+                if (Schema::hasColumn($attendanceTable, 'expected_closing_time')) {
+                    $values['expected_closing_time'] = $schedule->closing_time
+                        ? substr((string) $schedule->closing_time, 0, 8)
+                        : null;
+                }
+                if (Schema::hasColumn($attendanceTable, 'grace_minutes')) {
+                    $values['grace_minutes'] = (int) $schedule->grace_minutes;
+                }
+                if (Schema::hasColumn($attendanceTable, 'scheduled_workday')) {
+                    $values['scheduled_workday'] = (bool) $schedule->is_working;
+                }
 
                 if (Schema::hasColumn($attendanceTable, 'clock_in_method')) {
                     $values['clock_in_method'] = $manual ? 'offline_manual_review' : 'offline_review';
