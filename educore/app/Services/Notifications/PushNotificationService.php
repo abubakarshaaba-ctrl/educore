@@ -7,6 +7,7 @@ use App\Models\DeviceToken;
 use App\Models\ExamPeriod;
 use App\Models\MessageThread;
 use App\Models\User;
+use App\Support\EduCoreRichText;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -15,11 +16,14 @@ use Illuminate\Support\Str;
 /**
  * Sends push notifications through Firebase Cloud Messaging HTTP v1.
  *
- * User-targeted pushes carry both notification + data payloads. Android can
- * therefore render the alert reliably in the background/terminated state,
- * while the native FirebaseMessagingService still receives foreground data
- * and preserves EduCore deep links. App-update topic pushes remain data-only
- * because the native client applies version gating before showing them.
+ * EduCore Android pushes use a data-only, high-priority FCM contract.
+ *
+ * The native FirebaseMessagingService is the single notification renderer for
+ * foreground, background and terminated-process delivery. Keeping rendering
+ * in one place preserves deep links, channel selection, icon/branding and
+ * version gating consistently. Do not add a top-level FCM "notification"
+ * payload here; doing so lets Android bypass the native service in background
+ * delivery and recreates the notification regression fixed in September 2026.
  */
 class PushNotificationService
 {
@@ -63,53 +67,6 @@ class PushNotificationService
         });
 
         return $stats;
-    }
-
-    public function notifyPlatformBroadcast(int $broadcastId, string $title, string $body, string $target): void
-    {
-        $query = User::query()
-            ->whereNotNull('tenant_id')
-            ->where('is_active', true)
-            ->where('is_super_admin', false)
-            ->whereHas('tenant', function ($tenant) use ($target): void {
-                if ($target === 'all') {
-                    return;
-                }
-
-                if ($target === 'trial') {
-                    $tenant->where('status', 'trial');
-                    return;
-                }
-
-                if ($target === 'expired') {
-                    $tenant->where('status', '!=', 'trial')
-                        ->whereNotNull('subscription_expires_at')
-                        ->where('subscription_expires_at', '<', now());
-                    return;
-                }
-
-                $tenant->where('status', '!=', 'trial')
-                    ->where(function ($expiry): void {
-                        $expiry->whereNull('subscription_expires_at')
-                            ->orWhere('subscription_expires_at', '>=', now());
-                    });
-            });
-
-        $query->orderBy('id')->chunkById(100, function ($users) use ($broadcastId, $title, $body): void {
-            foreach ($users as $user) {
-                $this->sendToUser(
-                    $user,
-                    Str::limit(strip_tags($title), 100),
-                    Str::limit(EduCoreRichText::plainText($body), 180),
-                    [
-                        'type' => 'platform_broadcast',
-                        'broadcast_id' => (string) $broadcastId,
-                        'destination_type' => 'platform_broadcast',
-                        'destination_id' => (string) $broadcastId,
-                    ],
-                );
-            }
-        });
     }
 
     public function notifyMessageThread(MessageThread $thread, User $sender, string $body): void
@@ -221,7 +178,6 @@ class PushNotificationService
             $body,
             array_merge($data, ['title' => $title, 'body' => $body]),
             $deviceToken,
-            true,
         );
     }
 
@@ -238,7 +194,6 @@ class PushNotificationService
             $body,
             array_merge($data, ['title' => $title, 'body' => $body]),
             null,
-            false,
         );
     }
 
@@ -248,7 +203,6 @@ class PushNotificationService
         string $body,
         array $data = [],
         ?string $deviceToken = null,
-        bool $includeNotification = false,
     ): bool {
         try {
             $projectId = config('services.fcm.project_id');
@@ -266,16 +220,6 @@ class PushNotificationService
                     'priority' => 'high',
                 ],
             ]);
-
-            if ($includeNotification) {
-                $message['notification'] = ['title' => $title, 'body' => $body];
-                $message['android']['notification'] = [
-                    'channel_id' => 'educore_notifications',
-                    'sound' => 'default',
-                    'icon' => 'ic_educore_notification',
-                    'color' => '#E89A1C',
-                ];
-            }
 
             $response = Http::timeout(15)
                 ->retry(2, 250, throw: false)
