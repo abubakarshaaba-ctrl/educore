@@ -11,7 +11,7 @@ use Symfony\Component\Mime\Part\File;
 
 final class MailBranding
 {
-    private const PLATFORM_ICON_CID = 'educore-platform-icon';
+    private const PLATFORM_ICON_CID = 'educore-icon@educoreng.online';
 
     public static function platform(MailMessage $mail): MailMessage
     {
@@ -89,9 +89,9 @@ final class MailBranding
                 return;
             }
 
-            // Symfony's native embed helper creates the inline MIME part and
-            // matching Content-ID that Gmail/Outlook resolve with cid:...
-            $message->embedFromPath($path, self::PLATFORM_ICON_CID, 'image/png');
+            $part = new DataPart(new File($path), 'educore-icon-email.png', 'image/png');
+            $part->setContentId(self::PLATFORM_ICON_CID);
+            $message->addPart($part->asInline());
         });
     }
 
@@ -119,11 +119,10 @@ final class MailBranding
         ?string $replyToEmail = null,
     ): array {
         $tenant = $tenantId ? Tenant::query()->find($tenantId) : null;
-
         $name = trim((string) ($schoolName ?: $tenant?->name ?: 'Your School'));
         $email = trim((string) ($replyToEmail ?: $tenant?->email ?: ''));
 
-        $brand = [
+        return [[
             'context' => 'school',
             'name' => $name,
             'motto' => trim((string) ($tenant?->motto ?: '')),
@@ -132,33 +131,22 @@ final class MailBranding
             'phone' => trim((string) ($tenant?->phone ?: '')),
             'email' => $email,
             'home_url' => self::schoolHomeUrl($tenant),
-        ];
-
-        return [$brand, $name, $email];
+        ], $name, $email];
     }
 
     private static function schoolHomeUrl(?Tenant $tenant): string
     {
         $base = rtrim((string) config('app.url'), '/');
-
-        if (! $tenant?->slug) {
-            return $base;
-        }
-
-        return $base.'/school/'.$tenant->slug;
+        return $tenant?->slug ? $base.'/school/'.$tenant->slug : $base;
     }
 
     private static function schoolLogoUrl(?Tenant $tenant): ?string
     {
         $path = trim((string) ($tenant?->logo_path ?: ''));
-        if ($path === '') {
-            return null;
-        }
+        if ($path === '') return null;
 
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        if (! in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true)) {
-            return null;
-        }
+        if (! in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true)) return null;
 
         try {
             $url = Storage::disk('public')->url($path);
