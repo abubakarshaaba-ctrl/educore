@@ -31,6 +31,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import online.educoreng.educore.core.designsystem.layout.eduCoreScreenPadding
 import online.educoreng.educore.core.designsystem.theme.EduCoreSpacing
+import online.educoreng.educore.core.network.dto.AdminAttendanceWorkingDayRequestDto
 
 /** Compatibility alias retained for existing module-hub call sites. */
 internal fun AdminStaffAttendanceViewModel.load() = loadDaily()
@@ -78,16 +79,22 @@ internal fun AdminStaffAttendanceScreen(
             viewModel.loadDaily()
             return
         }
-        val resumptionTime = settings.resumptionTime
-        val closingTime = settings.closingTime
-        if (resumptionTime.isNullOrBlank() || closingTime.isNullOrBlank()) {
-            locationMessage = "Set valid resumption and closing times before capturing the school location."
+        val workingDays = liveState.snapshot?.workingDays.orEmpty().map { day ->
+            AdminAttendanceWorkingDayRequestDto(
+                dayOfWeek = day.dayOfWeek,
+                isWorking = day.isWorking,
+                resumptionTime = day.resumptionTime,
+                closingTime = day.closingTime,
+                graceMinutes = day.graceMinutes,
+            )
+        }
+        if (workingDays.isEmpty()) {
+            locationMessage = "Load conventional work hours before capturing the school location."
+            viewModel.loadDaily()
             return
         }
         viewModel.saveSettings(
-            resumption = resumptionTime,
-            grace = settings.graceMinutes,
-            closing = closingTime,
+            workingDays = workingDays,
             geoEnabled = true,
             lat = location.latitude,
             lng = location.longitude,
