@@ -114,6 +114,7 @@ class MobileCommunicationService
         return Announcement::query()
             ->where('is_published', true)
             ->whereIn('audience', $this->audiences($user))
+            ->when(! $user->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))
             ->whereDate('publish_date', '<=', today())
             ->where(fn ($query) => $query->whereNull('expire_date')->orWhereDate('expire_date', '>=', today()))
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'important' THEN 2 ELSE 3 END")
@@ -125,6 +126,7 @@ class MobileCommunicationService
     {
         return (int) $announcement->tenant_id === (int) $user->tenant_id
             && $announcement->is_published
+            && ($announcement->platform_broadcast_id === null || $user->isAdmin())
             && in_array($announcement->audience, $this->audiences($user), true)
             && $announcement->publish_date?->toDateString() <= today()->toDateString()
             && (! $announcement->expire_date || $announcement->expire_date->toDateString() >= today()->toDateString());
@@ -135,8 +137,7 @@ class MobileCommunicationService
         return match (true) {
             $user->isStudent() => ['all', 'students'],
             $user->isParent() => ['all', 'parents'],
-            $user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin'],
-            $user->canManage('announcements') => ['all', 'staff', 'admin'],
+            $user->isAdmin() || $user->canManage('announcements') => ['all', 'staff', 'admin'],
             default => ['all', 'staff'],
         };
     }
