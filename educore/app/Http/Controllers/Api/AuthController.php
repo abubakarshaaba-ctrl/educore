@@ -156,7 +156,7 @@ class AuthController extends Controller
         // endpoint cannot be used to enumerate accounts.
         if ($user && ! $user->isSuperAdmin()) {
             $token = Password::broker()->createToken($user);
-            $user->notify(new UnifiedResetPasswordNotification($token, $user->tenant));
+            $user->notify(new UnifiedResetPasswordNotification($token));
         }
 
         return response()->json(['message' => 'If that email is registered, a password reset link has been sent.']);
