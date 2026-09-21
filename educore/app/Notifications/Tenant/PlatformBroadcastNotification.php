@@ -3,6 +3,7 @@
 namespace App\Notifications\Tenant;
 
 use App\Services\Notifications\MailBranding;
+use App\Support\EduCoreRichText;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -69,12 +70,7 @@ class PlatformBroadcastNotification extends Notification
 
     private function plainBody(): string
     {
-        $body = preg_replace('/<br\s*\/?>/i', "\n", $this->body) ?? $this->body;
-        $body = strip_tags($body);
-        $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $body = preg_replace("/[\t ]+\n/u", "\n", $body) ?? $body;
-        $body = preg_replace("/\n{3,}/u", "\n\n", $body) ?? $body;
-
-        return trim($body);
+        return EduCoreRichText::plainText($this->body);
     }
 }
+
