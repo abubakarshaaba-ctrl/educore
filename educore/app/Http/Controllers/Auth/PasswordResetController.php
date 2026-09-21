@@ -39,7 +39,7 @@ class PasswordResetController extends Controller
 
         if ($user) {
             $token = Password::broker()->createToken($user);
-            $user->notify(new UnifiedResetPasswordNotification($token, $user->tenant));
+            $user->notify(new UnifiedResetPasswordNotification($token));
             $audit->recordForUser($user, 'auth.password_reset.requested', ['login_surface' => 'unified'], $request);
         }
 
