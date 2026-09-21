@@ -48,7 +48,7 @@
                         </select>
                     </div>
                     <div class="form-row">
-                        <div class="form-group"><label class="form-label">School Start</label><input type="time" name="school_start" class="form-control" value="{{ old('school_start', $selectedConfig ? substr((string)$selectedConfig->school_start,0,5) : '07:30') }}" required></div>
+                        <div class="form-group"><label class="form-label">Default School Start</label><input type="time" name="school_start" class="form-control" value="{{ old('school_start', $selectedConfig ? substr((string)$selectedConfig->school_start,0,5) : '07:30') }}" required></div>
                         <div class="form-group"><label class="form-label">Default School End</label><input type="time" name="school_end" class="form-control" value="{{ old('school_end', $selectedConfig ? substr((string)$selectedConfig->school_end,0,5) : '14:30') }}" required></div>
                     </div>
 
