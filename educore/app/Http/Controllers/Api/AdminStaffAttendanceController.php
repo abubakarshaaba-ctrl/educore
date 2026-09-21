@@ -375,10 +375,11 @@ class AdminStaffAttendanceController extends Controller
             'resumption_time' => ['nullable', 'date_format:H:i'],
             'grace_minutes' => ['nullable', 'integer', 'min:0', 'max:180'],
             'closing_time' => ['nullable', 'date_format:H:i'],
-            'working_days' => ['nullable', 'array'],
+            'working_days' => ['nullable', 'array', 'size:7'],
             'working_days.*.day_of_week' => [
                 'required_with:working_days',
                 Rule::in(StaffAttendanceScheduleService::DAYS),
+                'distinct',
             ],
             'working_days.*.is_working' => ['required_with:working_days', 'boolean'],
             'working_days.*.resumption_time' => ['nullable', 'date_format:H:i'],
