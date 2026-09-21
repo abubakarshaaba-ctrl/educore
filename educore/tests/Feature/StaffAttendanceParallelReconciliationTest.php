@@ -9,6 +9,7 @@ use App\Models\ParallelCurriculumClassSubject;
 use App\Models\ParallelCurriculumSubject;
 use App\Models\ParallelCurriculumWorkingDay;
 use App\Models\StaffAttendanceSetting;
+use App\Models\StaffAttendanceWorkingDay;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\ParallelCurriculumOperationsService;
@@ -281,6 +282,122 @@ class StaffAttendanceParallelReconciliationTest extends TestCase
                     'user_id' => $fixture['teacher']->id,
                     'attendance_date' => '2026-09-21',
                     'clock_in_time' => '07:30:00',
+                ]
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_conventional_work_hours_can_differ_by_day_without_hard_coded_times(): void
+    {
+        $fixture = $this->dualCurriculumTeacher();
+
+        StaffAttendanceSetting::forTenant($fixture['tenant']->id)->update([
+            'resumption_time' => '08:00:00',
+            'grace_minutes' => 15,
+            'closing_time' => '15:00:00',
+        ]);
+
+        StaffAttendanceWorkingDay::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'day_of_week' => 'monday',
+            'is_working' => true,
+            'resumption_time' => '07:15:00',
+            'closing_time' => '16:10:00',
+            'grace_minutes' => 5,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 07:21:00'));
+
+        try {
+            $this->withoutMiddleware()
+                ->actingAs($fixture['teacher'])
+                ->postJson(route('staff-attendance.api.clockin'), [
+                    'token' => $fixture['teacher']->personalQrPayload(),
+                ])
+                ->assertOk()
+                ->assertJsonPath('status', 'late')
+                ->assertJsonPath('attendance_contexts.0.type', 'conventional')
+                ->assertJsonPath('attendance_contexts.0.is_working_day', true)
+                ->assertJsonPath(
+                    'attendance_contexts.0.expected_resumption_time',
+                    '07:15'
+                )
+                ->assertJsonPath('attendance_contexts.0.grace_minutes', 5);
+
+            $this->assertDatabaseHas('staff_attendance_records', [
+                'tenant_id' => $fixture['tenant']->id,
+                'user_id' => $fixture['teacher']->id,
+                'attendance_date' => '2026-09-21',
+                'status' => 'late',
+                'expected_resumption_time' => '07:15:00',
+                'expected_closing_time' => '16:10:00',
+                'grace_minutes' => 5,
+                'scheduled_workday' => true,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_shared_scan_on_conventional_off_day_still_feeds_working_parallel_curriculum(): void
+    {
+        $fixture = $this->dualCurriculumTeacher();
+
+        StaffAttendanceWorkingDay::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'day_of_week' => 'monday',
+            'is_working' => false,
+            'resumption_time' => null,
+            'closing_time' => null,
+            'grace_minutes' => 0,
+        ]);
+
+        ParallelCurriculumWorkingDay::create([
+            'tenant_id' => $fixture['tenant']->id,
+            'parallel_curriculum_id' => $fixture['curriculum']->id,
+            'day_of_week' => 'monday',
+            'is_working' => true,
+            'resumption_time' => '08:00:00',
+            'closing_time' => '17:00:00',
+            'grace_minutes' => 10,
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:05:00'));
+
+        try {
+            $response = $this->withoutMiddleware()
+                ->actingAs($fixture['teacher'])
+                ->postJson(route('staff-attendance.api.clockin'), [
+                    'token' => $fixture['teacher']->personalQrPayload(),
+                ])
+                ->assertOk()
+                ->assertJsonPath('status', 'not_scheduled')
+                ->assertJsonPath('attendance_contexts.0.is_working_day', false)
+                ->assertJsonPath('attendance_contexts.0.expected_resumption_time', null)
+                ->assertJsonPath('attendance_contexts.1.type', 'parallel')
+                ->assertJsonPath('attendance_contexts.1.status', 'present');
+
+            $this->assertCount(2, $response->json('attendance_contexts'));
+
+            $this->assertDatabaseHas('staff_attendance_records', [
+                'tenant_id' => $fixture['tenant']->id,
+                'user_id' => $fixture['teacher']->id,
+                'attendance_date' => '2026-09-21',
+                'status' => 'not_scheduled',
+                'scheduled_workday' => false,
+            ]);
+
+            $this->assertDatabaseHas(
+                'parallel_curriculum_staff_attendance_records',
+                [
+                    'tenant_id' => $fixture['tenant']->id,
+                    'parallel_curriculum_id' => $fixture['curriculum']->id,
+                    'user_id' => $fixture['teacher']->id,
+                    'attendance_date' => '2026-09-21',
+                    'status' => 'present',
+                    'clock_in_time' => '08:05:00',
                 ]
             );
         } finally {
