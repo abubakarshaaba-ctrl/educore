@@ -10,17 +10,24 @@ class AnnouncementController extends Controller
 {
     public function index()
     {
+        $user = auth()->user();
+
         $announcements = Announcement::where('is_published', true)
             ->where(fn($q) => $q->whereNull('expire_date')->orWhere('expire_date','>=',today()))
+            ->when(! $user?->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))
             ->orderByDesc('priority')
             ->orderByDesc('publish_date')
             ->paginate(15);
+
         return view('announcements.index', compact('announcements'));
     }
 
     public function manage()
     {
-        $announcements = Announcement::latest()->paginate(20);
+        $announcements = Announcement::whereNull('platform_broadcast_id')
+            ->latest()
+            ->paginate(20);
+
         return view('announcements.manage', compact('announcements'));
     }
 
@@ -47,12 +54,16 @@ class AnnouncementController extends Controller
 
     public function destroy(Announcement $announcement)
     {
+        abort_if($announcement->platform_broadcast_id !== null, 403, 'Platform broadcasts are managed by EduCore.');
+
         $announcement->delete();
         return back()->with('success', 'Announcement deleted.');
     }
 
     public function toggle(Announcement $announcement)
     {
+        abort_if($announcement->platform_broadcast_id !== null, 403, 'Platform broadcasts are managed by EduCore.');
+
         $announcement->update(['is_published' => !$announcement->is_published]);
         if ($announcement->is_published) {
             app(PushNotificationService::class)->notifyAnnouncementPublished($announcement);
