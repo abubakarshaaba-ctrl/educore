@@ -43,12 +43,9 @@ class AppServiceProvider extends ServiceProvider
         // rather than relying on individual controller validation alone.
         User::observe(\App\Observers\UserEmailSecurityObserver::class);
 
-        if (! $this->app->runningInConsole()) {
-            $listener = app(\App\Services\Notifications\PlatformBroadcastPushListener::class);
-            \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $query) use ($listener): void {
-                $listener($query);
-            });
-        }
+        // Platform broadcasts now use the canonical PlatformBroadcastController
+        // delivery pipeline. Do not attach the legacy raw-query listener here:
+        // doing so would send a second FCM notification for the same broadcast.
 
         Route::middleware(['web', 'auth', 'active.account', 'tenant'])
             ->post('/students/{student}/guardians', [StudentGuardianController::class, 'update'])

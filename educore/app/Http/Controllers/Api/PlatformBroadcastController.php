@@ -109,12 +109,17 @@ class PlatformBroadcastController extends Controller
         }
 
         $push = app(PushNotificationService::class);
+        $pushStats = ['users' => 0, 'tokens' => 0, 'sent' => 0, 'failed' => 0];
         Announcement::query()
             ->where('platform_broadcast_id', $broadcastId)
             ->orderBy('id')
-            ->chunkById(100, function ($announcements) use ($push): void {
+            ->chunkById(100, function ($announcements) use ($push, &$pushStats): void {
                 foreach ($announcements as $announcement) {
-                    $push->notifyAnnouncementPublished($announcement);
+                    $result = $push->notifyAnnouncementPublished($announcement);
+                    $pushStats['users'] += $result['users'];
+                    $pushStats['tokens'] += $result['tokens'];
+                    $pushStats['sent'] += $result['sent'];
+                    $pushStats['failed'] += $result['failed'];
                 }
             });
 
@@ -127,10 +132,18 @@ class PlatformBroadcastController extends Controller
             expiresAt: $data['expires_at'] ?? null,
         );
 
+        $pushMessage = $pushStats['tokens'] === 0
+            ? 'No registered mobile device tokens were available for push delivery.'
+            : "Push accepted for {$pushStats['sent']} of {$pushStats['tokens']} registered device(s).";
+
         return response()->json([
-            'message' => "Broadcast published to {$tenantIds->count()} school(s); push, in-app and email notifications dispatched.",
+            'message' => "Broadcast published to {$tenantIds->count()} school(s). {$pushMessage}",
             'status' => 'published',
             'id' => $broadcastId,
+            'push_users_matched' => $pushStats['users'],
+            'push_device_tokens' => $pushStats['tokens'],
+            'push_notifications_sent' => $pushStats['sent'],
+            'push_notifications_failed' => $pushStats['failed'],
             'email_notifications_sent' => $emailStats['sent'],
             'email_notifications_failed' => $emailStats['failed'],
             'image_url' => $imagePath ? Storage::disk('public')->url($imagePath) : null,

@@ -15,14 +15,15 @@ use Illuminate\Support\Str;
 /**
  * Sends push notifications through Firebase Cloud Messaging HTTP v1.
  *
- * EduCore Android pushes are data-only and high priority so the native
- * FirebaseMessagingService always builds the notification. This guarantees
- * the correct notification channel, deep link and EduCore icon are used in
- * foreground and background instead of delegating background rendering to FCM.
+ * User-targeted pushes carry both notification + data payloads. Android can
+ * therefore render the alert reliably in the background/terminated state,
+ * while the native FirebaseMessagingService still receives foreground data
+ * and preserves EduCore deep links. App-update topic pushes remain data-only
+ * because the native client applies version gating before showing them.
  */
 class PushNotificationService
 {
-    public function notifyAnnouncementPublished(Announcement $announcement): void
+    public function notifyAnnouncementPublished(Announcement $announcement): array
     {
         $query = User::query()
             ->where('tenant_id', $announcement->tenant_id)
@@ -37,9 +38,12 @@ class PushNotificationService
             default => $query,
         };
 
-        $query->orderBy('id')->chunkById(100, function ($users) use ($announcement) {
+        $stats = ['users' => 0, 'tokens' => 0, 'sent' => 0, 'failed' => 0];
+
+        $query->orderBy('id')->chunkById(100, function ($users) use ($announcement, &$stats) {
             foreach ($users as $user) {
-                $this->sendToUser(
+                $stats['users']++;
+                $result = $this->sendToUser(
                     $user,
                     $announcement->priority === 'urgent'
                         ? 'Urgent school announcement'
@@ -52,8 +56,13 @@ class PushNotificationService
                         'destination_id' => (string) $announcement->id,
                     ],
                 );
+                $stats['tokens'] += $result['tokens'];
+                $stats['sent'] += $result['sent'];
+                $stats['failed'] += $result['failed'];
             }
         });
+
+        return $stats;
     }
 
     public function notifyPlatformBroadcast(int $broadcastId, string $title, string $body, string $target): void
@@ -185,11 +194,23 @@ class PushNotificationService
         }
     }
 
-    public function sendToUser(User $user, string $title, string $body, array $data = []): void
+    public function sendToUser(User $user, string $title, string $body, array $data = []): array
     {
-        DeviceToken::where('user_id', $user->id)
+        $tokens = DeviceToken::where('user_id', $user->id)
             ->pluck('token')
-            ->each(fn (string $token) => $this->send($token, $title, $body, $data));
+            ->filter(fn ($token) => is_string($token) && trim($token) !== '')
+            ->values();
+
+        $stats = ['tokens' => $tokens->count(), 'sent' => 0, 'failed' => 0];
+        foreach ($tokens as $token) {
+            if ($this->send($token, $title, $body, $data)) {
+                $stats['sent']++;
+            } else {
+                $stats['failed']++;
+            }
+        }
+
+        return $stats;
     }
 
     public function send(string $deviceToken, string $title, string $body, array $data = []): bool
@@ -200,7 +221,7 @@ class PushNotificationService
             $body,
             array_merge($data, ['title' => $title, 'body' => $body]),
             $deviceToken,
-            false,
+            true,
         );
     }
 
