@@ -6,25 +6,38 @@ use Tests\TestCase;
 
 class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
 {
-    public function test_platform_broadcast_publication_uses_internal_tenant_admin_audience(): void
+    public function test_platform_broadcast_keeps_existing_school_target_and_announcement_audience_contract(): void
     {
         $publisher = file_get_contents(app_path('Services/Notifications/PlatformBroadcastPublisher.php'));
+        $view = file_get_contents(resource_path('views/super/broadcasts.blade.php'));
 
-        $this->assertStringContainsString("'audience' => 'tenant_admin'", $publisher);
-        $this->assertStringNotContainsString("'audience' => 'all'", $publisher);
+        $this->assertStringContainsString("'platform_broadcast_id' => $broadcastId", $publisher);
+        $this->assertStringContainsString("'audience' => 'all'", $publisher);
+        $this->assertStringNotContainsString("'audience' => 'tenant_admin'", $publisher);
+
+        $this->assertStringContainsString('<label>Target Schools</label>', $view);
+        $this->assertStringContainsString('All Schools', $view);
+        $this->assertStringContainsString('Trial Schools Only', $view);
+        $this->assertStringContainsString('Active Subscriptions Only', $view);
+        $this->assertStringContainsString('Expired Schools Only', $view);
+        $this->assertStringContainsString('Tenant Administrators Only', $view);
     }
 
-    public function test_platform_push_targets_exact_tenant_admin_role_aliases(): void
+    public function test_platform_push_targets_tenant_admins_by_platform_broadcast_identity(): void
     {
         $push = file_get_contents(app_path('Services/Notifications/PushNotificationService.php'));
 
         $this->assertStringContainsString(
-            "'tenant_admin' => $query->whereIn('role', User::roleAliasesFor('admin'))",
+            'if ($announcement->platform_broadcast_id !== null)',
             $push,
         );
+        $this->assertStringContainsString(
+            "$query->whereIn('role', User::roleAliasesFor('admin'))",
+            $push,
+        );
+        $this->assertStringNotContainsString("'tenant_admin' =>", $push);
 
-        // Existing school-level "admin" announcement semantics may still
-        // include school leadership; platform broadcasts use tenant_admin.
+        // Existing school-level admin announcements keep their original logic.
         $this->assertStringContainsString(
             "'admin' => $query->whereIn('role', ['admin', 'principal', 'vice_principal'])",
             $push,
@@ -34,7 +47,7 @@ class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
         $this->assertStringNotContainsString("'notification' =>", $push);
     }
 
-    public function test_platform_broadcast_email_has_no_non_admin_fallback(): void
+    public function test_platform_broadcast_email_is_tenant_admin_only_without_contact_fallback(): void
     {
         $email = file_get_contents(app_path('Services/Notifications/PlatformBroadcastEmailService.php'));
 
@@ -45,47 +58,56 @@ class PlatformBroadcastTenantAdminOnlyContractTest extends TestCase
         $this->assertStringNotContainsString('vice_principal', $email);
     }
 
-    public function test_mobile_notification_feed_exposes_platform_broadcasts_only_to_tenant_admins(): void
+    public function test_mobile_platform_broadcast_visibility_is_admin_only_without_new_audience_value(): void
     {
         $mobile = file_get_contents(app_path('Services/Mobile/MobileCommunicationService.php'));
 
         $this->assertStringContainsString(
-            "\$user->isAdmin() => ['all', 'staff', 'admin', 'tenant_admin']",
+            "->when(! $user->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))",
             $mobile,
         );
         $this->assertStringContainsString(
-            "\$user->canManage('announcements') => ['all', 'staff', 'admin']",
+            '($announcement->platform_broadcast_id === null || $user->isAdmin())',
             $mobile,
         );
+        $this->assertStringNotContainsString("'tenant_admin'", $mobile);
     }
 
-    public function test_web_and_platform_notices_routes_hide_platform_broadcasts_from_non_admins(): void
+    public function test_non_admin_web_and_portal_surfaces_exclude_platform_broadcast_announcements(): void
     {
         $announcements = file_get_contents(app_path('Http/Controllers/AnnouncementController.php'));
+        $teacher = file_get_contents(app_path('Http/Controllers/Api/TeacherController.php'));
+        $parent = file_get_contents(app_path('Http/Controllers/Portal/ParentPortalController.php'));
+        $student = file_get_contents(app_path('Http/Controllers/Portal/StudentPortalController.php'));
         $support = file_get_contents(app_path('Http/Controllers/SupportController.php'));
         $navigation = file_get_contents(resource_path('views/layouts/partials/full-nav.blade.php'));
 
         $this->assertStringContainsString(
-            "->when(! \$user?->isAdmin(), fn (\$query) => \$query->whereNull('platform_broadcast_id'))",
+            "->when(! $user?->isAdmin(), fn ($query) => $query->whereNull('platform_broadcast_id'))",
             $announcements,
         );
         $this->assertStringContainsString("Announcement::whereNull('platform_broadcast_id')", $announcements);
+        $this->assertStringContainsString("->whereNull('platform_broadcast_id')", $teacher);
+        $this->assertStringContainsString("->whereNull('platform_broadcast_id')", $parent);
+        $this->assertStringContainsString("->whereNull('platform_broadcast_id')", $student);
+
         $this->assertStringContainsString('guardTenantAdmin()', $support);
         $this->assertStringContainsString(
             "abort_unless(auth()->user()?->isAdmin(), 403, 'Tenant administrator access required.')",
             $support,
         );
         $this->assertStringContainsString(
-            "@if(\$u->isAdmin() && \$u->canAccessModule('notices'))",
+            "@if($u->isAdmin() && $u->canAccessModule('notices'))",
             $navigation,
         );
     }
 
-    public function test_existing_platform_announcements_are_reclassified_on_deploy(): void
+    public function test_corrective_migration_restores_standard_audience_value_for_existing_platform_broadcasts(): void
     {
-        $migration = file_get_contents(database_path('migrations/2026_09_21_113500_restrict_platform_broadcasts_to_tenant_admins.php'));
+        $migration = file_get_contents(database_path('migrations/2026_09_21_125500_normalize_platform_broadcast_announcement_audience.php'));
 
         $this->assertStringContainsString("->whereNotNull('platform_broadcast_id')", $migration);
-        $this->assertStringContainsString("'audience' => 'tenant_admin'", $migration);
+        $this->assertStringContainsString("->where('audience', 'tenant_admin')", $migration);
+        $this->assertStringContainsString("'audience' => 'all'", $migration);
     }
 }
