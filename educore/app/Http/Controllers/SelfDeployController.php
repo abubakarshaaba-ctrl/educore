@@ -246,12 +246,6 @@ class SelfDeployController extends Controller
     }
 
     /**
-     * Extract a GitHub zipball one entry at a time. This avoids the shared-host
-     * ZipArchive::extractTo() failure where nested parent directories sometimes
-     * do not exist when a file entry is written. Entry paths are validated to
-     * prevent path traversal before anything is created.
-     */
-    /**
      * Download master as a real ZIP file and reject HTML/JSON/truncated bodies.
      *
      * The archive is written atomically so a failed request can never leave a
@@ -465,7 +459,8 @@ class SelfDeployController extends Controller
             }
 
             // Avoid rewriting byte-identical live files.
-            if (is_file($target)
+            if (is_int($writtenBytes)
+                && is_file($target)
                 && @filesize($target) === $writtenBytes
                 && @hash_file('sha256', $target) === @hash_file('sha256', $tmp)) {
                 @unlink($tmp);
