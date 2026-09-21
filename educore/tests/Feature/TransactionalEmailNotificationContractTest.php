@@ -10,7 +10,6 @@ class TransactionalEmailNotificationContractTest extends TestCase
     {
         $conventional = file_get_contents(app_path('Http/Controllers/ReportCardController.php'));
         $parallel = file_get_contents(app_path('Http/Controllers/Api/MobileParallelCurriculumResultController.php'));
-
         $this->assertStringContainsString('GuardianNotifier', $conventional);
         $this->assertStringContainsString("'Results published — '", $conventional);
         $this->assertStringContainsString('GuardianNotifier', $parallel);
@@ -21,7 +20,6 @@ class TransactionalEmailNotificationContractTest extends TestCase
     {
         $fees = file_get_contents(app_path('Services/SchoolFeePaymentService.php'));
         $admissions = file_get_contents(app_path('Http/Controllers/AdmissionController.php'));
-
         $this->assertStringContainsString('FeePaymentReceivedNotification', $fees);
         $this->assertStringContainsString('GuardianNotifier', $fees);
         $this->assertStringContainsString('AdmissionOfferNotification', $admissions);
@@ -32,7 +30,6 @@ class TransactionalEmailNotificationContractTest extends TestCase
     {
         $web = file_get_contents(app_path('Http/Controllers/PayrollController.php'));
         $mobile = file_get_contents(app_path('Http/Controllers/Api/MobilePayrollController.php'));
-
         $this->assertStringContainsString('PayrollNotificationService', $web);
         $this->assertStringContainsString('notifyPaid(', $web);
         $this->assertStringContainsString('PayrollNotificationService', $mobile);
@@ -45,7 +42,6 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $mobile = file_get_contents(app_path('Http/Controllers/Api/MobilePlatformBroadcastController.php'));
         $legacy = file_get_contents(app_path('Http/Controllers/SuperAdminController.php'));
         $service = file_get_contents(app_path('Services/Notifications/PlatformBroadcastEmailService.php'));
-
         $this->assertStringContainsString('PlatformBroadcastEmailService', $api);
         $this->assertStringContainsString('sendToTenantIds(', $api);
         $this->assertStringContainsString('PlatformBroadcastEmailService', $mobile);
@@ -54,6 +50,34 @@ class TransactionalEmailNotificationContractTest extends TestCase
         $this->assertStringContainsString('sendToTenantIds(', $legacy);
         $this->assertStringContainsString('PlatformBroadcastNotification', $service);
         $this->assertStringContainsString('/platform-notices', $service);
+    }
+
+    public function test_dual_brand_mail_contract_routes_platform_and_school_origin_correctly(): void
+    {
+        $platform = file_get_contents(app_path('Notifications/Tenant/PlatformBroadcastNotification.php'));
+        $subscription = file_get_contents(app_path('Notifications/Tenant/SubscriptionExpiringNotification.php'));
+        $guardian = file_get_contents(app_path('Notifications/GuardianMailNotification.php'));
+        $payroll = file_get_contents(app_path('Notifications/PayrollPaidNotification.php'));
+        $branding = file_get_contents(app_path('Services/Notifications/MailBranding.php'));
+        $header = file_get_contents(resource_path('views/vendor/mail/html/header.blade.php'));
+
+        $this->assertStringContainsString('MailBranding::platform(', $platform);
+        $this->assertStringContainsString('MailBranding::platform(', $subscription);
+        $this->assertStringContainsString('MailBranding::school(', $guardian);
+        $this->assertStringContainsString('MailBranding::school(', $payroll);
+        $this->assertStringContainsString("'context' => 'platform'", $branding);
+        $this->assertStringContainsString("'context' => 'school'", $branding);
+        $this->assertStringContainsString('header-school', $header);
+        $this->assertStringContainsString('header-platform', $header);
+    }
+
+    public function test_school_branding_uses_raster_logo_and_school_reply_to(): void
+    {
+        $branding = file_get_contents(app_path('Services/Notifications/MailBranding.php'));
+        $header = file_get_contents(resource_path('views/vendor/mail/html/header.blade.php'));
+        $this->assertStringContainsString("['png', 'jpg', 'jpeg', 'webp']", $branding);
+        $this->assertStringContainsString('replyTo($email, $name)', $branding);
+        $this->assertStringNotContainsString('educore-icon.svg', $header);
     }
 
     public function test_security_recruitment_and_tenant_lifecycle_mailers_remain_present(): void

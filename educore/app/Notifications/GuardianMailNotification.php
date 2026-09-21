@@ -2,17 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Services\Notifications\MailBranding;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-/**
- * Generic guardian/parent email — used for every parent-facing event
- * (payment received, admission received, enrollment, results published,
- * fee reminders) instead of a bespoke Notification class per event.
- * Routed ad hoc via Notification::route('mail', $guardian->email), since
- * Guardian is a plain contact record, not a Notifiable/authenticatable model.
- */
 class GuardianMailNotification extends Notification
 {
     use Queueable;
@@ -26,6 +20,7 @@ class GuardianMailNotification extends Notification
         public readonly ?string $actionUrl = null,
         public readonly ?string $schoolName = null,
         public readonly ?string $replyToEmail = null,
+        public readonly ?int $tenantId = null,
     ) {
     }
 
@@ -37,25 +32,8 @@ class GuardianMailNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->theme('educore')
             ->subject($this->subject)
-            ->greeting('Dear ' . $this->greetingName . ',');
-
-        if ($this->schoolName) {
-            $mail->from(config('mail.from.address'), $this->schoolName);
-            $mail->salutation("Regards,\n" . $this->schoolName);
-            // The markdown mail::message component hardcodes config('app.name')
-            // in its header/footer — share the school name so it shows there
-            // instead of "EduCore".
-            view()->share('mailBrandName', $this->schoolName);
-        }
-
-        // The sending address stays on our own authenticated domain (so
-        // SPF/DKIM keeps deliverability intact), but replies should land
-        // straight in the school's own inbox, not ours.
-        if ($this->replyToEmail) {
-            $mail->replyTo($this->replyToEmail, $this->schoolName);
-        }
+            ->greeting('Dear '.$this->greetingName.',');
 
         foreach ($this->lines as $line) {
             $mail->line($line);
@@ -65,6 +43,6 @@ class GuardianMailNotification extends Notification
             $mail->action($this->actionLabel, $this->actionUrl);
         }
 
-        return $mail;
+        return MailBranding::school($mail, $this->tenantId, $this->schoolName, $this->replyToEmail);
     }
 }

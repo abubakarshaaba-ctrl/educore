@@ -9,16 +9,6 @@ use App\Notifications\GuardianMailNotification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
-/**
- * Central place for every parent/guardian-facing notification (payment
- * received, admission received, enrollment, results published, fee
- * reminders). Sends email always (when an address exists) and optionally
- * SMS (when a phone number exists and a message is supplied), through the
- * same gateway wiring used elsewhere (NotificationController).
- *
- * Failures are logged, never thrown — a notification hiccup must never
- * break the underlying action (payment recorded, student enrolled, etc).
- */
 class GuardianNotifier
 {
     /** @param string[] $lines */
@@ -32,13 +22,10 @@ class GuardianNotifier
         ?string $schoolName = null,
         ?string $replyToEmail = null,
     ): void {
-        if (!$guardian) {
+        if (! $guardian) {
             return;
         }
 
-        // Emails to a parent should read as coming from their child's school,
-        // not a generic platform sender — resolve the tenant unless the
-        // caller already has the name handy (avoids an extra query in that case).
         if ($schoolName === null && $guardian->tenant_id) {
             $tenant = Tenant::find($guardian->tenant_id);
             $schoolName ??= $tenant?->name;
@@ -48,10 +35,19 @@ class GuardianNotifier
         if ($guardian->email) {
             try {
                 Notification::route('mail', $guardian->email)->notify(
-                    new GuardianMailNotification($subject, $guardian->full_name, $lines, $actionLabel, $actionUrl, $schoolName, $replyToEmail)
+                    new GuardianMailNotification(
+                        $subject,
+                        $guardian->full_name,
+                        $lines,
+                        $actionLabel,
+                        $actionUrl,
+                        $schoolName,
+                        $replyToEmail,
+                        $guardian->tenant_id ? (int) $guardian->tenant_id : null,
+                    )
                 );
             } catch (\Throwable $e) {
-                Log::error("Guardian email notification failed ({$guardian->id}): " . $e->getMessage());
+                Log::error("Guardian email notification failed ({$guardian->id}): ".$e->getMessage());
             }
         }
 
@@ -63,7 +59,7 @@ class GuardianNotifier
                     ? $notifier->sendSmsViaAfricasTalking($guardian->phone, $smsBody)
                     : $notifier->sendSmsViaTermii($guardian->phone, $smsBody, (string) $guardian->tenant_id);
             } catch (\Throwable $e) {
-                Log::error("Guardian SMS notification failed ({$guardian->id}): " . $e->getMessage());
+                Log::error("Guardian SMS notification failed ({$guardian->id}): ".$e->getMessage());
             }
         }
     }

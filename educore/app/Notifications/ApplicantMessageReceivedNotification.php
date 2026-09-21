@@ -1,48 +1,24 @@
 <?php
-
 namespace App\Notifications;
-
 use App\Models\JobApplicantMessage;
+use App\Services\Notifications\MailBranding;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-
-/** Sent to the applicant's own email when the school sends them a message. */
 class ApplicantMessageReceivedNotification extends Notification
 {
     use Queueable;
-
-    public function __construct(
-        public readonly JobApplicantMessage $message,
-        public readonly string $schoolName,
-        public readonly string $trackUrl,
-        public readonly ?string $replyToEmail = null,
-    ) {
-    }
-
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
-    }
-
+    public function __construct(public readonly JobApplicantMessage $message, public readonly string $schoolName, public readonly string $trackUrl, public readonly ?string $replyToEmail = null) {}
+    public function via(object $notifiable): array { return ['mail']; }
     public function toMail(object $notifiable): MailMessage
     {
-        view()->share('mailBrandName', $this->schoolName);
-
+        $applicant = $this->message->applicant;
         $mail = (new MailMessage)
-            ->theme('educore')
-            ->from(config('mail.from.address'), $this->schoolName)
-            ->salutation("Regards,\n" . $this->schoolName)
-            ->subject('New message from ' . $this->schoolName . ' about your application')
-            ->greeting('Hi ' . $this->message->applicant->name . ',')
-            ->line($this->schoolName . ' sent you a message regarding your application for ' . $this->message->applicant->jobPosting->title . ':')
-            ->line('"' . $this->message->body . '"')
+            ->subject('New message from '.$this->schoolName.' about your application')
+            ->greeting('Hi '.$applicant->name.',')
+            ->line($this->schoolName.' sent you a message regarding your application for '.$applicant->jobPosting->title.':')
+            ->line('"'.$this->message->body.'"')
             ->action('View & Reply', $this->trackUrl);
-
-        if ($this->replyToEmail) {
-            $mail->replyTo($this->replyToEmail, $this->schoolName);
-        }
-
-        return $mail;
+        return MailBranding::school($mail, $applicant->tenant_id ? (int) $applicant->tenant_id : null, $this->schoolName, $this->replyToEmail);
     }
 }
