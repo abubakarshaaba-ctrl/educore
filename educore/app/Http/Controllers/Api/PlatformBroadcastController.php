@@ -28,6 +28,7 @@ class PlatformBroadcastController extends Controller
                     ? Storage::disk('public')->url($broadcast->image_path)
                     : null,
                 'target' => $broadcast->target,
+                'recipient_scope' => $broadcast->recipient_scope ?? 'tenant_admin',
                 'creator' => $broadcast->creator_name,
                 'expires_at' => $broadcast->expires_at,
                 'created_at' => $broadcast->created_at,
@@ -57,6 +58,7 @@ class PlatformBroadcastController extends Controller
             'status' => 'published',
             'delivery_status' => 'processing_after_response',
             'id' => $publication['id'],
+            'recipient_scope' => $publication['recipient_scope'],
             // Keep the existing numeric response contract stable. Final
             // delivery totals are recorded in the application log after the
             // response has been sent.
