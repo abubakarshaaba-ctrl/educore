@@ -175,7 +175,11 @@
                     <td>{{ substr($slot['start'],0,5) }} – {{ substr($slot['end'],0,5) }}</td>
                     @foreach($days as $day)
                     @php
-                        $hasBreak = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
+                        $hasBreak = collect($daySlots[$day] ?? [])->contains(
+                            fn($daySlot) => $daySlot['is_break']
+                                && $daySlot['start'] === $slot['start']
+                                && $daySlot['end'] === $slot['end']
+                        );
                     @endphp
                     <td class="{{ $hasBreak ? '' : 'closed-break' }}">{{ $hasBreak ? '☕ '.$slot['label'] : 'Closed' }}</td>
                     @endforeach
@@ -188,8 +192,15 @@
                     </td>
                     @foreach($days as $day)
                     @php
-                        $slotAvailable = collect($daySlots[$day] ?? [])->contains(fn($daySlot) => ! $daySlot['is_break'] && $daySlot['start'] === $slot['start']);
-                        $match = $periods->get($day, collect())->first(fn($p) => $p->start_time === $slot['start']);
+                        $slotAvailable = collect($daySlots[$day] ?? [])->contains(
+                            fn($daySlot) => ! $daySlot['is_break']
+                                && $daySlot['start'] === $slot['start']
+                                && $daySlot['end'] === $slot['end']
+                        );
+                        $match = $periods->get($day, collect())->first(
+                            fn($p) => substr((string) $p->start_time, 0, 5) === substr((string) $slot['start'], 0, 5)
+                                && substr((string) $p->end_time, 0, 5) === substr((string) $slot['end'], 0, 5)
+                        );
                     @endphp
                     <td>
                         @if(!$slotAvailable)
