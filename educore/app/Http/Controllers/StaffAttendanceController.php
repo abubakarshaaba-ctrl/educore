@@ -35,12 +35,20 @@ class StaffAttendanceController extends Controller
     public function settings()
     {
         $settings = $this->attendanceSettings();
+        $tenantId = (int) auth()->user()->tenant_id;
         $workingDays = $this->attendanceSchedule()->workingDays(
-            (int) auth()->user()->tenant_id,
+            $tenantId,
             $settings
         );
+        $hasPendingOffline = StaffOfflineClockIn::where('tenant_id', $tenantId)
+            ->where('status', 'pending')
+            ->exists();
 
-        return view('staff-attendance.settings', compact('settings', 'workingDays'));
+        return view('staff-attendance.settings', compact(
+            'settings',
+            'workingDays',
+            'hasPendingOffline'
+        ));
     }
 
     public function saveSettings(Request $request)
