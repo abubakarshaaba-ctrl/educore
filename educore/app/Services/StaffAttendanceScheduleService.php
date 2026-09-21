@@ -60,6 +60,13 @@ class StaffAttendanceScheduleService
             $closing = $this->normaliseTime($row['closing_time'] ?? null);
             $grace = (int) ($row['grace_minutes'] ?? 0);
 
+            if ($grace < 0 || $grace > 180) {
+                throw ValidationException::withMessages([
+                    "days.$day.grace_minutes" =>
+                        ucfirst($day).' grace period must be between 0 and 180 minutes.',
+                ]);
+            }
+
             if ($isWorking && (! $resumption || ! $closing)) {
                 throw ValidationException::withMessages([
                     "days.$day.resumption_time" =>
