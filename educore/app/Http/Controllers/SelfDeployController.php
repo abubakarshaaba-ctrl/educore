@@ -85,29 +85,36 @@ class SelfDeployController extends Controller
             $headers['Authorization'] = 'Bearer ' . $ghToken;
         }
 
-        // API zipball endpoint honours the Authorization header for private repos.
-        $response = Http::withHeaders($headers)
-            ->timeout(180)
-            ->get('https://api.github.com/repos/' . self::REPO . '/zipball/master');
-
-        if (!$response->successful()) {
+        // Download through a validated temporary file. Shared hosting has
+        // occasionally returned a truncated/non-ZIP body while still reporting
+        // HTTP 200, which previously surfaced only as {"step":"unzip"}.
+        // Try GitHub's API zipball first, then the direct codeload endpoint.
+        $downloadResult = $this->downloadRepositoryArchive($headers, $zipPath);
+        if (! $downloadResult['ok']) {
             return response()->json([
-                'ok'    => false,
-                'step'  => 'download',
-                'status'=> $response->status(),
-                'hint'  => $response->status() === 404
-                    ? 'Repository download failed. Configure a server-side read-only GitHub token if the repository is private.'
-                    : 'GitHub download failed.',
+                'ok' => false,
+                'step' => 'download',
+                'status' => $downloadResult['status'] ?? null,
+                'hint' => $downloadResult['hint'],
+                'archive_bytes' => $downloadResult['bytes'] ?? null,
+                'free_bytes' => $downloadResult['free_bytes'] ?? null,
             ], 200);
         }
-
-        file_put_contents($zipPath, $response->body());
 
         // 2. Extract. Shared-host ZipArchive::extractTo() has intermittently
         // failed to create nested directories, so extract each entry manually.
         $zip = new \ZipArchive();
-        if ($zip->open($zipPath) !== true) {
-            return response()->json(['ok' => false, 'step' => 'unzip'], 500);
+        $zipOpen = $zip->open($zipPath);
+        if ($zipOpen !== true) {
+            @unlink($zipPath);
+            return response()->json([
+                'ok' => false,
+                'step' => 'unzip',
+                'zip_error_code' => is_int($zipOpen) ? $zipOpen : null,
+                'archive_bytes' => @filesize($zipPath) ?: ($downloadResult['bytes'] ?? null),
+                'free_bytes' => @disk_free_space($work) ?: null,
+                'hint' => 'Downloaded archive could not be opened as ZIP. The temporary archive was removed; retry deployment.',
+            ], 500);
         }
 
         $extractDir = $work . '/tree';
@@ -263,6 +270,112 @@ class SelfDeployController extends Controller
      * do not exist when a file entry is written. Entry paths are validated to
      * prevent path traversal before anything is created.
      */
+    /**
+     * Download master as a real ZIP file and reject HTML/JSON/truncated bodies.
+     *
+     * The archive is written atomically so a failed request can never leave a
+     * corrupt repo.zip behind for the extraction step.
+     */
+    private function downloadRepositoryArchive(array $headers, string $zipPath): array
+    {
+        $tmpPath = $zipPath . '.tmp-' . bin2hex(random_bytes(5));
+        @unlink($tmpPath);
+        @unlink($zipPath);
+
+        $sources = [
+            'https://api.github.com/repos/' . self::REPO . '/zipball/master',
+            'https://codeload.github.com/' . self::REPO . '/zip/refs/heads/master',
+        ];
+
+        $lastStatus = null;
+        $lastHint = 'Repository archive download failed.';
+        $lastBytes = 0;
+
+        foreach ($sources as $source) {
+            try {
+                $response = Http::withHeaders($headers)
+                    ->withOptions(['allow_redirects' => true])
+                    ->timeout(180)
+                    ->get($source);
+
+                $lastStatus = $response->status();
+                if (! $response->successful()) {
+                    $lastHint = 'GitHub archive request failed with HTTP ' . $response->status() . '.';
+                    continue;
+                }
+
+                $body = $response->body();
+                $bytes = strlen($body);
+                $lastBytes = $bytes;
+
+                // Every GitHub ZIP starts with a PK local-file header. Checking
+                // before writing catches rate-limit/error pages and truncated
+                // proxy responses that may otherwise look like HTTP success.
+                if ($bytes < 10240 || strncmp($body, "PK\x03\x04", 4) !== 0) {
+                    $lastHint = 'GitHub returned an invalid or truncated ZIP archive.';
+                    unset($body);
+                    continue;
+                }
+
+                $freeBytes = @disk_free_space(dirname($zipPath));
+                if (is_numeric($freeBytes) && $freeBytes > 0 && $freeBytes < ($bytes * 3)) {
+                    unset($body);
+                    return [
+                        'ok' => false,
+                        'status' => $lastStatus,
+                        'bytes' => $bytes,
+                        'free_bytes' => (int) $freeBytes,
+                        'hint' => 'Insufficient free disk space for the deployment archive and extraction workspace.',
+                    ];
+                }
+
+                $written = @file_put_contents($tmpPath, $body, LOCK_EX);
+                unset($body);
+
+                if ($written !== $bytes) {
+                    @unlink($tmpPath);
+                    $lastHint = 'Unable to write the complete GitHub archive to the deployment workspace.';
+                    continue;
+                }
+
+                clearstatcache(true, $tmpPath);
+                $diskBytes = @filesize($tmpPath);
+                if ($diskBytes !== $bytes) {
+                    @unlink($tmpPath);
+                    $lastHint = 'Deployment archive size changed while being written.';
+                    continue;
+                }
+
+                if (! @rename($tmpPath, $zipPath)) {
+                    @unlink($tmpPath);
+                    $lastHint = 'Unable to atomically install the downloaded deployment archive.';
+                    continue;
+                }
+
+                return [
+                    'ok' => true,
+                    'status' => $lastStatus,
+                    'bytes' => $bytes,
+                    'source' => $source,
+                ];
+            } catch (\Throwable $e) {
+                @unlink($tmpPath);
+                $lastHint = mb_substr($e->getMessage(), 0, 220);
+            }
+        }
+
+        @unlink($tmpPath);
+        @unlink($zipPath);
+
+        return [
+            'ok' => false,
+            'status' => $lastStatus,
+            'bytes' => $lastBytes,
+            'free_bytes' => @disk_free_space(dirname($zipPath)) ?: null,
+            'hint' => $lastHint,
+        ];
+    }
+
     private function extractZipSafely(\ZipArchive $zip, string $extractDir): void
     {
         $base = rtrim(str_replace('\\', '/', $extractDir), '/');
