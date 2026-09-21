@@ -473,7 +473,7 @@ class TimetableController extends Controller
                     $slot['is_break'] ? 'break' : 'period',
                     $slot['start'],
                     $slot['end'],
-                    $slot['is_break'] ? ($slot['label'] ?? 'Break') : ($slot['period'] ?? ''),
+                    $slot['is_break'] ? ($slot['label'] ?? 'Break') : '',
                 ]);
                 $slotUnion[$key] = $slot;
             }
