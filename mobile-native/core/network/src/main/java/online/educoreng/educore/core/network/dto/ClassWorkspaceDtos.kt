@@ -151,6 +151,14 @@ data class StaffAttendanceSettingsDto(
     @param:Json(name = "geo_radius_meters") val geoRadiusMeters: Int = 0,
 )
 
+data class StaffAttendanceWorkingDayDto(
+    @param:Json(name = "day_of_week") val dayOfWeek: String,
+    @param:Json(name = "is_working") val isWorking: Boolean = false,
+    @param:Json(name = "resumption_time") val resumptionTime: String? = null,
+    @param:Json(name = "closing_time") val closingTime: String? = null,
+    @param:Json(name = "grace_minutes") val graceMinutes: Int = 0,
+)
+
 data class StaffAttendanceRecordDto(
     val date: String,
     val status: String,
@@ -166,6 +174,8 @@ data class StaffAttendanceResponseDto(
     val today: StaffAttendanceTodayDto? = null,
     val settings: StaffAttendanceSettingsDto,
     val records: List<StaffAttendanceRecordDto> = emptyList(),
+    @param:Json(name = "today_schedule") val todaySchedule: StaffAttendanceWorkingDayDto? = null,
+    @param:Json(name = "working_days") val workingDays: List<StaffAttendanceWorkingDayDto> = emptyList(),
 )
 
 data class ProxyAttendanceColleagueDto(

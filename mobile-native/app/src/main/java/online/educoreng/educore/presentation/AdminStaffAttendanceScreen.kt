@@ -57,6 +57,7 @@ import online.educoreng.educore.core.network.dto.AdminAttendanceManualRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceProxyDecisionRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceReviewRequestDto
 import online.educoreng.educore.core.network.dto.AdminAttendanceSettingsRequestDto
+import online.educoreng.educore.core.network.dto.AdminAttendanceWorkingDayRequestDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceRecordDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceReportDto
 import online.educoreng.educore.core.network.dto.AdminStaffAttendanceResponseDto
@@ -187,20 +188,24 @@ class AdminStaffAttendanceViewModel @Inject constructor(
     }
 
     fun saveSettings(
-        resumption: String,
-        grace: Int,
-        closing: String,
+        workingDays: List<AdminAttendanceWorkingDayRequestDto>,
         geoEnabled: Boolean,
         lat: Double?,
         lng: Double?,
         radius: Int?,
     ) {
+        val settings = _uiState.value.snapshot?.settings
+        val fallback = workingDays.firstOrNull {
+            it.isWorking && !it.resumptionTime.isNullOrBlank() && !it.closingTime.isNullOrBlank()
+        }
+
         mutate {
             api.updateSettings(
                 AdminAttendanceSettingsRequestDto(
-                    resumptionTime = resumption,
-                    graceMinutes = grace,
-                    closingTime = closing,
+                    resumptionTime = fallback?.resumptionTime ?: settings?.resumptionTime.orEmpty(),
+                    graceMinutes = fallback?.graceMinutes ?: settings?.graceMinutes ?: 0,
+                    closingTime = fallback?.closingTime ?: settings?.closingTime.orEmpty(),
+                    workingDays = workingDays,
                     geoEnabled = geoEnabled,
                     geoLat = lat,
                     geoLng = lng,
@@ -271,7 +276,7 @@ internal fun AdminStaffAttendanceScreen(
     onManualOverride: (AdminStaffAttendanceRecordDto, String, String?, String?, String?) -> Unit,
     onProcessOffline: (Long, Boolean) -> Unit,
     onDecideProxy: (Long, Boolean) -> Unit,
-    onSaveSettings: (String, Int, String, Boolean, Double?, Double?, Int?) -> Unit,
+    onSaveSettings: (List<AdminAttendanceWorkingDayRequestDto>, Boolean, Double?, Double?, Int?) -> Unit,
     onResetQr: () -> Unit,
 ) {
     var editing by remember { mutableStateOf<AdminStaffAttendanceRecordDto?>(null) }
@@ -373,6 +378,42 @@ private fun DailyAttendanceSection(
                     modifier = Modifier.weight(1f),
                 )
                 Button(onClick = onLoad, enabled = !state.isLoading) { Text("Load") }
+            }
+        }
+        snapshot.daySchedule?.let { schedule ->
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = EduCoreColors.White,
+                    shape = MaterialTheme.shapes.medium,
+                    shadowElevation = 1.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        Text(
+                            schedule.dayOfWeek.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = EduCoreColors.Ink900,
+                        )
+                        Text(
+                            if (schedule.isWorking) {
+                                "Conventional work hours " +
+                                    (schedule.resumptionTime ?: "—") +
+                                    "–" +
+                                    (schedule.closingTime ?: "—") +
+                                    " · " +
+                                    schedule.graceMinutes +
+                                    " min grace"
+                            } else {
+                                "Not a conventional working day"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
             }
         }
         item {
@@ -544,64 +585,234 @@ private fun ReviewsAttendanceSection(
 @Composable
 private fun AttendanceSettingsSection(
     state: AdminStaffAttendanceUiState,
-    onSave: (String, Int, String, Boolean, Double?, Double?, Int?) -> Unit,
+    onSave: (List<AdminAttendanceWorkingDayRequestDto>, Boolean, Double?, Double?, Int?) -> Unit,
     onResetQr: () -> Unit,
 ) {
     val settings = state.snapshot?.settings
-    var resumption by remember(settings) { mutableStateOf(settings?.resumptionTime.orEmpty()) }
-    var grace by remember(settings) { mutableStateOf(settings?.graceMinutes?.toString().orEmpty()) }
-    var closing by remember(settings) { mutableStateOf(settings?.closingTime.orEmpty()) }
+    val serverDays = state.snapshot?.workingDays.orEmpty()
+    val seedDays = remember(settings, serverDays) {
+        if (serverDays.isNotEmpty()) {
+            serverDays.map { day ->
+                AdminAttendanceWorkingDayRequestDto(
+                    dayOfWeek = day.dayOfWeek,
+                    isWorking = day.isWorking,
+                    resumptionTime = day.resumptionTime,
+                    closingTime = day.closingTime,
+                    graceMinutes = day.graceMinutes,
+                )
+            }
+        } else {
+            listOf(
+                "monday", "tuesday", "wednesday", "thursday",
+                "friday", "saturday", "sunday",
+            ).mapIndexed { index, day ->
+                val working = index < 5
+                AdminAttendanceWorkingDayRequestDto(
+                    dayOfWeek = day,
+                    isWorking = working,
+                    resumptionTime = settings?.resumptionTime.takeIf { working },
+                    closingTime = settings?.closingTime.takeIf { working },
+                    graceMinutes = if (working) settings?.graceMinutes ?: 0 else 0,
+                )
+            }
+        }
+    }
+
+    var workingDays by remember(seedDays) { mutableStateOf(seedDays) }
     var geoEnabled by remember(settings) { mutableStateOf(settings?.geoEnabled ?: false) }
     var lat by remember(settings) { mutableStateOf(settings?.geoLat?.toString().orEmpty()) }
     var lng by remember(settings) { mutableStateOf(settings?.geoLng?.toString().orEmpty()) }
     var radius by remember(settings) { mutableStateOf(settings?.geoRadiusMeters?.toString().orEmpty()) }
     var confirmReset by remember { mutableStateOf(false) }
 
+    val scheduleValid = workingDays
+        .filter { it.isWorking }
+        .all {
+            !it.resumptionTime.isNullOrBlank() &&
+                !it.closingTime.isNullOrBlank() &&
+                it.graceMinutes in 0..180
+        }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(eduCoreScreenPadding()),
         verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
     ) {
-        item { OutlinedTextField(resumption, { resumption = it }, label = { Text("Resumption time (HH:mm)") }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
-        item { OutlinedTextField(grace, { grace = it.filter(Char::isDigit).take(3) }, label = { Text("Grace minutes") }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
-        item { OutlinedTextField(closing, { closing = it }, label = { Text("Closing time (HH:mm)") }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text("Geofence", style = MaterialTheme.typography.titleSmall)
-                    Text("Require attendance within school radius", style = MaterialTheme.typography.labelSmall, color = EduCoreColors.Slate600)
-                }
-                Switch(checked = geoEnabled, onCheckedChange = { geoEnabled = it })
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "Conventional curriculum work hours",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = EduCoreColors.Navy900,
+                )
+                Text(
+                    "Set each working day independently. Resumption, closing time and grace may differ by day.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EduCoreColors.Slate600,
+                )
             }
         }
+
+        items(workingDays, key = { it.dayOfWeek }) { day ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = EduCoreColors.White,
+                shape = MaterialTheme.shapes.medium,
+                shadowElevation = 1.dp,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                    verticalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            day.dayOfWeek.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = EduCoreColors.Ink900,
+                        )
+                        Switch(
+                            checked = day.isWorking,
+                            onCheckedChange = { enabled ->
+                                workingDays = workingDays.map {
+                                    if (it.dayOfWeek == day.dayOfWeek) {
+                                        it.copy(isWorking = enabled)
+                                    } else {
+                                        it
+                                    }
+                                }
+                            },
+                        )
+                    }
+
+                    if (day.isWorking) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
+                            OutlinedTextField(
+                                value = day.resumptionTime.orEmpty(),
+                                onValueChange = { value ->
+                                    workingDays = workingDays.map {
+                                        if (it.dayOfWeek == day.dayOfWeek) it.copy(resumptionTime = value.take(5)) else it
+                                    }
+                                },
+                                label = { Text("Resumption HH:mm") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = day.closingTime.orEmpty(),
+                                onValueChange = { value ->
+                                    workingDays = workingDays.map {
+                                        if (it.dayOfWeek == day.dayOfWeek) it.copy(closingTime = value.take(5)) else it
+                                    }
+                                },
+                                label = { Text("Closing HH:mm") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        OutlinedTextField(
+                            value = day.graceMinutes.toString(),
+                            onValueChange = { value ->
+                                val parsed = value.filter(Char::isDigit).take(3).toIntOrNull() ?: 0
+                                workingDays = workingDays.map {
+                                    if (it.dayOfWeek == day.dayOfWeek) it.copy(graceMinutes = parsed) else it
+                                }
+                            },
+                            label = { Text("Grace minutes") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        Text(
+                            "Not a conventional working day",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = EduCoreColors.White,
+                shape = MaterialTheme.shapes.medium,
+                shadowElevation = 1.dp,
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(EduCoreSpacing.Md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Geofence", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Require attendance within school radius",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                    Switch(checked = geoEnabled, onCheckedChange = { geoEnabled = it })
+                }
+            }
+        }
+
         if (geoEnabled) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(EduCoreSpacing.Sm)) {
-                    OutlinedTextField(lat, { lat = it }, label = { Text("Latitude") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(lng, { lng = it }, label = { Text("Longitude") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(
+                        lat,
+                        { lat = it },
+                        label = { Text("Latitude") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        lng,
+                        { lng = it },
+                        label = { Text("Longitude") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
-            item { OutlinedTextField(radius, { radius = it.filter(Char::isDigit).take(4) }, label = { Text("Radius (metres)") }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
+            item {
+                OutlinedTextField(
+                    radius,
+                    { radius = it.filter(Char::isDigit).take(4) },
+                    label = { Text("Radius (metres)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
+
         item {
             Button(
                 onClick = {
                     onSave(
-                        resumption,
-                        grace.toIntOrNull() ?: 0,
-                        closing,
+                        workingDays,
                         geoEnabled,
                         lat.toDoubleOrNull(),
                         lng.toDoubleOrNull(),
                         radius.toIntOrNull(),
                     )
                 },
-                enabled = !state.isMutating && resumption.isNotBlank() && closing.isNotBlank(),
+                enabled = !state.isMutating && scheduleValid,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Save attendance settings") }
+            ) { Text("Save conventional work hours") }
         }
+
         item {
-            OutlinedButton(onClick = { confirmReset = true }, enabled = !state.isMutating, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { confirmReset = true },
+                enabled = !state.isMutating,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text("Reset school attendance QR")
             }
         }

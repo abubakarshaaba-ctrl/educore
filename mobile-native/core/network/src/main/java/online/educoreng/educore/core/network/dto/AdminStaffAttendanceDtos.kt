@@ -10,6 +10,8 @@ data class AdminStaffAttendanceResponseDto(
     @Json(name = "records") val records: List<AdminStaffAttendanceRecordDto> = emptyList(),
     @Json(name = "pending") val pending: AdminStaffAttendancePendingDto = AdminStaffAttendancePendingDto(),
     @Json(name = "settings") val settings: AdminStaffAttendanceSettingsDto? = null,
+    @Json(name = "day_schedule") val daySchedule: AdminStaffAttendanceWorkingDayDto? = null,
+    @Json(name = "working_days") val workingDays: List<AdminStaffAttendanceWorkingDayDto> = emptyList(),
 )
 
 @JsonClass(generateAdapter = true)
@@ -55,6 +57,24 @@ data class AdminStaffAttendanceSettingsDto(
     @Json(name = "geo_lat") val geoLat: Double? = null,
     @Json(name = "geo_lng") val geoLng: Double? = null,
     @Json(name = "geo_radius_meters") val geoRadiusMeters: Int? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class AdminStaffAttendanceWorkingDayDto(
+    @Json(name = "day_of_week") val dayOfWeek: String,
+    @Json(name = "is_working") val isWorking: Boolean = false,
+    @Json(name = "resumption_time") val resumptionTime: String? = null,
+    @Json(name = "closing_time") val closingTime: String? = null,
+    @Json(name = "grace_minutes") val graceMinutes: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class AdminAttendanceWorkingDayRequestDto(
+    @Json(name = "day_of_week") val dayOfWeek: String,
+    @Json(name = "is_working") val isWorking: Boolean,
+    @Json(name = "resumption_time") val resumptionTime: String? = null,
+    @Json(name = "closing_time") val closingTime: String? = null,
+    @Json(name = "grace_minutes") val graceMinutes: Int = 0,
 )
 
 @JsonClass(generateAdapter = true)
@@ -139,6 +159,7 @@ data class AdminAttendanceMutationResponseDto(
     @Json(name = "message") val message: String? = null,
     @Json(name = "record_id") val recordId: Long? = null,
     @Json(name = "settings") val settings: AdminStaffAttendanceSettingsDto? = null,
+    @Json(name = "working_days") val workingDays: List<AdminStaffAttendanceWorkingDayDto> = emptyList(),
 )
 
 @JsonClass(generateAdapter = true)
@@ -164,9 +185,12 @@ data class AdminAttendanceManualRequestDto(
 
 @JsonClass(generateAdapter = true)
 data class AdminAttendanceSettingsRequestDto(
+    // Legacy scalar values remain populated from the first enabled day so an
+    // updated app stays compatible with older servers during rolling deploys.
     @Json(name = "resumption_time") val resumptionTime: String,
     @Json(name = "grace_minutes") val graceMinutes: Int,
     @Json(name = "closing_time") val closingTime: String,
+    @Json(name = "working_days") val workingDays: List<AdminAttendanceWorkingDayRequestDto> = emptyList(),
     @Json(name = "geo_enabled") val geoEnabled: Boolean,
     @Json(name = "geo_lat") val geoLat: Double? = null,
     @Json(name = "geo_lng") val geoLng: Double? = null,

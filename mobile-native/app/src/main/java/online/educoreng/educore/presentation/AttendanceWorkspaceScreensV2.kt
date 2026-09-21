@@ -409,6 +409,34 @@ internal fun CompactStaffAttendanceScreen(
                 }
             }
         }
+        snapshot?.todaySchedule?.let { schedule ->
+            item {
+                EduCoreDashboardCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            "Conventional curriculum",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            if (schedule.isWorking) {
+                                "Today: " +
+                                    (schedule.resumptionTime ?: "—") +
+                                    "–" +
+                                    (schedule.closingTime ?: "—") +
+                                    " · " +
+                                    schedule.graceMinutes +
+                                    " min grace"
+                            } else {
+                                "Today is not a conventional working day. A QR scan can still be used for an applicable parallel-curriculum schedule."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EduCoreColors.Slate600,
+                        )
+                    }
+                }
+            }
+        }
         snapshot?.let { currentSnapshot ->
             item {
                 Row(
