@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\Notifications\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SchoolCommunicationApiController extends Controller
@@ -104,11 +106,12 @@ class SchoolCommunicationApiController extends Controller
             'target' => ['required', 'string', 'max:80'],
             'subject' => ['required', 'string', 'max:150'],
             'body' => ['required', 'string', 'max:10000'],
+            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx'],
         ]);
 
         [$type, $recipientId, $audience] = $this->resolveTarget($user, $data['target']);
 
-        $thread = DB::transaction(function () use ($user, $data, $type, $recipientId, $audience): MessageThread {
+        $thread = DB::transaction(function () use ($request, $user, $data, $type, $recipientId, $audience): MessageThread {
             $thread = MessageThread::create([
                 'tenant_id' => $user->tenant_id,
                 'student_id' => null,
@@ -120,19 +123,18 @@ class SchoolCommunicationApiController extends Controller
                 'status' => 'open',
             ]);
 
-            MessageThreadReply::create([
-                'tenant_id' => $user->tenant_id,
-                'thread_id' => $thread->id,
-                'sender_id' => $user->id,
-                'body' => trim($data['body']),
-            ]);
+            $this->createReply($request, $thread, $user, $data['body']);
             $thread->touch();
 
             return $thread;
         });
 
         $thread->load(['initiator:id,name,role', 'recipient:id,name,role', 'replies.sender:id,name']);
-        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+        try {
+            app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         return response()->json([
             'message' => $audience ? 'Shared conversation started.' : 'Message sent.',
@@ -155,26 +157,62 @@ class SchoolCommunicationApiController extends Controller
         $user = $this->guard($request);
         $this->authorizeThread($thread, $user);
         abort_if($thread->status !== 'open', 422, 'This thread has been closed.');
-        $data = $request->validate(['body' => ['required', 'string', 'max:10000']]);
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:10000'],
+            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx'],
+        ]);
 
         // Replies to all-staff/all-parent conversations stay in the original
         // audience thread, so every member of that audience can follow the
         // complete discussion. Individual threads remain private because
         // their audience is null and authorization is participant-scoped.
-        $reply = MessageThreadReply::create([
-            'tenant_id' => $user->tenant_id,
-            'thread_id' => $thread->id,
-            'sender_id' => $user->id,
-            'body' => trim($data['body']),
-        ]);
+        $reply = $this->createReply($request, $thread, $user, $data['body']);
         $thread->touch();
-        app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+        try {
+            app(PushNotificationService::class)->notifyMessageThread($thread, $user, $data['body']);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         return response()->json([
             'message' => 'Reply sent.',
             'redirected_from_broadcast' => false,
             'reply' => $this->replyPayload($reply->fresh('sender'), $user),
         ], 201);
+    }
+
+    private function createReply(Request $request, MessageThread $thread, User $user, string $body): MessageThreadReply
+    {
+        $attachment = [];
+
+        if ($file = $request->file('attachment')) {
+            $safeOriginal = Str::limit(
+                preg_replace('/[^A-Za-z0-9._ -]/', '_', $file->getClientOriginalName()) ?: 'attachment',
+                180,
+                '',
+            );
+            $storedName = Str::uuid().'.'.($file->guessExtension() ?: 'bin');
+            $path = Storage::disk('local')->putFileAs(
+                "mobile-message-attachments/{$user->tenant_id}/{$thread->id}",
+                $file,
+                $storedName,
+            );
+
+            $attachment = [
+                'attachment_path' => $path,
+                'attachment_name' => $safeOriginal,
+                'attachment_mime' => $file->getMimeType(),
+                'attachment_size' => $file->getSize(),
+            ];
+        }
+
+        return MessageThreadReply::create([
+            'tenant_id' => $thread->tenant_id,
+            'thread_id' => $thread->id,
+            'sender_id' => $user->id,
+            'body' => trim($body),
+            ...$attachment,
+        ]);
     }
 
     private function resolveTarget(User $user, string $target): array
@@ -290,7 +328,12 @@ class SchoolCommunicationApiController extends Controller
             'sender_name' => $reply->sender?->name,
             'is_me' => (int) $reply->sender_id === (int) $user->id,
             'created_at' => $reply->created_at?->toIso8601String(),
-            'attachment' => null,
+            'attachment' => $reply->attachment_path ? [
+                'name' => $reply->attachment_name,
+                'mime_type' => $reply->attachment_mime,
+                'size' => $reply->attachment_size,
+                'download_path' => "/api/v1/messages/replies/{$reply->id}/attachment",
+            ] : null,
         ];
     }
 
