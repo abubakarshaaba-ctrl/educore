@@ -19,6 +19,8 @@ class MobileAdvancedAdministrationAuthorizationPolicyTest extends TestCase
             );
         }
 
+        $this->assertContains('administrator', User::adminPortalRoleNames());
+
         foreach (['subject_teacher', 'accountant', 'admission_officer', 'student', 'parent'] as $role) {
             $user = new User();
             $user->role = $role;
@@ -35,9 +37,12 @@ class MobileAdvancedAdministrationAuthorizationPolicyTest extends TestCase
         $root = dirname(__DIR__, 2);
         $bootstrap = file_get_contents($root . '/app/Http/Controllers/Api/MobileBootstrapController.php');
         $advanced = file_get_contents($root . '/app/Http/Controllers/Api/MobileAdvancedAdministrationController.php');
+        $enterprise = file_get_contents($root . '/app/Services/DataMigration/MigrationEnterpriseControlService.php');
 
         $this->assertStringContainsString("isAdminPortalRole() ? 'admin' : 'staff'", $bootstrap);
         $this->assertStringContainsString('$actor->isAdminPortalRole()', $advanced);
         $this->assertStringNotContainsString('$actor->isAdmin() && $actor->tenant_id', $advanced);
+        $this->assertStringContainsString('$actor->isAdminPortalRole()', $enterprise);
+        $this->assertStringContainsString('User::adminPortalRoleNames()', $enterprise);
     }
 }
