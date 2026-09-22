@@ -39,9 +39,9 @@ class MobileRoleExperiencePolicy
             'admin' => [
                 'attendance',
                 'scores',
-                'reports',
                 'staff-attendance.admin',
                 'students',
+                'classes',
                 'messages',
             ],
             'student' => [

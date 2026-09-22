@@ -9,7 +9,7 @@ EduCore should expose the task a user needs before exposing the platform's under
 | Experience | Home emphasis | Primary tab | Secondary tab | Priority tasks |
 | --- | --- | --- | --- | --- |
 | Platform administrator | Platform pulse | Schools | Operations | Schools, broadcasts, support, analytics |
-| School administrator | School pulse | Academics | Operations | Attendance, scores, reports, staff attendance |
+| School administrator | School pulse | Academics | Operations | Attendance, scores, staff attendance, students/classes |
 | Teacher | Today at a glance | Classes | Timetable | Attendance, scores, lesson planner, classes |
 | Student | My progress | Academics | Timetable | Timetable, attendance, results, subjects |
 | Parent | Family overview | Children | Academics | Attendance, results, fees, messages |
@@ -23,6 +23,7 @@ Specialist roles such as Accountant, Health Officer and Transport Officer retain
 3. **More remains the complete hub.** Task-first tabs reduce cognitive load without hiding authorized functionality.
 4. **Role labels are stable.** A core role receives predictable tab labels rather than labels changing because one optional module is unavailable.
 5. **No workflow rewrite.** Academic lifecycle, CBT, parallel curriculum, attendance, finance, communication and notification logic remain unchanged.
+6. **Native shortcut safety.** Dashboard quick actions are intersected with the native-visible module set, so server priorities or cached responses cannot re-expose workspaces intentionally removed from the Android shell.
 
 ## Implementation
 

@@ -84,6 +84,20 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun visible_modules_filter_generic_report_workspaces_but_keep_portal_results() {
+        val genericReports = ModuleDescriptor("reports", "Report Cards", "/reports", "reports")
+        val studentResults = ModuleDescriptor("student.results", "Results", "/student/results", "reports")
+        val testSession = session("student", "student").copy(
+            modules = listOf(genericReports, studentResults),
+        )
+
+        assertEquals(
+            listOf("student.results"),
+            ShellNavigationPolicy.visibleModules(testSession).map { it.key },
+        )
+    }
+
+    @Test
     fun student_and_parent_result_modules_are_native_academic_modules() {
         val studentResults = ModuleDescriptor("student.results", "Results", "/student/results", "reports")
         val parentResults = ModuleDescriptor("parent.results", "Results", "/parent/results", "reports")

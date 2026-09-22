@@ -137,15 +137,18 @@ internal fun LazyGridScope.dashboardHomeContent(
         )
     }
 
-    if (snapshot.quickActions.isNotEmpty()) {
+    val visibleModuleByKey = ShellNavigationPolicy.visibleModules(session).associateBy { it.key }
+    val visibleQuickActions = snapshot.quickActions.filter { it.moduleKey in visibleModuleByKey }
+
+    if (visibleQuickActions.isNotEmpty()) {
         item(key = "actions-header", span = { GridItemSpan(maxLineSpan) }) {
             EduCoreSectionHeader(
                 title = "Quick actions",
                 supportingText = quickActionsSupportingText(session),
             )
         }
-        items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
-            val module = session.modules.firstOrNull { it.key == action.moduleKey }
+        items(visibleQuickActions, key = { "action-${it.moduleKey}" }) { action ->
+            val module = visibleModuleByKey[action.moduleKey]
             EduCoreQuickAction(
                 label = action.title,
                 icon = module?.let(::moduleIconForDashboard) ?: EduCoreIcons.Modules,

@@ -18,7 +18,10 @@ class MobileRoleExperiencePolicyTest extends TestCase
     public function test_core_experiences_have_task_first_priorities(): void
     {
         $this->assertSame('platform.schools', $this->policy->prioritizedModuleKeys('platform', 'super_admin')[0]);
-        $this->assertSame('attendance', $this->policy->prioritizedModuleKeys('admin', 'admin')[0]);
+        $adminPriorities = $this->policy->prioritizedModuleKeys('admin', 'admin');
+        $this->assertSame('attendance', $adminPriorities[0]);
+        $this->assertNotContains('reports', $adminPriorities, 'Generic report cards are not a native mobile destination.');
+        $this->assertContains('classes', $adminPriorities);
         $this->assertSame('attendance', $this->policy->prioritizedModuleKeys('staff', 'subject_teacher')[0]);
         $this->assertSame('student.timetable', $this->policy->prioritizedModuleKeys('student', 'student')[0]);
         $this->assertSame('parent.attendance', $this->policy->prioritizedModuleKeys('parent', 'parent')[0]);
