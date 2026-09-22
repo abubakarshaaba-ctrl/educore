@@ -296,10 +296,11 @@ class MobileDashboardService
 
         return $modules
             ->map(fn (array $module, int $index): array => $module + ['_source_order' => $index])
-            ->sortBy(fn (array $module): array => [
-                $rank[$module['key']] ?? PHP_INT_MAX,
+            ->sortBy(fn (array $module): string => sprintf(
+                '%06d:%06d',
+                $rank[$module['key']] ?? 999999,
                 $module['_source_order'],
-            ])
+            ))
             ->take(6)
             ->map(fn (array $module): array => [
                 'module_key' => $module['key'],

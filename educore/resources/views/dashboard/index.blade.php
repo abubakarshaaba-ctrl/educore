@@ -168,14 +168,29 @@
 
         <div class="stack">
             <section class="dash-card">
-                <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-bolt"/></svg></span><div class="card-title">Quick Actions</div></div></div>
+                <div class="card-head"><div class="card-title-wrap"><span class="card-icon"><svg class="icon icon-sm"><use href="#i-bolt"/></svg></span><div><div class="card-title">Priority Actions</div><div class="card-meta">Frequent school operations for your role</div></div></div></div>
+                @php
+                    $dashboardUser = auth()->user();
+                @endphp
                 <div class="card-body"><div class="quick-actions">
-                    <a href="{{ route('students.create') }}" class="action-btn" style="--action:#1d58ac"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-user-plus"/></svg></span>Add Student</a>
-                    <a href="{{ route('fees.generate.index') }}" class="action-btn" style="--action:#16794b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-receipt"/></svg></span>Generate Fees</a>
-                    <a href="{{ route('attendance.index') }}" class="action-btn" style="--action:#bd7a0b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-check-calendar"/></svg></span>Attendance</a>
+                    @if($dashboardUser->canAccessModule('attendance'))
+                    <a href="{{ route('attendance.index') }}" class="action-btn" style="--action:#bd7a0b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-check-calendar"/></svg></span>Student Attendance</a>
+                    @endif
+                    @if($dashboardUser->canAccessModule('scores'))
                     <a href="{{ route('scores.index') }}" class="action-btn" style="--action:#365cad"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-edit"/></svg></span>Enter Scores</a>
-                    <a href="{{ route('students.bulk-upload.index') }}" class="action-btn" style="--action:#16794b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-upload"/></svg></span>Bulk Upload</a>
-                    <a href="{{ route('risk.index') }}" class="action-btn" style="--action:#c9362b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-flag"/></svg></span>Risk Flags</a>
+                    @endif
+                    @if($dashboardUser->canAccessModule('reports'))
+                    <a href="{{ route('reports.index') }}" class="action-btn" style="--action:#1d58ac"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-card"/></svg></span>Report Cards</a>
+                    @endif
+                    @if($dashboardUser->canAccessModule('staff-attendance'))
+                    <a href="{{ route('staff-attendance.index') }}" class="action-btn" style="--action:#16794b"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-staff"/></svg></span>Staff Attendance</a>
+                    @endif
+                    @if($dashboardUser->canAccessModule('students'))
+                    <a href="{{ route('students.index') }}" class="action-btn" style="--action:#1d58ac"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-users"/></svg></span>Students</a>
+                    @endif
+                    @if($dashboardUser->canAccessModule('messages'))
+                    <a href="{{ route('messages.inbox') }}" class="action-btn" style="--action:#365cad"><span class="action-icon"><svg class="icon icon-sm"><use href="#i-megaphone"/></svg></span>Messages</a>
+                    @endif
                 </div></div>
             </section>
             @if(count($announcements) > 0)

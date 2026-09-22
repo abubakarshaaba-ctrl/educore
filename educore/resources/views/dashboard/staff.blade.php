@@ -146,24 +146,26 @@ function hour() { return (int)\Carbon\Carbon::now()->format('H'); }
 </div>
 @endif
 
-{{-- ── Quick links ──────────────────────────────────────────────── --}}
+{{-- ── Priority teaching tasks ─────────────────────────────────── --}}
 <div class="quick-links" style="margin-bottom:16px">
-    @if($user->canAccessModule('scores.entry'))
-    <a href="{{ route('scores.index') }}" class="ql"><div class="ql-icon">✏️</div><div class="ql-label">Score Entry</div></a>
-    @endif
     @if($user->canAccessModule('attendance'))
-    <a href="{{ route('attendance.index') }}" class="ql"><div class="ql-icon">📋</div><div class="ql-label">Attendance</div></a>
+    <a href="{{ route('attendance.index') }}" class="ql"><div class="ql-icon">📋</div><div class="ql-label">Mark Attendance</div></a>
     @endif
-    @if($user->canAccessModule('skills'))
-    <a href="{{ route('skills.index') }}" class="ql"><div class="ql-icon">⭐</div><div class="ql-label">Skill Ratings</div></a>
+    @if($user->canAccessModule('scores.entry'))
+    <a href="{{ route('scores.index') }}" class="ql"><div class="ql-icon">✏️</div><div class="ql-label">Enter Scores</div></a>
+    @endif
+    @if($user->canAccessModule('lesson-planner'))
+    <a href="{{ route('lesson-planner.index') }}" class="ql"><div class="ql-icon">📝</div><div class="ql-label">Lesson Planner</div></a>
+    @endif
+    @if($user->canAccessModule('classes'))
+    <a href="{{ route('classes.index') }}" class="ql"><div class="ql-icon">🏫</div><div class="ql-label">My Classes</div></a>
     @endif
     @if($user->canAccessModule('timetable.view') || $user->canAccessModule('timetable'))
-    <a href="{{ route('timetable.index') }}" class="ql"><div class="ql-icon">📅</div><div class="ql-label">Timetable</div></a>
+    <a href="{{ route('timetable.index') }}" class="ql"><div class="ql-icon">📅</div><div class="ql-label">My Timetable</div></a>
     @endif
-    @if($user->canAccessModule('cbt'))
-    <a href="{{ route('cbt.banks') }}" class="ql"><div class="ql-icon">💡</div><div class="ql-label">CBT Exams</div></a>
+    @if($user->canAccessModule('messages'))
+    <a href="{{ route('messages.inbox') }}" class="ql"><div class="ql-icon">💬</div><div class="ql-label">Messages</div></a>
     @endif
-    <a href="{{ route('staff-attendance.my') }}" class="ql"><div class="ql-icon">🕐</div><div class="ql-label">My Attendance</div></a>
 </div>
 
 {{-- ── Subjects I teach ─────────────────────────────────────────── --}}

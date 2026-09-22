@@ -31,6 +31,14 @@ Specialist roles such as Accountant, Health Officer and Transport Officer retain
 - `ShellNavigationPolicy` gives the five core experiences stable tab semantics and prevents platform school modules from being duplicated between primary and operations tabs.
 - `DashboardHomeContent` uses role-aware overview and quick-action copy while preserving existing responsive dashboard components and cached/offline behavior.
 
+## Web dashboard alignment
+
+The web dashboards use the same task-first presentation rules without changing authorization:
+
+- Teacher home promotes Mark Attendance, Enter Scores, Lesson Planner, My Classes, My Timetable and Messages when those modules are authorized.
+- School administrator home promotes Student Attendance, Enter Scores, Report Cards, Staff Attendance, Students and Messages when authorized.
+- Less frequent functions remain available through the existing permission-filtered navigation rather than competing for primary dashboard space.
+
 ## Next extension points
 
-Web dashboards should consume the same presentation principles: role-focused quick actions, progressive disclosure in navigation, and consistent task naming. New modules should be added to the full authorized module hub first, then promoted into role-specific primary navigation only when they are frequent tasks.
+Apply progressive disclosure to the full web sidebar so high-frequency task groups appear first while every authorized module remains discoverable. New modules should enter the complete authorized module hub first and be promoted into role-specific primary navigation only when they become frequent tasks.
