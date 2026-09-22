@@ -32,6 +32,13 @@ class ForcePasswordChange
             ], 428);
         }
 
-        return redirect()->route('account.password-required.edit');
+        // Keep the mandatory-recovery flow on the exact host that owns the
+        // authenticated session cookie. This is essential for tenant
+        // subdomains and verified custom domains; an absolute named-route
+        // redirect can resolve against APP_URL and silently cross hosts.
+        $recoveryUrl = rtrim($request->getSchemeAndHttpHost(), '/')
+            . '/account/password-required';
+
+        return redirect()->to($recoveryUrl);
     }
 }
