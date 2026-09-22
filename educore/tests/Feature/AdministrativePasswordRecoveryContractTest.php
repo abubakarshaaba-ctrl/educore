@@ -17,6 +17,7 @@ class AdministrativePasswordRecoveryContractTest extends TestCase
         $super = file_get_contents($root . '/app/Http/Controllers/SuperAdminController.php');
         $api = file_get_contents($root . '/app/Http/Middleware/AuthenticateApiToken.php');
         $bootstrap = file_get_contents($root . '/app/Http/Controllers/Api/MobileBootstrapController.php');
+        $forcedPassword = file_get_contents($root . '/app/Http/Middleware/ForcePasswordChange.php');
 
         $this->assertStringContainsString('account.password-required', $routes);
         $this->assertStringContainsString('tenant.admin.reset-password', $routes);
@@ -25,5 +26,13 @@ class AdministrativePasswordRecoveryContractTest extends TestCase
         $this->assertStringContainsString('resetTenantAdminPassword', $super);
         $this->assertStringContainsString('password_change_required', $api);
         $this->assertStringContainsString('password_change_required', $bootstrap);
+
+        // Mandatory recovery must stay on the active tenant/custom-domain
+        // host so a host-only session cookie is not lost during the redirect.
+        $this->assertStringContainsString('getSchemeAndHttpHost', $forcedPassword);
+        $this->assertStringNotContainsString(
+            "redirect()->route('account.password-required.edit')",
+            $forcedPassword
+        );
     }
 }
