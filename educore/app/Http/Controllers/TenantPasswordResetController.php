@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\TenantResetPasswordNotification;
+use App\Services\Auth\AccountSessionRevoker;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\TenantPortal\TenantBrandingService;
 use Illuminate\Auth\Events\PasswordReset;
@@ -67,7 +68,7 @@ class TenantPasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, string $slug, AuthAuditLogger $audit)
+    public function reset(Request $request, string $slug, AuthAuditLogger $audit, AccountSessionRevoker $sessions)
     {
         $tenant = $this->tenant($request);
         $validated = $request->validate([
@@ -94,8 +95,10 @@ class TenantPasswordResetController extends Controller
         $user->forceFill([
             'password' => Hash::make($validated['password']),
             'remember_token' => Str::random(60),
+            'must_change_password' => false,
         ])->save();
 
+        $sessions->revoke($user);
         $broker->deleteToken($user);
         event(new PasswordReset($user));
 

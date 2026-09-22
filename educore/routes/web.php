@@ -198,6 +198,16 @@ Route::middleware(\App\Http\Middleware\PortalGuard::class)->group(function () {
 
 Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth')->name('logout');
 
+Route::middleware(['auth', 'active.account'])
+    ->prefix('account/password-required')
+    ->name('account.password-required.')
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\Auth\ForcedPasswordChangeController::class, 'edit'])->name('edit');
+        Route::put('/', [\App\Http\Controllers\Auth\ForcedPasswordChangeController::class, 'update'])
+            ->middleware('throttle:5,1')
+            ->name('update');
+    });
+
 // Named stubs so internal route() helpers still resolve â€” they build subdomain URLs directly.
 // The old /school/{slug} path is gone; these generate the correct subdomain URL.
 Route::name('tenant.')->group(function () {
@@ -470,7 +480,9 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
     Route::get('{staff}',       [StaffController::class, 'show'])->name('show');
     Route::put('{staff}',       [StaffController::class, 'update'])->name('update');
     Route::patch('{staff}/toggle',         [StaffController::class, 'toggle'])->name('toggle');
-        Route::match(['post', 'patch'], '{staff}/reset-password', [StaffController::class, 'resetPassword'])->name('reset-password');
+        Route::match(['post', 'patch'], '{staff}/reset-password', [StaffController::class, 'resetPassword'])
+            ->middleware('throttle:5,10')
+            ->name('reset-password');
     });
 
     // â”€â”€ Scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1220,6 +1232,9 @@ Route::middleware(['auth', 'active.account', 'super.admin'])->prefix('super')->n
     Route::get('tenants/{tenant}/edit', [SuperAdminController::class, 'editTenant'])->name('tenant.edit');
     Route::patch('tenants/{tenant}',    [SuperAdminController::class, 'updateTenant'])->name('tenant.update');
     Route::get('tenants/{tenant}',      [SuperAdminController::class, 'showTenant'])->name('tenant.show');
+    Route::post('tenants/{tenant}/admins/{admin}/reset-password', [SuperAdminController::class, 'resetTenantAdminPassword'])
+        ->middleware('throttle:5,10')
+        ->name('tenant.admin.reset-password');
     Route::patch('tenants/{tenant}/toggle',  [SuperAdminController::class, 'toggleTenant'])->name('tenant.toggle');
     Route::post('tenants/{tenant}/extend',   [SuperAdminController::class, 'extendTenant'])->name('tenant.extend');
     Route::delete('tenants/{tenant}',        [SuperAdminController::class, 'destroyTenant'])->name('tenant.destroy');

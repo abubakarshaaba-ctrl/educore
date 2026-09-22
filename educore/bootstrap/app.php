@@ -126,6 +126,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\MaintenanceMode::class,
+            \App\Http\Middleware\ForcePasswordChange::class,
             \App\Http\Middleware\RestrictCbtLanSession::class,
             \App\Http\Middleware\EnforceStrictWebRbac::class,
             \App\Http\Middleware\EnforceSchoolOpenDay::class,

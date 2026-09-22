@@ -36,6 +36,7 @@ class MaintenanceMode
         'logout',
         'forgot-password',
         'reset-password*',
+        'account/password-required*',
         'get-started*',
         'privacy',
         'terms',

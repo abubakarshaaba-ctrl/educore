@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\TenantResetPasswordNotification;
+use App\Services\Auth\AccountSessionRevoker;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\Auth\LoginRedirector;
 use App\Services\Auth\LoginUserResolver;
@@ -108,7 +109,9 @@ class TenantHostController extends Controller
 
         // Return 200 + JS redirect instead of 302 to ensure the session cookie
         // is delivered to the browser (Cloudflare strips Set-Cookie from 302s).
-        $dest = $redirector->redirectFor($user)->getTargetUrl();
+        $dest = $user->must_change_password
+            ? route('account.password-required.edit')
+            : $redirector->redirectFor($user)->getTargetUrl();
         return response()->view('auth.redirecting', ['url' => $dest]);
     }
 
@@ -167,7 +170,7 @@ class TenantHostController extends Controller
         ]);
     }
 
-    public function reset(Request $request, AuthAuditLogger $audit)
+    public function reset(Request $request, AuthAuditLogger $audit, AccountSessionRevoker $sessions)
     {
         $tenant = $this->tenant($request);
         $validated = $request->validate([
@@ -194,8 +197,10 @@ class TenantHostController extends Controller
         $user->forceFill([
             'password' => Hash::make($validated['password']),
             'remember_token' => Str::random(60),
+            'must_change_password' => false,
         ])->save();
 
+        $sessions->revoke($user);
         $broker->deleteToken($user);
         event(new PasswordReset($user));
 

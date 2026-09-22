@@ -77,6 +77,10 @@ class LoginController extends Controller
             $user->forceFill(['last_login_at' => now()])->save();
             $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'unified'], $request);
 
+            if ($user->must_change_password) {
+                return $this->handoff(route('account.password-required.edit'));
+            }
+
             return $this->handoff(route('super.dashboard'));
         }
 
@@ -105,6 +109,10 @@ class LoginController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->save();
         $audit->recordForUser($user, 'auth.login.success', ['login_surface' => 'unified'], $request);
+
+        if ($user->must_change_password) {
+            return $this->handoff(route('account.password-required.edit'));
+        }
 
         return $this->handoff($redirector->redirectFor($user)->getTargetUrl());
     }

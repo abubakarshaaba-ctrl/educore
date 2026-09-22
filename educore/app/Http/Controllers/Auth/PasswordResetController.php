@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Notifications\UnifiedResetPasswordNotification;
+use App\Services\Auth\AccountSessionRevoker;
 use App\Services\Auth\AuthAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -54,7 +55,7 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, AuthAuditLogger $audit)
+    public function reset(Request $request, AuthAuditLogger $audit, AccountSessionRevoker $sessions)
     {
         $validated = $request->validate([
             'token' => ['required', 'string'],
@@ -72,7 +73,12 @@ class PasswordResetController extends Controller
                 ->withInput(['email' => $email]);
         }
 
-        $user->forceFill(['password' => Hash::make($validated['password'])])->save();
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+            'remember_token' => Str::random(60),
+            'must_change_password' => false,
+        ])->save();
+        $sessions->revoke($user);
         $broker->deleteToken($user);
 
         $audit->recordForUser($user, 'auth.password_reset.completed', ['login_surface' => 'unified'], $request);
