@@ -60,6 +60,30 @@ class User extends Authenticatable
 
     const ROLES_PORTAL = ['student', 'parent'];
 
+    /**
+     * Tenant leadership roles routed to the native/web school-admin experience.
+     *
+     * Keep this list authoritative for any privileged surface that is exposed
+     * specifically to the admin portal. This prevents the UI from advertising
+     * an admin workspace that the API then rejects for roles such as Principal
+     * or Vice Principal.
+     */
+    public const ADMIN_PORTAL_ROLES = [
+        'admin',
+        'principal',
+        'head',
+        'head_teacher',
+        'head_of_school',
+        'school_head',
+        'vice_principal',
+        'vice_principal_academics',
+        'vice_principal_administration',
+        'assistant_principal',
+        'assistant_head',
+        'academic_head',
+        'academic_administrator',
+    ];
+
     public const STAFF_STATUS_ACTIVE = 'active';
 
     public const STAFF_STATUS_LEFT = 'left';
@@ -1189,6 +1213,11 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->roleKey() === 'admin';
+    }
+
+    public function isAdminPortalRole(): bool
+    {
+        return in_array($this->roleKey(), self::ADMIN_PORTAL_ROLES, true);
     }
 
     public function isPrincipal(): bool
