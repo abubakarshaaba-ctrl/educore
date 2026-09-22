@@ -121,9 +121,10 @@ internal fun LazyGridScope.dashboardHomeContent(
     }
 
     item(key = "overview-header", span = { GridItemSpan(maxLineSpan) }) {
+        val copy = dashboardOverviewCopy(session)
         EduCoreSectionHeader(
-            title = "Overview",
-            supportingText = "Updated ${sourceTime(snapshot.generatedAt)}",
+            title = copy.first,
+            supportingText = "${copy.second} · Updated ${sourceTime(snapshot.generatedAt)}",
         )
     }
     items(snapshot.metrics, key = DashboardMetric::key) { metric ->
@@ -140,7 +141,7 @@ internal fun LazyGridScope.dashboardHomeContent(
         item(key = "actions-header", span = { GridItemSpan(maxLineSpan) }) {
             EduCoreSectionHeader(
                 title = "Quick actions",
-                supportingText = "Shortcuts available to your account",
+                supportingText = quickActionsSupportingText(session),
             )
         }
         items(snapshot.quickActions, key = { "action-${it.moduleKey}" }) { action ->
@@ -165,6 +166,39 @@ internal fun LazyGridScope.dashboardHomeContent(
                 compact = width == EduCoreWindowWidth.Compact,
             )
         }
+    }
+}
+
+private fun dashboardOverviewCopy(session: SessionSnapshot): Pair<String, String> {
+    val portal = session.user.portal.lowercase()
+    val role = session.user.roleKey.lowercase()
+
+    return when {
+        portal == "platform" -> "Platform pulse" to "Schools, subscriptions and platform activity"
+        portal == "parent" -> "Family overview" to "Your child's school activity at a glance"
+        portal == "student" -> "My progress" to "Academics, attendance and upcoming work"
+        role in setOf("accountant", "finance_officer", "bursar") ->
+            "Financial overview" to "Collections, balances and finance operations"
+        portal == "admin" -> "School pulse" to "Priority academic and operational indicators"
+        role.contains("teacher") || role in setOf("hod", "head_of_department", "director_of_studies") ->
+            "Today at a glance" to "Teaching, classes and tasks that need attention"
+        else -> "My workspace" to "Current activity for your assigned responsibilities"
+    }
+}
+
+private fun quickActionsSupportingText(session: SessionSnapshot): String {
+    val portal = session.user.portal.lowercase()
+    val role = session.user.roleKey.lowercase()
+
+    return when {
+        portal == "platform" -> "Priority platform operations"
+        portal == "parent" -> "Common family tasks"
+        portal == "student" -> "Your most-used school tasks"
+        role in setOf("accountant", "finance_officer", "bursar") -> "Priority finance tasks"
+        portal == "admin" -> "Priority school operations"
+        role.contains("teacher") || role in setOf("hod", "head_of_department", "director_of_studies") ->
+            "Most common teaching tasks"
+        else -> "Shortcuts for your responsibilities"
     }
 }
 

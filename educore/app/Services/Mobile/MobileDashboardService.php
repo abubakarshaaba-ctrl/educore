@@ -25,7 +25,10 @@ use Illuminate\Support\Facades\Schema;
 
 class MobileDashboardService
 {
-    public function __construct(private readonly MobileModuleService $modules) {}
+    public function __construct(
+        private readonly MobileModuleService $modules,
+        private readonly MobileRoleExperiencePolicy $experience,
+    ) {}
 
     public function for(Request $request): array
     {
@@ -42,7 +45,7 @@ class MobileDashboardService
             'role_key' => $user->roleKey(),
             'generated_at' => now()->toIso8601String(),
             'metrics' => $this->metrics($scope, $raw),
-            'quick_actions' => $this->quickActions($user),
+            'quick_actions' => $this->quickActions($user, $scope),
             'sections' => $this->sections($scope, $raw),
         ];
     }
@@ -282,14 +285,25 @@ class MobileDashboardService
             ->all();
     }
 
-    private function quickActions(User $user): array
+    private function quickActions(User $user, string $scope): array
     {
-        return collect($this->modules->forUser($user))
+        $modules = collect($this->modules->forUser($user))
             ->reject(fn (array $module): bool => str_ends_with($module['key'], 'dashboard') || $module['key'] === 'dashboard')
+            ->values();
+
+        $priority = $this->experience->prioritizedModuleKeys($scope, (string) $user->roleKey());
+        $rank = array_flip($priority);
+
+        return $modules
+            ->map(fn (array $module, int $index): array => $module + ['_source_order' => $index])
+            ->sortBy(fn (array $module): array => [
+                $rank[$module['key']] ?? PHP_INT_MAX,
+                $module['_source_order'],
+            ])
             ->take(6)
             ->map(fn (array $module): array => [
                 'module_key' => $module['key'],
-                'title' => $module['title'],
+                'title' => $this->experience->actionTitle($scope, (string) $user->roleKey(), $module['key'], $module['title']),
                 'icon' => $module['icon'],
                 'path' => $module['path'],
             ])->values()->all();

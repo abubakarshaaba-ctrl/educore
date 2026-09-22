@@ -26,9 +26,8 @@ enum class ModuleGroup(val label: String) {
 
 object ShellNavigationPolicy {
     fun tabs(session: SessionSnapshot): List<ShellTab> {
-        val portal = session.user.portal
+        val portal = session.user.portal.lowercase()
         val role = session.user.roleKey.lowercase()
-        val management = portal == "admin" || portal == "platform"
         val modules = visibleModules(session)
         val hasAcademics = modules.any { groupFor(it) == ModuleGroup.ACADEMICS }
         val hasSchedule = modules.any { groupFor(it) == ModuleGroup.SCHEDULE }
@@ -36,17 +35,23 @@ object ShellNavigationPolicy {
         val financeRole = role in FINANCE_ROLES
 
         val primaryLabel = when {
-            portal == "parent" -> "Children"
             portal == "platform" -> "Schools"
+            portal == "parent" -> "Children"
+            portal == "student" -> "Academics"
             financeRole -> "Finance"
-            hasAcademics -> if (role.contains("teacher")) "Classes" else "Academics"
+            portal == "admin" -> if (hasAcademics) "Academics" else "Operations"
+            isTeachingRole(role) -> "Classes"
+            hasAcademics -> "Academics"
             hasOperations -> "Operations"
             else -> "Workspace"
         }
         val secondaryLabel = when {
-            management -> "Operations"
+            portal == "platform" -> "Operations"
             portal == "parent" -> "Academics"
+            portal == "student" && hasSchedule -> "Timetable"
+            portal == "admin" -> "Operations"
             financeRole -> "Operations"
+            isTeachingRole(role) && hasSchedule -> "Timetable"
             hasSchedule -> "Timetable"
             hasOperations -> "Operations"
             else -> "Account"
@@ -70,29 +75,38 @@ object ShellNavigationPolicy {
         val visible = visibleModules(session)
         val grouped = visible.groupBy(::groupFor)
         val role = session.user.roleKey.lowercase()
-        val hasAcademics = grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty()
+        val portal = session.user.portal.lowercase()
         val hasSchedule = grouped[ModuleGroup.SCHEDULE].orEmpty().isNotEmpty()
         val financeRole = role in FINANCE_ROLES
 
+        fun primaryModules(): List<ModuleDescriptor> = when (portal) {
+            "platform" -> visible.filter {
+                it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
+            }
+            "parent" -> visible.filter { it.key.contains("attendance") }
+            "student" -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+            "admin" -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+            else -> when {
+                financeRole -> visible.filter { it.key in FINANCE_KEYS }
+                isTeachingRole(role) -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+                grouped[ModuleGroup.ACADEMICS].orEmpty().isNotEmpty() -> grouped[ModuleGroup.ACADEMICS].orEmpty()
+                else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
+            }
+        }
+
         return when (tab) {
             ShellTabId.HOME -> emptyList()
-            ShellTabId.PRIMARY -> when (session.user.portal) {
-                "platform" -> visible.filter {
-                    it.key.contains("school") || it.key.contains("tenant") || it.key.contains("group")
-                }
-                "parent" -> visible.filter { it.key.contains("attendance") }
-                else -> when {
-                    financeRole -> visible.filter { it.key in FINANCE_KEYS }
-                    hasAcademics -> grouped[ModuleGroup.ACADEMICS].orEmpty()
-                    else -> grouped[ModuleGroup.OPERATIONS].orEmpty()
-                }
-            }
-            ShellTabId.SECONDARY -> when (session.user.portal) {
-                "admin", "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
+            ShellTabId.PRIMARY -> primaryModules()
+            ShellTabId.SECONDARY -> when (portal) {
+                "platform" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
+                    .filterNot { it in primaryModules() }
+                "admin" -> grouped[ModuleGroup.OPERATIONS].orEmpty()
                 "parent" -> visible.filter {
                     groupFor(it) in setOf(ModuleGroup.ACADEMICS, ModuleGroup.OPERATIONS) &&
-                        it !in modulesFor(ShellTabId.PRIMARY, session)
+                        it !in primaryModules()
                 }
+                "student" -> if (hasSchedule) grouped[ModuleGroup.SCHEDULE].orEmpty()
+                    else grouped[ModuleGroup.OPERATIONS].orEmpty()
                 else -> when {
                     financeRole -> grouped[ModuleGroup.OPERATIONS].orEmpty().filterNot { it.key in FINANCE_KEYS }
                     hasSchedule -> grouped[ModuleGroup.SCHEDULE].orEmpty()
@@ -140,7 +154,11 @@ object ShellNavigationPolicy {
         }
     }
 
+    private fun isTeachingRole(role: String): Boolean =
+        role.contains("teacher") || role in TEACHING_ROLES
+
     private val FINANCE_ROLES = setOf("accountant", "finance_officer", "bursar")
+    private val TEACHING_ROLES = setOf("hod", "head_of_department", "director_of_studies")
     private val FINANCE_KEYS = setOf("fees", "expenses", "payroll", "analytics", "exports")
     private val ACADEMIC_KEYS = listOf(
         "student",

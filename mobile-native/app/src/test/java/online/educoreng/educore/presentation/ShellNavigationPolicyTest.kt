@@ -28,14 +28,59 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
-    fun module_hub_groups_every_backend_module_once() {
+    fun five_core_experiences_use_stable_task_oriented_labels() {
+        assertEquals(
+            listOf("Home", "Schools", "Operations", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("platform", "super_admin")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Academics", "Operations", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("admin", "admin")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Classes", "Timetable", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("staff", "subject_teacher")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Academics", "Timetable", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("student", "student")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Children", "Academics", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("parent", "parent")).map { it.label },
+        )
+    }
+
+    @Test
+    fun platform_primary_and_secondary_tabs_do_not_duplicate_school_modules() {
+        val session = session("platform", "super_admin").copy(
+            modules = listOf(
+                ModuleDescriptor("platform.schools", "Schools", "/super/tenants", "schools"),
+                ModuleDescriptor("platform.groups", "School Groups", "/super/groups", "schools"),
+                ModuleDescriptor("platform.analytics", "Analytics", "/super/analytics", "analytics"),
+                ModuleDescriptor("platform.support", "Support", "/super/support", "messages"),
+            ),
+        )
+
+        val primary = ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, session).map { it.key }.toSet()
+        val secondary = ShellNavigationPolicy.modulesFor(ShellTabId.SECONDARY, session).map { it.key }.toSet()
+
+        assertEquals(setOf("platform.schools", "platform.groups"), primary)
+        assertTrue(primary.intersect(secondary).isEmpty())
+    }
+
+    @Test
+    fun module_hub_groups_every_visible_backend_module_once() {
         val session = session(portal = "admin", role = "admin")
         val grouped = ShellNavigationPolicy.groupedModules(session)
             .values
             .flatten()
 
-        assertEquals(session.modules.size, grouped.size)
-        assertEquals(session.modules.map { it.key }.toSet(), grouped.map { it.key }.toSet())
+        assertEquals(ShellNavigationPolicy.visibleModules(session).size, grouped.size)
+        assertEquals(
+            ShellNavigationPolicy.visibleModules(session).map { it.key }.toSet(),
+            grouped.map { it.key }.toSet(),
+        )
     }
 
     @Test
@@ -93,11 +138,11 @@ class ShellNavigationPolicyTest {
     private fun session(portal: String, role: String): SessionSnapshot = SessionSnapshot(
         user = UserIdentity(
             id = 5,
-            name = "A. Teacher",
-            email = "teacher@example.test",
+            name = "A. User",
+            email = "user@example.test",
             staffId = "STF005",
             roleKey = role,
-            roleLabel = "Subject Teacher",
+            roleLabel = role.replace("_", " "),
             roles = listOf(role),
             portal = portal,
         ),
