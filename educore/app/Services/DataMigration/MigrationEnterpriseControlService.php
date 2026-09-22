@@ -136,7 +136,7 @@ class MigrationEnterpriseControlService
 
     private function requireTenantAdmin(User $actor, int $tenantId): void
     {
-        if (! $actor->isAdmin() || (int) $actor->tenant_id !== $tenantId) {
+        if (! $actor->isAdminPortalRole() || (int) $actor->tenant_id !== $tenantId) {
             throw new UnauthorizedException('A School Administrator for this institution is required.');
         }
     }
@@ -169,8 +169,16 @@ class MigrationEnterpriseControlService
 
     private function notifyTenantAdmins(DataMigration $migration, string $event, array $payload): void
     {
-        User::query()->where('tenant_id', $migration->tenant_id)->where('role', 'admin')
-            ->each(fn (User $user) => $this->notification($migration->id, $migration->tenant_id, $user->id, $event, $payload));
+        User::query()
+            ->where('tenant_id', $migration->tenant_id)
+            ->whereIn('role', User::adminPortalRoleNames())
+            ->each(fn (User $user) => $this->notification(
+                $migration->id,
+                $migration->tenant_id,
+                $user->id,
+                $event,
+                $payload
+            ));
     }
 
     private function notifyMigrationAdmins(int $migrationId, int $tenantId, string $event, array $payload): void
