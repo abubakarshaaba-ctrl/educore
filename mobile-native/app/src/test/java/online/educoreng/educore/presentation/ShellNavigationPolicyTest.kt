@@ -29,6 +29,50 @@ class ShellNavigationPolicyTest {
     }
 
     @Test
+    fun five_core_experiences_use_stable_task_oriented_labels() {
+        assertEquals(
+            listOf("Home", "Schools", "Operations", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("platform", "super_admin")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Academics", "Operations", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("admin", "admin")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Classes", "Timetable", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("staff", "subject_teacher")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Academics", "Timetable", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("student", "student")).map { it.label },
+        )
+        assertEquals(
+            listOf("Home", "Children", "Academics", "Inbox", "More"),
+            ShellNavigationPolicy.tabs(session("parent", "parent")).map { it.label },
+        )
+    }
+
+    @Test
+    fun platform_primary_and_secondary_tabs_do_not_duplicate_school_modules() {
+        val platform = session(
+            portal = "platform",
+            role = "super_admin",
+            extraModules = listOf(
+                ModuleDescriptor("platform.schools", "Schools", "/super/tenants", "schools"),
+                ModuleDescriptor("platform.groups", "School Groups", "/super/groups", "schools"),
+                ModuleDescriptor("platform.analytics", "Analytics", "/super/analytics", "analytics"),
+                ModuleDescriptor("platform.support", "Support", "/super/support", "messages"),
+            ),
+        )
+
+        val primary = ShellNavigationPolicy.modulesFor(ShellTabId.PRIMARY, platform).map { it.key }.toSet()
+        val secondary = ShellNavigationPolicy.modulesFor(ShellTabId.SECONDARY, platform).map { it.key }.toSet()
+
+        assertEquals(setOf("platform.schools", "platform.groups"), primary)
+        assertTrue(primary.intersect(secondary).isEmpty())
+    }
+
+    @Test
     fun module_hub_groups_every_visible_admin_module_once() {
         val session = session(portal = "admin", role = "admin")
         val visible = ShellNavigationPolicy.visibleModules(session)
