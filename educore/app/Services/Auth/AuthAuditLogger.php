@@ -16,9 +16,10 @@ class AuthAuditLogger
         string $action,
         array $newValues = [],
         ?Request $request = null,
-        ?string $reason = null
+        ?string $reason = null,
+        ?User $actor = null
     ): ?AuditLog {
-        return $this->record($user->tenant_id, null, $user, $action, $newValues, $request, $reason);
+        return $this->record($user->tenant_id, $actor, $user, $action, $newValues, $request, $reason);
     }
 
     public function recordForTenant(

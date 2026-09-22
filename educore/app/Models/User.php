@@ -823,6 +823,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'tenant_id', 'name', 'email', 'password',
+        'must_change_password', 'password_reset_at', 'password_reset_by',
         'role', 'phone', 'staff_id', 'student_id', 'attendance_pin', 'qr_secret',
         'date_of_birth', 'gender', 'address', 'passport_photo',
         'qualification', 'qualifications',
@@ -870,6 +871,8 @@ class User extends Authenticatable
             'status_changed_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_reset_at' => 'datetime',
             'two_factor_secret' => 'encrypted',
             'is_super_admin' => 'boolean',
             'is_migration_admin' => 'boolean',
