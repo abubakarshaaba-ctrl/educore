@@ -291,7 +291,13 @@ class MobileAdvancedAdministrationController extends Controller
 
     private function authorizeActor($actor): void
     {
-        abort_unless($actor && ($actor->isSuperAdmin() || ($actor->isAdmin() && $actor->tenant_id)), 403);
+        abort_unless(
+            $actor && (
+                $actor->isSuperAdmin()
+                || ($actor->tenant_id && $actor->isAdminPortalRole())
+            ),
+            403
+        );
     }
 
     private function authorizeMigration($actor, DataMigration $migration): void
