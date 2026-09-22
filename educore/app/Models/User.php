@@ -990,6 +990,18 @@ class User extends Authenticatable
         return array_values(array_unique($roles));
     }
 
+    public static function adminPortalRoleNames(): array
+    {
+        $roles = self::ADMIN_PORTAL_ROLES;
+        foreach (self::ROLE_ALIASES as $alias => $target) {
+            if (in_array($target, self::ADMIN_PORTAL_ROLES, true)) {
+                $roles[] = $alias;
+            }
+        }
+
+        return array_values(array_unique($roles));
+    }
+
     public static function teachingRoleNames(): array
     {
         $roles = self::ROLES_TEACHING;
