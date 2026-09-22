@@ -267,20 +267,6 @@ class MobileBootstrapController extends Controller
             return 'parent';
         }
 
-        return in_array($user->roleKey(), [
-            'admin',
-            'principal',
-            'head',
-            'head_teacher',
-            'head_of_school',
-            'school_head',
-            'vice_principal',
-            'vice_principal_academics',
-            'vice_principal_administration',
-            'assistant_principal',
-            'assistant_head',
-            'academic_head',
-            'academic_administrator',
-        ], true) ? 'admin' : 'staff';
+        return $user->isAdminPortalRole() ? 'admin' : 'staff';
     }
 }
