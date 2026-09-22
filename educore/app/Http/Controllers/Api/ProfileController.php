@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Auth\AccountSessionRevoker;
+use App\Services\Auth\AuthAuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -58,8 +61,11 @@ class ProfileController extends Controller
     }
 
     /** Change the authenticated user's password after verifying the current one. */
-    public function updatePassword(Request $request)
-    {
+    public function updatePassword(
+        Request $request,
+        AccountSessionRevoker $sessions,
+        AuthAuditLogger $audit
+    ) {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'confirmed', Password::min(8), 'max:128'],
@@ -74,11 +80,38 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        $user->password = $data['password'];
-        $user->save();
+        $wasAdministrativeRecovery = (bool) $user->must_change_password;
+
+        $user->forceFill([
+            'password' => $data['password'],
+            'must_change_password' => false,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $currentToken = $request->attributes->get('api_token');
+        $revoked = $sessions->revoke($user, null, $currentToken?->id);
+
+        $audit->recordForUser(
+            $user,
+            $wasAdministrativeRecovery
+                ? 'auth.password_change.required_completed'
+                : 'auth.password_change.completed',
+            [
+                'surface' => 'mobile_api',
+                'administrative_recovery_completed' => $wasAdministrativeRecovery,
+                'other_api_tokens_revoked' => $revoked['api_tokens_revoked'],
+                'web_sessions_revoked' => $revoked['sessions_revoked'],
+            ],
+            $request,
+            null,
+            $user,
+        );
 
         return response()->json([
-            'message' => 'Password changed successfully.',
+            'message' => $wasAdministrativeRecovery
+                ? 'Password updated. Your account recovery is complete.'
+                : 'Password changed successfully.',
+            'must_change_password' => false,
         ]);
     }
 

@@ -198,6 +198,10 @@ class MobileBootstrapController extends Controller
             report($exception);
         }
 
+        $passwordChangeRequired = ! $superAdmin
+            && (bool) ($user->must_change_password ?? false)
+            && (bool) $access->allowed;
+
         try {
             return response()->json([
                 'contract_version' => 1,
@@ -227,9 +231,11 @@ class MobileBootstrapController extends Controller
                 ],
                 'access' => [
                     'allowed' => (bool) $access->allowed,
-                    'state' => (string) $access->state,
-                    'message' => (string) $access->message,
-                    'severity' => $access->severity,
+                    'state' => $passwordChangeRequired ? 'password_change_required' : (string) $access->state,
+                    'message' => $passwordChangeRequired
+                        ? 'Your administrator issued a temporary password. Create a new password to continue.'
+                        : (string) $access->message,
+                    'severity' => $passwordChangeRequired ? 'warning' : $access->severity,
                     'expires_at' => $accessExpiresAt,
                 ],
                 'permissions' => array_values(array_filter((array) $permissions, 'is_string')),

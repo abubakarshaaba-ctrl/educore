@@ -54,6 +54,18 @@ class AuthenticateApiToken
         $request->setUserResolver(fn () => $user);
         $request->attributes->set('api_token', $token);
 
+        $path = trim($request->path(), '/');
+        $path = preg_replace('#^api/v1/#', '', $path) ?? $path;
+        if (
+            $user->must_change_password
+            && ! in_array($path, ['bootstrap', 'auth/logout', 'profile/password'], true)
+        ) {
+            return response()->json([
+                'message' => 'You must replace the temporary password before continuing.',
+                'code' => 'password_change_required',
+            ], 428);
+        }
+
         try {
             $allowed = $this->accessPolicy->allows($user, $request);
         } catch (Throwable $exception) {
