@@ -30,7 +30,7 @@
                 <x-auth.alert type="error">{{ $errors->first() }}</x-auth.alert>
             @endif
 
-            <form method="POST" action="{{ route('account.password-required.update') }}" novalidate>
+            <form method="POST" action="{{ url('/account/password-required') }}" novalidate>
                 @csrf
                 @method('PUT')
                 <div class="ec-form-group">
@@ -51,7 +51,7 @@
                 <x-auth.submit-button>Save New Password</x-auth.submit-button>
             </form>
 
-            <form method="POST" action="{{ route('logout') }}" style="margin-top:14px;text-align:center">
+            <form method="POST" action="{{ url('/logout') }}" style="margin-top:14px;text-align:center">
                 @csrf
                 <button type="submit" style="background:none;border:0;color:#64748B;font:inherit;font-size:12px;cursor:pointer">Sign out instead</button>
             </form>

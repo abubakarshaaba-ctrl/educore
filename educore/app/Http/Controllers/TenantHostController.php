@@ -110,7 +110,7 @@ class TenantHostController extends Controller
         // Return 200 + JS redirect instead of 302 to ensure the session cookie
         // is delivered to the browser (Cloudflare strips Set-Cookie from 302s).
         $dest = $user->must_change_password
-            ? route('account.password-required.edit')
+            ? $this->hostUrl($request, '/account/password-required')
             : $redirector->redirectFor($user)->getTargetUrl();
         return response()->view('auth.redirecting', ['url' => $dest]);
     }
