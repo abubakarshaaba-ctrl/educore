@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\StaffProfileSubmission;
 use App\Models\StaffWorkHistory;
 use App\Models\User;
+use App\Services\Auth\AdministrativePasswordResetService;
 use App\Services\PlanLimitService;
 use App\Services\StaffIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class StaffController extends Controller
 {
@@ -214,14 +215,56 @@ class StaffController extends Controller
             ->with('success', 'Staff record updated successfully.');
     }
 
-    public function resetPassword(Request $request, User $staff)
-    {
+    public function resetPassword(
+        Request $request,
+        User $staff,
+        AdministrativePasswordResetService $resets
+    ) {
         $this->ensureTenantStaff($staff);
+
+        $actor = $request->user();
+        abort_unless(
+            $actor
+                && $actor->isAdmin()
+                && (int) $actor->tenant_id === (int) $staff->tenant_id,
+            403,
+            'Only the tenant administrator can reset staff passwords.'
+        );
+
+        abort_if(
+            $staff->isAdmin(),
+            403,
+            'Tenant administrator accounts can only be reset by the Platform Super Admin.'
+        );
+
         $validated = $request->validate([
-            'password' => ['required', Password::min(8), 'confirmed'],
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+            'current_password' => ['required', 'string'],
         ]);
-        $staff->update(['password' => Hash::make($validated['password'])]);
-        return back()->with('success', 'Password reset successfully.');
+
+        if (! Hash::check($validated['current_password'], $actor->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Your current password is incorrect.',
+            ]);
+        }
+
+        $result = $resets->reset(
+            target: $staff,
+            actor: $actor,
+            reason: $validated['reason'],
+            request: $request,
+        );
+
+        return back()
+            ->with('success', "Temporary password created for {$staff->name}.")
+            ->with('password_reset_result', [
+                'user_id' => $staff->id,
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'temporary_password' => $result['temporary_password'],
+                'sessions_revoked' => $result['sessions_revoked'],
+                'api_tokens_revoked' => $result['api_tokens_revoked'],
+            ]);
     }
 
     public function toggle(User $staff)

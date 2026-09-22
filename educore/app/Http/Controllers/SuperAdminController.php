@@ -9,6 +9,7 @@ use App\Models\PlatformSetting;
 use App\Models\StaffWorkHistory;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\AdministrativePasswordResetService;
 use App\Services\Auth\AuthAuditLogger;
 use App\Services\StaffIdGenerator;
 use App\Services\TenantHostResolver;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
 class SuperAdminController extends Controller
@@ -229,8 +231,13 @@ class SuperAdminController extends Controller
         $payments = DB::table('platform_payments')->where('tenant_id', $tenant->id)
                       ->orderByDesc('created_at')->get();
         $onboardingStatus = $onboarding->status($tenant);
+        $tenantAdmins = User::query()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('role', User::roleAliasesFor('admin'))
+            ->orderBy('name')
+            ->get();
 
-        return view('super.tenant-show', compact('tenant', 'payments', 'onboardingStatus'));
+        return view('super.tenant-show', compact('tenant', 'payments', 'onboardingStatus', 'tenantAdmins'));
     }
 
     public function editTenant(Tenant $tenant, TenantUrlGenerator $urls, TenantHostResolver $hosts)
@@ -566,6 +573,59 @@ class SuperAdminController extends Controller
                 ? $urls->landing($tenant)
                 : null,
         ];
+    }
+
+    public function resetTenantAdminPassword(
+        Request $request,
+        Tenant $tenant,
+        User $admin,
+        AdministrativePasswordResetService $resets
+    ) {
+        $this->guard();
+
+        abort_unless(
+            (int) $admin->tenant_id === (int) $tenant->id
+                && ! $admin->isSuperAdmin()
+                && $admin->isAdmin(),
+            404
+        );
+
+        if (! $admin->is_active || ! $admin->isEmploymentActive()) {
+            throw ValidationException::withMessages([
+                'admin' => 'This tenant administrator account is inactive. Reactivate the account before resetting its password.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+            'current_password' => ['required', 'string'],
+        ]);
+
+        $actor = $request->user();
+        if (! $actor || ! Hash::check($validated['current_password'], $actor->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Your current Platform Super Admin password is incorrect.',
+            ]);
+        }
+
+        $result = $resets->reset(
+            target: $admin,
+            actor: $actor,
+            reason: $validated['reason'],
+            request: $request,
+        );
+
+        return redirect()
+            ->route('super.tenant.show', $tenant)
+            ->with('success', "Temporary password created for {$admin->name}.")
+            ->with('password_reset_result', [
+                'user_id' => $admin->id,
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'temporary_password' => $result['temporary_password'],
+                'sessions_revoked' => $result['sessions_revoked'],
+                'api_tokens_revoked' => $result['api_tokens_revoked'],
+            ]);
     }
 
     public function impersonate(Tenant $tenant)

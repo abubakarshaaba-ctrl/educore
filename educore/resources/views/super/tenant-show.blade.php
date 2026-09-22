@@ -40,6 +40,16 @@ tbody tr:last-child td{border-bottom:none}
 
 @section('content')
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
+@if($reset = session('password_reset_result'))
+<div class="alert-success" style="background:#FFFBEB;border:1px solid #FDE68A;color:#78350F;padding:14px 16px;border-radius:10px;margin-bottom:14px">
+  <strong style="display:block;margin-bottom:6px">Temporary password — copy it now</strong>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input id="temporary-password" class="fc" style="max-width:340px;background:white;font-family:monospace;font-weight:700" type="text" readonly value="{{ $reset['temporary_password'] }}">
+    <button type="button" class="btn btn-ghost" onclick="navigator.clipboard?.writeText(document.getElementById('temporary-password').value)">Copy</button>
+  </div>
+  <div style="font-size:11px;line-height:1.5;margin-top:8px">Give this password directly to {{ $reset['name'] }}. It is shown only on this page load. Existing web/mobile sessions were revoked and a new password is required after sign-in.</div>
+</div>
+@endif
 @if($errors->any())<div class="alert-error">{{ $errors->first() }}</div>@endif
 
 <a href="{{ route('super.tenants') }}" class="back">&larr; Back to Schools</a>
@@ -145,6 +155,33 @@ tbody tr:last-child td{border-bottom:none}
         @endforelse
         </tbody>
       </table></div>
+    </div>
+
+    <div class="card">
+      <div class="ch">Tenant Administrator Recovery</div>
+      <div style="padding:14px 16px;font-size:12px;color:var(--slate);line-height:1.55;border-bottom:1px solid var(--border)">
+        Use this only when normal email recovery is unavailable. EduCore generates a temporary password, revokes existing sessions and forces the administrator to create a new password.
+      </div>
+      @forelse($tenantAdmins as $admin)
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;color:var(--midnight)">{{ $admin->name }}</div>
+        <div style="font-size:11px;color:var(--slate-light);margin:2px 0 10px;overflow-wrap:anywhere">{{ $admin->email }} · {{ $admin->is_active ? 'Active' : 'Inactive' }}</div>
+        <form method="POST" action="{{ route('super.tenant.admin.reset-password', [$tenant, $admin]) }}" onsubmit="return confirm('Reset this tenant administrator password and revoke all existing sessions?')">
+          @csrf
+          <div class="fg">
+            <label class="fl">Reason</label>
+            <textarea class="fc" name="reason" rows="2" minlength="10" maxlength="500" required>{{ old('reason') }}</textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">Your Platform Super Admin Password</label>
+            <input class="fc" type="password" name="current_password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-p" {{ (!$admin->is_active || !$admin->isEmploymentActive()) ? 'disabled' : '' }}>Generate Temporary Password</button>
+        </form>
+      </div>
+      @empty
+      <div style="padding:16px;color:var(--slate-light);font-size:12px">No tenant administrator account is registered for this school.</div>
+      @endforelse
     </div>
 
     <div class="card">

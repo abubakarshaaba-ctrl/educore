@@ -77,6 +77,16 @@
 </div>
 
 @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
+@if($reset = session('password_reset_result'))
+<div class="alert-success" style="background:#FFFBEB;border-color:#FDE68A;color:#78350F">
+    <strong style="display:block;margin-bottom:6px">Temporary password — copy it now</strong>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="temporary-password" class="form-control" style="max-width:320px;background:white;font-family:monospace;font-weight:700" type="text" readonly value="{{ $reset['temporary_password'] }}">
+        <button type="button" class="btn btn-ghost" onclick="navigator.clipboard?.writeText(document.getElementById('temporary-password').value)">Copy</button>
+    </div>
+    <div class="hint" style="color:#78350F;margin-top:8px">Give this password directly to {{ $reset['name'] }}. It is shown only on this page load. Previous web/mobile sessions were revoked and a new password is required after sign-in.</div>
+</div>
+@endif
 @if($errors->any())
 <div class="alert-error" role="alert">
     <strong>Changes were not saved.</strong>
@@ -178,17 +188,31 @@
             </div>
         </div>
 
+        @if(auth()->user()->isAdmin() && !$staff->isAdmin())
         <div class="card">
-            <div class="card-header"><span class="card-title">Reset Password</span></div>
+            <div class="card-header"><span class="card-title">Administrative Account Recovery</span></div>
             <div class="card-body">
-                <form method="POST" action="{{ route('staff.reset-password', $staff) }}">
+                <p class="hint" style="margin-top:0;margin-bottom:14px">
+                    Use this only when the staff member cannot recover the account through the registered email.
+                    EduCore generates a temporary password, revokes existing sessions and requires a new password at the next sign-in.
+                </p>
+                <form method="POST" action="{{ route('staff.reset-password', $staff) }}" onsubmit="return confirm('Reset this staff password and revoke all existing sessions?')">
                     @csrf
-                    <div class="form-group"><label class="form-label">New Password <span>*</span></label><input type="text" name="password" class="form-control" placeholder="Minimum 8 characters"></div>
-                    <div class="form-group"><label class="form-label">Confirm Password <span>*</span></label><input type="text" name="password_confirmation" class="form-control" placeholder="Repeat password"></div>
-                    <button type="submit" class="btn btn-danger">Reset Password</button>
+                    <div class="form-group">
+                        <label class="form-label">Reason <span>*</span></label>
+                        <textarea name="reason" class="form-control @error('reason') is-invalid @enderror" rows="3" minlength="10" maxlength="500" required>{{ old('reason') }}</textarea>
+                        @error('reason')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Your Current Password <span>*</span></label>
+                        <input type="password" name="current_password" class="form-control @error('current_password') is-invalid @enderror" autocomplete="current-password" required>
+                        @error('current_password')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+                    <button type="submit" class="btn btn-danger">Generate Temporary Password</button>
                 </form>
             </div>
         </div>
+        @endif
     </div>
 </div>
 @endsection
