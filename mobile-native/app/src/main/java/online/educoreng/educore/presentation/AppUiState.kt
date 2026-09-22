@@ -6,6 +6,7 @@ import online.educoreng.educore.core.model.DashboardSnapshot
 enum class AppPhase {
     STARTING,
     SIGNED_OUT,
+    PASSWORD_CHANGE_REQUIRED,
     READY,
     BLOCKED,
 }
@@ -23,6 +24,7 @@ data class AppUiState(
     val message: String? = null,
     val authMode: AuthMode = AuthMode.LOGIN,
     val fieldErrors: Map<String, String> = emptyMap(),
+    val passwordChangeError: String? = null,
     val dashboard: DashboardUiState = DashboardUiState(),
     val portalUrl: String? = null,
 )

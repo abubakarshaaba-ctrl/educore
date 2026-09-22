@@ -103,6 +103,13 @@ fun EduCoreFoundationApp(viewModel: MainViewModel = hiltViewModel()) {
                     onRequestReset = viewModel::requestPasswordReset,
                     onBackToLogin = viewModel::showLogin,
                 )
+                AppPhase.PASSWORD_CHANGE_REQUIRED -> RequiredPasswordChangeScreen(
+                    session = requireNotNull(state.session),
+                    busy = state.isBusy,
+                    errorMessage = state.passwordChangeError,
+                    onSubmit = viewModel::completeRequiredPasswordChange,
+                    onLogout = viewModel::logout,
+                )
                 AppPhase.BLOCKED -> AccessBlockedScreen(
                     session = requireNotNull(state.session),
                     busy = state.isBusy,

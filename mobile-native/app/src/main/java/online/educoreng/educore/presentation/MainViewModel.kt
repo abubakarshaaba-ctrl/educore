@@ -18,8 +18,10 @@ import online.educoreng.educore.core.common.AppResult
 import online.educoreng.educore.core.data.connectivity.ConnectivityMonitor
 import online.educoreng.educore.core.data.repository.CommunicationRepository
 import online.educoreng.educore.core.data.repository.DashboardRepository
+import online.educoreng.educore.core.data.repository.ProfileSelfServiceRepository
 import online.educoreng.educore.core.data.repository.SessionRepository
 import online.educoreng.educore.core.model.SessionSnapshot
+import online.educoreng.educore.core.network.dto.ChangePasswordRequestDto
 import online.educoreng.educore.notification.PushNotificationContract
 import online.educoreng.educore.sync.OfflineSyncCoordinator
 
@@ -27,6 +29,7 @@ import online.educoreng.educore.sync.OfflineSyncCoordinator
 class MainViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val dashboardRepository: DashboardRepository,
+    private val profileSelfServiceRepository: ProfileSelfServiceRepository,
     private val communicationRepository: CommunicationRepository,
     connectivityMonitor: ConnectivityMonitor,
     private val syncCoordinator: OfflineSyncCoordinator,
@@ -93,6 +96,50 @@ class MainViewModel @Inject constructor(
     }
 
     fun consumeMessage() = _uiState.update { it.copy(message = null) }
+
+    fun completeRequiredPasswordChange(
+        currentPassword: String,
+        newPassword: String,
+        confirmation: String,
+    ) {
+        if (_uiState.value.isBusy) return
+
+        val error = when {
+            currentPassword.isBlank() -> "Enter the temporary password issued by your administrator."
+            newPassword.length < 10 -> "Your new password must contain at least 10 characters."
+            newPassword.none(Char::isUpperCase) || newPassword.none(Char::isLowerCase) ->
+                "Your new password must contain uppercase and lowercase letters."
+            newPassword.none(Char::isDigit) -> "Your new password must contain at least one number."
+            newPassword != confirmation -> "New password and confirmation do not match."
+            else -> null
+        }
+
+        if (error != null) {
+            _uiState.update { it.copy(passwordChangeError = error) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBusy = true, passwordChangeError = null, message = null) }
+            when (
+                val result = profileSelfServiceRepository.changePassword(
+                    ChangePasswordRequestDto(
+                        currentPassword = currentPassword,
+                        password = newPassword,
+                        passwordConfirmation = confirmation,
+                    ),
+                )
+            ) {
+                is AppResult.Success -> {
+                    _uiState.update { it.copy(passwordChangeError = null) }
+                    refreshSession()
+                }
+                is AppResult.Failure -> _uiState.update {
+                    it.copy(isBusy = false, passwordChangeError = result.error.userMessage)
+                }
+            }
+        }
+    }
 
     fun openWebModule(path: String) {
         if (_uiState.value.isBusy) return
@@ -173,16 +220,28 @@ class MainViewModel @Inject constructor(
     }
 
     private fun showSession(session: SessionSnapshot) {
+        val passwordChangeRequired = session.access.state.equals("password_change_required", ignoreCase = true)
+        val phase = when {
+            passwordChangeRequired -> AppPhase.PASSWORD_CHANGE_REQUIRED
+            session.access.allowed -> AppPhase.READY
+            else -> AppPhase.BLOCKED
+        }
+
         _uiState.update {
             it.copy(
-                phase = if (session.access.allowed) AppPhase.READY else AppPhase.BLOCKED,
+                phase = phase,
                 session = session,
                 isBusy = false,
                 fieldErrors = emptyMap(),
-                message = if (session.access.allowed && session.access.severity == "warning") session.access.message else null,
+                passwordChangeError = null,
+                message = if (
+                    phase == AppPhase.READY &&
+                    session.access.allowed &&
+                    session.access.severity == "warning"
+                ) session.access.message else null,
             )
         }
-        if (session.access.allowed) {
+        if (phase == AppPhase.READY) {
             registerPushToken()
             loadDashboard()
             loadStaffPhoto(session)

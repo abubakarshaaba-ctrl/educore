@@ -72,8 +72,8 @@ android {
         applicationId = "online.educoreng.educore"
         minSdk = 23
         targetSdk = 36
-        versionCode = 33
-        versionName = "2.0.0-alpha20"
+        versionCode = 34
+        versionName = "2.0.0-alpha21"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
