@@ -35,9 +35,12 @@ Specialist roles such as Accountant, Health Officer and Transport Officer retain
 
 The web dashboards use the same task-first presentation rules without changing authorization:
 
-- Teacher home promotes Mark Attendance, Enter Scores, Lesson Planner, My Classes, My Timetable and Messages when those modules are authorized.
+- Platform administrator home promotes Manage Schools, Send Broadcast, Support Inbox and Platform Analytics.
 - School administrator home promotes Student Attendance, Enter Scores, Report Cards, Staff Attendance, Students and Messages when authorized.
-- Less frequent functions remain available through the existing permission-filtered navigation rather than competing for primary dashboard space.
+- The canonical teacher self-service dashboard promotes Mark Attendance, Enter Scores, Lesson Planner, My Classes, My Timetable and Messages when those modules are authorized.
+- Student home promotes My Timetable, My Attendance, My Results and My Subjects.
+- Parent home promotes Child Attendance, Child Results, Fees & Payments and Child Timetable.
+- Less frequent functions remain available through the existing role/permission-filtered navigation rather than competing for primary dashboard space.
 
 ## Next extension points
 

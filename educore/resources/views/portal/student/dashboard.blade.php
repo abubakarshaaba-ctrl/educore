@@ -60,6 +60,22 @@
     </div>
 </div>
 
+{{-- Priority student tasks --}}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px">
+    <a href="{{ route('student.portal.timetable') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;text-decoration:none;color:#2563EB;font-size:13px;font-weight:700;text-align:center">
+        <span style="font-size:24px">📅</span>My Timetable
+    </a>
+    <a href="{{ route('student.portal.attendance') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;text-decoration:none;color:#B45309;font-size:13px;font-weight:700;text-align:center">
+        <span style="font-size:24px">✅</span>My Attendance
+    </a>
+    <a href="{{ route('student.portal.results') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;text-decoration:none;color:#047857;font-size:13px;font-weight:700;text-align:center">
+        <span style="font-size:24px">📊</span>My Results
+    </a>
+    <a href="{{ route('student.portal.subjects') }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:12px;text-decoration:none;color:#7C3AED;font-size:13px;font-weight:700;text-align:center">
+        <span style="font-size:24px">📚</span>My Subjects
+    </a>
+</div>
+
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     {{-- Upcoming exams --}}
     <div class="card">

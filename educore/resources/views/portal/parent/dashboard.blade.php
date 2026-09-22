@@ -67,16 +67,16 @@
     </div>
 </div>
 
-{{-- Quick actions --}}
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+{{-- Priority parent tasks --}}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px">
     @foreach([
-        ['parent.results','📊','View Results','#EFF6FF','#2563EB'],
-        ['parent.fees','💳','Pay Fees','#F0FDF4','#059669'],
-        ['parent.attendance','📅','Attendance','#FFFBEB','#D97706'],
-        ['parent.notifications','📢','Notices','#FEF2F2','#DC2626'],
+        ['parent.attendance','✅','Child Attendance','#FFFBEB','#B45309'],
+        ['parent.results','📊','Child Results','#EFF6FF','#2563EB'],
+        ['parent.fees','💳','Fees & Payments','#F0FDF4','#059669'],
+        ['parent.timetable','📅','Child Timetable','#F5F3FF','#7C3AED'],
     ] as [$route,$icon,$label,$bg,$color])
     <a href="{{ route($route, ['student_id'=>$student->id]) }}"
-       style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:{{ $bg }};border-radius:12px;text-decoration:none;color:{{ $color }};font-size:13px;font-weight:700;text-align:center;transition:transform 150ms">
+       style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;background:{{ $bg }};border:1px solid color-mix(in srgb,{{ $color }} 24%,white);border-radius:12px;text-decoration:none;color:{{ $color }};font-size:13px;font-weight:700;text-align:center;transition:transform 150ms">
         <span style="font-size:24px">{{ $icon }}</span>{{ $label }}
     </a>
     @endforeach

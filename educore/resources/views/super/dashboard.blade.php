@@ -40,8 +40,15 @@
     .warn-item { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid #FEF3C7; font-size:12px; }
     .warn-item:last-child { border-bottom:none; }
 
-    @media(max-width:1200px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
+    .platform-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:20px; }
+    .platform-action { display:flex; align-items:center; gap:10px; min-height:64px; padding:12px 14px; background:white; border:1px solid var(--border); border-radius:12px; text-decoration:none; color:#0F172A; font-size:12px; font-weight:700; transition:transform 150ms,box-shadow 150ms,border-color 150ms; }
+    .platform-action:hover { transform:translateY(-1px); box-shadow:0 5px 16px rgba(15,23,42,.08); border-color:#CBD5E1; }
+    .platform-action-icon { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:#EFF6FF; font-size:18px; flex:none; }
+    .platform-action small { display:block; color:#64748B; font-size:10px; font-weight:500; margin-top:2px; }
+
+    @media(max-width:1200px) { .stats-grid,.platform-actions { grid-template-columns:repeat(2,1fr); } }
     @media(max-width:768px)  { .row-2,.row-3 { grid-template-columns:1fr; } }
+    @media(max-width:520px)  { .stats-grid,.platform-actions { grid-template-columns:1fr; } }
 </style>
 @endpush
 
@@ -84,6 +91,26 @@
         <div class="stat-lbl">Expired / Suspended</div>
         <div class="stat-sub">{{ $stats['suspended'] }} suspended · {{ $stats['expiring_soon'] }} expiring soon</div>
     </div>
+</div>
+
+{{-- Priority platform tasks --}}
+<div class="platform-actions">
+    <a href="{{ route('super.tenants') }}" class="platform-action">
+        <span class="platform-action-icon">🏫</span>
+        <span>Manage Schools<small>Tenants, status and access</small></span>
+    </a>
+    <a href="{{ route('super.broadcasts') }}" class="platform-action">
+        <span class="platform-action-icon">📣</span>
+        <span>Send Broadcast<small>Platform communication</small></span>
+    </a>
+    <a href="{{ route('super.support') }}" class="platform-action">
+        <span class="platform-action-icon">💬</span>
+        <span>Support Inbox<small>School support requests</small></span>
+    </a>
+    <a href="{{ route('super.analytics') }}" class="platform-action">
+        <span class="platform-action-icon">📈</span>
+        <span>Platform Analytics<small>Usage and performance</small></span>
+    </a>
 </div>
 
 <div class="row-3">
