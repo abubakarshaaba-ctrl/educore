@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="t d">
+<title id="t">EduCore mobile teacher dashboard</title><desc id="d">A faithful marketing mockup of the EduCore native mobile home dashboard.</desc>
+<rect width="390" height="844" rx="34" fill="#F4F6FA"/>
+<rect width="390" height="118" fill="#082653"/>
+<text x="20" y="38" fill="#fff" font-family="Arial,sans-serif" font-size="13" font-weight="700">12:41</text>
+<text x="20" y="77" fill="#fff" font-family="Arial,sans-serif" font-size="18" font-weight="800">Edu<tspan fill="#E4AE32">Core</tspan> · Home</text>
+<text x="20" y="98" fill="#CFD8E7" font-family="Arial,sans-serif" font-size="12" font-weight="600">Greenfield Academy · 2026/2027 · 1st Term</text>
+<text x="352" y="84" text-anchor="middle" fill="#E4AE32" font-family="Arial,sans-serif" font-size="26">↻</text>
+<circle cx="55" cy="172" r="29" fill="#E5EBF4"/><circle cx="55" cy="161" r="9" fill="#73849A"/><path d="M38 190c3-15 31-15 34 0" fill="#73849A"/>
+<text x="92" y="160" fill="#0B1830" font-family="Arial,sans-serif" font-size="20" font-weight="800">Good afternoon,</text>
+<text x="92" y="184" fill="#0B1830" font-family="Arial,sans-serif" font-size="20" font-weight="800">Mujah eed Mustapha</text>
+<text x="92" y="207" fill="#46546A" font-family="Arial,sans-serif" font-size="14">Form &amp; Subject Teacher · STF1006</text>
+<g transform="translate(18 237)"><rect width="354" height="116" rx="13" fill="#fff" stroke="#D7DDE7"/>
+<text x="14" y="28" fill="#41506A" font-family="Arial,sans-serif" font-size="16" font-weight="800">Subscription status</text>
+<rect x="266" y="12" width="75" height="28" rx="9" fill="#DCF7E8"/><text x="303.5" y="31" text-anchor="middle" fill="#19714C" font-family="Arial,sans-serif" font-size="12" font-weight="700">Free plan</text>
+<text x="14" y="56" fill="#0B1830" font-family="Arial,sans-serif" font-size="18" font-weight="800">No expiry</text>
+<text x="14" y="84" fill="#5B687C" font-family="Arial,sans-serif" font-size="12">Your school currently has no subscription expiry date.</text></g>
+<g transform="translate(18 368)"><rect width="354" height="74" rx="12" fill="#fff" stroke="#D7DDE7"/>
+<text x="14" y="26" fill="#09234B" font-family="Arial,sans-serif" font-size="16" font-weight="800">Today at a glance</text>
+<text x="14" y="48" fill="#5B687C" font-family="Arial,sans-serif" font-size="11">Teaching, classes and tasks that need attention</text>
+<text x="14" y="65" fill="#5B687C" font-family="Arial,sans-serif" font-size="10">Updated 2026-09-23 12:41</text></g>
+<g font-family="Arial,sans-serif">
+<g transform="translate(18 456)"><rect width="168" height="88" rx="13" fill="#fff" stroke="#D7DDE7"/><rect x="14" y="21" width="36" height="36" rx="9" fill="#EDF3FB"/><text x="32" y="45" text-anchor="middle" fill="#0A2B5C" font-size="18">▣</text><text x="61" y="35" fill="#0B1830" font-size="17" font-weight="800">4</text><text x="61" y="55" fill="#43516A" font-size="13">Assigned classes</text></g>
+<g transform="translate(204 456)"><rect width="168" height="88" rx="13" fill="#fff" stroke="#D7DDE7"/><rect x="14" y="21" width="36" height="36" rx="9" fill="#E5F8EE"/><text x="32" y="45" text-anchor="middle" fill="#13734C" font-size="17">●●</text><text x="61" y="35" fill="#0B1830" font-size="17" font-weight="800">8</text><text x="61" y="55" fill="#43516A" font-size="13">Students</text></g>
+<g transform="translate(18 558)"><rect width="168" height="88" rx="13" fill="#fff" stroke="#D7DDE7"/><rect x="14" y="21" width="36" height="36" rx="9" fill="#EDF3FB"/><text x="32" y="45" text-anchor="middle" fill="#0A2B5C" font-size="18">▦</text><text x="61" y="35" fill="#0B1830" font-size="17" font-weight="800">0</text><text x="61" y="55" fill="#43516A" font-size="13">Periods today</text></g>
+<g transform="translate(204 558)"><rect width="168" height="88" rx="13" fill="#fff" stroke="#D7DDE7"/><rect x="14" y="21" width="36" height="36" rx="9" fill="#EDF3FB"/><text x="32" y="45" text-anchor="middle" fill="#0A2B5C" font-size="18">▪</text><text x="61" y="35" fill="#0B1830" font-size="17" font-weight="800">0</text><text x="61" y="55" fill="#43516A" font-size="13">Upcoming duties</text></g>
+<g transform="translate(18 660)"><rect width="354" height="58" rx="12" fill="#fff" stroke="#D7DDE7"/><text x="14" y="25" fill="#09234B" font-size="16" font-weight="800">Quick actions</text><text x="14" y="44" fill="#5B687C" font-size="11">Most common teaching tasks</text></g>
+</g>
+<rect y="744" width="390" height="100" fill="#E9EDF3"/>
+<g fill="#52637A" font-family="Arial,sans-serif" text-anchor="middle"><text x="39" y="780" font-size="21" fill="#0A2B5C">⌂</text><text x="39" y="807" font-size="11" font-weight="700" fill="#0A2B5C">Home</text><text x="117" y="780" font-size="20">◆</text><text x="117" y="807" font-size="11" font-weight="700">Classes</text><text x="195" y="780" font-size="20">◷</text><text x="195" y="807" font-size="11" font-weight="700">Timetable</text><text x="273" y="780" font-size="20">♟</text><text x="273" y="807" font-size="11" font-weight="700">Inbox</text><text x="351" y="780" font-size="22">•••</text><text x="351" y="807" font-size="11" font-weight="700">More</text></g>
+</svg>
