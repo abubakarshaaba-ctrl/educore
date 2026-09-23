@@ -5,8 +5,8 @@
 
 @php
     $supportEmail = 'support@educoreng.online';
-    $supportPhone = '07065595768';
-    $supportPhoneInternational = '+2347065595768';
+    $supportPhone = '08083070142';
+    $supportPhoneInternational = '+2348083070142';
     $supportWhatsAppInternational = '+2348083070142';
     $supportWhatsAppDigits = '2348083070142';
 @endphp
