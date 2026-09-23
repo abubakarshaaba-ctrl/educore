@@ -15,6 +15,7 @@ use App\Services\StaffIdGenerator;
 use App\Services\TenantHostResolver;
 use App\Services\TenantOnboardingService;
 use App\Services\TenantUrlGenerator;
+use App\Services\Notifications\PlatformAdminAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -209,6 +210,13 @@ class SuperAdminController extends Controller
 
             throw $e;
         }
+
+        app(PlatformAdminAlertService::class)->tenantRegistered(
+            $tenant,
+            User::where('tenant_id', $tenant->id)->whereIn('role', User::roleAliasesFor('admin'))->first(),
+            null,
+            'platform_admin'
+        );
 
         try {
             $tenant->notifyAdmins(new \App\Notifications\Tenant\TenantWelcomeNotification(
@@ -504,6 +512,15 @@ class SuperAdminController extends Controller
             'from' => $previousStatus,
             'to' => $request->status,
         ], $request, $request->input('reason'), auth()->user());
+
+        if ($previousStatus !== $request->status) {
+            app(PlatformAdminAlertService::class)->tenantStatusChanged(
+                $tenant,
+                (string) $previousStatus,
+                (string) $request->status,
+                $request->input('reason')
+            );
+        }
 
         if ($request->status === Tenant::STATUS_SUSPENDED && $previousStatus !== Tenant::STATUS_SUSPENDED) {
             try {
