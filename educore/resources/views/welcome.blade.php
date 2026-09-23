@@ -113,17 +113,11 @@ img{max-width:100%;display:block}
 .app-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
 .app-list span{font-size:10px;font-weight:700;color:#dbe5f1}
 .app-list span:before{content:"✓";color:var(--gold-2);margin-right:7px}
-.phone-stage{min-height:430px;display:grid;place-items:center;position:relative}
-.phone-stage:before{content:"";position:absolute;width:340px;height:340px;border-radius:50%;background:rgba(224,170,51,.9);right:-80px;bottom:-140px}
-.phone{position:relative;width:220px;height:410px;border:7px solid #161d28;border-radius:34px;background:#f6f8fb;overflow:hidden;box-shadow:0 32px 70px rgba(0,0,0,.35);transform:rotate(2deg);z-index:1}
-.phone-top{background:linear-gradient(150deg,var(--navy),var(--navy-3));padding:29px 16px 19px;color:#fff}
-.phone-top img{width:28px;height:28px}
-.phone-top small{display:block;margin-top:14px;font-size:7px;color:#bdcada}
-.phone-top b{font-size:13px}
-.phone-body{padding:11px}
-.phone-card{background:#fff;border:1px solid #e2e8ef;border-radius:10px;padding:12px;margin-bottom:8px}
-.phone-card b{display:block;font-size:8px;color:var(--navy)}
-.phone-card small{font-size:6px;color:#7f8b9b}
+.phone-stage{min-height:470px;display:grid;place-items:center;position:relative}
+.phone-stage:before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:rgba(224,170,51,.9);right:-90px;bottom:-155px}
+.phone-real{position:relative;width:min(286px,78%);z-index:1;filter:drop-shadow(0 32px 55px rgba(0,0,0,.38));transform:rotate(1.5deg)}
+.phone-real:before{content:"";position:absolute;inset:-7px;border:7px solid #121923;border-radius:35px;pointer-events:none}
+.phone-real img{width:100%;height:auto;border-radius:29px;display:block;background:#f4f6fa}
 
 .pricing-wrap{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
 .price-dark{background:var(--navy);color:#fff;padding:34px}
@@ -175,7 +169,7 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
   .app-copy p{margin:0 auto}
   .app-list{max-width:560px;margin:22px auto}
   .app-copy .btn{margin:auto}
-  .phone-stage{min-height:400px}
+  .phone-stage{min-height:430px}
   .footer-grid{grid-template-columns:1fr 1fr}
   .footer-about{grid-column:1/-1}
 }
@@ -225,8 +219,8 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
   .app-copy h2{font-size:30px}
   .app-copy p{font-size:10.5px}
   .app-list{grid-template-columns:1fr 1fr}
-  .phone-stage{min-height:360px}
-  .phone{width:190px;height:355px}
+  .phone-stage{min-height:390px}
+  .phone-real{width:min(232px,72%)}
   .pricing-wrap{grid-template-columns:1fr}
   .price-dark,.price-card{padding:25px 20px}
   .cta{padding-bottom:50px}
@@ -378,14 +372,8 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
       <a class="btn btn-gold" href="{{ route('app.download') }}">Download Android App</a>
     </div>
     <div class="phone-stage">
-      <div class="phone">
-        <div class="phone-top"><img src="/brand/educore-icon.svg" alt=""><small>Good morning</small><b>Welcome to EduCore</b></div>
-        <div class="phone-body">
-          <div class="phone-card"><b>Attendance</b><small>Daily attendance workflows</small></div>
-          <div class="phone-card"><b>Score Entry</b><small>Assigned academic tasks</small></div>
-          <div class="phone-card"><b>Notifications</b><small>School communication</small></div>
-          <div class="phone-card"><b>My Workspace</b><small>Role-specific tools</small></div>
-        </div>
+      <div class="phone-real">
+        <img src="/images/landing/educore-mobile-dashboard.svg" alt="EduCore mobile app teacher dashboard showing classes, students, timetable and quick actions">
       </div>
     </div>
   </div>
