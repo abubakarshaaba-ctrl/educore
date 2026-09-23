@@ -84,12 +84,14 @@ img{max-width:100%;display:block}
 .section-head{max-width:720px;margin:0 auto 30px;text-align:center}
 .section-head h2{margin:9px 0 10px;font-size:clamp(30px,3.6vw,46px);line-height:1.08;letter-spacing:-.045em;color:var(--navy)}
 .section-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
-.module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.module{border:1px solid var(--line);border-radius:14px;background:#fff;padding:18px;min-height:148px}
-.module-icon{width:38px;height:38px;border-radius:11px;background:#fff3d2;color:#986500;display:grid;place-items:center;margin-bottom:13px}
-.module-icon svg{width:18px;height:18px;stroke:currentColor}
-.module h3{margin:0 0 6px;font-size:13px;line-height:1.3;color:var(--navy)}
-.module p{margin:0;color:var(--muted);font-size:9px;line-height:1.55}
+.module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.module{position:relative;border:1px solid #dfe6ef;border-radius:18px;background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%);padding:22px;min-height:184px;box-shadow:0 10px 24px rgba(7,26,56,.06);overflow:hidden;transition:.2s ease}
+.module:before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--gold),var(--gold-2));opacity:.95}
+.module:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(7,26,56,.10)}
+.module-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(180deg,#fff5d9,#ffefbd);color:#986500;display:grid;place-items:center;margin:4px 0 16px;box-shadow:inset 0 0 0 1px rgba(224,170,51,.16)}
+.module-icon svg{width:20px;height:20px;stroke:currentColor}
+.module h3{margin:0 0 9px;font-size:14px;line-height:1.35;color:var(--navy)}
+.module p{margin:0;color:#65748a;font-size:10px;line-height:1.65}
 
 .empower{padding:68px 0;background:#fff}
 .empower-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:46px;align-items:center}
@@ -119,29 +121,34 @@ img{max-width:100%;display:block}
 .phone-real:before{content:"";position:absolute;inset:-7px;border:7px solid #121923;border-radius:35px;pointer-events:none}
 .phone-real img,.phone-real .embedded-mobile-dashboard,.phone-real .embedded-mobile-dashboard svg{width:100%;height:auto;border-radius:29px;display:block;background:#f4f6fa}.phone-real .embedded-mobile-dashboard{overflow:hidden}
 
-.pricing-wrap{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
-.price-dark{background:var(--navy);color:#fff;padding:34px}
-.price-dark h2{margin:8px 0 12px;font-size:31px;line-height:1.1}
-.price-dark p{margin:0;color:#bdc9d9;font-size:10px;line-height:1.7}
-.price-card{padding:34px}
-.price-card small{font-size:8px;font-weight:900;color:#758297;text-transform:uppercase}
-.free{font-size:42px;font-weight:900;letter-spacing:-.05em;color:var(--navy)}
-.divider{height:1px;background:var(--line);margin:18px 0}
-.paid{font-size:30px;font-weight:900;color:var(--navy)}
-.price-card p{font-size:10px;color:var(--muted)}
+.pricing-wrap{display:grid;grid-template-columns:1.02fr .98fr;border:1px solid #dce4ee;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 18px 50px rgba(7,26,56,.08)}
+.price-dark{position:relative;background:linear-gradient(145deg,#071a38 0%,#0b2d5e 100%);color:#fff;padding:46px}
+.price-dark:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;background:rgba(224,170,51,.12);right:-70px;bottom:-90px}
+.price-dark h2{margin:10px 0 14px;font-size:36px;line-height:1.08;letter-spacing:-.03em}
+.price-dark p{margin:0;color:#c9d5e5;font-size:11px;line-height:1.8;max-width:460px}
+.price-benefits{display:grid;gap:10px;margin-top:24px}.price-benefits span{display:flex;align-items:center;gap:9px;font-size:10px;color:#e5edf6}.price-benefits span:before{content:"✓";display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(242,201,94,.16);color:var(--gold-2);font-weight:900}
+.price-card{padding:42px 40px;background:linear-gradient(180deg,#fff,#fbfcfe)}
+.price-card small{font-size:8px;font-weight:900;color:#758297;text-transform:uppercase;letter-spacing:.08em}
+.free{font-size:46px;font-weight:900;letter-spacing:-.05em;color:var(--navy);margin-top:5px}
+.divider{height:1px;background:var(--line);margin:20px 0}
+.paid{font-size:34px;font-weight:900;color:var(--navy);margin-top:5px}
+.price-card p{font-size:10px;color:var(--muted);line-height:1.6}
+.price-note{margin-top:16px;padding:12px 14px;border-radius:12px;background:#fff7df;color:#79570a;font-size:9px;line-height:1.55;border:1px solid #f2df9c}
 
-.cta{padding:0 0 66px}
-.cta-box{background:linear-gradient(120deg,var(--navy),#104584);border-radius:18px;padding:31px 34px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:24px}
-.cta-box h2{margin:0;font-size:29px;line-height:1.15}
-.cta-box p{margin:6px 0 0;color:#bdc9d9;font-size:10px}
-.cta-actions{display:flex;gap:8px;flex:none}
+.cta{padding:0 0 72px}
+.cta-box{position:relative;overflow:hidden;background:linear-gradient(120deg,#071a38 0%,#0d3975 72%,#14539e 100%);border-radius:22px;padding:38px 42px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:30px;box-shadow:0 18px 45px rgba(7,26,56,.16)}
+.cta-box:after{content:"";position:absolute;width:240px;height:240px;border-radius:50%;background:rgba(224,170,51,.18);right:-80px;top:-120px}
+.cta-box>div{position:relative;z-index:1}
+.cta-box h2{margin:0;font-size:34px;line-height:1.12;color:#fff;letter-spacing:-.03em}
+.cta-box p{margin:8px 0 0;color:#cbd7e7;font-size:11px}
+.cta-actions{display:flex;gap:10px;flex:none;position:relative;z-index:1}
 
-footer{background:linear-gradient(135deg,#061d3d 0%,#082b59 62%,#061d3d 100%);border-top:4px solid var(--gold);color:#d9e2ef;padding:54px 0 0}
-.footer-grid{display:grid;grid-template-columns:1.55fr .75fr .75fr .75fr 1.45fr;gap:30px;align-items:start}
-.footer-about .brand{color:#fff}.footer-about p{max-width:310px;font-size:10px;line-height:1.75;color:#c4cfdd;margin:18px 0 0}.footer-tagline{color:var(--gold);font-size:13px;font-weight:800;margin-top:20px;letter-spacing:.02em}
-.footer-grid h4{margin:0 0 14px;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.13em}.footer-grid a{display:block;padding:5px 0;font-size:9px;color:#cbd5e1}.footer-grid a:hover{color:var(--gold)}
-.footer-contact h3{margin:0 0 6px;color:#fff;font-size:17px}.footer-contact>p{margin:0 0 14px;font-size:9px;line-height:1.6;color:#aebed1}.contact-card{display:flex!important;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.18);border-radius:11px;padding:10px 12px!important;margin:8px 0;color:#fff!important}.contact-card svg{width:20px;height:20px;flex:0 0 20px}.contact-card span{display:block}.contact-card small{display:block;color:#91a3ba;font-size:7px;margin-bottom:2px}.contact-card strong{font-size:9px;color:#fff}.contact-card.whatsapp{border-color:rgba(37,211,102,.5)}.contact-card.whatsapp svg{fill:#25D366}.contact-card.phone svg{fill:var(--gold)}.contact-card.email svg{fill:#fff}
-.footer-lower{display:flex;justify-content:space-between;align-items:center;gap:24px;border-top:1px solid rgba(255,255,255,.14);margin-top:38px;padding:24px 0}.app-download h3{color:#fff;font-size:13px;margin:0 0 5px}.app-download p{font-size:8px;margin:0 0 10px;color:#9fb0c5}.footer-app-btn{display:inline-flex!important;align-items:center;gap:8px;background:#fff;color:var(--navy)!important;border-radius:8px;padding:9px 13px!important;font-weight:800;font-size:9px!important}.footer-app-btn svg{width:18px;height:18px;fill:var(--navy)}.footer-promise{display:flex;gap:14px;align-items:center;color:#fff;font-size:9px}.footer-promise span+span{border-left:1px solid rgba(255,255,255,.3);padding-left:14px}.copyright{border-top:1px solid rgba(255,255,255,.14);padding:16px 0 20px;font-size:8px;color:#8fa1b8}
+footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);border-top:4px solid var(--gold);color:#d9e2ef;padding:58px 0 0}
+.footer-grid{display:grid;grid-template-columns:1.45fr .7fr .7fr .7fr 1.45fr;gap:34px;align-items:start}
+.footer-about .brand{color:#fff}.footer-about .brand img{width:46px;height:46px}.footer-about .brandname{color:#fff;font-size:24px}.footer-about p{max-width:330px;font-size:10px;line-height:1.85;color:#c4cfdd;margin:20px 0 0}.footer-tagline{color:var(--gold-2);font-size:14px;font-weight:800;margin-top:22px;letter-spacing:.01em}
+.footer-grid h4{margin:0 0 16px;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.13em}.footer-grid a{display:block;padding:5px 0;font-size:9.5px;color:#cbd5e1}.footer-grid a:hover{color:var(--gold-2)}
+.footer-contact{padding:20px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(255,255,255,.035);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}.footer-contact h3{margin:0 0 7px;color:#fff;font-size:18px}.footer-contact>p{margin:0 0 14px;font-size:9px;line-height:1.65;color:#aebed1}.contact-card{display:flex!important;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:11px 12px!important;margin:9px 0;color:#fff!important;background:rgba(255,255,255,.025)}.contact-card svg{width:21px;height:21px;flex:0 0 21px}.contact-card span{display:block}.contact-card small{display:block;color:#91a3ba;font-size:7px;margin-bottom:2px}.contact-card strong{font-size:9.5px;color:#fff}.contact-card.whatsapp{border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.04)}.contact-card.whatsapp svg{fill:#25D366}.contact-card.phone svg{fill:var(--gold)}.contact-card.email svg{fill:#fff}
+.footer-lower{display:flex;justify-content:space-between;align-items:center;gap:24px;border-top:1px solid rgba(255,255,255,.14);margin-top:40px;padding:26px 0}.app-download h3{color:#fff;font-size:14px;margin:0 0 5px}.app-download p{font-size:8.5px;margin:0 0 11px;color:#9fb0c5}.footer-app-btn{display:inline-flex!important;align-items:center;gap:8px;background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy)!important;border-radius:9px;padding:10px 14px!important;font-weight:900;font-size:9px!important;box-shadow:0 8px 18px rgba(224,170,51,.2)}.footer-app-btn svg{width:18px;height:18px;fill:var(--navy)}.footer-promise{display:flex;gap:16px;align-items:center;color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}.footer-promise span+span{border-left:1px solid rgba(255,255,255,.3);padding-left:16px}.copyright{border-top:1px solid rgba(255,255,255,.14);padding:17px 0 22px;font-size:8px;color:#8fa1b8}
 
 @media(max-width:1100px){
   .container{width:min(1180px,calc(100% - 36px))}
@@ -420,6 +427,7 @@ footer{background:linear-gradient(135deg,#061d3d 0%,#082b59 62%,#061d3d 100%);bo
         <div class="eyebrow">Complete EduCore access</div>
         <h2>One platform. All core features.</h2>
         <p>Web and Android access, role-specific portals and EduCore's connected school-management modules.</p>
+        <div class="price-benefits"><span>No fragmented feature tiers</span><span>Web + Android access included</span><span>Designed for growing Nigerian schools</span></div>
       </div>
       <div class="price-card">
         <small>Up to 50 students</small>
@@ -428,7 +436,8 @@ footer{background:linear-gradient(135deg,#061d3d 0%,#082b59 62%,#061d3d 100%);bo
         <small>Above 50 students</small>
         <div class="paid">₦300</div>
         <p>per student / term · all EduCore features included</p>
-        <a class="btn btn-gold" style="width:100%;margin-top:14px" href="{{ route('school.register') }}">Create School Account</a>
+        <div class="price-note">Start free with up to 50 students, then scale transparently as your enrolment grows.</div>
+        <a class="btn btn-gold" style="width:100%;margin-top:16px" href="{{ route('school.register') }}">Create School Account</a>
       </div>
     </div>
   </div>
@@ -437,8 +446,8 @@ footer{background:linear-gradient(135deg,#061d3d 0%,#082b59 62%,#061d3d 100%);bo
 <section class="cta">
   <div class="container cta-box">
     <div>
-      <h2>Build a smarter school with EduCore.</h2>
-      <p>Start free or sign in to your existing school account.</p>
+      <h2>Ready to simplify how your school works?</h2>
+      <p>Bring academics, administration, finance and communication together in one connected EduCore workspace.</p>
     </div>
     <div class="cta-actions">
       <a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a>
