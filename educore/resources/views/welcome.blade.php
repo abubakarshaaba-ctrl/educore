@@ -121,19 +121,18 @@ img{max-width:100%;display:block}
 .phone-real:before{content:"";position:absolute;inset:-7px;border:7px solid #121923;border-radius:35px;pointer-events:none}
 .phone-real img,.phone-real .embedded-mobile-dashboard,.phone-real .embedded-mobile-dashboard svg{width:100%;height:auto;border-radius:29px;display:block;background:#f4f6fa}.phone-real .embedded-mobile-dashboard{overflow:hidden}
 
-.pricing-wrap{display:grid;grid-template-columns:1.02fr .98fr;border:1px solid #dce4ee;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 18px 50px rgba(7,26,56,.08)}
-.price-dark{position:relative;background:linear-gradient(145deg,#071a38 0%,#0b2d5e 100%);color:#fff;padding:46px}
-.price-dark:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;background:rgba(224,170,51,.12);right:-70px;bottom:-90px}
-.price-dark h2{margin:10px 0 14px;font-size:36px;line-height:1.08;letter-spacing:-.03em}
-.price-dark p{margin:0;color:#c9d5e5;font-size:11px;line-height:1.8;max-width:460px}
-.price-benefits{display:grid;gap:10px;margin-top:24px}.price-benefits span{display:flex;align-items:center;gap:9px;font-size:10px;color:#e5edf6}.price-benefits span:before{content:"✓";display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(242,201,94,.16);color:var(--gold-2);font-weight:900}
-.price-card{padding:42px 40px;background:linear-gradient(180deg,#fff,#fbfcfe)}
-.price-card small{font-size:8px;font-weight:900;color:#758297;text-transform:uppercase;letter-spacing:.08em}
-.free{font-size:46px;font-weight:900;letter-spacing:-.05em;color:var(--navy);margin-top:5px}
-.divider{height:1px;background:var(--line);margin:20px 0}
-.paid{font-size:34px;font-weight:900;color:var(--navy);margin-top:5px}
-.price-card p{font-size:10px;color:var(--muted);line-height:1.6}
-.price-note{margin-top:16px;padding:12px 14px;border-radius:12px;background:#fff7df;color:#79570a;font-size:9px;line-height:1.55;border:1px solid #f2df9c}
+.pricing-intro{max-width:820px}.pricing-intro h2 span{color:var(--gold)}.pricing-intro p{font-size:13px}
+.pricing-compare{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:900px;margin:0 auto}
+.plan{position:relative;border-radius:22px;padding:34px;display:flex;flex-direction:column;min-height:500px}
+.plan-starter{background:#fff;border:1px solid #dfe6ef;box-shadow:0 16px 38px rgba(7,26,56,.08)}
+.plan-growth{background:linear-gradient(145deg,#061a39,#0a3269);border:3px solid var(--gold);color:#fff;box-shadow:0 20px 48px rgba(7,26,56,.2)}
+.plan-badge{position:absolute;top:-17px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy);padding:9px 22px;border-radius:999px;font-size:10px;font-weight:900;white-space:nowrap;box-shadow:0 8px 18px rgba(224,170,51,.24)}
+.plan-label{font-size:10px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:#45617f}.plan-growth .plan-label{color:#e7edf6}.plan-rule{width:46px;height:4px;border-radius:99px;background:var(--gold);margin:12px 0 16px}
+.plan-price{font-size:54px;font-weight:900;letter-spacing:-.055em;line-height:1;color:var(--navy)}.plan-growth .plan-price{color:#fff}.plan-subprice{font-size:18px;font-weight:900;color:var(--navy);margin-top:7px}.plan-growth .plan-subprice{color:#fff}
+.plan-desc{font-size:11px;line-height:1.7;color:#64748a;margin:14px 0 18px}.plan-growth .plan-desc{color:#cbd7e7}
+.plan-features{display:grid;gap:11px;margin:0 0 26px;padding:0;list-style:none}.plan-features li{display:flex;align-items:flex-start;gap:10px;font-size:10.5px;line-height:1.5;color:#31435d}.plan-growth .plan-features li{color:#edf3fa}.plan-check{display:grid;place-items:center;flex:0 0 23px;width:23px;height:23px;border-radius:50%;background:var(--gold-2);color:var(--navy);font-weight:900}
+.plan .btn{width:100%;margin-top:auto;min-height:48px}.plan-starter .btn{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy);box-shadow:0 10px 24px rgba(224,170,51,.2)}
+.pricing-assurance{max-width:1050px;margin:28px auto 0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border:1px solid #dfe6ef;border-radius:18px;box-shadow:0 12px 30px rgba(7,26,56,.06);overflow:hidden}.assure{display:flex;align-items:center;gap:10px;padding:17px 18px}.assure+.assure{border-left:1px solid var(--line)}.assure-icon{width:34px;height:34px;border-radius:10px;background:#fff2cd;color:#8b6208;display:grid;place-items:center;flex:none;font-weight:900}.assure b{display:block;font-size:10px;color:var(--navy)}.assure small{display:block;margin-top:2px;font-size:7.5px;line-height:1.4;color:var(--muted)}
 
 .cta{padding:0 0 72px}
 .cta-box{position:relative;overflow:hidden;background:linear-gradient(120deg,#071a38 0%,#0d3975 72%,#14539e 100%);border-radius:22px;padding:38px 42px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:30px;box-shadow:0 18px 45px rgba(7,26,56,.16)}
@@ -226,8 +225,8 @@ footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);bo
   .app-list{grid-template-columns:1fr 1fr}
   .phone-stage{min-height:390px}
   .phone-real{width:min(232px,72%)}
-  .pricing-wrap{grid-template-columns:1fr}
-  .price-dark,.price-card{padding:25px 20px}
+  .pricing-compare{grid-template-columns:1fr;max-width:520px}.pricing-assurance{grid-template-columns:1fr 1fr}.assure:nth-child(3){border-left:0}.assure:nth-child(n+3){border-top:1px solid var(--line)}
+  .plan{padding:26px 20px;min-height:0}.plan-price{font-size:46px}.plan-badge{font-size:9px;padding:8px 16px}.pricing-assurance{grid-template-columns:1fr}.assure+.assure{border-left:0;border-top:1px solid var(--line)}
   .cta{padding-bottom:50px}
   .cta-box{display:block;padding:24px 20px}
   .cta-box h2{font-size:25px}
@@ -417,28 +416,45 @@ footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);bo
 
 <section class="section soft" id="pricing">
   <div class="container">
-    <div class="section-head">
+    <div class="section-head pricing-intro">
       <div class="kicker">Pricing</div>
-      <h2>Start free. Scale when your school grows.</h2>
-      <p>A simple model without splitting core school operations into confusing feature tiers.</p>
+      <h2>Simple pricing. <span>Complete access.</span></h2>
+      <p>Start free with up to 50 students. As your school grows, continue using every EduCore feature for just <strong>₦300 per student per term.</strong></p>
     </div>
-    <div class="pricing-wrap">
-      <div class="price-dark">
-        <div class="eyebrow">Complete EduCore access</div>
-        <h2>One platform. All core features.</h2>
-        <p>Web and Android access, role-specific portals and EduCore's connected school-management modules.</p>
-        <div class="price-benefits"><span>No fragmented feature tiers</span><span>Web + Android access included</span><span>Designed for growing Nigerian schools</span></div>
-      </div>
-      <div class="price-card">
-        <small>Up to 50 students</small>
-        <div class="free">Free</div>
-        <div class="divider"></div>
-        <small>Above 50 students</small>
-        <div class="paid">₦300</div>
-        <p>per student / term · all EduCore features included</p>
-        <div class="price-note">Start free with up to 50 students, then scale transparently as your enrolment grows.</div>
-        <a class="btn btn-gold" style="width:100%;margin-top:16px" href="{{ route('school.register') }}">Create School Account</a>
-      </div>
+    <div class="pricing-compare">
+      <article class="plan plan-starter">
+        <div class="plan-label">Starter Plan</div><div class="plan-rule"></div>
+        <div class="plan-price">Free</div><div class="plan-subprice">Up to 50 students</div>
+        <p class="plan-desc">Get started at no cost with complete access to EduCore's core school-management features.</p>
+        <ul class="plan-features">
+          <li><span class="plan-check">✓</span><span>All core EduCore modules</span></li>
+          <li><span class="plan-check">✓</span><span>Web and Android access</span></li>
+          <li><span class="plan-check">✓</span><span>Role-based portals and permissions</span></li>
+          <li><span class="plan-check">✓</span><span>Student, staff and parent management</span></li>
+          <li><span class="plan-check">✓</span><span>Reports and school analytics</span></li>
+        </ul>
+        <a class="btn" href="{{ route('school.register') }}">Start Free →</a>
+      </article>
+      <article class="plan plan-growth">
+        <div class="plan-badge">FOR 50+ STUDENTS</div>
+        <div class="plan-label">Growing School Plan</div><div class="plan-rule"></div>
+        <div class="plan-price">₦300</div><div class="plan-subprice">per student / term</div>
+        <p class="plan-desc">Continue using the complete EduCore platform as your enrolment grows beyond 50 students.</p>
+        <ul class="plan-features">
+          <li><span class="plan-check">✓</span><span>Everything in the Starter Plan</span></li>
+          <li><span class="plan-check">✓</span><span>No feature restrictions</span></li>
+          <li><span class="plan-check">✓</span><span>Web and Android access</span></li>
+          <li><span class="plan-check">✓</span><span>Reports, analytics and connected workflows</span></li>
+          <li><span class="plan-check">✓</span><span>Scale as your school grows</span></li>
+        </ul>
+        <a class="btn btn-gold" href="{{ route('school.register') }}">Create School Account →</a>
+      </article>
+    </div>
+    <div class="pricing-assurance">
+      <div class="assure"><span class="assure-icon">✓</span><div><b>No setup fee</b><small>Get started without an extra setup charge.</small></div></div>
+      <div class="assure"><span class="assure-icon">◆</span><div><b>No feature restrictions</b><small>Complete access to EduCore modules.</small></div></div>
+      <div class="assure"><span class="assure-icon">▣</span><div><b>Web & Android included</b><small>Work across supported devices.</small></div></div>
+      <div class="assure"><span class="assure-icon">↗</span><div><b>Scale as you grow</b><small>Simple per-student pricing above 50.</small></div></div>
     </div>
   </div>
 </section>
