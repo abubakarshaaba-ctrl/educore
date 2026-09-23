@@ -38,11 +38,14 @@ class MobileAdvancedAdministrationAuthorizationPolicyTest extends TestCase
         $bootstrap = file_get_contents($root . '/app/Http/Controllers/Api/MobileBootstrapController.php');
         $advanced = file_get_contents($root . '/app/Http/Controllers/Api/MobileAdvancedAdministrationController.php');
         $enterprise = file_get_contents($root . '/app/Services/DataMigration/MigrationEnterpriseControlService.php');
+        $apiPolicy = file_get_contents($root . '/app/Services/Auth/ApiRoleAccessPolicy.php');
 
         $this->assertStringContainsString("isAdminPortalRole() ? 'admin' : 'staff'", $bootstrap);
         $this->assertStringContainsString('$actor->isAdminPortalRole()', $advanced);
         $this->assertStringNotContainsString('$actor->isAdmin() && $actor->tenant_id', $advanced);
         $this->assertStringContainsString('$actor->isAdminPortalRole()', $enterprise);
         $this->assertStringContainsString('User::adminPortalRoleNames()', $enterprise);
+        $this->assertStringContainsString("str_starts_with(\$path, 'advanced-admin/')", $apiPolicy);
+        $this->assertStringContainsString('return $user->isAdminPortalRole();', $apiPolicy);
     }
 }
