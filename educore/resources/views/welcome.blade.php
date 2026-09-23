@@ -269,7 +269,7 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
       <a href="#features">Features</a>
       <a href="#portals">Portals</a>
       <a href="#pricing">Pricing</a>
-      <a href="#mobile">Mobile App</a>
+      <a href="#mobile">Mobile App / Download</a>
       <a href="mailto:support@educoreng.online">Contact</a>
     </div>
     <div class="actions">
@@ -306,7 +306,7 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
       <div class="hero-proof"><span>Secure & reliable</span><span>Role-based access</span><span>Built for Nigerian schools</span></div>
     </div>
     <div class="hero-visual">
-      <img class="hero-photo" src="https://portal.abuadis.com/assets/uploads/homepage/5500f787bf0414fff8f440b2461e86f7.jpg" alt="Students learning in a Nigerian school classroom">
+      <img class="hero-photo" src="https://images.pexels.com/photos/34162714/pexels-photo-34162714.jpeg?auto=compress&cs=tinysrgb&w=1600" alt="African secondary school students studying together in a classroom">
       <div class="hero-overlay"></div>
       <div class="hero-badge">
         <strong>Built around real school workflows</strong>
@@ -351,7 +351,7 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
 <section class="empower">
   <div class="container empower-grid">
     <div class="empower-photo-wrap">
-      <img class="empower-photo" src="https://ladyibiamschools.com/img/1.jpg" alt="Students studying in an African school classroom">
+      <img class="empower-photo" src="https://images.pexels.com/photos/6208709/pexels-photo-6208709.jpeg?auto=compress&cs=tinysrgb&w=1400" alt="Students collaborating during a practical science laboratory session">
       <div class="empower-card"><strong>Empowering great schools</strong><span>EduCore keeps everyday school work coordinated without burying users in unnecessary screens.</span></div>
     </div>
     <div class="empower-copy">
