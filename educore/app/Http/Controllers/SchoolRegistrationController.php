@@ -6,6 +6,7 @@ use App\Models\PlatformAgent;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantOnboardingService;
+use App\Services\Notifications\PlatformAdminAlertService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class SchoolRegistrationController extends Controller
         return view('school-register', compact('ref'));
     }
 
-    public function store(Request $request, TenantOnboardingService $onboarding): RedirectResponse
+    public function store(Request $request, TenantOnboardingService $onboarding, PlatformAdminAlertService $platformAlerts): RedirectResponse
     {
         $request->merge([
             'slug' => Tenant::normalizeSlug($request->input('school_name')),
@@ -109,6 +110,13 @@ class SchoolRegistrationController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Tenant welcome notification failed: ' . $e->getMessage());
         }
+
+        $platformAlerts->tenantRegistered(
+            $tenant,
+            $user,
+            $referringAgent,
+            $referringAgent ? 'agent' : 'self_registration'
+        );
 
         Auth::login($user);
         $request->session()->regenerate();
