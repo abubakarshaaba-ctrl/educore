@@ -401,6 +401,65 @@ footer{background:#020817;color:rgba(255,255,255,.62);padding:68px 0 30px}
     .showcase-halo{width:360px;height:360px}.showcase-card{display:none}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.portal-card{transition:none}}
+
+/* OPTION A — PREMIUM INSTITUTIONAL LANDING */
+.hero{
+  min-height:auto!important;padding:148px 0 112px!important;color:var(--ink)!important;
+  background:
+    radial-gradient(circle at 84% 16%,rgba(215,154,33,.16),transparent 24%),
+    radial-gradient(circle at 82% 76%,rgba(7,30,69,.08),transparent 28%),
+    linear-gradient(180deg,#fff 0%,#f8fafc 100%)!important;
+}
+.hero::before{opacity:.16!important;background-image:linear-gradient(rgba(7,30,69,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(7,30,69,.08) 1px,transparent 1px)!important}
+.hero::after{content:"";position:absolute;right:-160px;top:-90px;width:520px;height:520px;border-radius:50%;border:1px solid rgba(215,154,33,.18);box-shadow:0 0 0 70px rgba(215,154,33,.035),0 0 0 140px rgba(215,154,33,.02)}
+.hero-grid{position:relative;z-index:2;grid-template-columns:minmax(0,.86fr) minmax(540px,1.14fr)!important;gap:56px!important;align-items:center!important}
+.hero-copy{text-align:left!important}
+.eyebrow-pill{color:#8a5a00!important;background:#fff8e8!important;border-color:#efd89f!important;box-shadow:none!important}
+.eyebrow-pill span{background:var(--gold)!important;box-shadow:0 0 0 4px rgba(215,154,33,.12)!important}
+.hero h1{max-width:650px!important;margin-top:24px!important;color:var(--navy)!important;font-size:clamp(48px,5.1vw,74px)!important;line-height:1!important;letter-spacing:-.06em!important;text-shadow:none!important}
+.hero h1 em{color:var(--gold)!important;-webkit-text-fill-color:var(--gold)!important;background:none!important;font-style:normal!important}
+.hero-copy>p{max-width:620px!important;color:#59677b!important;font-size:17px!important;line-height:1.75!important}
+.hero-actions{justify-content:flex-start!important}
+.hero .btn-dark{color:var(--navy)!important;background:#fff!important;border:1px solid #d8e1ec!important;box-shadow:0 8px 24px rgba(7,30,69,.07)!important}
+.hero .btn-dark:hover{background:#f8fafc!important;border-color:#b9c7d8!important}
+.hero .proof-item{color:#657287!important}
+.hero .proof-item svg{color:#a97000!important}
+.stage-glow{background:radial-gradient(circle,rgba(7,30,69,.14),transparent 68%)!important}
+.desktop-device{box-shadow:0 38px 90px rgba(7,30,69,.22)!important}
+.floating-trust{background:#fff!important;color:var(--navy)!important;border-color:#dfe6ef!important;box-shadow:0 16px 38px rgba(7,30,69,.12)!important}
+.floating-trust svg{color:#a97000!important}
+.role-strip{margin-top:-38px!important}
+.role-strip-inner{background:#fff!important;border-color:#e1e8f0!important;box-shadow:0 22px 55px rgba(7,30,69,.11)!important}
+.role-strip-title{color:var(--navy)!important}
+.role-name{color:#667085!important}
+.section#features{padding-top:112px!important}
+@media(max-width:1024px){
+ .hero{padding:126px 0 92px!important}
+ .hero-grid{grid-template-columns:1fr!important;gap:46px!important}
+ .hero-copy{text-align:center!important}
+ .hero h1,.hero-copy>p{margin-left:auto!important;margin-right:auto!important}
+ .hero-actions,.hero-proof{justify-content:center!important}
+ .product-stage{width:min(760px,100%)!important;margin-inline:auto!important}
+}
+@media(max-width:760px){
+ .hero{padding:108px 0 72px!important}
+ .hero h1{font-size:clamp(40px,11vw,58px)!important}
+ .hero-copy>p{font-size:15px!important}
+ .hero-actions{display:grid!important;grid-template-columns:1fr 1fr!important;width:min(420px,100%);margin-inline:auto!important}
+ .hero-proof{display:flex!important;justify-content:center!important}
+ .role-strip{margin-top:-18px!important}
+}
+@media(max-width:560px){
+ .hero h1{font-size:40px!important}
+ .hero-actions{grid-template-columns:1fr!important}
+ .hero-proof{display:grid!important;grid-template-columns:1fr!important;justify-items:center!important}
+ .product-stage{transform:scale(.68)!important;transform-origin:top center!important;margin-bottom:-145px!important}
+}
+@media(max-width:390px){
+ .hero h1{font-size:36px!important}
+ .product-stage{transform:scale(.59)!important;margin-bottom:-190px!important}
+}
+
 </style>
 </head>
 <body>
@@ -448,16 +507,16 @@ footer{background:#020817;color:rgba(255,255,255,.62);padding:68px 0 30px}
         <div class="container hero-grid">
             <div class="hero-copy">
                 <div class="eyebrow-pill"><span></span>Built for Nigerian schools</div>
-                <h1>One platform. Every school operation, <em>perfectly connected.</em></h1>
-                <p>Run admissions, academics, attendance, fees, payroll, exams, staff HR, and parent communication from one secure, beautifully simple system.</p>
+                <h1>School management software for <em>modern, organised schools.</em></h1>
+                <p>EduCore connects admissions, academics, attendance, fees, payroll, staff, results, parent access, and communication in one secure platform designed around how schools actually work.</p>
                 <div class="hero-actions">
                     <a href="{{ route('school.register') }}" class="btn btn-gold">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                         Start Free
                     </a>
-                    <a href="{{ route('app.download') }}" class="btn btn-dark">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.7 14 12 3.6 21.3c-.4-.3-.6-.8-.6-1.4V4.1c0-.6.2-1.1.6-1.4Zm11.6 10.4 2.5 2.2L6 22l9.2-8.9Zm3.8-3.4 2.2 1.2c1 .6 1 1.6 0 2.2L19 14.3 16.4 12 19 9.7ZM6 2l11.7 6.7-2.5 2.2L6 2Z"/></svg>
-                        Download Android App
+                    <a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}" class="btn btn-dark">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+                        Login
                     </a>
                 </div>
                 <div class="hero-proof">
