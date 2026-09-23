@@ -108,18 +108,21 @@ img{max-width:100%;display:block}
 .trust-item small{display:block;margin-top:3px;font-size:8px;line-height:1.45;color:var(--muted)}
 .trust-item .tick{width:26px;height:26px;border-radius:8px;background:#fff3d2;color:#9a6900;display:grid;place-items:center;flex:none;font-weight:900}
 
-.app{background:linear-gradient(145deg,#04142f,var(--navy-2));color:#fff;overflow:hidden}
-.app-grid{display:grid;grid-template-columns:1fr .92fr;gap:54px;align-items:center}
-.app-copy h2{margin:10px 0 14px;font-size:44px;line-height:1.07;letter-spacing:-.045em;color:#fff}
-.app-copy p{margin:0;color:#c4d0df;font-size:12px;line-height:1.75;max-width:560px}
-.app-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
-.app-list span{font-size:10px;font-weight:700;color:#dbe5f1}
-.app-list span:before{content:"✓";color:var(--gold-2);margin-right:7px}
-.phone-stage{min-height:470px;display:grid;place-items:center;position:relative}
-.phone-stage:before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:rgba(224,170,51,.9);right:-90px;bottom:-155px}
-.phone-real{position:relative;width:min(286px,78%);z-index:1;filter:drop-shadow(0 32px 55px rgba(0,0,0,.38));transform:rotate(1.5deg)}
-.phone-real:before{content:"";position:absolute;inset:-7px;border:7px solid #121923;border-radius:35px;pointer-events:none}
+.app{position:relative;background:radial-gradient(circle at 75% 20%,#104c8a 0,transparent 34%),linear-gradient(135deg,#03152f 0%,#062b59 58%,#041a38 100%);color:#fff;overflow:hidden;border-bottom:4px solid var(--gold)}
+.app:before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:rgba(255,255,255,.025);left:-170px;bottom:-170px}
+.app-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:52px;align-items:center;position:relative;z-index:1}
+.app-copy{padding:18px 0}.app-copy .eyebrow{display:inline-flex;border:1px solid rgba(242,201,94,.55);background:rgba(224,170,51,.12);border-radius:999px;padding:8px 14px;color:var(--gold-2)}
+.app-copy h2{margin:18px 0 16px;font-size:50px;line-height:1.02;letter-spacing:-.05em;color:#fff}.app-copy h2 span{color:var(--gold-2)}
+.app-copy p{margin:0;color:#d0dbea;font-size:13px;line-height:1.75;max-width:620px}
+.app-list{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin:26px 0}
+.app-list span{display:flex;align-items:center;gap:10px;font-size:10.5px;font-weight:800;color:#eef4fb}.app-list span:before{content:"✓";display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:rgba(242,201,94,.13);border:1px solid rgba(242,201,94,.35);color:var(--gold-2);margin:0}
+.app-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn-outline-light{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid rgba(255,255,255,.5);border-radius:9px;color:#fff;font-size:10px;font-weight:800}.btn-outline-light:hover{border-color:var(--gold-2);color:var(--gold-2)}
+.app-trust{display:flex;gap:18px;flex-wrap:wrap;margin-top:28px;padding-top:18px;border-top:1px solid rgba(255,255,255,.14)}.app-trust span{font-size:8.5px;font-weight:700;color:#d9e3ef}.app-trust span:before{content:"✓";color:var(--gold-2);margin-right:6px}
+.phone-stage{min-height:540px;display:grid;place-items:center;position:relative}.phone-stage:before{content:"";position:absolute;width:430px;height:430px;border-radius:50%;background:rgba(224,170,51,.12);right:-110px;bottom:-190px}.phone-stage:after{content:"Your school. In your hand.";position:absolute;left:-35px;top:90px;max-width:120px;color:var(--gold-2);font-size:17px;line-height:1.2;font-weight:800;font-style:italic;transform:rotate(-8deg)}
+.phone-real{position:relative;width:min(310px,78%);z-index:1;filter:drop-shadow(0 34px 58px rgba(0,0,0,.42));transform:rotate(2deg)}
+.phone-real:before{content:"";position:absolute;inset:-7px;border:7px solid #121923;border-radius:35px;pointer-events:none}.phone-real:after{content:"";position:absolute;inset:-12px;border:1px solid rgba(242,201,94,.22);border-radius:40px;pointer-events:none}
 .phone-real img,.phone-real .embedded-mobile-dashboard,.phone-real .embedded-mobile-dashboard svg{width:100%;height:auto;border-radius:29px;display:block;background:#f4f6fa}.phone-real .embedded-mobile-dashboard{overflow:hidden}
+.app-float{position:absolute;right:0;z-index:2;display:grid;gap:9px;width:155px}.app-float.top{top:110px;right:-10px}.float-card{padding:11px 12px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(5,31,65,.72);backdrop-filter:blur(10px);box-shadow:0 12px 28px rgba(0,0,0,.16)}.float-card b{display:block;font-size:9.5px;color:#fff}.float-card small{display:block;font-size:7.5px;line-height:1.4;color:#b9c8da;margin-top:3px}
 
 .pricing-intro{max-width:820px}.pricing-intro h2 span{color:var(--gold)}.pricing-intro p{font-size:13px}
 .pricing-compare{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:900px;margin:0 auto}
@@ -173,7 +176,7 @@ footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);bo
   .app-copy p{margin:0 auto}
   .app-list{max-width:560px;margin:22px auto}
   .app-copy .btn{margin:auto}
-  .phone-stage{min-height:430px}
+  .phone-stage{min-height:470px}.phone-stage:after{left:5%;top:55px}.app-float.top{right:5%}
   .footer-grid{grid-template-columns:1fr 1fr}
   .footer-about{grid-column:1/-1}
 }
@@ -223,7 +226,7 @@ footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);bo
   .app-copy h2{font-size:30px}
   .app-copy p{font-size:10.5px}
   .app-list{grid-template-columns:1fr 1fr}
-  .phone-stage{min-height:390px}
+  .phone-stage{min-height:410px}.phone-stage:after,.app-float{display:none}.app-actions{justify-content:center}.app-trust{justify-content:center}
   .phone-real{width:min(232px,72%)}
   .pricing-compare{grid-template-columns:1fr;max-width:520px}.pricing-assurance{grid-template-columns:1fr 1fr}.assure:nth-child(3){border-left:0}.assure:nth-child(n+3){border-top:1px solid var(--line)}
   .plan{padding:26px 20px;min-height:0}.plan-price{font-size:46px}.plan-badge{font-size:9px;padding:8px 16px}.pricing-assurance{grid-template-columns:1fr}.assure+.assure{border-left:0;border-top:1px solid var(--line)}
@@ -371,12 +374,13 @@ footer{background:linear-gradient(135deg,#04152f 0%,#082b59 58%,#061d3d 100%);bo
   <div class="container app-grid">
     <div class="app-copy">
       <div class="eyebrow">EduCore Mobile App</div>
-      <h2>School operations, wherever work happens.</h2>
-      <p>Use supported EduCore workflows from the native Android app with the same role-specific access model used on the web platform.</p>
-      <div class="app-list"><span>Attendance</span><span>Score entry</span><span>Notifications</span><span>Staff clock-in</span><span>Role-specific dashboards</span><span>School workflows</span></div>
-      <a class="btn btn-gold" href="{{ route('app.download') }}">Download Android App</a>
+      <h2>School operations, <span>wherever work happens.</span></h2>
+      <p>Use the powerful EduCore mobile app with the same role-specific access and connected workflows as the web platform. Manage essential school operations anytime, anywhere.</p>
+      <div class="app-list"><span>Take Attendance</span><span>View Timetable</span><span>Enter Scores</span><span>Access Reports</span><span>Receive Notifications</span><span>Role-Based Access</span></div>
+      <div class="app-actions"><a class="btn btn-gold" href="{{ route('app.download') }}">Download Android App →</a><a class="btn-outline-light" href="#features">Explore Features →</a></div>
+      <div class="app-trust"><span>Secure &amp; Reliable</span><span>Web &amp; Android</span><span>Built for Nigerian Schools</span></div>
     </div>
-    <div class="phone-stage">
+    <div class="phone-stage"><div class="app-float top"><div class="float-card"><b>Fast &amp; Easy</b><small>Get more done on the go.</small></div><div class="float-card"><b>Role-Specific</b><small>See only the tools relevant to your work.</small></div><div class="float-card"><b>Secure Access</b><small>Structured access to school data.</small></div></div>
       <div class="phone-real">
         <div class="embedded-mobile-dashboard" role="img" aria-label="EduCore mobile app teacher dashboard showing classes, students, timetable and quick actions"><svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" role="img" aria-labelledby="t d">
 <title id="t">EduCore mobile teacher dashboard</title><desc id="d">A faithful marketing mockup of the EduCore native mobile home dashboard.</desc>
