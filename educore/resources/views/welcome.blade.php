@@ -36,6 +36,71 @@ footer{background:#020a17;color:#94a3b7;padding:50px 0 24px}.footer-grid{display
 @media(max-width:960px){.links,.actions{display:none}.menu{display:block}.impact-grid,.app-grid{grid-template-columns:1fr;gap:42px}.hero-grid{grid-template-columns:1fr 1fr;gap:0}.hero-copy{text-align:left;padding:48px 30px 42px 0}.hero p{margin-left:0;margin-right:0}.hero-buttons,.hero-proof{justify-content:flex-start}.visual{width:100%;margin:0}.role-row{grid-template-columns:repeat(3,1fr);padding:15px 0}.role-row strong{grid-column:1/-1;text-align:center}.module{grid-column:span 6}.module.wide{grid-column:span 6}.impact-copy{text-align:center}.impact-copy p{max-width:700px;margin:auto}.roles{grid-template-columns:1fr 1fr}.app-copy{text-align:center}.app-list{max-width:560px;margin:23px auto}.app-copy .btn{margin:auto}.phone-stage{max-width:600px;width:100%;margin:auto}.footer-grid{grid-template-columns:1fr 1fr}.footer-about{grid-column:1/-1}}
 @media(max-width:620px){.container{width:min(100% - 28px,1180px)}.nav{height:64px}.drawer{top:64px}.brand img{width:34px;height:34px}.brandname{font-size:18px}.brand small{display:none}.hero{background:var(--navy);padding:0}.hero-grid{display:block;min-height:0}.hero-copy{padding:38px 0 28px;text-align:left}.hero h1{font-size:38px}.hero p{font-size:13px;line-height:1.6}.hero-buttons{display:flex;grid-template-columns:none}.hero-buttons .btn{flex:1}.hero-proof{display:flex;gap:10px;font-size:7px}.visual{min-height:260px;margin:0 -14px;background:linear-gradient(145deg,#e9f0f5,#c8d9e5)}.visual:after{width:170px;height:210px;right:8%;top:26px}.visual-glow{width:220px;height:220px;top:18px}.float-card{left:5%;bottom:18px;font-size:7px}.dashboard{position:relative;top:0;right:auto;border-width:5px;border-radius:14px;transform:none}.dashbody{grid-template-columns:1fr;min-height:250px}.sidebar{display:none}.metrics{grid-template-columns:1fr 1fr}.metric:nth-child(n+3){display:none}.dashpanels{grid-template-columns:1fr}.dashpanels .panel:last-child{display:none}.bars{height:88px}.mobile-device{width:100px;height:205px;border-width:4px;border-radius:18px;right:2px;bottom:-9px}.mobile-head{padding:16px 6px 8px}.mobile-head img{width:12px;height:12px}.mobile-head small{margin-top:7px;font-size:3.5px}.mobile-head b{font-size:5px}.mobile-body{padding:4px}.mobile-card{padding:4px;margin-bottom:3px}.mobile-card b{font-size:4px}.mobile-card small{font-size:3px}.float-card{display:none}.role-row{grid-template-columns:1fr 1fr}.section{padding:58px 0}.section-head{margin-bottom:28px}.section-head h2{font-size:29px}.module-grid{grid-template-columns:1fr}.module,.module.wide{grid-column:1;min-height:0;padding:20px}.impact{padding:58px 0}.impact h2,.app h2{font-size:30px}.impact-list{grid-template-columns:1fr}.roles{grid-template-columns:1fr}.app-list{grid-template-columns:1fr}.phone-stage{height:390px}.big-phone{width:190px;height:365px;top:15px}.pricing{grid-template-columns:1fr}.price-dark,.price-card{padding:27px 21px}.cta-box{display:block;padding:28px 21px}.cta-box h2{font-size:26px}.cta-actions{display:grid;margin-top:19px}.footer-grid{grid-template-columns:1fr 1fr;gap:25px}.footer-about{grid-column:1/-1}}
 </style>
+
+<style>
+/* Option 5 final responsive composition */
+.hero h1{color:#fff}
+.hero h1 span{color:var(--gold2)}
+.impact h2,.app h2{color:#fff}
+@media(max-width:620px){
+  html{scroll-padding-top:64px}
+  .container{width:calc(100% - 32px)}
+  .nav{height:64px}
+  .navrow{gap:12px}
+  .brand img{width:32px;height:32px}
+  .brandname{font-size:18px}
+  .menu{width:38px;height:38px;font-size:19px}
+  .drawer{top:64px}
+  .hero{background:var(--navy)}
+  .hero .container{width:100%}
+  .hero-grid{display:flex;flex-direction:column;min-height:0}
+  .hero-copy{order:1;padding:34px 22px 28px;text-align:left;background:linear-gradient(145deg,#061a39,#0a326c)}
+  .hero .eyebrow{font-size:8px;letter-spacing:.12em}
+  .hero h1{font-size:38px;line-height:1.02;margin:11px 0 14px;max-width:330px;color:#fff}
+  .hero h1 span{display:block;color:var(--gold2)}
+  .hero p{font-size:12px;line-height:1.6;max-width:340px;color:#cbd6e5}
+  .hero-buttons{display:flex;gap:9px;margin-top:20px;width:100%}
+  .hero-buttons .btn{flex:0 1 145px;height:43px;padding:0 15px}
+  .hero-proof{display:flex;gap:12px;margin-top:17px;font-size:7px;justify-content:flex-start}
+  .visual{order:2;width:100%;min-height:245px;margin:0;background:linear-gradient(145deg,#eef4f8,#cfdee8)}
+  .visual-glow{width:210px;height:210px;right:8%;top:18px}
+  .visual:after{width:160px;height:198px;right:9%;top:23px;border-radius:85px 85px 18px 18px;font-size:10px}
+  .float-card{left:18px;bottom:17px;font-size:7px;padding:8px 10px}
+  .role-strip{border-bottom:1px solid var(--line)}
+  .role-row{grid-template-columns:repeat(3,1fr);gap:9px;min-height:0;padding:18px 0}
+  .role-row strong{grid-column:1/-1;text-align:center;font-size:10px;margin-bottom:2px}
+  .role-row span{text-align:center;font-size:8px}
+  .role-row span:before{display:none}
+  .section{padding:50px 0}
+  .section-head{margin-bottom:25px}
+  .section-head h2{font-size:27px;line-height:1.12}
+  .section-head p{font-size:11px}
+  .module-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .module,.module.wide{grid-column:auto;min-height:148px;padding:15px;border-radius:12px}
+  .module-icon{width:34px;height:34px;border-radius:9px;margin-bottom:12px;font-size:12px}
+  .module h3{font-size:12px;line-height:1.3}
+  .module p{font-size:8.5px;line-height:1.55}
+  .impact{padding:50px 0}
+  .impact h2,.app h2{font-size:28px;color:#fff}
+  .impact-list{grid-template-columns:1fr 1fr}
+  .impact-item{padding:14px}
+  .roles{grid-template-columns:1fr 1fr}
+  .role{padding:16px}
+  .role p{font-size:9px}
+  .app-list{grid-template-columns:1fr 1fr}
+  .phone-stage{height:360px}
+  .pricing{grid-template-columns:1fr}
+  .cta-box{padding:25px 20px}
+  .cta-actions{grid-template-columns:1fr 1fr}
+}
+@media(max-width:390px){
+  .hero h1{font-size:34px}
+  .hero-buttons .btn{flex:1}
+  .hero-proof{gap:7px;flex-wrap:wrap}
+  .module-grid{grid-template-columns:1fr 1fr}
+  .module,.module.wide{min-height:142px;padding:13px}
+}
+</style>
 </head>
 <body>
 <nav class="nav"><div class="container navrow"><a class="brand" href="{{ route('home') }}"><img src="/brand/educore-icon.svg" alt="EduCore"><div><div class="brandname">Edu<span>Core</span></div><small>School ERP</small></div></a><div class="links"><a href="#features">Features</a><a href="#portals">Portals</a><a href="#pricing">Pricing</a><a href="#mobile">Mobile App</a><a href="mailto:support@educoreng.online">Contact</a></div><div class="actions"><a class="btn btn-ghost" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a><a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a></div><button class="menu" id="menu" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">☰</button></div></nav>
