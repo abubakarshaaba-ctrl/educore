@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="EduCore connects academics, attendance, finance, staff, results and communication in one school management platform built for Nigerian schools.">
 <meta name="robots" content="index, follow">
-<meta name="theme-color" content="#061a39">
+<meta name="theme-color" content="#071a38">
 <link rel="canonical" href="https://educoreng.online/">
 <title>EduCore — Smarter School Management</title>
 <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
@@ -19,120 +19,440 @@
 <meta property="og:image" content="https://educoreng.online/brand/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <style>
-:root{--navy:#061a39;--navy2:#0a2d62;--navy3:#103d7c;--gold:#e1a72b;--gold2:#f6c95e;--ink:#11213a;--muted:#68778c;--soft:#f4f7fb;--line:#e1e7ef;--white:#fff;--font:'Plus Jakarta Sans',system-ui,sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:74px}body{margin:0;font-family:var(--font);color:var(--ink);background:#fff;overflow-x:hidden}a{text-decoration:none;color:inherit}button{font:inherit}.container{width:min(1160px,calc(100% - 48px));margin:auto}.btn{height:46px;padding:0 21px;border-radius:10px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:13px;font-weight:800;transition:.2s}.btn:hover{transform:translateY(-1px)}.btn-gold{background:linear-gradient(180deg,var(--gold2),var(--gold));color:var(--navy);box-shadow:0 10px 28px rgba(225,167,43,.2)}.btn-ghost{border-color:#b9c7da;color:var(--navy);background:#fff}.btn-white{background:#fff;color:var(--navy);border-color:#d8e0ea}.eyebrow,.kicker{font-size:10px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;color:var(--gold2)}
-.nav{height:70px;background:#fff;position:sticky;top:0;z-index:50;border-bottom:1px solid #e4e9f0;box-shadow:0 2px 14px rgba(7,30,69,.04)}.navrow{height:100%;display:flex;align-items:center;gap:30px}.brand{display:flex;align-items:center;gap:10px;flex:none}.brand img{width:38px;height:38px}.brandname{font-size:21px;font-weight:900;letter-spacing:-.04em;color:var(--navy)}.brandname span{color:var(--gold2)}.brand small{display:block;color:#738095;font-size:8px;margin-top:1px}.links{display:flex;gap:25px;margin-left:auto;color:var(--navy);font-size:12px;font-weight:700}.actions{display:flex;gap:8px}.menu{display:none;margin-left:auto;width:42px;height:42px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--navy);font-size:21px}.drawer{display:none;position:fixed;top:70px;left:0;right:0;z-index:49;background:#fff;padding:12px 20px 18px;border-bottom:1px solid #e4e9f0;box-shadow:0 20px 40px rgba(7,30,69,.14)}.drawer.open{display:grid}.drawer>a{padding:11px;color:var(--navy);font-size:13px;font-weight:700}.drawer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
-.hero{position:relative;background:linear-gradient(90deg,#061a39 0%,#082a5c 50%,#eef3f8 50%,#dce7ef 100%);color:#fff;overflow:hidden;padding:0}.hero:before{content:"";position:absolute;width:300px;height:300px;border-radius:50%;right:5%;bottom:-180px;background:var(--gold);opacity:.8}.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;position:relative;z-index:1;min-height:410px}.hero h1{font-size:clamp(42px,4.3vw,58px);line-height:1.01;letter-spacing:-.05em;margin:13px 0 17px;max-width:560px}.hero-copy{padding:58px 44px 48px 0}.hero h1 span{color:var(--gold2)}.visual:after{content:"EDUCORE";position:absolute;right:9%;top:78px;width:235px;height:270px;border-radius:120px 120px 22px 22px;background:linear-gradient(155deg,#102f63 0 60%,#f5c451 60% 67%,#fff 67%);color:#fff;display:flex;align-items:flex-end;justify-content:center;padding-bottom:28px;font-size:13px;font-weight:900;letter-spacing:.14em;box-shadow:0 25px 55px rgba(7,30,69,.2)}.visual .float-card{z-index:3}.hero p{font-size:14px;line-height:1.7;color:#c8d3e2;max-width:510px}.hero-buttons{display:flex;gap:10px;margin-top:23px}.hero-proof{display:flex;gap:17px;flex-wrap:wrap;margin-top:20px;color:#aebcd0;font-size:8px;font-weight:800}.hero-proof span:before{content:"✓";color:var(--gold2);margin-right:6px}.visual{position:relative;min-height:410px;background:linear-gradient(145deg,#e9f0f5,#c8d9e5);overflow:hidden}.visual-glow{position:absolute;width:310px;height:310px;right:8%;top:45px;border-radius:50%;background:linear-gradient(145deg,#fff,#b8cad8);box-shadow:0 0 0 52px rgba(255,255,255,.24)}.dashboard{display:none;position:absolute;left:0;right:3%;top:18px;border:7px solid #17202c;border-radius:20px;background:#f5f7fa;overflow:hidden;box-shadow:0 35px 80px rgba(0,0,0,.38);transform:perspective(1200px) rotateY(-2deg)}.windowbar{height:28px;background:#fff;border-bottom:1px solid #e5eaf0;display:flex;align-items:center;padding:0 10px;gap:5px}.windowbar i{width:6px;height:6px;border-radius:50%;background:#d7dde5}.windowbar i:first-child{background:var(--gold)}.dashbody{display:grid;grid-template-columns:94px 1fr;min-height:335px}.sidebar{background:#071f47;padding:15px 9px;color:#fff}.mini-brand{display:flex;align-items:center;gap:5px;font-size:7px;font-weight:900;margin-bottom:16px}.mini-brand img{width:18px;height:18px}.sidebar span{display:block;padding:7px;border-radius:5px;color:#9eb0c9;font-size:5.5px;margin:2px 0}.sidebar span:first-of-type{background:var(--gold);color:var(--navy);font-weight:900}.dashmain{padding:14px}.dashhead{display:flex;align-items:center;justify-content:space-between}.dashhead b{font-size:10px;color:var(--navy)}.dashhead small{font-size:5px;color:#7f8b9c}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:11px}.metric{background:#fff;border:1px solid #e2e8ef;border-radius:8px;padding:8px}.metric small{font-size:5px;color:#8591a2}.metric b{display:block;color:var(--navy);font-size:12px;margin-top:2px}.dashpanels{display:grid;grid-template-columns:1.4fr .85fr;gap:7px;margin-top:7px}.panel{background:#fff;border:1px solid #e2e8ef;border-radius:9px;padding:9px}.panel strong{font-size:6px;color:var(--navy)}.bars{height:99px;border-bottom:1px solid #e7ebf1;display:flex;align-items:flex-end;gap:7px;padding-top:12px}.bars i{flex:1;border-radius:3px 3px 0 0;background:linear-gradient(var(--gold2),var(--gold))}.bars i:nth-child(1){height:38%}.bars i:nth-child(2){height:56%}.bars i:nth-child(3){height:47%}.bars i:nth-child(4){height:75%}.bars i:nth-child(5){height:66%}.bars i:nth-child(6){height:90%}.ring{width:72px;height:72px;margin:15px auto;border-radius:50%;background:conic-gradient(#1c9a68 0 92%,#edf0f4 92%);position:relative}.ring:after{content:"92%";position:absolute;inset:13px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--navy);font-size:10px;font-weight:900}.mobile-device{display:none;position:absolute;width:148px;height:304px;right:-2px;bottom:0;border:6px solid #171d26;border-radius:28px;background:#f4f7fb;overflow:hidden;box-shadow:0 28px 65px rgba(0,0,0,.38)}.mobile-head{background:linear-gradient(145deg,var(--navy),var(--navy3));padding:25px 11px 16px;color:#fff}.mobile-head img{width:21px;height:21px}.mobile-head small{display:block;font-size:5px;color:#bdc9d9;margin-top:14px}.mobile-head b{font-size:9px}.mobile-body{padding:8px}.mobile-card{background:#fff;border:1px solid #e1e7ee;border-radius:8px;padding:8px;margin-bottom:6px}.mobile-card b{display:block;font-size:6px;color:var(--navy)}.mobile-card small{font-size:4.5px;color:#8591a2}.float-card{position:absolute;left:8%;bottom:28px;padding:10px 12px;border-radius:10px;background:#fff;color:var(--navy);box-shadow:0 15px 35px rgba(0,0,0,.24);font-size:8px;font-weight:900}.float-card span{color:#19865a}
-.role-strip{background:#fff;border-bottom:1px solid var(--line)}.role-row{min-height:66px;display:grid;grid-template-columns:1.45fr repeat(6,1fr);align-items:center;gap:10px}.role-row strong{font-size:11px;color:var(--navy)}.role-row span{font-size:9px;color:#647287}.role-row span:before{content:"•";color:var(--gold);margin-right:6px}
-.section{padding:62px 0}.soft{background:var(--soft)}.section-head{max-width:700px;margin:0 auto 34px;text-align:center}.section-head .kicker{color:#9a6700}.section-head h2{font-size:clamp(31px,4vw,46px);line-height:1.1;letter-spacing:-.045em;color:var(--navy);margin:10px 0}.section-head p{font-size:13px;line-height:1.7;color:var(--muted);margin:0}.module-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:13px}.module{grid-column:span 3;border:1px solid var(--line);border-radius:15px;background:#fff;padding:21px;min-height:160px;transition:.2s}.module:hover{transform:translateY(-3px);box-shadow:0 15px 40px rgba(7,30,69,.08)}.module.wide{grid-column:span 6}.module-icon{width:38px;height:38px;border-radius:12px;background:#fff2d2;display:grid;place-items:center;color:#956200;font-weight:900;margin-bottom:18px}.module h3{font-size:14px;color:var(--navy);margin:0 0 8px}.module p{font-size:10px;line-height:1.65;color:var(--muted);margin:0}
-.impact{background:linear-gradient(145deg,#04142f,var(--navy2));color:#fff;padding:66px 0}.impact-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:60px;align-items:center}.impact h2{font-size:42px;line-height:1.08;letter-spacing:-.045em;margin:10px 0 16px}.impact p{font-size:13px;line-height:1.7;color:#bdc9d9}.impact-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}.impact-item{padding:18px;border:1px solid rgba(255,255,255,.13);border-radius:14px;background:rgba(255,255,255,.05)}.impact-item b{display:block;color:var(--gold2);font-size:13px;margin-bottom:6px}.impact-item span{font-size:9px;line-height:1.55;color:#bdc9d9}
-.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.role{border:1px solid var(--line);border-radius:15px;background:#fff;padding:20px}.role-icon{width:40px;height:40px;border-radius:11px;background:var(--navy);color:var(--gold2);display:grid;place-items:center;font-weight:900;margin-bottom:15px}.role h3{font-size:15px;color:var(--navy);margin:0 0 7px}.role p{font-size:10px;line-height:1.65;color:var(--muted);margin:0}.role small{display:inline-block;margin-top:14px;color:#956200;font-size:8px;font-weight:900;text-transform:uppercase}
-.app{background:linear-gradient(145deg,#04142f,var(--navy2));color:#fff;overflow:hidden}.app-grid{display:grid;grid-template-columns:1fr .9fr;gap:60px;align-items:center}.app h2{font-size:43px;line-height:1.08;letter-spacing:-.045em;margin:10px 0 16px}.app p{font-size:13px;line-height:1.7;color:#bdc9d9}.app-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:23px 0}.app-list span{font-size:10px;font-weight:700;color:#d4deea}.app-list span:before{content:"✓";color:var(--gold2);margin-right:7px}.phone-stage{height:420px;position:relative}.phone-stage:before{content:"";position:absolute;width:360px;height:360px;border-radius:50%;background:var(--gold);right:-80px;bottom:-130px}.big-phone{position:absolute;width:202px;height:390px;left:50%;top:15px;transform:translateX(-50%) rotate(2deg);border:7px solid #171d26;border-radius:33px;background:#f5f7fa;overflow:hidden;box-shadow:0 30px 65px rgba(0,0,0,.35)}.big-phone .mobile-head{padding:31px 15px 21px}.big-phone .mobile-head img{width:26px;height:26px}.big-phone .mobile-head small{font-size:7px}.big-phone .mobile-head b{font-size:13px}.big-phone .mobile-body{padding:11px}.big-phone .mobile-card{padding:11px}.big-phone .mobile-card b{font-size:8px}.big-phone .mobile-card small{font-size:6px}
-.pricing{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#fff}.price-dark{padding:38px;background:var(--navy);color:#fff}.price-dark h2{font-size:32px;line-height:1.1;margin:10px 0 14px}.price-dark p{font-size:11px;line-height:1.7;color:#bdc9d9}.price-card{padding:38px}.price-card small{font-size:8px;font-weight:900;color:#738095;text-transform:uppercase}.free{font-size:44px;font-weight:900;color:var(--navy);letter-spacing:-.05em}.divider{height:1px;background:var(--line);margin:20px 0}.paid{font-size:31px;font-weight:900;color:var(--navy)}.price-card p{font-size:10px;color:var(--muted)}
-.cta{padding:0 0 70px}.cta-box{background:linear-gradient(120deg,var(--navy),#104584);border-radius:20px;padding:34px 38px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden}.cta-box:after{content:"";position:absolute;width:190px;height:190px;border:28px solid rgba(246,201,94,.12);border-radius:50%;right:-70px;top:-75px}.cta-box>div{position:relative;z-index:1}.cta-box h2{font-size:30px;margin:0}.cta-box p{font-size:11px;color:#bdc9d9;margin:7px 0 0}.cta-actions{display:flex;gap:8px}
-footer{background:#020a17;color:#94a3b7;padding:50px 0 24px}.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:35px}.footer-grid h4{color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.1em;margin:0 0 12px}.footer-grid a{display:block;font-size:10px;padding:4px 0}.footer-about p{font-size:10px;line-height:1.6;max-width:320px}.contact{margin-top:12px}.contact a{font-weight:700}.copyright{border-top:1px solid rgba(255,255,255,.09);margin-top:32px;padding-top:19px;font-size:9px}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.module{transition:none}}
-@media(max-width:1080px) and (min-width:961px){.container{width:min(100% - 36px,1160px)}.links{gap:16px}.hero-grid{gap:0}.hero h1{font-size:48px}.visual{min-height:410px}.mobile-device{width:136px;height:282px}.role-row{grid-template-columns:1.25fr repeat(6,1fr)}}
-@media(max-width:960px){.links,.actions{display:none}.menu{display:block}.impact-grid,.app-grid{grid-template-columns:1fr;gap:42px}.hero-grid{grid-template-columns:1fr 1fr;gap:0}.hero-copy{text-align:left;padding:48px 30px 42px 0}.hero p{margin-left:0;margin-right:0}.hero-buttons,.hero-proof{justify-content:flex-start}.visual{width:100%;margin:0}.role-row{grid-template-columns:repeat(3,1fr);padding:15px 0}.role-row strong{grid-column:1/-1;text-align:center}.module{grid-column:span 6}.module.wide{grid-column:span 6}.impact-copy{text-align:center}.impact-copy p{max-width:700px;margin:auto}.roles{grid-template-columns:1fr 1fr}.app-copy{text-align:center}.app-list{max-width:560px;margin:23px auto}.app-copy .btn{margin:auto}.phone-stage{max-width:600px;width:100%;margin:auto}.footer-grid{grid-template-columns:1fr 1fr}.footer-about{grid-column:1/-1}}
-@media(max-width:620px){.container{width:min(100% - 28px,1180px)}.nav{height:64px}.drawer{top:64px}.brand img{width:34px;height:34px}.brandname{font-size:18px}.brand small{display:none}.hero{background:var(--navy);padding:0}.hero-grid{display:block;min-height:0}.hero-copy{padding:38px 0 28px;text-align:left}.hero h1{font-size:38px}.hero p{font-size:13px;line-height:1.6}.hero-buttons{display:flex;grid-template-columns:none}.hero-buttons .btn{flex:1}.hero-proof{display:flex;gap:10px;font-size:7px}.visual{min-height:260px;margin:0 -14px;background:linear-gradient(145deg,#e9f0f5,#c8d9e5)}.visual:after{width:170px;height:210px;right:8%;top:26px}.visual-glow{width:220px;height:220px;top:18px}.float-card{left:5%;bottom:18px;font-size:7px}.dashboard{position:relative;top:0;right:auto;border-width:5px;border-radius:14px;transform:none}.dashbody{grid-template-columns:1fr;min-height:250px}.sidebar{display:none}.metrics{grid-template-columns:1fr 1fr}.metric:nth-child(n+3){display:none}.dashpanels{grid-template-columns:1fr}.dashpanels .panel:last-child{display:none}.bars{height:88px}.mobile-device{width:100px;height:205px;border-width:4px;border-radius:18px;right:2px;bottom:-9px}.mobile-head{padding:16px 6px 8px}.mobile-head img{width:12px;height:12px}.mobile-head small{margin-top:7px;font-size:3.5px}.mobile-head b{font-size:5px}.mobile-body{padding:4px}.mobile-card{padding:4px;margin-bottom:3px}.mobile-card b{font-size:4px}.mobile-card small{font-size:3px}.float-card{display:none}.role-row{grid-template-columns:1fr 1fr}.section{padding:58px 0}.section-head{margin-bottom:28px}.section-head h2{font-size:29px}.module-grid{grid-template-columns:1fr}.module,.module.wide{grid-column:1;min-height:0;padding:20px}.impact{padding:58px 0}.impact h2,.app h2{font-size:30px}.impact-list{grid-template-columns:1fr}.roles{grid-template-columns:1fr}.app-list{grid-template-columns:1fr}.phone-stage{height:390px}.big-phone{width:190px;height:365px;top:15px}.pricing{grid-template-columns:1fr}.price-dark,.price-card{padding:27px 21px}.cta-box{display:block;padding:28px 21px}.cta-box h2{font-size:26px}.cta-actions{display:grid;margin-top:19px}.footer-grid{grid-template-columns:1fr 1fr;gap:25px}.footer-about{grid-column:1/-1}}
-</style>
+:root{
+  --navy:#071a38;--navy-2:#0c2a59;--navy-3:#143e7a;--gold:#e0aa33;--gold-2:#f2c95e;
+  --ink:#13233e;--muted:#69768a;--soft:#f5f7fb;--line:#e4e9f0;--white:#fff;
+  --shadow:0 18px 50px rgba(8,27,57,.12);--radius:18px;--font:'Plus Jakarta Sans',system-ui,sans-serif
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;font-family:var(--font);color:var(--ink);background:#fff;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+button{font:inherit}
+img{max-width:100%;display:block}
+.container{width:min(1180px,calc(100% - 48px));margin:0 auto}
+.btn{min-height:44px;padding:0 19px;border:1px solid transparent;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:800;line-height:1;transition:.2s ease}
+.btn:hover{transform:translateY(-1px)}
+.btn-gold{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy);box-shadow:0 10px 26px rgba(224,170,51,.22)}
+.btn-outline-light{border-color:rgba(255,255,255,.5);color:#fff;background:transparent}
+.btn-outline{border-color:#cfd7e2;color:var(--navy);background:#fff}
+.eyebrow,.kicker{font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+.eyebrow{color:var(--gold-2)}
+.kicker{color:#9a6a08}
+.icon{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center}
+.icon svg{width:100%;height:100%;stroke:currentColor}
 
-<style>
-/* Option 5 final responsive composition */
-.hero h1{color:#fff}
-.hero h1 span{color:var(--gold2)}
-.impact h2,.app h2{color:#fff}
+.nav{height:72px;position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e7ebf1;box-shadow:0 2px 14px rgba(7,26,56,.04)}
+.navrow{height:100%;display:flex;align-items:center;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;flex:none}
+.brand img{width:38px;height:38px}
+.brandname{font-size:21px;font-weight:900;letter-spacing:-.04em;color:var(--navy)}
+.brandname span{color:var(--gold)}
+.links{display:flex;align-items:center;gap:23px;margin-left:auto;font-size:12px;font-weight:700;color:var(--navy)}
+.actions{display:flex;gap:8px}
+.menu{display:none;margin-left:auto;width:40px;height:40px;border:1px solid #ccd5e1;border-radius:10px;background:#fff;color:var(--navy);font-size:20px}
+.drawer{display:none;position:fixed;top:72px;left:0;right:0;z-index:49;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 20px 40px rgba(7,26,56,.14);padding:14px 18px 18px}
+.drawer.open{display:grid}
+.drawer>a{padding:11px 8px;font-size:13px;font-weight:700;color:var(--navy)}
+.drawer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+
+.hero{background:var(--navy);color:#fff;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);min-height:510px}
+.hero-copy{padding:74px 54px 64px 0;display:flex;flex-direction:column;justify-content:center}
+.hero h1{margin:12px 0 18px;font-size:clamp(46px,4.9vw,68px);line-height:.98;letter-spacing:-.055em;font-weight:900;color:#fff;max-width:650px}
+.hero h1 span{color:var(--gold-2)}
+.hero p{margin:0;max-width:560px;color:#cbd6e5;font-size:14px;line-height:1.75}
+.hero-buttons{display:flex;gap:10px;margin-top:24px}
+.hero-proof{display:flex;gap:18px;flex-wrap:wrap;margin-top:21px;color:#aebed2;font-size:9px;font-weight:800}
+.hero-proof span:before{content:"✓";color:var(--gold-2);margin-right:6px}
+.hero-visual{position:relative;min-height:510px;background:#d7e1eb}
+.hero-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,26,56,.08),rgba(7,26,56,.02))}
+.hero-badge{position:absolute;left:24px;bottom:24px;max-width:260px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-radius:14px;padding:13px 15px;color:var(--navy);box-shadow:var(--shadow)}
+.hero-badge strong{display:block;font-size:12px}
+.hero-badge span{display:block;margin-top:3px;font-size:9px;line-height:1.45;color:#68778b}
+
+.role-strip{background:#fff;border-bottom:1px solid var(--line)}
+.role-row{min-height:76px;display:grid;grid-template-columns:1.45fr repeat(6,1fr);gap:10px;align-items:center}
+.role-lead{font-size:11px;font-weight:900;color:var(--navy)}
+.role-pill{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:700;color:#637187}
+.role-pill .role-icon{width:28px;height:28px;border-radius:9px;background:#fff5dc;color:#9a6900;display:grid;place-items:center;flex:none}
+.role-pill .role-icon svg{width:14px;height:14px;stroke:currentColor}
+
+.section{padding:66px 0}
+.soft{background:var(--soft)}
+.section-head{max-width:720px;margin:0 auto 30px;text-align:center}
+.section-head h2{margin:9px 0 10px;font-size:clamp(30px,3.6vw,46px);line-height:1.08;letter-spacing:-.045em;color:var(--navy)}
+.section-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+.module-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.module{border:1px solid var(--line);border-radius:14px;background:#fff;padding:18px;min-height:148px}
+.module-icon{width:38px;height:38px;border-radius:11px;background:#fff3d2;color:#986500;display:grid;place-items:center;margin-bottom:13px}
+.module-icon svg{width:18px;height:18px;stroke:currentColor}
+.module h3{margin:0 0 6px;font-size:13px;line-height:1.3;color:var(--navy)}
+.module p{margin:0;color:var(--muted);font-size:9px;line-height:1.55}
+
+.empower{padding:68px 0;background:#fff}
+.empower-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:46px;align-items:center}
+.empower-photo-wrap{position:relative;border-radius:20px;overflow:hidden;min-height:380px;box-shadow:var(--shadow)}
+.empower-photo{width:100%;height:100%;min-height:380px;object-fit:cover}
+.empower-card{position:absolute;left:18px;bottom:18px;right:18px;background:rgba(7,26,56,.92);color:#fff;border-radius:14px;padding:16px 18px}
+.empower-card strong{display:block;color:var(--gold-2);font-size:13px}
+.empower-card span{display:block;margin-top:4px;color:#c7d3e2;font-size:9px;line-height:1.5}
+.empower-copy h2{margin:10px 0 14px;font-size:42px;line-height:1.08;letter-spacing:-.045em;color:var(--navy)}
+.empower-copy p{margin:0 0 18px;color:var(--muted);font-size:12px;line-height:1.75}
+.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.trust-item{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.trust-item b{display:block;font-size:11px;color:var(--navy)}
+.trust-item small{display:block;margin-top:3px;font-size:8px;line-height:1.45;color:var(--muted)}
+.trust-item .tick{width:26px;height:26px;border-radius:8px;background:#fff3d2;color:#9a6900;display:grid;place-items:center;flex:none;font-weight:900}
+
+.app{background:linear-gradient(145deg,#04142f,var(--navy-2));color:#fff;overflow:hidden}
+.app-grid{display:grid;grid-template-columns:1fr .92fr;gap:54px;align-items:center}
+.app-copy h2{margin:10px 0 14px;font-size:44px;line-height:1.07;letter-spacing:-.045em;color:#fff}
+.app-copy p{margin:0;color:#c4d0df;font-size:12px;line-height:1.75;max-width:560px}
+.app-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0}
+.app-list span{font-size:10px;font-weight:700;color:#dbe5f1}
+.app-list span:before{content:"✓";color:var(--gold-2);margin-right:7px}
+.phone-stage{min-height:430px;display:grid;place-items:center;position:relative}
+.phone-stage:before{content:"";position:absolute;width:340px;height:340px;border-radius:50%;background:rgba(224,170,51,.9);right:-80px;bottom:-140px}
+.phone{position:relative;width:220px;height:410px;border:7px solid #161d28;border-radius:34px;background:#f6f8fb;overflow:hidden;box-shadow:0 32px 70px rgba(0,0,0,.35);transform:rotate(2deg);z-index:1}
+.phone-top{background:linear-gradient(150deg,var(--navy),var(--navy-3));padding:29px 16px 19px;color:#fff}
+.phone-top img{width:28px;height:28px}
+.phone-top small{display:block;margin-top:14px;font-size:7px;color:#bdcada}
+.phone-top b{font-size:13px}
+.phone-body{padding:11px}
+.phone-card{background:#fff;border:1px solid #e2e8ef;border-radius:10px;padding:12px;margin-bottom:8px}
+.phone-card b{display:block;font-size:8px;color:var(--navy)}
+.phone-card small{font-size:6px;color:#7f8b9b}
+
+.pricing-wrap{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
+.price-dark{background:var(--navy);color:#fff;padding:34px}
+.price-dark h2{margin:8px 0 12px;font-size:31px;line-height:1.1}
+.price-dark p{margin:0;color:#bdc9d9;font-size:10px;line-height:1.7}
+.price-card{padding:34px}
+.price-card small{font-size:8px;font-weight:900;color:#758297;text-transform:uppercase}
+.free{font-size:42px;font-weight:900;letter-spacing:-.05em;color:var(--navy)}
+.divider{height:1px;background:var(--line);margin:18px 0}
+.paid{font-size:30px;font-weight:900;color:var(--navy)}
+.price-card p{font-size:10px;color:var(--muted)}
+
+.cta{padding:0 0 66px}
+.cta-box{background:linear-gradient(120deg,var(--navy),#104584);border-radius:18px;padding:31px 34px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.cta-box h2{margin:0;font-size:29px;line-height:1.15}
+.cta-box p{margin:6px 0 0;color:#bdc9d9;font-size:10px}
+.cta-actions{display:flex;gap:8px;flex:none}
+
+footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34px 0 22px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
+.footer-about p{max-width:320px;font-size:9px;line-height:1.6}
+.footer-grid h4{margin:0 0 10px;color:var(--navy);font-size:8px;text-transform:uppercase;letter-spacing:.1em}
+.footer-grid a{display:block;padding:4px 0;font-size:9px}
+.contact{margin-top:10px}
+.contact a{font-weight:700}
+.copyright{border-top:1px solid var(--line);margin-top:26px;padding-top:16px;font-size:8px}
+
+@media(max-width:1100px){
+  .container{width:min(1180px,calc(100% - 36px))}
+  .links{gap:16px}
+  .hero h1{font-size:54px}
+  .module-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .role-row{grid-template-columns:1.2fr repeat(6,1fr)}
+}
+@media(max-width:900px){
+  .links,.actions{display:none}
+  .menu{display:block}
+  .hero-grid{grid-template-columns:1fr 1fr;min-height:470px}
+  .hero-copy{padding:56px 34px 54px 0}
+  .hero h1{font-size:46px}
+  .hero-visual{min-height:470px}
+  .role-row{grid-template-columns:repeat(3,1fr);padding:16px 0}
+  .role-lead{grid-column:1/-1;text-align:center}
+  .module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .empower-grid,.app-grid{grid-template-columns:1fr}
+  .empower-copy{text-align:center}
+  .trust-grid{max-width:720px;margin:0 auto}
+  .app-copy{text-align:center}
+  .app-copy p{margin:0 auto}
+  .app-list{max-width:560px;margin:22px auto}
+  .app-copy .btn{margin:auto}
+  .phone-stage{min-height:400px}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .footer-about{grid-column:1/-1}
+}
 @media(max-width:620px){
   html{scroll-padding-top:64px}
-  .container{width:calc(100% - 32px)}
+  .container{width:calc(100% - 28px)}
   .nav{height:64px}
-  .navrow{gap:12px}
+  .drawer{top:64px}
   .brand img{width:32px;height:32px}
   .brandname{font-size:18px}
-  .menu{width:38px;height:38px;font-size:19px}
-  .drawer{top:64px}
-  .hero{background:var(--navy)}
-  .hero .container{width:100%}
+  .menu{width:38px;height:38px}
   .hero-grid{display:flex;flex-direction:column;min-height:0}
-  .hero-copy{order:1;padding:34px 22px 28px;text-align:left;background:linear-gradient(145deg,#061a39,#0a326c)}
-  .hero .eyebrow{font-size:8px;letter-spacing:.12em}
-  .hero h1{font-size:38px;line-height:1.02;margin:11px 0 14px;max-width:330px;color:#fff}
-  .hero h1 span{display:block;color:var(--gold2)}
-  .hero p{font-size:12px;line-height:1.6;max-width:340px;color:#cbd6e5}
-  .hero-buttons{display:flex;gap:9px;margin-top:20px;width:100%}
-  .hero-buttons .btn{flex:0 1 145px;height:43px;padding:0 15px}
-  .hero-proof{display:flex;gap:12px;margin-top:17px;font-size:7px;justify-content:flex-start}
-  .visual{order:2;width:100%;min-height:245px;margin:0;background:linear-gradient(145deg,#eef4f8,#cfdee8)}
-  .visual-glow{width:210px;height:210px;right:8%;top:18px}
-  .visual:after{width:160px;height:198px;right:9%;top:23px;border-radius:85px 85px 18px 18px;font-size:10px}
-  .float-card{left:18px;bottom:17px;font-size:7px;padding:8px 10px}
-  .role-strip{border-bottom:1px solid var(--line)}
-  .role-row{grid-template-columns:repeat(3,1fr);gap:9px;min-height:0;padding:18px 0}
-  .role-row strong{grid-column:1/-1;text-align:center;font-size:10px;margin-bottom:2px}
-  .role-row span{text-align:center;font-size:8px}
-  .role-row span:before{display:none}
+  .hero-copy{order:1;padding:34px 0 26px}
+  .hero .eyebrow{font-size:8px}
+  .hero h1{font-size:39px;line-height:1.01;margin:10px 0 13px;max-width:340px}
+  .hero h1 span{display:block}
+  .hero p{font-size:12px;line-height:1.6;max-width:355px}
+  .hero-buttons{margin-top:18px;gap:8px}
+  .hero-buttons .btn{flex:1;min-width:0;padding:0 13px}
+  .hero-proof{gap:10px;margin-top:15px;font-size:7px}
+  .hero-visual{order:2;min-height:245px;margin:0 -14px}
+  .hero-photo{object-position:center 38%}
+  .hero-badge{left:16px;bottom:16px;max-width:220px;padding:10px 12px}
+  .hero-badge strong{font-size:10px}
+  .hero-badge span{font-size:7.5px}
+  .role-row{grid-template-columns:repeat(3,1fr);gap:9px;padding:14px 0}
+  .role-pill{justify-content:center;flex-direction:column;text-align:center;gap:5px;font-size:8px}
   .section{padding:50px 0}
-  .section-head{margin-bottom:25px}
-  .section-head h2{font-size:27px;line-height:1.12}
-  .section-head p{font-size:11px}
+  .section-head{margin-bottom:24px}
+  .section-head h2{font-size:28px}
+  .section-head p{font-size:10.5px}
   .module-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .module,.module.wide{grid-column:auto;min-height:148px;padding:15px;border-radius:12px}
-  .module-icon{width:34px;height:34px;border-radius:9px;margin-bottom:12px;font-size:12px}
-  .module h3{font-size:12px;line-height:1.3}
-  .module p{font-size:8.5px;line-height:1.55}
-  .impact{padding:50px 0}
-  .impact h2,.app h2{font-size:28px;color:#fff}
-  .impact-list{grid-template-columns:1fr 1fr}
-  .impact-item{padding:14px}
-  .roles{grid-template-columns:1fr 1fr}
-  .role{padding:16px}
-  .role p{font-size:9px}
+  .module{min-height:142px;padding:14px}
+  .module-icon{width:34px;height:34px;margin-bottom:10px}
+  .module h3{font-size:11.5px}
+  .module p{font-size:8px}
+  .empower{padding:50px 0}
+  .empower-grid{gap:28px}
+  .empower-photo-wrap,.empower-photo{min-height:300px}
+  .empower-copy h2{font-size:29px}
+  .empower-copy p{font-size:10.5px}
+  .trust-grid{grid-template-columns:1fr 1fr}
+  .trust-item{padding:10px}
+  .trust-item b{font-size:10px}
+  .trust-item small{font-size:7.5px}
+  .app-grid{gap:20px}
+  .app-copy h2{font-size:30px}
+  .app-copy p{font-size:10.5px}
   .app-list{grid-template-columns:1fr 1fr}
-  .phone-stage{height:360px}
-  .pricing{grid-template-columns:1fr}
-  .cta-box{padding:25px 20px}
-  .cta-actions{grid-template-columns:1fr 1fr}
+  .phone-stage{min-height:360px}
+  .phone{width:190px;height:355px}
+  .pricing-wrap{grid-template-columns:1fr}
+  .price-dark,.price-card{padding:25px 20px}
+  .cta{padding-bottom:50px}
+  .cta-box{display:block;padding:24px 20px}
+  .cta-box h2{font-size:25px}
+  .cta-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:17px}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:22px}
 }
 @media(max-width:390px){
-  .hero h1{font-size:34px}
-  .hero-buttons .btn{flex:1}
-  .hero-proof{gap:7px;flex-wrap:wrap}
-  .module-grid{grid-template-columns:1fr 1fr}
-  .module,.module.wide{min-height:142px;padding:13px}
+  .hero h1{font-size:35px}
+  .hero-buttons{display:grid;grid-template-columns:1fr 1fr}
+  .module{padding:12px;min-height:138px}
+  .module h3{font-size:11px}
+  .trust-grid{grid-template-columns:1fr}
+}
+@media(max-width:360px){
+  .container{width:calc(100% - 24px)}
+  .hero h1{font-size:33px}
+  .hero p{font-size:11px}
+  .role-row{grid-template-columns:repeat(2,1fr)}
+  .role-lead{grid-column:1/-1}
+  .module-grid{grid-template-columns:1fr}
+  .module{min-height:0}
+  .app-list{grid-template-columns:1fr}
+  .cta-actions{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}.btn{transition:none}
 }
 </style>
 </head>
 <body>
-<nav class="nav"><div class="container navrow"><a class="brand" href="{{ route('home') }}"><img src="/brand/educore-icon.svg" alt="EduCore"><div><div class="brandname">Edu<span>Core</span></div><small>School ERP</small></div></a><div class="links"><a href="#features">Features</a><a href="#portals">Portals</a><a href="#pricing">Pricing</a><a href="#mobile">Mobile App</a><a href="mailto:support@educoreng.online">Contact</a></div><div class="actions"><a class="btn btn-ghost" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a><a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a></div><button class="menu" id="menu" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">☰</button></div></nav>
-<div class="drawer" id="drawer" aria-label="Mobile navigation"><a href="#features">Features</a><a href="#portals">Portals</a><a href="#pricing">Pricing</a><a href="#mobile">Mobile App</a><a href="mailto:support@educoreng.online">Contact</a><div class="drawer-actions"><a class="btn btn-ghost" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a><a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a></div></div>
+<nav class="nav">
+  <div class="container navrow">
+    <a class="brand" href="{{ route('home') }}">
+      <img src="/brand/educore-icon.svg" alt="EduCore">
+      <div class="brandname">Edu<span>Core</span></div>
+    </a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#portals">Portals</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#mobile">Mobile App</a>
+      <a href="mailto:support@educoreng.online">Contact</a>
+    </div>
+    <div class="actions">
+      <a class="btn btn-outline" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a>
+      <a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a>
+    </div>
+    <button class="menu" id="menu" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">☰</button>
+  </div>
+</nav>
+
+<div class="drawer" id="drawer" aria-label="Mobile navigation">
+  <a href="#features">Features</a>
+  <a href="#portals">Portals</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#mobile">Mobile App</a>
+  <a href="mailto:support@educoreng.online">Contact</a>
+  <div class="drawer-actions">
+    <a class="btn btn-outline" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a>
+    <a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a>
+  </div>
+</div>
+
 <main>
-<section class="hero"><div class="container hero-grid"><div class="hero-copy"><div class="eyebrow">Education management, reimagined</div><h1>Smarter Schools.<br><span>Brighter Futures.</span></h1><p>EduCore gives your school the tools to manage daily operations efficiently, connect every role and support better learning outcomes.</p><div class="hero-buttons"><a class="btn btn-gold" href="{{ route('school.register') }}">Start Free →</a><a class="btn btn-ghost" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a></div><div class="hero-proof"><span>Secure access</span><span>Built for Nigerian schools</span><span>Web + Android</span></div></div>
-<div class="visual"><div class="visual-glow"></div><div class="dashboard"><div class="windowbar"><i></i><i></i><i></i></div><div class="dashbody"><aside class="sidebar"><div class="mini-brand"><img src="/brand/educore-icon.svg" alt="">EduCore</div><span>Dashboard</span><span>Students</span><span>Attendance</span><span>Academics</span><span>Finance</span><span>Reports</span></aside><div class="dashmain"><div class="dashhead"><b>School Overview</b><small>2026/2027 · First Term</small></div><div class="metrics"><div class="metric"><small>Students</small><b>1,250</b></div><div class="metric"><small>Staff</small><b>87</b></div><div class="metric"><small>Attendance</small><b>92%</b></div><div class="metric"><small>Collections</small><b>₦12.6M</b></div></div><div class="dashpanels"><div class="panel"><strong>School activity</strong><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="panel"><strong>Attendance today</strong><div class="ring"></div></div></div></div></div></div></div><div class="mobile-device"><div class="mobile-head"><img src="/brand/educore-icon.svg" alt=""><small>Good morning</small><b>EduCore Mobile</b></div><div class="mobile-body"><div class="mobile-card"><b>Attendance</b><small>Daily school activity</small></div><div class="mobile-card"><b>Finance</b><small>Billing and collections</small></div><div class="mobile-card"><b>Academics</b><small>Scores and results</small></div><div class="mobile-card"><b>Notifications</b><small>School communication</small></div></div></div><div class="float-card"><span>●</span> Education technology for Nigerian schools</div></div></div></section>
-<div class="role-strip"><div class="container role-row"><strong>One connected school platform</strong><span>Administrators</span><span>Teachers</span><span>Accountants</span><span>Students</span><span>Parents</span><span>Officers</span></div></div>
-<section class="section" id="features"><div class="container"><div class="section-head"><div class="kicker">Core school operations</div><h2>Everything your team needs, without the clutter.</h2><p>Keep daily school work organised across one coordinated system instead of scattered records and disconnected tools.</p></div><div class="module-grid">
-<article class="module"><div class="module-icon">A</div><h3>Admissions & Student Records</h3><p>Applications, enrolment, student records, classes, transfers, promotion and graduation.</p></article>
-<article class="module"><div class="module-icon">✓</div><h3>Attendance & Timetable</h3><p>Student and staff attendance, schedules, work hours, timetables and operational reporting.</p></article>
-<article class="module"><div class="module-icon">₦</div><h3>Finance & Payroll</h3><p>Billing, balances, payments, expenses and staff payroll from one finance workspace.</p></article>
-<article class="module"><div class="module-icon">A+</div><h3>Academics & Results</h3><p>Teacher assignments, score entry, examinations, report cards, broadsheets and academic records.</p></article>
-<article class="module"><div class="module-icon">P</div><h3>Parents & Communication</h3><p>Controlled parent access to linked children, school information, bills, results and updates.</p></article>
-<article class="module"><div class="module-icon">◈</div><h3>Staff & Operations</h3><p>Staff records, permissions, health, transport and function-specific school workflows.</p></article>
-<article class="module wide"><div class="module-icon">↗</div><h3>Reports & School Oversight</h3><p>Bring academic, attendance, financial and operational information together so management can see what is happening across the school.</p></article>
-<article class="module wide"><div class="module-icon">S</div><h3>Secure Role-Based Access</h3><p>Keep each workspace focused. Users see the modules and records appropriate to their responsibilities and assignments.</p></article>
-</div></div></section>
-<section class="impact"><div class="container impact-grid"><div class="impact-copy"><div class="kicker">Designed for real school workflows</div><h2>Less fragmentation. Better coordination.</h2><p>Each user gets a focused workspace while the school keeps one connected operational foundation.</p></div><div class="impact-list"><div class="impact-item"><b>One connected system</b><span>Core school workflows share an organised operational foundation.</span></div><div class="impact-item"><b>Focused workspaces</b><span>Role and assignment controls keep screens relevant to each user.</span></div><div class="impact-item"><b>Web + Android</b><span>Work from the office or use supported mobile workflows on the go.</span></div><div class="impact-item"><b>Nigerian school context</b><span>Designed around the operational realities of schools in Nigeria.</span></div></div></div></section>
-<section class="section soft" id="portals"><div class="container"><div class="section-head"><div class="kicker">Role-specific access</div><h2>The right workspace for every user.</h2><p>Keep screens relevant with permission-controlled access for the people who run, teach, support and follow the school.</p></div><div class="roles">
-<a class="role" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}"><div class="role-icon">A</div><h3>School Administrator</h3><p>School-wide configuration, records, reporting and operational oversight.</p><small>Administrator login →</small></a>
-<div class="role"><div class="role-icon">T</div><h3>Teachers & Staff</h3><p>Assigned classes or subjects, attendance, scores, timetables and daily responsibilities.</p><small>Assignment-based access</small></div>
-<a class="role" href="{{ Route::has('student.login') ? route('student.login') : '#' }}"><div class="role-icon">S</div><h3>Students</h3><p>Personal results, attendance, timetable, fees and relevant school information.</p><small>Student portal →</small></a>
-<a class="role" href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}"><div class="role-icon">P</div><h3>Parents & Guardians</h3><p>Linked children, results, attendance, bills, payments and school updates.</p><small>Parent portal →</small></a>
-<div class="role"><div class="role-icon">₦</div><h3>Accountants & Officers</h3><p>Finance, payroll and function-specific operational workspaces.</p><small>Permission controlled</small></div>
-<a class="role" href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}"><div class="role-icon">G</div><h3>Agents</h3><p>School registration, referrals and authorised platform workflows.</p><small>Agent portal →</small></a>
-</div></div></section>
-<section class="section app" id="mobile"><div class="container app-grid"><div class="app-copy"><div class="kicker">EduCore Mobile</div><h2>School operations, wherever work happens.</h2><p>Use supported EduCore workflows from the native Android app without giving up role-specific access controls.</p><div class="app-list"><span>Role-specific dashboards</span><span>Attendance workflows</span><span>Score entry</span><span>Staff clock-in</span><span>Notifications</span><span>School operations</span></div><a class="btn btn-gold" href="{{ route('app.download') }}">Download Android App</a></div><div class="phone-stage"><div class="big-phone"><div class="mobile-head"><img src="/brand/educore-icon.svg" alt=""><small>Good morning</small><b>Welcome to EduCore</b></div><div class="mobile-body"><div class="mobile-card"><b>School Administrator</b><small>Authorised school access</small></div><div class="mobile-card"><b>Attendance</b><small>Review today's activity</small></div><div class="mobile-card"><b>Finance</b><small>Billing and collections</small></div><div class="mobile-card"><b>Academics</b><small>Scores and results</small></div><div class="mobile-card"><b>Messages</b><small>School communication</small></div></div></div></div></div></section>
-<section class="section soft" id="pricing"><div class="container"><div class="section-head"><div class="kicker">Straightforward pricing</div><h2>Start free. Grow without complexity.</h2><p>One clear model without splitting essential school operations into confusing feature tiers.</p></div><div class="pricing"><div class="price-dark"><div class="kicker">Complete EduCore access</div><h2>One platform. All core features.</h2><p>Schools receive web and Android access, role-specific portals and EduCore's connected operational modules.</p></div><div class="price-card"><small>Up to 50 students</small><div class="free">Free</div><div class="divider"></div><small>Above 50 students</small><div class="paid">₦300</div><p>per student / term · all EduCore features included</p><a class="btn btn-gold" style="width:100%;margin-top:15px" href="{{ route('school.register') }}">Create School Account</a></div></div></div></section>
-<section class="cta"><div class="container cta-box"><div><h2>Build a smarter school with EduCore.</h2><p>Start free or sign in to your existing school account.</p></div><div class="cta-actions"><a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a><a class="btn btn-white" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a></div></div></section>
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <div class="eyebrow">Education management, reimagined.</div>
+      <h1>Smarter Schools.<br><span>Brighter Futures.</span></h1>
+      <p>EduCore gives schools one connected platform for academics, attendance, finance, staff, communication and role-specific access.</p>
+      <div class="hero-buttons">
+        <a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a>
+        <a class="btn btn-outline-light" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a>
+      </div>
+      <div class="hero-proof"><span>Secure & reliable</span><span>Role-based access</span><span>Built for Nigerian schools</span></div>
+    </div>
+    <div class="hero-visual">
+      <img class="hero-photo" src="https://portal.abuadis.com/assets/uploads/homepage/5500f787bf0414fff8f440b2461e86f7.jpg" alt="Students learning in a Nigerian school classroom">
+      <div class="hero-overlay"></div>
+      <div class="hero-badge">
+        <strong>Built around real school workflows</strong>
+        <span>Administration, teaching, finance, parent access and student services in one coordinated system.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="role-strip" id="portals">
+  <div class="container role-row">
+    <div class="role-lead">One platform. Every school role.</div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg></span><span>School Admins</span></div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5V6.8a2 2 0 0 1 2-2h12v13H6a2 2 0 0 0-2 1.7Zm0 0a2 2 0 0 0 2 2h12"/></svg></span><span>Teachers</span></div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="m3 10 9-5 9 5-9 5-9-5Zm4 3v4c3 2 7 2 10 0v-4"/></svg></span><span>Students</span></div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s8-4 8-11a4 4 0 0 0-7-2.6A4 4 0 0 0 6 10c0 7 6 11 6 11Z"/></svg></span><span>Parents</span></div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4zM8 11h8M8 14h5"/></svg></span><span>Accountants</span></div>
+    <div class="role-pill"><span class="role-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7l-8-4Zm-3 9 2 2 4-4"/></svg></span><span>Officers</span></div>
+  </div>
+</div>
+
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Core modules</div>
+      <h2>Everything your school needs, in one connected system.</h2>
+      <p>Compact, focused tools for the people who run, teach, support and follow the school.</p>
+    </div>
+    <div class="module-grid">
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10v18H7zM4 7h3m10 0h3M10 8h4M10 12h4M10 16h4"/></svg></div><h3>Admissions & Student Records</h3><p>Applications, enrolment, student profiles, transfers, promotion and graduation records.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4zM8 9h8M8 13h4"/></svg></div><h3>Academics & Examinations</h3><p>Subjects, score entry, exams, report cards, broadsheets and academic records.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4v16M19 4v16M5 8h14M8 12h3M13 12h3M8 16h3"/></svg></div><h3>Attendance & Timetable</h3><p>Student and staff attendance, daily schedules, work hours and timetables.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3"/></svg></div><h3>Fees, Billing & Payroll</h3><p>Invoices, balances, collections, expenses and staff payroll workflows.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0ZM4 21c0-4 3-6 8-6s8 2 8 6"/></svg></div><h3>Staff Management</h3><p>Staff records, permissions, assignments, attendance and lifecycle management.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></div><h3>Parent & Student Portal</h3><p>Role-specific access to results, fees, attendance, timetables and updates.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Reports & Analytics</h3><p>Operational, academic, attendance and finance visibility for school leadership.</p></article>
+      <article class="module"><div class="module-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 18h4"/></svg></div><h3>Mobile App</h3><p>Native Android workflows for attendance, scores, notifications and daily operations.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="empower">
+  <div class="container empower-grid">
+    <div class="empower-photo-wrap">
+      <img class="empower-photo" src="https://ladyibiamschools.com/img/1.jpg" alt="Students studying in an African school classroom">
+      <div class="empower-card"><strong>Empowering great schools</strong><span>EduCore keeps everyday school work coordinated without burying users in unnecessary screens.</span></div>
+    </div>
+    <div class="empower-copy">
+      <div class="kicker">Designed for real schools</div>
+      <h2>Clear workflows. Better coordination. Stronger visibility.</h2>
+      <p>EduCore combines the essential academic, administrative and operational processes schools already run, while keeping each user focused on the work that belongs to them.</p>
+      <div class="trust-grid">
+        <div class="trust-item"><span class="tick">✓</span><div><b>Secure & Reliable</b><small>Controlled access and structured school data.</small></div></div>
+        <div class="trust-item"><span class="tick">✓</span><div><b>Regular Updates</b><small>Continuous product improvements and refinements.</small></div></div>
+        <div class="trust-item"><span class="tick">✓</span><div><b>Role-Based Access</b><small>Focused workspaces based on assigned responsibilities.</small></div></div>
+        <div class="trust-item"><span class="tick">✓</span><div><b>Built for Nigerian Schools</b><small>Designed around local school operations and workflows.</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section app" id="mobile">
+  <div class="container app-grid">
+    <div class="app-copy">
+      <div class="eyebrow">EduCore Mobile App</div>
+      <h2>School operations, wherever work happens.</h2>
+      <p>Use supported EduCore workflows from the native Android app with the same role-specific access model used on the web platform.</p>
+      <div class="app-list"><span>Attendance</span><span>Score entry</span><span>Notifications</span><span>Staff clock-in</span><span>Role-specific dashboards</span><span>School workflows</span></div>
+      <a class="btn btn-gold" href="{{ route('app.download') }}">Download Android App</a>
+    </div>
+    <div class="phone-stage">
+      <div class="phone">
+        <div class="phone-top"><img src="/brand/educore-icon.svg" alt=""><small>Good morning</small><b>Welcome to EduCore</b></div>
+        <div class="phone-body">
+          <div class="phone-card"><b>Attendance</b><small>Daily attendance workflows</small></div>
+          <div class="phone-card"><b>Score Entry</b><small>Assigned academic tasks</small></div>
+          <div class="phone-card"><b>Notifications</b><small>School communication</small></div>
+          <div class="phone-card"><b>My Workspace</b><small>Role-specific tools</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section soft" id="pricing">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Pricing</div>
+      <h2>Start free. Scale when your school grows.</h2>
+      <p>A simple model without splitting core school operations into confusing feature tiers.</p>
+    </div>
+    <div class="pricing-wrap">
+      <div class="price-dark">
+        <div class="eyebrow">Complete EduCore access</div>
+        <h2>One platform. All core features.</h2>
+        <p>Web and Android access, role-specific portals and EduCore's connected school-management modules.</p>
+      </div>
+      <div class="price-card">
+        <small>Up to 50 students</small>
+        <div class="free">Free</div>
+        <div class="divider"></div>
+        <small>Above 50 students</small>
+        <div class="paid">₦300</div>
+        <p>per student / term · all EduCore features included</p>
+        <a class="btn btn-gold" style="width:100%;margin-top:14px" href="{{ route('school.register') }}">Create School Account</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="container cta-box">
+    <div>
+      <h2>Build a smarter school with EduCore.</h2>
+      <p>Start free or sign in to your existing school account.</p>
+    </div>
+    <div class="cta-actions">
+      <a class="btn btn-gold" href="{{ route('school.register') }}">Start Free</a>
+      <a class="btn btn-outline-light" href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">Login</a>
+    </div>
+  </div>
+</section>
 </main>
-<footer><div class="container"><div class="footer-grid"><div class="footer-about"><a class="brand" href="{{ route('home') }}"><img src="/brand/educore-icon.svg" alt="EduCore"><div class="brandname">Edu<span>Core</span></div></a><p>Connected school management software built for Nigerian schools.</p><div class="contact"><a href="tel:+2347065595768">07065595768</a><a href="https://wa.me/2347065595768">WhatsApp: +2347065595768</a><a href="mailto:support@educoreng.online">support@educoreng.online</a></div></div><div><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#mobile">Android App</a></div><div><h4>Portals</h4><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">School Admin</a><a href="{{ Route::has('student.login') ? route('student.login') : '#' }}">Student</a><a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a><a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a></div><div><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="{{ route('legal.privacy') }}">Privacy</a><a href="{{ route('legal.terms') }}">Terms</a></div></div><div class="copyright">EduCore Education Technology © {{ date('Y') }}. All rights reserved.</div></div></footer>
-<script>const b=document.getElementById('menu'),d=document.getElementById('drawer');const closeMenu=()=>{d.classList.remove('open');b.setAttribute('aria-expanded','false')};b.addEventListener('click',()=>{const open=d.classList.toggle('open');b.setAttribute('aria-expanded',open?'true':'false')});d.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeMenu));document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});</script>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a class="brand" href="{{ route('home') }}"><img src="/brand/educore-icon.svg" alt="EduCore"><div class="brandname">Edu<span>Core</span></div></a>
+        <p>Connected school management software built for Nigerian schools.</p>
+        <div class="contact"><a href="tel:+2347065595768">07065595768</a><a href="https://wa.me/2347065595768">WhatsApp: +2347065595768</a><a href="mailto:support@educoreng.online">support@educoreng.online</a></div>
+      </div>
+      <div><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="{{ route('app.download') }}">Android App</a></div>
+      <div><h4>Portals</h4><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">School Admin</a><a href="{{ Route::has('student.login') ? route('student.login') : '#' }}">Student</a><a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a><a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a></div>
+      <div><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="{{ route('legal.privacy') }}">Privacy</a><a href="{{ route('legal.terms') }}">Terms</a></div>
+    </div>
+    <div class="copyright">EduCore Education Technology © {{ date('Y') }}. All rights reserved.</div>
+  </div>
+</footer>
+
+<script>
+const b=document.getElementById('menu'),d=document.getElementById('drawer');
+const closeMenu=()=>{d.classList.remove('open');b.setAttribute('aria-expanded','false')};
+b.addEventListener('click',()=>{const open=d.classList.toggle('open');b.setAttribute('aria-expanded',open?'true':'false')});
+d.querySelectorAll('a').forEach(a=>a.addEventListener('click',closeMenu));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+</script>
 </body>
 </html>
