@@ -87,6 +87,15 @@ class ApiRoleAccessPolicy
             return $user->isAdmin();
         }
 
+        // Advanced Administration is exposed only inside the native Admin portal.
+        // It has its own tenant-scoped controller/service authorization and does
+        // not map to a normal ROLE_ACCESS module key. Without this explicit rule,
+        // the fail-closed API policy rejects the request before the controller is
+        // reached, even for a legitimate school administrator.
+        if ($path === 'advanced-admin' || str_starts_with($path, 'advanced-admin/')) {
+            return $user->isAdminPortalRole();
+        }
+
         if (preg_match('#^operations/([^/]+)#', $path, $match)) {
             $module = $match[1] === 'finance' ? 'fees' : $match[1];
             return $this->allowsModule($user, $module);
