@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Controllers\AgentController;
 use App\Models\Tenant;
 use App\Notifications\Tenant\SubscriptionRenewedNotification;
+use App\Services\Notifications\PlatformAdminAlertService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -88,7 +89,13 @@ class SubscriptionPaymentService
                 'students_capacity' => max(PricingService::FREE_THRESHOLD, $capacity),
             ])->save();
 
-            return ['tenant' => $tenant->fresh(), 'settled' => true, 'amount' => (float) $invoice->amount];
+            return [
+                'tenant' => $tenant->fresh(),
+                'settled' => true,
+                'amount' => (float) $invoice->amount,
+                'billing_cycle' => $invoice->billing_cycle ?? null,
+                'invoice_number' => $invoice->invoice_number ?? null,
+            ];
         });
 
         /** @var Tenant $tenant */
@@ -118,6 +125,15 @@ class SubscriptionPaymentService
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            app(PlatformAdminAlertService::class)->subscriptionPaymentReceived(
+                $tenant,
+                (float) $result['amount'],
+                $reference,
+                $method,
+                $result['billing_cycle'] ?? null,
+                $result['invoice_number'] ?? null
+            );
         }
 
         return $tenant->fresh();
