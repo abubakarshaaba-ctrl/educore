@@ -136,14 +136,12 @@ img{max-width:100%;display:block}
 .cta-box p{margin:6px 0 0;color:#bdc9d9;font-size:10px}
 .cta-actions{display:flex;gap:8px;flex:none}
 
-footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34px 0 22px}
-.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
-.footer-about p{max-width:320px;font-size:9px;line-height:1.6}
-.footer-grid h4{margin:0 0 10px;color:var(--navy);font-size:8px;text-transform:uppercase;letter-spacing:.1em}
-.footer-grid a{display:block;padding:4px 0;font-size:9px}
-.contact{margin-top:10px}
-.contact a{font-weight:700}
-.copyright{border-top:1px solid var(--line);margin-top:26px;padding-top:16px;font-size:8px}
+footer{background:linear-gradient(135deg,#061d3d 0%,#082b59 62%,#061d3d 100%);border-top:4px solid var(--gold);color:#d9e2ef;padding:54px 0 0}
+.footer-grid{display:grid;grid-template-columns:1.55fr .75fr .75fr .75fr 1.45fr;gap:30px;align-items:start}
+.footer-about .brand{color:#fff}.footer-about p{max-width:310px;font-size:10px;line-height:1.75;color:#c4cfdd;margin:18px 0 0}.footer-tagline{color:var(--gold);font-size:13px;font-weight:800;margin-top:20px;letter-spacing:.02em}
+.footer-grid h4{margin:0 0 14px;color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.13em}.footer-grid a{display:block;padding:5px 0;font-size:9px;color:#cbd5e1}.footer-grid a:hover{color:var(--gold)}
+.footer-contact h3{margin:0 0 6px;color:#fff;font-size:17px}.footer-contact>p{margin:0 0 14px;font-size:9px;line-height:1.6;color:#aebed1}.contact-card{display:flex!important;align-items:center;gap:11px;border:1px solid rgba(255,255,255,.18);border-radius:11px;padding:10px 12px!important;margin:8px 0;color:#fff!important}.contact-card svg{width:20px;height:20px;flex:0 0 20px}.contact-card span{display:block}.contact-card small{display:block;color:#91a3ba;font-size:7px;margin-bottom:2px}.contact-card strong{font-size:9px;color:#fff}.contact-card.whatsapp{border-color:rgba(37,211,102,.5)}.contact-card.whatsapp svg{fill:#25D366}.contact-card.phone svg{fill:var(--gold)}.contact-card.email svg{fill:#fff}
+.footer-lower{display:flex;justify-content:space-between;align-items:center;gap:24px;border-top:1px solid rgba(255,255,255,.14);margin-top:38px;padding:24px 0}.app-download h3{color:#fff;font-size:13px;margin:0 0 5px}.app-download p{font-size:8px;margin:0 0 10px;color:#9fb0c5}.footer-app-btn{display:inline-flex!important;align-items:center;gap:8px;background:#fff;color:var(--navy)!important;border-radius:8px;padding:9px 13px!important;font-weight:800;font-size:9px!important}.footer-app-btn svg{width:18px;height:18px;fill:var(--navy)}.footer-promise{display:flex;gap:14px;align-items:center;color:#fff;font-size:9px}.footer-promise span+span{border-left:1px solid rgba(255,255,255,.3);padding-left:14px}.copyright{border-top:1px solid rgba(255,255,255,.14);padding:16px 0 20px;font-size:8px;color:#8fa1b8}
 
 @media(max-width:1100px){
   .container{width:min(1180px,calc(100% - 36px))}
@@ -228,6 +226,7 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
   .cta-box h2{font-size:25px}
   .cta-actions{display:grid;grid-template-columns:1fr 1fr;margin-top:17px}
   .footer-grid{grid-template-columns:1fr 1fr;gap:22px}
+  .footer-contact{grid-column:1/-1}.footer-lower{align-items:flex-start;flex-direction:column}.footer-promise{width:100%;justify-content:flex-start}
 }
 @media(max-width:390px){
   .hero h1{font-size:35px}
@@ -454,13 +453,19 @@ footer{background:#fff;border-top:1px solid var(--line);color:#7a8799;padding:34
     <div class="footer-grid">
       <div class="footer-about">
         <a class="brand" href="{{ route('home') }}"><img src="/brand/educore-icon.svg" alt="EduCore"><div class="brandname">Edu<span>Core</span></div></a>
-        <p>Connected school management software built for Nigerian schools.</p>
-        <div class="contact"><a href="tel:+2348083070142">08083070142</a><a href="https://wa.me/2348083070142" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px;margin-right:5px;fill:#25D366"><path d="M12 2a9.8 9.8 0 0 0-8.4 14.9L2 22l5.2-1.6A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .9 1-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.4-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-1.5-.7-2.6-1.7-3.4-3-.2-.3 0-.4.1-.6l.4-.5.2-.4c.1-.1 0-.3 0-.4l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.7.7-1.1 1.6-1.1 2.5 0 1.5 1.1 3 1.2 3.2.2.2 2.2 3.4 5.4 4.7.8.3 1.4.5 1.8.6.8.2 1.5.2 2.1.1.6-.1 1.9-.8 2.1-1.5.3-.7.3-1.3.2-1.5-.1-.1-.3-.2-.6-.3Z"/></svg>WhatsApp: 08083070142</a><a href="mailto:support@educoreng.online">support@educoreng.online</a></div>
+        <p>Connected school management software built for Nigerian schools. Empowering better learning through technology.</p>
+        <div class="footer-tagline">Together for a brighter education.</div>
       </div>
-      <div><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="{{ route('app.download') }}">Android App</a></div>
+      <div><h4>Product</h4><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="{{ route('app.download') }}">Android App</a><a href="mailto:support@educoreng.online">Help &amp; Support</a></div>
       <div><h4>Portals</h4><a href="{{ Route::has('admin.login') ? route('admin.login') : '#' }}">School Admin</a><a href="{{ Route::has('student.login') ? route('student.login') : '#' }}">Student</a><a href="{{ Route::has('parent.login') ? route('parent.login') : '#' }}">Parent</a><a href="{{ Route::has('agent.portal.login') ? route('agent.portal.login') : '#' }}">Agent</a></div>
-      <div><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="{{ route('legal.privacy') }}">Privacy</a><a href="{{ route('legal.terms') }}">Terms</a></div>
+      <div><h4>Company</h4><a href="mailto:support@educoreng.online">Contact</a><a href="{{ route('legal.privacy') }}">Privacy Policy</a><a href="{{ route('legal.terms') }}">Terms of Service</a></div>
+      <div class="footer-contact"><h3>Get in Touch</h3><p>Have questions, need support or want to partner with us? We’re here to help.</p>
+        <a class="contact-card phone" href="tel:+2347065595768"><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.7 5.1 6.5 6.5l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1.1.5 1.1 1.1V20c0 .6-.5 1.1-1.1 1.1C10.9 21.1 2.9 13.1 2.9 3.2c0-.6.5-1.1 1.1-1.1h3.5c.6 0 1.1.5 1.1 1.1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.4 3z"/></svg><span><small>Call Us</small><strong>07065595768</strong></span></a>
+        <a class="contact-card whatsapp" href="https://wa.me/2348083070142" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 5L2 22l5.2-1.3c1.5.8 3.1 1.3 4.8 1.3 5.5 0 10-4.5 10-10S17.5 2 12 2zm4.5 12c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8.9-.1.2-.3.2-.6.1-1.7-.8-2.8-1.5-3.9-3.4-.2-.3.2-.3.6-1.1.1-.2 0-.4 0-.5l-.8-1.9c-.2-.5-.4-.4-.6-.4-1.5 0-2.2 1.1-2.2 2.4 0 2.8 2.1 5.5 2.4 5.8.3.4 4.1 6.3 10.1 4.4 1.2-.4 2.1-1.7 2.2-2.8.1-.4.1-.8 0-.9-.1-.1-.3-.2-.6-.3z"/></svg><span><small>Chat on WhatsApp</small><strong>08083070142</strong></span></a>
+        <a class="contact-card email" href="mailto:support@educoreng.online"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg><span><small>Email Us</small><strong>support@educoreng.online</strong></span></a>
+      </div>
     </div>
+    <div class="footer-lower"><div class="app-download"><h3>Download the EduCore Mobile App</h3><p>Manage your school anytime, anywhere.</p><a class="footer-app-btn" href="{{ route('app.download') }}"><svg viewBox="0 0 24 24"><path d="M3 20.5v-17c0-.8.9-1.3 1.6-.8l14.7 8.5c.7.4.7 1.4 0 1.8L4.6 21.3c-.7.4-1.6 0-1.6-.8z"/></svg>Download Android App</a></div><div class="footer-promise"><span>Schools</span><span>People</span><span>Progress</span></div></div>
     <div class="copyright">EduCore Education Technology © {{ date('Y') }}. All rights reserved.</div>
   </div>
 </footer>
