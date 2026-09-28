@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\AcademicSession;
 use App\Models\Term;
+use App\Models\Tenant;
 use App\Models\Guardian;
 use App\Models\Scopes\TenantContext;
 use App\Services\PlanLimitService;
@@ -29,7 +30,7 @@ class PublicStudentClassAssignmentController extends Controller
 
         return view('public.student-class-admission', [
             'link' => $link,
-            'tenant' => $link->tenant,
+            'tenant' => Tenant::withoutGlobalScopes()->findOrFail((int) $link->tenant_id),
             'classArm' => $link->classArm()->with('classLevel')->first(),
             'classes' => ClassArm::with('classLevel')->where('tenant_id', $link->tenant_id)->orderBy('class_level_id')->orderBy('name')->get(),
             'session' => $link->session,
