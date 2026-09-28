@@ -361,7 +361,7 @@ body {
         <div class="adm-header">
             <div class="school-brand">
                 @if($tenant->logo_path)
-                    <img class="school-logo" src="{{ \Illuminate\Support\Facades\Storage::url($tenant->logo_path) }}" alt="{{ $tenant->name }} logo">
+                    <img class="school-logo" src="{{ asset("storage/" . ltrim($tenant->logo_path, "/")) }}" alt="{{ $tenant->name }} logo">
                 @else
                     <div class="school-logo" aria-hidden="true"></div>
                 @endif
