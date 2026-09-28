@@ -29,6 +29,7 @@ class PublicStudentClassAssignmentController extends Controller
 
         return view('public.student-class-admission', [
             'link' => $link,
+            'tenant' => $link->tenant,
             'classArm' => $link->classArm()->with('classLevel')->first(),
             'classes' => ClassArm::with('classLevel')->where('tenant_id', $link->tenant_id)->orderBy('class_level_id')->orderBy('name')->get(),
             'session' => $link->session,
