@@ -306,7 +306,12 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('{curriculumSource}/download', [\App\Http\Controllers\AcademicRepositoryController::class, 'download'])->whereNumber('curriculumSource')->name('download');
     });
 
-Route::get('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'index'])\n    ->middleware('throttle:30,1')->name('public.student-class-assignment');\nRoute::post('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'store'])\n    ->middleware('throttle:10,1')->name('public.student-class-assignment.store');\n\nRoute::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])->group(function () {
+Route::get('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'index'])
+    ->middleware('throttle:30,1')->name('public.student-class-assignment');
+Route::post('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'store'])
+    ->middleware('throttle:10,1')->name('public.student-class-assignment.store');
+
+Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
