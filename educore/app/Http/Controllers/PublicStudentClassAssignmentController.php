@@ -65,7 +65,9 @@ class PublicStudentClassAssignmentController extends Controller
             'students.*.genotype' => ['nullable', 'string', 'max:5'],
         ]);
 
-        $tenant = $link->tenant;
+        // PublicStudentClassLink intentionally has no tenant() relationship.
+        // Resolve the tenant directly so submission does not fail with a 500.
+        $tenant = Tenant::withoutGlobalScopes()->findOrFail($tenantId);
         $studentCount = count($data['students']);
         $remaining = PlanLimitService::remainingStudentSlots($tenant);
 
