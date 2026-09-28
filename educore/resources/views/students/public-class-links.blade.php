@@ -5,13 +5,28 @@
 
 <style>
 /* ============================================================
-   Public Class Links — Page-scoped styles
+   Public Class Links — Modern UI Overhaul
    ============================================================ */
+
+:root {
+    --pcl-primary: var(--indigo, #4F46E5); /* Fallback to indigo if not defined */
+    --pcl-primary-hover: var(--indigo-dark, #4338CA);
+    --pcl-bg: #F8FAFC;
+    --pcl-card-bg: #FFFFFF;
+    --pcl-text-main: #1E293B;
+    --pcl-text-muted: #64748B;
+    --pcl-border: #E2E8F0;
+    --pcl-radius: 12px;
+    --pcl-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --pcl-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
 
 .pcl-page {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
 }
 
 /* ---------- Page header ---------- */
@@ -21,53 +36,49 @@
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
+    margin-bottom: 8px;
 }
 
 .pcl-header h1 {
-    margin: 0 0 6px;
-    font-size: 20px;
+    margin: 0 0 8px;
+    font-size: 24px;
     font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--midnight);
+    letter-spacing: -0.02em;
+    color: var(--pcl-text-main);
 }
 
 .pcl-header .pcl-sub {
-    color: var(--slate-light);
-    font-size: 13px;
-    max-width: 640px;
-    line-height: 1.5;
-}
-
-.pcl-header-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    color: var(--pcl-text-muted);
+    font-size: 14px;
+    max-width: 600px;
+    line-height: 1.6;
 }
 
 /* ---------- Cards ---------- */
 .pcl-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    background: var(--pcl-card-bg);
+    border: 1px solid var(--pcl-border);
+    border-radius: var(--pcl-radius);
+    box-shadow: var(--pcl-shadow-md);
     overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.pcl-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
 }
 
 .pcl-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    background: #F8FAFC;
-    flex-wrap: wrap;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--pcl-border);
+    background: #FFFFFF;
 }
 
 .pcl-card-head h2 {
     margin: 0;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
-    color: var(--midnight);
+    color: var(--pcl-text-main);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -77,37 +88,38 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 7px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
     border-radius: 999px;
-    background: var(--indigo);
+    background: var(--pcl-primary);
     color: #fff;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .pcl-card-head .pcl-card-sub {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--slate-light);
-    font-weight: 500;
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--pcl-text-muted);
+    font-weight: 400;
 }
 
 .pcl-card-body {
-    padding: 18px;
+    padding: 24px;
 }
 
 /* ---------- Alerts ---------- */
 .pcl-alert {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: 10px;
-    font-size: 13px;
+    gap: 14px;
+    padding: 16px;
+    border-radius: var(--pcl-radius);
+    font-size: 14px;
     line-height: 1.5;
     border: 1px solid transparent;
+    box-shadow: var(--pcl-shadow-sm);
 }
 
 .pcl-alert.success {
@@ -124,29 +136,24 @@
 
 .pcl-alert-icon {
     flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    margin-top: 1px;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
 }
 
-.pcl-alert-body {
-    flex: 1;
-    min-width: 0;
-}
-
-.pcl-alert-body strong { display: block; margin-bottom: 4px; }
+.pcl-alert-body strong { display: block; margin-bottom: 6px; font-size: 14px; }
 
 .pcl-alert-url {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
-    margin-top: 6px;
-    padding: 8px 10px;
+    margin-top: 10px;
+    padding: 10px 12px;
     background: #fff;
     border: 1px solid #A7F3D0;
     border-radius: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .pcl-alert-url code {
@@ -163,126 +170,123 @@
 .pcl-form {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr) auto;
-    gap: 14px;
+    gap: 20px;
     align-items: end;
 }
 
 .pcl-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
 }
 
 .pcl-field label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--slate);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pcl-text-main);
 }
 
+/* Custom Select Styling */
 .pcl-field select {
     width: 100%;
-    min-height: 42px;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: #F8FAFC;
-    color: var(--midnight);
+    min-height: 44px;
+    padding: 10px 16px;
+    padding-right: 40px; /* Space for custom arrow */
+    border: 1px solid var(--pcl-border);
+    border-radius: 10px;
+    background-color: #F8FAFC;
+    color: var(--pcl-text-main);
     font: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
     outline: none;
-    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    transition: all 0.2s ease;
 }
 
 .pcl-field select:focus {
-    border-color: var(--indigo);
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    border-color: var(--pcl-primary);
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
 
 .pcl-help {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px dashed var(--border);
-    font-size: 12px;
-    color: var(--slate-light);
-    line-height: 1.55;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--pcl-border);
+    font-size: 13px;
+    color: var(--pcl-text-muted);
+    line-height: 1.6;
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: flex-start;
 }
 
-.pcl-help svg { flex-shrink: 0; margin-top: 2px; }
+.pcl-help svg { flex-shrink: 0; margin-top: 2px; color: var(--pcl-text-muted); }
 
 /* ---------- Buttons ---------- */
 .pcl-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 42px;
-    padding: 8px 18px;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 20px;
     border: 1px solid transparent;
-    border-radius: 9px;
-    background: var(--indigo);
+    border-radius: 10px;
+    background: var(--pcl-primary);
     color: #fff;
     font: inherit;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+    box-shadow: var(--pcl-shadow-sm);
+    transition: all 0.2s ease;
 }
 
-.pcl-btn:hover { background: var(--indigo-dark); }
-.pcl-btn:active { transform: translateY(1px); }
+.pcl-btn:hover { 
+    background: var(--pcl-primary-hover); 
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.pcl-btn:active { transform: translateY(0); box-shadow: none; }
 
 .pcl-btn.secondary {
     background: #fff;
-    border-color: var(--border);
-    color: var(--midnight);
+    border-color: var(--pcl-border);
+    color: var(--pcl-text-main);
+    box-shadow: none;
 }
 
 .pcl-btn.secondary:hover {
     background: #F8FAFC;
-    border-color: var(--slate-light);
-}
-
-.pcl-btn.ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--indigo);
-    padding: 6px 10px;
-    min-height: 32px;
-    font-size: 12px;
-}
-
-.pcl-btn.ghost:hover { background: #EEF2FF; }
-
-.pcl-btn.sm {
-    min-height: 32px;
-    padding: 5px 12px;
-    font-size: 12px;
+    border-color: #CBD5E1;
 }
 
 .pcl-btn.danger {
     background: #fff;
     border-color: #FECACA;
     color: #B91C1C;
-    padding: 5px 12px;
-    min-height: 32px;
-    font-size: 12px;
+    box-shadow: none;
 }
 
-.pcl-btn.danger:hover { background: #FEF2F2; }
+.pcl-btn.danger:hover { background: #FEF2F2; border-color: #FCA5A5; }
+
+.pcl-btn.sm {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 8px;
+}
 
 /* ---------- Table ---------- */
 .pcl-table-wrap {
     width: 100%;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
 .pcl-table {
@@ -293,16 +297,16 @@
 
 .pcl-table th,
 .pcl-table td {
-    padding: 12px 16px;
+    padding: 16px 24px;
     text-align: left;
     vertical-align: middle;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--pcl-border);
 }
 
 .pcl-table th {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--slate);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pcl-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: #F8FAFC;
@@ -310,46 +314,22 @@
 }
 
 .pcl-table td {
-    font-size: 13px;
-    color: var(--midnight);
+    font-size: 14px;
+    color: var(--pcl-text-main);
 }
 
 .pcl-table tr:last-child td { border-bottom: 0; }
-.pcl-table tbody tr:hover { background: #FAFBFD; }
-
-.pcl-table .pcl-class {
-    font-weight: 700;
-    color: var(--midnight);
-}
-
-.pcl-table .pcl-session {
-    color: var(--slate);
-    font-size: 12.5px;
-}
-
-.pcl-table .pcl-date {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px;
-    color: var(--slate);
-    white-space: nowrap;
-}
-
-.pcl-table .pcl-actions {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-}
+.pcl-table tbody tr:hover { background: #F8FAFC; }
 
 /* ---------- Status badges ---------- */
 .pcl-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+    font-size: 12px;
+    font-weight: 600;
     border: 1px solid transparent;
     white-space: nowrap;
 }
@@ -361,88 +341,79 @@
     border-radius: 50%;
 }
 
-.pcl-badge.active {
-    background: #ECFDF5;
-    border-color: #A7F3D0;
-    color: #065F46;
-}
-
+.pcl-badge.active { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
 .pcl-badge.active::before { background: #10B981; }
 
-.pcl-badge.expired {
-    background: #FEF3C7;
-    border-color: #FDE68A;
-    color: #92400E;
-}
-
+.pcl-badge.expired { background: #FEF3C7; border-color: #FDE68A; color: #92400E; }
 .pcl-badge.expired::before { background: #F59E0B; }
 
-.pcl-badge.revoked {
-    background: #F1F5F9;
-    border-color: #E2E8F0;
-    color: #475569;
-}
-
+.pcl-badge.revoked { background: #F1F5F9; border-color: #E2E8F0; color: #475569; }
 .pcl-badge.revoked::before { background: #94A3B8; }
 
-/* ---------- Empty state ---------- */
+/* ---------- Empty state (Redesigned) ---------- */
 .pcl-empty {
-    padding: 48px 24px;
+    padding: 64px 24px;
     text-align: center;
+    background: #F8FAFC;
+    border: 2px dashed #CBD5E1;
+    border-radius: var(--pcl-radius);
+    margin: 24px;
 }
 
 .pcl-empty-icon {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 16px;
-    border-radius: 16px;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 20px;
     background: #EEF2FF;
     display: grid;
     place-items: center;
-    color: var(--indigo);
+    color: var(--pcl-primary);
+    box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
 }
 
 .pcl-empty h3 {
-    margin: 0 0 6px;
-    font-size: 15px;
+    margin: 0 0 8px;
+    font-size: 18px;
     font-weight: 700;
-    color: var(--midnight);
+    color: var(--pcl-text-main);
 }
 
 .pcl-empty p {
-    margin: 0 0 20px;
-    font-size: 13px;
-    color: var(--slate-light);
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
-    line-height: 1.55;
+    margin: 0 auto 24px;
+    font-size: 14px;
+    color: var(--pcl-text-muted);
+    max-width: 420px;
+    line-height: 1.6;
 }
 
 /* ---------- Pagination ---------- */
 .pcl-pagination {
-    padding: 14px 18px;
-    border-top: 1px solid var(--border);
+    padding: 16px 24px;
+    border-top: 1px solid var(--pcl-border);
     background: #F8FAFC;
 }
 
 /* ---------- Toast ---------- */
 .pcl-toast {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: var(--midnight);
+    bottom: 24px;
+    right: 24px;
+    background: #1E293B;
     color: #fff;
-    padding: 12px 18px;
+    padding: 14px 20px;
     border-radius: 10px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
-    font-size: 13px;
-    font-weight: 600;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    font-size: 14px;
+    font-weight: 500;
     z-index: 100;
     opacity: 0;
-    transform: translateY(12px);
-    transition: opacity 0.2s, transform 0.2s;
+    transform: translateY(16px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .pcl-toast.show { opacity: 1; transform: translateY(0); }
@@ -454,22 +425,17 @@
 }
 
 @media (max-width: 640px) {
-    .pcl-form { grid-template-columns: 1fr; gap: 12px; }
-    .pcl-form .pcl-btn { grid-column: auto; }
-    .pcl-card-body { padding: 14px; }
-    .pcl-card-head { padding: 12px 14px; }
-    .pcl-table th { padding: 10px 12px; font-size: 10px; }
-    .pcl-table td { padding: 11px 12px; font-size: 12.5px; }
-    .pcl-table .pcl-actions { flex-direction: column; align-items: stretch; }
-    .pcl-table .pcl-actions .pcl-btn { width: 100%; justify-content: center; }
+    .pcl-form { grid-template-columns: 1fr; gap: 16px; }
+    .pcl-card-body { padding: 20px; }
+    .pcl-card-head { padding: 16px 20px; }
+    .pcl-empty { margin: 16px; padding: 40px 16px; }
+    .pcl-table th, .pcl-table td { padding: 12px 16px; }
 }
 </style>
 
 <div class="pcl-page">
 
-    {{-- ============================================================
-         PAGE HEADER
-         ============================================================ --}}
+    {{-- PAGE HEADER --}}
     <div class="pcl-header">
         <div>
             <h1>Public Class Assignment Links</h1>
@@ -480,7 +446,7 @@
         </div>
         <div class="pcl-header-actions">
             <a href="#pcl-create" class="pcl-btn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/>
                     <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
@@ -489,9 +455,7 @@
         </div>
     </div>
 
-    {{-- ============================================================
-         FLASH ALERTS
-         ============================================================ --}}
+    {{-- FLASH ALERTS --}}
     @if(session('public_link'))
         <div class="pcl-alert success" id="pcl-created-alert">
             <svg class="pcl-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -504,7 +468,7 @@
                 <div class="pcl-alert-url">
                     <code id="pcl-new-link">{{ session('public_link') }}</code>
                     <button type="button" class="pcl-btn sm secondary" onclick="pclCopy('pcl-new-link', this)">
-                        Copy
+                        Copy Link
                     </button>
                 </div>
             </div>
@@ -523,19 +487,11 @@
         </div>
     @endif
 
-    {{-- ============================================================
-         CREATE NEW LINK
-         ============================================================ --}}
+    {{-- CREATE NEW LINK --}}
     <section class="pcl-card" id="pcl-create">
         <header class="pcl-card-head">
             <div>
-                <h2>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"/>
-                        <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                    Create New Link
-                </h2>
+                <h2>Create New Link</h2>
                 <p class="pcl-card-sub">Choose a class and expiry window. The link is generated instantly.</p>
             </div>
         </header>
@@ -547,9 +503,9 @@
                 @csrf
 
                 <div class="pcl-field">
-                    <label for="class_arm_id">Class</label>
+                    <label for="class_arm_id">Select Class</label>
                     <select id="class_arm_id" name="class_arm_id" required>
-                        <option value="">Select class</option>
+                        <option value="">Choose a class...</option>
                         @foreach($classes as $class)
                             <option value="{{ $class->id }}">{{ $class->full_name }}</option>
                         @endforeach
@@ -557,7 +513,7 @@
                 </div>
 
                 <div class="pcl-field">
-                    <label for="expires_in_days">Link expiry</label>
+                    <label for="expires_in_days">Link Expiry</label>
                     <select id="expires_in_days" name="expires_in_days" required>
                         <option value="1">1 day</option>
                         <option value="3">3 days</option>
@@ -568,15 +524,15 @@
                 </div>
 
                 <button class="pcl-btn" type="submit">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    Create link
+                    Generate Link
                 </button>
             </form>
 
             <div class="pcl-help">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     <line x1="12" y1="16" x2="12" y2="12"/>
                     <line x1="12" y1="8" x2="12.01" y2="8"/>
@@ -589,9 +545,7 @@
         </div>
     </section>
 
-    {{-- ============================================================
-         ACTIVE LINKS
-         ============================================================ --}}
+    {{-- ACTIVE LINKS --}}
     <section class="pcl-card">
         <header class="pcl-card-head">
             <div>
@@ -625,11 +579,11 @@
                                     : ($link->expires_at->isPast() ? 'expired' : 'active');
                             @endphp
                             <tr>
-                                <td class="pcl-class">{{ $link->classArm->full_name }}</td>
-                                <td class="pcl-session">
+                                <td class="pcl-class" style="font-weight:600;">{{ $link->classArm->full_name }}</td>
+                                <td class="pcl-session" style="color: var(--pcl-text-muted);">
                                     {{ $link->session->name }} · {{ $link->term->name }}
                                 </td>
-                                <td class="pcl-date">
+                                <td class="pcl-date" style="font-family: ui-monospace, monospace; font-size: 13px; color: var(--pcl-text-muted);">
                                     {{ $link->expires_at->format('d M Y, H:i') }}
                                 </td>
                                 <td>
@@ -638,20 +592,20 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="pcl-actions">
+                                    <div class="pcl-actions" style="display:flex; gap:8px; justify-content:flex-end;">
                                         @if($status === 'active')
                                             <form method="post"
                                                   action="{{ route('students.public-class-links.revoke', $link) }}"
                                                   onsubmit="return confirm('Revoke this link? Students will no longer be able to use it.');">
                                                 @csrf
                                                 @method('PATCH')
-                                                <button class="pcl-btn danger" type="submit">
+                                                <button class="pcl-btn danger sm" type="submit">
                                                     Revoke
                                                 </button>
                                             </form>
                                         @else
-                                            <span style="color: var(--slate-light); font-size: 11.5px;">
-                                                {{ $status === 'revoked' ? 'No action' : 'Expired' }}
+                                            <span style="color: var(--pcl-text-muted); font-size: 12px; font-style: italic;">
+                                                {{ $status === 'revoked' ? 'No action needed' : 'Expired' }}
                                             </span>
                                         @endif
                                     </div>
@@ -672,7 +626,7 @@
             {{-- Empty state --}}
             <div class="pcl-empty">
                 <div class="pcl-empty-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                     </svg>
@@ -683,7 +637,7 @@
                     during registration. You can revoke it any time.
                 </p>
                 <a href="#pcl-create" class="pcl-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"/>
                         <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
@@ -695,7 +649,12 @@
 </div>
 
 {{-- Toast for copy feedback --}}
-<div class="pcl-toast" id="pcl-toast">Copied to clipboard</div>
+<div class="pcl-toast" id="pcl-toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    Copied to clipboard!
+</div>
 
 <script>
 (function () {
@@ -727,12 +686,12 @@
                 clearTimeout(window.__pclToastTimer);
                 window.__pclToastTimer = setTimeout(function () {
                     toast.classList.remove('show');
-                }, 1800);
+                }, 2500);
             }
             if (btn) {
-                var original = btn.textContent;
-                btn.textContent = 'Copied';
-                setTimeout(function () { btn.textContent = original; }, 1500);
+                var original = btn.innerHTML;
+                btn.innerHTML = 'Copied!';
+                setTimeout(function () { btn.innerHTML = original; }, 2000);
             }
         };
 
