@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EduCore — Student Admission</title>
+<title>{{ $tenant->name }} — Student Admission</title>
 <style>
 /* ============================================================
    Premium Student Admission Form
@@ -40,6 +40,35 @@ body {
     background: #FFFFFF;
 }
 
+.school-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.school-logo {
+    width: 64px;
+    height: 64px;
+    flex: 0 0 64px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #FFFFFF;
+}
+.school-brand-copy { min-width: 0; }
+.school-name {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #1E293B;
+}
+.school-address {
+    margin: 5px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #64748B;
+    max-width: 680px;
+}
 .brand {
     font-weight: 800;
     font-size: 14px;
@@ -302,6 +331,18 @@ body {
     .adm-header, .adm-body {
         padding: 24px;
     }
+    .school-brand {
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .school-logo {
+        width: 52px;
+        height: 52px;
+        flex-basis: 52px;
+    }
+    .school-name {
+        font-size: 18px;
+    }
     .adm-actions {
         flex-direction: column;
     }
@@ -318,6 +359,19 @@ body {
         
         {{-- HEADER --}}
         <div class="adm-header">
+            <div class="school-brand">
+                @if($tenant->logo_path)
+                    <img class="school-logo" src="{{ \Illuminate\Support\Facades\Storage::url($tenant->logo_path) }}" alt="{{ $tenant->name }} logo">
+                @else
+                    <div class="school-logo" aria-hidden="true"></div>
+                @endif
+                <div class="school-brand-copy">
+                    <h2 class="school-name">{{ $tenant->name }}</h2>
+                    @if($tenant->address)
+                        <p class="school-address">{{ $tenant->address }}</p>
+                    @endif
+                </div>
+            </div>
             <div class="brand">EduCore</div>
             <div class="session-badge">{{ $session->name }} · {{ $term->name }}</div>
             <h1>Student Admission</h1>
