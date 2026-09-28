@@ -7,13 +7,13 @@
 
 <style>
 /* ============================================================
-   Public Class Links — Streamlined & Expanded Layout
+   Public Class Links — Premium Form Refinement
    ============================================================ */
 
-/* 1. Page Container — Expanded to reduce side empty space */
+/* 1. Page Container */
 .pcl-page {
     width: 100%;
-    max-width: 1200px; /* Expanded from 900px to fill more space */
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     box-sizing: border-box;
@@ -77,44 +77,72 @@
     padding: 24px;
 }
 
-/* 3. Form Layout — Expanded grid to utilize wider space */
+/* ============================================================
+   3. Premium Attractive Form (UPDATED)
+   ============================================================ */
+.pcl-form-container {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    margin-bottom: 24px;
+}
+
 .pcl-form {
-    display: grid;
-    grid-template-columns: minmax(0, 400px) minmax(0, 250px) auto; /* Wider inputs */
+    display: flex;
+    align-items: flex-end;
     gap: 20px;
-    align-items: end;
-    max-width: 100%;
+    flex-wrap: wrap;
 }
 
 .pcl-field {
+    flex: 1;
+    min-width: 280px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 0;
+    gap: 8px;
 }
 
 .pcl-field label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: #1E293B;
 }
 
+.pcl-input-wrapper {
+    position: relative;
+}
+
+.pcl-input-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #F59E0B; /* Gold icon */
+    pointer-events: none;
+    width: 20px;
+    height: 20px;
+}
+
 .pcl-field select {
     width: 100%;
-    min-height: 44px;
-    padding: 8px 12px;
-    padding-right: 36px;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
+    min-height: 52px;
+    padding: 12px 16px;
+    padding-left: 48px; /* Space for icon */
+    padding-right: 40px;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
     background-color: #F8FAFC;
     color: #1E293B;
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 500;
     outline: none;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 12px center;
+    background-position: right 16px center;
     transition: all 0.2s ease;
 }
 
@@ -122,6 +150,12 @@
     border-color: #F59E0B;
     background-color: #fff;
     box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+}
+
+.pcl-form .pcl-btn {
+    min-height: 52px;
+    padding: 0 32px;
+    font-size: 15px;
 }
 
 .pcl-help {
@@ -146,25 +180,22 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 44px;
-    padding: 8px 24px;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 12px;
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
     color: #1E293B;
     font: inherit;
-    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+    box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
     transition: all 0.2s ease;
 }
 
 .pcl-btn:hover { 
     background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 6px 8px rgba(245, 158, 11, 0.3);
 }
 .pcl-btn:active { transform: translateY(0); }
 
@@ -232,7 +263,7 @@
 
 /* Responsive Breakpoints */
 @media (max-width: 768px) {
-    .pcl-form { grid-template-columns: 1fr; }
+    .pcl-form { flex-direction: column; align-items: stretch; }
     .pcl-form .pcl-btn { width: 100%; }
     .pcl-page { padding: 16px; }
 }
@@ -272,28 +303,37 @@
         </header>
 
         <div class="pcl-card-body">
-            <form method="post" action="{{ route('students.public-class-links.generate') }}" class="pcl-form">
-                @csrf
-                <div class="pcl-field">
-                    <label for="expires_in_days">Link Expiry</label>
-                    <select id="expires_in_days" name="expires_in_days" required>
-                        <option value="1">1 day</option>
-                        <option value="3">3 days</option>
-                        <option value="7" selected>7 days</option>
-                        <option value="14">14 days</option>
-                        <option value="30">30 days</option>
-                    </select>
+            {{-- UPDATED PREMIUM FORM SECTION --}}
+            <div class="pcl-form-container">
+                <form method="post" action="{{ route('students.public-class-links.generate') }}" class="pcl-form">
+                    @csrf
+                    <div class="pcl-field">
+                        <label for="expires_in_days">Link Expiry</label>
+                        <div class="pcl-input-wrapper">
+                            <svg class="pcl-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <select id="expires_in_days" name="expires_in_days" required>
+                                <option value="1">1 day</option>
+                                <option value="3">3 days</option>
+                                <option value="7" selected>7 days</option>
+                                <option value="14">14 days</option>
+                                <option value="30">30 days</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="pcl-btn" type="submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Generate Link
+                    </button>
+                </form>
+
+                <div class="pcl-help">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span>The same link can be reused for <strong>any known class/class arm</strong>. The person using the link selects the destination class before entering admission numbers. Only <strong>active students without a current class</strong> can be assigned.</span>
                 </div>
-
-                <button class="pcl-btn" type="submit">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    Generate Link
-                </button>
-            </form>
-
-            <div class="pcl-help">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <span>The same link can be reused for <strong>any known class/class arm</strong>. The person using the link selects the destination class before entering admission numbers. Only <strong>active students without a current class</strong> can be assigned.</span>
             </div>
         </div>
     </section>
@@ -403,7 +443,7 @@ document.querySelectorAll('a[href="#pcl-create"]').forEach(function (a) {
     a.addEventListener('click', function (e) {
         e.preventDefault();
         document.getElementById('pcl-create').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        setTimeout(function () { var s = document.getElementById('class_arm_id'); if (s) s.focus(); }, 400);
+        setTimeout(function () { var s = document.getElementById('expires_in_days'); if (s) s.focus(); }, 400);
     });
 });
 </script>
