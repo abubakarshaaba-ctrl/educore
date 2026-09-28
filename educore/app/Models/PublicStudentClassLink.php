@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Models;
+namespace App\\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\\Database\\Eloquent\\Relations\\BelongsTo;
 
 class PublicStudentClassLink extends BaseTenantModel
 {
