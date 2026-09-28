@@ -51,14 +51,6 @@ class PublicStudentClassAssignmentController extends Controller
         DB::transaction(function () use ($link, $tenantId, $numbers, &$assigned, &$skipped, $request, $userAgent) {
             $classArm = ClassArm::where('tenant_id', $tenantId)->whereKey($link->class_arm_id)->lockForUpdate()->firstOrFail();
 
-            if (method_exists($classArm, 'getAttribute') && $classArm->getAttribute('capacity')) {
-                $current = Student::where('tenant_id', $tenantId)->where('current_class_arm_id', $classArm->id)
-                    ->where('status', Student::STATUS_ACTIVE)->lockForUpdate()->count();
-                if ($current >= (int) $classArm->getAttribute('capacity')) {
-                    throw ValidationException::withMessages(['admission_numbers' => 'The selected class has reached its configured capacity.']);
-                }
-            }
-
             foreach ($numbers as $number) {
                 $student = Student::where('tenant_id', $tenantId)
                     ->whereRaw('UPPER(admission_number) = ?', [$number])
@@ -74,6 +66,15 @@ class PublicStudentClassAssignmentController extends Controller
                     ->where('term_id', $link->term_id)->exists();
 
                 if ($exists) { $skipped[] = $number . ' — enrollment already exists'; continue; }
+
+                if ($classArm->getAttribute('capacity')) {
+                    $current = Student::where('tenant_id', $tenantId)->where('current_class_arm_id', $classArm->id)
+                        ->where('status', Student::STATUS_ACTIVE)->lockForUpdate()->count();
+                    if ($current >= (int) $classArm->getAttribute('capacity')) {
+                        $skipped[] = $number . ' — destination class is at capacity';
+                        continue;
+                    }
+                }
 
                 $student->forceFill(['current_class_arm_id' => $classArm->id])->save();
 
@@ -114,8 +115,9 @@ class PublicStudentClassAssignmentController extends Controller
     private function resolve(string $token): PublicStudentClassLink
     {
         abort_unless(preg_match('/^[A-Za-z0-9]{40,100}$/', $token), 404);
-        $link = PublicStudentClassLink::where('token_hash', hash('sha256', $token))->first();
+        $link = PublicStudentClassLink::withoutTenantScope()->where('token_hash', hash('sha256', $token))->first();
         abort_unless($link && $link->isUsable(), 404);
+        TenantContext::set((int) $link->tenant_id);
         return $link;
     }
 
@@ -125,7 +127,7 @@ class PublicStudentClassAssignmentController extends Controller
         $links = PublicStudentClassLink::with(['classArm.classLevel','session','term'])
             ->where('tenant_id', $tenantId)->latest()->paginate(15);
         $classes = ClassArm::with('classLevel')->where('tenant_id', $tenantId)->orderBy('class_level_id')->orderBy('name')->get();
-        $sessions = AppModelsAcademicSession::where('tenant_id', $tenantId)->where('is_current', true)->get();
+        $sessions = AcademicSession::where('tenant_id', $tenantId)->where('is_current', true)->get();
         return view('students.public-class-links', compact('links','classes','sessions'));
     }
 
@@ -160,7 +162,7 @@ class PublicStudentClassAssignmentController extends Controller
     private function activeContext(int $tenantId): array
     {
         $session = AppModelsAcademicSession::where('tenant_id',$tenantId)->where('is_current',true)->first();
-        $term = $session ? AppModelsTerm::where('tenant_id',$tenantId)->where('session_id',$session->id)->where('is_current',true)->first() : null;
+        $term = $session ? Term::where('tenant_id',$tenantId)->where('session_id',$session->id)->where('is_current',true)->first() : null;
         if (!$session || !$term) abort(422, 'An active academic session and term are required.');
         return compact('session','term');
     }
