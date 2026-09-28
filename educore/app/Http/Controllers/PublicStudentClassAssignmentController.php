@@ -1,19 +1,19 @@
 <?php
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Models\\AuditLog;
-use App\\Models\\ClassArm;
-use App\\Models\\PublicStudentClassLink;
-use App\\Models\\Student;
-use App\\Models\\StudentEnrollment;
-use App\\Models\\AcademicSession;
-use App\\Models\\Term;
-use App\\Models\\Scopes\\TenantContext;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
-use Illuminate\\Validation\\ValidationException;
+use App\Models\AuditLog;
+use App\Models\ClassArm;
+use App\Models\PublicStudentClassLink;
+use App\Models\Student;
+use App\Models\StudentEnrollment;
+use App\Models\AcademicSession;
+use App\Models\Term;
+use App\Models\Scopes\TenantContext;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PublicStudentClassAssignmentController extends Controller
 {
@@ -43,7 +43,7 @@ class PublicStudentClassAssignmentController extends Controller
             'admission_numbers' => ['required', 'string', 'max:5000'],
         ]);
 
-        $numbers = collect(preg_split('/[\\s,;]+/', strtoupper(trim($data['admission_numbers']))))
+        $numbers = collect(preg_split('/[\s,;]+/', strtoupper(trim($data['admission_numbers']))))
             ->map(fn ($v) => trim($v))
             ->filter()
             ->unique()
