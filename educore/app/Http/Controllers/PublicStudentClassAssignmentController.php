@@ -23,9 +23,15 @@ class PublicStudentClassAssignmentController extends Controller
         return view('public.student-class-assignment', [
             'link' => $link,
             'classArm' => $link->classArm()->with('classLevel')->first(),
+            'classes' => ClassArm::with('classLevel')
+                ->where('tenant_id', $link->tenant_id)
+                ->orderBy('class_level_id')
+                ->orderBy('name')
+                ->get(),
             'session' => $link->session,
             'term' => $link->term,
             'lookup' => $request->old('admission_numbers', ''),
+            'selectedClassArmId' => $request->old('class_arm_id', $link->class_arm_id),
         ]);
     }
 
@@ -33,6 +39,7 @@ class PublicStudentClassAssignmentController extends Controller
     {
         $link = $this->resolve($token);
         $data = $request->validate([
+            'class_arm_id' => ['required', 'integer'],
             'admission_numbers' => ['required', 'string', 'max:5000'],
         ]);
 
@@ -51,8 +58,11 @@ class PublicStudentClassAssignmentController extends Controller
         $skipped = [];
         $userAgent = substr((string) $request->userAgent(), 0, 1000);
 
-        DB::transaction(function () use ($link, $tenantId, $numbers, &$assigned, &$skipped, $request, $userAgent) {
-            $classArm = ClassArm::where('tenant_id', $tenantId)->whereKey($link->class_arm_id)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($link, $tenantId, $numbers, $data, &$assigned, &$skipped, $request, $userAgent) {
+            $classArm = ClassArm::where('tenant_id', $tenantId)
+                ->whereKey($data['class_arm_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
             foreach ($numbers as $number) {
                 $student = Student::where('tenant_id', $tenantId)
@@ -111,8 +121,19 @@ class PublicStudentClassAssignmentController extends Controller
             }
         });
 
-        return back()->with('success', $assigned . ' student(s) assigned to ' . $link->classArm->full_name . '.')
-            ->with('skipped', $skipped);
+        return back()
+            ->with('success', $assigned . ' student(s) assigned to ' . $this->classLabel($data['class_arm_id'], $tenantId) . '.')
+            ->with('skipped', $skipped)
+            ->withInput($request->only(['class_arm_id', 'admission_numbers']));
+    }
+
+    private function classLabel(int $classArmId, int $tenantId): string
+    {
+        $class = ClassArm::with('classLevel')
+            ->where('tenant_id', $tenantId)
+            ->whereKey($classArmId)
+            ->first();
+        return $class?->full_name ?? 'the selected class';
     }
 
     private function resolve(string $token): PublicStudentClassLink
@@ -138,17 +159,18 @@ class PublicStudentClassAssignmentController extends Controller
     {
         $tenantId = (int) auth()->user()->tenant_id;
         $data = $request->validate([
-            'class_arm_id' => ['required','integer'],
             'expires_in_days' => ['required','integer','in:1,3,7,14,30'],
         ]);
         $context = $this->activeContext($tenantId);
-        $class = ClassArm::where('tenant_id',$tenantId)->whereKey($data['class_arm_id'])->firstOrFail();
 
         $token = Str::random(64);
         PublicStudentClassLink::create([
-            'tenant_id'=>$tenantId,'class_arm_id'=>$class->id,
-            'session_id'=>$context['session']->id,'term_id'=>$context['term']->id,
-            'token_hash'=>hash('sha256',$token),'expires_at'=>now()->addDays((int)$data['expires_in_days']),
+            'tenant_id'=>$tenantId,
+            'class_arm_id'=>null,
+            'session_id'=>$context['session']->id,
+            'term_id'=>$context['term']->id,
+            'token_hash'=>hash('sha256',$token),
+            'expires_at'=>now()->addDays((int)$data['expires_in_days']),
             'created_by'=>auth()->id(),
         ]);
 
