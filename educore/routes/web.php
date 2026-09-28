@@ -306,6 +306,11 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('{curriculumSource}/download', [\App\Http\Controllers\AcademicRepositoryController::class, 'download'])->whereNumber('curriculumSource')->name('download');
     });
 
+Route::get('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'index'])
+    ->middleware('throttle:30,1')->name('public.student-class-assignment');
+Route::post('/student-class-assignment/{token}', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'store'])
+    ->middleware('throttle:10,1')->name('public.student-class-assignment.store');
+
 Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.onboarding.complete', \App\Http\Middleware\StaffOnly::class, \App\Http\Middleware\CheckModuleAccess::class])->group(function () {
 
     // Dashboard
@@ -316,6 +321,12 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::get('/',          [\App\Http\Controllers\StudentBulkUploadController::class, 'index'])->name('index');
         Route::get('/template',  [\App\Http\Controllers\StudentBulkUploadController::class, 'template'])->name('template');
         Route::post('/import',   [\App\Http\Controllers\StudentBulkUploadController::class, 'import'])->name('import');
+    });
+
+    Route::prefix('students/public-class-links')->name('students.public-class-links.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'manage'])->name('index');
+        Route::post('/', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'generate'])->name('generate');
+        Route::patch('{link}/revoke', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'revoke'])->name('revoke');
     });
 
     // â”€â”€ Student Transfers (must be before students resource) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

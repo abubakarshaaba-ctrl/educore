@@ -1,0 +1,13 @@
+@extends('layouts.app')
+@section('title','Public Class Assignment Links')
+@section('page-title','Public Class Assignment Links')
+<div style="max-width:1100px">
+@if(session('public_link'))<div style="padding:14px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;margin-bottom:16px"><strong>Link created.</strong><div style="word-break:break-all;margin-top:6px">{{ session('public_link') }}</div></div>@endif
+@if(session('success'))<div style="padding:14px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;margin-bottom:16px">{{ session('success') }}</div>@endif
+<form method="post" action="{{ route('students.public-class-links.generate') }}" style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end;margin-bottom:24px">@csrf
+<div><label>Class</label><select name="class_arm_id" required style="width:100%;padding:10px"><option value="">Select class</option>@foreach($classes as $class)<option value="{{ $class->id }}">{{ $class->full_name }}</option>@endforeach</select></div>
+<div><label>Expires</label><select name="expires_in_days" required style="width:100%;padding:10px"><option value="1">1 day</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></div>
+<button type="submit" style="padding:10px 16px">Create link</button></form>
+<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px">Class</th><th style="text-align:left;padding:10px">Session / Term</th><th style="text-align:left;padding:10px">Expires</th><th style="text-align:left;padding:10px">Status</th><th></th></tr></thead><tbody>
+@forelse($links as $link)<tr><td style="padding:10px">{{ $link->classArm->full_name }}</td><td style="padding:10px">{{ $link->session->name }} / {{ $link->term->name }}</td><td style="padding:10px">{{ $link->expires_at->format('d M Y H:i') }}</td><td style="padding:10px">{{ $link->revoked_at ? 'Revoked' : ($link->expires_at->isPast() ? 'Expired' : 'Active') }}</td><td style="padding:10px">@if(!$link->revoked_at && $link->expires_at->isFuture())<form method="post" action="{{ route('students.public-class-links.revoke',$link) }}" style="display:inline">@csrf @method('PATCH')<button type="submit">Revoke</button></form>@endif</td></tr>@empty<tr><td colspan="5" style="padding:16px">No public class links yet.</td></tr>@endforelse
+</tbody></table></div>{{ $links->links() }}</div>
