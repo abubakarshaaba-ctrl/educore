@@ -164,7 +164,7 @@ class PublicStudentClassAssignmentController extends Controller
 
     private function activeContext(int $tenantId): array
     {
-        $session = AppModelsAcademicSession::where('tenant_id',$tenantId)->where('is_current',true)->first();
+        $session = AcademicSession::where('tenant_id',$tenantId)->where('is_current',true)->first();
         $term = $session ? Term::where('tenant_id',$tenantId)->where('session_id',$session->id)->where('is_current',true)->first() : null;
         if (!$session || !$term) abort(422, 'An active academic session and term are required.');
         return compact('session','term');
