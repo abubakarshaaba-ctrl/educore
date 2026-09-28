@@ -323,6 +323,12 @@ Route::middleware(['auth', 'active.account', 'tenant', 'tenant.access', 'tenant.
         Route::post('/import',   [\App\Http\Controllers\StudentBulkUploadController::class, 'import'])->name('import');
     });
 
+    Route::prefix('students/public-class-links')->name('students.public-class-links.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'manage'])->name('index');
+        Route::post('/', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'generate'])->name('generate');
+        Route::patch('{link}/revoke', [\App\Http\Controllers\PublicStudentClassAssignmentController::class, 'revoke'])->name('revoke');
+    });
+
     // â”€â”€ Student Transfers (must be before students resource) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Route::prefix('students/transfers')->name('students.transfers.')->group(function () {
         Route::get('/',                     [\App\Http\Controllers\StudentTransferController::class, 'index'])->name('index');
