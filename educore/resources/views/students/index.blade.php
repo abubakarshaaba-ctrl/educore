@@ -181,6 +181,7 @@
         @can('student.archive.view')
             <a href="{{ route('students.archive.index') }}" class="btn btn-secondary">Student Archive</a>
         @endcan
+        <a href="{{ route('students.public-class-links.index') }}" class="btn btn-secondary">Public Class Link</a>
         <a href="{{ route('students.bulk-upload.index') }}" class="btn btn-secondary">
             <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
             Bulk Upload
