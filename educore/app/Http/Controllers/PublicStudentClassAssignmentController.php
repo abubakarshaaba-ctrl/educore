@@ -9,87 +9,116 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\AcademicSession;
 use App\Models\Term;
+use App\Models\Guardian;
 use App\Models\Scopes\TenantContext;
+use App\Services\PlanLimitService;
+use App\Services\StudentIdGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PublicStudentClassAssignmentController extends Controller
 {
+    public function __construct(private readonly StudentIdGenerator $studentIdGenerator) {}
+
     public function index(Request $request, string $token)
     {
         $link = $this->resolve($token);
-        return view('public.student-class-assignment', [
+
+        return view('public.student-class-admission', [
             'link' => $link,
             'classArm' => $link->classArm()->with('classLevel')->first(),
-            'classes' => ClassArm::with('classLevel')
-                ->where('tenant_id', $link->tenant_id)
-                ->orderBy('class_level_id')
-                ->orderBy('name')
-                ->get(),
+            'classes' => ClassArm::with('classLevel')->where('tenant_id', $link->tenant_id)->orderBy('class_level_id')->orderBy('name')->get(),
             'session' => $link->session,
             'term' => $link->term,
-            'lookup' => $request->old('admission_numbers', ''),
-            'selectedClassArmId' => $request->old('class_arm_id', $link->class_arm_id),
+            'geo' => \App\Data\NigeriaGeo::all(),
         ]);
     }
 
     public function store(Request $request, string $token)
     {
         $link = $this->resolve($token);
+        $tenantId = (int) $link->tenant_id;
+
         $data = $request->validate([
-            'class_arm_id' => ['required', 'integer'],
-            'admission_numbers' => ['required', 'string', 'max:5000'],
+            'guardian_first_name' => ['required', 'string', 'max:100'],
+            'guardian_last_name' => ['required', 'string', 'max:100'],
+            'guardian_phone' => ['required', 'string', 'max:20'],
+            'guardian_email' => ['nullable', 'email', 'max:150'],
+            'guardian_relationship' => ['required', 'in:father,mother,guardian,other'],
+            'students' => ['required', 'array', 'min:1', 'max:20'],
+            'students.*.first_name' => ['required', 'string', 'max:100'],
+            'students.*.last_name' => ['required', 'string', 'max:100'],
+            'students.*.middle_name' => ['nullable', 'string', 'max:100'],
+            'students.*.gender' => ['required', 'in:male,female,other'],
+            'students.*.date_of_birth' => ['required', 'date', 'before:today'],
+            'students.*.current_class_arm_id' => ['required', 'integer', Rule::exists('class_arms', 'id')->where('tenant_id', $tenantId)],
+            'students.*.admission_date' => ['required', 'date'],
+            'students.*.state_of_origin' => ['nullable', 'string', 'max:100'],
+            'students.*.lga_of_origin' => ['nullable', 'string', 'max:100'],
+            'students.*.religion' => ['nullable', 'string', 'max:50'],
+            'students.*.blood_group' => ['nullable', 'string', 'max:5'],
+            'students.*.genotype' => ['nullable', 'string', 'max:5'],
         ]);
 
-        $numbers = collect(preg_split('/[\s,;]+/', strtoupper(trim($data['admission_numbers']))))
-            ->map(fn ($v) => trim($v))
-            ->filter()
-            ->unique()
-            ->values();
+        $tenant = $link->tenant;
+        $studentCount = count($data['students']);
+        $remaining = PlanLimitService::remainingStudentSlots($tenant);
 
-        if ($numbers->isEmpty()) {
-            throw ValidationException::withMessages(['admission_numbers' => 'Enter at least one admission number.']);
+        if ($remaining < $studentCount) {
+            throw ValidationException::withMessages([
+                'students' => "This submission contains {$studentCount} students, but only {$remaining} student slot(s) remain in the school's current capacity.",
+            ]);
         }
 
-        $tenantId = (int) $link->tenant_id;
-        $assigned = 0;
-        $skipped = [];
+        $created = [];
         $userAgent = substr((string) $request->userAgent(), 0, 1000);
 
-        DB::transaction(function () use ($link, $tenantId, $numbers, $data, &$assigned, &$skipped, $request, $userAgent) {
-            $classArm = ClassArm::where('tenant_id', $tenantId)
-                ->whereKey($data['class_arm_id'])
-                ->lockForUpdate()
-                ->firstOrFail();
+        DB::transaction(function () use ($link, $tenantId, $data, &$created, $request, $userAgent) {
+            $guardian = Guardian::query()->create([
+                'tenant_id' => $tenantId,
+                'first_name' => $data['guardian_first_name'],
+                'last_name' => $data['guardian_last_name'],
+                'phone' => $data['guardian_phone'],
+                'email' => $data['guardian_email'] ?? null,
+                'relationship' => $data['guardian_relationship'],
+            ]);
 
-            foreach ($numbers as $number) {
-                $student = Student::where('tenant_id', $tenantId)
-                    ->whereRaw('UPPER(admission_number) = ?', [$number])
-                    ->where('status', Student::STATUS_ACTIVE)
-                    ->lockForUpdate()->first();
-
-                if (!$student) { $skipped[] = $number . ' — student not found or inactive'; continue; }
-                if ($student->current_class_arm_id) { $skipped[] = $number . ' — already assigned to a class'; continue; }
-
-                $exists = StudentEnrollment::where('tenant_id', $tenantId)
-                    ->where('student_id', $student->id)
-                    ->where('session_id', $link->session_id)
-                    ->where('term_id', $link->term_id)->exists();
-
-                if ($exists) { $skipped[] = $number . ' — enrollment already exists'; continue; }
+            foreach ($data['students'] as $studentData) {
+                $classArm = ClassArm::where('tenant_id', $tenantId)->whereKey($studentData['current_class_arm_id'])->lockForUpdate()->firstOrFail();
 
                 if ($classArm->getAttribute('capacity')) {
-                    $current = Student::where('tenant_id', $tenantId)->where('current_class_arm_id', $classArm->id)
-                        ->where('status', Student::STATUS_ACTIVE)->lockForUpdate()->count();
+                    $current = Student::where('tenant_id', $tenantId)->where('current_class_arm_id', $classArm->id)->where('status', Student::STATUS_ACTIVE)->lockForUpdate()->count();
                     if ($current >= (int) $classArm->getAttribute('capacity')) {
-                        $skipped[] = $number . ' — destination class is at capacity';
-                        continue;
+                        throw ValidationException::withMessages([
+                            'students' => 'The selected class "' . $classArm->full_name . '" is at capacity. No students from this submission were admitted.',
+                        ]);
                     }
                 }
 
-                $student->forceFill(['current_class_arm_id' => $classArm->id])->save();
+                $admissionNumber = $this->studentIdGenerator->generate();
+
+                $student = Student::create([
+                    'tenant_id' => $tenantId,
+                    'first_name' => $studentData['first_name'],
+                    'last_name' => $studentData['last_name'],
+                    'middle_name' => $studentData['middle_name'] ?? null,
+                    'gender' => $studentData['gender'],
+                    'date_of_birth' => $studentData['date_of_birth'],
+                    'current_class_arm_id' => $classArm->id,
+                    'admission_date' => $studentData['admission_date'],
+                    'admission_number' => $admissionNumber,
+                    'state_of_origin' => $studentData['state_of_origin'] ?? null,
+                    'lga_of_origin' => $studentData['lga_of_origin'] ?? null,
+                    'religion' => $studentData['religion'] ?? null,
+                    'blood_group' => $studentData['blood_group'] ?? null,
+                    'genotype' => $studentData['genotype'] ?? null,
+                    'status' => Student::STATUS_ACTIVE,
+                ]);
+
+                $student->guardians()->attach($guardian->id, ['tenant_id' => $tenantId, 'is_primary_contact' => true]);
 
                 StudentEnrollment::create([
                     'tenant_id' => $tenantId,
@@ -97,7 +126,7 @@ class PublicStudentClassAssignmentController extends Controller
                     'class_arm_id' => $classArm->id,
                     'session_id' => $link->session_id,
                     'term_id' => $link->term_id,
-                    'start_date' => now()->toDateString(),
+                    'start_date' => $studentData['admission_date'],
                     'end_date' => null,
                     'is_current' => true,
                     'status' => StudentEnrollment::STATUS_ACTIVE,
@@ -105,35 +134,27 @@ class PublicStudentClassAssignmentController extends Controller
                 ]);
 
                 $student->syncCompulsorySubjects($link->session_id);
+
                 AuditLog::create([
                     'tenant_id' => $tenantId,
                     'actor_user_id' => null,
                     'auditable_type' => PublicStudentClassLink::class,
                     'auditable_id' => $link->id,
                     'action' => 'public_student_class_assignment.completed',
-                    'old_values' => ['current_class_arm_id' => null],
-                    'new_values' => ['student_id' => $student->id, 'class_arm_id' => $classArm->id],
-                    'reason' => 'Assignment through public class link',
+                    'old_values' => ['student_id' => null],
+                    'new_values' => ['student_id' => $student->id, 'admission_number' => $student->admission_number, 'class_arm_id' => $classArm->id, 'guardian_id' => $guardian->id],
+                    'reason' => 'New student admission through public reusable class link',
                     'ip_address' => $request->ip(),
                     'user_agent' => $userAgent,
                 ]);
-                $assigned++;
+
+                $created[] = ['name' => $student->full_name, 'admission_number' => $student->admission_number, 'class' => $classArm->full_name];
             }
         });
 
-        return back()
-            ->with('success', $assigned . ' student(s) assigned to ' . $this->classLabel($data['class_arm_id'], $tenantId) . '.')
-            ->with('skipped', $skipped)
-            ->withInput($request->only(['class_arm_id', 'admission_numbers']));
-    }
-
-    private function classLabel(int $classArmId, int $tenantId): string
-    {
-        $class = ClassArm::with('classLevel')
-            ->where('tenant_id', $tenantId)
-            ->whereKey($classArmId)
-            ->first();
-        return $class?->full_name ?? 'the selected class';
+        return redirect()->route('public.student-class-assignment', ['token' => $token])
+            ->with('success', 'Student admission completed successfully.')
+            ->with('created_students', $created);
     }
 
     private function resolve(string $token): PublicStudentClassLink
@@ -148,47 +169,44 @@ class PublicStudentClassAssignmentController extends Controller
     public function manage()
     {
         $tenantId = (int) auth()->user()->tenant_id;
-        $links = PublicStudentClassLink::with(['classArm.classLevel','session','term'])
-            ->where('tenant_id', $tenantId)->latest()->paginate(15);
+        $links = PublicStudentClassLink::with(['classArm.classLevel', 'session', 'term'])->where('tenant_id', $tenantId)->latest()->paginate(15);
         $classes = ClassArm::with('classLevel')->where('tenant_id', $tenantId)->orderBy('class_level_id')->orderBy('name')->get();
         $sessions = AcademicSession::where('tenant_id', $tenantId)->where('is_current', true)->get();
-        return view('students.public-class-links', compact('links','classes','sessions'));
+        return view('students.public-class-links', compact('links', 'classes', 'sessions'));
     }
 
     public function generate(Request $request)
     {
         $tenantId = (int) auth()->user()->tenant_id;
-        $data = $request->validate([
-            'expires_in_days' => ['required','integer','in:1,3,7,14,30'],
-        ]);
+        $data = $request->validate(['expires_in_days' => ['required', 'integer', 'in:1,3,7,14,30']]);
         $context = $this->activeContext($tenantId);
-
         $token = Str::random(64);
+
         PublicStudentClassLink::create([
-            'tenant_id'=>$tenantId,
-            'class_arm_id'=>null,
-            'session_id'=>$context['session']->id,
-            'term_id'=>$context['term']->id,
-            'token_hash'=>hash('sha256',$token),
-            'expires_at'=>now()->addDays((int)$data['expires_in_days']),
-            'created_by'=>auth()->id(),
+            'tenant_id' => $tenantId,
+            'class_arm_id' => null,
+            'session_id' => $context['session']->id,
+            'term_id' => $context['term']->id,
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDays((int) $data['expires_in_days']),
+            'created_by' => auth()->id(),
         ]);
 
-        return back()->with('public_link', route('public.student-class-assignment', ['token'=>$token]));
+        return back()->with('public_link', route('public.student-class-assignment', ['token' => $token]));
     }
 
     public function revoke(PublicStudentClassLink $link)
     {
-        abort_unless((int)$link->tenant_id === (int)auth()->user()->tenant_id, 404);
-        $link->update(['revoked_at'=>now()]);
-        return back()->with('success','Public class assignment link revoked.');
+        abort_unless((int) $link->tenant_id === (int) auth()->user()->tenant_id, 404);
+        $link->update(['revoked_at' => now()]);
+        return back()->with('success', 'Public class assignment link revoked.');
     }
 
     private function activeContext(int $tenantId): array
     {
-        $session = AcademicSession::where('tenant_id',$tenantId)->where('is_current',true)->first();
-        $term = $session ? Term::where('tenant_id',$tenantId)->where('session_id',$session->id)->where('is_current',true)->first() : null;
+        $session = AcademicSession::where('tenant_id', $tenantId)->where('is_current', true)->first();
+        $term = $session ? Term::where('tenant_id', $tenantId)->where('session_id', $session->id)->where('is_current', true)->first() : null;
         if (!$session || !$term) abort(422, 'An active academic session and term are required.');
-        return compact('session','term');
+        return compact('session', 'term');
     }
 }
