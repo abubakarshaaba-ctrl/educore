@@ -267,23 +267,13 @@
         <header class="pcl-card-head">
             <div>
                 <h2>Create New Link</h2>
-                <p class="pcl-card-sub">Choose a class and expiry window. The link is generated instantly.</p>
+                <p class="pcl-card-sub">Generate one reusable secure link for assigning students to any class or class arm.</p>
             </div>
         </header>
 
         <div class="pcl-card-body">
             <form method="post" action="{{ route('students.public-class-links.generate') }}" class="pcl-form">
                 @csrf
-                <div class="pcl-field">
-                    <label for="class_arm_id">Select Class</label>
-                    <select id="class_arm_id" name="class_arm_id" required>
-                        <option value="">Choose a class...</option>
-                        @foreach($classes as $class)
-                            <option value="{{ $class->id }}">{{ $class->full_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
                 <div class="pcl-field">
                     <label for="expires_in_days">Link Expiry</label>
                     <select id="expires_in_days" name="expires_in_days" required>
@@ -303,7 +293,7 @@
 
             <div class="pcl-help">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <span>Only <strong>active students without a class</strong> will be able to use this link. Revoking a link instantly stops new assignments but does not affect students already assigned.</span>
+                <span>The same link can be reused for <strong>any known class/class arm</strong>. The person using the link selects the destination class before entering admission numbers. Only <strong>active students without a current class</strong> can be assigned.</span>
             </div>
         </div>
     </section>
@@ -313,7 +303,7 @@
         <header class="pcl-card-head">
             <div>
                 <h2>Active Links @if($links->count()) <span class="pcl-count">{{ $links->total() }}</span> @endif</h2>
-                <p class="pcl-card-sub">All public class assignment links you have generated.</p>
+                <p class="pcl-card-sub">Reusable public class assignment links. New links are not tied to a specific class.</p>
             </div>
         </header>
 
@@ -322,7 +312,7 @@
                 <table class="pcl-table">
                     <thead>
                         <tr>
-                            <th>Class</th>
+                            <th>Class Access</th>
                             <th>Session / Term</th>
                             <th>Expires</th>
                             <th>Status</th>
@@ -335,7 +325,7 @@
                                 $status = $link->revoked_at ? 'revoked' : ($link->expires_at->isPast() ? 'expired' : 'active');
                             @endphp
                             <tr>
-                                <td style="font-weight:600;">{{ $link->classArm->full_name }}</td>
+                                <td style="font-weight:600;">{{ $link->classArm?->full_name ?? 'Any class / class arm' }}</td>
                                 <td style="color: #64748B;">{{ $link->session->name }} · {{ $link->term->name }}</td>
                                 <td style="font-family: monospace; font-size: 13px; color: #64748B;">{{ $link->expires_at->format('d M Y, H:i') }}</td>
                                 <td><span class="pcl-badge {{ $status }}">{{ ucfirst($status) }}</span></td>
@@ -369,7 +359,7 @@
                     </svg>
                 </div>
                 <h3>No public links yet</h3>
-                <p>Create your first link so unassigned students can select a class during registration. You can revoke it any time.</p>
+                <p>Create one secure link and reuse it for different classes as needed. You can revoke it any time.</p>
                 <a href="#pcl-create" class="pcl-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Create your first link
