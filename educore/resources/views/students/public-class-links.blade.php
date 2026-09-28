@@ -3,148 +3,141 @@
 @section('page-title','Public Class Assignment Links')
 
 <style>
-.public-class-links-page {
-    width: 100%;
-    max-width: 1180px;
-}
-
-.public-class-links-card {
-    background: var(--white, #fff);
-    border: 1px solid var(--border, #e4e8ef);
-    border-radius: 10px;
-    box-shadow: var(--shadow, 0 1px 3px rgba(0,0,0,.08));
-    padding: 20px;
-}
-
 .public-class-links-form {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(150px, 1fr) auto;
-    gap: 12px;
-    align-items: end;
-    margin-top: 18px;
+    display:grid;
+    grid-template-columns:minmax(0,2fr) minmax(160px,1fr) auto;
+    gap:12px;
+    align-items:end;
 }
 
 .public-class-links-field label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--midnight, #071e45);
+    display:block;
+    margin-bottom:4px;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--slate-light);
 }
 
 .public-class-links-field select {
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 10px;
-    border: 1px solid var(--border, #e4e8ef);
-    border-radius: 7px;
-    background: #fff;
-    color: var(--midnight, #071e45);
-    font: inherit;
+    width:100%;
+    min-height:38px;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#F8FAFC;
+    color:var(--midnight);
+    font:inherit;
+    font-size:13px;
+    outline:none;
+}
+
+.public-class-links-field select:focus {
+    border-color:var(--indigo);
+    background:#fff;
 }
 
 .public-class-links-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-    margin-top: 22px;
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
 }
 
 .public-class-links-table {
-    width: 100%;
-    min-width: 720px;
-    border-collapse: collapse;
+    width:100%;
+    min-width:720px;
+    border-collapse:collapse;
 }
 
 .public-class-links-table th,
 .public-class-links-table td {
-    padding: 11px 10px;
-    border-bottom: 1px solid var(--border, #e4e8ef);
-    text-align: left;
-    vertical-align: middle;
+    padding:11px 10px;
+    border-bottom:1px solid var(--border);
+    text-align:left;
+    vertical-align:middle;
 }
 
 .public-class-links-table th {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--slate, #475569);
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    background: #f8fafc;
+    font-size:11px;
+    font-weight:800;
+    color:var(--slate);
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    background:#F8FAFC;
 }
 
-.public-class-links-table td {
-    font-size: 12px;
-}
+.public-class-links-table td { font-size:12px; }
 
 .public-class-links-alert {
-    padding: 12px 14px;
-    border-radius: 8px;
-    margin-bottom: 14px;
-    border: 1px solid #a7f3d0;
-    background: #ecfdf5;
-    color: #065f46;
+    padding:12px 16px;
+    border-radius:8px;
+    margin-bottom:16px;
+    border:1px solid #A7F3D0;
+    background:#ECFDF5;
+    color:#065F46;
+    font-size:13px;
 }
 
-.public-class-links-alert a {
-    color: inherit;
-}
+.public-class-links-alert a { color:inherit; }
 
 .public-class-links-link {
-    margin-top: 5px;
-    overflow-wrap: anywhere;
-    font-size: 12px;
+    margin-top:4px;
+    overflow-wrap:anywhere;
+    font-size:12px;
 }
 
 .public-class-links-btn {
-    min-height: 40px;
-    padding: 8px 15px;
-    border: 0;
-    border-radius: 7px;
-    background: var(--brand-navy, #071e45);
-    color: #fff;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
+    min-height:40px;
+    padding:8px 15px;
+    border:0;
+    border-radius:8px;
+    background:var(--indigo);
+    color:#fff;
+    font:inherit;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
 }
 
-.public-class-links-btn:hover {
-    background: var(--brand-gold, #d79a21);
-}
+.public-class-links-btn:hover { background:var(--indigo-dark); }
 
 .public-class-links-revoke {
-    padding: 6px 10px;
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    background: #fff;
-    color: #b91c1c;
-    font: inherit;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
+    padding:6px 10px;
+    border:1px solid #FECACA;
+    border-radius:7px;
+    background:#fff;
+    color:#B91C1C;
+    font:inherit;
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
 }
 
-.public-class-links-revoke:hover {
-    background: #fef2f2;
+.public-class-links-revoke:hover { background:#FEF2F2; }
+
+@media (max-width:980px) {
+    .public-class-links-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .public-class-links-btn { grid-column:1/-1; width:100%; }
 }
 
-@media (max-width: 760px) {
-    .public-class-links-card {
-        padding: 14px;
-    }
-
-    .public-class-links-form {
-        grid-template-columns: 1fr;
-    }
-
-    .public-class-links-btn {
-        width: 100%;
-    }
+@media (max-width:640px) {
+    .public-class-links-form { grid-template-columns:1fr; gap:10px; }
+    .public-class-links-btn { grid-column:auto; width:100%; }
+    .public-class-links-table th { font-size:9px; padding:8px 10px; }
+    .public-class-links-table td { font-size:11px; padding:9px 10px; }
 }
 </style>
 
-<div class="public-class-links-page">
+<div>
+    <div class="page-header">
+        <div>
+            <h1>Public Class Assignment Links</h1>
+            <div class="hint">Create secure links for assigning active students who do not yet have a class.</div>
+        </div>
+    </div>
     @if(session('public_link'))
         <div class="public-class-links-alert">
             <strong>Link created.</strong>
@@ -156,7 +149,7 @@
         <div class="public-class-links-alert">{{ session('success') }}</div>
     @endif
 
-    <section class="public-class-links-card">
+    <section class="ec-card" style="padding:18px;">
         <form method="post" action="{{ route('students.public-class-links.generate') }}" class="public-class-links-form">
             @csrf
             <div class="public-class-links-field">
