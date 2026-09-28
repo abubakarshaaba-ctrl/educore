@@ -3,52 +3,26 @@
 @section('title', 'Public Class Assignment Links')
 @section('page-title', 'Public Class Assignment Links')
 
-@section('content') {{-- CRITICAL FIX: Wraps content so it doesn't fall to the bottom --}}
+@section('content')
 
 <style>
 /* ============================================================
-   Public Class Links — Premium Final Refinement
+   Public Class Links — Streamlined & Expanded Layout
    ============================================================ */
 
-/* 1. Page Container — Locks the layout to prevent drifting */
+/* 1. Page Container — Expanded to reduce side empty space */
 .pcl-page {
     width: 100%;
-    max-width: 900px;
+    max-width: 1200px; /* Expanded from 900px to fill more space */
     margin: 0 auto;
-    padding: 24px;
+    padding: 20px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
 }
 
-/* 2. Header Layout */
-.pcl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-
-.pcl-header h1 {
-    margin: 0 0 6px;
-    font-size: 24px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #1E293B;
-}
-
-.pcl-header .pcl-sub {
-    color: #64748B;
-    font-size: 14px;
-    max-width: 600px;
-    line-height: 1.5;
-    margin: 0;
-}
-
-/* 3. Premium Cards */
+/* 2. Premium Cards */
 .pcl-card {
     background: #fff;
     border: 1px solid #E2E8F0;
@@ -103,11 +77,11 @@
     padding: 24px;
 }
 
-/* 4. Form Layout — Fixed grid prevents stretching */
+/* 3. Form Layout — Expanded grid to utilize wider space */
 .pcl-form {
     display: grid;
-    grid-template-columns: minmax(0, 300px) minmax(0, 200px) auto;
-    gap: 16px;
+    grid-template-columns: minmax(0, 400px) minmax(0, 250px) auto; /* Wider inputs */
+    gap: 20px;
     align-items: end;
     max-width: 100%;
 }
@@ -151,7 +125,7 @@
 }
 
 .pcl-help {
-    margin-top: 20px;
+    margin-top: 24px;
     padding: 16px;
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
@@ -166,18 +140,18 @@
 
 .pcl-help svg { flex-shrink: 0; margin-top: 2px; color: #F59E0B; }
 
-/* 5. Premium Buttons */
+/* 4. Premium Buttons */
 .pcl-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     min-height: 44px;
-    padding: 8px 20px;
+    padding: 8px 24px;
     border: 1px solid transparent;
     border-radius: 10px;
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-    color: #1E293B; /* Dark text for perfect contrast on gold */
+    color: #1E293B;
     font: inherit;
     font-size: 14px;
     font-weight: 700;
@@ -210,7 +184,7 @@
 }
 .pcl-btn.danger:hover { background: #FEF2F2; border-color: #FCA5A5; }
 
-/* 6. Table */
+/* 5. Table */
 .pcl-table-wrap { width: 100%; overflow-x: auto; }
 .pcl-table { width: 100%; min-width: 600px; border-collapse: collapse; }
 .pcl-table th, .pcl-table td { padding: 16px 24px; text-align: left; border-bottom: 1px solid #E2E8F0; }
@@ -219,7 +193,7 @@
 .pcl-table tr:last-child td { border-bottom: 0; }
 .pcl-table tbody tr:hover { background: #F8FAFC; }
 
-/* 7. Badges */
+/* 6. Badges */
 .pcl-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; border-radius: 999px;
@@ -232,7 +206,7 @@
 .pcl-badge.revoked { background: #F1F5F9; border-color: #E2E8F0; color: #475569; }
 .pcl-badge.revoked::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #94A3B8; }
 
-/* 8. Premium Empty State */
+/* 7. Premium Empty State */
 .pcl-empty {
     padding: 48px 24px;
     text-align: center;
@@ -260,33 +234,11 @@
 @media (max-width: 768px) {
     .pcl-form { grid-template-columns: 1fr; }
     .pcl-form .pcl-btn { width: 100%; }
-    .pcl-header { flex-direction: column; align-items: flex-start; }
-    .pcl-header-actions { width: 100%; }
-    .pcl-header-actions .pcl-btn { width: 100%; }
+    .pcl-page { padding: 16px; }
 }
 </style>
 
 <div class="pcl-page">
-
-    {{-- PAGE HEADER --}}
-    <div class="pcl-header">
-        <div>
-            <h1>Public Class Assignment Links</h1>
-            <p class="pcl-sub">
-                Create secure, time-limited links so active students who don't yet
-                have a class can select one during registration or first login.
-            </p>
-        </div>
-        <div class="pcl-header-actions">
-            <a href="#pcl-create" class="pcl-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Create new link
-            </a>
-        </div>
-    </div>
 
     {{-- FLASH ALERTS --}}
     @if(session('public_link'))
@@ -466,4 +418,4 @@ document.querySelectorAll('a[href="#pcl-create"]').forEach(function (a) {
 });
 </script>
 
-@endsection {{-- END SECTION CONTENT --}}
+@endsection
